@@ -513,21 +513,21 @@ class SubmissionStatus(
             "statusVersion": self.status_version,
         }
 
-        # Add optional fields only if they have values
-        if self.status is not None:
-            request_body["status"] = self.status
-        if self.score is not None:
-            request_body["score"] = self.score
-        if self.report is not None:
-            request_body["report"] = self.report
-        if self.entity_id is not None:
-            request_body["entityId"] = self.entity_id
-        if self.version_number is not None:
-            request_body["versionNumber"] = self.version_number
-        if self.can_cancel is not None:
-            request_body["canCancel"] = self.can_cancel
-        if self.cancel_requested is not None:
-            request_body["cancelRequested"] = self.cancel_requested
+        # Add optional fields if they are set
+        optional_fields = {
+            "status": "status",
+            "score": "score",
+            "report": "report",
+            "entity_id": "entityId",
+            "version_number": "versionNumber",
+            "can_cancel": "canCancel",
+            "cancel_requested": "cancelRequested",
+        }
+
+        for field_name, api_field_name in optional_fields.items():
+            field_value = getattr(self, field_name)
+            if field_value is not None:
+                request_body[api_field_name] = field_value
 
         if self.annotations and len(self.annotations) > 0:
             request_body["annotations"] = to_submission_status_annotations(
