@@ -741,7 +741,7 @@ class TestSubmissionStatusCancellation:
         assert updated_status.cancel_requested is False
 
         # WHEN I cancel the submission
-        test_submission.cancel()
+        test_submission.cancel(synapse_client=self.syn)
 
         # THEN I should be able to retrieve the updated status showing cancellation was requested
         final_status = SubmissionStatus(id=submission_id).get(synapse_client=self.syn)
