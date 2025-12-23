@@ -18,8 +18,8 @@ syn.login()
 
 # REQUIRED: Set these to your actual Synapse IDs
 # Do NOT leave these as None - the script will not work properly
-EVALUATION_ID = "9617645"  # Replace with the evaluation queue ID you want to submit to
-ENTITY_ID = "syn59211514"  # Replace with the entity ID you want to submit
+EVALUATION_ID = None  # Replace with the evaluation queue ID you want to submit to
+ENTITY_ID = None  # Replace with the entity ID you want to submit
 
 assert EVALUATION_ID is not None, "EVALUATION_ID must be set to the evaluation queue ID"
 assert (
