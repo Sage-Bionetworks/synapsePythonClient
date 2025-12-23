@@ -14,6 +14,7 @@ from logging import Logger
 from pathlib import Path
 from string import whitespace
 from typing import (
+    TYPE_CHECKING,
     AbstractSet,
     Any,
     Callable,
@@ -28,6 +29,8 @@ from typing import (
 )
 
 from deprecated import deprecated
+
+from synapseclient.core.utils import test_import_pandas
 
 try:
     from dataclasses_json import config, dataclass_json
@@ -59,12 +62,19 @@ except ImportError:
     Namespace = None  # type: ignore
 
 from synapseclient import Synapse
+from synapseclient.core.typing_utils import DataFrame as DATA_FRAME_TYPE
+from synapseclient.core.typing_utils import np, nx
 
-DATA_FRAME_TYPE = TypeVar("pd.DataFrame")
-NUMPY_INT_64 = TypeVar("np.int64")
-MULTI_GRAPH_TYPE = TypeVar("nx.MultiDiGraph")
-GRAPH_TYPE = TypeVar("nx.Graph")
-DI_GRAPH_TYPE = TypeVar("nx.DiGraph")
+if TYPE_CHECKING:
+    NUMPY_INT_64 = np.int64
+    MULTI_GRAPH_TYPE = nx.MultiDiGraph
+    GRAPH_TYPE = nx.Graph
+    DI_GRAPH_TYPE = nx.DiGraph
+else:
+    NUMPY_INT_64 = object
+    MULTI_GRAPH_TYPE = object
+    GRAPH_TYPE = object
+    DI_GRAPH_TYPE = object
 
 X = TypeVar("X")
 
@@ -320,6 +330,7 @@ def find_and_convert_ints(
         is_int: dataframe with boolean values indicating which cells were converted to type int
 
     """
+    test_import_pandas()
     from pandarallel import pandarallel
     from pandas import DataFrame
     from pandas.api.types import is_integer
@@ -371,6 +382,7 @@ def convert_floats(dataframe: DATA_FRAME_TYPE) -> DATA_FRAME_TYPE:
     Returns:
         float_df: dataframe with values that were converted to type float. Columns are type object
     """
+    test_import_pandas()
     from pandas import to_numeric
 
     # create a separate copy of the manifest
@@ -388,6 +400,7 @@ def convert_floats(dataframe: DATA_FRAME_TYPE) -> DATA_FRAME_TYPE:
 
 
 def get_str_pandas_na_values() -> List[str]:
+    test_import_pandas()
     from pandas._libs.parsers import STR_NA_VALUES  # type: ignore
 
     STR_NA_VALUES_FILTERED = deepcopy(STR_NA_VALUES)
@@ -418,6 +431,7 @@ def read_csv(
     Returns:
         pd.DataFrame: The dataframe created from the CSV file or buffer.
     """
+    test_import_pandas()
     from pandas import read_csv as pandas_read_csv
 
     STR_NA_VALUES_FILTERED = get_str_pandas_na_values()
@@ -461,6 +475,7 @@ def load_df(
         pd.DataFrame: a processed dataframe for manifests or unprocessed df for data models and
       where indicated
     """
+    test_import_pandas()
     from pandas import DataFrame
 
     # Read CSV to df as type specified in kwargs
@@ -640,6 +655,7 @@ class DataModelCSVParser:
                     Relationships: {
                                     CSV Header: Value}}}
         """
+        test_import_pandas()
         from pandas import isnull
 
         # Check csv schema follows expectations.
@@ -708,6 +724,7 @@ class DataModelCSVParser:
             dict: A dictionary containing the parsed column type information if present
             else an empty dict
         """
+        test_import_pandas()
         from pandas import isna
 
         column_type = attr.get("columnType")
@@ -779,6 +796,7 @@ class DataModelCSVParser:
             A dictionary containing the format value if it exists
             else an empty dict
         """
+        test_import_pandas()
         from pandas import isna
 
         format_value = attribute_dict.get("Format")
@@ -4041,6 +4059,7 @@ def parsed_model_as_dataframe(
     Returns:
         pd.DataFrame, DataFrame representation of the parsed model.
     """
+    test_import_pandas()
     from pandas import DataFrame
 
     # Convert the parsed model dictionary to a DataFrame

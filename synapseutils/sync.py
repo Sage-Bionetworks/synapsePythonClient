@@ -9,16 +9,7 @@ import os
 import re
 import sys
 from dataclasses import dataclass
-from typing import (
-    TYPE_CHECKING,
-    Dict,
-    Iterable,
-    List,
-    NamedTuple,
-    Tuple,
-    TypeVar,
-    Union,
-)
+from typing import TYPE_CHECKING, Dict, Iterable, List, NamedTuple, Tuple, Union
 
 from deprecated import deprecated
 from tqdm import tqdm
@@ -26,7 +17,7 @@ from tqdm import tqdm
 from synapseclient import File as SynapseFile
 from synapseclient import Folder as SynapseFolder
 from synapseclient import Project as SynapseProject
-from synapseclient import Synapse, table
+from synapseclient import Synapse
 from synapseclient.api import get_entity, get_entity_id_bundle2
 from synapseclient.core import utils
 from synapseclient.core.async_utils import wrap_async_to_sync
@@ -39,6 +30,7 @@ from synapseclient.core.exceptions import (
     SynapseProvenanceError,
 )
 from synapseclient.core.transfer_bar import shared_download_progress_bar
+from synapseclient.core.typing_utils import DataFrame as DATA_FRAME_TYPE
 from synapseclient.core.upload.multipart_upload_async import (
     shared_progress_bar as upload_shared_progress_bar,
 )
@@ -49,6 +41,7 @@ from synapseclient.core.utils import (
     id_of,
     is_synapse_id_str,
     is_url,
+    test_import_pandas,
 )
 from synapseclient.entity import is_container
 from synapseclient.models import Activity, File, UsedEntity, UsedURL
@@ -57,9 +50,6 @@ from .monitor import notify_me_async
 
 if TYPE_CHECKING:
     from synapseclient.models import Folder, Project
-
-
-DATA_FRAME_TYPE = TypeVar("pd.DataFrame")
 
 # When new fields are added to the manifest they will also need to be added to
 # file.py#_determine_fields_to_ignore_in_merge
@@ -1055,7 +1045,7 @@ async def readManifestFile_async(syn: Synapse, manifestFile: str) -> DATA_FRAME_
     Returns:
         A pandas dataframe if the manifest is validated.
     """
-    table.test_import_pandas()
+    test_import_pandas()
     import pandas as pd
 
     if manifestFile is sys.stdin:

@@ -6,9 +6,11 @@ This module provides library functions for creating record-based metadata curati
 in Synapse, including RecordSet creation, CurationTask setup, and Grid view initialization.
 """
 import tempfile
-from typing import Any, Dict, List, Optional, Tuple, TypeVar
+from typing import Any, Dict, List, Optional, Tuple
 
 from synapseclient import Synapse
+from synapseclient.core.typing_utils import DataFrame as DATA_FRAME_TYPE
+from synapseclient.core.utils import test_import_pandas
 from synapseclient.models import (
     CurationTask,
     Grid,
@@ -16,8 +18,6 @@ from synapseclient.models import (
     RecordBasedMetadataTaskProperties,
     RecordSet,
 )
-
-DATA_FRAME_TYPE = TypeVar("pd.DataFrame")
 
 
 def extract_property_titles(schema_data: Dict[str, Any]) -> List[str]:
@@ -50,6 +50,7 @@ def create_dataframe_from_titles(titles: List[str]) -> DATA_FRAME_TYPE:
     Returns:
         Empty DataFrame with titles as columns
     """
+    test_import_pandas()
     import pandas as pd
 
     if not titles:

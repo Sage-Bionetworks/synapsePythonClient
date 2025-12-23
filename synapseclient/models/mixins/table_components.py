@@ -11,7 +11,7 @@ from collections import OrderedDict
 from dataclasses import dataclass, field
 from datetime import datetime
 from io import BytesIO
-from typing import Any, Dict, List, Optional, Protocol, Tuple, TypeVar, Union
+from typing import Any, Dict, List, Optional, Protocol, Tuple, Union
 
 from tqdm import tqdm
 from tqdm.contrib.logging import logging_redirect_tqdm
@@ -35,6 +35,8 @@ from synapseclient.core.download.download_functions import (
     ensure_download_location_is_directory,
 )
 from synapseclient.core.exceptions import SynapseTimeoutError
+from synapseclient.core.typing_utils import DataFrame as DATA_FRAME_TYPE
+from synapseclient.core.typing_utils import Series as SERIES_TYPE
 from synapseclient.core.upload.multipart_upload_async import (
     multipart_upload_dataframe_async,
     multipart_upload_file_async,
@@ -45,6 +47,7 @@ from synapseclient.core.utils import (
     extract_synapse_id_from_query,
     log_dataclass_diff,
     merge_dataclass_entities,
+    test_import_pandas,
 )
 from synapseclient.models import Activity
 from synapseclient.models.services.search import get_id
@@ -108,9 +111,6 @@ RESERVED_COLUMN_NAMES = [
     "ROW_HASH_CODE",
 ]
 
-DATA_FRAME_TYPE = TypeVar("pd.DataFrame")
-SERIES_TYPE = TypeVar("pd.Series")
-
 LIST_COLUMN_TYPES = {
     "STRING_LIST",
     "INTEGER_LIST",
@@ -119,25 +119,6 @@ LIST_COLUMN_TYPES = {
     "ENTITYID_LIST",
     "USERID_LIST",
 }
-
-
-def test_import_pandas() -> None:
-    """This function is called within other functions and methods to ensure that pandas is installed."""
-    try:
-        import pandas as pd  # noqa F401
-    # used to catch when pandas isn't installed
-    except ModuleNotFoundError:
-        raise ModuleNotFoundError(
-            """\n\nThe pandas package is required for this function!\n
-        Most functions in the synapseclient package don't require the
-        installation of pandas, but some do. Please refer to the installation
-        instructions at: http://pandas.pydata.org/ or
-        https://python-docs.synapse.org/tutorials/installation/#installation-guide-for-pypi-users.
-        \n\n\n"""
-        )
-    # catch other errors (see SYNPY-177)
-    except:  # noqa
-        raise
 
 
 def row_labels_from_id_and_version(rows):

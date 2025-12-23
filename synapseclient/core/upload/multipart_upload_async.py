@@ -79,7 +79,6 @@ from typing import (
     Mapping,
     Optional,
     Tuple,
-    TypeVar,
     Union,
 )
 
@@ -107,6 +106,7 @@ from synapseclient.core.exceptions import (
 )
 from synapseclient.core.otel_config import get_tracer
 from synapseclient.core.retry import with_retry_time_based
+from synapseclient.core.typing_utils import DataFrame as DATA_FRAME_TYPE
 from synapseclient.core.upload.upload_utils import (
     copy_md5_fn,
     copy_part_request_body_provider_fn,
@@ -122,8 +122,6 @@ from synapseclient.core.utils import md5_for_file_hex
 
 if TYPE_CHECKING:
     from synapseclient import Synapse
-
-DATA_FRAME_TYPE = TypeVar("pd.DataFrame")
 
 # AWS limits
 MAX_NUMBER_OF_PARTS = 10000
