@@ -42,7 +42,7 @@ As an organizer of a Synapse challenge, you will
 ### 1. Make a submission to an existing evaluation queue on Synapse
 
 ```python
-{!docs/tutorials/python/tutorial_scripts/submission_participant.py!lines=30-51}
+{!docs/tutorials/python/tutorial_scripts/submission_participant.py!lines=32-54}
 ```
 
 ### 2. Fetch your existing submission
@@ -54,25 +54,25 @@ As an organizer of a Synapse challenge, you will
 ### 3. Count your submissions
 
 ```python
-{!docs/tutorials/python/tutorial_scripts/submission_participant.py!lines=72-92}
+{!docs/tutorials/python/tutorial_scripts/submission_participant.py!lines=72-88}
 ```
 
 ### 4. Fetch all of your submissions from an existing evaluation queue on Synapse
 
 ```python
-{!docs/tutorials/python/tutorial_scripts/submission_participant.py!lines=93-107}
+{!docs/tutorials/python/tutorial_scripts/submission_participant.py!lines=90-101}
 ```
 
 ### 5. Check the status of your submission
 
 ```python
-{!docs/tutorials/python/tutorial_scripts/submission_participant.py!lines=108-130}
+{!docs/tutorials/python/tutorial_scripts/submission_participant.py!lines=103-125}
 ```
 
 ### 6. Cancel your submission
 
 ```python
-{!docs/tutorials/python/tutorial_scripts/submission_participant.py!lines=131-157}
+{!docs/tutorials/python/tutorial_scripts/submission_participant.py!lines=126-143}
 ```
 
 ## 2. Organizing a Synapse challenge
@@ -80,31 +80,31 @@ As an organizer of a Synapse challenge, you will
 ### 1. Annotate a submission to score it
 
 ```python
-{!docs/tutorials/python/tutorial_scripts/submission_organizer.py!lines=29-57}
+{!docs/tutorials/python/tutorial_scripts/submission_organizer.py!lines=33-60}
 ```
 
 ### 2. Batch-update submission statuses
 
 ```python
-{!docs/tutorials/python/tutorial_scripts/submission_organizer.py!lines=58-101}
+{!docs/tutorials/python/tutorial_scripts/submission_organizer.py!lines=62-99}
 ```
 
 ### 3. Fetch the submission bundle for a given submission
 
 ```python
-{!docs/tutorials/python/tutorial_scripts/submission_organizer.py!lines=102-142}
+{!docs/tutorials/python/tutorial_scripts/submission_organizer.py!lines=101-136}
 ```
 
 ### 4. Allow cancellation of submissions
 
 ```python
-{!docs/tutorials/python/tutorial_scripts/submission_organizer.py!lines=143-195}
+{!docs/tutorials/python/tutorial_scripts/submission_organizer.py!lines=138-177}
 ```
 
 ### 5. Delete submissions
 
 ```python
-{!docs/tutorials/python/tutorial_scripts/submission_organizer.py!lines=196-229}
+{!docs/tutorials/python/tutorial_scripts/submission_organizer.py!lines=179-209}
 ```
 
 ## Source code for this tutorial
