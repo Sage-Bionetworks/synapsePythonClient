@@ -47,7 +47,7 @@ class SubmissionSynchronousProtocol(Protocol):
 
             submission = Submission(
                 entity_id="syn123456",
-                evaluation_id="9614543",
+                evaluation_id="9999999",
                 name="My Submission"
             ).store()
             print(submission.id)
@@ -363,7 +363,7 @@ class Submission(
 
         # Get submissions for the current user (omit user_id)
         my_submissions = list(Submission.get_user_submissions(
-            evaluation_id="9614543"
+            evaluation_id="9999999"
         ))
         print(f"Found {len(my_submissions)} of my submissions")
         ```
@@ -629,7 +629,7 @@ class Submission(
 
                 submission = Submission(
                     entity_id="syn123456",
-                    evaluation_id="9614543",
+                    evaluation_id="9999999",
                     name="My Submission"
                 )
                 submission = await submission.store_async()

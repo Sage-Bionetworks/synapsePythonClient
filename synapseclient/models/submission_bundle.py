@@ -51,7 +51,7 @@ class SubmissionBundleSynchronousProtocol(Protocol):
             syn.login()
 
             bundles = list(SubmissionBundle.get_evaluation_submission_bundles(
-                evaluation_id="9614543",
+                evaluation_id="9999999",
                 status="SCORED"
             ))
             print(f"Found {len(bundles)} submission bundles")
@@ -135,7 +135,7 @@ class SubmissionBundle(SubmissionBundleSynchronousProtocol):
 
         # Get all submission bundles for an evaluation
         bundles = SubmissionBundle.get_evaluation_submission_bundles(
-            evaluation_id="9614543",
+            evaluation_id="9999999",
             status="SCORED"
         )
 

@@ -134,7 +134,7 @@ class SubmissionStatusSynchronousProtocol(Protocol):
             syn.login()
 
             statuses = SubmissionStatus.get_all_submission_statuses(
-                evaluation_id="9614543",
+                evaluation_id="9999999",
                 status="SCORED",
                 limit=50
             )
@@ -184,7 +184,7 @@ class SubmissionStatusSynchronousProtocol(Protocol):
 
             # Retrieve existing statuses to update
             statuses = SubmissionStatus.get_all_submission_statuses(
-                evaluation_id="9614543",
+                evaluation_id="9999999",
                 status="RECEIVED"
             )
 
@@ -194,7 +194,7 @@ class SubmissionStatusSynchronousProtocol(Protocol):
 
             # Update statuses in batch
             response = SubmissionStatus.batch_update_submission_statuses(
-                evaluation_id="9614543",
+                evaluation_id="9999999",
                 statuses=statuses,
                 is_first_batch=True,
                 is_last_batch=True
@@ -306,7 +306,7 @@ class SubmissionStatus(
 
         # Batch update all statuses
         response = SubmissionStatus.batch_update_submission_statuses(
-            evaluation_id="9614543",
+            evaluation_id="9999999",
             statuses=statuses
         )
         print(f"Batch update completed: {response}")
@@ -709,7 +709,7 @@ class SubmissionStatus(
             syn.login()
 
             statuses = await SubmissionStatus.get_all_submission_statuses_async(
-                evaluation_id="9614543",
+                evaluation_id="9999999",
                 status="SCORED",
                 limit=50
             )
@@ -774,7 +774,7 @@ class SubmissionStatus(
 
             # Retrieve existing statuses to update
             statuses = SubmissionStatus.get_all_submission_statuses(
-                evaluation_id="9614543",
+                evaluation_id="9999999",
                 status="RECEIVED"
                 )
 
@@ -784,7 +784,7 @@ class SubmissionStatus(
 
             # Update statuses in batch
             response = await SubmissionStatus.batch_update_submission_statuses_async(
-                evaluation_id="9614543",
+                evaluation_id="9999999",
                 statuses=statuses,
                 is_first_batch=True,
                 is_last_batch=True
