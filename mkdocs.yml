@@ -40,7 +40,7 @@ nav:
           - Materialized View: tutorials/python/materializedview.md
           - Submission View: tutorials/python/submissionview.md
           - Sharing Settings: tutorials/python/sharing_settings.md
-          # - Wiki: tutorials/python/wiki.md
+          - Wiki: tutorials/python/wiki.md
           # - Team: tutorials/python/team.md
           - Upload data in bulk: tutorials/python/upload_data_in_bulk.md
           - Download data in bulk: tutorials/python/download_data_in_bulk.md
