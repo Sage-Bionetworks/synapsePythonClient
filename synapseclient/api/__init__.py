@@ -120,20 +120,6 @@ from .table_services import (
     list_columns_sync,
     post_columns,
 )
-from .wiki_service import (
-    delete_wiki_page,
-    get_attachment_handles,
-    get_attachment_preview_url,
-    get_attachment_url,
-    get_markdown_url,
-    get_wiki_header_tree,
-    get_wiki_history,
-    get_wiki_order_hint,
-    get_wiki_page,
-    post_wiki_page,
-    put_wiki_order_hint,
-    put_wiki_page,
-    put_wiki_version,
 from .team_services import (
     create_team,
     delete_membership_invitation,
@@ -155,6 +141,21 @@ from .user_services import (
     get_user_profile_by_id,
     get_user_profile_by_username,
     is_user_certified,
+)
+from .wiki_service import (
+    delete_wiki_page,
+    get_attachment_handles,
+    get_attachment_preview_url,
+    get_attachment_url,
+    get_markdown_url,
+    get_wiki_header_tree,
+    get_wiki_history,
+    get_wiki_order_hint,
+    get_wiki_page,
+    post_wiki_page,
+    put_wiki_order_hint,
+    put_wiki_page,
+    put_wiki_version,
 )
 
 __all__ = [
