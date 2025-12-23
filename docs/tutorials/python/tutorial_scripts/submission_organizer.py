@@ -69,7 +69,6 @@ print("\n=== 2. Batch updating submission statuses ===")
 statuses_to_update = SubmissionStatus.get_all_submission_statuses(
     evaluation_id=EVALUATION_ID,
     status="RECEIVED",  # Get submissions that haven't been scored yet
-    limit=50,  # Limit to 50 for this example (max is 500 for batch operations)
 )
 
 print(f"Found {len(statuses_to_update)} submissions to batch update")
@@ -142,9 +141,7 @@ for i, bundle in enumerate(bundles[:5]):  # Show first 5
 print("\n=== 4. Managing submission cancellation ===")
 
 # First, check if any submissions have requested cancellation
-all_statuses = SubmissionStatus.get_all_submission_statuses(
-    evaluation_id=EVALUATION_ID, limit=100
-)
+all_statuses = SubmissionStatus.get_all_submission_statuses(evaluation_id=EVALUATION_ID)
 
 cancellation_requests = [status for status in all_statuses if status.cancel_requested]
 
