@@ -305,6 +305,8 @@ async def get_attachment_url(
 
     # Add version as a query parameter if provided
     params = {}
+    # When set to false, the URL will be returned as text/plain instead of redirecting.
+    params["redirect"] = False
     params["fileName"] = file_name
     if wiki_version is not None:
         params["wikiVersion"] = wiki_version
@@ -345,6 +347,8 @@ async def get_attachment_preview_url(
 
     # Add version as a query parameter if provided
     params = {}
+    # When set to false, the URL will be returned as text/plain instead of redirecting.
+    params["redirect"] = False
     params["fileName"] = file_name
     if wiki_version is not None:
         params["wikiVersion"] = wiki_version
@@ -382,6 +386,8 @@ async def get_markdown_url(
 
     # Add version as a query parameter if provided
     params = {}
+    # When set to false, the URL will be returned as text/plain instead of redirecting.
+    params["redirect"] = False
     if wiki_version is not None:
         params["wikiVersion"] = wiki_version
 
