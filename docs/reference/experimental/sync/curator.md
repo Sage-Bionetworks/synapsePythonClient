@@ -25,6 +25,7 @@ at your own risk.
             - get
             - store
             - delete
+            - get_detailed_validation_results
             - get_acl
             - get_permissions
             - set_permissions

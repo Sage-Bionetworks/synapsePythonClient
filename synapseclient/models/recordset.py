@@ -15,11 +15,17 @@ from synapseclient.api import get_from_entity_factory
 from synapseclient.core import utils
 from synapseclient.core.async_utils import async_to_sync
 from synapseclient.core.constants import concrete_types
+from synapseclient.core.download import download_by_file_handle
+from synapseclient.core.download.download_functions import (
+    ensure_download_location_is_directory,
+)
 from synapseclient.core.exceptions import SynapseFileNotFoundError
+from synapseclient.core.typing_utils import DataFrame as DATA_FRAME_TYPE
 from synapseclient.core.utils import (
     delete_none_keys,
     guess_file_name,
     merge_dataclass_entities,
+    test_import_pandas,
 )
 from synapseclient.models import Activity, Annotations
 from synapseclient.models.mixins import AccessControllable, BaseJSONSchema
@@ -277,6 +283,79 @@ class RecordSetSynchronousProtocol(Protocol):
         """
         return None
 
+    def get_detailed_validation_results(
+        self,
+        download_location: Optional[str] = None,
+        *,
+        synapse_client: Optional[Synapse] = None,
+    ) -> DATA_FRAME_TYPE:
+        """
+        Get detailed validation results for the RecordSet as a pandas DataFrame.
+
+        This method downloads a CSV file containing detailed validation results for each row
+        in the RecordSet. The validation results are generated when a RecordSet with a bound
+        JSON schema is exported from a Grid session. The CSV contains columns:
+        - row_index: The index of the row in the RecordSet
+        - is_valid: Boolean indicating if the row is valid according to the schema
+        - validation_error_message: The primary validation error message (if any)
+        - all_validation_messages: All validation messages for the row (if any)
+
+        Arguments:
+            download_location: Optional directory path where the validation results CSV
+                should be downloaded. If not specified, the file will be downloaded to
+                the Synapse cache directory. If the file is already cached, it will use
+                the cached version unless a different download_location is specified.
+            synapse_client: If not passed in and caching was not disabled by
+                `Synapse.allow_client_caching(False)`, this will use the last created
+                instance from the Synapse class constructor.
+
+        Returns:
+            A pandas DataFrame containing the validation results, or None if no
+            validation_file_handle_id is available (with a warning logged).
+
+        Example: Get validation results for a RecordSet
+            Get detailed validation results after exporting from a Grid session:
+
+            ```python
+            from synapseclient import Synapse
+            from synapseclient.models import RecordSet, Grid
+
+            syn = Synapse()
+            syn.login()
+
+            # Assuming you have a RecordSet with a bound schema
+            record_set = RecordSet(id="syn123").get()
+
+            # Create and export Grid session to generate validation results
+            grid = Grid(record_set_id=record_set.id).create()
+            grid.export_to_record_set()
+            grid.delete()
+
+            # Re-fetch the RecordSet to get updated validation_file_handle_id
+            record_set = record_set.get()
+
+            # Get the detailed validation results
+            results_df = record_set.get_detailed_validation_results()
+
+            # Analyze the results
+            print(f"Total rows: {len(results_df)}")
+            print(f"Columns: {results_df.columns.tolist()}")
+
+            # Filter for valid and invalid rows
+            # Note: is_valid is boolean (True/False) for validated rows
+            valid_rows = results_df[results_df['is_valid'] == True]  # noqa: E712
+            invalid_rows = results_df[results_df['is_valid'] == False]  # noqa: E712
+
+            print(f"Valid rows: {len(valid_rows)}")
+            print(f"Invalid rows: {len(invalid_rows)}")
+
+            # View invalid rows with their error messages
+            if len(invalid_rows) > 0:
+                print(invalid_rows[['row_index', 'validation_error_message']])
+            ```
+        """
+        return None
+
 
 @dataclass()
 @async_to_sync
@@ -329,6 +408,11 @@ class RecordSet(RecordSetSynchronousProtocol, AccessControllable, BaseJSONSchema
         file_name_override: An optional replacement for the name of the uploaded
             file. This is distinct from the entity name. If omitted the file will
             retain its original name.
+        validation_file_handle_id: (Read Only) Pointer to a CSV file that contains the
+            detailed validation results for each row in the record set. The CSV file
+            will contain for each row the following columns: row_index, is_valid,
+            validation_error_message, all_validation_messages. Generated only from a
+            grid session export, cannot be changed by the user.
         content_type: (New Upload Only) Used to manually specify Content-type header,
             for example 'application/png' or 'application/json; charset=UTF-8'. If not
             specified, the content type will be derived from the file extension.
@@ -500,6 +584,14 @@ class RecordSet(RecordSetSynchronousProtocol, AccessControllable, BaseJSONSchema
     file_name_override: Optional[str] = None
     """An optional replacement for the name of the uploaded file. This is distinct from
     the entity name. If omitted the file will retain its original name.
+    """
+
+    validation_file_handle_id: Optional[str] = None
+    """
+    (Read Only) Pointer to a CSV file that contains the detailed validation results for
+    each row in the record set. The CSV file will contain for each row the following
+    columns: row_index, is_valid, validation_error_message, all_validation_messages.
+    Generated only from a grid session export, cannot be changed by the user.
     """
 
     content_type: Optional[str] = None
@@ -735,6 +827,7 @@ class RecordSet(RecordSetSynchronousProtocol, AccessControllable, BaseJSONSchema
         self.data_file_handle_id = entity.get("dataFileHandleId", None)
         self.path = entity.get("path", self.path)
         self.file_name_override = entity.get("fileNameOverride", None)
+        self.validation_file_handle_id = entity.get("validationFileHandleId", None)
         csv_descriptor = entity.get("csvDescriptor", None)
         if csv_descriptor:
             from synapseclient.models import CsvTableDescriptor
@@ -1206,6 +1299,125 @@ class RecordSet(RecordSetSynchronousProtocol, AccessControllable, BaseJSONSchema
             f"Got file {self.name}, id: {self.id}, path: {self.path}"
         )
         return self
+
+    async def get_detailed_validation_results_async(
+        self,
+        download_location: Optional[str] = None,
+        *,
+        synapse_client: Optional[Synapse] = None,
+    ) -> DATA_FRAME_TYPE:
+        """
+        Get detailed validation results for the RecordSet as a pandas DataFrame.
+
+        This method downloads a CSV file containing detailed validation results for each row
+        in the RecordSet. The validation results are generated when a RecordSet with a bound
+        JSON schema is exported from a Grid session. The CSV contains columns:
+        - row_index: The index of the row in the RecordSet
+        - is_valid: Boolean indicating if the row is valid according to the schema
+        - validation_error_message: The primary validation error message (if any)
+        - all_validation_messages: All validation messages for the row (if any)
+
+        Arguments:
+            download_location: Optional directory path where the validation results CSV
+                should be downloaded. If not specified, the file will be downloaded to
+                the Synapse cache directory. If the file is already cached, it will use
+                the cached version unless a different download_location is specified.
+            synapse_client: If not passed in and caching was not disabled by
+                `Synapse.allow_client_caching(False)`, this will use the last created
+                instance from the Synapse class constructor.
+
+        Returns:
+            A pandas DataFrame containing the validation results, or None if no
+            validation_file_handle_id is available (with a warning logged).
+
+        Example: Get validation results for a RecordSet
+            Get detailed validation results after exporting from a Grid session:
+
+            ```python
+            import asyncio
+            from synapseclient import Synapse
+            from synapseclient.models import RecordSet, Grid
+
+            async def main():
+                syn = Synapse()
+                syn.login()
+
+                # Assuming you have a RecordSet with a bound schema
+                record_set = await RecordSet(id="syn123").get_async()
+
+                # Create and export Grid session to generate validation results
+                grid = await Grid(record_set_id=record_set.id).create_async()
+                await grid.export_to_record_set_async()
+                await grid.delete_async()
+
+                # Re-fetch the RecordSet to get updated validation_file_handle_id
+                record_set = await record_set.get_async()
+
+                # Get the detailed validation results
+                results_df = await record_set.get_detailed_validation_results_async()
+
+                # Analyze the results
+                print(f"Total rows: {len(results_df)}")
+                print(f"Columns: {results_df.columns.tolist()}")
+
+                # Filter for valid and invalid rows
+                # Note: is_valid is boolean (True/False) for validated rows
+                valid_rows = results_df[results_df['is_valid'] == True]  # noqa: E712
+                invalid_rows = results_df[results_df['is_valid'] == False]  # noqa: E712
+
+                print(f"Valid rows: {len(valid_rows)}")
+                print(f"Invalid rows: {len(invalid_rows)}")
+
+                # View invalid rows with their error messages
+                if len(invalid_rows) > 0:
+                    print(invalid_rows[['row_index', 'validation_error_message']])
+
+            asyncio.run(main())
+            ```
+        """
+        test_import_pandas()
+        import pandas as pd
+
+        client = Synapse.get_client(synapse_client=synapse_client)
+
+        if not self.validation_file_handle_id:
+            client.logger.warning(
+                "No validation file handle ID found for this RecordSet. Cannot retrieve detailed validation results."
+            )
+            return None
+
+        cached_file_path = client.cache.get(
+            file_handle_id=self.validation_file_handle_id, path=download_location
+        )
+
+        # location in .synapseCache where the file would be corresponding to its FileHandleId
+        synapse_cache_location = client.cache.get_cache_dir(
+            file_handle_id=self.validation_file_handle_id
+        )
+
+        if download_location is not None:
+            # Make sure the specified download location is a fully resolved directory
+            download_location = ensure_download_location_is_directory(download_location)
+        elif cached_file_path is not None:
+            # file already cached so use that as the download location
+            download_location = os.path.dirname(cached_file_path)
+        else:
+            # file not cached and no user-specified location so default to .synapseCache
+            download_location = synapse_cache_location
+
+        # Generate filename for the validation results CSV
+        filename = f"SYNAPSE_RECORDSET_VALIDATION_{self.validation_file_handle_id}.csv"
+        destination_path = os.path.join(download_location, filename)
+
+        validation_file_path = await download_by_file_handle(
+            file_handle_id=self.validation_file_handle_id,
+            synapse_id=self.id,
+            entity_type="FileEntity",
+            destination=destination_path,
+            synapse_client=client,
+        )
+
+        return pd.read_csv(validation_file_path)
 
     async def delete_async(
         self,

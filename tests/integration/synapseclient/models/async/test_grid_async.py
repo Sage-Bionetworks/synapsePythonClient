@@ -122,7 +122,9 @@ class TestGridAsync:
 
         # WHEN: Creating a second grid session (should reuse the existing one)
         created_grid2 = await grid2.create_async(
-            timeout=ASYNC_JOB_TIMEOUT_SEC, synapse_client=self.syn
+            timeout=ASYNC_JOB_TIMEOUT_SEC,
+            synapse_client=self.syn,
+            attach_to_previous_session=True,
         )
 
         # THEN: The same session should be reused
