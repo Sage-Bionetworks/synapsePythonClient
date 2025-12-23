@@ -534,7 +534,8 @@ class WikiPage(WikiPageSynchronousProtocol):
 
         return file_path
 
-    def _unzip_gzipped_file(self, file_path: str) -> str:
+    @staticmethod
+    def unzip_gzipped_file(file_path: str) -> str:
         """Unzip the gzipped file and return the file path to the unzipped file.
 
         If the file is a markdown file, the content will be printed.
@@ -593,7 +594,7 @@ class WikiPage(WikiPageSynchronousProtocol):
         )
 
     @staticmethod
-    def _reformat_attachment_file_name(attachment_file_name: str) -> str:
+    def reformat_attachment_file_name(attachment_file_name: str) -> str:
         """Reformat the attachment file name to be a valid attachment path.
         Arguments:
             attachment_file_name: The name of the attachment file.
@@ -660,9 +661,18 @@ class WikiPage(WikiPageSynchronousProtocol):
 
             async def task_of_uploading_attachment(attachment: str) -> tuple[str, str]:
                 """Process a single attachment and return its file handle ID and cache directory."""
-                file_path = self._to_gzip_file(
-                    wiki_content=attachment, synapse_client=synapse_client
-                )
+                # if the attachment is not a gzipped file or image file, gzip it
+                if (
+                    not attachment.endswith(".gz")
+                    and not attachment.endswith(".png")
+                    and not attachment.endswith(".jpg")
+                    and not attachment.endswith(".jpeg")
+                ):
+                    file_path = self._to_gzip_file(
+                        wiki_content=attachment, synapse_client=synapse_client
+                    )
+                else:
+                    file_path = attachment
                 try:
                     async with synapse_client._get_parallel_file_transfer_semaphore(
                         asyncio_event_loop=asyncio.get_running_loop()
@@ -695,6 +705,8 @@ class WikiPage(WikiPageSynchronousProtocol):
 
     async def _determine_wiki_action(
         self,
+        *,
+        synapse_client: Optional[Synapse] = None,
     ) -> Literal["create_root", "update_root", "create_sub"]:
         """Determine the wiki action to perform.
         Returns:
@@ -709,7 +721,9 @@ class WikiPage(WikiPageSynchronousProtocol):
             return "create_sub_wiki_page"
 
         try:
-            await WikiHeader.get_async(owner_id=self.owner_id)
+            await WikiHeader.get_async(
+                owner_id=self.owner_id, synapse_client=synapse_client
+            )
         except SynapseHTTPError as e:
             if e.response.status_code == 404:
                 return "create_root_wiki_page"
@@ -759,7 +773,7 @@ class WikiPage(WikiPageSynchronousProtocol):
         """
         client = Synapse.get_client(synapse_client=synapse_client)
 
-        wiki_action = await self._determine_wiki_action()
+        wiki_action = await self._determine_wiki_action(synapse_client=client)
         # get the markdown file handle and attachment file handles if the wiki action is valid
         if wiki_action:
             # Update self with the returned WikiPage objects that have file handle IDs set
@@ -775,6 +789,7 @@ class WikiPage(WikiPageSynchronousProtocol):
             wiki_data = await post_wiki_page(
                 owner_id=self.owner_id,
                 request=self.to_synapse_request(),
+                synapse_client=client,
             )
             client.logger.info(
                 f"Created wiki page: {wiki_data.get('title')} with ID: {wiki_data.get('id')}."
@@ -788,6 +803,7 @@ class WikiPage(WikiPageSynchronousProtocol):
                 owner_id=self.owner_id,
                 wiki_id=self.id,
                 wiki_version=self.wiki_version,
+                synapse_client=client,
             )
             # convert to dataclass
             existing_wiki = WikiPage()
@@ -799,8 +815,6 @@ class WikiPage(WikiPageSynchronousProtocol):
                 source=existing_wiki,
                 destination=self,
                 fields_to_ignore=[
-                    "created_on",
-                    "created_by",
                     "modified_on",
                     "modified_by",
                 ],
@@ -810,6 +824,7 @@ class WikiPage(WikiPageSynchronousProtocol):
                 owner_id=self.owner_id,
                 wiki_id=self.id,
                 request=updated_wiki.to_synapse_request(),
+                synapse_client=client,
             )
             client.logger.info(
                 f"Updated wiki page: {wiki_data.get('title')} with ID: {wiki_data.get('id')}."
@@ -1011,7 +1026,7 @@ class WikiPage(WikiPageSynchronousProtocol):
         Download the wiki page attachment to a local file or return the URL.
 
         Arguments:
-            file_name: The name of the file to get.
+            file_name: The name of the file to get. The file name can be in either non-gzipped or gzipped format.
             download_file: Whether associated files should be downloaded. Default is True.
             download_location: The directory to download the file to. Required if download_file is True.
             synapse_client: Optionally provide a Synapse client.
@@ -1038,6 +1053,14 @@ class WikiPage(WikiPageSynchronousProtocol):
             raise ValueError("Must provide file_name to get attachment URL.")
 
         client = Synapse.get_client(synapse_client=synapse_client)
+        # check if the file_name is in gzip format or image format
+        if (
+            not file_name.endswith(".gz")
+            and not file_name.endswith(".png")
+            and not file_name.endswith(".jpg")
+            and not file_name.endswith(".jpeg")
+        ):
+            file_name = f"{file_name}.gz"
         attachment_url = await get_attachment_url(
             owner_id=self.owner_id,
             wiki_id=self.id,
@@ -1070,16 +1093,23 @@ class WikiPage(WikiPageSynchronousProtocol):
                     url=presigned_url_info.url,
                     destination=download_location,
                     url_is_presigned=True,
+                    synapse_client=client,
                 )
             else:
                 # download the file
                 downloaded_file_path = download_from_url_multi_threaded(
-                    presigned_url=presigned_url_info, destination=download_location
+                    presigned_url=presigned_url_info,
+                    destination=download_location,
+                    synapse_client=client,
                 )
+            # unzip the file if it is a gzipped file
+            unzipped_file_path = WikiPage.unzip_gzipped_file(downloaded_file_path)
             client.logger.info(
-                f"Downloaded file {presigned_url_info.file_name} to {downloaded_file_path}."
+                f"Downloaded file {presigned_url_info.file_name} to {unzipped_file_path}."
             )
-            return downloaded_file_path
+            os.remove(downloaded_file_path)
+            client.logger.debug(f"Removed the gzipped file {downloaded_file_path}.")
+            return unzipped_file_path
         else:
             return attachment_url
 
@@ -1098,7 +1128,7 @@ class WikiPage(WikiPageSynchronousProtocol):
         Download the wiki page attachment preview to a local file or return the URL.
 
         Arguments:
-            file_name: The name of the file to get.
+            file_name: The name of the file to get. The file name can be in either non-gzipped or gzipped format.
             download_file: Whether associated files should be downloaded. Default is True.
             download_location: The directory to download the file to. Required if download_file is True.
             synapse_client: Optionally provide a Synapse client.
@@ -1127,6 +1157,9 @@ class WikiPage(WikiPageSynchronousProtocol):
             raise ValueError("Must provide file_name to get attachment preview URL.")
 
         client = Synapse.get_client(synapse_client=synapse_client)
+        # check if the file_name is in gzip format or image format
+        if not file_name.endswith(".gz"):
+            file_name = f"{file_name}.gz"
         attachment_preview_url = await get_attachment_preview_url(
             owner_id=self.owner_id,
             wiki_id=self.id,
@@ -1160,11 +1193,14 @@ class WikiPage(WikiPageSynchronousProtocol):
                     url=presigned_url_info.url,
                     destination=download_location,
                     url_is_presigned=True,
+                    synapse_client=client,
                 )
             else:
                 # download the file
                 downloaded_file_path = download_from_url_multi_threaded(
-                    presigned_url=presigned_url_info, destination=download_location
+                    presigned_url=presigned_url_info,
+                    destination=download_location,
+                    synapse_client=client,
                 )
             client.logger.info(
                 f"Downloaded the preview file {presigned_url_info.file_name} to {downloaded_file_path}."
@@ -1227,12 +1263,16 @@ class WikiPage(WikiPageSynchronousProtocol):
                 url=markdown_url,
                 destination=download_location,
                 url_is_presigned=True,
+                synapse_client=client,
             )
             # unzip the file if it is a gzipped file
-            unzipped_file_path = self._unzip_gzipped_file(downloaded_file_path)
+            unzipped_file_path = WikiPage.unzip_gzipped_file(downloaded_file_path)
             client.logger.info(
                 f"Downloaded and unzipped the markdown file for wiki page {self.id} to {unzipped_file_path}."
             )
+            # remove the gzipped file
+            os.remove(downloaded_file_path)
+            client.logger.debug(f"Removed the gzipped file {downloaded_file_path}.")
             return unzipped_file_path
         else:
             return markdown_url
