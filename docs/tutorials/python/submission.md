@@ -1,18 +1,41 @@
 # Submissions, SubmissionStatuses, SubmissionBundles
-Users can work with Submissions on the python client, since these objects are part of the Evaluation API data model. A user in a Synapse Evaluation can submit a Synapse Entity as a Submission to that Evaluation. Submission data is owned by the parent Evaluation, and is immutable.
+## What are Submissions?
 
-The data model includes additional objects to support scoring of Submissions and convenient data access:
+In Synapse, a Submission is your entry to a challenge or evaluation queue. When you participate in a computational challenge or collaborative project, you submit your work (such as predictions, models, or analysis results) as a Submission to be evaluated and scored.
 
-- **SubmissionStatus**: An object used to track scoring information for a single Submission. This object is intended to be modified by the users (or test harnesses) managing the Evaluation.
-- **SubmissionBundle**: A convenience object to transport a Submission and its accompanying SubmissionStatus in a single web service call.
+## Key Concepts
 
-This tutorial will demonstrate how to work with all 3 object types using the python client for 2 different use-cases:
+Before working with Submissions, it's helpful to understand how they fit into Synapse:
 
-1. Participating in a Synapse challenge
-1. Organizing a Synapse challenge
+- **Entity**: Your actual work stored in Synapse (like a File containing predictions or a Docker image with your model)
+- **Evaluation**: A queue that accepts and organizes submissions for a specific challenge or project
+- **Submission**: The object associated with submitting your Entity to an Evaluation queue, creating a record that can be tracked and scored
 
+## How Submissions Work
+
+When you submit an Entity to an Evaluation:
+- The Submission creates an immutable record linking your Entity to that Evaluation
+- The Evaluation owns this Submission record (not you as the submitter)
+- Organizers can add scores and feedback through a SubmissionStatus object
+- You can track your Submissions and view their statuses
+
+## Related Objects
+
+The Python client provides three object types for working with Submissions:
+
+- **Submission**: Represents your entry in an Evaluation queue
+- **SubmissionStatus**: Tracks scoring information and feedback for a Submission
+- **SubmissionBundle**: Combines a Submission and its SubmissionStatus for convenient access
+
+## What You'll Learn
+
+This tutorial covers two perspectives:
+
+1. **Participating in challenges**: Making and tracking your submissions
+1. **Organizing challenges**: Scoring and managing submissions from participants
 
 ## Tutorial Purpose
+
 In this tutorial:
 
 As a participant of a Synapse challenge, you will
