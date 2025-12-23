@@ -312,6 +312,7 @@ class Submission(
         docker_digest: For Docker repositories, the digest of the submitted Docker image.
 
     Example: Retrieve a Submission.
+        &nbsp;
         ```python
         from synapseclient import Synapse
         from synapseclient.models import Submission
@@ -321,6 +322,50 @@ class Submission(
 
         submission = Submission(id="syn123456").get()
         print(submission)
+        ```
+
+    Example: Create and store a new Submission.
+        &nbsp;
+        ```python
+        from synapseclient import Synapse
+        from synapseclient.models import Submission
+
+        syn = Synapse()
+        syn.login()
+
+        # Create a new submission
+        submission = Submission(
+            entity_id="syn123456",
+            evaluation_id="9999999",
+            name="My Submission"
+        )
+
+        # Store the submission
+        stored_submission = submission.store()
+        print(f"Created submission with ID: {stored_submission.id}")
+        ```
+
+    Example: Get all submissions for a user.
+        &nbsp;
+        ```python
+        from synapseclient import Synapse
+        from synapseclient.models import Submission
+
+        syn = Synapse()
+        syn.login()
+
+        # Get all submissions for a specific user in an evaluation
+        submissions = list(Submission.get_user_submissions(
+            evaluation_id="9999999",
+            user_id="123456"
+        ))
+        print(f"Found {len(submissions)} submissions for user")
+
+        # Get submissions for the current user (omit user_id)
+        my_submissions = list(Submission.get_user_submissions(
+            evaluation_id="9614543"
+        ))
+        print(f"Found {len(my_submissions)} of my submissions")
         ```
     """
 
