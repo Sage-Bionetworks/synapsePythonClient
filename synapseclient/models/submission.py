@@ -11,7 +11,6 @@ from synapseclient.core.async_utils import (
     skip_async_to_sync,
     wrap_async_generator_to_sync_generator,
 )
-from synapseclient.models.mixins.access_control import AccessControllable
 
 
 class SubmissionSynchronousProtocol(Protocol):
@@ -285,10 +284,7 @@ class SubmissionSynchronousProtocol(Protocol):
 
 @dataclass
 @async_to_sync
-class Submission(
-    SubmissionSynchronousProtocol,
-    AccessControllable,
-):
+class Submission(SubmissionSynchronousProtocol):
     """A `Submission` object represents a Synapse Submission, which is created when a user
     submits an entity to an evaluation queue.
     <https://rest-docs.synapse.org/rest/org/sagebionetworks/evaluation/model/Submission.html>
