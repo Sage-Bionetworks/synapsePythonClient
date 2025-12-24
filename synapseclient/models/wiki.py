@@ -1097,7 +1097,7 @@ class WikiPage(WikiPageSynchronousProtocol):
                 )
             else:
                 # download the file
-                downloaded_file_path = download_from_url_multi_threaded(
+                downloaded_file_path = await download_from_url_multi_threaded(
                     presigned_url=presigned_url_info,
                     destination=download_location,
                     synapse_client=client,
@@ -1105,7 +1105,7 @@ class WikiPage(WikiPageSynchronousProtocol):
             # unzip the file if it is a gzipped file
             unzipped_file_path = WikiPage.unzip_gzipped_file(downloaded_file_path)
             client.logger.info(
-                f"Downloaded file {presigned_url_info.file_name} to {unzipped_file_path}."
+                f"Downloaded file {presigned_url_info.file_name.replace('.gz', '')} to {unzipped_file_path}."
             )
             os.remove(downloaded_file_path)
             client.logger.debug(f"Removed the gzipped file {downloaded_file_path}.")
@@ -1197,13 +1197,13 @@ class WikiPage(WikiPageSynchronousProtocol):
                 )
             else:
                 # download the file
-                downloaded_file_path = download_from_url_multi_threaded(
+                downloaded_file_path = await download_from_url_multi_threaded(
                     presigned_url=presigned_url_info,
                     destination=download_location,
                     synapse_client=client,
                 )
             client.logger.info(
-                f"Downloaded the preview file {presigned_url_info.file_name} to {downloaded_file_path}."
+                f"Downloaded the preview file {presigned_url_info.file_name.replace('.gz', '')} to {downloaded_file_path}."
             )
             return downloaded_file_path
         else:
