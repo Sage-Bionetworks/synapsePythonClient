@@ -11,7 +11,6 @@ from synapseclient.core.async_utils import (
     skip_async_to_sync,
     wrap_async_generator_to_sync_generator,
 )
-from synapseclient.models.mixins.access_control import AccessControllable
 
 
 class SubmissionSynchronousProtocol(Protocol):
@@ -47,7 +46,7 @@ class SubmissionSynchronousProtocol(Protocol):
 
             submission = Submission(
                 entity_id="syn123456",
-                evaluation_id="9614543",
+                evaluation_id="9999999",
                 name="My Submission"
             ).store()
             print(submission.id)
@@ -285,10 +284,7 @@ class SubmissionSynchronousProtocol(Protocol):
 
 @dataclass
 @async_to_sync
-class Submission(
-    SubmissionSynchronousProtocol,
-    AccessControllable,
-):
+class Submission(SubmissionSynchronousProtocol):
     """A `Submission` object represents a Synapse Submission, which is created when a user
     submits an entity to an evaluation queue.
     <https://rest-docs.synapse.org/rest/org/sagebionetworks/evaluation/model/Submission.html>
@@ -312,6 +308,7 @@ class Submission(
         docker_digest: For Docker repositories, the digest of the submitted Docker image.
 
     Example: Retrieve a Submission.
+        &nbsp;
         ```python
         from synapseclient import Synapse
         from synapseclient.models import Submission
@@ -321,6 +318,50 @@ class Submission(
 
         submission = Submission(id="syn123456").get()
         print(submission)
+        ```
+
+    Example: Create and store a new Submission.
+        &nbsp;
+        ```python
+        from synapseclient import Synapse
+        from synapseclient.models import Submission
+
+        syn = Synapse()
+        syn.login()
+
+        # Create a new submission
+        submission = Submission(
+            entity_id="syn123456",
+            evaluation_id="9999999",
+            name="My Submission"
+        )
+
+        # Store the submission
+        stored_submission = submission.store()
+        print(f"Created submission with ID: {stored_submission.id}")
+        ```
+
+    Example: Get all submissions for a user.
+        &nbsp;
+        ```python
+        from synapseclient import Synapse
+        from synapseclient.models import Submission
+
+        syn = Synapse()
+        syn.login()
+
+        # Get all submissions for a specific user in an evaluation
+        submissions = list(Submission.get_user_submissions(
+            evaluation_id="9999999",
+            user_id="123456"
+        ))
+        print(f"Found {len(submissions)} submissions for user")
+
+        # Get submissions for the current user (omit user_id)
+        my_submissions = list(Submission.get_user_submissions(
+            evaluation_id="9999999"
+        ))
+        print(f"Found {len(my_submissions)} of my submissions")
         ```
     """
 
@@ -584,7 +625,7 @@ class Submission(
 
                 submission = Submission(
                     entity_id="syn123456",
-                    evaluation_id="9614543",
+                    evaluation_id="9999999",
                     name="My Submission"
                 )
                 submission = await submission.store_async()
