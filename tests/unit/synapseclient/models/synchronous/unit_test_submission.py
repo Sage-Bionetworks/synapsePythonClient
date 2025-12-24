@@ -239,19 +239,20 @@ class TestSubmission:
         submission = Submission(entity_id=ENTITY_ID, evaluation_id=EVALUATION_ID)
 
         # WHEN I call _fetch_latest_entity with a mocked successful response
-        with patch.object(
-            self.syn,
-            "rest_get_async",
+        with patch(
+            "synapseclient.api.entity_services.get_entity",
             new_callable=AsyncMock,
             return_value=self.get_example_entity_response(),
-        ) as mock_rest_get:
+        ) as mock_get_entity:
             entity_info = await submission._fetch_latest_entity(synapse_client=self.syn)
 
             # THEN it should return the entity information
             assert entity_info["id"] == ENTITY_ID
             assert entity_info["etag"] == ETAG
             assert entity_info["versionNumber"] == VERSION_NUMBER
-            mock_rest_get.assert_called_once_with(f"/entity/{ENTITY_ID}")
+            mock_get_entity.assert_called_once_with(
+                entity_id=ENTITY_ID, synapse_client=self.syn
+            )
 
     @pytest.mark.asyncio
     async def test_fetch_latest_entity_docker_repository(self) -> None:
@@ -259,20 +260,15 @@ class TestSubmission:
         submission = Submission(entity_id=ENTITY_ID, evaluation_id=EVALUATION_ID)
 
         # WHEN I call _fetch_latest_entity with mocked Docker repository responses
-        with patch.object(
-            self.syn,
-            "rest_get_async",
+        with patch(
+            "synapseclient.api.entity_services.get_entity",
             new_callable=AsyncMock,
-        ) as mock_rest_get:
-            # Configure the mock to return different responses for different URLs
-            def side_effect(url):
-                if url == f"/entity/{ENTITY_ID}":
-                    return self.get_example_docker_entity_response()
-                elif url == f"/entity/{ENTITY_ID}/dockerTag":
-                    return self.get_example_docker_tag_response()
-
-            mock_rest_get.side_effect = side_effect
-
+            return_value=self.get_example_docker_entity_response(),
+        ) as mock_get_entity, patch(
+            "synapseclient.api.docker_commit_services.get_docker_tag",
+            new_callable=AsyncMock,
+            return_value=self.get_example_docker_tag_response(),
+        ) as mock_get_docker_tag:
             entity_info = await submission._fetch_latest_entity(synapse_client=self.syn)
 
             # THEN it should return the entity information with latest docker tag info
@@ -284,12 +280,13 @@ class TestSubmission:
             assert entity_info["digest"] == "sha256:latest456abc789"
             assert entity_info["createdOn"] == "2024-06-01T15:30:00.000Z"
 
-            # Verify both API calls were made
-            expected_calls = [
-                call(f"/entity/{ENTITY_ID}"),
-                call(f"/entity/{ENTITY_ID}/dockerTag"),
-            ]
-            mock_rest_get.assert_has_calls(expected_calls)
+            # Verify both API functions were called
+            mock_get_entity.assert_called_once_with(
+                entity_id=ENTITY_ID, synapse_client=self.syn
+            )
+            mock_get_docker_tag.assert_called_once_with(
+                entity_id=ENTITY_ID, synapse_client=self.syn
+            )
 
     @pytest.mark.asyncio
     async def test_fetch_latest_entity_docker_empty_results(self) -> None:
@@ -297,20 +294,15 @@ class TestSubmission:
         submission = Submission(entity_id=ENTITY_ID, evaluation_id=EVALUATION_ID)
 
         # WHEN I call _fetch_latest_entity with empty docker tag results
-        with patch.object(
-            self.syn,
-            "rest_get_async",
+        with patch(
+            "synapseclient.api.entity_services.get_entity",
             new_callable=AsyncMock,
-        ) as mock_rest_get:
-            # Configure the mock to return empty docker tag results
-            def side_effect(url):
-                if url == f"/entity/{ENTITY_ID}":
-                    return self.get_example_docker_entity_response()
-                elif url == f"/entity/{ENTITY_ID}/dockerTag":
-                    return {"totalNumberOfResults": 0, "results": []}
-
-            mock_rest_get.side_effect = side_effect
-
+            return_value=self.get_example_docker_entity_response(),
+        ) as mock_get_entity, patch(
+            "synapseclient.api.docker_commit_services.get_docker_tag",
+            new_callable=AsyncMock,
+            return_value={"totalNumberOfResults": 0, "results": []},
+        ) as mock_get_docker_tag:
             entity_info = await submission._fetch_latest_entity(synapse_client=self.syn)
 
             # THEN it should return the entity information without docker tag info
@@ -322,32 +314,46 @@ class TestSubmission:
             assert "digest" not in entity_info
             assert "createdOn" not in entity_info
 
+            # Verify both API functions were called
+            mock_get_entity.assert_called_once_with(
+                entity_id=ENTITY_ID, synapse_client=self.syn
+            )
+            mock_get_docker_tag.assert_called_once_with(
+                entity_id=ENTITY_ID, synapse_client=self.syn
+            )
+            assert "tag" not in entity_info
+            assert "digest" not in entity_info
+            assert "createdOn" not in entity_info
+
     @pytest.mark.asyncio
     async def test_fetch_latest_entity_docker_complex_tag_selection(self) -> None:
         # GIVEN a submission with a Docker repository with multiple tags
         submission = Submission(entity_id=ENTITY_ID, evaluation_id=EVALUATION_ID)
 
         # WHEN I call _fetch_latest_entity with multiple docker tags with different dates
-        with patch.object(
-            self.syn,
-            "rest_get_async",
+        with patch(
+            "synapseclient.api.entity_services.get_entity",
             new_callable=AsyncMock,
-        ) as mock_rest_get:
-            # Configure the mock to return complex docker tag results
-            def side_effect(url):
-                if url == f"/entity/{ENTITY_ID}":
-                    return self.get_example_docker_entity_response()
-                elif url == f"/entity/{ENTITY_ID}/dockerTag":
-                    return self.get_complex_docker_tag_response()
-
-            mock_rest_get.side_effect = side_effect
-
+            return_value=self.get_example_docker_entity_response(),
+        ) as mock_get_entity, patch(
+            "synapseclient.api.docker_commit_services.get_docker_tag",
+            new_callable=AsyncMock,
+            return_value=self.get_complex_docker_tag_response(),
+        ) as mock_get_docker_tag:
             entity_info = await submission._fetch_latest_entity(synapse_client=self.syn)
 
             # THEN it should select the tag with the latest createdOn timestamp (v3.0)
             assert entity_info["tag"] == "v3.0"
             assert entity_info["digest"] == "sha256:version3"
             assert entity_info["createdOn"] == "2024-08-15T12:00:00.000Z"
+
+            # Verify both API functions were called
+            mock_get_entity.assert_called_once_with(
+                entity_id=ENTITY_ID, synapse_client=self.syn
+            )
+            mock_get_docker_tag.assert_called_once_with(
+                entity_id=ENTITY_ID, synapse_client=self.syn
+            )
 
     @pytest.mark.asyncio
     async def test_fetch_latest_entity_without_entity_id(self) -> None:
@@ -367,17 +373,20 @@ class TestSubmission:
         submission = Submission(entity_id=ENTITY_ID, evaluation_id=EVALUATION_ID)
 
         # WHEN I call _fetch_latest_entity and the API returns an error
-        with patch.object(
-            self.syn,
-            "rest_get_async",
+        with patch(
+            "synapseclient.api.entity_services.get_entity",
             new_callable=AsyncMock,
             side_effect=SynapseHTTPError("Entity not found"),
-        ) as mock_rest_get:
+        ) as mock_get_entity:
             # THEN it should raise a LookupError with context about the original error
             with pytest.raises(
                 LookupError, match=f"Unable to fetch entity information for {ENTITY_ID}"
             ):
                 await submission._fetch_latest_entity(synapse_client=self.syn)
+
+            mock_get_entity.assert_called_once_with(
+                entity_id=ENTITY_ID, synapse_client=self.syn
+            )
 
     @pytest.mark.asyncio
     async def test_store_async_success(self) -> None:
@@ -635,13 +644,12 @@ class TestSubmission:
         with pytest.raises(ValueError, match="must have an ID to cancel"):
             await submission.cancel_async(synapse_client=self.syn)
 
-    @pytest.mark.asyncio
-    async def test_get_evaluation_submissions_async(self) -> None:
+    def test_get_evaluation_submissions(self) -> None:
         # GIVEN evaluation parameters
         evaluation_id = EVALUATION_ID
         status = "SCORED"
 
-        # WHEN I call get_evaluation_submissions_async
+        # WHEN I call get_evaluation_submissions
         with patch(
             "synapseclient.api.evaluation_services.get_evaluation_submissions"
         ) as mock_get_submissions:
@@ -654,7 +662,7 @@ class TestSubmission:
             mock_get_submissions.side_effect = mock_async_gen
 
             submissions = []
-            async for submission in Submission.get_evaluation_submissions_async(
+            for submission in Submission.get_evaluation_submissions(
                 evaluation_id=evaluation_id,
                 status=status,
                 synapse_client=self.syn,
@@ -671,13 +679,12 @@ class TestSubmission:
             assert isinstance(submissions[0], Submission)
             assert submissions[0].id == SUBMISSION_ID
 
-    @pytest.mark.asyncio
-    async def test_get_user_submissions_async(self) -> None:
+    def test_get_user_submissions(self) -> None:
         # GIVEN user submission parameters
         evaluation_id = EVALUATION_ID
         user_id = USER_ID
 
-        # WHEN I call get_user_submissions_async
+        # WHEN I call get_user_submissions
         with patch(
             "synapseclient.api.evaluation_services.get_user_submissions"
         ) as mock_get_user_submissions:
@@ -690,7 +697,7 @@ class TestSubmission:
             mock_get_user_submissions.side_effect = mock_async_gen
 
             submissions = []
-            async for submission in Submission.get_user_submissions_async(
+            for submission in Submission.get_user_submissions(
                 evaluation_id=evaluation_id,
                 user_id=user_id,
                 synapse_client=self.syn,
@@ -707,21 +714,20 @@ class TestSubmission:
             assert isinstance(submissions[0], Submission)
             assert submissions[0].id == SUBMISSION_ID
 
-    @pytest.mark.asyncio
-    async def test_get_submission_count_async(self) -> None:
+    def test_get_submission_count(self) -> None:
         # GIVEN submission count parameters
         evaluation_id = EVALUATION_ID
         status = "VALID"
 
         expected_response = 42
 
-        # WHEN I call get_submission_count_async
+        # WHEN I call get_submission_count
         with patch(
             "synapseclient.api.evaluation_services.get_submission_count",
             new_callable=AsyncMock,
             return_value=expected_response,
         ) as mock_get_count:
-            response = await Submission.get_submission_count_async(
+            response = Submission.get_submission_count(
                 evaluation_id=evaluation_id,
                 status=status,
                 synapse_client=self.syn,
