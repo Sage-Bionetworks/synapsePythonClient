@@ -481,6 +481,46 @@ class Submission(SubmissionSynchronousProtocol):
 
         return self
 
+    async def _get_latest_docker_tag(
+        self, *, synapse_client: Optional[Synapse] = None
+    ) -> Optional[dict]:
+        """
+        Fetch the latest Docker tag information for a Docker repository entity.
+
+        Arguments:
+            synapse_client: If not passed in and caching was not disabled by
+                    `Synapse.allow_client_caching(False)` this will use the last created
+                    instance from the Synapse class constructor.
+
+        Returns:
+            Dictionary containing the latest Docker tag information, or None if no tags found.
+
+        Raises:
+            Exception: If there's an error fetching the Docker tag information.
+        """
+        from synapseclient.api import docker_commit_services
+
+        docker_tag_response = await docker_commit_services.get_docker_tag(
+            entity_id=self.entity_id, synapse_client=synapse_client
+        )
+
+        # Get the latest digest from the docker tag results
+        if "results" in docker_tag_response and docker_tag_response["results"]:
+            # Sort by createdOn timestamp to get the latest entry
+            # Convert ISO timestamp strings to datetime objects for comparison
+            from datetime import datetime
+
+            latest_result = max(
+                docker_tag_response["results"],
+                key=lambda x: datetime.fromisoformat(
+                    x["createdOn"].replace("Z", "+00:00")
+                ),
+            )
+
+            return latest_result
+
+        return None
+
     async def _fetch_latest_entity(
         self, *, synapse_client: Optional[Synapse] = None
     ) -> dict:
@@ -523,25 +563,13 @@ class Submission(SubmissionSynchronousProtocol):
             from synapseclient.core.constants.concrete_types import DOCKER_REPOSITORY
 
             if entity_info.get("concreteType") == DOCKER_REPOSITORY:
-                docker_tag_response = await client.rest_get_async(
-                    f"/entity/{self.entity_id}/dockerTag"
+                latest_docker_tag = await self._get_latest_docker_tag(
+                    synapse_client=client
                 )
 
-                # Get the latest digest from the docker tag results
-                if "results" in docker_tag_response and docker_tag_response["results"]:
-                    # Sort by createdOn timestamp to get the latest entry
-                    # Convert ISO timestamp strings to datetime objects for comparison
-                    from datetime import datetime
-
-                    latest_result = max(
-                        docker_tag_response["results"],
-                        key=lambda x: datetime.fromisoformat(
-                            x["createdOn"].replace("Z", "+00:00")
-                        ),
-                    )
-
+                if latest_docker_tag:
                     # Add the latest result to entity_info
-                    entity_info.update(latest_result)
+                    entity_info.update(latest_docker_tag)
 
             return entity_info
         except Exception as e:
