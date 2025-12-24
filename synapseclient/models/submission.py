@@ -520,10 +520,9 @@ class Submission(SubmissionSynchronousProtocol):
             )
 
             # If this is a DockerRepository, fetch docker image tag & digest, and add it to the entity_info dict
-            if (
-                entity_info.get("concreteType")
-                == "org.sagebionetworks.repo.model.docker.DockerRepository"
-            ):
+            from synapseclient.core.constants.concrete_types import DOCKER_REPOSITORY
+
+            if entity_info.get("concreteType") == DOCKER_REPOSITORY:
                 docker_tag_response = await client.rest_get_async(
                     f"/entity/{self.entity_id}/dockerTag"
                 )
