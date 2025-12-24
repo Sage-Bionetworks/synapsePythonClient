@@ -489,7 +489,7 @@ class TestWikiPage:
             mock_gzip_open.return_value.__enter__.return_value.read.return_value = (
                 markdown_content_bytes
             )
-            unzipped_file_path = self.wiki_page._unzip_gzipped_file(gzipped_file_path)
+            unzipped_file_path = self.wiki_page.unzip_gzipped_file(gzipped_file_path)
 
         # THEN the file should be unzipped correctly
         mock_gzip_open.assert_called_once_with(gzipped_file_path, "rb")
@@ -514,7 +514,7 @@ class TestWikiPage:
             mock_gzip_open.return_value.__enter__.return_value.read.return_value = (
                 binary_content
             )
-            unzipped_file_path = self.wiki_page._unzip_gzipped_file(gzipped_file_path)
+            unzipped_file_path = self.wiki_page.unzip_gzipped_file(gzipped_file_path)
 
         # THEN the file should be unzipped correctly
         mock_gzip_open.assert_called_once_with(gzipped_file_path, "rb")
@@ -540,7 +540,7 @@ class TestWikiPage:
             mock_gzip_open.return_value.__enter__.return_value.read.return_value = (
                 text_content_bytes
             )
-            unzipped_file_path = self.wiki_page._unzip_gzipped_file(gzipped_file_path)
+            unzipped_file_path = self.wiki_page.unzip_gzipped_file(gzipped_file_path)
 
         # THEN the file should be unzipped correctly
         mock_gzip_open.assert_called_once_with(gzipped_file_path, "rb")
@@ -599,7 +599,7 @@ class TestWikiPage:
     )
     def test_reformat_attachment_file_name(self, file_name: str, expected: str) -> None:
         # WHEN I call `_reformat_attachment_file_name` with a file name
-        result = WikiPage._reformat_attachment_file_name(file_name)
+        result = WikiPage.reformat_attachment_file_name(file_name)
         # THEN the result should be the reformatted file name
         assert result == expected
 
@@ -907,7 +907,7 @@ class TestWikiPage:
             with pytest.raises(
                 ValueError, match="Must provide owner_id to modify a wiki page."
             ):
-                await wiki_page._determine_wiki_action()
+                await wiki_page._determine_wiki_action(synapse_client=self.syn)
                 mock_get_header.assert_not_called()
 
     async def test_determine_wiki_action_create_root(self) -> None:
@@ -922,8 +922,13 @@ class TestWikiPage:
             )
             # WHEN I call `determine_wiki_action`
             # THEN it should return "create_root_wiki_page"
-            assert await wiki_page._determine_wiki_action() == "create_root_wiki_page"
-            mock_get_header.assert_called_once_with(owner_id="syn123")
+            assert (
+                await wiki_page._determine_wiki_action(synapse_client=self.syn)
+                == "create_root_wiki_page"
+            )
+            mock_get_header.assert_called_once_with(
+                owner_id="syn123", synapse_client=self.syn
+            )
 
     async def test_determine_wiki_action_create_sub(self) -> None:
         with patch(
@@ -938,7 +943,10 @@ class TestWikiPage:
             )
             # WHEN I call `determine_wiki_action`
             # THEN it should return "create_sub_wiki_page"
-            assert await wiki_page._determine_wiki_action() == "create_sub_wiki_page"
+            assert (
+                await wiki_page._determine_wiki_action(synapse_client=self.syn)
+                == "create_sub_wiki_page"
+            )
             mock_get_header.assert_not_called()
 
     async def test_determine_wiki_action_update_existing_root(self) -> None:
@@ -956,9 +964,12 @@ class TestWikiPage:
             # WHEN I call `determine_wiki_action`
             # THEN it should return "update_existing_wiki_page"
             assert (
-                await wiki_page._determine_wiki_action() == "update_existing_wiki_page"
+                await wiki_page._determine_wiki_action(synapse_client=self.syn)
+                == "update_existing_wiki_page"
             )
-            mock_get_header.assert_called_once_with(owner_id="syn123")
+            mock_get_header.assert_called_once_with(
+                owner_id="syn123", synapse_client=self.syn
+            )
 
     async def test_determine_wiki_action_update_existing_without_passing_id(
         self,
@@ -977,8 +988,10 @@ class TestWikiPage:
             with pytest.raises(
                 ValueError, match="Must provide id to update existing wiki page."
             ):
-                await wiki_page._determine_wiki_action()
-                mock_get_header.assert_called_once_with(owner_id="syn123")
+                await wiki_page._determine_wiki_action(synapse_client=self.syn)
+                mock_get_header.assert_called_once_with(
+                    owner_id="syn123", synapse_client=self.syn
+                )
 
     async def test_store_async_new_root_wiki_success(self) -> None:
         # GIVEN a WikiPage
@@ -1047,6 +1060,7 @@ class TestWikiPage:
             mock_post_wiki.assert_called_once_with(
                 owner_id="syn123",
                 request=new_wiki_page.to_synapse_request(),
+                synapse_client=self.syn,
             )
             # AND the result should be filled with the response
             expected_results = new_wiki_page.fill_from_dict(post_api_response)
@@ -1117,6 +1131,7 @@ class TestWikiPage:
                 owner_id="syn123",
                 wiki_id="wiki1",
                 wiki_version="0",
+                synapse_client=self.syn,
             )
 
             # AND the wiki should be updated after merging dataclass objects
@@ -1134,6 +1149,7 @@ class TestWikiPage:
                 owner_id="syn123",
                 wiki_id="wiki1",
                 request=new_wiki_page.to_synapse_request(),
+                synapse_client=self.syn,
             )
 
             # AND log messages should be printed
@@ -1504,7 +1520,7 @@ class TestWikiPage:
         mock_filehandle_dict = {
             "list": [
                 {
-                    "fileName": "test.txt",
+                    "fileName": "test.txt.gz",
                     "contentSize": str(file_size),
                 }
             ]
@@ -1517,15 +1533,23 @@ class TestWikiPage:
             "synapseclient.models.wiki.get_attachment_handles",
             return_value=mock_filehandle_dict,
         ) as mock_get_handles, patch(
-            "synapseclient.models.wiki.download_from_url"
+            "synapseclient.models.wiki.download_from_url",
+            return_value="/tmp/download/test.txt.gz",
         ) as mock_download_from_url, patch(
-            "synapseclient.models.wiki.download_from_url_multi_threaded"
+            "synapseclient.models.wiki.download_from_url_multi_threaded",
+            return_value="/tmp/download/test.txt.gz",
         ) as mock_download_from_url_multi_threaded, patch(
             "synapseclient.models.wiki._pre_signed_url_expiration_time",
             return_value="2030-01-01T00:00:00.000Z",
         ) as mock_expiration_time, patch.object(
             self.syn.logger, "info"
-        ) as mock_logger_info:
+        ) as mock_logger_info, patch(
+            "os.remove"
+        ) as mock_remove, patch(
+            "synapseclient.models.wiki.WikiPage.unzip_gzipped_file"
+        ) as mock_unzip_gzipped_file, patch.object(
+            self.syn.logger, "debug"
+        ) as mock_logger_debug:
             # WHEN I call `get_attachment_async` with download_file=True
             result = await self.wiki_page.get_attachment_async(
                 file_name="test.txt",
@@ -1538,7 +1562,7 @@ class TestWikiPage:
             mock_get_url.assert_called_once_with(
                 owner_id="syn123",
                 wiki_id="wiki1",
-                file_name="test.txt",
+                file_name="test.txt.gz",
                 wiki_version="0",
                 synapse_client=self.syn,
             )
@@ -1561,13 +1585,14 @@ class TestWikiPage:
                     url=mock_attachment_url,
                     destination="/tmp/download",
                     url_is_presigned=True,
+                    synapse_client=self.syn,
                 )
                 mock_download_from_url_multi_threaded.assert_not_called()
 
             else:
                 # construct a mock presigned url info
                 mock_presigned_url_info = PresignedUrlInfo(
-                    file_name="test.txt",
+                    file_name="test.txt.gz",
                     url=mock_attachment_url,
                     expiration_utc="2030-01-01T00:00:00.000Z",
                 )
@@ -1575,12 +1600,21 @@ class TestWikiPage:
                 mock_download_from_url_multi_threaded.assert_called_once_with(
                     presigned_url=mock_presigned_url_info,
                     destination="/tmp/download",
+                    synapse_client=self.syn,
                 )
                 mock_download_from_url.assert_not_called()
 
-                # AND debug log should be called once (only the general one)
+            # AND debug log should be called once (only the general one)
             mock_logger_info.assert_called_once_with(
                 f"Downloaded file test.txt to {result}."
+            )
+            # AND the file should be unzipped
+            mock_unzip_gzipped_file.assert_called_once_with("/tmp/download/test.txt.gz")
+            # AND the gzipped file should be removed
+            mock_remove.assert_called_once_with("/tmp/download/test.txt.gz")
+            # AND debug log should be called
+            mock_logger_debug.assert_called_once_with(
+                "Removed the gzipped file /tmp/download/test.txt.gz."
             )
 
     async def test_get_attachment_async_no_file_download(self) -> None:
@@ -1631,7 +1665,7 @@ class TestWikiPage:
             mock_get_url.assert_called_once_with(
                 owner_id="syn123",
                 wiki_id="wiki1",
-                file_name="test.txt",
+                file_name="test.txt.gz",
                 wiki_version="0",
                 synapse_client=self.syn,
             )
@@ -1683,7 +1717,7 @@ class TestWikiPage:
         mock_filehandle_dict = {
             "list": [
                 {
-                    "fileName": "test.txt",
+                    "fileName": "test.txt.gz",
                     "contentSize": str(file_size),
                 }
             ]
@@ -1696,9 +1730,11 @@ class TestWikiPage:
             "synapseclient.models.wiki.get_attachment_handles",
             return_value=mock_filehandle_dict,
         ) as mock_get_handles, patch(
-            "synapseclient.models.wiki.download_from_url"
+            "synapseclient.models.wiki.download_from_url",
+            return_value="/tmp/download/test.txt.gz",
         ) as mock_download_from_url, patch(
-            "synapseclient.models.wiki.download_from_url_multi_threaded"
+            "synapseclient.models.wiki.download_from_url_multi_threaded",
+            return_value="/tmp/download/test.txt.gz",
         ) as mock_download_from_url_multi_threaded, patch(
             "synapseclient.models.wiki._pre_signed_url_expiration_time",
             return_value="2030-01-01T00:00:00.000Z",
@@ -1717,7 +1753,7 @@ class TestWikiPage:
             mock_get_url.assert_called_once_with(
                 owner_id="syn123",
                 wiki_id="wiki1",
-                file_name="test.txt",
+                file_name="test.txt.gz",
                 wiki_version="0",
                 synapse_client=self.syn,
             )
@@ -1740,13 +1776,14 @@ class TestWikiPage:
                     url=mock_attachment_url,
                     destination="/tmp/download",
                     url_is_presigned=True,
+                    synapse_client=self.syn,
                 )
                 mock_download_from_url_multi_threaded.assert_not_called()
 
             else:
                 # construct a mock presigned url info
                 mock_presigned_url_info = PresignedUrlInfo(
-                    file_name="test.txt",
+                    file_name="test.txt.gz",
                     url=mock_attachment_url,
                     expiration_utc="2030-01-01T00:00:00.000Z",
                 )
@@ -1754,6 +1791,7 @@ class TestWikiPage:
                 mock_download_from_url_multi_threaded.assert_called_once_with(
                     presigned_url=mock_presigned_url_info,
                     destination="/tmp/download",
+                    synapse_client=self.syn,
                 )
                 mock_download_from_url.assert_not_called()
 
@@ -1812,7 +1850,7 @@ class TestWikiPage:
             mock_get_url.assert_called_once_with(
                 owner_id="syn123",
                 wiki_id="wiki1",
-                file_name="test.txt",
+                file_name="test.txt.gz",
                 wiki_version="0",
                 synapse_client=self.syn,
             )
@@ -1832,7 +1870,7 @@ class TestWikiPage:
             ),
         ],
     )
-    async def test_get_markdown_async_missing_required_parameters(
+    async def test_get_markdown_file_async_missing_required_parameters(
         self, wiki_page, expected_error
     ) -> None:
         # WHEN I call `get_markdown_async`
@@ -1844,7 +1882,7 @@ class TestWikiPage:
             # THEN the API should not be called
             mocked_get.assert_not_called()
 
-    async def test_get_markdown_async_download_file_success(self) -> None:
+    async def test_get_markdown_file_async_download_file_success(self) -> None:
         # Mock responses
         mock_markdown_url = "https://example.com/markdown.md.gz"
 
@@ -1855,10 +1893,14 @@ class TestWikiPage:
             "synapseclient.models.wiki.download_from_url",
             return_value="/tmp/download/markdown.md.gz",
         ) as mock_download_from_url, patch(
-            "synapseclient.models.wiki.WikiPage._unzip_gzipped_file"
+            "synapseclient.models.wiki.WikiPage.unzip_gzipped_file"
         ) as mock_unzip_gzipped_file, patch.object(
             self.syn.logger, "info"
-        ) as mock_logger_info:
+        ) as mock_logger_info, patch.object(
+            self.syn.logger, "debug"
+        ) as mock_logger_debug, patch(
+            "os.remove"
+        ) as mock_remove:
             # WHEN I call `get_markdown_async` with download_file=True
             result = await self.wiki_page.get_markdown_file_async(
                 download_file=True,
@@ -1879,17 +1921,23 @@ class TestWikiPage:
                 url=mock_markdown_url,
                 destination="/tmp/download",
                 url_is_presigned=True,
+                synapse_client=self.syn,
             )
             # AND the file should be unzipped
             mock_unzip_gzipped_file.assert_called_once_with(
                 "/tmp/download/markdown.md.gz"
             )
-            # AND debug log should be called
             mock_logger_info.assert_called_once_with(
                 f"Downloaded and unzipped the markdown file for wiki page wiki1 to {result}."
             )
+            # AND the gzipped file should be removed
+            mock_remove.assert_called_once_with("/tmp/download/markdown.md.gz")
+            # AND debug log should be called
+            mock_logger_debug.assert_called_once_with(
+                f"Removed the gzipped file /tmp/download/markdown.md.gz."
+            )
 
-    async def test_get_markdown_async_no_file_download(self) -> None:
+    async def test_get_markdown_file_async_no_file_download(self) -> None:
         with patch(
             "synapseclient.models.wiki.get_markdown_url",
             return_value="https://example.com/markdown.md",
@@ -1911,7 +1959,7 @@ class TestWikiPage:
             # AND the result should be the markdown URL
             assert results == "https://example.com/markdown.md"
 
-    async def test_get_markdown_async_download_file_missing_location(self) -> None:
+    async def test_get_markdown_file_async_download_file_missing_location(self) -> None:
         # GIVEN a WikiPage object
         wiki = WikiPage(
             id="wiki1",
@@ -1949,7 +1997,7 @@ class TestWikiPage:
             # AND the attachment handles should not be retrieved
             mock_get_handles.assert_not_called()
 
-    async def test_get_markdown_async_with_different_wiki_version(self) -> None:
+    async def test_get_markdown_file_async_with_different_wiki_version(self) -> None:
         # GIVEN a WikiPage object with a specific wiki version
         wiki = WikiPage(
             id="wiki1",
@@ -1978,7 +2026,7 @@ class TestWikiPage:
             # AND the result should be the markdown URL
             assert results == "https://example.com/markdown_v2.md"
 
-    async def test_get_markdown_async_with_none_wiki_version(self) -> None:
+    async def test_get_markdown_file_async_with_none_wiki_version(self) -> None:
         # GIVEN a WikiPage object with None wiki version
         wiki = WikiPage(
             id="wiki1",
