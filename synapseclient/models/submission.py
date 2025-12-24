@@ -513,7 +513,11 @@ class Submission(SubmissionSynchronousProtocol):
         client = Synapse.get_client(synapse_client=synapse_client)
 
         try:
-            entity_info = await client.rest_get_async(f"/entity/{self.entity_id}")
+            from synapseclient.api import entity_services
+
+            entity_info = await entity_services.get_entity(
+                entity_id=self.entity_id, synapse_client=client
+            )
 
             # If this is a DockerRepository, fetch docker image tag & digest, and add it to the entity_info dict
             if (
