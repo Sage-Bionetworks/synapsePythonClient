@@ -413,7 +413,7 @@ async def create_submission(
 
     uri = "/evaluation/submission"
 
-    # Add etag as query parameter if provided
+    # Add etag as query parameter
     params = {"etag": etag}
 
     response = await client.rest_post_async(
