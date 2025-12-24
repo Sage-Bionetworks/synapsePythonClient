@@ -318,7 +318,7 @@ class WikiPageSynchronousProtocol(Protocol):
         """
         return ""
 
-    def get_markdown(
+    def get_markdown_file(
         self,
         *,
         redirect: Optional[bool] = False,
@@ -334,12 +334,12 @@ class WikiPageSynchronousProtocol(Protocol):
 
         Example: Get the markdown URL for a wiki page
             This example shows how to get the markdown URL for a wiki page.
-            markdown_url = WikiPage(owner_id=project.id, id=wiki_page.id).get_markdown(download_file=False)
+            markdown_url = WikiPage(owner_id=project.id, id=wiki_page.id).get_markdown_file(download_file=False)
             print(f"Markdown URL: {markdown_url}")
 
         Example: Download the markdown file for a wiki page
             This example shows how to download the markdown file for a wiki page.
-            markdown_file_path = WikiPage(owner_id=project.id, id=wiki_page.id).get_markdown(download_file=True, download_location="~/temp")
+            markdown_file_path = WikiPage(owner_id=project.id, id=wiki_page.id).get_markdown_file(download_file=True, download_location="~/temp")
             print(f"Markdown file path: {markdown_file_path}")
         """
         return ""
