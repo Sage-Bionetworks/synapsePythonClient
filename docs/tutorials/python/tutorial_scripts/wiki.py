@@ -159,7 +159,7 @@ attachment_file_name = "temp_attachment.txt"
 
 # reformat '.' and '_' in the attachment file name to be a valid attachment path
 attachment_file_name_reformatted = WikiPage.reformat_attachment_file_name(
-    attachment_file_name
+    os.path.basename(attachment_file_name)
 )
 sub_wiki_4 = WikiPage(
     owner_id=project.id,
@@ -191,13 +191,13 @@ attachment_handles = WikiPage(
 wiki_page_attachment_url = WikiPage(
     owner_id=project.id, id=sub_wiki_4.id
 ).get_attachment(
-    file_name=attachment_file_name,
+    file_name=os.path.basename(attachment_file_name),
     download_file=False,
 )
 
 # Download an attachment
 wiki_page_attachment = WikiPage(owner_id=project.id, id=sub_wiki_4.id).get_attachment(
-    file_name=attachment_file_name,
+    file_name=os.path.basename(attachment_file_name),
     download_file=True,
     download_location=".",
 )
@@ -209,7 +209,7 @@ unzipped_attachment_file_path = WikiPage.unzip_gzipped_file(wiki_page_attachment
 attachment_preview_url = WikiPage(
     owner_id=project.id, id=sub_wiki_4.id
 ).get_attachment_preview(
-    file_name=attachment_file_name,
+    file_name=os.path.basename(attachment_file_name),
     download_file=False,
 )
 
@@ -217,7 +217,7 @@ attachment_preview_url = WikiPage(
 attachment_preview = WikiPage(
     owner_id=project.id, id=sub_wiki_4.id
 ).get_attachment_preview(
-    file_name=attachment_file_name,
+    file_name=os.path.basename(attachment_file_name),
     download_file=True,
     download_location=".",
 )

@@ -239,7 +239,7 @@ Download an attachment file to your local machine and unzip it using `WikiPage.u
 
 ### Get attachment preview URL
 You can also retrieve preview URLs for attachments. When using `get_attachment_preview`, specify the original file name, not the file name returned in the attachment handle response when isPreview=True. The file name can be in either non-gzipped or gzipped format.
-The downloaded file will still be named according to the file name provided in the response when isPreview=True (typically preview.csv). Note that image attachments do not have preview files.
+The downloaded file will still be named according to the file name provided in the response when isPreview=True. Note that image attachments do not have preview files.
 ```python
 {!docs/tutorials/python/tutorial_scripts/Wiki.py!lines=209-214}
 ```
