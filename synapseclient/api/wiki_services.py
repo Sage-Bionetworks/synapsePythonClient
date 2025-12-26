@@ -290,7 +290,7 @@ async def get_attachment_url(
         owner_id: The ID of the owner entity.
         wiki_id: The ID of the wiki.
         file_name: The name of the file to get.
-                The file names can be found in the FileHandles from the GET /entity/{ownerId}/wiki/{wikiId}/attachmenthandles method.
+                The file names can be found in the FileHandles from the [synapseclient.api.wiki_services.get_attachment_handles] method.
         wiki_version: Optional version of the wiki page.
         synapse_client: If not passed in and caching was not disabled by
                 `Synapse.allow_client_caching(False)` this will use the last created
@@ -332,7 +332,7 @@ async def get_attachment_preview_url(
         owner_id: The ID of the owner entity.
         wiki_id: The ID of the wiki.
         file_name: The name of the file to get.
-                The file names can be found in the FileHandles from the GET /entity/{ownerId}/wiki/{wikiId}/attachmenthandles method.
+                The file names can be found in the FileHandles from the [synapseclient.api.wiki_services.get_attachment_handles] method.
         wiki_version: Optional version of the wiki page.
         synapse_client: If not passed in and caching was not disabled by
                 `Synapse.allow_client_caching(False)` this will use the last created
@@ -433,7 +433,7 @@ async def put_wiki_order_hint(
 
     Arguments:
         owner_id: The ID of the owner entity.
-        request: The updated order hint.
+        request: The updated order hint matching <https://rest-docs.synapse.org/rest/org/sagebionetworks/repo/model/v2/wiki/V2WikiOrderHint.html>.
         synapse_client: If not passed in and caching was not disabled by
                 `Synapse.allow_client_caching(False)` this will use the last created
                 instance from the Synapse class constructor.
