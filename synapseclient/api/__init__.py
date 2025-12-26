@@ -142,7 +142,7 @@ from .user_services import (
     get_user_profile_by_username,
     is_user_certified,
 )
-from .wiki_service import (
+from .wiki_services import (
     delete_wiki_page,
     get_attachment_handles,
     get_attachment_preview_url,
