@@ -20,13 +20,13 @@ async def post_wiki_page(
 
     Arguments:
         owner_id: The ID of the owner entity.
-        request: The wiki page to create.
+        request: The request body matching <https://rest-docs.synapse.org/rest/org/sagebionetworks/repo/model/v2/wiki/V2WikiPage.html>
         synapse_client: If not passed in and caching was not disabled by
                 `Synapse.allow_client_caching(False)` this will use the last created
                 instance from the Synapse class constructor.
 
     Returns:
-        The created wiki page.
+        The created wiki page matching <https://rest-docs.synapse.org/rest/org/sagebionetworks/repo/model/v2/wiki/V2WikiPage.html>.
     """
     from synapseclient import Synapse
 
@@ -50,14 +50,14 @@ async def get_wiki_page(
 
     Arguments:
         owner_id: The ID of the owner entity.
-        wiki_id: Optional ID of the wiki. If not provided, returns the root wiki page.
-        wiki_version: Optional version of the wiki page.
+        wiki_id: Optional. The ID of the wiki. If not provided, returns the root wiki page.
+        wiki_version: Optional. The version of the wiki page.
         synapse_client: If not passed in and caching was not disabled by
                 `Synapse.allow_client_caching(False)` this will use the last created
                 instance from the Synapse class constructor.
 
     Returns:
-        The requested wiki page.
+        The requested wiki page matching <https://rest-docs.synapse.org/rest/org/sagebionetworks/repo/model/v2/wiki/V2WikiPage.html>.
     """
     from synapseclient import Synapse
 
@@ -92,13 +92,13 @@ async def put_wiki_page(
     Arguments:
         owner_id: The ID of the owner entity.
         wiki_id: The ID of the wiki.
-        request: The updated wiki page.
+        request: The request body matching <https://rest-docs.synapse.org/rest/org/sagebionetworks/repo/model/v2/wiki/V2WikiPage.html>.
         synapse_client: If not passed in and caching was not disabled by
                 `Synapse.allow_client_caching(False)` this will use the last created
                 instance from the Synapse class constructor.
 
     Returns:
-        The updated wiki page.
+        The updated wiki page matching <https://rest-docs.synapse.org/rest/org/sagebionetworks/repo/model/v2/wiki/V2WikiPage.html>.
     """
     from synapseclient import Synapse
 
@@ -112,25 +112,25 @@ async def put_wiki_page(
 async def put_wiki_version(
     owner_id: str,
     wiki_id: str,
-    wiki_version: int,
+    wiki_version: str,
     request: Dict[str, Any],
     *,
     synapse_client: Optional["Synapse"] = None,
 ) -> Dict[str, Any]:
-    """Update a specific version of a wiki page.
-    <https://rest-docs.synapse.org/rest/PUT/entity/ownerId/wiki2/wikiId/version.html>
+    """Restore a specific version of a wiki page.
+    <https://rest-docs.synapse.org/rest/PUT/entity/ownerId/wiki2/wikiId/wikiVersion.html>
 
     Arguments:
         owner_id: The ID of the owner entity.
         wiki_id: The ID of the wiki.
-        wiki_version: The version number to update.
-        request: The updated wiki page.
+        wiki_version: The version number to update matching <https://rest-docs.synapse.org/rest/org/sagebionetworks/repo/model/v2/wiki/V2WikiPage.html>.
+        request: The request body of the updated wiki page matching <https://rest-docs.synapse.org/rest/org/sagebionetworks/repo/model/v2/wiki/V2WikiPage.html>.
         synapse_client: If not passed in and caching was not disabled by
                 `Synapse.allow_client_caching(False)` this will use the last created
                 instance from the Synapse class constructor.
 
     Returns:
-        The updated wiki page version.
+        The updated wiki page matching <https://rest-docs.synapse.org/rest/org/sagebionetworks/repo/model/v2/wiki/V2WikiPage.html>.
     """
     from synapseclient import Synapse
 
@@ -187,7 +187,7 @@ async def get_wiki_header_tree(
 
     Returns:
         A generator over the wiki header tree for the entity. The tree contains the hierarchy of wiki pages
-        including their IDs, titles, and parent-child relationships.
+        including their IDs, titles, and parent-child relationships matching <https://rest-docs.synapse.org/rest/org/sagebionetworks/repo/model/v2/wiki/V2WikiHeader.html>.
     """
     from synapseclient import Synapse
 
@@ -224,8 +224,8 @@ async def get_wiki_history(
                 instance from the Synapse class constructor.
 
     Returns:
-        A generator over the history of the wiki page. The history contains the history of the wiki page
-        including their IDs, titles, and parent-child relationships.
+        A generator over the history of the wiki page. The history contains the snapshots of the wiki page
+        including their IDs, titles, and parent-child relationships matching <https://rest-docs.synapse.org/rest/org/sagebionetworks/repo/model/v2/wiki/V2WikiHistorySnapshot.html>.
     """
     from synapseclient import Synapse
 
@@ -258,7 +258,7 @@ async def get_attachment_handles(
                 instance from the Synapse class constructor.
 
     Returns:
-        The the list of FileHandles for all file attachments of a specific WikiPage for a given owning Entity.
+        The the list of FileHandles for all file attachments of a specific WikiPage for a given owning Entity matching <https://rest-docs.synapse.org/rest/org/sagebionetworks/repo/model/file/FileHandleResults.html>
     """
     from synapseclient import Synapse
 
@@ -282,7 +282,7 @@ async def get_attachment_url(
     wiki_version: Optional[int] = None,
     *,
     synapse_client: Optional["Synapse"] = None,
-) -> Dict[str, Any]:
+) -> str:
     """Get the URL of a wiki page attachment.
     <https://rest-docs.synapse.org/rest/GET/entity/ownerId/wiki2/wikiId/attachment.html>
 
@@ -324,7 +324,7 @@ async def get_attachment_preview_url(
     wiki_version: Optional[int] = None,
     *,
     synapse_client: Optional["Synapse"] = None,
-) -> Dict[str, Any]:
+) -> str:
     """Get the preview of a wiki page attachment.
     <https://rest-docs.synapse.org/rest/GET/entity/ownerId/wiki2/wikiId/attachmentpreview.html>
 
@@ -365,7 +365,7 @@ async def get_markdown_url(
     wiki_version: Optional[int] = None,
     *,
     synapse_client: Optional["Synapse"] = None,
-) -> Dict[str, Any]:
+) -> str:
     """Get the markdown of a wiki page.
     <https://rest-docs.synapse.org/rest/GET/entity/ownerId/wiki2/wikiId/markdown.html>
 
@@ -412,7 +412,7 @@ async def get_wiki_order_hint(
                 instance from the Synapse class constructor.
 
     Returns:
-        The order hint that corresponds to the given owner Entity.
+        The order hint that corresponds to the given owner Entity matching <https://rest-docs.synapse.org/rest/org/sagebionetworks/repo/model/v2/wiki/V2WikiOrderHint.html>.
     """
     from synapseclient import Synapse
 
@@ -439,7 +439,7 @@ async def put_wiki_order_hint(
                 instance from the Synapse class constructor.
 
     Returns:
-        The updated order hint that corresponds to the given owner Entity.
+        The updated order hint that corresponds to the given owner Entity matching <https://rest-docs.synapse.org/rest/org/sagebionetworks/repo/model/v2/wiki/V2WikiOrderHint.html>.
     """
     from synapseclient import Synapse
 
