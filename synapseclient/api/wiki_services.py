@@ -8,6 +8,8 @@ from typing import TYPE_CHECKING, Any, AsyncGenerator, Dict, List, Optional
 if TYPE_CHECKING:
     from synapseclient import Synapse
 
+from synapseclient.api.api_client import rest_get_paginated_async
+
 
 async def post_wiki_page(
     owner_id: str,
@@ -193,10 +195,11 @@ async def get_wiki_header_tree(
 
     client = Synapse.get_client(synapse_client=synapse_client)
 
-    async for item in client.rest_get_paginated_async(
+    async for item in rest_get_paginated_async(
         uri=f"/entity/{owner_id}/wikiheadertree2",
         limit=limit,
         offset=offset,
+        synapse_client=client,
     ):
         yield item
 
@@ -231,10 +234,11 @@ async def get_wiki_history(
 
     client = Synapse.get_client(synapse_client=synapse_client)
 
-    async for item in client.rest_get_paginated_async(
+    async for item in rest_get_paginated_async(
         uri=f"/entity/{owner_id}/wiki2/{wiki_id}/wikihistory",
         limit=limit,
         offset=offset,
+        synapse_client=client,
     ):
         yield item
 
