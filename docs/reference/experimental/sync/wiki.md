@@ -34,3 +34,5 @@ at your own risk.
         - get_attachment
         - get_attachment_preview
         - get_markdown_file
+        - reformat_attachment_file_name
+        - unzip_gzipped_file

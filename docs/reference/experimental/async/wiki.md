@@ -34,3 +34,5 @@ at your own risk.
         - get_attachment_async
         - get_attachment_preview_async
         - get_markdown_file_async
+        - reformat_attachment_file_name
+        - unzip_gzipped_file
