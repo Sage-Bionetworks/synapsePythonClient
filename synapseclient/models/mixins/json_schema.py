@@ -53,6 +53,11 @@ class JSONSchemaVersionInfo:
     created_by: str
     """The Synapse user ID of the creator of the schema version."""
 
+    @property
+    def json_schema_uri(self) -> str:
+        """The JSON schema URI constructed from organization name, schema name, and semantic version."""
+        return f"{self.organization_name}-{self.schema_name}-{self.semantic_version}"
+
 
 @dataclass
 class JSONSchemaBinding:

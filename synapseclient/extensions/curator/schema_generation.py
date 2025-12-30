@@ -13,6 +13,7 @@ from itertools import product
 from logging import Logger
 from string import whitespace
 from typing import (
+    TYPE_CHECKING,
     AbstractSet,
     Any,
     Callable,
@@ -27,6 +28,8 @@ from typing import (
 )
 
 from deprecated import deprecated
+
+from synapseclient.core.utils import test_import_pandas
 
 try:
     from dataclasses_json import config, dataclass_json
@@ -58,12 +61,19 @@ except ImportError:
     Namespace = None  # type: ignore
 
 from synapseclient import Synapse
+from synapseclient.core.typing_utils import DataFrame as DATA_FRAME_TYPE
+from synapseclient.core.typing_utils import np, nx
 
-DATA_FRAME_TYPE = TypeVar("pd.DataFrame")
-NUMPY_INT_64 = TypeVar("np.int64")
-MULTI_GRAPH_TYPE = TypeVar("nx.MultiDiGraph")
-GRAPH_TYPE = TypeVar("nx.Graph")
-DI_GRAPH_TYPE = TypeVar("nx.DiGraph")
+if TYPE_CHECKING:
+    NUMPY_INT_64 = np.int64
+    MULTI_GRAPH_TYPE = nx.MultiDiGraph
+    GRAPH_TYPE = nx.Graph
+    DI_GRAPH_TYPE = nx.DiGraph
+else:
+    NUMPY_INT_64 = object
+    MULTI_GRAPH_TYPE = object
+    GRAPH_TYPE = object
+    DI_GRAPH_TYPE = object
 
 X = TypeVar("X")
 
@@ -319,6 +329,7 @@ def find_and_convert_ints(
         is_int: dataframe with boolean values indicating which cells were converted to type int
 
     """
+    test_import_pandas()
     from pandarallel import pandarallel
     from pandas import DataFrame
     from pandas.api.types import is_integer
@@ -370,6 +381,7 @@ def convert_floats(dataframe: DATA_FRAME_TYPE) -> DATA_FRAME_TYPE:
     Returns:
         float_df: dataframe with values that were converted to type float. Columns are type object
     """
+    test_import_pandas()
     from pandas import to_numeric
 
     # create a separate copy of the manifest
@@ -387,6 +399,7 @@ def convert_floats(dataframe: DATA_FRAME_TYPE) -> DATA_FRAME_TYPE:
 
 
 def get_str_pandas_na_values() -> List[str]:
+    test_import_pandas()
     from pandas._libs.parsers import STR_NA_VALUES  # type: ignore
 
     STR_NA_VALUES_FILTERED = deepcopy(STR_NA_VALUES)
@@ -417,6 +430,7 @@ def read_csv(
     Returns:
         pd.DataFrame: The dataframe created from the CSV file or buffer.
     """
+    test_import_pandas()
     from pandas import read_csv as pandas_read_csv
 
     STR_NA_VALUES_FILTERED = get_str_pandas_na_values()
@@ -460,6 +474,7 @@ def load_df(
         pd.DataFrame: a processed dataframe for manifests or unprocessed df for data models and
       where indicated
     """
+    test_import_pandas()
     from pandas import DataFrame
 
     # Read CSV to df as type specified in kwargs
@@ -639,6 +654,7 @@ class DataModelCSVParser:
                     Relationships: {
                                     CSV Header: Value}}}
         """
+        test_import_pandas()
         from pandas import isnull
 
         # Check csv schema follows expectations.
@@ -707,6 +723,7 @@ class DataModelCSVParser:
             dict: A dictionary containing the parsed column type information if present
             else an empty dict
         """
+        test_import_pandas()
         from pandas import isna
 
         column_type = attr.get("columnType")
@@ -778,6 +795,7 @@ class DataModelCSVParser:
             A dictionary containing the format value if it exists
             else an empty dict
         """
+        test_import_pandas()
         from pandas import isna
 
         format_value = attribute_dict.get("Format")
@@ -4020,9 +4038,11 @@ def export_schema(schema: dict, file_path: str, logger: Logger) -> None:
         filepath, str: path to store the schema
     """
     file_path = os.path.expanduser(file_path)
-    json_schema_dirname = os.path.dirname(file_path)
-    if json_schema_dirname != "":
-        os.makedirs(json_schema_dirname, exist_ok=True)
+    # Don't create directories if the path looks like a URL
+    if not (file_path.startswith("http://") or file_path.startswith("https://")):
+        json_schema_dirname = os.path.dirname(file_path)
+        if json_schema_dirname != "":
+            os.makedirs(json_schema_dirname, exist_ok=True)
     with open(file_path, "w", encoding="utf-8") as json_file:
         json.dump(schema, json_file, sort_keys=True, indent=4, ensure_ascii=False)
 
@@ -4038,6 +4058,7 @@ def parsed_model_as_dataframe(
     Returns:
         pd.DataFrame, DataFrame representation of the parsed model.
     """
+    test_import_pandas()
     from pandas import DataFrame
 
     # Convert the parsed model dictionary to a DataFrame
@@ -5352,6 +5373,14 @@ def get_json_schema_log_file_path(data_model_path: str, source_node: str) -> str
     Returns:
         json_schema_log_file_path: str, file name for the log file
     """
+    # If it's a URL, extract just the filename
+    if data_model_path.startswith("http://") or data_model_path.startswith("https://"):
+        from urllib.parse import urlparse
+
+        parsed_url = urlparse(data_model_path)
+        # Get the last part of the path (filename)
+        data_model_path = os.path.basename(parsed_url.path)
+
     data_model_path_root, _ = os.path.splitext(data_model_path)
     prefix = data_model_path_root
     prefix_root, prefix_ext = os.path.splitext(prefix)
@@ -5472,7 +5501,11 @@ def _write_data_model(
             data_model_path=jsonld_path, source_node=name
         )
         json_schema_dirname = os.path.dirname(json_schema_path)
-        if json_schema_dirname != "":
+        # Don't create directories if the path looks like a URL
+        if json_schema_dirname != "" and not (
+            json_schema_path.startswith("http://")
+            or json_schema_path.startswith("https://")
+        ):
             os.makedirs(json_schema_dirname, exist_ok=True)
 
         logger.info(
@@ -5498,18 +5531,21 @@ def generate_jsonschema(
     Generate JSON Schema files from a data model.
 
     Arguments:
-        data_model_source: Path to the data model file  or URL to the raw data model.
-            Supported formats: CSV or JSON-LD.
+        data_model_source: Path or URL to the data model file (CSV or JSONLD). Can accept:
+            - A local CSV file with your data model specification (will be parsed automatically)
+            - A local JSONLD file generated from `generate_jsonld()` or equivalent
+            - A URL pointing to a raw CSV data model (e.g., from GitHub)
+            - A URL pointing to a raw JSONLD data model (e.g., from GitHub)
+        synapse_client: Synapse client instance for logging. Use `Synapse.get_client()`
+            or pass an existing authenticated client.
+        data_types: List of specific cdata types to generate schemas for. If None, generates schemas for all data types in the data model.
         output: One of: None, a directory path, or a file path.
             - If None, schemas will be written to the current working directory, with filenames formatted as `<DataType>.json`.
             - If a directory path, schemas will be written to that directory, with filenames formatted as `<Output>/<DataType>.json`.
             - If a file path (must end with `.json`) and a single data type is specified, the schema for that data type will be written to that file.
-        data_types: List of specific cdata types to generate schemas for. If None, generates schemas for all data types in the data model.
         data_model_labels: Label format for properties in the generated schema:
             - `"class_label"` (default): Uses standard attribute names as property keys
             - `"display_label"`: Uses display names if valid (no blacklisted characters),.
-        synapse_client: Synapse client instance for logging. Use `Synapse.get_client()`
-            or pass an existing authenticated client.
 
     Returns:
         A tuple containing:
@@ -5549,11 +5585,24 @@ def generate_jsonschema(
         ```
 
         Generate schemas for all data types:
+        Generate schema for specific components from URL:
 
         ```python
         schemas, file_paths = generate_jsonschema(
             data_model_source="path/to/model.csv",
             output="./schemas",
+            synapse_client=syn
+        )
+        ```
+
+        Generate schema from CSV URL:
+
+        ```python
+        schemas, file_paths = generate_jsonschema(
+            data_model_source="https://raw.githubusercontent.com/org/repo/main/model.csv",
+            output_directory="./schemas",
+            data_type=None,
+            data_model_labels="class_label",
             synapse_client=syn
         )
         ```
@@ -5646,8 +5695,9 @@ def generate_jsonld(
     - Verifies the graph structure is a valid directed acyclic graph (DAG)
 
     Arguments:
-        schema: Path to your data model CSV file. This file should contain your complete
-            data model specification with all attributes, validation rules, and relationships.
+        schema: Path or URL to your data model CSV file. Can be a local file path or a URL
+            (e.g., from GitHub). This file should contain your complete data model
+            specification with all attributes, validation rules, and relationships.
         data_model_labels: Label format for the JSON-LD output:
 
             - `"class_label"` (default, recommended): Uses standard attribute names as labels
@@ -5708,6 +5758,16 @@ def generate_jsonld(
             synapse_client=syn
         )
         ```
+
+        Load from URL:
+        ```python
+        jsonld_model = generate_jsonld(
+            schema="https://raw.githubusercontent.com/org/repo/main/model.csv",
+            data_model_labels="class_label",
+            output_jsonld="downloaded_model.jsonld",
+            synapse_client=syn
+        )
+        ```
     """
     syn = Synapse.get_client(synapse_client=synapse_client)
 
@@ -5759,7 +5819,14 @@ def generate_jsonld(
     # output JSON-LD file alongside CSV file by default, get path.
     if output_jsonld is None:
         if ".jsonld" not in schema:
-            csv_no_ext = re.sub("[.]csv$", "", schema)
+            # If schema is a URL, extract just the filename for local output
+            schema_path = schema
+            if schema.startswith("http://") or schema.startswith("https://"):
+                from urllib.parse import urlparse
+
+                parsed_url = urlparse(schema)
+                schema_path = os.path.basename(parsed_url.path)
+            csv_no_ext = re.sub("[.]csv$", "", schema_path)
             output_jsonld = csv_no_ext + ".jsonld"
         else:
             output_jsonld = schema

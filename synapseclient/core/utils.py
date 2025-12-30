@@ -1548,3 +1548,22 @@ def log_dataclass_diff(
             value2 = getattr(obj2, field.name)
             if value1 != value2:
                 logger.info(f"{prefix}{field.name}: {value1} -> {value2}")
+
+
+def test_import_pandas() -> None:
+    """This function is called within other functions and methods to ensure that pandas is installed."""
+    try:
+        import pandas as pd  # noqa F401
+    # used to catch when pandas isn't installed
+    except ModuleNotFoundError:
+        raise ModuleNotFoundError(
+            """\n\nThe pandas package is required for this function!\n
+        Most functions in the synapseclient package don't require the
+        installation of pandas, but some do. Please refer to the installation
+        instructions at: http://pandas.pydata.org/ or
+        https://python-docs.synapse.org/tutorials/installation/#installation-guide-for-pypi-users.
+        \n\n\n"""
+        )
+    # catch other errors (see SYNPY-177)
+    except:  # noqa
+        raise

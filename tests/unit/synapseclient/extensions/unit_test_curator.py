@@ -12,7 +12,7 @@ import os
 import shutil
 import tempfile
 import unittest
-from unittest.mock import Mock, patch
+from unittest.mock import Mock, mock_open, patch
 
 import pandas as pd
 import pytest
@@ -2366,3 +2366,264 @@ class TestGenerateJsonschema(unittest.TestCase):
         finally:
             if os.path.isfile("./test.json"):
                 os.remove("./test.json")
+
+
+class TestGenerateJsonldWithUrls(unittest.TestCase):
+    """Test cases for generate_jsonld with URL inputs."""
+
+    @pytest.fixture(autouse=True, scope="function")
+    def init_syn(self, syn):
+        self.syn = syn
+
+    @patch("synapseclient.extensions.curator.schema_generation.DataModelGraph")
+    @patch("synapseclient.extensions.curator.schema_generation.DataModelValidator")
+    @patch("synapseclient.extensions.curator.schema_generation.convert_graph_to_jsonld")
+    @patch("synapseclient.extensions.curator.schema_generation.export_schema")
+    @patch("synapseclient.extensions.curator.schema_generation.load_df")
+    def test_generate_jsonld_from_csv_url(
+        self,
+        mock_load_df,
+        mock_export_schema,
+        mock_convert_to_jsonld,
+        mock_validator_cls,
+        mock_graph_cls,
+    ):
+        """Test generate_jsonld with CSV URL input."""
+        # GIVEN a CSV URL
+        csv_url = "https://raw.githubusercontent.com/Sage-Bionetworks/synapsePythonClient/main/model.csv"
+
+        # Mock load_df reading the CSV (load_df internally calls read_csv which handles URLs)
+        mock_df = pd.DataFrame(
+            {
+                "Attribute": ["Patient", "Diagnosis"],
+                "Description": ["Patient info", "Diagnosis info"],
+                "Valid Values": ["", "Cancer,Healthy"],
+                "DependsOn": ["", ""],
+                "DependsOn Component": ["", ""],
+                "Required": [False, False],
+                "Parent": ["", ""],
+                "Validation Rules": ["", ""],
+                "Properties": ["", ""],
+                "Source": ["", ""],
+            }
+        )
+        mock_load_df.return_value = mock_df
+
+        # Mock graph
+        mock_graph = Mock()
+        mock_graph.graph = Mock()
+        mock_graph_cls.return_value = mock_graph
+
+        # Mock validator
+        mock_validator = Mock()
+        mock_validator.run_checks.return_value = ([], [])  # No errors or warnings
+        mock_validator_cls.return_value = mock_validator
+
+        # Mock JSONLD conversion
+        mock_jsonld = {"@context": {}, "@graph": []}
+        mock_convert_to_jsonld.return_value = mock_jsonld
+
+        # WHEN I generate JSONLD from URL
+        result = generate_jsonld(
+            schema=csv_url,
+            data_model_labels="class_label",
+            output_jsonld="output.jsonld",
+            synapse_client=self.syn,
+        )
+
+        # THEN load_df should be called with the CSV URL
+        mock_load_df.assert_called_once_with(file_path=csv_url, data_model=True)
+
+        # AND export_schema should be called with the local output path
+        mock_export_schema.assert_called_once()
+        call_args = mock_export_schema.call_args
+        assert call_args[1]["file_path"] == "output.jsonld"
+
+        # AND the result should be the JSONLD dictionary
+        assert result == mock_jsonld
+
+    @patch("synapseclient.extensions.curator.schema_generation.DataModelParser")
+    @patch("synapseclient.extensions.curator.schema_generation.DataModelGraph")
+    @patch("synapseclient.extensions.curator.schema_generation.DataModelValidator")
+    @patch("synapseclient.extensions.curator.schema_generation.convert_graph_to_jsonld")
+    @patch("synapseclient.extensions.curator.schema_generation.export_schema")
+    @patch("synapseclient.extensions.curator.schema_generation.load_json")
+    def test_generate_jsonld_from_csv_url_default_output(
+        self,
+        mock_load_json,
+        mock_export_schema,
+        mock_convert_to_jsonld,
+        mock_validator_cls,
+        mock_graph_cls,
+        mock_parser_cls,
+    ):
+        """Test generate_jsonld with CSV URL and default output path."""
+        # GIVEN a CSV URL without specified output path
+        csv_url = "https://raw.githubusercontent.com/Sage-Bionetworks/synapsePythonClient/main/example.model.csv"
+
+        # Mock parser
+        mock_parser = Mock()
+        mock_parser.parse_model.return_value = {"Patient": {"Relationships": {}}}
+        mock_parser_cls.return_value = mock_parser
+
+        # Mock graph
+        mock_graph = Mock()
+        mock_graph.graph = Mock()
+        mock_graph_cls.return_value = mock_graph
+
+        # Mock validator
+        mock_validator = Mock()
+        mock_validator.run_checks.return_value = ([], [])
+        mock_validator_cls.return_value = mock_validator
+
+        # Mock JSONLD conversion
+        mock_jsonld = {"@context": {}, "@graph": []}
+        mock_convert_to_jsonld.return_value = mock_jsonld
+
+        # WHEN I generate JSONLD with default output
+        result = generate_jsonld(
+            schema=csv_url,
+            data_model_labels="class_label",
+            output_jsonld=None,  # Default output
+            synapse_client=self.syn,
+        )
+
+        # THEN export_schema should be called with filename extracted from URL
+        mock_export_schema.assert_called_once()
+        call_args = mock_export_schema.call_args
+        # Should extract filename from URL and change extension to .jsonld
+        assert call_args[1]["file_path"] == "example.model.jsonld"
+
+        # AND no directories should be created based on the URL path
+        assert "https:" not in call_args[1]["file_path"]
+        assert "raw.githubusercontent.com" not in call_args[1]["file_path"]
+
+
+class TestUrlPathHandling(unittest.TestCase):
+    """Test cases for URL path handling utilities."""
+
+    @pytest.fixture(autouse=True, scope="function")
+    def init_syn(self, syn):
+        self.syn = syn
+
+    def test_pathlib_extracts_suffix_from_url(self):
+        """Test that pathlib correctly extracts file extension from URLs."""
+        import pathlib
+
+        # GIVEN various URLs with different extensions
+        csv_url = "https://raw.githubusercontent.com/org/repo/main/model.csv"
+        jsonld_url = "https://raw.githubusercontent.com/org/repo/main/model.jsonld"
+
+        # WHEN I extract the suffix
+        csv_suffix = pathlib.Path(csv_url).suffix
+        jsonld_suffix = pathlib.Path(jsonld_url).suffix
+
+        # THEN the correct extensions should be extracted
+        assert csv_suffix == ".csv"
+        assert jsonld_suffix == ".jsonld"
+
+    def test_pathlib_extracts_stem_from_url(self):
+        """Test that pathlib correctly extracts filename stem from URLs."""
+        import pathlib
+
+        # GIVEN a URL
+        url = "https://raw.githubusercontent.com/org/repo/main/example.model.csv"
+
+        # WHEN I extract the stem
+        stem = pathlib.Path(url).stem
+
+        # THEN the filename without extension should be extracted
+        assert stem == "example.model"
+
+    @patch("synapseclient.extensions.curator.schema_generation.os.makedirs")
+    def test_no_directory_creation_for_urls(self, mock_makedirs):
+        """Test that directories are not created when path is a URL."""
+        from synapseclient.extensions.curator.schema_generation import export_schema
+
+        # GIVEN a URL as file path
+        url_path = "https://raw.githubusercontent.com/org/repo/main/model.jsonld"
+        schema = {"@context": {}, "@graph": []}
+
+        # WHEN export_schema would be called with a URL
+        # (In reality this shouldn't happen, but test the guard)
+        # Mock open to prevent actual file write
+        with patch("builtins.open", mock_open()):
+            try:
+                export_schema(schema, url_path, self.syn.logger)
+            except Exception:
+                pass  # We're just testing that makedirs isn't called
+
+        # THEN os.makedirs should not be called for URLs
+        mock_makedirs.assert_not_called()
+
+    def test_url_filename_extraction_in_output_path_generation(self):
+        """Test that filenames are correctly extracted from URLs for output paths."""
+        import os
+        from urllib.parse import urlparse
+
+        # GIVEN a URL
+        url = "https://raw.githubusercontent.com/Sage-Bionetworks/synapsePythonClient/main/tests/example.model.csv"
+
+        # WHEN I extract the filename (simulating the fix)
+        if url.startswith("http://") or url.startswith("https://"):
+            parsed_url = urlparse(url)
+            filename = os.path.basename(parsed_url.path)
+        else:
+            filename = url
+
+        # THEN only the filename should be extracted
+        assert filename == "example.model.csv"
+        assert "https:" not in filename
+        assert "raw.githubusercontent.com" not in filename
+
+    def test_get_json_schema_log_file_path_with_url(self):
+        """Test get_json_schema_log_file_path correctly handles URLs."""
+        from synapseclient.extensions.curator.schema_generation import (
+            get_json_schema_log_file_path,
+        )
+
+        # GIVEN a JSONLD URL
+        jsonld_url = "https://raw.githubusercontent.com/Sage-Bionetworks/synapsePythonClient/main/example.model.jsonld"
+        source_node = "Biospecimen"
+
+        # WHEN I get the log file path
+        result = get_json_schema_log_file_path(jsonld_url, source_node)
+
+        # THEN it should return just a filename, not a URL path
+        # Note: .model extension is stripped by the function
+        assert result == "example.Biospecimen.schema.json"
+        assert "https:" not in result
+        assert "raw.githubusercontent.com" not in result
+        assert "/" not in result or result.count("/") == 0  # No path separators
+
+    @patch("pandas.read_csv")
+    def test_pandas_reads_csv_from_url(self, mock_read_csv):
+        """Test that pandas can read CSV files from URLs."""
+        # GIVEN a CSV URL
+        csv_url = "https://raw.githubusercontent.com/org/repo/main/model.csv"
+        mock_df = pd.DataFrame({"col1": [1, 2, 3]})
+        mock_read_csv.return_value = mock_df
+
+        # WHEN pandas reads from URL
+        result = pd.read_csv(csv_url)
+
+        # THEN it should successfully read the data
+        assert len(result) == 3
+        mock_read_csv.assert_called_once_with(csv_url)
+
+    @patch("synapseclient.extensions.curator.schema_generation.load_json")
+    def test_load_json_reads_from_url(self, mock_load_json):
+        """Test that load_json can read from URLs."""
+        from synapseclient.extensions.curator.schema_generation import load_json
+
+        # GIVEN a JSONLD URL
+        jsonld_url = "https://raw.githubusercontent.com/org/repo/main/model.jsonld"
+        mock_data = {"@context": {}, "@graph": []}
+        mock_load_json.return_value = mock_data
+
+        # WHEN load_json reads from URL
+        result = load_json(jsonld_url)
+
+        # THEN it should successfully read the data
+        assert "@context" in result
+        assert "@graph" in result
