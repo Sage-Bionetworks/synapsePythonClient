@@ -5,7 +5,7 @@ import gzip
 import os
 import pprint
 from dataclasses import dataclass, field
-from typing import Any, Dict, List, Literal, Optional, Union
+from typing import Any, AsyncGenerator, Dict, List, Literal, Optional, Union
 
 from synapseclient import Synapse
 from synapseclient.api import (
@@ -122,6 +122,7 @@ class WikiOrderHint(WikiOrderHintSynchronousProtocol):
         Example: Set the WikiOrderHint for a project
             This example shows how to set a WikiOrderHint for existing wiki pages in a project.
             The WikiOrderHint is not set by default, so you need to set it explicitly.
+            ```python
             from synapseclient import Synapse
             from synapseclient.models import (
                 Project,
@@ -141,9 +142,10 @@ class WikiOrderHint(WikiOrderHintSynchronousProtocol):
             ]
             await wiki_order_hint.store_async()
             print(wiki_order_hint)
-
+            ```
         Example: Update the WikiOrderHint for a project
             This example shows how to update a WikiOrderHint for existing wiki pages in a project.
+            ```python
             wiki_order_hint.id_list = [
                 root_wiki_page.id,
                 wiki_page_1.id,
@@ -153,6 +155,7 @@ class WikiOrderHint(WikiOrderHintSynchronousProtocol):
             ]
             await wiki_order_hint.store_async()
             print(wiki_order_hint)
+            ```
         """
         if not self.owner_id:
             raise ValueError("Must provide owner_id to store wiki order hint.")
@@ -185,6 +188,7 @@ class WikiOrderHint(WikiOrderHintSynchronousProtocol):
 
         Example: Get the WikiOrderHint for a project
             This example shows how to get a WikiOrderHint for existing wiki pages in a project.
+            ```python
             from synapseclient import Synapse
             from synapseclient.models import (
                 Project,
@@ -195,6 +199,7 @@ class WikiOrderHint(WikiOrderHintSynchronousProtocol):
             project = await Project(name="My uniquely named project about Alzheimer's Disease").get_async()
             wiki_order_hint = await WikiOrderHint(owner_id=project.id).get_async()
             print(wiki_order_hint)
+            ```
         """
         if not self.owner_id:
             raise ValueError("Must provide owner_id to get wiki order hint.")
@@ -257,7 +262,7 @@ class WikiHistorySnapshot(WikiHistorySnapshotSynchronousProtocol):
         offset: int = 0,
         limit: int = 20,
         synapse_client: Optional["Synapse"] = None,
-    ) -> List["WikiHistorySnapshot"]:
+    ) -> AsyncGenerator["WikiHistorySnapshot", None]:
         """
         Get the history of a wiki page as a list of WikiHistorySnapshot objects.
 
@@ -267,18 +272,21 @@ class WikiHistorySnapshot(WikiHistorySnapshotSynchronousProtocol):
             offset: The index of the pagination offset.
             limit: Limits the size of the page returned.
             synapse_client: Optionally provide a Synapse client.
-        Returns:
-            A list of WikiHistorySnapshot objects for the wiki page.
+        Yields:
+            Individual WikiHistorySnapshot objects from each page of the response.
 
         Example: Get the history of a wiki page
-            history = await WikiHistorySnapshot.get_async(owner_id=project.id, id=wiki_page.id)
-            print(f"History: {history}")
+            ```python
+            async def main():
+                async for item in WikiHistorySnapshot.get_async(owner_id=project.id, id=wiki_page.id):
+                    print(f"History: {item}")
+            asyncio.run(main())
+            ```
         """
         if not owner_id:
             raise ValueError("Must provide owner_id to get wiki history.")
         if not id:
             raise ValueError("Must provide id to get wiki history.")
-        snapshots = []
         async for item in get_wiki_history(
             owner_id=owner_id,
             wiki_id=id,  # use id instead of wiki_id to match other classes
@@ -286,8 +294,8 @@ class WikiHistorySnapshot(WikiHistorySnapshotSynchronousProtocol):
             limit=limit,
             synapse_client=synapse_client,
         ):
-            snapshots.append(cls().fill_from_dict(item))
-        return snapshots
+            item = cls().fill_from_dict(wiki_history=item)
+            yield item
 
 
 @dataclass
@@ -340,7 +348,7 @@ class WikiHeader(WikiHeaderSynchronousProtocol):
         offset: int = 0,
         limit: int = 20,
         synapse_client: Optional["Synapse"] = None,
-    ) -> List["WikiHeader"]:
+    ) -> AsyncGenerator["WikiHeader", None]:
         """
         Get the header tree (hierarchy) of wiki pages for an entity.
 
@@ -349,24 +357,27 @@ class WikiHeader(WikiHeaderSynchronousProtocol):
             offset: The index of the pagination offset.
             limit: Limits the size of the page returned.
             synapse_client: Optionally provide a Synapse client.
-        Returns:
-            A list of WikiHeader objects for the entity.
+        Yields:
+            Individual WikiHeader objects for the entity.
 
         Example: Get the header tree (hierarchy) of wiki pages for an entity
-            headers = await WikiHeader.get_async(owner_id=project.id)
-            print(f"Headers: {headers}")
+            ```python
+            async def main():
+                async for item in WikiHeader.get_async(owner_id=project.id):
+                    print(f"Header: {item}")
+            asyncio.run(main())
+            ```
         """
         if not owner_id:
             raise ValueError("Must provide owner_id to get wiki header tree.")
-        headers = []
         async for item in get_wiki_header_tree(
             owner_id=owner_id,
             offset=offset,
             limit=limit,
             synapse_client=synapse_client,
         ):
-            headers.append(cls().fill_from_dict(item))
-        return headers
+            item = cls().fill_from_dict(wiki_header=item)
+            yield item
 
 
 @dataclass
@@ -504,22 +515,19 @@ class WikiPage(WikiPageSynchronousProtocol):
         Returns:
             The path to the gzipped file and the cache directory.
         """
-        # check if markdown is a string
         if not isinstance(wiki_content, str):
             raise SyntaxError(f"Expected a string, got {type(wiki_content).__name__}")
         # Get the cache directory path to save the newly created gzipped file
         cache_dir = os.path.join(synapse_client.cache.cache_root_dir, "wiki_content")
         if not os.path.exists(cache_dir):
             os.makedirs(cache_dir)
-        # Check if markdown looks like a file path and exists
+
         if os.path.isfile(wiki_content):
-            # If it's already a gzipped file, use the file path directly
             if wiki_content.endswith(".gz"):
                 file_path = wiki_content
             else:
                 # If it's a regular html or markdown file, compress it
                 with open(wiki_content, "rb") as f_in:
-                    # Open the output gzip file
                     file_path = os.path.join(
                         cache_dir, os.path.basename(wiki_content) + ".gz"
                     )
@@ -543,12 +551,16 @@ class WikiPage(WikiPageSynchronousProtocol):
             file_path: The path to the gzipped file.
         Returns:
             The file path to the unzipped file.
+
+        Example: Unzip a gzipped file
+            ```python
+            file_path = "path/to/file.md.gz"
+            unzipped_file_path = WikiPage.unzip_gzipped_file(file_path)
+            ```
         """
-        # Open in binary mode to handle both text and binary files
         with gzip.open(file_path, "rb") as f_in:
             unzipped_content_bytes = f_in.read()
 
-            # Try to decode as UTF-8 to check if it's a text file
             is_text_file = False
             unzipped_content_text = None
             try:
@@ -560,12 +572,10 @@ class WikiPage(WikiPageSynchronousProtocol):
                 # It's a binary file, keep as bytes
                 pass
 
-            # unzip the file and return the file path
             unzipped_file_path = os.path.join(
                 os.path.dirname(file_path),
                 os.path.basename(file_path).replace(".gz", ""),
             )
-            # Write in text mode for text files, binary mode for binary files
             if is_text_file:
                 with open(unzipped_file_path, "wt", encoding="utf-8") as f_out:
                     f_out.write(unzipped_content_text)
@@ -600,12 +610,37 @@ class WikiPage(WikiPageSynchronousProtocol):
             attachment_file_name: The name of the attachment file.
         Returns:
             The reformatted attachment file name.
+
+        Example: Reformat the attachment file name
+            ```python
+            attachment_file_name = "file.txt"
+            attachment_file_name_reformatted = WikiPage.reformat_attachment_file_name(attachment_file_name)
+            print(f"Reformatted attachment file name: {attachment_file_name_reformatted}")
+            ```
         """
         attachment_file_name_reformatted = attachment_file_name.replace(".", "%2E")
         attachment_file_name_reformatted = attachment_file_name_reformatted.replace(
             "_", "%5F"
         )
         return attachment_file_name_reformatted
+
+    @staticmethod
+    def _should_gzip_file(file_path: str) -> bool:
+        """Check if a file should be gzipped.
+
+        Files that are already gzipped or are image files (png, jpg, jpeg) should not be gzipped.
+
+        Arguments:
+            file_path: The path or name of the file to check.
+        Returns:
+            True if the file should be gzipped, False otherwise.
+        """
+        return (
+            not file_path.endswith(".gz")
+            and not file_path.endswith(".png")
+            and not file_path.endswith(".jpg")
+            and not file_path.endswith(".jpeg")
+        )
 
     @otel_trace_method(
         method_to_trace_name=lambda self, **kwargs: f"Get the markdown file handle: {self.owner_id}"
@@ -624,7 +659,6 @@ class WikiPage(WikiPageSynchronousProtocol):
                 wiki_content=self.markdown, synapse_client=synapse_client
             )
             try:
-                # Upload the gzipped file to get a file handle
                 async with synapse_client._get_parallel_file_transfer_semaphore(
                     asyncio_event_loop=asyncio.get_running_loop()
                 ):
@@ -636,10 +670,8 @@ class WikiPage(WikiPageSynchronousProtocol):
                     synapse_client.logger.info(
                         f"Uploaded file handle {file_handle.get('id')} for wiki page markdown."
                     )
-                    # Set the markdown file handle ID from the upload response
                     self.markdown_file_handle_id = file_handle.get("id")
             finally:
-                # delete the temp directory saving the gzipped file
                 if os.path.exists(file_path):
                     os.remove(file_path)
                     synapse_client.logger.debug(f"Deleted temp directory {file_path}")
@@ -661,13 +693,7 @@ class WikiPage(WikiPageSynchronousProtocol):
 
             async def task_of_uploading_attachment(attachment: str) -> tuple[str, str]:
                 """Process a single attachment and return its file handle ID and cache directory."""
-                # if the attachment is not a gzipped file or image file, gzip it
-                if (
-                    not attachment.endswith(".gz")
-                    and not attachment.endswith(".png")
-                    and not attachment.endswith(".jpg")
-                    and not attachment.endswith(".jpeg")
-                ):
+                if WikiPage._should_gzip_file(attachment):
                     file_path = self._to_gzip_file(
                         wiki_content=attachment, synapse_client=synapse_client
                     )
@@ -693,13 +719,11 @@ class WikiPage(WikiPageSynchronousProtocol):
                             f"Deleted temp directory {file_path}"
                         )
 
-            # Process all attachments in parallel
             tasks = [
                 asyncio.create_task(task_of_uploading_attachment(attachment))
                 for attachment in self.attachments
             ]
             results = await asyncio.gather(*tasks)
-            # Set the attachment file handle IDs from the upload response
             self.attachment_file_handle_ids = results
             return self
 
@@ -707,7 +731,9 @@ class WikiPage(WikiPageSynchronousProtocol):
         self,
         *,
         synapse_client: Optional[Synapse] = None,
-    ) -> Literal["create_root", "update_root", "create_sub"]:
+    ) -> Literal[
+        "create_root_wiki_page", "update_existing_wiki_page", "create_sub_wiki_page"
+    ]:
         """Determine the wiki action to perform.
         Returns:
             The wiki action to perform.
@@ -721,9 +747,11 @@ class WikiPage(WikiPageSynchronousProtocol):
             return "create_sub_wiki_page"
 
         try:
-            await WikiHeader.get_async(
-                owner_id=self.owner_id, synapse_client=synapse_client
+            headers = WikiHeader.get_async(
+                owner_id=self.owner_id,
+                synapse_client=synapse_client,
             )
+            await anext(headers)
         except SynapseHTTPError as e:
             if e.response.status_code == 404:
                 return "create_root_wiki_page"
@@ -760,6 +788,7 @@ class WikiPage(WikiPageSynchronousProtocol):
 
         Example: Store a wiki page
             This example shows how to store a wiki page.
+            ```python
             from synapseclient import Synapse
             from synapseclient.models import (
                 Project,
@@ -770,6 +799,7 @@ class WikiPage(WikiPageSynchronousProtocol):
             project = await Project(name="My uniquely named project about Alzheimer's Disease").get_async()
             wiki_page = await WikiPage(owner_id=project.id, title="My wiki page").store_async()
             print(wiki_page)
+            ```
         """
         client = Synapse.get_client(synapse_client=synapse_client)
 
@@ -780,12 +810,10 @@ class WikiPage(WikiPageSynchronousProtocol):
             self = await self._get_markdown_file_handle(synapse_client=client)
             self = await self._get_attachment_file_handles(synapse_client=client)
 
-        # Handle root wiki page creation if parent_id is not given
         if wiki_action == "create_root_wiki_page":
             client.logger.info(
                 "No wiki page exists within the owner. Create a new wiki page."
             )
-            # Create the wiki page
             wiki_data = await post_wiki_page(
                 owner_id=self.owner_id,
                 request=self.to_synapse_request(),
@@ -794,18 +822,16 @@ class WikiPage(WikiPageSynchronousProtocol):
             client.logger.info(
                 f"Created wiki page: {wiki_data.get('title')} with ID: {wiki_data.get('id')}."
             )
-        if wiki_action == "update_existing_wiki_page":
+        elif wiki_action == "update_existing_wiki_page":
             client.logger.info(
                 "A wiki page already exists within the owner. Update the existing wiki page."
             )
-            # retrieve the wiki page
             existing_wiki_dict = await get_wiki_page(
                 owner_id=self.owner_id,
                 wiki_id=self.id,
                 wiki_version=self.wiki_version,
                 synapse_client=client,
             )
-            # convert to dataclass
             existing_wiki = WikiPage()
             existing_wiki = existing_wiki.fill_from_dict(
                 synapse_wiki=existing_wiki_dict
@@ -819,7 +845,6 @@ class WikiPage(WikiPageSynchronousProtocol):
                     "modified_by",
                 ],
             )
-            # update the wiki page
             wiki_data = await put_wiki_page(
                 owner_id=self.owner_id,
                 wiki_id=self.id,
@@ -830,12 +855,10 @@ class WikiPage(WikiPageSynchronousProtocol):
                 f"Updated wiki page: {wiki_data.get('title')} with ID: {wiki_data.get('id')}."
             )
 
-        # Handle sub-wiki page creation if parent_id is given
-        if wiki_action == "create_sub_wiki_page":
+        else:
             client.logger.info(
                 f"Creating sub-wiki page under parent ID: {self.parent_id}"
             )
-            # Create the sub-wiki page directly
             wiki_data = await post_wiki_page(
                 owner_id=self.owner_id,
                 request=self.to_synapse_request(),
@@ -867,8 +890,10 @@ class WikiPage(WikiPageSynchronousProtocol):
 
         Example: Restore a specific version of a wiki page
             This example shows how to restore a specific version of a wiki page.
+            ```python
             wiki_page_restored = await WikiPage(owner_id=project.id, id=wiki_page.id, wiki_version="0").restore_async()
             print(wiki_page_restored)
+            ```
         """
         if not self.owner_id:
             raise ValueError("Must provide owner_id to restore a wiki page.")
@@ -877,7 +902,6 @@ class WikiPage(WikiPageSynchronousProtocol):
         if not self.wiki_version:
             raise ValueError("Must provide wiki_version to restore a wiki page.")
 
-        # restore the wiki page
         wiki_data = await put_wiki_version(
             owner_id=self.owner_id,
             wiki_id=self.id,
@@ -911,15 +935,16 @@ class WikiPage(WikiPageSynchronousProtocol):
 
         Example: Get a wiki page from Synapse
             This example shows how to get a wiki page from Synapse.
+            ```python
             wiki_page = await WikiPage(owner_id=project.id, id=wiki_page.id).get_async()
             print(wiki_page)
+            ```
         """
         if not self.owner_id:
             raise ValueError("Must provide owner_id to get a wiki page.")
         if not self.id and not self.title:
             raise ValueError("Must provide id or title to get a wiki page.")
 
-        # If we only have a title, find the wiki page with matching title.
         if self.id is None:
             async for result in get_wiki_header_tree(
                 owner_id=self.owner_id,
@@ -962,8 +987,10 @@ class WikiPage(WikiPageSynchronousProtocol):
 
         Example: Delete a wiki page
             This example shows how to delete a wiki page.
+            ```python
             wiki_page = await WikiPage(owner_id=project.id, id=wiki_page.id).delete_async()
             print(f"Wiki page {wiki_page.title} deleted successfully.")
+            ```
         """
         if not self.owner_id:
             raise ValueError("Must provide owner_id to delete a wiki page.")
@@ -996,8 +1023,10 @@ class WikiPage(WikiPageSynchronousProtocol):
 
         Example: Get the file handles of all attachments on a wiki page
             This example shows how to get the file handles of all attachments on a wiki page.
+            ```python
             attachment_handles = await WikiPage(owner_id=project.id, id=wiki_page.id).get_attachment_handles_async()
             print(f"Attachment handles: {attachment_handles['list']}")
+            ```
         """
         if not self.owner_id:
             raise ValueError("Must provide owner_id to get attachment handles.")
@@ -1037,13 +1066,16 @@ class WikiPage(WikiPageSynchronousProtocol):
 
         Example: Get the attachment URL for a wiki page
             This example shows how to get the attachment file or URL for a wiki page.
+            ```python
             attachment_file_or_url = await WikiPage(owner_id=project.id, id=wiki_page.id).get_attachment_async(file_name="attachment.txt", download_file=False)
             print(f"Attachment URL: {attachment_file_or_url}")
-
+            ```
         Example: Download the attachment file for a wiki page
             This example shows how to download the attachment file for a wiki page.
+            ```python
             attachment_file_path = await WikiPage(owner_id=project.id, id=wiki_page.id).get_attachment_async(file_name="attachment.txt", download_file=True, download_location="~/temp")
             print(f"Attachment file path: {attachment_file_path}")
+            ```
         """
         if not self.owner_id:
             raise ValueError("Must provide owner_id to get attachment URL.")
@@ -1053,13 +1085,8 @@ class WikiPage(WikiPageSynchronousProtocol):
             raise ValueError("Must provide file_name to get attachment URL.")
 
         client = Synapse.get_client(synapse_client=synapse_client)
-        # check if the file_name is in gzip format or image format
-        if (
-            not file_name.endswith(".gz")
-            and not file_name.endswith(".png")
-            and not file_name.endswith(".jpg")
-            and not file_name.endswith(".jpeg")
-        ):
+
+        if WikiPage._should_gzip_file(file_name):
             file_name = f"{file_name}.gz"
         attachment_url = await get_attachment_url(
             owner_id=self.owner_id,
@@ -1073,7 +1100,6 @@ class WikiPage(WikiPageSynchronousProtocol):
             if not download_location:
                 raise ValueError("Must provide download_location to download a file.")
 
-            # construct PresignedUrlInfo for downloading
             presigned_url_info = PresignedUrlInfo(
                 url=attachment_url,
                 file_name=file_name,
@@ -1085,9 +1111,7 @@ class WikiPage(WikiPageSynchronousProtocol):
                 wiki_version=self.wiki_version,
                 synapse_client=client,
             )
-            # check the file_size
             file_size = int(WikiPage._get_file_size(filehandle_dict, file_name))
-            # use single thread download if file size < 8 MiB
             if file_size < SINGLE_THREAD_DOWNLOAD_SIZE_LIMIT:
                 downloaded_file_path = download_from_url(
                     url=presigned_url_info.url,
@@ -1096,13 +1120,11 @@ class WikiPage(WikiPageSynchronousProtocol):
                     synapse_client=client,
                 )
             else:
-                # download the file
                 downloaded_file_path = await download_from_url_multi_threaded(
                     presigned_url=presigned_url_info,
                     destination=download_location,
                     synapse_client=client,
                 )
-            # unzip the file if it is a gzipped file
             unzipped_file_path = WikiPage.unzip_gzipped_file(downloaded_file_path)
             client.logger.info(
                 f"Downloaded file {presigned_url_info.file_name.replace('.gz', '')} to {unzipped_file_path}."
@@ -1141,13 +1163,16 @@ class WikiPage(WikiPageSynchronousProtocol):
             This example shows how to get the attachment preview URL for a wiki page.
             Instead of using the file_name from the attachmenthandle response when isPreview=True, you should use the original file name in the get_attachment_preview request.
             The downloaded file will still be named according to the file_name provided in the response when isPreview=True.
+            ```python
             attachment_preview_url = await WikiPage(owner_id=project.id, id=wiki_page.id).get_attachment_preview_async(file_name="attachment.txt.gz", download_file=False)
             print(f"Attachment preview URL: {attachment_preview_url}")
-
+            ```
         Example: Download the attachment preview file for a wiki page
             This example shows how to download the attachment preview file for a wiki page.
+            ```python
             attachment_preview_file_path = WikiPage(owner_id=project.id, id=wiki_page.id).get_attachment_preview(file_name="attachment.txt.gz", download_file=True, download_location="~/temp")
             print(f"Attachment preview file path: {attachment_preview_file_path}")
+            ```
         """
         if not self.owner_id:
             raise ValueError("Must provide owner_id to get attachment preview URL.")
@@ -1167,12 +1192,10 @@ class WikiPage(WikiPageSynchronousProtocol):
             wiki_version=self.wiki_version,
             synapse_client=client,
         )
-        # download the file if download_file is True
         if download_file:
             if not download_location:
                 raise ValueError("Must provide download_location to download a file.")
 
-            # construct PresignedUrlInfo for downloading
             presigned_url_info = PresignedUrlInfo(
                 url=attachment_preview_url,
                 file_name=file_name,
@@ -1185,9 +1208,7 @@ class WikiPage(WikiPageSynchronousProtocol):
                 wiki_version=self.wiki_version,
                 synapse_client=client,
             )
-            # check the file_size
             file_size = int(WikiPage._get_file_size(filehandle_dict, file_name))
-            # use single thread download if file size < 8 MiB
             if file_size < SINGLE_THREAD_DOWNLOAD_SIZE_LIMIT:
                 downloaded_file_path = download_from_url(
                     url=presigned_url_info.url,
@@ -1196,7 +1217,6 @@ class WikiPage(WikiPageSynchronousProtocol):
                     synapse_client=client,
                 )
             else:
-                # download the file
                 downloaded_file_path = await download_from_url_multi_threaded(
                     presigned_url=presigned_url_info,
                     destination=download_location,
@@ -1233,13 +1253,16 @@ class WikiPage(WikiPageSynchronousProtocol):
 
         Example: Get the markdown URL for a wiki page
             This example shows how to get the markdown URL for a wiki page.
+            ```python
             markdown_url = await WikiPage(owner_id=project.id, id=wiki_page.id).get_markdown_file_async(download_file=False)
             print(f"Markdown URL: {markdown_url}")
-
+            ```
         Example: Download the markdown file for a wiki page
             This example shows how to download the markdown file for a wiki page.
+            ```python
             markdown_file_path = await WikiPage(owner_id=project.id, id=wiki_page.id).get_markdown_file_async(download_file=True, download_location="~/temp")
             print(f"Markdown file path: {markdown_file_path}")
+            ```
         """
         if not self.owner_id:
             raise ValueError("Must provide owner_id to get markdown URL.")
@@ -1253,24 +1276,20 @@ class WikiPage(WikiPageSynchronousProtocol):
             wiki_version=self.wiki_version,
             synapse_client=client,
         )
-        # download the file if download_file is True
         if download_file:
             if not download_location:
                 raise ValueError("Must provide download_location to download a file.")
 
-            # construct PresignedUrlInfo for downloading
             downloaded_file_path = download_from_url(
                 url=markdown_url,
                 destination=download_location,
                 url_is_presigned=True,
                 synapse_client=client,
             )
-            # unzip the file if it is a gzipped file
             unzipped_file_path = WikiPage.unzip_gzipped_file(downloaded_file_path)
             client.logger.info(
                 f"Downloaded and unzipped the markdown file for wiki page {self.id} to {unzipped_file_path}."
             )
-            # remove the gzipped file
             os.remove(downloaded_file_path)
             client.logger.debug(f"Removed the gzipped file {downloaded_file_path}.")
             return unzipped_file_path
