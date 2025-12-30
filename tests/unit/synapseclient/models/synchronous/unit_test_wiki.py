@@ -167,43 +167,42 @@ class TestWikiHistorySnapshot:
 
     def test_get_success(self) -> None:
         # GIVEN mock responses
-        mock_responses = [
-            {
+        async def mock_responses() -> AsyncGenerator[Dict[str, Any], None]:
+            yield {
                 "version": 1,
                 "modifiedOn": "2023-01-01T00:00:00.000Z",
                 "modifiedBy": "12345",
-            },
-            {
+            }
+            yield {
                 "version": 2,
                 "modifiedOn": "2023-01-02T00:00:00.000Z",
                 "modifiedBy": "12345",
-            },
-            {
+            }
+            yield {
                 "version": 3,
                 "modifiedOn": "2023-01-03T00:00:00.000Z",
                 "modifiedBy": "12345",
-            },
-        ]
+            }
 
         # Create an async generator function
-        async def mock_async_generator(*args, **kwargs):
-            for item in mock_responses:
+        async def mock_async_generator():
+            async for item in mock_responses():
                 yield item
 
         # WHEN I call `get`
         with patch(
             "synapseclient.models.wiki.get_wiki_history",
-            side_effect=mock_async_generator,
+            return_value=mock_async_generator(),
         ) as mocked_get:
-            results = list(
-                WikiHistorySnapshot.get(
-                    owner_id="syn123",
-                    id="wiki1",
-                    offset=0,
-                    limit=20,
-                    synapse_client=self.syn,
-                )
-            )
+            results = []
+            for item in WikiHistorySnapshot().get(
+                owner_id="syn123",
+                id="wiki1",
+                offset=0,
+                limit=20,
+                synapse_client=self.syn,
+            ):
+                results.append(item)
             # THEN the API should be called with correct parameters
             mocked_get.assert_called_once_with(
                 owner_id="syn123",
@@ -318,7 +317,7 @@ class TestWikiHeader:
 
         with patch(
             "synapseclient.models.wiki.get_wiki_header_tree",
-            side_effect=mock_async_generator,
+            return_value=mock_async_generator(),
         ) as mocked_get:
             results = list(
                 WikiHeader.get(

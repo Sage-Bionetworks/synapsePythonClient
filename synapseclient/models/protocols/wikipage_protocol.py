@@ -112,11 +112,10 @@ class WikiHistorySnapshotSynchronousProtocol(Protocol):
     """Protocol for the methods of the WikiHistorySnapshot class that have synchronous counterparts
     generated at runtime."""
 
-    @classmethod
     def get(
         cls,
         owner_id: str,
-        wiki_id: str,
+        id: str,
         *,
         offset: int = 0,
         limit: int = 20,
@@ -140,9 +139,9 @@ class WikiHistorySnapshotSynchronousProtocol(Protocol):
             ```
         """
         return wrap_async_generator_to_sync_generator(
-            async_gen_func=WikiHistorySnapshot.get_async,
+            async_gen_func=cls().get_async,
             owner_id=owner_id,
-            id=wiki_id,
+            id=id,
             offset=offset,
             limit=limit,
             synapse_client=synapse_client,
@@ -153,7 +152,6 @@ class WikiHeaderSynchronousProtocol(Protocol):
     """Protocol for the methods of the WikiHeader class that have synchronous counterparts
     generated at runtime."""
 
-    @classmethod
     def get(
         cls,
         owner_id: str,
@@ -179,7 +177,7 @@ class WikiHeaderSynchronousProtocol(Protocol):
             ```
         """
         return wrap_async_generator_to_sync_generator(
-            async_gen_func=WikiHeader.get_async,
+            async_gen_func=cls().get_async,
             owner_id=owner_id,
             offset=offset,
             limit=limit,

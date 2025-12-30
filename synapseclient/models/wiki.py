@@ -5,7 +5,7 @@ import gzip
 import os
 import pprint
 from dataclasses import dataclass, field
-from typing import Any, AsyncGenerator, Dict, List, Literal, Optional, Union
+from typing import Any, AsyncGenerator, Dict, Generator, List, Literal, Optional, Union
 
 from synapseclient import Synapse
 from synapseclient.api import (
@@ -23,7 +23,12 @@ from synapseclient.api import (
     put_wiki_page,
     put_wiki_version,
 )
-from synapseclient.core.async_utils import async_to_sync, otel_trace_method
+from synapseclient.core.async_utils import (
+    async_to_sync,
+    otel_trace_method,
+    skip_async_to_sync,
+    wrap_async_generator_to_sync_generator,
+)
 from synapseclient.core.download import (
     PresignedUrlInfo,
     _pre_signed_url_expiration_time,
@@ -250,10 +255,8 @@ class WikiHistorySnapshot(WikiHistorySnapshotSynchronousProtocol):
         self.modified_by = wiki_history.get("modifiedBy", None)
         return self
 
+    @skip_async_to_sync
     @classmethod
-    @otel_trace_method(
-        method_to_trace_name=lambda self, **kwargs: f"Get_Wiki_History for Owner ID {kwargs['owner_id']}, Wiki ID {kwargs['id']}"
-    )
     async def get_async(
         cls,
         owner_id: str = None,
@@ -297,6 +300,25 @@ class WikiHistorySnapshot(WikiHistorySnapshotSynchronousProtocol):
             item = cls().fill_from_dict(wiki_history=item)
             yield item
 
+    @classmethod
+    def get(
+        cls,
+        owner_id: str = None,
+        id: str = None,
+        *,
+        offset: int = 0,
+        limit: int = 20,
+        synapse_client: Optional["Synapse"] = None,
+    ) -> Generator["WikiHistorySnapshot", None, None]:
+        return wrap_async_generator_to_sync_generator(
+            async_gen_func=cls().get_async,
+            owner_id=owner_id,
+            id=id,
+            offset=offset,
+            limit=limit,
+            synapse_client=synapse_client,
+        )
+
 
 @dataclass
 @async_to_sync
@@ -337,10 +359,8 @@ class WikiHeader(WikiHeaderSynchronousProtocol):
         self.parent_id = wiki_header.get("parentId", None)
         return self
 
+    @skip_async_to_sync
     @classmethod
-    @otel_trace_method(
-        method_to_trace_name=lambda self, **kwargs: f"Get_Wiki_Header_Tree for Owner ID {kwargs['owner_id']}"
-    )
     async def get_async(
         cls,
         owner_id: str = None,
@@ -378,6 +398,39 @@ class WikiHeader(WikiHeaderSynchronousProtocol):
         ):
             item = cls().fill_from_dict(wiki_header=item)
             yield item
+
+    @classmethod
+    def get(
+        cls,
+        owner_id: str,
+        *,
+        offset: int = 0,
+        limit: int = 20,
+        synapse_client: Optional["Synapse"] = None,
+    ) -> Generator["WikiHeader", None, None]:
+        """
+        Get the header tree (hierarchy) of wiki pages for an entity.
+        Arguments:
+            owner_id: The ID of the owner entity.
+            offset: The index of the pagination offset.
+            limit: Limits the size of the page returned.
+            synapse_client: Optionally provide a Synapse client.
+        Yields:
+            Individual WikiHeader objects for the entity.
+
+        Example: Get the header tree (hierarchy) of wiki pages for an entity
+            ```python
+            for header in WikiHeader.get(owner_id=project.id):
+                print(f"Header: {header}")
+            ```
+        """
+        return wrap_async_generator_to_sync_generator(
+            async_gen_func=cls().get_async,
+            owner_id=owner_id,
+            offset=offset,
+            limit=limit,
+            synapse_client=synapse_client,
+        )
 
 
 @dataclass

@@ -168,39 +168,35 @@ class TestWikiHistorySnapshot:
         assert results == self.history_snapshot
 
     async def test_get_async_success(self) -> None:
-        # GIVEN mock responses
-        mock_responses = [
-            {
+        async def mock_responses() -> AsyncGenerator[Dict[str, Any], None]:
+            yield {
                 "version": 1,
                 "modifiedOn": "2023-01-01T00:00:00.000Z",
                 "modifiedBy": "12345",
-            },
-            {
+            }
+            yield {
                 "version": 2,
                 "modifiedOn": "2023-01-02T00:00:00.000Z",
                 "modifiedBy": "12345",
-            },
-            {
+            }
+            yield {
                 "version": 3,
                 "modifiedOn": "2023-01-03T00:00:00.000Z",
                 "modifiedBy": "12345",
-            },
-        ]
+            }
 
         # Create an async generator mock
-        async def mock_async_generator(
-            items: List[Dict[str, Any]]
-        ) -> AsyncGenerator[Dict[str, Any], None]:
-            for item in items:
+        async def mock_async_generator() -> AsyncGenerator[WikiHistorySnapshot, None]:
+            async for item in mock_responses():
                 yield item
 
         # WHEN I call `get_async`
         with patch(
             "synapseclient.models.wiki.get_wiki_history",
-            return_value=mock_async_generator(mock_responses),
+            return_value=mock_async_generator(),
         ) as mocked_get:
             results = []
-            async for item in WikiHistorySnapshot.get_async(
+            async for item in WikiHistorySnapshot().get_async(
                 owner_id="syn123",
                 id="wiki1",
                 offset=0,
@@ -298,30 +294,27 @@ class TestWikiHeader:
 
     async def test_get_async_success(self) -> None:
         # GIVEN mock responses
-        mock_responses = [
-            {
+        async def mock_responses() -> AsyncGenerator[Dict[str, Any], None]:
+            yield {
                 "id": "wiki1",
                 "title": "Test Wiki",
                 "parentId": "1234",
-            },
-            {
+            }
+            yield {
                 "id": "wiki2",
                 "title": "Test Wiki 2",
                 "parentId": "1234",
-            },
-        ]
+            }
 
         # Create an async generator mock
-        async def mock_async_generator(
-            values: List[Dict[str, Any]]
-        ) -> AsyncGenerator[Dict[str, Any], None]:
-            for item in values:
+        async def mock_async_generator() -> AsyncGenerator[WikiHeader, None]:
+            async for item in mock_responses():
                 yield item
 
         # WHEN I call `get_async`
         with patch(
             "synapseclient.models.wiki.get_wiki_header_tree",
-            return_value=mock_async_generator(mock_responses),
+            return_value=mock_async_generator(),
         ) as mocked_get:
             results = []
             async for item in WikiHeader.get_async(
