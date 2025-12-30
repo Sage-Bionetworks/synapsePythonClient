@@ -15,8 +15,8 @@ The CSV data model described in this tutorial formalizes this structure:
 
 Here is the Patient described above represented as a CSV data model:
 
-| Attribute | DependsOn |
-|---|---|
+| Attribute | DependsOn           |
+|-----------|---------------------|
 | Patient   | "Age, Gender, Name" |
 | Age       |                     |
 | Gender    |                     |
@@ -48,9 +48,20 @@ The end goal is to create a JSON Schema that can be used in Curator. A JSON Sche
 
 Note: Individual columns are covered later on this page.
 
+These columns must be present in your CSV data model:
+
+- `Attribute`
+- `DependsOn`
+- `Description`
+- `Valid Values`
+- `Required`
+- `Parent`
+- `Validation Rules`
+
 Defining data types:
 
 - Put a unique data type name in the `Attribute` column.
+- Put the value `DataType` in the `Parent` column.
 - List at least one attribute in the `DependsOn` column (comma-separated).
 - Optionally add a description to the `Description` column.
 
@@ -79,8 +90,8 @@ Set of possible values for the current attribute. This attribute will be an enum
 Data Model:
 
 | Attribute | DependsOn | Valid Values          |
-|---|---|---|
-| Patient    | "Gender"  |                       |
+|-----------|-----------|-----------------------|
+| Patient   | "Gender"  |                       |
 | Gender    |           | "Female, Male, Other" |
 
 JSON Schema output:
@@ -107,8 +118,8 @@ Note: Leaving this empty is the equivalent of `False`.
 Data Model:
 
 | Attribute | DependsOn      | Required |
-|---|---|---|
-| Patient    | "Gender, Age"  |          |
+|-----------|----------------|----------|
+| Patient   | "Gender, Age"  |          |
 | Gender    |                | True     |
 | Age       |                | False    |
 
@@ -131,6 +142,10 @@ JSON Schema output:
 }
 ```
 
+### Parent
+
+This is mostly a remnant of the Schematic data model. It is currently used to find all the data types in the data model. Put the value `DataType` in this column if this row is a data type. Other vlaues are currently ignored.
+
 ### columnType
 
 The data type of this attribute. See [type](https://json-schema.org/understanding-json-schema/reference/type).
@@ -147,11 +162,11 @@ Must be one of:
 
 Data Model:
 
-| Attribute | DependsOn         | columnType  |
-|---|---|---|
-| Patient   | "Gender, Hobbies" |             |
-| Gender    |                   | string      |
-| Hobbies   |                   | string_list |
+| Attribute | DependsOn         | columnType  | Parent   |
+|-----------|-------------------|-------------|----------|
+| Patient   | "Gender, Hobbies" |             | DataType |
+| Gender    |                   | string      |          |
+| Hobbies   |                   | string_list |          |
 
 JSON Schema output:
 
@@ -196,11 +211,11 @@ The format of this attribute. See [format](https://json-schema.org/understanding
 
 Data Model:
 
-| Attribute       | DependsOn            | columnType  | Format |
-|---|---|---|---|
-| Patient         | "Gender, Birth Date" |             |        |
-| Gender          |                      | string      |        |
-| Birth Date      |                      | string      | date   |
+| Attribute       | DependsOn            | columnType  | Format | Parent   |
+|-----------------|----------------------|-------------|--------|----------|
+| Patient         | "Gender, Birth Date" |             |        | DataType |
+| Gender          |                      | string      |        |          |
+| Birth Date      |                      | string      | date   |          |
 
 JSON Schema output:
 
@@ -229,11 +244,11 @@ The regex pattern this attribute must match. The type of this attribute must be 
 
 Data Model:
 
-| Attribute | DependsOn     | columnType  | Pattern |
-|---|---|---|---|
-| Patient   | "Gender, ID"  |             |         |
-| Gender    |               | string      |         |
-| ID        |               | string      | [a-f]   |
+| Attribute | DependsOn     | columnType  | Pattern | Parent   |
+|-----------|---------------|-------------|---------|----------|
+| Patient   | "Gender, ID"  |             |         | DataType |
+| Gender    |               | string      |         |          |
+| ID        |               | string      | [a-f]   |          |
 
 JSON Schema output:
 
@@ -262,12 +277,12 @@ The range that this attribute's numeric values must fall within. The type of thi
 
 Data Model:
 
-| Attribute    | DependsOn                  | columnType  | Minimum | Maximum |
-|---|---|---|---|---|
-| Patient      | "Age, Weight, Health Score"  |             |         |         |
-| Age          |                            | integer     | 0       | 120     |
-| Weight       |                            | number      | 0.0     |         |
-| Health Score |                            | number      | 0.0     | 1.0     |
+| Attribute    | DependsOn                   | columnType  | Minimum | Maximum | Parent   |
+|--------------|-----------------------------|-------------|---------|---------|----------|
+| Patient      | "Age, Weight, Health Score" |             |         |         | DataType |
+| Age          |                             | integer     | 0       | 120     |          |
+| Weight       |                             | number      | 0.0     |         |          |
+| Health Score |                             | number      | 0.0     | 1.0     |          |
 
 JSON Schema output:
 
@@ -301,9 +316,9 @@ JSON Schema output:
 
 ### Validation Rules (deprecated)
 
-This is a remnant from Schematic. It is still used (for now) to translate certain validation rules to other JSON Schema keywords.
+This is a remnant from Schematic. It is still required and in use (for now) to translate certain validation rules to other JSON Schema keywords.
 
-If you are starting a new data model, DO NOT use this column.
+If you are starting a new data model, DO NOT fill out this column, just leave it blank.
 
 If you have an existing data model using any of the following validation rules, follow these instructions to update it:
 
@@ -315,19 +330,19 @@ If you have an existing data model using any of the following validation rules, 
 
 ## Conditional dependencies
 
-The `DependsOn` and `Valid Values` columns can be used together to flexibly define conditional logic for determining the relevant attributes for a data type.
+The `DependsOn`, `Valid Values` and `Parent` columns can be used together to flexibly define conditional logic for determining the relevant attributes for a data type.
 
 In this example we have the `Patient` data type. The `Patient` can be diagnosed as healthy or with cancer. For Patients with cancer we also want to collect info about their cancer type, and any cancers in their family history.
 
 Data Model:
 
-| Attribute      | DependsOn                      | Valid Values        | Required | columnType  |
-|---|---|---|---|---|
-| Patient        | "Diagnosis"                    |                     |          |             |
-| Diagnosis      |                                | "Healthy, Cancer"   | True     | string      |
-| Cancer         | "Cancer Type, Family History"  |                     |          |             |
-| Cancer Type    |                                | "Brain, Lung, Skin" | True     | string      |
-| Family History |                                | "Brain, Lung, Skin" | True     | string_list |
+| Attribute      | DependsOn                     | Valid Values        | Required | columnType  | Parent   |
+|----------------|-------------------------------|---------------------|----------|-------------|----------|
+| Patient        | "Diagnosis"                   |                     |          |             | DataType |
+| Diagnosis      |                               | "Healthy, Cancer"   | True     | string      |          |
+| Cancer         | "Cancer Type, Family History" |                     |          |             |          |
+| Cancer Type    |                               | "Brain, Lung, Skin" | True     | string      |          |
+| Family History |                               | "Brain, Lung, Skin" | True     | string_list |          |
 
 To demonstrate this, see the above example with the `Patient` and `Cancer` data types:
 
@@ -335,6 +350,7 @@ To demonstrate this, see the above example with the `Patient` and `Cancer` data 
 - `Diagnosis` has `Valid Values` of `Healthy` and `Cancer`.
 - `Cancer` is also a data type.
 - `Cancer Type` and `Family History` are attributes of `Cancer` and are both required.
+- `Patient` is a data type, but `Cancer` is not, as defined by the `Parent` column.
 
 As a result of the above data model, in the JSON Schema:
 
