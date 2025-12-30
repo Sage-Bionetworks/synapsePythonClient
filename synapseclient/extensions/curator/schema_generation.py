@@ -5516,6 +5516,9 @@ def generate_jsonschema(
             - A list of JSON schema dictionaries, each corresponding to a data type
             - A list of file paths where the schemas were written
 
+    Raises:
+        ValueError: If a single output file is specified but multiple data types are requested.
+
     Example: Using this function to generate JSON Schema files:
         Generate schema for one datatype:
 
@@ -5560,8 +5563,8 @@ def generate_jsonschema(
         path_to_data_model=data_model_source, logger=synapse_client.logger
     )
     parsed_data_model = data_model_parser.parse_model()
-    data_model_grapher = DataModelGraph(parsed_data_model)
-    graph_data_model = data_model_grapher.graph
+    data_model_graph = DataModelGraph(parsed_data_model)
+    graph_data_model = data_model_graph.graph
     dmge = DataModelGraphExplorer(graph_data_model, logger=synapse_client.logger)
 
     if output is not None and not output.endswith(".json"):
@@ -5569,6 +5572,10 @@ def generate_jsonschema(
         os.makedirs(dirname, exist_ok=True)
     else:
         dirname = "./"
+        if data_types is None or len(data_types) != 1:
+            raise ValueError(
+                "When specifying more than a single output file, don't provide a file path."
+            )
 
     # Gets all data types if none are specified
     if data_types is None or len(data_types) == 0:

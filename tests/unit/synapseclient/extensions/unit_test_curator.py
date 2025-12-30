@@ -2333,3 +2333,36 @@ class TestGenerateJsonschema(unittest.TestCase):
         finally:
             if os.path.isfile("./test.json"):
                 os.remove("./test.json")
+
+    def test_generate_jsonschema_exception_no_datatypes(self):
+        """Test that an exception is raised when no datatypes are provided, and a JSON path is"""
+        try:
+            # GIVEN a CSV schema file
+            # WHEN I generate a schema with specific output file, and no datatype
+            # THEN a ValueError should be raised
+            with pytest.raises(ValueError):
+                generate_jsonschema(
+                    data_model_source=self.test_schema_path,
+                    output="./test.json",
+                    synapse_client=self.syn,
+                )
+        finally:
+            if os.path.isfile("./test.json"):
+                os.remove("./test.json")
+
+    def test_generate_jsonschema_exception_multiple_datatypes(self):
+        """Test that an exception is raised when multiple datatypes are provided, and a JSON path is"""
+        try:
+            # GIVEN a CSV schema file
+            # WHEN I generate a schema with specific output file, and no datatype
+            # THEN a ValueError should be raised
+            with pytest.raises(ValueError):
+                generate_jsonschema(
+                    data_model_source=self.test_schema_path,
+                    output="./test.json",
+                    data_types=["Patient", "Biospecimen"],
+                    synapse_client=self.syn,
+                )
+        finally:
+            if os.path.isfile("./test.json"):
+                os.remove("./test.json")
