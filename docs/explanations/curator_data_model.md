@@ -144,7 +144,7 @@ JSON Schema output:
 
 ### Parent
 
-This is mostly a remnant of the Schematic data model. It is currently used to find all the data types in the data model. Put the value `DataType` in this column if this row is a data type. Other vlaues are currently ignored.
+Put the value `DataType` in this column if this row is a data type. Other values are currently ignored. It is currently used to find all the data types in the data model. 
 
 ### columnType
 
