@@ -4,7 +4,8 @@ import typing
 from collections import defaultdict
 
 import synapseclient
-from synapseclient import Synapse, table
+from synapseclient import Synapse
+from synapseclient.core.utils import test_import_pandas
 
 
 def _open_entity_as_df(syn: Synapse, entity: str):
@@ -19,7 +20,7 @@ def _open_entity_as_df(syn: Synapse, entity: str):
         A [Pandas DataFrame](http://pandas.pydata.org/pandas-docs/stable/api.html#dataframe)
         if flow of execution is successful; None if not.
     """
-    table.test_import_pandas()
+    test_import_pandas()
     import pandas as pd
 
     dataset = None
@@ -51,7 +52,7 @@ def _describe_wrapper(df, syn: Synapse) -> dict:
     Returns:
         See param mode
     """
-    table.test_import_pandas()
+    test_import_pandas()
     import pandas as pd
 
     stats = defaultdict(dict)

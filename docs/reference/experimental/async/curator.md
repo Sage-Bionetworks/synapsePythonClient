@@ -25,6 +25,7 @@ at your own risk.
             - get_async
             - store_async
             - delete_async
+            - get_detailed_validation_results_async
             - get_acl_async
             - get_permissions_async
             - set_permissions_async
