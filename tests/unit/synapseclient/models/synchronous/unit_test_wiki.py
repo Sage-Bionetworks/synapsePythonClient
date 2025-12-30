@@ -1,6 +1,6 @@
 """Synchronous tests for the synapseclient.models.wiki classes."""
 import copy
-from typing import Any, AsyncGenerator, Dict, List
+from typing import Any, AsyncGenerator, Dict, Generator, List
 from unittest.mock import Mock, call, mock_open, patch
 
 import pytest
@@ -185,24 +185,24 @@ class TestWikiHistorySnapshot:
             },
         ]
 
-        # Create a generator function
-        async def mock_async_generator(
-            items: List[Dict[str, Any]]
-        ) -> AsyncGenerator[Dict[str, Any], None]:
-            for item in items:
+        # Create an async generator function
+        async def mock_async_generator(*args, **kwargs):
+            for item in mock_responses:
                 yield item
 
         # WHEN I call `get`
         with patch(
             "synapseclient.models.wiki.get_wiki_history",
-            return_value=mock_async_generator(mock_responses),
+            side_effect=mock_async_generator,
         ) as mocked_get:
-            results = WikiHistorySnapshot.get(
-                owner_id="syn123",
-                id="wiki1",
-                offset=0,
-                limit=20,
-                synapse_client=self.syn,
+            results = list(
+                WikiHistorySnapshot.get(
+                    owner_id="syn123",
+                    id="wiki1",
+                    offset=0,
+                    limit=20,
+                    synapse_client=self.syn,
+                )
             )
             # THEN the API should be called with correct parameters
             mocked_get.assert_called_once_with(
@@ -240,10 +240,13 @@ class TestWikiHistorySnapshot:
         ) as mocked_get, pytest.raises(
             ValueError, match="Must provide owner_id to get wiki history."
         ):
-            WikiHistorySnapshot.get(
-                owner_id=None,
-                id="wiki1",
-                synapse_client=self.syn,
+            # Need to iterate to trigger validation
+            list(
+                WikiHistorySnapshot.get(
+                    owner_id=None,
+                    id="wiki1",
+                    synapse_client=self.syn,
+                )
             )
             # THEN the API should not be called
             mocked_get.assert_not_called()
@@ -255,10 +258,13 @@ class TestWikiHistorySnapshot:
         ) as mocked_get, pytest.raises(
             ValueError, match="Must provide id to get wiki history."
         ):
-            WikiHistorySnapshot.get(
-                owner_id="syn123",
-                id=None,
-                synapse_client=self.syn,
+            # Need to iterate to trigger validation
+            list(
+                WikiHistorySnapshot.get(
+                    owner_id="syn123",
+                    id=None,
+                    synapse_client=self.syn,
+                )
             )
             # THEN the API should not be called
             mocked_get.assert_not_called()
@@ -305,22 +311,22 @@ class TestWikiHeader:
             },
         ]
 
-        # Create a generator function
-        async def mock_async_generator(
-            items: List[Dict[str, Any]]
-        ) -> AsyncGenerator[Dict[str, Any], None]:
-            for item in items:
+        # Create an async generator function
+        async def mock_async_generator(*args, **kwargs):
+            for item in mock_responses:
                 yield item
 
         with patch(
             "synapseclient.models.wiki.get_wiki_header_tree",
-            return_value=mock_async_generator(mock_responses),
+            side_effect=mock_async_generator,
         ) as mocked_get:
-            results = WikiHeader.get(
-                owner_id="syn123",
-                synapse_client=self.syn,
-                offset=0,
-                limit=20,
+            results = list(
+                WikiHeader.get(
+                    owner_id="syn123",
+                    synapse_client=self.syn,
+                    offset=0,
+                    limit=20,
+                )
             )
 
             # THEN the API should be called with correct parameters
@@ -346,7 +352,8 @@ class TestWikiHeader:
         ) as mocked_get, pytest.raises(
             ValueError, match="Must provide owner_id to get wiki header tree."
         ):
-            WikiHeader.get(owner_id=None, synapse_client=self.syn)
+            # Need to iterate to trigger validation
+            list(WikiHeader.get(owner_id=None, synapse_client=self.syn))
             # THEN the API should not be called
             mocked_get.assert_not_called()
 
@@ -577,6 +584,22 @@ class TestWikiPage:
         # WHEN I call `_reformat_attachment_file_name` with a file name
         result = WikiPage.reformat_attachment_file_name(file_name)
         # THEN the result should be the reformatted file name
+        assert result == expected
+
+    @pytest.mark.parametrize(
+        "file_name,expected",
+        [
+            ("test.png", False),
+            ("test.txt.gz", False),
+            ("test.txt", True),
+        ],
+    )
+    def test_should_gzip_file_with_image_file(
+        self, file_name: str, expected: bool
+    ) -> None:
+        # WHEN I call `_should_gzip_file` with an image file
+        result = WikiPage._should_gzip_file(file_name)
+        # THEN the result should be False
         assert result == expected
 
     def test_store_new_root_wiki_success(self) -> None:
@@ -913,16 +936,14 @@ class TestWikiPage:
             {"id": "wiki2", "title": "Test Wiki 2", "parentId": None},
         ]
 
-        # Create a generator function
-        async def mock_async_generator(
-            items: List[Dict[str, Any]]
-        ) -> AsyncGenerator[Dict[str, Any], None]:
-            for item in items:
+        # Create an async generator function
+        async def mock_async_generator(*args, **kwargs):
+            for item in mock_responses:
                 yield item
 
         with patch(
             "synapseclient.models.wiki.get_wiki_header_tree",
-            return_value=mock_async_generator(mock_responses),
+            side_effect=mock_async_generator,
         ) as mock_get_header_tree, patch(
             "synapseclient.models.wiki.get_wiki_page", return_value=self.api_response
         ) as mock_get_wiki:
@@ -961,16 +982,16 @@ class TestWikiPage:
         # AND mock responses that don't contain the title
         mock_responses = [{"id": "wiki1", "title": "Different Wiki", "parentId": None}]
 
-        # Create a generator function
+        # Create an async generator function
         async def mock_async_generator(
-            items: List[Dict[str, Any]]
+            *args, **kwargs
         ) -> AsyncGenerator[Dict[str, Any], None]:
-            for item in items:
+            for item in mock_responses:
                 yield item
 
         with patch(
             "synapseclient.models.wiki.get_wiki_header_tree",
-            return_value=mock_async_generator(mock_responses),
+            side_effect=mock_async_generator,
         ) as mock_get_header_tree:
             # WHEN I call `get`
             # THEN it should raise ValueError

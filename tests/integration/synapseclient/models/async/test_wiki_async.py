@@ -1,5 +1,6 @@
 """Integration tests for the synapseclient.models.wiki module."""
 
+import asyncio
 import gzip
 import os
 import tempfile
@@ -34,7 +35,6 @@ async def wiki_page_fixture(
         markdown=wiki_markdown,
     )
     root_wiki = await wiki_page.store_async(synapse_client=syn)
-    schedule_for_cleanup(root_wiki.id)
     return root_wiki
 
 
@@ -240,7 +240,7 @@ class TestWikiPageAttachments:
         # GIVEN a wiki page with an attachment
         wiki_page, attachment_name = wiki_page_with_attachment
         # Sleep for 0.5 minutes to ensure the attachment preview is created
-        time.sleep(0.5 * 60)
+        await asyncio.sleep(0.5 * 60)
         # WHEN getting attachment preview URL
         preview_url = await wiki_page.get_attachment_preview_async(
             file_name=attachment_name, download_file=False, synapse_client=self.syn
@@ -649,9 +649,11 @@ class TestWikiPageVersioning:
         # GIVEN a wiki page with multiple versions
         sub_wiki = wiki_page_with_multiple_versions
         # WHEN getting wiki history
-        history = await WikiHistorySnapshot.get_async(
+        history = []
+        async for item in WikiHistorySnapshot.get_async(
             owner_id=project_model.id, id=sub_wiki.id, synapse_client=self.syn
-        )
+        ):
+            history.append(item)
         # THEN history should be returned
         assert len(history) == 3
         schedule_for_cleanup(history)
@@ -690,9 +692,11 @@ class TestWikiHeader:
         self, project_model: Project, schedule_for_cleanup: Callable[..., None]
     ) -> None:
         # WHEN getting the wiki header tree
-        headers = await WikiHeader.get_async(
+        headers = []
+        async for header in WikiHeader.get_async(
             owner_id=project_model.id, synapse_client=self.syn
-        )
+        ):
+            headers.append(header)
 
         # THEN headers should be returned
         assert len(headers) == 8
@@ -727,9 +731,11 @@ class TestWikiOrderHint:
         self, project_model: Project, schedule_for_cleanup: Callable[..., None]
     ) -> None:
         # Get headers
-        headers = await WikiHeader.get_async(
+        headers = []
+        async for header in WikiHeader.get_async(
             owner_id=project_model.id, synapse_client=self.syn
-        )
+        ):
+            headers.append(header)
         # Get the ids of the headers
         header_ids = [header.id for header in headers]
         # Get initial order hint
@@ -749,3 +755,9 @@ class TestWikiOrderHint:
         schedule_for_cleanup(retrieved_order_hint)
         assert retrieved_order_hint.id_list == header_ids
         assert len(retrieved_order_hint.id_list) == 8
+
+    # clean up the wiki pages for other tests in the same session
+    async def test_cleanup_wiki_pages(self, wiki_page_fixture: WikiPage):
+        root_wiki = wiki_page_fixture
+        await root_wiki.delete_async(synapse_client=self.syn)
+        assert True

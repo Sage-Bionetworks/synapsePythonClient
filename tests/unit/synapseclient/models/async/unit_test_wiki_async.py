@@ -199,13 +199,15 @@ class TestWikiHistorySnapshot:
             "synapseclient.models.wiki.get_wiki_history",
             return_value=mock_async_generator(mock_responses),
         ) as mocked_get:
-            results = await WikiHistorySnapshot.get_async(
+            results = []
+            async for item in WikiHistorySnapshot.get_async(
                 owner_id="syn123",
                 id="wiki1",
                 offset=0,
                 limit=20,
                 synapse_client=self.syn,
-            )
+            ):
+                results.append(item)
             # THEN the API should be called with correct parameters
             mocked_get.assert_called_once_with(
                 owner_id="syn123",
@@ -242,11 +244,12 @@ class TestWikiHistorySnapshot:
         ) as mocked_get, pytest.raises(
             ValueError, match="Must provide owner_id to get wiki history."
         ):
-            await WikiHistorySnapshot.get_async(
+            async for _ in WikiHistorySnapshot.get_async(
                 owner_id=None,
                 id="wiki1",
                 synapse_client=self.syn,
-            )
+            ):
+                pass
             # THEN the API should not be called
             mocked_get.assert_not_called()
 
@@ -257,11 +260,12 @@ class TestWikiHistorySnapshot:
         ) as mocked_get, pytest.raises(
             ValueError, match="Must provide id to get wiki history."
         ):
-            await WikiHistorySnapshot.get_async(
+            async for _ in WikiHistorySnapshot.get_async(
                 owner_id="syn123",
                 id=None,
                 synapse_client=self.syn,
-            )
+            ):
+                pass
             # THEN the API should not be called
             mocked_get.assert_not_called()
 
@@ -319,13 +323,14 @@ class TestWikiHeader:
             "synapseclient.models.wiki.get_wiki_header_tree",
             return_value=mock_async_generator(mock_responses),
         ) as mocked_get:
-            results = await WikiHeader.get_async(
+            results = []
+            async for item in WikiHeader.get_async(
                 owner_id="syn123",
                 synapse_client=self.syn,
                 offset=0,
                 limit=20,
-            )
-
+            ):
+                results.append(item)
             # THEN the API should be called with correct parameters
             mocked_get.assert_called_once_with(
                 owner_id="syn123",
@@ -349,7 +354,8 @@ class TestWikiHeader:
         ) as mocked_get, pytest.raises(
             ValueError, match="Must provide owner_id to get wiki header tree."
         ):
-            await WikiHeader.get_async(owner_id=None, synapse_client=self.syn)
+            async for _ in WikiHeader.get_async(owner_id=None, synapse_client=self.syn):
+                pass
             # THEN the API should not be called
             mocked_get.assert_not_called()
 
@@ -602,6 +608,28 @@ class TestWikiPage:
         result = WikiPage.reformat_attachment_file_name(file_name)
         # THEN the result should be the reformatted file name
         assert result == expected
+
+    @pytest.mark.parametrize(
+        "file_name,expected",
+        [
+            ("test.png", False),
+            ("test.jpg", False),
+            ("test.jpeg", False),
+            ("test.txt.gz", False),
+            ("test.txt", True),
+        ],
+    )
+    def test_should_gzip_file(self, file_name: str, expected: bool) -> None:
+        # WHEN I call `_should_gzip_file` with a file name
+        result = WikiPage._should_gzip_file(file_name)
+        # THEN the result should match the expected value
+        assert result == expected
+
+    def test_should_gzip_file_with_invalid_content(self) -> None:
+        # WHEN I call `_should_gzip_file` with invalid content (non-string)
+        # THEN it should raise an AttributeError
+        with pytest.raises(AttributeError):
+            WikiPage._should_gzip_file(123)
 
     async def test_get_markdown_file_handle_success_with_markdown(self) -> WikiPage:
         with patch(
@@ -931,9 +959,12 @@ class TestWikiPage:
             )
 
     async def test_determine_wiki_action_create_sub(self) -> None:
+        async def mock_get_async(*args, **kwargs) -> AsyncGenerator[WikiHeader, None]:
+            yield WikiHeader(id="wiki1", title="Test Wiki Page")
+
         with patch(
             "synapseclient.models.wiki.WikiHeader.get_async",
-            side_effect=SynapseHTTPError(response=Mock(status_code=404)),
+            side_effect=mock_get_async,
         ) as mock_get_header:
             # GIVEN a WikiPage with a parent_id
             wiki_page = WikiPage(
@@ -950,9 +981,12 @@ class TestWikiPage:
             mock_get_header.assert_not_called()
 
     async def test_determine_wiki_action_update_existing_root(self) -> None:
+        async def mock_get_async(*args, **kwargs) -> AsyncGenerator[WikiHeader, None]:
+            yield WikiHeader(id="wiki1", title="Test Wiki Page")
+
         with patch(
             "synapseclient.models.wiki.WikiHeader.get_async",
-            return_value=WikiHeader(id="wiki1", title="Test Wiki Page"),
+            side_effect=mock_get_async,
         ) as mock_get_header:
             # GIVEN a WikiPage with an id
             wiki_page = WikiPage(
@@ -974,9 +1008,12 @@ class TestWikiPage:
     async def test_determine_wiki_action_update_existing_without_passing_id(
         self,
     ) -> None:
+        async def mock_get_async(*args, **kwargs) -> AsyncGenerator[WikiHeader, None]:
+            yield WikiHeader(id="wiki1", title="Test Wiki Page")
+
         with patch(
             "synapseclient.models.wiki.WikiHeader.get_async",
-            return_value=WikiHeader(id="wiki1", title="Test Wiki Page"),
+            side_effect=mock_get_async,
         ) as mock_get_header:
             # GIVEN a WikiPage with an id and parent_id
             wiki_page = WikiPage(

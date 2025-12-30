@@ -644,9 +644,11 @@ class TestWikiPageVersioning:
         # GIVEN a wiki page with multiple versions
         sub_wiki = wiki_page_with_multiple_versions
         # WHEN getting wiki history
-        history = WikiHistorySnapshot.get(
+        history = []
+        for item in WikiHistorySnapshot.get(
             owner_id=project_model.id, id=sub_wiki.id, synapse_client=self.syn
-        )
+        ):
+            history.append(item)
         # THEN history should be returned
         assert len(history) == 3
         schedule_for_cleanup(history)
@@ -688,7 +690,11 @@ class TestWikiHeader:
         schedule_for_cleanup: Callable[..., None],
     ) -> None:
         # WHEN getting the wiki header tree
-        headers = WikiHeader.get(owner_id=project_model.id, synapse_client=self.syn)
+        headers = []
+        for header in WikiHeader.get(
+            owner_id=project_model.id, synapse_client=self.syn
+        ):
+            headers.append(header)
 
         # THEN headers should be returned
         assert len(headers) == 8
@@ -743,3 +749,9 @@ class TestWikiOrderHint:
         schedule_for_cleanup(retrieved_order_hint)
         assert retrieved_order_hint.id_list == header_ids
         assert len(retrieved_order_hint.id_list) == 8
+
+    # clean up the wiki pages for other tests in the same session
+    def test_cleanup_wiki_pages(self, wiki_page_fixture: WikiPage):
+        root_wiki = wiki_page_fixture
+        root_wiki.delete(synapse_client=self.syn)
+        assert True
