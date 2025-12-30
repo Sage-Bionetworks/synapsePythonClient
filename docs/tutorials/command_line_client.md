@@ -549,7 +549,7 @@ synapse migrate [-h] [--source_storage_location_ids [SOURCE_STORAGE_LOCATION_IDS
 Generate JSON Schema(s) from a data model
 
 ```bash
-synapse generate-json-schema [-h] [----data-types data_type1, data_type2] [--output dir_name] [----data-model-labels class_label] data_model_path
+synapse generate-json-schema [-h] [--data-types data_type1, data_type2] [--output dir_name] [--data-model-labels class_label] data_model_path
 ```
 
 | Name                     | Type       | Description                                                         |
