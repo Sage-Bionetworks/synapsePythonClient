@@ -1,7 +1,7 @@
 """Protocol for the specific methods of this class that have synchronous counterparts
 generated at runtime."""
 
-from typing import TYPE_CHECKING, Any, Dict, List, Optional, Protocol, Union
+from typing import TYPE_CHECKING, Any, Dict, Generator, List, Optional, Protocol, Union
 
 from synapseclient import Synapse
 
@@ -12,6 +12,8 @@ if TYPE_CHECKING:
         WikiOrderHint,
         WikiPage,
     )
+
+from synapseclient.core.async_utils import wrap_async_generator_to_sync_generator
 
 
 class WikiOrderHintSynchronousProtocol(Protocol):
@@ -34,6 +36,7 @@ class WikiOrderHintSynchronousProtocol(Protocol):
         Example: Set the WikiOrderHint for a project
             This example shows how to set a WikiOrderHint for existing wiki pages in a project.
             The WikiOrderHint is not set by default, so you need to set it explicitly.
+            ```python
             from synapseclient import Synapse
             from synapseclient.models import (
                 Project,
@@ -58,6 +61,7 @@ class WikiOrderHintSynchronousProtocol(Protocol):
 
         Example: Update the WikiOrderHint for a project
             This example shows how to update a WikiOrderHint for existing wiki pages in a project.
+            ```python
             wiki_order_hint.id_list = [
                 root_wiki_page.id,
                 wiki_page_1.id,
@@ -67,6 +71,7 @@ class WikiOrderHintSynchronousProtocol(Protocol):
             ]
             wiki_order_hint.store()
             print(wiki_order_hint)
+            ```
         """
         return self
 
@@ -84,6 +89,7 @@ class WikiOrderHintSynchronousProtocol(Protocol):
 
         Example: Get the WikiOrderHint for a project
             This example shows how to get a WikiOrderHint for existing wiki pages in a project.
+            ```python
             from synapseclient import Synapse
             from synapseclient.models import (
                 Project,
@@ -97,6 +103,7 @@ class WikiOrderHintSynchronousProtocol(Protocol):
             wiki_order_hint = WikiOrderHint(owner_id=project.id).get()
 
             print(wiki_order_hint)
+            ```
         """
         return self
 
@@ -114,7 +121,7 @@ class WikiHistorySnapshotSynchronousProtocol(Protocol):
         offset: int = 0,
         limit: int = 20,
         synapse_client: Optional["Synapse"] = None,
-    ) -> List["WikiHistorySnapshot"]:
+    ) -> Generator["WikiHistorySnapshot", None, None]:
         """
         Get the history of a wiki page as a list of WikiHistorySnapshot objects.
         Arguments:
@@ -123,14 +130,23 @@ class WikiHistorySnapshotSynchronousProtocol(Protocol):
             offset: The index of the pagination offset.
             limit: Limits the size of the page returned.
             synapse_client: Optionally provide a Synapse client.
-        Returns:
-            A list of WikiHistorySnapshot objects for the wiki page.
+        Yields:
+            Individual WikiHistorySnapshot objects from each page of the response.
 
         Example: Get the history of a wiki page
-            history = WikiHistorySnapshot.get(owner_id=project.id, id=wiki_page.id)
-            print(f"History: {history}")
+            ```python
+            for history in WikiHistorySnapshot.get(owner_id=project.id, id=wiki_page.id):
+                print(f"History: {history}")
+            ```
         """
-        return list({})
+        return wrap_async_generator_to_sync_generator(
+            async_gen_func=WikiHistorySnapshot.get_async,
+            owner_id=owner_id,
+            id=wiki_id,
+            offset=offset,
+            limit=limit,
+            synapse_client=synapse_client,
+        )
 
 
 class WikiHeaderSynchronousProtocol(Protocol):
@@ -145,7 +161,7 @@ class WikiHeaderSynchronousProtocol(Protocol):
         offset: int = 0,
         limit: int = 20,
         synapse_client: Optional["Synapse"] = None,
-    ) -> List["WikiHeader"]:
+    ) -> Generator["WikiHeader", None, None]:
         """
         Get the header tree (hierarchy) of wiki pages for an entity.
         Arguments:
@@ -153,14 +169,22 @@ class WikiHeaderSynchronousProtocol(Protocol):
             offset: The index of the pagination offset.
             limit: Limits the size of the page returned.
             synapse_client: Optionally provide a Synapse client.
-        Returns:
-            A list of WikiHeader objects for the entity.
+        Yields:
+            Individual WikiHeader objects for the entity.
 
         Example: Get the header tree (hierarchy) of wiki pages for an entity
-            headers = WikiHeader.get(owner_id=project.id)
-            print(f"Headers: {headers}")
+            ```python
+            for header in WikiHeader.get(owner_id=project.id):
+                print(f"Header: {header}")
+            ```
         """
-        return list({})
+        return wrap_async_generator_to_sync_generator(
+            async_gen_func=WikiHeader.get_async,
+            owner_id=owner_id,
+            offset=offset,
+            limit=limit,
+            synapse_client=synapse_client,
+        )
 
 
 class WikiPageSynchronousProtocol(Protocol):
