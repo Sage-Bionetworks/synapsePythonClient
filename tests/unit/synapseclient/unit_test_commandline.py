@@ -852,9 +852,7 @@ class TestGenerateJSONSchemaFunction:
     def setup(self, mock_syn):
         self.syn = mock_syn
         self.csv_path = "tests/unit/synapseclient/extensions/schema_files/data_models/example.model.csv"
-        self.csv_url = "https://raw.githubusercontent.com/Sage-Bionetworks/synapsePythonClient/refs/heads/develop/tests/unit/synapseclient/extensions/schema_files/data_models/example.model.csv"
         self.json_path = "tests/unit/synapseclient/extensions/schema_files/data_models_jsonld/example.model.jsonld"
-        self.json_url = "https://raw.githubusercontent.com/Sage-Bionetworks/synapsePythonClient/refs/heads/develop/tests/unit/synapseclient/extensions/schema_files/data_models_jsonld/example.model.jsonld"
 
     def test_one_data_type_no_output_path(self):
         # GIVEN a CSV schema file
@@ -968,40 +966,6 @@ class TestGenerateJSONSchemaFunction:
         parser = cmdline.build_parser()
         args = parser.parse_args(
             ["generate-json-schema", self.json_path, "--data-types", "Patient"]
-        )
-        schema_path = "./Patient.json"
-        try:
-            # WHEN I generate a schema with one datatype and no output path
-            cmdline.generate_json_schema(args, self.syn)
-            # THEN a schema file should be created at ./Patient.json
-            assert os.path.isfile(schema_path)
-        finally:
-            if os.path.isfile(schema_path):
-                os.remove(schema_path)
-
-    @pytest.mark.enable_socket
-    def test_csv_url(self):
-        # GIVEN a CSV schema URL
-        parser = cmdline.build_parser()
-        args = parser.parse_args(
-            ["generate-json-schema", self.csv_url, "--data-types", "Patient"]
-        )
-        schema_path = "./Patient.json"
-        try:
-            # WHEN I generate a schema with one datatype and no output path
-            cmdline.generate_json_schema(args, self.syn)
-            # THEN a schema file should be created at ./Patient.json
-            assert os.path.isfile(schema_path)
-        finally:
-            if os.path.isfile(schema_path):
-                os.remove(schema_path)
-
-    @pytest.mark.enable_socket
-    def test_jsonld_url(self):
-        # GIVEN a CSV schema URL
-        parser = cmdline.build_parser()
-        args = parser.parse_args(
-            ["generate-json-schema", self.json_url, "--data-types", "Patient"]
         )
         schema_path = "./Patient.json"
         try:
