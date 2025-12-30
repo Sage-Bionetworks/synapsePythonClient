@@ -804,13 +804,14 @@ def migrate(args, syn):
 
 def generate_json_schema(args, syn):
     """Generate JSON schema for Synapse entity types"""
-    _, path = generate_jsonschema(
+    _, paths = generate_jsonschema(
         data_model_source=args.data_model_path,
         output=args.output,
         data_types=args.data_types,
         data_model_labels=args.data_model_labels,
         synapse_client=syn,
     )
+    logging.info(f"Created JSON Schema files: [{paths}]")
 
 
 def build_parser():
