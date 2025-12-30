@@ -5621,10 +5621,6 @@ def generate_jsonschema(
         os.makedirs(dirname, exist_ok=True)
     else:
         dirname = "./"
-        if data_types is None or len(data_types) != 1:
-            raise ValueError(
-                "When specifying more than a single output file, don't provide a file path."
-            )
 
     # Gets all data types if none are specified
     if data_types is None or len(data_types) == 0:
@@ -5636,6 +5632,11 @@ def generate_jsonschema(
                 if v["Relationships"].get("Parent") == ["DataType"]
             ]
         ]
+
+    if len(data_types) != 1 and output is not None and output.endswith(".json"):
+        raise ValueError(
+            "When specifying more than a single output file, don't provide a file path."
+        )
 
     if len(data_types) == 1 and output is not None and output.endswith(".json"):
         schema_paths = [output]
