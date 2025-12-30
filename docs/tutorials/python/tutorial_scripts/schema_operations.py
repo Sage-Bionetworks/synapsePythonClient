@@ -22,6 +22,8 @@ schemas, file_paths = generate_jsonschema(
 
 print(schemas[0])
 
+
+# Create JSON Schemas for multiple data types
 schemas, file_paths = generate_jsonschema(
     data_model_source=DATA_MODEL_SOURCE,
     output=OUTPUT_DIRECTORY,
@@ -29,12 +31,14 @@ schemas, file_paths = generate_jsonschema(
     synapse_client=syn,
 )
 
+# Create JSON Schemas for all data types
 schemas, file_paths = generate_jsonschema(
     data_model_source=DATA_MODEL_SOURCE,
     output=OUTPUT_DIRECTORY,
     synapse_client=syn,
 )
 
+# Specify path for JSON Schema
 schemas, file_paths = generate_jsonschema(
     data_model_source=DATA_MODEL_SOURCE,
     data_types=DATA_TYPE,
@@ -42,6 +46,7 @@ schemas, file_paths = generate_jsonschema(
     synapse_client=syn,
 )
 
+# Create JSON Schema in cwd
 schemas, file_paths = generate_jsonschema(
     data_model_source=DATA_MODEL_SOURCE,
     data_types=DATA_TYPE,

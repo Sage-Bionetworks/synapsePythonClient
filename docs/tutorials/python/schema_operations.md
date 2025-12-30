@@ -54,7 +54,7 @@ By setting the `output` parameter as path to a "temp" directory, the file will b
 Create multiple JSON Schema
 
 ```python
-{!docs/tutorials/python/tutorial_scripts/schema_operations.py!lines=25-30}
+{!docs/tutorials/python/tutorial_scripts/schema_operations.py!lines=26-32}
 ```
 
 The `data_types` parameter is a list and can have multiple data types.
@@ -64,7 +64,7 @@ The `data_types` parameter is a list and can have multiple data types.
 Create every JSON Schema
 
 ```python
-{!docs/tutorials/python/tutorial_scripts/schema_operations.py!lines=32-36}
+{!docs/tutorials/python/tutorial_scripts/schema_operations.py!lines=34-39}
 ```
 
 If you don't set a `data_types` parameter a JSON Schema will be created for every data type in the data model.
@@ -74,7 +74,7 @@ If you don't set a `data_types` parameter a JSON Schema will be created for ever
 Create a JSON Schema
 
 ```python
-{!docs/tutorials/python/tutorial_scripts/schema_operations.py!lines=38-43}
+{!docs/tutorials/python/tutorial_scripts/schema_operations.py!lines=41-47}
 ```
 
 If you have only one data type and set the `output` parameter to a file path(ending in.json), the JSON Schema file will have that path.
@@ -84,7 +84,7 @@ If you have only one data type and set the `output` parameter to a file path(end
 Create a JSON Schema
 
 ```python
-{!docs/tutorials/python/tutorial_scripts/schema_operations.py!lines=45-48}
+{!docs/tutorials/python/tutorial_scripts/schema_operations.py!lines=49-54}
 ```
 
 If you don't set `output` parameter the JSON Schema file will be created in the current working directory.
