@@ -5619,6 +5619,7 @@ def generate_jsonschema(
         dirname = "./"
     elif output.endswith(".json"):
         dirname = os.path.dirname(output)
+        dirname = dirname if dirname else "./"
     else:
         dirname = output
     os.makedirs(dirname, exist_ok=True)
