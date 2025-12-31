@@ -6,7 +6,7 @@ In this tutorial, you will learn how to create these JSON Schema using an existi
 
 ## Tutorial Purpose
 
-You will create a JSON schema using your data model suing the python client as a library. To use a CLI tool see the [documentation](../command_line_client.md).
+You will create a JSON schema from your data model using the Python client as a library. To use the CLI tool, see the [documentation](../command_line_client.md).
 
 ## Prerequisites
 
