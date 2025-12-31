@@ -19,7 +19,7 @@ class TestFormGroup:
     ) -> None:
         """Test creating a form group."""
         unique_name = str(uuid.uuid4())
-        form_group = FormGroup(name=unique_name).create(synapse_client=syn)
+        form_group = FormGroup(name=unique_name).create_or_get(synapse_client=syn)
 
         assert form_group is not None
         assert form_group.group_id is not None
@@ -32,7 +32,7 @@ class TestFormGroup:
         form_group = FormGroup()
 
         with pytest.raises(ValueError) as e:
-            form_group.create(synapse_client=syn)
+            form_group.create_or_get(synapse_client=syn)
         assert (
             str(e.value) == "FormGroup 'name' must be provided to create a FormGroup."
         )
@@ -46,7 +46,7 @@ class TestFormData:
         """Create a test form group for use in form data tests."""
         unique_name = "test_form_group_" + str(uuid.uuid4())
         form_group = FormGroup(name=unique_name)
-        form_group = form_group.create(synapse_client=syn)
+        form_group = form_group.create_or_get(synapse_client=syn)
 
         schedule_for_cleanup(form_group.group_id)
 
@@ -85,13 +85,14 @@ class TestFormData:
             name=unique_name,
             group_id=test_form_group.group_id,
             data_file_handle_id=test_file.file_handle.id,
-        ).create(synapse_client=syn)
+        ).create_or_get(synapse_client=syn)
 
         assert form_data is not None
         assert form_data.form_data_id is not None
         assert form_data.name == unique_name
         assert form_data.group_id == test_form_group.group_id
         assert form_data.data_file_handle_id == test_file.file_handle.id
+        assert form_data.submission_status is not None
         assert form_data.submission_status.state.value == "WAITING_FOR_SUBMISSION"
 
         schedule_for_cleanup(form_data.form_data_id)
@@ -101,7 +102,7 @@ class TestFormData:
         form_data = FormData()
 
         with pytest.raises(ValueError) as e:
-            form_data.create(synapse_client=syn)
+            form_data.create_or_get(synapse_client=syn)
         assert (
             str(e.value)
             == "Missing required fields: 'group_id', 'name', and 'data_file_handle_id' are required to create a FormData."
@@ -123,15 +124,15 @@ class TestFormData:
                 name=unique_name,
                 group_id=test_form_group.group_id,
                 data_file_handle_id=test_file.file_handle.id,
-            ).create(synapse_client=syn)
+            ).create_or_get(synapse_client=syn)
             form_data_ids.append(form_data.form_data_id)
             schedule_for_cleanup(form_data.form_data_id)
 
-        # List form data owned by the caller
+        # List form data owned by the caller - use FormGroup.list()
         retrieved_ids = []
-        for form_data in FormData(group_id=test_form_group.group_id).list(
+        for form_data in FormGroup(group_id=test_form_group.group_id).list(
             synapse_client=syn,
-            filter_by_state=[StateEnum.WAITING_FOR_SUBMISSION],
+            filter_by_state=["waiting_for_submission"],
             as_reviewer=False,
         ):
             retrieved_ids.append(form_data.form_data_id)
@@ -155,17 +156,17 @@ class TestFormData:
                 name=unique_name,
                 group_id=test_form_group.group_id,
                 data_file_handle_id=test_file.file_handle.id,
-            ).create(synapse_client=syn)
+            ).create_or_get(synapse_client=syn)
             #  Submit the form data
             syn.restPOST(uri=f"/form/data/{form_data.form_data_id}/submit", body={})
             form_data_ids.append(form_data.form_data_id)
             schedule_for_cleanup(form_data.form_data_id)
 
-        # List form data as reviewer
+        # List form data as reviewer - use FormGroup.list()
         retrieved_ids = []
-        for form_data in FormData(group_id=test_form_group.group_id).list(
+        for form_data in FormGroup(group_id=test_form_group.group_id).list(
             synapse_client=syn,
-            filter_by_state=[StateEnum.SUBMITTED_WAITING_FOR_REVIEW],
+            filter_by_state=["submitted_waiting_for_review"],
             as_reviewer=True,
         ):
             retrieved_ids.append(form_data.form_data_id)
@@ -187,13 +188,15 @@ class TestFormData:
             name=unique_name,
             group_id=test_form_group.group_id,
             data_file_handle_id=test_file.file_handle.id,
-        ).create(synapse_client=syn)
+        ).create_or_get(synapse_client=syn)
 
         schedule_for_cleanup(form_data.form_data_id)
 
-        downloaded_form_path = FormData(
-            data_file_handle_id=test_file.file_handle.id
-        ).download(synapse_client=syn, synapse_id=form_data.form_data_id)
+        # Download using the created form_data instance
+        downloaded_form_path = form_data.download(
+            synapse_client=syn,
+            synapse_id=test_file.id,  # Use the File's synapse ID, not form_data_id
+        )
 
         schedule_for_cleanup(downloaded_form_path)
 
@@ -213,19 +216,18 @@ class TestFormData:
             name=unique_name,
             group_id=test_form_group.group_id,
             data_file_handle_id=test_file.file_handle.id,
-        ).create(synapse_client=syn)
+        ).create_or_get(synapse_client=syn)
+
         tmp_dir = tempfile.mkdtemp()
         schedule_for_cleanup(tmp_dir)
+        schedule_for_cleanup(form_data.form_data_id)
 
-        downloaded_form_path = FormData(
-            data_file_handle_id=test_file.file_handle.id
-        ).download(
+        # Download using the created form_data instance
+        downloaded_form_path = form_data.download(
             synapse_client=syn,
             synapse_id=form_data.form_data_id,
             download_location=tmp_dir,
         )
-
-        schedule_for_cleanup(form_data.form_data_id)
 
         assert test_file.file_handle.id in downloaded_form_path
         assert str(downloaded_form_path).startswith(str(tmp_dir))

@@ -6,7 +6,6 @@ if TYPE_CHECKING:
         FormGroup,
         FormData,
     )
-    from synapseclient.models.mixins.form import StateEnum
 
 from synapseclient.core.async_utils import wrap_async_generator_to_sync_generator
 
@@ -14,7 +13,7 @@ from synapseclient.core.async_utils import wrap_async_generator_to_sync_generato
 class FormGroupProtocol(Protocol):
     """Protocol for FormGroup operations."""
 
-    def create(
+    def create_or_get(
         self,
         *,
         synapse_client: Optional["Synapse"] = None,
@@ -28,7 +27,7 @@ class FormGroupProtocol(Protocol):
         Returns:
             A FormGroup object containing the details of the created group.
 
-        Examples: create a form group
+        Examples: Create a FormGroup
 
         ```python
         from synapseclient import Synapse
@@ -38,70 +37,17 @@ class FormGroupProtocol(Protocol):
         syn.login()
 
         form_group = FormGroup(name="my_unique_form_group_name")
-        form_group = form_group.create()
+        form_group = form_group.create_or_get()
         print(form_group)
         ```
         """
         return FormGroup()
 
-
-class FormDataProtocol(Protocol):
-    """Protocol for FormData operations."""
-
-    def create(
-        self,
-        *,
-        synapse_client: Optional["Synapse"] = None,
-    ) -> "FormData":
-        """
-        Create a new FormData object. The caller will own the resulting object and will have access to read, update, and delete the FormData object.
-
-        Arguments:
-            synapse_client: The Synapse client to use for the request.
-
-        Returns:
-            A FormData object containing the details of the created form data.
-
-        Note:
-            The `name` attribute must be set on the FormData instance before calling `create()`.
-
-        Examples: create a form data
-
-        ```python
-        from synapseclient import Synapse
-        from synapseclient.models import FormData, File
-
-        syn = Synapse()
-        syn.login()
-
-        file = File(id="syn123", download_file=True).get()
-        file_handle_id = file.file_handle.id
-
-        form_data = FormData(
-            group_id="123",
-            name="my_form_data_name",
-            data_file_handle_id=file_handle_id
-        )
-        form_data = form_data.create()
-
-        print(f"Created FormData: {form_data.form_data_id}")
-        print(f"Name: {form_data.name}")
-        print(f"Group ID: {form_data.group_id}")
-        print(f"Created By: {form_data.created_by}")
-        print(f"Created On: {form_data.created_on}")
-        print(f"Data File Handle ID: {form_data.data_file_handle_id}")
-
-        if form_data.submission_status:
-            print(f"Submission State: {form_data.submission_status.state.value}")
-        ```
-        """
-        return FormData()
-
     def list(
         self,
         *,
         synapse_client: Optional["Synapse"] = None,
-        filter_by_state: Optional[List["StateEnum"]] = None,
+        filter_by_state: Optional[List[str]] = None,
         as_reviewer: bool = False,
     ) -> Generator["FormData", None, None]:
         """
@@ -111,16 +57,16 @@ class FormDataProtocol(Protocol):
             synapse_client: The Synapse client to use for the request.
             filter_by_state: Optional list of StateEnum to filter the results.
                 When as_reviewer=False (default), valid values are:
-                - StateEnum.WAITING_FOR_SUBMISSION
-                - StateEnum.SUBMITTED_WAITING_FOR_REVIEW
-                - StateEnum.ACCEPTED
-                - StateEnum.REJECTED
+                - waiting_for_submission
+                - submitted_waiting_for_review
+                - accepted
+                - rejected
 
                 When as_reviewer=True, valid values are:
-                - StateEnum.SUBMITTED_WAITING_FOR_REVIEW (default if None)
-                - StateEnum.ACCEPTED
-                - StateEnum.REJECTED
-                Note: WAITING_FOR_SUBMISSION is NOT allowed when as_reviewer=True.
+                - submitted_waiting_for_review
+                - accepted
+                - rejected
+                Note: waiting_for_submission is NOT allowed when as_reviewer=True.
 
             as_reviewer: If True, uses the reviewer endpoint (requires READ_PRIVATE_SUBMISSION
                 permission). If False (default), lists only FormData owned by the caller.
@@ -135,14 +81,13 @@ class FormDataProtocol(Protocol):
 
         ```python
         from synapseclient import Synapse
-        from synapseclient.models import FormData
-        from synapseclient.models.mixins.form import StateEnum
+        from synapseclient.models import FormGroup
 
         syn = Synapse()
         syn.login()
 
-        for form_data in FormData(group_id="123").list(
-            filter_by_state=[StateEnum.SUBMITTED_WAITING_FOR_REVIEW]
+        for form_data in FormGroup(name="test").list(
+            filter_by_state=["submitted_waiting_for_review"]
         ):
             status = form_data.submission_status
             print(f"Form name: {form_data.name}")
@@ -154,17 +99,13 @@ class FormDataProtocol(Protocol):
 
         ```python
         from synapseclient import Synapse
-        from synapseclient.models import FormData
-        from synapseclient.models.mixins.form import StateEnum
+        from synapseclient.models import FormGroup
 
         syn = Synapse()
         syn.login()
 
         # List all submissions waiting for review (reviewer mode)
-        for form_data in FormData(group_id="123").list(
-            as_reviewer=True,
-            filter_by_state=[StateEnum.SUBMITTED_WAITING_FOR_REVIEW]
-        ):
+        for form_data in FormGroup(name="test").list(as_reviewer=True):
             status = form_data.submission_status
             print(f"Form name: {form_data.name}")
             print(f"State: {status.state.value}")
@@ -177,6 +118,59 @@ class FormDataProtocol(Protocol):
             filter_by_state=filter_by_state,
             as_reviewer=as_reviewer,
         )
+
+
+class FormDataProtocol(Protocol):
+    """Protocol for FormData operations."""
+
+    def create_or_get(
+        self,
+        *,
+        synapse_client: Optional["Synapse"] = None,
+    ) -> "FormData":
+        """
+        Create or get a new FormData object. The caller will own the resulting object and will have access to read, update, and delete the FormData object.
+
+        Arguments:
+            synapse_client: The Synapse client to use for the request.
+
+        Returns:
+            A FormData object containing the details of the created form data.
+
+        Note:
+            The `name` attribute must be set on the FormData instance before calling `create_or_get()`.
+
+        Examples: Create a FormData
+
+        ```python
+        from synapseclient import Synapse
+        from synapseclient.models import FormData, File
+
+        syn = Synapse()
+        syn.login()
+
+        file = File(id="syn123", download_file=False).get()
+        file_handle_id = file.file_handle.id
+
+        form_data = FormData(
+            group_id="123",
+            name="my_form_data_name",
+            data_file_handle_id=file_handle_id
+        )
+        form_data = form_data.create_or_get()
+
+        print(f"Created FormData: {form_data.form_data_id}")
+        print(f"Name: {form_data.name}")
+        print(f"Group ID: {form_data.group_id}")
+        print(f"Created By: {form_data.created_by}")
+        print(f"Created On: {form_data.created_on}")
+        print(f"Data File Handle ID: {form_data.data_file_handle_id}")
+
+        if form_data.submission_status:
+            print(f"Submission State: {form_data.submission_status.state.value}")
+        ```
+        """
+        return FormData()
 
     def download(
         self,
@@ -205,7 +199,7 @@ class FormDataProtocol(Protocol):
         syn = Synapse()
         syn.login()
 
-        file = File(id="syn123", download_file=True).get()
+        file = File(id="syn123", download_file=False).get()
         file_handle_id = file.file_handle.id
 
         path = FormData(data_file_handle_id=file_handle_id).download(synapse_id="syn123")

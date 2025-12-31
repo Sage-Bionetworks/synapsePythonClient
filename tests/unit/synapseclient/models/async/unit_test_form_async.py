@@ -32,7 +32,7 @@ class TestFormGroup:
             new_callable=AsyncMock,
             return_value=mock_response,
         ) as mock_create:
-            result = await form_group.create_async(synapse_client=syn)
+            result = await form_group.create_or_get_async(synapse_client=syn)
 
             # THEN the API should be called with correct parameters
             mock_create.assert_called_once_with(
@@ -55,7 +55,156 @@ class TestFormGroup:
         # WHEN creating the form group
         # THEN it should raise ValueError
         with pytest.raises(ValueError, match="FormGroup 'name' must be provided"):
-            await form_group.create_async(synapse_client=syn)
+            await form_group.create_or_get_async(synapse_client=syn)
+
+    @pytest.mark.parametrize(
+        "as_reviewer,filter_by_state,expected_filter_by_state",
+        [
+            # Test for non-reviewers - allow all possible state filters
+            (
+                False,
+                [],
+                [
+                    StateEnum.WAITING_FOR_SUBMISSION,
+                    StateEnum.SUBMITTED_WAITING_FOR_REVIEW,
+                    StateEnum.ACCEPTED,
+                    StateEnum.REJECTED,
+                ],
+            ),
+            # Test for reviewers - only allow review-related state filters
+            (
+                True,
+                [],
+                [
+                    StateEnum.SUBMITTED_WAITING_FOR_REVIEW,
+                    StateEnum.ACCEPTED,
+                    StateEnum.REJECTED,
+                ],
+            ),
+            # Test for non-reviewers - only allow selected state filters
+            (False, ["accepted", "rejected"], [StateEnum.ACCEPTED, StateEnum.REJECTED]),
+            # Test for reviewers - only allow selected state filters
+            (
+                True,
+                ["submitted_waiting_for_review", "rejected"],
+                [StateEnum.SUBMITTED_WAITING_FOR_REVIEW, StateEnum.REJECTED],
+            ),
+        ],
+    )
+    async def test_list_async(
+        self, syn, as_reviewer, filter_by_state, expected_filter_by_state
+    ):
+        """Test listing form data asynchronously"""
+        # GIVEN a FormGroup with a group_id (mock creation)
+        mock_create_response = {
+            "groupId": "12345",
+            "name": "my_form_group_name",
+            "createdOn": "2023-12-01T10:00:00.000Z",
+            "createdBy": "123456",
+            "modifiedOn": "2023-12-01T10:00:00.000Z",
+        }
+
+        with patch(
+            "synapseclient.api.form_services.create_form_group",
+            new_callable=AsyncMock,
+            return_value=mock_create_response,
+        ):
+            form_group = FormGroup(name="my_form_group_name")
+            form_group = await form_group.create_or_get_async(synapse_client=syn)
+
+        async def mock_form_data_list():
+            yield {
+                "formDataId": "11111",
+                "groupId": "12345",
+                "name": "form_data_1",
+                "dataFileHandleId": "fh_1",
+            }
+            yield {
+                "formDataId": "22222",
+                "groupId": "12345",
+                "name": "form_data_2",
+                "dataFileHandleId": "fh_2",
+            }
+            yield {
+                "formDataId": "33333",
+                "groupId": "12345",
+                "name": "form_data_3",
+                "dataFileHandleId": "fh_3",
+            }
+
+        async def mock_generator():
+            async for item in mock_form_data_list():
+                yield item
+
+        # WHEN listing the form data
+        with patch(
+            "synapseclient.api.list_form_data",
+            return_value=mock_generator(),
+        ) as mock_list_form:
+            results = []
+
+            async for item in form_group.list_async(
+                synapse_client=syn,
+                filter_by_state=filter_by_state,
+                as_reviewer=as_reviewer,
+            ):
+                results.append(item)
+
+            # THEN the results should be a list of FormData objects
+            assert len(results) == 3
+
+            assert all(isinstance(item, FormData) for item in results)
+            assert results[0].form_data_id == "11111"
+            assert results[1].form_data_id == "22222"
+            assert results[2].form_data_id == "33333"
+
+            # THEN the API should be called with correct parameters
+            mock_list_form.assert_called_once_with(
+                synapse_client=syn,
+                group_id="12345",
+                filter_by_state=expected_filter_by_state,
+                as_reviewer=as_reviewer,
+            )
+
+    @pytest.mark.parametrize(
+        "as_reviewer,filter_by_state,expected",
+        [
+            # Test for non-reviewers - WAITING_FOR_SUBMISSION is allowed
+            (False, ["waiting_for_submission", "accepted"], None),
+            # Test for reviewers - invalid state filter
+            (True, ["waiting_for_submission"], ValueError),
+        ],
+    )
+    async def test_validate_filter_by_state_raises_error_for_invalid_states(
+        self, syn, as_reviewer, filter_by_state, expected
+    ):
+        """Test that invalid state filters raise ValueError"""
+        # GIVEN a FormGroup with a group_id (mock creation)
+        mock_create_response = {
+            "groupId": "12345",
+            "name": "my_form_group_name",
+            "createdOn": "2023-12-01T10:00:00.000Z",
+            "createdBy": "123456",
+            "modifiedOn": "2023-12-01T10:00:00.000Z",
+        }
+
+        with patch(
+            "synapseclient.api.form_services.create_form_group",
+            new_callable=AsyncMock,
+            return_value=mock_create_response,
+        ):
+            form_group = FormGroup(name="my_form_group_name")
+            form_group = await form_group.create_or_get_async(synapse_client=syn)
+
+        # WHEN validating filter_by_state with invalid states for non-reviewer
+        # THEN it should raise ValueError
+        if expected is ValueError:
+            with pytest.raises(ValueError):
+                # Call the private method directly for testing
+                form_group._validate_filter_by_state(
+                    filter_by_state=filter_by_state,
+                    as_reviewer=as_reviewer,
+                )
 
 
 class TestFormData:
@@ -96,7 +245,7 @@ class TestFormData:
             new_callable=AsyncMock,
             return_value=mock_response,
         ) as mock_create_form:
-            result = await form_data.create_async(synapse_client=syn)
+            result = await form_data.create_or_get_async(synapse_client=syn)
 
             # THEN the API should be called with correct parameters
             mock_create_form.assert_called_once_with(
@@ -130,120 +279,7 @@ class TestFormData:
             ValueError,
             match="'group_id', 'name', and 'data_file_handle_id' are required",
         ):
-            await form_data.create_async(synapse_client=syn)
-
-    @pytest.mark.parametrize(
-        "as_reviewer,filter_by_state",
-        [
-            # Test for non-reviewers - allow all possible state filters
-            (
-                False,
-                [
-                    StateEnum.WAITING_FOR_SUBMISSION,
-                    StateEnum.SUBMITTED_WAITING_FOR_REVIEW,
-                    StateEnum.ACCEPTED,
-                    StateEnum.REJECTED,
-                ],
-            ),
-            # Test for reviewers - only allow review-related state filters
-            (
-                True,
-                [
-                    StateEnum.SUBMITTED_WAITING_FOR_REVIEW,
-                    StateEnum.ACCEPTED,
-                    StateEnum.REJECTED,
-                ],
-            ),
-            # Test for non-reviewers - only allow selected state filters
-            (False, [StateEnum.ACCEPTED, StateEnum.REJECTED]),
-            # Test for reviewers - only allow selected state filters
-            (True, [StateEnum.SUBMITTED_WAITING_FOR_REVIEW, StateEnum.REJECTED]),
-        ],
-    )
-    async def test_list_async(self, syn, as_reviewer, filter_by_state):
-        """Test listing form data asynchronously"""
-        # GIVEN a FormData with a group_id
-        form_data = FormData(group_id="12345")
-
-        async def mock_form_data_list():
-            yield {
-                "formDataId": "11111",
-                "groupId": "12345",
-                "name": "form_data_1",
-                "dataFileHandleId": "fh_1",
-            }
-            yield {
-                "formDataId": "22222",
-                "groupId": "12345",
-                "name": "form_data_2",
-                "dataFileHandleId": "fh_2",
-            }
-            yield {
-                "formDataId": "33333",
-                "groupId": "12345",
-                "name": "form_data_3",
-                "dataFileHandleId": "fh_3",
-            }
-
-        async def mock_generator():
-            async for item in mock_form_data_list():
-                yield item
-
-        # WHEN listing the form data
-        with patch(
-            "synapseclient.api.list_form_data",
-            return_value=mock_generator(),
-        ) as mock_list_form:
-            results = []
-
-            async for item in form_data.list_async(
-                synapse_client=syn,
-                filter_by_state=filter_by_state,
-                as_reviewer=as_reviewer,
-            ):
-                results.append(item)
-
-            # THEN the results should be a list of FormData objects
-            assert len(results) == 3
-
-            assert all(isinstance(item, FormData) for item in results)
-            assert results[0].form_data_id == "11111"
-            assert results[1].form_data_id == "22222"
-            assert results[2].form_data_id == "33333"
-
-            # THEN the API should be called with correct parameters
-            mock_list_form.assert_called_once_with(
-                synapse_client=syn,
-                group_id="12345",
-                filter_by_state=filter_by_state,
-                as_reviewer=as_reviewer,
-            )
-
-    @pytest.mark.parametrize(
-        "as_reviewer,filter_by_state, expected",
-        [
-            # Test for non-reviewers - WAITING_FOR_SUBMISSION is allowed
-            (False, [StateEnum.WAITING_FOR_SUBMISSION, StateEnum.ACCEPTED], None),
-            # Test for reviewers - invalid state filter
-            (True, [StateEnum.WAITING_FOR_SUBMISSION], ValueError),
-        ],
-    )
-    async def test_validate_filter_by_state_raises_error_for_invalid_states(
-        self, as_reviewer, filter_by_state, expected
-    ):
-        """Test that invalid state filters raise ValueError"""
-        # GIVEN a FormData with a group_id
-        form_data = FormData(group_id="12345")
-
-        # WHEN validating filter_by_state with invalid states for non-reviewer
-        # THEN it should raise ValueError
-        if expected is ValueError:
-            with pytest.raises(ValueError):
-                # Call the private method directly for testing
-                form_data._validate_filter_by_state(
-                    filter_by_state=filter_by_state,
-                    as_reviewer=as_reviewer,
-                )
+            await form_data.create_or_get_async(synapse_client=syn)
 
     async def test_download_async(self, syn):
         """Test downloading form data asynchronously"""
