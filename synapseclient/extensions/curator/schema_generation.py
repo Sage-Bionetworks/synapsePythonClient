@@ -5635,7 +5635,8 @@ def generate_jsonschema(
 
     if len(data_types) != 1 and output is not None and output.endswith(".json"):
         raise ValueError(
-            "When specifying more than a single output file, don't provide a file path."
+            f"Cannot write {len(data_types)} schemas to single file '{output}'. "
+            "Specify a directory path instead, or request only one data type."
         )
 
     if len(data_types) == 1 and output is not None and output.endswith(".json"):
