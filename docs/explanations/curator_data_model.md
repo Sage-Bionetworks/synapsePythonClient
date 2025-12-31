@@ -350,11 +350,11 @@ Data Model:
 
 To demonstrate this, see the above example with the `Patient` and `Cancer` data types:
 
+- `Patient` is a data type, but `Cancer` is not, as defined by the `Parent` column.
 - `Diagnosis` is an attribute of `Patient`.
 - `Diagnosis` has `Valid Values` of `Healthy` and `Cancer`.
 - `Cancer` is also a data type.
 - `Cancer Type` and `Family History` are attributes of `Cancer` and are both required.
-- `Patient` is a data type, but `Cancer` is not, as defined by the `Parent` column.
 
 As a result of the above data model, in the JSON Schema:
 
