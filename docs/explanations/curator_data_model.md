@@ -148,6 +148,8 @@ Put the value `DataType` in this column if this row is a data type. Other values
 
 ### columnType
 
+**NOTE: While this is not required, it it strongly recommended that this column is present and that all attributes are typed explicitly.**
+
 The data type of this attribute. See [type](https://json-schema.org/understanding-json-schema/reference/type).
 
 Must be one of:
