@@ -1947,6 +1947,11 @@ class TestGenerateJsonschema(unittest.TestCase):
             "schema_files",
             "data_models/example.model.csv",
         )
+        self.minimal_test_schema_path = os.path.join(
+            os.path.dirname(__file__),
+            "schema_files",
+            "data_models/minimal_model.csv",
+        )
 
     def test_generate_jsonschema_from_csv(self):
         """Test generate_jsonschema from CSV file."""
@@ -1956,6 +1961,38 @@ class TestGenerateJsonschema(unittest.TestCase):
             # WHEN I generate JSON schemas
             schemas, file_paths = generate_jsonschema(
                 data_model_source=self.test_schema_path,
+                output=temp_dir,
+                data_types=None,
+                data_model_labels="class_label",
+                synapse_client=self.syn,
+            )
+
+            # THEN schemas should be generated
+            assert isinstance(schemas, list)
+            assert len(schemas) > 0
+            assert isinstance(file_paths, list)
+            assert len(file_paths) == len(schemas)
+
+            # AND files should exist
+            for file_path in file_paths:
+                assert os.path.exists(file_path), f"Expected file at {file_path}"
+
+            # AND each schema should be valid JSON Schema
+            for schema in schemas:
+                assert isinstance(schema, dict)
+                assert "$schema" in schema
+                assert "properties" in schema
+        finally:
+            shutil.rmtree(temp_dir)
+
+    def test_generate_jsonschema_from_minimal_csv(self):
+        """Test generate_jsonschema from a minimal CSV file."""
+        # GIVEN a CSV schema file
+        temp_dir = tempfile.mkdtemp()
+        try:
+            # WHEN I generate JSON schemas
+            schemas, file_paths = generate_jsonschema(
+                data_model_source=self.minimal_test_schema_path,
                 output=temp_dir,
                 data_types=None,
                 data_model_labels="class_label",

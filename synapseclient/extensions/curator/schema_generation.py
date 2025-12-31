@@ -2955,7 +2955,7 @@ class DataModelRelationships:
                 "edge_dir": "out",
                 "type": list,
                 "edge_rel": True,
-                "required_header": True,
+                "required_header": False,
             },
             "required": {
                 "jsonld_key": "sms:required",
@@ -3004,7 +3004,7 @@ class DataModelRelationships:
                 "edge_dir": "in",
                 "type": list,
                 "edge_rel": True,
-                "required_header": True,
+                "required_header": False,
             },
             "isPartOf": {
                 "jsonld_key": "schema:isPartOf",
@@ -3023,7 +3023,7 @@ class DataModelRelationships:
                 "node_label": "uri",
                 "type": str,
                 "edge_rel": False,
-                "required_header": True,
+                "required_header": False,
                 "node_attr_dict": {
                     "default": get_label_from_display_name,
                     "standard": get_label_from_display_name,
