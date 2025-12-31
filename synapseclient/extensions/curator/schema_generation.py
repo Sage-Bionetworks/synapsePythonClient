@@ -5616,11 +5616,13 @@ def generate_jsonschema(
     graph_data_model = data_model_graph.graph
     dmge = DataModelGraphExplorer(graph_data_model, logger=synapse_client.logger)
 
-    if output is not None and not output.endswith(".json"):
-        dirname = output
-        os.makedirs(dirname, exist_ok=True)
-    else:
+    if output is None:
         dirname = "./"
+    elif output.endswith(".json"):
+        dirname = os.path.dirname(output)
+    else:
+        dirname = output
+    os.makedirs(dirname, exist_ok=True)
 
     # Gets all data types if none are specified
     if data_types is None or len(data_types) == 0:

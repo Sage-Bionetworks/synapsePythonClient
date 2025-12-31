@@ -2371,6 +2371,25 @@ class TestGenerateJsonschema(unittest.TestCase):
             if os.path.isfile("./test.json"):
                 os.remove("./test.json")
 
+    def test_generate_jsonschema_specify_file_dir_does_not_exist(self):
+        """Test that generated schema has provided output path"""
+        # GIVEN a CSV schema file
+        try:
+            # WHEN I generate a schema with specific output file but that dir does nto exist, and a datatype
+            _, paths = generate_jsonschema(
+                data_model_source=self.test_schema_path,
+                output="./test/test.json",
+                data_types=["Patient"],
+                synapse_client=self.syn,
+            )
+            # THEN there should be only one output file with the specified name
+            assert len(paths) == 1
+            assert paths[0] == "./test/test.json"
+
+        finally:
+            if os.path.isfile("./test.json"):
+                os.remove("./test.json")
+
     def test_generate_jsonschema_exception_no_datatypes(self):
         """Test that an exception is raised when no datatypes are provided, and a JSON path is"""
         try:
