@@ -5568,7 +5568,7 @@ def generate_jsonschema(
         schemas, file_paths = generate_jsonschema(
             data_model_source="path/to/model.csv",
             output="output.json",
-            data_types=None,  # All data types
+            data_types=["Patient"],
             synapse_client=syn
         )
         ```
