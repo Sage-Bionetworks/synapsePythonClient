@@ -5585,7 +5585,6 @@ def generate_jsonschema(
         ```
 
         Generate schemas for all data types:
-        Generate schema for specific components from URL:
 
         ```python
         schemas, file_paths = generate_jsonschema(
