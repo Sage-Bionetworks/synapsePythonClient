@@ -50,13 +50,13 @@ Note: Individual columns are covered later on this page.
 
 These columns must be present in your CSV data model:
 
-- `Attribute`
-- `DependsOn`
-- `Description`
-- `Valid Values`
-- `Required`
-- `Parent`
-- `Validation Rules`
+- [Attribute](#attribute)
+- [DependsOn](#dependson)
+- [Description](#description)
+- [Valid Values](#valid-values)
+- [Required](#required)
+- [Parent](#parent)
+- [Validation Rules](#validation-rules)
 
 Defining data types:
 
@@ -314,7 +314,9 @@ JSON Schema output:
 }
 ```
 
-### Validation Rules (deprecated)
+### Validation Rules
+
+This column is currently deprecated.
 
 This is a remnant from Schematic. It is still required and in use (for now) to translate certain validation rules to other JSON Schema keywords.
 
