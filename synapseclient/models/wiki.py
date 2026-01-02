@@ -310,6 +310,24 @@ class WikiHistorySnapshot(WikiHistorySnapshotSynchronousProtocol):
         limit: int = 20,
         synapse_client: Optional["Synapse"] = None,
     ) -> Generator["WikiHistorySnapshot", None, None]:
+        """
+        Get the history of a wiki page as a list of WikiHistorySnapshot objects.
+
+        Arguments:
+            owner_id: The Synapse ID of the owner entity.
+            id: The ID of the wiki page.
+            offset: The index of the pagination offset.
+            limit: Limits the size of the page returned.
+            synapse_client: Optionally provide a Synapse client.
+        Yields:
+            Individual WikiHistorySnapshot objects from each page of the response.
+
+        Example: Get the history of a wiki page
+            ```python
+            for history in WikiHistorySnapshot.get(owner_id=project.id, id=wiki_page.id):
+                print(f"History: {history}")
+            ```
+        """
         return wrap_async_generator_to_sync_generator(
             async_gen_func=cls().get_async,
             owner_id=owner_id,
@@ -410,6 +428,7 @@ class WikiHeader(WikiHeaderSynchronousProtocol):
     ) -> Generator["WikiHeader", None, None]:
         """
         Get the header tree (hierarchy) of wiki pages for an entity.
+
         Arguments:
             owner_id: The ID of the owner entity.
             offset: The index of the pagination offset.
@@ -598,8 +617,8 @@ class WikiPage(WikiPageSynchronousProtocol):
     @staticmethod
     def unzip_gzipped_file(file_path: str) -> str:
         """Unzip the gzipped file and return the file path to the unzipped file.
-
         If the file is a markdown file, the content will be printed.
+
         Arguments:
             file_path: The path to the gzipped file.
         Returns:
@@ -659,6 +678,7 @@ class WikiPage(WikiPageSynchronousProtocol):
     @staticmethod
     def reformat_attachment_file_name(attachment_file_name: str) -> str:
         """Reformat the attachment file name to be a valid attachment path.
+
         Arguments:
             attachment_file_name: The name of the attachment file.
         Returns:
