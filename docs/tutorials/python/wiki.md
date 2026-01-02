@@ -10,15 +10,6 @@ Wikis in Synapse provide rich documentation and collaborative content for projec
 
 You can view your Wiki pages in the [Synapse web UI](https://www.synapse.org/) by navigating to your project and clicking on the Wiki tab.
 
-## Source Code for this Tutorial
-
-<details class="quote">
-  <summary>Click to show me</summary>
-
-```python
-{!docs/tutorials/python/tutorial_scripts/wiki.py!}
-```
-</details>
 
 ## Tutorial Purpose
 
@@ -126,8 +117,9 @@ Created sub-wiki page: Sub Wiki Page 1 with ID: ... under parent: ...
 ## 6. Create a Wiki page from markdown
 ### Create a Wiki page directly from a string:
 You can create a Wiki page from a single-line or multi-line Python string. Here is an example of creating a Wiki page from a multi-line Python string:
+
 ```python
-{!docs/tutorials/python/tutorial_scripts/wiki.py!lines=100-123}
+{!docs/tutorials/python/tutorial_scripts/wiki.py!lines=100-121}
 ```
 
 ### Create a Wiki page from a markdown file
@@ -146,12 +138,14 @@ You can download the markdown content of a Wiki page back to a file.
 {!docs/tutorials/python/tutorial_scripts/Wiki.py!lines=139-144}
 ```
 
-### Download the markdown file for a Wiki page that is created from plain text, the downloaded file will be named wiki_markdown_<wiki_page_title>.md
+### Download the markdown file for a Wiki page that is created from plain text, the downloaded file will be named `wiki_markdown_<wiki_page_title>.md`
 ```python
 {!docs/tutorials/python/tutorial_scripts/Wiki.py!lines=147-149}
 ```
+
 <details class="example">
   <summary>You'll notice the output looks like:</summary>
+```
 Your markdown content in plain text
 Downloaded and unzipped the markdown file for wiki page ... to path/to/wiki_markdown_Sub Page 2 created from markdown text.md.
 ```
@@ -179,6 +173,7 @@ First, create a file to attach. Then create a Wiki page with the attachment. Not
 ```python
 {!docs/tutorials/python/tutorial_scripts/Wiki.py!lines=158-170}
 ```
+
 <details class="example">
   <summary>You'll notice the output looks like:</summary>
 ```
@@ -192,6 +187,7 @@ To include images in your Wiki page, you DO NOT need to reformat the file name f
 ```python
 {!docs/tutorials/python/tutorial_scripts/Wiki.py!lines=173-183}
 ```
+
 <details class="example">
   <summary>You'll notice the output looks like:</summary>
 ```
@@ -208,6 +204,7 @@ Retrieve the file handles of all attachments on a Wiki page:
 ```python
 {!docs/tutorials/python/tutorial_scripts/Wiki.py!lines=186-188}
 ```
+
 <details class="example">
   <summary>You'll notice the output looks like:</summary>
 ```
@@ -230,7 +227,7 @@ You can retrieve the URL of an attachment without downloading it. Attachment fil
 ```
 </details>
 
-### Download an attachment
+### Download an attachment file
 
 Download an attachment file to your local machine and unzip it using `WikiPage.unzip_gzipped_file` function.
 ```python
@@ -263,8 +260,9 @@ WikiHeader allows you to retrieve the hierarchical structure of Wiki pages withi
 Retrieve the complete Wiki page hierarchy for a project:
 
 ```python
-{!docs/tutorials/python/tutorial_scripts/Wiki.py!lines=227}
+{!docs/tutorials/python/tutorial_scripts/Wiki.py!lines=226}
 ```
+
 <details class="example">
   <summary>You'll notice the output shows the Wiki hierarchy:</summary>
 ```
@@ -281,7 +279,7 @@ WikiHistorySnapshot provides access to the version history of Wiki pages, allowi
 Retrieve the version history for a specific Wiki page:
 
 ```python
-{!docs/tutorials/python/tutorial_scripts/Wiki.py!lines=231}
+{!docs/tutorials/python/tutorial_scripts/Wiki.py!lines=230}
 ```
 <details class="example">
   <summary>You'll notice the output shows the history of versions:</summary>
@@ -299,7 +297,7 @@ WikiOrderHint allows you to control the order in which Wiki pages are displayed.
 First, retrieve the current order hint (which may be empty initially):
 
 ```python
-{!docs/tutorials/python/tutorial_scripts/Wiki.py!lines=235}
+{!docs/tutorials/python/tutorial_scripts/Wiki.py!lines=234}
 ```
 
 <details class="example">
@@ -340,6 +338,14 @@ Delete a Wiki page by providing the owner ID and Wiki page ID:
 {!docs/tutorials/python/tutorial_scripts/Wiki.py!lines=260-266}
 ```
 
+## Source Code for this Tutorial
+
+<details class="quote">
+  <summary>Click to show me</summary>
+```python
+{!docs/tutorials/python/tutorial_scripts/wiki.py!}
+```
+</details>
 
 ## References
 
