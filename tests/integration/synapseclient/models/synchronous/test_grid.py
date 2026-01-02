@@ -112,7 +112,9 @@ class TestGrid:
         grid2 = Grid(record_set_id=record_set_fixture.id)
 
         # WHEN: Creating a second grid session (should reuse the existing one)
-        created_grid2 = grid2.create(synapse_client=self.syn)
+        created_grid2 = grid2.create(
+            synapse_client=self.syn, attach_to_previous_session=True
+        )
 
         # THEN: The same session should be reused
         assert created_grid2.session_id == first_session_id

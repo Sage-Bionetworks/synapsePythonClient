@@ -2,16 +2,7 @@ import json
 import os
 from dataclasses import dataclass, field, replace
 from enum import Enum
-from typing import (
-    TYPE_CHECKING,
-    Any,
-    AsyncGenerator,
-    Dict,
-    List,
-    Optional,
-    TypeVar,
-    Union,
-)
+from typing import TYPE_CHECKING, Any, AsyncGenerator, Dict, List, Optional, Union
 
 from typing_extensions import Self
 
@@ -24,14 +15,13 @@ from synapseclient.core.constants.concrete_types import (
     QUERY_TABLE_CSV_REQUEST,
     QUERY_TABLE_CSV_RESULT,
 )
+from synapseclient.core.typing_utils import DataFrame as DATA_FRAME_TYPE
 from synapseclient.core.utils import delete_none_keys, from_unix_epoch_time
 from synapseclient.models.mixins.asynchronous_job import AsynchronousCommunicator
 from synapseclient.models.protocols.table_protocol import ColumnSynchronousProtocol
 
 if TYPE_CHECKING:
     from synapseclient import Synapse
-
-DATA_FRAME_TYPE = TypeVar("pd.DataFrame")
 
 
 @dataclass
