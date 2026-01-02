@@ -54,6 +54,7 @@ from .entity_services import (
     get_entity_type,
     get_upload_destination,
     get_upload_destination_location,
+    is_synapse_id,
     post_entity,
     post_entity_acl,
     put_entity,
@@ -148,6 +149,7 @@ from .user_services import (
     get_user_profile_by_username,
     is_user_certified,
 )
+from .web_services import open_entity_in_browser
 
 __all__ = [
     # annotations
@@ -200,6 +202,9 @@ __all__ = [
     "put_entity_acl",
     "set_entity_permissions",
     "update_entity_acl",
+    "is_synapse_id",
+    # web_services
+    "open_entity_in_browser",
     # configuration_services
     "get_config_file",
     "get_config_section_dict",
