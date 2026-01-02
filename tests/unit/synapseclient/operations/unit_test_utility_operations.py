@@ -18,8 +18,8 @@ from synapseclient.operations import (
 class TestFindEntityId:
     """Tests for find_entity_id wrapper functions."""
 
-    @patch("synapseclient.operations.utility_operations.get_child")
-    @patch("synapseclient.operations.utility_operations.id_of")
+    @patch("synapseclient.api.get_child")
+    @patch("synapseclient.core.utils.id_of")
     async def test_find_entity_id_async_with_parent_id(
         self, mock_id_of, mock_get_child
     ):
@@ -40,8 +40,8 @@ class TestFindEntityId:
             entity_name="test_entity", parent_id="syn789", synapse_client=None
         )
 
-    @patch("synapseclient.operations.utility_operations.get_child")
-    @patch("synapseclient.operations.utility_operations.id_of")
+    @patch("synapseclient.api.get_child")
+    @patch("synapseclient.core.utils.id_of")
     async def test_find_entity_id_async_with_parent_object(
         self, mock_id_of, mock_get_child
     ):
@@ -64,13 +64,11 @@ class TestFindEntityId:
             entity_name="test_entity", parent_id="syn999", synapse_client=None
         )
 
-    @patch("synapseclient.operations.utility_operations.get_child")
-    @patch("synapseclient.operations.utility_operations.id_of")
-    async def test_find_entity_id_async_no_parent(self, mock_id_of, mock_get_child):
+    @patch("synapseclient.api.get_child")
+    async def test_find_entity_id_async_no_parent(self, mock_get_child):
         """Test find_entity_id_async without parent (project lookup)."""
         # GIVEN a mock get_child that returns a project ID
         mock_get_child.return_value = "syn123456"
-        mock_id_of.return_value = None
 
         # WHEN I call find_entity_id_async without parent
         result = await find_entity_id_async(
@@ -79,7 +77,7 @@ class TestFindEntityId:
 
         # THEN I expect the correct project ID
         assert result == "syn123456"
-        mock_id_of.assert_called_once_with(None)
+        # Note: id_of is not called when parent is None due to short-circuit evaluation
         mock_get_child.assert_awaited_once_with(
             entity_name="My Project", parent_id=None, synapse_client=None
         )
@@ -102,7 +100,7 @@ class TestIsSynapseId:
     """Tests for is_synapse_id wrapper functions."""
 
     @patch(
-        "synapseclient.operations.utility_operations.api_is_synapse_id",
+        "synapseclient.api.entity_services.is_synapse_id",
         new_callable=AsyncMock,
     )
     async def test_is_synapse_id_async_valid(self, mock_api_is_synapse_id):
@@ -120,7 +118,7 @@ class TestIsSynapseId:
         )
 
     @patch(
-        "synapseclient.operations.utility_operations.api_is_synapse_id",
+        "synapseclient.api.entity_services.is_synapse_id",
         new_callable=AsyncMock,
     )
     async def test_is_synapse_id_async_invalid(self, mock_api_is_synapse_id):
@@ -155,7 +153,7 @@ class TestOnweb:
     """Tests for onweb wrapper functions."""
 
     @patch(
-        "synapseclient.operations.utility_operations.open_entity_in_browser",
+        "synapseclient.api.web_services.open_entity_in_browser",
         new_callable=AsyncMock,
     )
     async def test_onweb_async_with_id(self, mock_open_entity):
@@ -173,7 +171,7 @@ class TestOnweb:
         )
 
     @patch(
-        "synapseclient.operations.utility_operations.open_entity_in_browser",
+        "synapseclient.api.web_services.open_entity_in_browser",
         new_callable=AsyncMock,
     )
     async def test_onweb_async_with_subpage(self, mock_open_entity):
@@ -210,7 +208,7 @@ class TestMd5Query:
     """Tests for md5_query wrapper functions."""
 
     @patch(
-        "synapseclient.operations.utility_operations.get_entities_by_md5",
+        "synapseclient.api.get_entities_by_md5",
         new_callable=AsyncMock,
     )
     async def test_md5_query_async_with_results(self, mock_get_entities):
@@ -233,7 +231,7 @@ class TestMd5Query:
         mock_get_entities.assert_awaited_once_with(md5="abc123", synapse_client=None)
 
     @patch(
-        "synapseclient.operations.utility_operations.get_entities_by_md5",
+        "synapseclient.api.get_entities_by_md5",
         new_callable=AsyncMock,
     )
     async def test_md5_query_async_no_results(self, mock_get_entities):
@@ -252,7 +250,7 @@ class TestMd5Query:
         )
 
     @patch(
-        "synapseclient.operations.utility_operations.get_entities_by_md5",
+        "synapseclient.api.get_entities_by_md5",
         new_callable=AsyncMock,
     )
     async def test_md5_query_async_missing_results_key(self, mock_get_entities):

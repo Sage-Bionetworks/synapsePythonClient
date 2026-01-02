@@ -80,7 +80,7 @@ class TestOpenEntityInBrowser:
         mock_webbrowser.open.assert_called_once_with(expected_url)
 
     @patch("synapseclient.api.web_services.os.path.isfile")
-    @patch("synapseclient.api.web_services.get_entity")
+    @patch("synapseclient.api.get_entity")
     @patch("synapseclient.api.web_services.webbrowser")
     @patch("synapseclient.Synapse")
     async def test_open_entity_in_browser_with_file_path(
