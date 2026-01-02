@@ -864,6 +864,14 @@ class File(FileSynchronousProtocol, AccessControllable, BaseJSONSchema):
                 }
             )
 
+        # Auto-set synapse_store to False if external_url is provided without a path
+        if self.external_url and not self.path:
+            client.logger.warning(
+                "File has external_url set but synapse_store was not explicitly set to False. "
+                "Automatically setting synapse_store=False to create an ExternalFileHandle."
+            )
+            self.synapse_store = False
+
         if self.path or self.external_url:
             if self.path:
                 self.path = os.path.expanduser(self.path)

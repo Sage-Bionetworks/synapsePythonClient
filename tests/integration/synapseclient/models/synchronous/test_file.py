@@ -663,6 +663,7 @@ class TestFileStore:
 
     def test_store_as_external_url(self, project_model: Project, file: File) -> None:
         # GIVEN a file
+        file.path = None
         file.name = str(uuid.uuid4())
 
         # AND the file is not to be uploaded
@@ -713,6 +714,7 @@ class TestFileStore:
         self, project_model: Project, file: File
     ) -> None:
         # GIVEN a file
+        file.path = None
         file.name = str(uuid.uuid4())
 
         # AND the file is not to be uploaded
@@ -766,6 +768,7 @@ class TestFileStore:
         self, project_model: Project, file: File
     ) -> None:
         # GIVEN a file
+        file.path = None
         file.name = str(uuid.uuid4())
 
         # AND the file is not to be uploaded
@@ -823,6 +826,7 @@ class TestFileStore:
         self, project_model: Project, file: File
     ) -> None:
         # GIVEN a file with an external URL
+        file.path = None
         file.name = str(uuid.uuid4())
         file.synapse_store = False
         file.external_url = BOGUS_URL
@@ -857,6 +861,7 @@ class TestFileStore:
         self, project_model: Project, file: File
     ) -> None:
         # GIVEN a file with an external URL but synapse_store not explicitly set to False
+        file.path = None
         file.name = str(uuid.uuid4())
         file.external_url = BOGUS_URL
 
