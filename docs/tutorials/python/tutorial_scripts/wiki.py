@@ -107,20 +107,19 @@ This is a sample markdown file with multiple sections.
 - List item 2
 - List item 3
 
-## Code Example
-```python
-def hello_world():
-    print("Hello, World!")
-```
-"""
+## Section 3
+- List item 1
+- List item 2
+- List item 3
 
-# Create wiki page from markdown text
+"""
 sub_wiki_2 = WikiPage(
     owner_id=project.id,
     parent_id=root_wiki_page.id,
     title="Sub Page 2 created from markdown text",
     markdown=markdown_content,
 ).store()
+
 
 # Create a wiki page from a markdown file
 markdown_file_path = "~/temp/temp_markdown_file.md.gz"
