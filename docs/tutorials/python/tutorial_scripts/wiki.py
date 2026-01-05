@@ -154,7 +154,7 @@ wiki_page_markdown_3 = WikiPage(
 
 # Section 3: WikiPage with Attachments
 # Create a temporary file for the attachment
-attachment_file_name = "temp_attachment.txt"
+attachment_file_name = "path/to/temp_attachment.txt"
 
 # reformat '.' and '_' in the attachment file name to be a valid attachment path
 attachment_file_name_reformatted = WikiPage.reformat_attachment_file_name(
