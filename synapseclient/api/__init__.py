@@ -148,6 +148,21 @@ from .user_services import (
     get_user_profile_by_username,
     is_user_certified,
 )
+from .wiki_services import (
+    delete_wiki_page,
+    get_attachment_handles,
+    get_attachment_preview_url,
+    get_attachment_url,
+    get_markdown_url,
+    get_wiki_header_tree,
+    get_wiki_history,
+    get_wiki_order_hint,
+    get_wiki_page,
+    post_wiki_page,
+    put_wiki_order_hint,
+    put_wiki_page,
+    put_wiki_version,
+)
 
 __all__ = [
     # annotations
@@ -224,6 +239,20 @@ __all__ = [
     "get_default_columns",
     "ViewTypeMask",
     "ViewEntityType",
+    # wiki_service
+    "post_wiki_page",
+    "get_wiki_page",
+    "put_wiki_page",
+    "put_wiki_version",
+    "delete_wiki_page",
+    "get_wiki_header_tree",
+    "get_wiki_history",
+    "get_attachment_handles",
+    "get_attachment_url",
+    "get_attachment_preview_url",
+    "get_markdown_url",
+    "get_wiki_order_hint",
+    "put_wiki_order_hint",
     # json schema services
     "bind_json_schema_to_entity",
     "get_json_schema_from_entity",

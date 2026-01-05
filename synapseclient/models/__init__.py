@@ -59,6 +59,12 @@ from synapseclient.models.table_components import (
 from synapseclient.models.team import Team, TeamMember, TeamMembershipStatus
 from synapseclient.models.user import UserGroupHeader, UserPreference, UserProfile
 from synapseclient.models.virtualtable import VirtualTable
+from synapseclient.models.wiki import (
+    WikiHeader,
+    WikiHistorySnapshot,
+    WikiOrderHint,
+    WikiPage,
+)
 
 __all__ = [
     "Activity",
@@ -130,6 +136,11 @@ __all__ = [
     "DatasetCollection",
     # Submission models
     "SubmissionView",
+    # Wiki models
+    "WikiPage",
+    "WikiOrderHint",
+    "WikiHistorySnapshot",
+    "WikiHeader",
     # JSON Schema models
     "SchemaOrganization",
     "JSONSchema",
