@@ -1227,3 +1227,44 @@ def test_storeTable_csv(mock_sys, test_state):
 
     mapping = json.loads(match.group(1))
     test_state.schedule_for_cleanup(mapping["tableId"])
+
+
+class TestGenerateJSONSchemaFunction:
+    @pytest.fixture(scope="function", autouse=True)
+    @patch("synapseclient.client.Synapse")
+    def setup(self, mock_syn):
+        self.syn = mock_syn
+        self.csv_url = "https://raw.githubusercontent.com/Sage-Bionetworks/synapsePythonClient/refs/heads/develop/tests/unit/synapseclient/extensions/schema_files/data_models/example.model.csv"
+        self.json_url = "https://raw.githubusercontent.com/Sage-Bionetworks/synapsePythonClient/refs/heads/develop/tests/unit/synapseclient/extensions/schema_files/data_models_jsonld/example.model.jsonld"
+
+    def test_csv_url(self):
+        # GIVEN a CSV schema URL
+        parser = cmdline.build_parser()
+        args = parser.parse_args(
+            ["generate-json-schema", self.csv_url, "--data-types", "Patient"]
+        )
+        schema_path = "./Patient.json"
+        try:
+            # WHEN I generate a schema with one datatype and no output path
+            cmdline.generate_json_schema(args, self.syn)
+            # THEN a schema file should be created at ./Patient.json
+            assert os.path.isfile(schema_path)
+        finally:
+            if os.path.isfile(schema_path):
+                os.remove(schema_path)
+
+    def test_jsonld_url(self):
+        # GIVEN a CSV schema URL
+        parser = cmdline.build_parser()
+        args = parser.parse_args(
+            ["generate-json-schema", self.json_url, "--data-types", "Patient"]
+        )
+        schema_path = "./Patient.json"
+        try:
+            # WHEN I generate a schema with one datatype and no output path
+            cmdline.generate_json_schema(args, self.syn)
+            # THEN a schema file should be created at ./Patient.json
+            assert os.path.isfile(schema_path)
+        finally:
+            if os.path.isfile(schema_path):
+                os.remove(schema_path)

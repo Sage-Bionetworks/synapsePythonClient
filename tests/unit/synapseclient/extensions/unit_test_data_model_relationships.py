@@ -39,12 +39,9 @@ class TestDataModelRelationships2:
             "Description",
             "Valid Values",
             "DependsOn",
-            "DependsOn Component",
             "Required",
             "Parent",
             "Validation Rules",
-            "Properties",
-            "Source",
         ]
 
     @pytest.mark.parametrize("edge", [True, False], ids=["True", "False"])

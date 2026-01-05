@@ -35,6 +35,7 @@ from synapseclient.core.exceptions import (
     SynapseHTTPError,
     SynapseNoCredentialsError,
 )
+from synapseclient.extensions.curator.schema_generation import generate_jsonschema
 from synapseclient.wiki import Wiki
 
 tracer = trace.get_tracer("synapseclient")
@@ -799,6 +800,18 @@ def migrate(args, syn):
     if args.csv_log_path:
         logging.info("Writing csv log to %s", args.csv_log_path)
         result.as_csv(args.csv_log_path)
+
+
+def generate_json_schema(args, syn):
+    """Generate JSON schema for Synapse entity types"""
+    _, paths = generate_jsonschema(
+        data_model_source=args.data_model_path,
+        output=args.output,
+        data_types=args.data_types,
+        data_model_labels=args.data_model_labels,
+        synapse_client=syn,
+    )
+    logging.info(f"Created JSON Schema files: [{paths}]")
 
 
 def build_parser():
@@ -1792,6 +1805,45 @@ https://rest-docs.synapse.org/rest/org/sagebionetworks/repo/web/controller/Table
         default=False,
         help="Bypass interactive prompt confirming migration",
     )
+
+    parser_generate_json_schema = subparsers.add_parser(
+        "generate-json-schema", help="Generates a JSON Schema file from a data model."
+    )
+    parser_generate_json_schema.add_argument(
+        "data_model_path",
+        type=str,
+        help="Required path to CSV or JSONLD data model. Must be a path to a local file, or a URL.",
+    )
+    parser_generate_json_schema.add_argument(
+        "--data-types",
+        nargs="*",
+        type=str,
+        default=None,
+        help="Optional list of data types to generate schema for. If not provided, schema will be generated for all data types in the model.",
+    )
+    parser_generate_json_schema.add_argument(
+        "--output",
+        type=str,
+        default=None,
+        help=(
+            "Optional path. "
+            "If None, output file(s) will be created in the current working directory as ./<data-type>.json. "
+            "If a directory path, output file(s) will be created in the specified directory as <data-type>.json. "
+            "If a file path, schema will be written to the specified file. "
+        ),
+    )
+    parser_generate_json_schema.add_argument(
+        "--data-model-labels",
+        type=str,
+        default="class_label",
+        choices=["class_label", "display_label"],
+        help=(
+            "Optional Label format for properties in the generated schema. "
+            "'class_label' uses standard attribute names (default). "
+            "'display_label' uses display names when valid"
+        ),
+    )
+    parser_generate_json_schema.set_defaults(func=generate_json_schema)
 
     parser_migrate.set_defaults(func=migrate)
 
