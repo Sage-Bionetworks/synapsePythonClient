@@ -416,7 +416,7 @@ class TestWikiPage:
         assert results == expected_results
 
     def test_to_gzip_file_with_string_content(self) -> None:
-        self.syn.cache.cache_root_dir = "/tmp/cache"
+        self.syn.cache.cache_root_dir = "temp_cache_dir"
 
         # WHEN I call `_to_gzip_file` with a markdown string
         with patch("builtins.open") as mock_open_file, patch(
@@ -449,7 +449,7 @@ class TestWikiPage:
         with patch("os.path.isfile"), patch("gzip.open") as mock_gzip_open, patch(
             "builtins.open"
         ) as mock_open_file:
-            self.syn.cache.cache_root_dir = "/tmp/cache"
+            self.syn.cache.cache_root_dir = "temp_cache_dir"
             markdown_file_path = "wiki_markdown_Test Wiki Page.md.gz"
 
             # WHEN I call `_to_gzip_file` with a gzipped file
@@ -459,7 +459,7 @@ class TestWikiPage:
             assert file_path == markdown_file_path
 
     def test_to_gzip_file_with_non_gzipped_file(self) -> None:
-        self.syn.cache.cache_root_dir = "/tmp/cache"
+        self.syn.cache.cache_root_dir = "temp_cache_dir"
 
         # WHEN I call `_to_gzip_file` with a file path
         with patch("os.path.isfile", return_value=True), patch(
@@ -467,17 +467,23 @@ class TestWikiPage:
         ) as mock_open_file, patch("gzip.open") as mock_gzip_open, patch(
             "os.path.exists", return_value=True
         ):
-            file_path = self.wiki_page._to_gzip_file("/path/to/test.txt", self.syn)
+            test_file_path = os.path.join("file_path", "test.txt")
+            file_path = self.wiki_page._to_gzip_file(test_file_path, self.syn)
 
             # THEN the file should be processed
-            mock_open_file.assert_called_once_with("/path/to/test.txt", "rb")
+            mock_open_file.assert_called_once_with(test_file_path, "rb")
             mock_gzip_open.assert_called_once_with(
-                "/tmp/cache/wiki_content/test.txt.gz", "wb"
+                os.path.join(
+                    self.syn.cache.cache_root_dir, "wiki_content", "test.txt.gz"
+                ),
+                "wb",
             )
             gzip_handle = mock_gzip_open.return_value.__enter__.return_value
             open_handle = mock_open_file.return_value.__enter__.return_value
             gzip_handle.writelines.assert_called_once_with(open_handle)
-            assert file_path == "/tmp/cache/wiki_content/test.txt.gz"
+            assert file_path == os.path.join(
+                self.syn.cache.cache_root_dir, "wiki_content", "test.txt.gz"
+            )
 
     def test_to_gzip_file_with_invalid_content(self) -> None:
         # WHEN I call `_to_gzip_file` with invalid content type
@@ -486,7 +492,7 @@ class TestWikiPage:
             self.wiki_page._to_gzip_file(123, self.syn)
 
     def test_unzip_gzipped_file_with_markdown(self) -> None:
-        self.syn.cache.cache_root_dir = "/tmp/cache"
+        self.syn.cache.cache_root_dir = "temp_cache_dir"
         gzipped_file_path = os.path.join(self.syn.cache.cache_root_dir, "test.md.gz")
         expected_unzipped_file_path = os.path.join(
             self.syn.cache.cache_root_dir, "test.md"
@@ -515,7 +521,7 @@ class TestWikiPage:
         assert unzipped_file_path == expected_unzipped_file_path
 
     def test_unzip_gzipped_file_with_binary_file(self) -> None:
-        self.syn.cache.cache_root_dir = "/tmp/cache"
+        self.syn.cache.cache_root_dir = "temp_cache_dir"
         gzipped_file_path = os.path.join(self.syn.cache.cache_root_dir, "test.bin.gz")
         expected_unzipped_file_path = os.path.join(
             self.syn.cache.cache_root_dir, "test.bin"
@@ -541,7 +547,7 @@ class TestWikiPage:
         assert unzipped_file_path == expected_unzipped_file_path
 
     def test_unzip_gzipped_file_with_text_file(self) -> None:
-        self.syn.cache.cache_root_dir = "/tmp/cache"
+        self.syn.cache.cache_root_dir = "temp_cache_dir"
         gzipped_file_path = os.path.join(self.syn.cache.cache_root_dir, "test.txt.gz")
         expected_unzipped_file_path = os.path.join(
             self.syn.cache.cache_root_dir, "test.txt"
