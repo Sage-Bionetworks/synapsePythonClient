@@ -1,5 +1,6 @@
 """Synchronous tests for the synapseclient.models.wiki classes."""
 import copy
+import os
 from typing import Any, AsyncGenerator, Dict, Generator, List
 from unittest.mock import Mock, call, mock_open, patch
 
@@ -459,8 +460,11 @@ class TestWikiPage:
             self.wiki_page._to_gzip_file(123, self.syn)
 
     def test_unzip_gzipped_file_with_markdown(self) -> None:
-        gzipped_file_path = "/path/to/test.md.gz"
-        expected_unzipped_file_path = "/path/to/test.md"
+        self.syn.cache.cache_root_dir = "/tmp/cache"
+        gzipped_file_path = os.path.join(self.syn.cache.cache_root_dir, "test.md.gz")
+        expected_unzipped_file_path = os.path.join(
+            self.syn.cache.cache_root_dir, "test.md"
+        )
         markdown_content = "# Test Markdown\n\nThis is a test."
         markdown_content_bytes = markdown_content.encode("utf-8")
 
@@ -485,8 +489,11 @@ class TestWikiPage:
         assert unzipped_file_path == expected_unzipped_file_path
 
     def test_unzip_gzipped_file_with_binary_file(self) -> None:
-        gzipped_file_path = "/path/to/test.bin.gz"
-        expected_unzipped_file_path = "/path/to/test.bin"
+        self.syn.cache.cache_root_dir = "/tmp/cache"
+        gzipped_file_path = os.path.join(self.syn.cache.cache_root_dir, "test.bin.gz")
+        expected_unzipped_file_path = os.path.join(
+            self.syn.cache.cache_root_dir, "test.bin"
+        )
         binary_content = b"\x00\x01\x02\x03\xff\xfe\xfd"
 
         # WHEN I call `_unzip_gzipped_file` with a binary file
@@ -508,8 +515,11 @@ class TestWikiPage:
         assert unzipped_file_path == expected_unzipped_file_path
 
     def test_unzip_gzipped_file_with_text_file(self) -> None:
-        gzipped_file_path = "/path/to/test.txt.gz"
-        expected_unzipped_file_path = "/path/to/test.txt"
+        self.syn.cache.cache_root_dir = "/tmp/cache"
+        gzipped_file_path = os.path.join(self.syn.cache.cache_root_dir, "test.txt.gz")
+        expected_unzipped_file_path = os.path.join(
+            self.syn.cache.cache_root_dir, "test.txt"
+        )
         text_content = "This is plain text content."
         text_content_bytes = text_content.encode("utf-8")
 
