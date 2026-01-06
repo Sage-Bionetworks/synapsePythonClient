@@ -202,7 +202,7 @@ class TestUtilityOperationsAsync:
         assert isinstance(url, str)
         assert "synapse.org" in url.lower()
         assert project_id in url
-        assert "#!Synapse:" in url
+        assert "Synapse:" in url
 
     async def test_onweb_async_project_by_object(self, project_model: Project) -> None:
         """Test opening a project in web browser by object asynchronously."""
@@ -215,7 +215,7 @@ class TestUtilityOperationsAsync:
         assert isinstance(url, str)
         assert "synapse.org" in url.lower()
         assert project_model.id in url
-        assert "#!Synapse:" in url
+        assert "Synapse:" in url
 
     async def test_onweb_async_with_subpage(self, project_model: Project) -> None:
         """Test opening a wiki subpage in web browser asynchronously."""
@@ -234,5 +234,5 @@ class TestUtilityOperationsAsync:
         assert "synapse.org" in url.lower()
         assert project_id in url
         assert subpage_id in url
-        assert "#!Wiki:" in url
+        assert "Wiki:" in url
         assert "/ENTITY/" in url

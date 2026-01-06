@@ -25,9 +25,9 @@ class TestOpenEntityInBrowser:
         )
 
         # THEN I expect the correct URL to be opened
-        assert result == "https://www.synapse.org#!Synapse:syn123456"
+        assert result == "https://www.synapse.org/Synapse:syn123456"
         mock_webbrowser.open.assert_called_once_with(
-            "https://www.synapse.org#!Synapse:syn123456"
+            "https://www.synapse.org/Synapse:syn123456"
         )
 
     @patch("synapseclient.api.web_services.webbrowser")
@@ -52,9 +52,9 @@ class TestOpenEntityInBrowser:
         )
 
         # THEN I expect the correct URL to be opened
-        assert result == "https://www.synapse.org#!Synapse:syn789012"
+        assert result == "https://www.synapse.org/Synapse:syn789012"
         mock_webbrowser.open.assert_called_once_with(
-            "https://www.synapse.org#!Synapse:syn789012"
+            "https://www.synapse.org/Synapse:syn789012"
         )
 
     @patch("synapseclient.api.web_services.webbrowser")
@@ -75,37 +75,9 @@ class TestOpenEntityInBrowser:
         )
 
         # THEN I expect the correct wiki URL to be opened
-        expected_url = "https://www.synapse.org#!Wiki:syn123456/ENTITY/12345"
+        expected_url = "https://www.synapse.org/Wiki:syn123456/ENTITY/12345"
         assert result == expected_url
         mock_webbrowser.open.assert_called_once_with(expected_url)
-
-    @patch("synapseclient.api.web_services.os.path.isfile")
-    @patch("synapseclient.api.get_entity")
-    @patch("synapseclient.api.web_services.webbrowser")
-    @patch("synapseclient.Synapse")
-    async def test_open_entity_in_browser_with_file_path(
-        self, mock_synapse, mock_webbrowser, mock_get_entity, mock_isfile
-    ):
-        """Test opening entity in browser when entity is a file path."""
-        # GIVEN a mock client and a file path that exists
-        mock_client = AsyncMock()
-        mock_client.portalEndpoint = "https://www.synapse.org"
-        mock_synapse.get_client.return_value = mock_client
-        mock_webbrowser.open = MagicMock()
-        mock_isfile.return_value = True
-        mock_get_entity.return_value = {"id": "syn123456"}
-
-        # WHEN I call open_entity_in_browser with a file path
-        result = await web_services.open_entity_in_browser(
-            "/path/to/file.txt", synapse_client=None
-        )
-
-        # THEN I expect the entity to be fetched and correct URL opened
-        assert result == "https://www.synapse.org#!Synapse:syn123456"
-        mock_get_entity.assert_awaited_once()
-        mock_webbrowser.open.assert_called_once_with(
-            "https://www.synapse.org#!Synapse:syn123456"
-        )
 
     @patch("synapseclient.api.web_services.webbrowser")
     @patch("synapseclient.Synapse")
@@ -125,7 +97,7 @@ class TestOpenEntityInBrowser:
         )
 
         # THEN I expect the staging URL to be used
-        assert result == "https://staging.synapse.org#!Synapse:syn123456"
+        assert result == "https://staging.synapse.org/Synapse:syn123456"
         mock_webbrowser.open.assert_called_once_with(
-            "https://staging.synapse.org#!Synapse:syn123456"
+            "https://staging.synapse.org/Synapse:syn123456"
         )

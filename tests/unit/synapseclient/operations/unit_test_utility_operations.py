@@ -1,7 +1,6 @@
 """Unit tests for utility_operations wrapper functions."""
+import json
 from unittest.mock import AsyncMock, MagicMock, patch
-
-import pytest
 
 from synapseclient.operations import (
     find_entity_id,
@@ -12,6 +11,8 @@ from synapseclient.operations import (
     md5_query_async,
     onweb,
     onweb_async,
+    print_entity,
+    print_entity_async,
 )
 
 
@@ -159,13 +160,13 @@ class TestOnweb:
     async def test_onweb_async_with_id(self, mock_open_entity):
         """Test onweb_async with Synapse ID."""
         # GIVEN a mock API function that returns a URL
-        mock_open_entity.return_value = "https://www.synapse.org#!Synapse:syn123456"
+        mock_open_entity.return_value = "https://www.synapse.org/Synapse:syn123456"
 
         # WHEN I call onweb_async
         result = await onweb_async("syn123456", synapse_client=None)
 
         # THEN I expect the URL to be returned
-        assert result == "https://www.synapse.org#!Synapse:syn123456"
+        assert result == "https://www.synapse.org/Synapse:syn123456"
         mock_open_entity.assert_awaited_once_with(
             entity="syn123456", subpage_id=None, synapse_client=None
         )
@@ -178,14 +179,14 @@ class TestOnweb:
         """Test onweb_async with subpage ID."""
         # GIVEN a mock API function that returns a wiki URL
         mock_open_entity.return_value = (
-            "https://www.synapse.org#!Wiki:syn123456/ENTITY/12345"
+            "https://www.synapse.org/Wiki:syn123456/ENTITY/12345"
         )
 
         # WHEN I call onweb_async with subpage_id
         result = await onweb_async("syn123456", subpage_id="12345", synapse_client=None)
 
         # THEN I expect the wiki URL to be returned
-        assert result == "https://www.synapse.org#!Wiki:syn123456/ENTITY/12345"
+        assert result == "https://www.synapse.org/Wiki:syn123456/ENTITY/12345"
         mock_open_entity.assert_awaited_once_with(
             entity="syn123456", subpage_id="12345", synapse_client=None
         )
@@ -194,13 +195,13 @@ class TestOnweb:
     def test_onweb_sync(self, mock_wrap):
         """Test onweb synchronous wrapper."""
         # GIVEN a mock wrap_async_to_sync
-        mock_wrap.return_value = "https://www.synapse.org#!Synapse:syn123456"
+        mock_wrap.return_value = "https://www.synapse.org/Synapse:syn123456"
 
         # WHEN I call onweb
         result = onweb("syn123456", synapse_client=None)
 
         # THEN I expect wrap_async_to_sync to be called
-        assert result == "https://www.synapse.org#!Synapse:syn123456"
+        assert result == "https://www.synapse.org/Synapse:syn123456"
         mock_wrap.assert_called_once()
 
 
@@ -276,4 +277,197 @@ class TestMd5Query:
 
         # THEN I expect wrap_async_to_sync to be called
         assert result == [{"id": "syn123456"}]
+        mock_wrap.assert_called_once()
+
+
+class TestPrintEntity:
+    """Tests for print_entity wrapper functions."""
+
+    @patch(
+        "synapseclient.operations.factory_operations.get_async", new_callable=AsyncMock
+    )
+    @patch("synapseclient.operations.utility_operations.logging.getLogger")
+    @patch("synapseclient.Synapse.get_client")
+    async def test_print_entity_async_with_synapse_id(
+        self, mock_get_client, mock_get_logger, mock_get_async
+    ):
+        """Test print_entity_async with a Synapse ID string."""
+        # GIVEN a mock Synapse client and entity
+        mock_syn = MagicMock()
+        mock_logger = MagicMock()
+        mock_logger.name = "synapse"
+        mock_syn.logger = mock_logger
+        mock_get_client.return_value = mock_syn
+        mock_get_logger.return_value = mock_logger
+
+        # Create a mock dataclass entity with fields
+        mock_entity = MagicMock()
+        mock_entity.__dataclass_fields__ = {}  # Mark as dataclass
+        mock_entity.id = "syn123456"
+        mock_entity.name = "test_file.txt"
+        mock_entity.concreteType = "org.sagebionetworks.repo.model.FileEntity"
+
+        # Mock dataclasses.fields to return mock field objects with repr=True
+        with patch("dataclasses.fields") as mock_fields:
+            mock_field_id = MagicMock()
+            mock_field_id.name = "id"
+            mock_field_id.repr = True
+            mock_field_name = MagicMock()
+            mock_field_name.name = "name"
+            mock_field_name.repr = True
+            mock_field_concrete = MagicMock()
+            mock_field_concrete.name = "concreteType"
+            mock_field_concrete.repr = True
+
+            mock_fields.return_value = [
+                mock_field_id,
+                mock_field_name,
+                mock_field_concrete,
+            ]
+            mock_get_async.return_value = mock_entity
+
+            # WHEN I call print_entity_async with a Synapse ID
+            await print_entity_async("syn123456", synapse_client=None)
+
+            # THEN I expect the entity to be fetched and logged as JSON
+            mock_get_async.assert_awaited_once()
+            mock_logger.info.assert_called_once()
+            logged_output = mock_logger.info.call_args[0][0]
+            assert "syn123456" in logged_output
+            assert "test_file.txt" in logged_output
+
+    @patch("synapseclient.operations.utility_operations.logging.getLogger")
+    @patch("synapseclient.Synapse.get_client")
+    async def test_print_entity_async_with_dict(self, mock_get_client, mock_get_logger):
+        """Test print_entity_async with a dictionary entity."""
+        # GIVEN a mock Synapse client and entity dict
+        mock_syn = MagicMock()
+        mock_logger = MagicMock()
+        mock_logger.name = "synapse"
+        mock_syn.logger = mock_logger
+        mock_get_client.return_value = mock_syn
+        mock_get_logger.return_value = mock_logger
+
+        entity_dict = {
+            "id": "syn789012",
+            "name": "test_project",
+            "concreteType": "org.sagebionetworks.repo.model.Project",
+        }
+
+        # WHEN I call print_entity_async with a dict
+        await print_entity_async(entity_dict, synapse_client=None)
+
+        # THEN I expect the dict to be logged as JSON
+        mock_logger.info.assert_called_once()
+        logged_output = mock_logger.info.call_args[0][0]
+        assert "syn789012" in logged_output
+        assert "test_project" in logged_output
+        # Verify it's valid JSON
+        parsed = json.loads(logged_output)
+        assert parsed["id"] == "syn789012"
+
+    @patch("synapseclient.operations.utility_operations.logging.getLogger")
+    @patch("synapseclient.Synapse.get_client")
+    async def test_print_entity_async_ensure_ascii(
+        self, mock_get_client, mock_get_logger
+    ):
+        """Test print_entity_async with ensure_ascii parameter."""
+        # GIVEN a mock Synapse client and entity with unicode characters
+        mock_syn = MagicMock()
+        mock_logger = MagicMock()
+        mock_logger.name = "synapse"
+        mock_syn.logger = mock_logger
+        mock_get_client.return_value = mock_syn
+        mock_get_logger.return_value = mock_logger
+
+        entity_dict = {"id": "syn123", "name": "test_file_café"}
+
+        # WHEN I call print_entity_async with ensure_ascii=True
+        await print_entity_async(entity_dict, ensure_ascii=True, synapse_client=None)
+
+        # THEN I expect unicode to be escaped
+        mock_logger.info.assert_called_once()
+        logged_output = mock_logger.info.call_args[0][0]
+        assert "\\u" in logged_output or "café" not in logged_output
+
+    @patch("synapseclient.operations.utility_operations.logging.getLogger")
+    @patch("synapseclient.Synapse.get_client")
+    async def test_print_entity_async_non_serializable(
+        self, mock_get_client, mock_get_logger
+    ):
+        """Test print_entity_async with non-JSON-serializable entity."""
+        # GIVEN a mock Synapse client and non-serializable entity
+        mock_syn = MagicMock()
+        mock_logger = MagicMock()
+        mock_logger.name = "synapse"
+        mock_syn.logger = mock_logger
+        mock_get_client.return_value = mock_syn
+        mock_get_logger.return_value = mock_logger
+
+        # Create a mock object that can't be JSON serialized
+        mock_entity = MagicMock()
+        mock_entity.__str__ = lambda self: "Mock Entity String"
+
+        # WHEN I call print_entity_async with non-serializable object
+        await print_entity_async(mock_entity, synapse_client=None)
+
+        # THEN I expect str() to be used instead
+        mock_logger.info.assert_called_once()
+        logged_output = mock_logger.info.call_args[0][0]
+        assert "Mock Entity String" in logged_output
+
+    @patch(
+        "synapseclient.operations.factory_operations.get_async", new_callable=AsyncMock
+    )
+    @patch("synapseclient.operations.utility_operations.logging.getLogger")
+    @patch("synapseclient.Synapse.get_client")
+    async def test_print_entity_async_with_version(
+        self, mock_get_client, mock_get_logger, mock_get_async
+    ):
+        """Test print_entity_async with a versioned Synapse ID."""
+        # GIVEN a mock Synapse client and versioned entity
+        mock_syn = MagicMock()
+        mock_logger = MagicMock()
+        mock_logger.name = "synapse"
+        mock_syn.logger = mock_logger
+        mock_get_client.return_value = mock_syn
+        mock_get_logger.return_value = mock_logger
+
+        # Create a mock dataclass entity with fields
+        mock_entity = MagicMock()
+        mock_entity.__dataclass_fields__ = {}  # Mark as dataclass
+        mock_entity.id = "syn123456"
+        mock_entity.versionNumber = 2
+
+        # Mock dataclasses.fields to return mock field objects with repr=True
+        with patch("dataclasses.fields") as mock_fields:
+            mock_field_id = MagicMock()
+            mock_field_id.name = "id"
+            mock_field_id.repr = True
+            mock_field_version = MagicMock()
+            mock_field_version.name = "versionNumber"
+            mock_field_version.repr = True
+
+            mock_fields.return_value = [mock_field_id, mock_field_version]
+            mock_get_async.return_value = mock_entity
+
+            # WHEN I call print_entity_async with a versioned ID
+            await print_entity_async("syn123456.2", synapse_client=None)
+
+            # THEN I expect the entity to be fetched with version
+            mock_get_async.assert_awaited_once()
+            call_kwargs = mock_get_async.call_args[1]
+            assert call_kwargs["synapse_id"] == "syn123456.2"
+
+    @patch("synapseclient.operations.utility_operations.wrap_async_to_sync")
+    def test_print_entity_sync(self, mock_wrap):
+        """Test print_entity synchronous wrapper."""
+        # GIVEN a mock wrap_async_to_sync
+        mock_wrap.return_value = None
+
+        # WHEN I call print_entity
+        result = print_entity("syn123456", ensure_ascii=True, synapse_client=None)
+
+        # THEN I expect wrap_async_to_sync to be called
+        assert result is None
         mock_wrap.assert_called_once()

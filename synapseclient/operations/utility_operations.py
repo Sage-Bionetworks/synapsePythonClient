@@ -1,16 +1,48 @@
 """Factory methods for Synapse utility operations."""
 
+import json
+import logging
 from typing import TYPE_CHECKING, List, Optional, Union
 
 from synapseclient.core.async_utils import wrap_async_to_sync
 
 if TYPE_CHECKING:
     from synapseclient import Synapse
+    from synapseclient.models import (
+        Dataset,
+        DatasetCollection,
+        EntityView,
+        File,
+        Folder,
+        Link,
+        MaterializedView,
+        Project,
+        RecordSet,
+        SubmissionView,
+        Table,
+        VirtualTable,
+    )
 
 
 def find_entity_id(
     name: str,
-    parent: Optional[Union[str, object]] = None,
+    parent: Optional[
+        Union[
+            str,
+            "Dataset",
+            "DatasetCollection",
+            "EntityView",
+            "File",
+            "Folder",
+            "Link",
+            "MaterializedView",
+            "Project",
+            "RecordSet",
+            "SubmissionView",
+            "Table",
+            "VirtualTable",
+        ]
+    ] = None,
     *,
     synapse_client: Optional["Synapse"] = None,
 ) -> Optional[str]:
@@ -19,8 +51,10 @@ def find_entity_id(
 
     Arguments:
         name: Name of the entity to find.
-        parent: An Entity object or the Id of an entity as a string. Omit if searching
-            for a Project by name.
+        parent: An Entity object (Dataset, DatasetCollection, EntityView, File,
+            Folder, Link, MaterializedView, Project, RecordSet, SubmissionView,
+            Table, VirtualTable) or the Id of an entity as a string. Omit if
+            searching for a Project by name.
         synapse_client: If not passed in and caching was not disabled by
             `Synapse.allow_client_caching(False)` this will use the last created
             instance from the Synapse class constructor.
@@ -95,7 +129,23 @@ def find_entity_id(
 
 async def find_entity_id_async(
     name: str,
-    parent: Optional[Union[str, object]] = None,
+    parent: Optional[
+        Union[
+            str,
+            "Dataset",
+            "DatasetCollection",
+            "EntityView",
+            "File",
+            "Folder",
+            "Link",
+            "MaterializedView",
+            "Project",
+            "RecordSet",
+            "SubmissionView",
+            "Table",
+            "VirtualTable",
+        ]
+    ] = None,
     *,
     synapse_client: Optional["Synapse"] = None,
 ) -> Optional[str]:
@@ -104,8 +154,10 @@ async def find_entity_id_async(
 
     Arguments:
         name: Name of the entity to find.
-        parent: An Entity object or the Id of an entity as a string. Omit if searching
-            for a Project by name.
+        parent: An Entity object (Dataset, DatasetCollection, EntityView, File,
+            Folder, Link, MaterializedView, Project, RecordSet, SubmissionView,
+            Table, VirtualTable) or the Id of an entity as a string. Omit if
+            searching for a Project by name.
         synapse_client: If not passed in and caching was not disabled by
             `Synapse.allow_client_caching(False)` this will use the last created
             instance from the Synapse class constructor.
@@ -317,7 +369,21 @@ async def is_synapse_id_async(
 
 
 def onweb(
-    entity: Union[str, object],
+    entity: Union[
+        str,
+        "Dataset",
+        "DatasetCollection",
+        "EntityView",
+        "File",
+        "Folder",
+        "Link",
+        "MaterializedView",
+        "Project",
+        "RecordSet",
+        "SubmissionView",
+        "Table",
+        "VirtualTable",
+    ],
     subpage_id: Optional[str] = None,
     *,
     synapse_client: Optional["Synapse"] = None,
@@ -326,7 +392,9 @@ def onweb(
     Open up a browser window to the entity page or wiki-subpage.
 
     Arguments:
-        entity: Either an Entity object or a Synapse ID string.
+        entity: Either an Entity object (Dataset, DatasetCollection, EntityView,
+            File, Folder, Link, MaterializedView, Project, RecordSet,
+            SubmissionView, Table, VirtualTable) or a Synapse ID string.
         subpage_id: (Optional) ID of one of the wiki's sub-pages.
         synapse_client: If not passed in and caching was not disabled by
             `Synapse.allow_client_caching(False)` this will use the last created
@@ -391,7 +459,21 @@ def onweb(
 
 
 async def onweb_async(
-    entity: Union[str, object],
+    entity: Union[
+        str,
+        "Dataset",
+        "DatasetCollection",
+        "EntityView",
+        "File",
+        "Folder",
+        "Link",
+        "MaterializedView",
+        "Project",
+        "RecordSet",
+        "SubmissionView",
+        "Table",
+        "VirtualTable",
+    ],
     subpage_id: Optional[str] = None,
     *,
     synapse_client: Optional["Synapse"] = None,
@@ -400,7 +482,9 @@ async def onweb_async(
     Open up a browser window to the entity page or wiki-subpage asynchronously.
 
     Arguments:
-        entity: Either an Entity object or a Synapse ID string.
+        entity: Either an Entity object (Dataset, DatasetCollection, EntityView,
+            File, Folder, Link, MaterializedView, Project, RecordSet,
+            SubmissionView, Table, VirtualTable) or a Synapse ID string.
         subpage_id: (Optional) ID of one of the wiki's sub-pages.
         synapse_client: If not passed in and caching was not disabled by
             `Synapse.allow_client_caching(False)` this will use the last created
@@ -629,3 +713,222 @@ async def md5_query_async(
         synapse_client=synapse_client,
     )
     return response.get("results", [])
+
+
+def print_entity(
+    entity: Union[
+        str,
+        dict,
+        "Dataset",
+        "DatasetCollection",
+        "EntityView",
+        "File",
+        "Folder",
+        "Link",
+        "MaterializedView",
+        "Project",
+        "RecordSet",
+        "SubmissionView",
+        "Table",
+        "VirtualTable",
+    ],
+    ensure_ascii: bool = True,
+    *,
+    synapse_client: Optional["Synapse"] = None,
+) -> None:
+    """
+    Pretty print an Entity as JSON.
+
+    Arguments:
+        entity: Either an Entity object (Dataset, DatasetCollection, EntityView,
+            File, Folder, Link, MaterializedView, Project, RecordSet,
+            SubmissionView, Table, VirtualTable), a Synapse ID string, or a
+            dictionary representation of an entity.
+        ensure_ascii: If True, escapes all non-ASCII characters in the output.
+            Defaults to True.
+        synapse_client: If not passed in and caching was not disabled by
+            `Synapse.allow_client_caching(False)` this will use the last created
+            instance from the Synapse class constructor.
+
+    Returns:
+        None. Prints the entity to the logger.
+
+    Example: Printing an entity by ID
+        Print an entity using its Synapse ID:
+
+        ```python
+        from synapseclient import Synapse
+        from synapseclient.operations import print_entity
+
+        syn = Synapse()
+        syn.login()
+
+        # Print entity by Synapse ID
+        print_entity("syn123456")
+        ```
+
+    Example: Printing an entity object
+        Print an entity object:
+
+        ```python
+        from synapseclient import Synapse
+        from synapseclient.models import File
+        from synapseclient.operations import print_entity, get
+
+        syn = Synapse()
+        syn.login()
+
+        # Get and print a file entity
+        file = get(synapse_id="syn123456")
+        print_entity(file)
+        ```
+
+    Example: Controlling ASCII output
+        Print an entity with non-ASCII characters:
+
+        ```python
+        from synapseclient import Synapse
+        from synapseclient.operations import print_entity
+
+        syn = Synapse()
+        syn.login()
+
+        # Print with unicode characters preserved
+        print_entity("syn123456", ensure_ascii=False)
+        ```
+    """
+    return wrap_async_to_sync(
+        coroutine=print_entity_async(
+            entity=entity,
+            ensure_ascii=ensure_ascii,
+            synapse_client=synapse_client,
+        )
+    )
+
+
+async def print_entity_async(
+    entity: Union[
+        str,
+        dict,
+        "Dataset",
+        "DatasetCollection",
+        "EntityView",
+        "File",
+        "Folder",
+        "Link",
+        "MaterializedView",
+        "Project",
+        "RecordSet",
+        "SubmissionView",
+        "Table",
+        "VirtualTable",
+    ],
+    ensure_ascii: bool = True,
+    *,
+    synapse_client: Optional["Synapse"] = None,
+) -> None:
+    """
+    Pretty print an Entity as JSON asynchronously.
+
+    Arguments:
+        entity: Either an Entity object (Dataset, DatasetCollection, EntityView,
+            File, Folder, Link, MaterializedView, Project, RecordSet,
+            SubmissionView, Table, VirtualTable), a Synapse ID string, or a
+            dictionary representation of an entity.
+        ensure_ascii: If True, escapes all non-ASCII characters in the output.
+            Defaults to True.
+        synapse_client: If not passed in and caching was not disabled by
+            `Synapse.allow_client_caching(False)` this will use the last created
+            instance from the Synapse class constructor.
+
+    Returns:
+        None. Prints the entity to the logger.
+
+    Example: Printing an entity by ID
+        Print an entity using its Synapse ID:
+
+        ```python
+        import asyncio
+        from synapseclient import Synapse
+        from synapseclient.operations import print_entity_async
+
+        async def main():
+            syn = Synapse()
+            syn.login()
+
+            # Print entity by Synapse ID
+            await print_entity_async("syn123456")
+
+        asyncio.run(main())
+        ```
+
+    Example: Printing multiple entities concurrently
+        Print multiple entities at the same time:
+
+        ```python
+        import asyncio
+        from synapseclient import Synapse
+        from synapseclient.operations import print_entity_async
+
+        async def main():
+            syn = Synapse()
+            syn.login()
+
+            entity_ids = ["syn123456", "syn789012", "syn345678"]
+
+            # Print all entities concurrently
+            await asyncio.gather(
+                *[print_entity_async(entity_id) for entity_id in entity_ids]
+            )
+
+        asyncio.run(main())
+        ```
+    """
+    from synapseclient import Synapse
+    from synapseclient.core import utils
+    from synapseclient.operations.factory_operations import FileOptions, get_async
+
+    syn = Synapse.get_client(synapse_client=synapse_client)
+    logger = logging.getLogger(syn.logger.name)
+
+    # If entity is a Synapse ID string, fetch the entity using get_async
+    if isinstance(entity, str) and utils.is_synapse_id_str(entity):
+        entity = await get_async(
+            synapse_id=entity,
+            file_options=FileOptions(download_file=False),
+            synapse_client=synapse_client,
+        )
+
+    # Convert entity to dict if it's a dataclass (model object)
+    if hasattr(entity, "__dataclass_fields__"):
+        import dataclasses
+
+        def filter_repr_fields(obj):
+            """Recursively convert dataclass to dict, respecting repr=True fields only."""
+            if hasattr(obj, "__dataclass_fields__"):
+                # Filter fields to only those with repr=True
+                filtered_fields = [
+                    (field_obj.name, getattr(obj, field_obj.name))
+                    for field_obj in dataclasses.fields(obj)
+                    if field_obj.repr
+                ]
+                # Recursively process nested values
+                return {
+                    name: filter_repr_fields(value) for name, value in filtered_fields
+                }
+            elif isinstance(obj, list):
+                return [filter_repr_fields(item) for item in obj]
+            elif isinstance(obj, dict):
+                return {k: filter_repr_fields(v) for k, v in obj.items()}
+            else:
+                return obj
+
+        entity = filter_repr_fields(entity)
+
+    # Try to print as JSON, fall back to string representation
+    try:
+        logger.info(
+            json.dumps(entity, sort_keys=True, indent=2, ensure_ascii=ensure_ascii)
+        )
+    except TypeError:
+        logger.info(str(entity))

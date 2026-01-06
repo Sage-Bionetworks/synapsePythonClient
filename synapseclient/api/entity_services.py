@@ -1715,6 +1715,10 @@ async def is_synapse_id(
         elif hasattr(err, "response"):
             status = err.response.status_code
 
+        # If we can't determine the status, re-raise the exception
+        if status is None:
+            raise
+
         if status in (400, 404):
             return False
         # Valid ID but user lacks permission or is not logged in

@@ -189,7 +189,7 @@ class TestUtilityOperations:
         assert isinstance(url, str)
         assert "synapse.org" in url.lower()
         assert project_id in url
-        assert "#!Synapse:" in url
+        assert "Synapse:" in url
 
     def test_onweb_project_by_object(self, project_model: Project) -> None:
         """Test opening a project in web browser by object."""
@@ -202,7 +202,7 @@ class TestUtilityOperations:
         assert isinstance(url, str)
         assert "synapse.org" in url.lower()
         assert project_model.id in url
-        assert "#!Synapse:" in url
+        assert "Synapse:" in url
 
     def test_onweb_with_subpage(self, project_model: Project) -> None:
         """Test opening a wiki subpage in web browser."""
@@ -219,5 +219,5 @@ class TestUtilityOperations:
         assert "synapse.org" in url.lower()
         assert project_id in url
         assert subpage_id in url
-        assert "#!Wiki:" in url
+        assert "Wiki:" in url
         assert "/ENTITY/" in url

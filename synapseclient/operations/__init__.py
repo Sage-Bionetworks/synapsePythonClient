@@ -25,6 +25,8 @@ from synapseclient.operations.utility_operations import (
     md5_query_async,
     onweb,
     onweb_async,
+    print_entity,
+    print_entity_async,
 )
 
 __all__ = [
@@ -54,4 +56,6 @@ __all__ = [
     "md5_query_async",
     "onweb",
     "onweb_async",
+    "print_entity",
+    "print_entity_async",
 ]

@@ -1583,20 +1583,50 @@ class Synapse(object):
             entity = self.get(entity, downloadFile=False)
         synId = id_of(entity)
         if subpageId is None:
-            webbrowser.open("%s#!Synapse:%s" % (self.portalEndpoint, synId))
+            webbrowser.open("%s/Synapse:%s" % (self.portalEndpoint, synId))
         else:
             webbrowser.open(
-                "%s#!Wiki:%s/ENTITY/%s" % (self.portalEndpoint, synId, subpageId)
+                "%s/Wiki:%s/ENTITY/%s" % (self.portalEndpoint, synId, subpageId)
             )
 
-    # TODO: Deprecate method in https://sagebionetworks.jira.com/browse/SYNPY-1623 or later
+    @deprecated(
+        version="4.11.0",
+        reason="To be removed in 5.0.0. "
+        "Use `from synapseclient.operations import print_entity` instead.",
+    )
     def printEntity(self, entity, ensure_ascii=True) -> None:
         """
+        **Deprecated with replacement.** This method will be removed in 5.0.0.
+        Use [synapseclient.operations.print_entity][] instead.
+
         Pretty prints an Entity.
 
         Arguments:
             entity: The entity to be printed.
             ensure_ascii: If True, escapes all non-ASCII characters
+
+        Example: Migration to new function
+            &nbsp;
+
+            ```python
+            from synapseclient import Synapse
+            from synapseclient.operations import print_entity
+
+            # Login to Synapse
+            syn = Synapse()
+            syn.login()
+
+            # Print an entity by Synapse ID
+            print_entity("syn123456")
+
+            # Print an entity object
+            from synapseclient.operations import get
+            entity = get(synapse_id="syn123456")
+            print_entity(entity)
+
+            # Print with unicode characters preserved
+            print_entity("syn123456", ensure_ascii=False)
+            ```
 
         Returns:
             None

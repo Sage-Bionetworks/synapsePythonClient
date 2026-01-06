@@ -4,6 +4,7 @@ from dataclasses import dataclass
 from typing import TYPE_CHECKING, Optional, Union
 
 from synapseclient.core.async_utils import wrap_async_to_sync
+from synapseclient.models.services.storable_entity_components import FailureStrategy
 
 if TYPE_CHECKING:
     from synapseclient import Synapse
@@ -57,10 +58,12 @@ class StoreContainerOptions:
 
     Attributes:
         failure_strategy: Strategy for handling failures when storing child entities.
-            Valid values: "LOG_EXCEPTION", "RAISE_EXCEPTION".
+            Can be either a FailureStrategy enum value or a string.
+            Valid string values: "LOG_EXCEPTION", "RAISE_EXCEPTION".
+            Valid enum values: FailureStrategy.LOG_EXCEPTION, FailureStrategy.RAISE_EXCEPTION.
     """
 
-    failure_strategy: Optional[str] = None
+    failure_strategy: Optional[Union[str, FailureStrategy]] = None
 
 
 @dataclass
@@ -139,12 +142,14 @@ async def _handle_store_container_entity(
     Handle storing a container entity (Project or Folder) with container-specific options.
     """
     from synapseclient.models import Folder
-    from synapseclient.models.services.storable_entity_components import FailureStrategy
 
     failure_strategy = FailureStrategy.LOG_EXCEPTION
     if container_options and container_options.failure_strategy:
-        if container_options.failure_strategy == "RAISE_EXCEPTION":
-            failure_strategy = FailureStrategy.RAISE_EXCEPTION
+        # Convert string to enum if necessary
+        if isinstance(container_options.failure_strategy, str):
+            failure_strategy = FailureStrategy(container_options.failure_strategy)
+        else:
+            failure_strategy = container_options.failure_strategy
 
     if isinstance(entity, Folder):
         return await entity.store_async(
