@@ -646,7 +646,7 @@ class TestWikiPage:
 
             # THEN log messages should be printed
             assert mock_logger.call_count == 2
-            assert mock_logger.has_calls(
+            mock_logger.assert_has_calls(
                 [
                     call(
                         "No wiki page exists within the owner. Create a new wiki page."
@@ -761,13 +761,13 @@ class TestWikiPage:
 
             # AND log messages should be printed
             assert mock_logger.call_count == 2
-            assert mock_logger.has_calls(
+            mock_logger.assert_has_calls(
                 [
                     call(
                         "A wiki page already exists within the owner. Update the existing wiki page."
                     ),
                     call(
-                        f"Updated wiki page: {self.api_response['title']} with ID: {self.api_response['id']}."
+                        f"Updated wiki page: {mock_put_wiki_response['title']} with ID: {self.api_response['id']}."
                     ),
                 ]
             )
@@ -815,7 +815,7 @@ class TestWikiPage:
 
             # THEN log messages should be printed
             assert mock_logger.call_count == 2
-            assert mock_logger.has_calls(
+            mock_logger.assert_has_calls(
                 [
                     call("Creating sub-wiki page under parent ID: parent_wiki"),
                     call(
