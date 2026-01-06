@@ -1190,7 +1190,7 @@ class TestWikiPage:
                         "A wiki page already exists within the owner. Update the existing wiki page."
                     ),
                     call(
-                        f"Updated wiki page: {self.api_response['title']} with ID: {self.api_response['id']}."
+                        f"Updated wiki page: {mock_put_wiki_response['title']} with ID: {self.api_response['id']}."
                     ),
                 ]
             )
