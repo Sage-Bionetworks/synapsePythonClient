@@ -31,11 +31,11 @@ In this tutorial you will:
 ## 1. Create a Wiki page
 ### Initial setup
 ```python
-{!docs/tutorials/python/tutorial_scripts/wiki.py!lines=15-30}
+{!docs/tutorials/python/tutorial_scripts/wiki.py!lines=15-31}
 ```
 A Wiki page requires an owner object, a title, and markdown. Here is an example to create a new root Wiki page for your project with plain text markdown:
 ```python
-{!docs/tutorials/python/tutorial_scripts/wiki.py!lines=34-38}
+{!docs/tutorials/python/tutorial_scripts/wiki.py!lines=33-38}
 ```
 
 Alternatively, you can create a Wiki page from an existing markdown file.
@@ -57,7 +57,7 @@ Created Wiki page: My Root Wiki Page with ID: ...
 To update an existing Wiki page, create a new WikiPage object with the same `id` and new content:
 
 ```python
-{!docs/tutorials/python/tutorial_scripts/wiki.py!lines=49-54}
+{!docs/tutorials/python/tutorial_scripts/wiki.py!lines=48-54}
 ```
 
 <details class="example">
@@ -74,12 +74,12 @@ Updated Wiki page: My First Root Wiki Page NEW with ID: ...
 
 You can restore a Wiki page to any previous version by specifying the `Wiki_version` parameter:
 ```python
-{!docs/tutorials/python/tutorial_scripts/wiki.py!lines=57-59}
+{!docs/tutorials/python/tutorial_scripts/wiki.py!lines=56-59}
 ```
 
 Check if the content is restored.
 ```python
-{!docs/tutorials/python/tutorial_scripts/wiki.py!lines=62-70}
+{!docs/tutorials/python/tutorial_scripts/wiki.py!lines=61-71}
 ```
 
 ## 4. Get a Wiki page
@@ -87,23 +87,23 @@ You can retrieve Wiki pages in several ways. To find a Wiki page id, you can get
 
 Once you know the Wiki page id, you can retrieve a specific Wiki page:
 ```python
-{!docs/tutorials/python/tutorial_scripts/wiki.py!lines=74}
+{!docs/tutorials/python/tutorial_scripts/wiki.py!lines=73-75}
 ```
 
 Alternatively, you can retrieve a Wiki page by its title:
 ```python
-{!docs/tutorials/python/tutorial_scripts/wiki.py!lines=77}
+{!docs/tutorials/python/tutorial_scripts/wiki.py!lines=77-78}
 ```
 
 Verify that the retrieved Wiki page matches the original Wiki page
 ```python
-{!docs/tutorials/python/tutorial_scripts/wiki.py!lines=80-88}
+{!docs/tutorials/python/tutorial_scripts/wiki.py!lines=80-89}
 ```
 
 ## 5. Create a sub-Wiki page
 You can create a sub-Wiki page under an existing Wiki page.
 ```python
-{!docs/tutorials/python/tutorial_scripts/wiki.py!lines=89-94}
+{!docs/tutorials/python/tutorial_scripts/wiki.py!lines=91-96}
 ```
 <details class="example">
   <summary>You'll notice the output looks like:</summary>
@@ -119,7 +119,7 @@ Created sub-wiki page: Sub Wiki Page 1 with ID: ... under parent: ...
 You can create a Wiki page from a single-line or multi-line Python string. Here is an example of creating a Wiki page from a multi-line Python string:
 
 ```python
-{!docs/tutorials/python/tutorial_scripts/wiki.py!lines=100-121}
+{!docs/tutorials/python/tutorial_scripts/wiki.py!lines=98-121}
 ```
 
 ### Create a Wiki page from a markdown file
@@ -127,7 +127,7 @@ You can create a Wiki page from a single-line or multi-line Python string. Here 
 You can also create a Wiki page from an existing markdown file. Markdown files may be uploaded in either non-gzipped or gzipped format:
 
 ```python
-{!docs/tutorials/python/tutorial_scripts/wiki.py!lines=126-134}
+{!docs/tutorials/python/tutorial_scripts/wiki.py!lines=123-133}
 ```
 
 ## 7. Download Wiki page markdown
@@ -135,12 +135,12 @@ You can download the markdown content of a Wiki page back to a file.
 
 ### Download the markdown file URL for a Wiki page
 ```python
-{!docs/tutorials/python/tutorial_scripts/Wiki.py!lines=139-144}
+{!docs/tutorials/python/tutorial_scripts/wiki.py!lines=135-143}
 ```
 
 ### Download the markdown file for a Wiki page that is created from plain text, the downloaded file will be named `wiki_markdown_<wiki_page_title>.md`
 ```python
-{!docs/tutorials/python/tutorial_scripts/Wiki.py!lines=147-149}
+{!docs/tutorials/python/tutorial_scripts/wiki.py!lines=145-148}
 ```
 
 <details class="example">
@@ -153,7 +153,7 @@ Downloaded and unzipped the markdown file for wiki page ... to path/to/wiki_mark
 
 ### Download the markdown file for a Wiki page that is created from a markdown file
 ```python
-{!docs/tutorials/python/tutorial_scripts/Wiki.py!lines=152-154}
+{!docs/tutorials/python/tutorial_scripts/wiki.py!lines=150-153}
 ```
 <details class="example">
   <summary>You'll notice the output looks like:</summary>
@@ -171,7 +171,7 @@ Wiki pages can include file attachments, which are useful for sharing supplement
 First, create a file to attach. Then create a Wiki page with the attachment. Note that attachment file names in markdown need special formatting: replace `.` with `%2E` and `_` with `%5F`. You can utilize the static method `WikiPage.reformat_attachment_file_name` to reformat the file name.
 
 ```python
-{!docs/tutorials/python/tutorial_scripts/Wiki.py!lines=158-170}
+{!docs/tutorials/python/tutorial_scripts/wiki.py!lines=155-169}
 ```
 
 <details class="example">
@@ -185,7 +185,7 @@ Created sub-wiki page: Sub Page 4 with Attachments with ID: ... under parent: ..
 
 To include images in your Wiki page, you DO NOT need to reformat the file name for image files (e.g., PNG, JPG, JPEG).
 ```python
-{!docs/tutorials/python/tutorial_scripts/Wiki.py!lines=173-183}
+{!docs/tutorials/python/tutorial_scripts/wiki.py!lines=171-182}
 ```
 
 <details class="example">
@@ -202,7 +202,7 @@ Created sub-wiki page: Sub Page 5 with Attachments with ID: ... under parent: ..
 Retrieve the file handles of all attachments on a Wiki page:
 
 ```python
-{!docs/tutorials/python/tutorial_scripts/Wiki.py!lines=186-188}
+{!docs/tutorials/python/tutorial_scripts/wiki.py!lines=184-187}
 ```
 
 <details class="example">
@@ -217,7 +217,7 @@ Retrieve the file handles of all attachments on a Wiki page:
 You can retrieve the URL of an attachment without downloading it. Attachment file name can be in either non-gzipped or gzipped format.
 
 ```python
-{!docs/tutorials/python/tutorial_scripts/Wiki.py!lines=191-196}
+{!docs/tutorials/python/tutorial_scripts/wiki.py!lines=189-195}
 ```
 
 <details class="example">
@@ -231,14 +231,14 @@ You can retrieve the URL of an attachment without downloading it. Attachment fil
 
 Download an attachment file to your local machine and unzip it using `WikiPage.unzip_gzipped_file` function.
 ```python
-{!docs/tutorials/python/tutorial_scripts/Wiki.py!lines=199-205}
+{!docs/tutorials/python/tutorial_scripts/wiki.py!lines=197-204}
 ```
 
 ### Get attachment preview URL
 You can also retrieve preview URLs for attachments. When using `get_attachment_preview`, specify the original file name, not the file name returned in the attachment handle response when isPreview=True. The file name can be in either non-gzipped or gzipped format.
 The downloaded file will still be named according to the file name provided in the response when isPreview=True. Note that image attachments do not have preview files.
 ```python
-{!docs/tutorials/python/tutorial_scripts/Wiki.py!lines=209-214}
+{!docs/tutorials/python/tutorial_scripts/wiki.py!lines=206-213}
 ```
 
 ### Download an attachment preview
@@ -246,7 +246,7 @@ The downloaded file will still be named according to the file name provided in t
 Download the preview version of an attachment:
 
 ```python
-{!docs/tutorials/python/tutorial_scripts/Wiki.py!lines=217-223}
+{!docs/tutorials/python/tutorial_scripts/wiki.py!lines=215-223}
 ```
 
 The downloaded preview file will be named `preview.<your attachment file type>` (or according to the file name in the attachment handle response when `isPreview=True`).
@@ -260,7 +260,7 @@ WikiHeader allows you to retrieve the hierarchical structure of Wiki pages withi
 Retrieve the complete Wiki page hierarchy for a project:
 
 ```python
-{!docs/tutorials/python/tutorial_scripts/Wiki.py!lines=226}
+{!docs/tutorials/python/tutorial_scripts/wiki.py!lines=224-226}
 ```
 
 <details class="example">
@@ -279,7 +279,7 @@ WikiHistorySnapshot provides access to the version history of Wiki pages, allowi
 Retrieve the version history for a specific Wiki page:
 
 ```python
-{!docs/tutorials/python/tutorial_scripts/Wiki.py!lines=230}
+{!docs/tutorials/python/tutorial_scripts/wiki.py!lines=228-230}
 ```
 <details class="example">
   <summary>You'll notice the output shows the history of versions:</summary>
@@ -297,7 +297,7 @@ WikiOrderHint allows you to control the order in which Wiki pages are displayed.
 First, retrieve the current order hint (which may be empty initially):
 
 ```python
-{!docs/tutorials/python/tutorial_scripts/Wiki.py!lines=234}
+{!docs/tutorials/python/tutorial_scripts/wiki.py!lines=232-234}
 ```
 
 <details class="example">
@@ -312,7 +312,7 @@ WikiOrderHint(owner_id='...', owner_object_type='ENTITY', id_list=[], etag='...'
 Set the order of Wiki pages by providing a list of Wiki page IDs in the desired order:
 
 ```python
-{!docs/tutorials/python/tutorial_scripts/Wiki.py!lines=237-245}
+{!docs/tutorials/python/tutorial_scripts/wiki.py!lines=235-244}
 ```
 
 <details class="example">
@@ -327,7 +327,7 @@ WikiOrderHint(id_list=['...', '...', ...])
 You can update the order hint at any time by retrieving it, modifying the `id_list`, and storing it again:
 
 ```python
-{!docs/tutorials/python/tutorial_scripts/Wiki.py!lines=248-257}
+{!docs/tutorials/python/tutorial_scripts/wiki.py!lines=246-256}
 ```
 
 ## 13. Delete Wiki pages
@@ -335,7 +335,7 @@ You can update the order hint at any time by retrieving it, modifying the `id_li
 Delete a Wiki page by providing the owner ID and Wiki page ID:
 
 ```python
-{!docs/tutorials/python/tutorial_scripts/Wiki.py!lines=260-266}
+{!docs/tutorials/python/tutorial_scripts/wiki.py!lines=258-265}
 ```
 
 ## Source Code for this Tutorial
