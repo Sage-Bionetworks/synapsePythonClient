@@ -1,7 +1,7 @@
 """This module is responsible for exposing the services defined at:
 <https://rest-docs.synapse.org/rest/#org.sagebionetworks.repo.web.controller.DockerCommitController>
 """
-from typing import Dict, Optional, TYPE_CHECKING
+from typing import TYPE_CHECKING, Optional
 
 if TYPE_CHECKING:
     from synapseclient import Synapse
@@ -9,7 +9,7 @@ if TYPE_CHECKING:
 
 async def get_docker_tag(
     entity_id: str, *, synapse_client: Optional["Synapse"] = None
-) -> Dict:
+) -> dict:
     """
     Arguments:
         entity_id: The ID of the Docker repository entity.
@@ -26,4 +26,3 @@ async def get_docker_tag(
     return await client.rest_get_async(
         uri=f"/entity/{entity_id}/dockerTag",
     )
-
