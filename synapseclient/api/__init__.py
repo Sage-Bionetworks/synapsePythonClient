@@ -25,6 +25,7 @@ from .curation_services import (
     list_grid_sessions,
     update_curation_task,
 )
+from .docker_commit_services import get_docker_tag
 from .entity_bundle_services_v2 import (
     get_entity_id_bundle2,
     get_entity_id_version_bundle2,
@@ -311,6 +312,8 @@ __all__ = [
     "list_curation_tasks",
     "list_grid_sessions",
     "update_curation_task",
+    # docker_commit_services
+    "get_docker_tag",
     # user_services
     "get_user_bundle",
     "get_user_by_principal_id_or_name",
