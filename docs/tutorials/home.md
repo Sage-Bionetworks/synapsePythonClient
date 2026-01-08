@@ -7,7 +7,7 @@ organizing, and discussing your scientific research.
 
 ## What do you need to get started?
 First off, to browse Synapse and access its most basic level of functionality, you
-will need to [register for a Synapse account](https://www.synapse.org/#!RegisterAccount:0).
+will need to [register for a Synapse account](https://www.synapse.org/RegisterAccount:0).
 In doing so, you will be agreeing to the
 [Synapse Code of Conduct and Synapse Terms and Conditions of Use](https://help.synapse.org/docs/Synapse-Governance.2004255211.html).
 
@@ -38,7 +38,7 @@ conditions for use.
 
 To work with data of your own or your team’s, you must become a
 [certified user](https://help.synapse.org/docs/Synapse-User-Account-Types.2007072795.html#SynapseUserAccountTypes-CertifiedUser). To become certified, you must pass a
-[certification quiz](https://www.synapse.org/#!Quiz:Certification),
+[certification quiz](https://www.synapse.org/Quiz:Certification),
  which will ask you about information that can be found throughout this documentation site.
 
 

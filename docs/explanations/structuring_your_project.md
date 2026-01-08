@@ -108,6 +108,6 @@ Manifests are crucial for the organization of your data in Synapse. In the **hie
 
 ### An example: ELITE portal
 
-Synapse Project: https://www.synapse.org/#!Synapse:syn27229419/wiki/623145
+Synapse Project: https://www.synapse.org/Synapse:syn27229419/wiki/623145
 
 This project powers the elite portal: https://eliteportal.synapse.org/. More information about the studies and the files can be found in this portal.

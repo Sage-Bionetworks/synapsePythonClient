@@ -1529,7 +1529,11 @@ class Synapse(object):
                 return False
             raise
 
-    # TODO: Deprecate method in https://sagebionetworks.jira.com/browse/SYNPY-1623 or later
+    @deprecated(
+        version="4.11.0",
+        reason="To be removed in 5.0.0. "
+        "Use `from synapseclient.operations import is_synapse_id` instead.",
+    )
     def is_synapse_id(self, syn_id: str) -> bool:
         """Checks if given synID is valid (attached to actual entity?)
 
@@ -1560,7 +1564,11 @@ class Synapse(object):
         self.logger.warning("synID must be a string")
         return False
 
-    # TODO: Deprecate method in https://sagebionetworks.jira.com/browse/SYNPY-1623 or later
+    @deprecated(
+        version="4.11.0",
+        reason="To be removed in 5.0.0. "
+        "Use `from synapseclient.operations import onweb` instead.",
+    )
     def onweb(self, entity, subpageId=None):
         """Opens up a browser window to the entity page or wiki-subpage.
 
@@ -1575,20 +1583,50 @@ class Synapse(object):
             entity = self.get(entity, downloadFile=False)
         synId = id_of(entity)
         if subpageId is None:
-            webbrowser.open("%s#!Synapse:%s" % (self.portalEndpoint, synId))
+            webbrowser.open("%s/Synapse:%s" % (self.portalEndpoint, synId))
         else:
             webbrowser.open(
-                "%s#!Wiki:%s/ENTITY/%s" % (self.portalEndpoint, synId, subpageId)
+                "%s/Wiki:%s/ENTITY/%s" % (self.portalEndpoint, synId, subpageId)
             )
 
-    # TODO: Deprecate method in https://sagebionetworks.jira.com/browse/SYNPY-1623 or later
+    @deprecated(
+        version="4.11.0",
+        reason="To be removed in 5.0.0. "
+        "Use `from synapseclient.operations import print_entity` instead.",
+    )
     def printEntity(self, entity, ensure_ascii=True) -> None:
         """
+        **Deprecated with replacement.** This method will be removed in 5.0.0.
+        Use [synapseclient.operations.print_entity][] instead.
+
         Pretty prints an Entity.
 
         Arguments:
             entity: The entity to be printed.
             ensure_ascii: If True, escapes all non-ASCII characters
+
+        Example: Migration to new function
+            &nbsp;
+
+            ```python
+            from synapseclient import Synapse
+            from synapseclient.operations import print_entity
+
+            # Login to Synapse
+            syn = Synapse()
+            syn.login()
+
+            # Print an entity by Synapse ID
+            print_entity("syn123456")
+
+            # Print an entity object
+            from synapseclient.operations import get
+            entity = get(synapse_id="syn123456")
+            print_entity(entity)
+
+            # Print with unicode characters preserved
+            print_entity("syn123456", ensure_ascii=False)
+            ```
 
         Returns:
             None
@@ -1672,7 +1710,11 @@ class Synapse(object):
     #                   Get / Store methods                    #
     ############################################################
 
-    # TODO: Deprecate method in https://sagebionetworks.jira.com/browse/SYNPY-1623
+    @deprecated(
+        version="4.11.0",
+        reason="To be removed in 5.0.0. "
+        "Use `from synapseclient.operations import get` instead.",
+    )
     def get(self, entity, **kwargs):
         """
         Gets a Synapse entity from the repository service.
@@ -2326,7 +2368,11 @@ class Synapse(object):
                 )
         return downloadPath
 
-    # TODO: Deprecate method in https://sagebionetworks.jira.com/browse/SYNPY-1623
+    @deprecated(
+        version="4.11.0",
+        reason="To be removed in 5.0.0. "
+        "Use `from synapseclient.operations import store` instead.",
+    )
     def store(
         self,
         obj,
@@ -2883,7 +2929,11 @@ class Synapse(object):
 
         return bundle
 
-    # TODO: Deprecate method in https://sagebionetworks.jira.com/browse/SYNPY-1623
+    @deprecated(
+        version="4.11.0",
+        reason="To be removed in 5.0.0. "
+        "Use `from synapseclient.operations import delete` instead.",
+    )
     def delete(
         self,
         obj,
@@ -3815,7 +3865,11 @@ class Synapse(object):
                     "nextPageToken"
                 ]
 
-    # TODO: Deprecate method in https://sagebionetworks.jira.com/browse/SYNPY-1623
+    @deprecated(
+        version="4.11.0",
+        reason="To be removed in 5.0.0. "
+        "Use `from synapseclient.operations import md5_query` instead.",
+    )
     def md5Query(self, md5):
         """
         Find the Entities which have attached file(s) which have the given MD5 hash.
@@ -8866,7 +8920,11 @@ class Synapse(object):
 
         return self.restPUT(uri, body=json.dumps(get_properties(entity)), params=params)
 
-    # TODO: Deprecate method in https://sagebionetworks.jira.com/browse/SYNPY-1623
+    @deprecated(
+        version="4.11.0",
+        reason="To be removed in 5.0.0. "
+        "Use `from synapseclient.operations import find_entity_id` instead.",
+    )
     def findEntityId(self, name, parent=None):
         """
         Find an Entity given its name and parent.

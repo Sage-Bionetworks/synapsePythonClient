@@ -28,3 +28,49 @@ at your own risk.
 ::: synapseclient.operations.LinkOptions
     options:
       inherited_members: true
+
+[](){ #factory-delete-sync }
+::: synapseclient.operations.delete
+
+[](){ #factory-store-sync }
+::: synapseclient.operations.store
+
+[](){ #factory-store-file-options-sync }
+::: synapseclient.operations.StoreFileOptions
+    options:
+      inherited_members: true
+
+[](){ #factory-store-container-options-sync }
+::: synapseclient.operations.StoreContainerOptions
+    options:
+      inherited_members: true
+
+[](){ #factory-store-table-options-sync }
+::: synapseclient.operations.StoreTableOptions
+    options:
+      inherited_members: true
+
+[](){ #factory-store-json-schema-options-sync }
+::: synapseclient.operations.StoreJSONSchemaOptions
+    options:
+      inherited_members: true
+
+[](){ #factory-store-grid-options-sync }
+::: synapseclient.operations.StoreGridOptions
+    options:
+      inherited_members: true
+
+[](){ #factory-find-entity-id-sync }
+::: synapseclient.operations.find_entity_id
+
+[](){ #factory-is-synapse-id-sync }
+::: synapseclient.operations.is_synapse_id
+
+[](){ #factory-onweb-sync }
+::: synapseclient.operations.onweb
+
+[](){ #factory-md5-query-sync }
+::: synapseclient.operations.md5_query
+
+[](){ #factory-print-entity-sync }
+::: synapseclient.operations.print_entity
