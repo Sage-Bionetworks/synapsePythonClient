@@ -14,6 +14,7 @@ Before working with Submissions, it's helpful to understand how they fit into Sy
 ## How Submissions Work
 
 When you submit an Entity to an Evaluation:
+
 - The Submission creates an immutable record linking your Entity to that Evaluation
 - The Evaluation owns this Submission record (not you as the submitter)
 - Organizers can add scores and feedback through a SubmissionStatus object
@@ -60,6 +61,13 @@ As an organizer of a Synapse challenge, you will
 * You have an existing entity with which to make a submission (can be a [File](./file.md) or Docker Repository)
 * You have the correct permissions on the Evaluation queue for your desired tutorial section (participant or organizer)
 
+
+Script setup:
+
+```python
+{!docs/tutorials/python/tutorial_scripts/submission_participant.py!lines=13-30}
+```
+
 ## 1. Participating in a Synapse challenge
 
 ### 1. Make a submission to an existing evaluation queue on Synapse
@@ -77,28 +85,35 @@ As an organizer of a Synapse challenge, you will
 ### 3. Count your submissions
 
 ```python
-{!docs/tutorials/python/tutorial_scripts/submission_participant.py!lines=72-88}
+{!docs/tutorials/python/tutorial_scripts/submission_participant.py!lines=72-82}
 ```
 
 ### 4. Fetch all of your submissions from an existing evaluation queue on Synapse
 
 ```python
-{!docs/tutorials/python/tutorial_scripts/submission_participant.py!lines=90-101}
+{!docs/tutorials/python/tutorial_scripts/submission_participant.py!lines=82-95}
 ```
 
 ### 5. Check the status of your submission
 
 ```python
-{!docs/tutorials/python/tutorial_scripts/submission_participant.py!lines=103-125}
+{!docs/tutorials/python/tutorial_scripts/submission_participant.py!lines=97-119}
 ```
 
 ### 6. Cancel your submission
 
 ```python
-{!docs/tutorials/python/tutorial_scripts/submission_participant.py!lines=126-143}
+{!docs/tutorials/python/tutorial_scripts/submission_participant.py!lines=120-137}
 ```
 
 ## 2. Organizing a Synapse challenge
+
+
+Script setup:
+
+```python
+{!docs/tutorials/python/tutorial_scripts/submission_organizer.py!lines=12-31}
+```
 
 ### 1. Annotate a submission to score it
 

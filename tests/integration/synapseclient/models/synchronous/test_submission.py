@@ -254,22 +254,6 @@ class TestSubmissionRetrieval:
         submission_ids = [sub.id for sub in submissions]
         assert test_submission.id in submission_ids
 
-    async def test_get_evaluation_submissions_with_status_filter(
-        self, test_evaluation: Evaluation, test_submission: Submission
-    ):
-        # WHEN I get submissions filtered by status
-        submissions = list(
-            Submission.get_evaluation_submissions(
-                evaluation_id=test_evaluation.id,
-                status="RECEIVED",
-                synapse_client=self.syn,
-            )
-        )
-
-        # The test submission should be in the results (initially in RECEIVED status)
-        submission_ids = [sub.id for sub in submissions]
-        assert test_submission.id in submission_ids
-
     async def test_get_evaluation_submissions_generator_behavior(
         self, test_evaluation: Evaluation
     ):

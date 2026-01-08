@@ -80,12 +80,6 @@ submission_count = Submission.get_submission_count(evaluation_id=EVALUATION_ID)
 
 print(f"Total submissions in evaluation: {submission_count}")
 
-# Get count of submissions with specific status (optional)
-scored_count = Submission.get_submission_count(
-    evaluation_id=EVALUATION_ID, status="SCORED"
-)
-
-print(f"SCORED submissions in evaluation: {scored_count}")
 
 # ==============================================================================
 # 4. Fetch all of your submissions from an existing evaluation queue

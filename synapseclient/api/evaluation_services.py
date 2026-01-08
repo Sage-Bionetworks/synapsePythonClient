@@ -452,7 +452,6 @@ async def get_submission(
 
 async def get_evaluation_submissions(
     evaluation_id: str,
-    status: Optional[str] = None,
     *,
     synapse_client: Optional["Synapse"] = None,
 ) -> AsyncGenerator[dict[str, Any], None]:
@@ -463,8 +462,6 @@ async def get_evaluation_submissions(
 
     Arguments:
         evaluation_id: The ID of the evaluation queue.
-        status: Optionally filter submissions by a submission status, such as SCORED, VALID,
-                INVALID, OPEN, CLOSED or EVALUATION_IN_PROGRESS.
         synapse_client: If not passed in and caching was not disabled by `Synapse.allow_client_caching(False)`
                         this will use the last created instance from the Synapse class constructor.
 
@@ -476,20 +473,13 @@ async def get_evaluation_submissions(
     client = Synapse.get_client(synapse_client=synapse_client)
 
     uri = f"/evaluation/{evaluation_id}/submission/all"
-    query_params = {}
 
-    if status:
-        query_params["status"] = status
-
-    async for item in rest_get_paginated_async(
-        uri=uri, params=query_params, synapse_client=client
-    ):
+    async for item in rest_get_paginated_async(uri=uri, synapse_client=client):
         yield item
 
 
 async def get_user_submissions(
     evaluation_id: str,
-    user_id: Optional[str] = None,
     *,
     synapse_client: Optional["Synapse"] = None,
 ) -> AsyncGenerator[dict[str, Any], None]:
@@ -501,8 +491,6 @@ async def get_user_submissions(
 
     Arguments:
         evaluation_id: The ID of the evaluation queue.
-        user_id: Optionally specify the ID of the user whose submissions will be returned.
-                If omitted, this returns the submissions of the caller.
         synapse_client: If not passed in and caching was not disabled by `Synapse.allow_client_caching(False)`
                         this will use the last created instance from the Synapse class constructor.
 
@@ -514,20 +502,13 @@ async def get_user_submissions(
     client = Synapse.get_client(synapse_client=synapse_client)
 
     uri = f"/evaluation/{evaluation_id}/submission"
-    query_params = {}
 
-    if user_id:
-        query_params["userId"] = user_id
-
-    async for item in rest_get_paginated_async(
-        uri=uri, params=query_params, synapse_client=client
-    ):
+    async for item in rest_get_paginated_async(uri=uri, synapse_client=client):
         yield item
 
 
 async def get_submission_count(
     evaluation_id: str,
-    status: Optional[str] = None,
     synapse_client: Optional["Synapse"] = None,
 ) -> dict:
     """
@@ -537,8 +518,6 @@ async def get_submission_count(
 
     Arguments:
         evaluation_id: The ID of the evaluation queue.
-        status: Optionally filter submissions by a submission status, such as SCORED, VALID,
-                INVALID, OPEN, CLOSED or EVALUATION_IN_PROGRESS.
         synapse_client: If not passed in and caching was not disabled by `Synapse.allow_client_caching(False)`
                         this will use the last created instance from the Synapse class constructor.
 
@@ -550,12 +529,8 @@ async def get_submission_count(
     client = Synapse.get_client(synapse_client=synapse_client)
 
     uri = f"/evaluation/{evaluation_id}/submission/count"
-    query_params = {}
 
-    if status:
-        query_params["status"] = status
-
-    response = await client.rest_get_async(uri, params=query_params)
+    response = await client.rest_get_async(uri)
 
     return response
 
@@ -812,14 +787,11 @@ async def get_evaluation_submission_bundles(
     client = Synapse.get_client(synapse_client=synapse_client)
 
     uri = f"/evaluation/{evaluation_id}/submission/bundle/all"
-    query_params = {}
 
     if status:
-        query_params["status"] = status
+        uri = uri + "?status=" + status
 
-    async for item in rest_get_paginated_async(
-        uri=uri, params=query_params, synapse_client=client
-    ):
+    async for item in rest_get_paginated_async(uri=uri, synapse_client=client):
         yield item
 
 
@@ -847,9 +819,6 @@ async def get_user_submission_bundles(
     client = Synapse.get_client(synapse_client=synapse_client)
 
     uri = f"/evaluation/{evaluation_id}/submission/bundle"
-    query_params = {}
 
-    async for item in rest_get_paginated_async(
-        uri=uri, params=query_params, synapse_client=client
-    ):
+    async for item in rest_get_paginated_async(uri=uri, synapse_client=client):
         yield item

@@ -133,7 +133,8 @@ def wrap_async_generator_to_sync_generator(async_gen_func: Callable, *args, **kw
             f"For Jupyter/IPython notebooks: You can use 'async for' directly in cells.\n"
             f"For other async contexts: Ensure you're in an async function and use 'async for'."
         )
-    elif loop:
+
+    if loop:
         nest_asyncio.apply(loop=loop)
 
         # Create the async generator
@@ -143,7 +144,7 @@ def wrap_async_generator_to_sync_generator(async_gen_func: Callable, *args, **kw
         try:
             while True:
                 try:
-                    item = loop.run_until_complete(async_gen.__anext__())
+                    item = loop.run_until_complete(anext(async_gen))
                     yield item
                 except StopAsyncIteration:
                     break
@@ -154,23 +155,26 @@ def wrap_async_generator_to_sync_generator(async_gen_func: Callable, *args, **kw
             except (RuntimeError, StopAsyncIteration):
                 pass
     else:
-        # No running loop, create a new one
-        async def run_generator():
-            async_gen = async_gen_func(*args, **kwargs)
-            items = []
-            try:
-                async for item in async_gen:
-                    items.append(item)
-            finally:
-                try:
-                    await async_gen.aclose()
-                except (RuntimeError, StopAsyncIteration):
-                    pass
-            return items
+        # No running loop, create a new one and yield items one by one
+        async def async_wrapper():
+            async for item in async_gen_func(*args, **kwargs):
+                yield item
 
-        items = asyncio.run(run_generator())
-        for item in items:
-            yield item
+        loop = asyncio.new_event_loop()
+        async_gen = async_wrapper()
+        try:
+            while True:
+                try:
+                    item = loop.run_until_complete(anext(async_gen))
+                    yield item
+                except StopAsyncIteration:
+                    break
+        finally:
+            try:
+                loop.run_until_complete(async_gen.aclose())
+            except (RuntimeError, StopAsyncIteration):
+                pass
+            loop.close()
 
 
 # Adapted from
