@@ -24,3 +24,4 @@ favor of an auto-generated client derived from the
 ::: synapseclient.api.table_services
 ::: synapseclient.api.team_services
 ::: synapseclient.api.user_services
+::: synapseclient.api.wiki_services

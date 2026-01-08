@@ -25,6 +25,7 @@ from .curation_services import (
     list_grid_sessions,
     update_curation_task,
 )
+from .docker_commit_services import get_docker_tag
 from .entity_bundle_services_v2 import (
     get_entity_id_bundle2,
     get_entity_id_version_bundle2,
@@ -65,15 +66,28 @@ from .entity_services import (
     update_entity_acl,
 )
 from .evaluation_services import (
+    batch_update_submission_statuses,
+    cancel_submission,
     create_or_update_evaluation,
+    create_submission,
     delete_evaluation,
+    delete_submission,
     get_all_evaluations,
+    get_all_submission_statuses,
     get_available_evaluations,
     get_evaluation,
     get_evaluation_acl,
     get_evaluation_permissions,
+    get_evaluation_submission_bundles,
+    get_evaluation_submissions,
     get_evaluations_by_project,
+    get_submission,
+    get_submission_count,
+    get_submission_status,
+    get_user_submission_bundles,
+    get_user_submissions,
     update_evaluation_acl,
+    update_submission_status,
 )
 from .file_services import (
     AddPartResponse,
@@ -150,6 +164,21 @@ from .user_services import (
     is_user_certified,
 )
 from .web_services import open_entity_in_browser
+from .wiki_services import (
+    delete_wiki_page,
+    get_attachment_handles,
+    get_attachment_preview_url,
+    get_attachment_url,
+    get_markdown_url,
+    get_wiki_header_tree,
+    get_wiki_history,
+    get_wiki_order_hint,
+    get_wiki_page,
+    post_wiki_page,
+    put_wiki_order_hint,
+    put_wiki_page,
+    put_wiki_version,
+)
 
 __all__ = [
     # annotations
@@ -229,6 +258,20 @@ __all__ = [
     "get_default_columns",
     "ViewTypeMask",
     "ViewEntityType",
+    # wiki_service
+    "post_wiki_page",
+    "get_wiki_page",
+    "put_wiki_page",
+    "put_wiki_version",
+    "delete_wiki_page",
+    "get_wiki_header_tree",
+    "get_wiki_history",
+    "get_attachment_handles",
+    "get_attachment_url",
+    "get_attachment_preview_url",
+    "get_markdown_url",
+    "get_wiki_order_hint",
+    "put_wiki_order_hint",
     # json schema services
     "bind_json_schema_to_entity",
     "get_json_schema_from_entity",
@@ -274,6 +317,8 @@ __all__ = [
     "list_curation_tasks",
     "list_grid_sessions",
     "update_curation_task",
+    # docker_commit_services
+    "get_docker_tag",
     # user_services
     "get_user_bundle",
     "get_user_by_principal_id_or_name",
@@ -293,6 +338,20 @@ __all__ = [
     "get_evaluation_acl",
     "update_evaluation_acl",
     "get_evaluation_permissions",
+    # submission-related evaluation services
+    "create_submission",
+    "get_submission",
+    "get_evaluation_submissions",
+    "get_user_submissions",
+    "get_submission_count",
+    "delete_submission",
+    "cancel_submission",
+    "get_submission_status",
+    "update_submission_status",
+    "get_all_submission_statuses",
+    "batch_update_submission_statuses",
+    "get_evaluation_submission_bundles",
+    "get_user_submission_bundles",
     # form services
     "create_form_group",
     "create_form_data",

@@ -28,6 +28,7 @@ nav:
           - Folder: tutorials/python/folder.md
           - File: tutorials/python/file.md
           - Evaluation: tutorials/python/evaluation.md
+          - Submission: tutorials/python/submission.md
           - Annotation: tutorials/python/annotation.md
           # - Versions: tutorials/python/versions.md
           # - Activity/Provenance: tutorials/python/activity.md
@@ -40,7 +41,7 @@ nav:
           - Materialized View: tutorials/python/materializedview.md
           - Submission View: tutorials/python/submissionview.md
           - Sharing Settings: tutorials/python/sharing_settings.md
-          # - Wiki: tutorials/python/wiki.md
+          - Wiki: tutorials/python/wiki.md
           # - Team: tutorials/python/team.md
           - Upload data in bulk: tutorials/python/upload_data_in_bulk.md
           - Download data in bulk: tutorials/python/download_data_in_bulk.md
@@ -90,6 +91,9 @@ nav:
           - Folder: reference/experimental/sync/folder.md
           - File: reference/experimental/sync/file.md
           - Evaluation: reference/experimental/sync/evaluation.md
+          - Submission: reference/experimental/sync/submission.md
+          - SubmissionStatus: reference/experimental/sync/submission_status.md
+          - SubmissionBundle: reference/experimental/sync/submission_bundle.md
           - Table: reference/experimental/sync/table.md
           - VirtualTable: reference/experimental/sync/virtualtable.md
           - Dataset: reference/experimental/sync/dataset.md
@@ -105,6 +109,7 @@ nav:
           - Functional Interfaces: reference/experimental/functional_interfaces.md
           - SchemaOrganization: reference/experimental/sync/schema_organization.md
           - JSONSchema: reference/experimental/sync/json_schema.md
+          - Wiki: reference/experimental/sync/wiki.md
           - FormGroup and Form: reference/experimental/sync/form.md
           - Extensions:
               - Curator: reference/extensions/curator.md
@@ -115,6 +120,9 @@ nav:
               - Folder: reference/experimental/async/folder.md
               - File: reference/experimental/async/file.md
               - Evaluation: reference/experimental/async/evaluation.md
+              - Submission: reference/experimental/async/submission.md
+              - SubmissionStatus: reference/experimental/async/submission_status.md
+              - SubmissionBundle: reference/experimental/async/submission_bundle.md
               - Table: reference/experimental/async/table.md
               - VirtualTable: reference/experimental/async/virtualtable.md
               - Dataset: reference/experimental/async/dataset.md
@@ -129,6 +137,7 @@ nav:
               - Link: reference/experimental/async/link_entity.md
               - SchemaOrganization: reference/experimental/async/schema_organization.md
               - JSONSchema: reference/experimental/async/json_schema.md
+              - Wiki: reference/experimental/async/wiki.md
               - FormGroup and Form: reference/experimental/async/form.md
           - Mixins:
               - AccessControllable: reference/experimental/mixins/access_controllable.md

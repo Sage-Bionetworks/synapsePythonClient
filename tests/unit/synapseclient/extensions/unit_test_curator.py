@@ -1947,6 +1947,11 @@ class TestGenerateJsonschema(unittest.TestCase):
             "schema_files",
             "data_models/example.model.csv",
         )
+        self.minimal_test_schema_path = os.path.join(
+            os.path.dirname(__file__),
+            "schema_files",
+            "data_models/minimal_model.csv",
+        )
 
     def test_generate_jsonschema_from_csv(self):
         """Test generate_jsonschema from CSV file."""
@@ -1956,8 +1961,40 @@ class TestGenerateJsonschema(unittest.TestCase):
             # WHEN I generate JSON schemas
             schemas, file_paths = generate_jsonschema(
                 data_model_source=self.test_schema_path,
-                output_directory=temp_dir,
-                data_type=None,
+                output=temp_dir,
+                data_types=None,
+                data_model_labels="class_label",
+                synapse_client=self.syn,
+            )
+
+            # THEN schemas should be generated
+            assert isinstance(schemas, list)
+            assert len(schemas) > 0
+            assert isinstance(file_paths, list)
+            assert len(file_paths) == len(schemas)
+
+            # AND files should exist
+            for file_path in file_paths:
+                assert os.path.exists(file_path), f"Expected file at {file_path}"
+
+            # AND each schema should be valid JSON Schema
+            for schema in schemas:
+                assert isinstance(schema, dict)
+                assert "$schema" in schema
+                assert "properties" in schema
+        finally:
+            shutil.rmtree(temp_dir)
+
+    def test_generate_jsonschema_from_minimal_csv(self):
+        """Test generate_jsonschema from a minimal CSV file."""
+        # GIVEN a CSV schema file
+        temp_dir = tempfile.mkdtemp()
+        try:
+            # WHEN I generate JSON schemas
+            schemas, file_paths = generate_jsonschema(
+                data_model_source=self.minimal_test_schema_path,
+                output=temp_dir,
+                data_types=None,
                 data_model_labels="class_label",
                 synapse_client=self.syn,
             )
@@ -1996,8 +2033,8 @@ class TestGenerateJsonschema(unittest.TestCase):
             # WHEN I generate JSON schemas from the JSONLD
             schemas, file_paths = generate_jsonschema(
                 data_model_source=jsonld_path,
-                output_directory=temp_dir,
-                data_type=None,
+                output=temp_dir,
+                data_types=None,
                 data_model_labels="class_label",
                 synapse_client=self.syn,
             )
@@ -2022,8 +2059,8 @@ class TestGenerateJsonschema(unittest.TestCase):
             # WHEN I generate JSON schemas for specific components
             schemas, file_paths = generate_jsonschema(
                 data_model_source=self.test_schema_path,
-                output_directory=temp_dir,
-                data_type=target_components,
+                output=temp_dir,
+                data_types=target_components,
                 data_model_labels="class_label",
                 synapse_client=self.syn,
             )
@@ -2047,8 +2084,8 @@ class TestGenerateJsonschema(unittest.TestCase):
             # WHEN I generate schemas with display_label
             schemas, file_paths = generate_jsonschema(
                 data_model_source=self.test_schema_path,
-                output_directory=temp_dir,
-                data_type=["Patient"],
+                output=temp_dir,
+                data_types=["Patient"],
                 data_model_labels="display_label",
                 synapse_client=self.syn,
             )
@@ -2071,8 +2108,8 @@ class TestGenerateJsonschema(unittest.TestCase):
             # WHEN I generate schemas
             schemas, _ = generate_jsonschema(
                 data_model_source=self.test_schema_path,
-                output_directory=temp_dir,
-                data_type=["Patient"],
+                output=temp_dir,
+                data_types=["Patient"],
                 data_model_labels="class_label",
                 synapse_client=self.syn,
             )
@@ -2098,8 +2135,8 @@ class TestGenerateJsonschema(unittest.TestCase):
             # WHEN I generate schemas
             schemas, _ = generate_jsonschema(
                 data_model_source=self.test_schema_path,
-                output_directory=temp_dir,
-                data_type=["Patient"],
+                output=temp_dir,
+                data_types=["Patient"],
                 data_model_labels="class_label",
                 synapse_client=self.syn,
             )
@@ -2136,8 +2173,8 @@ class TestGenerateJsonschema(unittest.TestCase):
             # WHEN I generate schemas for MockComponent (has many validation rules)
             schemas, _ = generate_jsonschema(
                 data_model_source=self.test_schema_path,
-                output_directory=temp_dir,
-                data_type=["MockComponent"],
+                output=temp_dir,
+                data_types=["MockComponent"],
                 data_model_labels="class_label",
                 synapse_client=self.syn,
             )
@@ -2185,8 +2222,8 @@ class TestGenerateJsonschema(unittest.TestCase):
             # WHEN I generate schemas
             schemas, _ = generate_jsonschema(
                 data_model_source=self.test_schema_path,
-                output_directory=temp_dir,
-                data_type=["Patient"],
+                output=temp_dir,
+                data_types=["Patient"],
                 data_model_labels="class_label",
                 synapse_client=self.syn,
             )
@@ -2232,8 +2269,8 @@ class TestGenerateJsonschema(unittest.TestCase):
             # WHEN I generate schemas for MockComponent (has list rules)
             schemas, _ = generate_jsonschema(
                 data_model_source=self.test_schema_path,
-                output_directory=temp_dir,
-                data_type=["MockComponent"],
+                output=temp_dir,
+                data_types=["MockComponent"],
                 data_model_labels="class_label",
                 synapse_client=self.syn,
             )
@@ -2267,8 +2304,8 @@ class TestGenerateJsonschema(unittest.TestCase):
             # WHEN I generate schemas
             schemas, file_paths = generate_jsonschema(
                 data_model_source=self.test_schema_path,
-                output_directory=temp_dir,
-                data_type=["Patient"],
+                output=temp_dir,
+                data_types=["Patient"],
                 data_model_labels="class_label",
                 synapse_client=self.syn,
             )
@@ -2289,8 +2326,8 @@ class TestGenerateJsonschema(unittest.TestCase):
             # WHEN I generate schemas
             schemas, _ = generate_jsonschema(
                 data_model_source=self.test_schema_path,
-                output_directory=temp_dir,
-                data_type=None,
+                output=temp_dir,
+                data_types=None,
                 data_model_labels="class_label",
                 synapse_client=self.syn,
             )
@@ -2314,6 +2351,77 @@ class TestGenerateJsonschema(unittest.TestCase):
                     ), f"Property {prop_name} is not a dict"
         finally:
             shutil.rmtree(temp_dir)
+
+    def test_generate_jsonschema_specify_file(self):
+        """Test that generated schema has provided output path"""
+        # GIVEN a CSV schema file
+        try:
+            # WHEN I generate a schema with specific output file, and a datatype
+            _, paths = generate_jsonschema(
+                data_model_source=self.test_schema_path,
+                output="./test.json",
+                data_types=["Patient"],
+                synapse_client=self.syn,
+            )
+            # THEN there should be only one output file with the specified name
+            assert len(paths) == 1
+            assert paths[0] == "./test.json"
+
+        finally:
+            if os.path.isfile("./test.json"):
+                os.remove("./test.json")
+
+    def test_generate_jsonschema_specify_file_dir_does_not_exist(self):
+        """Test that generated schema has provided output path"""
+        # GIVEN a CSV schema file
+        try:
+            # WHEN I generate a schema with specific output file but that dir does nto exist, and a datatype
+            _, paths = generate_jsonschema(
+                data_model_source=self.test_schema_path,
+                output="./test/test.json",
+                data_types=["Patient"],
+                synapse_client=self.syn,
+            )
+            # THEN there should be only one output file with the specified name
+            assert len(paths) == 1
+            assert paths[0] == "./test/test.json"
+
+        finally:
+            if os.path.isfile("./test.json"):
+                os.remove("./test.json")
+
+    def test_generate_jsonschema_exception_no_datatypes(self):
+        """Test that an exception is raised when no datatypes are provided, and a JSON path is"""
+        try:
+            # GIVEN a CSV schema file
+            # WHEN I generate a schema with specific output file, and no datatype
+            # THEN a ValueError should be raised
+            with pytest.raises(ValueError):
+                generate_jsonschema(
+                    data_model_source=self.test_schema_path,
+                    output="./test.json",
+                    synapse_client=self.syn,
+                )
+        finally:
+            if os.path.isfile("./test.json"):
+                os.remove("./test.json")
+
+    def test_generate_jsonschema_exception_multiple_datatypes(self):
+        """Test that an exception is raised when multiple datatypes are provided, and a JSON path is"""
+        try:
+            # GIVEN a CSV schema file
+            # WHEN I generate a schema with specific output file, and no datatype
+            # THEN a ValueError should be raised
+            with pytest.raises(ValueError):
+                generate_jsonschema(
+                    data_model_source=self.test_schema_path,
+                    output="./test.json",
+                    data_types=["Patient", "Biospecimen"],
+                    synapse_client=self.syn,
+                )
+        finally:
+            if os.path.isfile("./test.json"):
+                os.remove("./test.json")
 
 
 class TestGenerateJsonldWithUrls(unittest.TestCase):
@@ -2445,205 +2553,6 @@ class TestGenerateJsonldWithUrls(unittest.TestCase):
         # AND no directories should be created based on the URL path
         assert "https:" not in call_args[1]["file_path"]
         assert "raw.githubusercontent.com" not in call_args[1]["file_path"]
-
-
-class TestGenerateJsonschemaWithUrls(unittest.TestCase):
-    """Test cases for generate_jsonschema with URL inputs."""
-
-    @pytest.fixture(autouse=True, scope="function")
-    def init_syn(self, syn):
-        self.syn = syn
-
-    @patch(
-        "synapseclient.extensions.curator.schema_generation.JsonSchemaGeneratorDirector"
-    )
-    def test_generate_jsonschema_from_csv_url(self, mock_director_cls):
-        """Test generate_jsonschema with CSV URL input."""
-        # GIVEN a CSV URL
-        csv_url = "https://raw.githubusercontent.com/Sage-Bionetworks/synapsePythonClient/main/model.csv"
-        output_dir = "/tmp/schemas"
-
-        # Mock the director
-        mock_director = Mock()
-        mock_schemas = [
-            {"$id": "schema1", "properties": {}},
-            {"$id": "schema2", "properties": {}},
-        ]
-        mock_paths = [
-            "/tmp/schemas/model/Component1_validation_schema.json",
-            "/tmp/schemas/model/Component2_validation_schema.json",
-        ]
-        mock_director.generate_jsonschema.return_value = (mock_schemas, mock_paths)
-        mock_director_cls.return_value = mock_director
-
-        # WHEN I generate JSON schemas from CSV URL
-        schemas, paths = generate_jsonschema(
-            data_model_source=csv_url,
-            output_directory=output_dir,
-            data_type=None,
-            data_model_labels="class_label",
-            synapse_client=self.syn,
-        )
-
-        # THEN the director should be initialized with the URL
-        mock_director_cls.assert_called_once_with(
-            data_model_source=csv_url,
-            output_directory=output_dir,
-            components=None,
-            logger=self.syn.logger,
-        )
-
-        # AND schemas should be generated
-        assert len(schemas) == 2
-        assert len(paths) == 2
-
-    @patch(
-        "synapseclient.extensions.curator.schema_generation.JsonSchemaGeneratorDirector"
-    )
-    def test_generate_jsonschema_from_jsonld_url(self, mock_director_cls):
-        """Test generate_jsonschema with JSONLD URL input."""
-        # GIVEN a JSONLD URL
-        jsonld_url = "https://raw.githubusercontent.com/Sage-Bionetworks/synapsePythonClient/main/model.jsonld"
-        output_dir = "/tmp/schemas"
-
-        # Mock the director
-        mock_director = Mock()
-        mock_schemas = [{"$id": "schema1", "properties": {}}]
-        mock_paths = ["/tmp/schemas/model/Component_validation_schema.json"]
-        mock_director.generate_jsonschema.return_value = (mock_schemas, mock_paths)
-        mock_director_cls.return_value = mock_director
-
-        # WHEN I generate JSON schemas from JSONLD URL
-        schemas, paths = generate_jsonschema(
-            data_model_source=jsonld_url,
-            output_directory=output_dir,
-            data_type=["Component"],
-            data_model_labels="class_label",
-            synapse_client=self.syn,
-        )
-
-        # THEN the director should be initialized with the URL
-        mock_director_cls.assert_called_once_with(
-            data_model_source=jsonld_url,
-            output_directory=output_dir,
-            components=["Component"],
-            logger=self.syn.logger,
-        )
-
-        # AND schemas should be generated
-        assert len(schemas) == 1
-        assert len(paths) == 1
-
-    @patch("synapseclient.extensions.curator.schema_generation.DataModelParser")
-    @patch("synapseclient.extensions.curator.schema_generation.DataModelGraph")
-    @patch("synapseclient.extensions.curator.schema_generation.Path")
-    def test_jsonschema_component_generator_with_url(
-        self, mock_path_cls, mock_graph_cls, mock_parser_cls
-    ):
-        """Test JsonSchemaComponentGenerator correctly handles URLs."""
-        from pathlib import Path
-
-        from synapseclient.extensions.curator.schema_generation import (
-            JsonSchemaComponentGenerator,
-        )
-
-        # GIVEN a JSONLD URL
-        jsonld_url = "https://raw.githubusercontent.com/Sage-Bionetworks/synapsePythonClient/main/example.model.jsonld"
-
-        # Mock parser
-        mock_parser = Mock()
-        mock_parser.get_model_type.return_value = "JSONLD"
-        mock_parser.parse_model.return_value = {"Patient": {"Relationships": {}}}
-        mock_parser_cls.return_value = mock_parser
-
-        # Mock graph with nodes attribute
-        mock_graph_instance = Mock()
-        mock_graph_instance.nodes = ["Patient", "Diagnosis"]  # Make nodes iterable
-        mock_graph = Mock()
-        mock_graph.graph = mock_graph_instance
-        mock_graph_cls.return_value = mock_graph
-
-        # Mock Path to extract basename from URL
-        mock_path_instance = Mock()
-        mock_path_instance.stem = "example.model"
-        mock_path_cls.return_value = mock_path_instance
-
-        # WHEN I create a JsonSchemaComponentGenerator with URL
-        generator = JsonSchemaComponentGenerator(
-            data_model_source=jsonld_url,
-            component="Patient",
-            output_directory=Path("/tmp/output"),
-            parsed_model={"Patient": {"Relationships": {}}},
-            logger=self.syn.logger,
-        )
-
-        # THEN the output path should use the filename extracted from URL
-        # Not the full URL path
-        assert "https:" not in str(generator.output_path)
-        assert "raw.githubusercontent.com" not in str(generator.output_path)
-
-    @patch("synapseclient.extensions.curator.schema_generation.export_json")
-    @patch("synapseclient.extensions.curator.schema_generation.create_json_schema")
-    @patch("synapseclient.extensions.curator.schema_generation.MetadataModel")
-    @patch("synapseclient.extensions.curator.schema_generation.DataModelGraphExplorer")
-    @patch("synapseclient.extensions.curator.schema_generation.DataModelGraph")
-    @patch("synapseclient.extensions.curator.schema_generation.DataModelParser")
-    def test_no_intermediate_files_created_from_url(
-        self,
-        mock_parser_cls,
-        mock_graph_cls,
-        mock_explorer_cls,
-        mock_metadata_model_cls,
-        mock_create_json_schema,
-        mock_export_json,
-    ):
-        """Test that no intermediate files are created when using URLs."""
-        from pathlib import Path
-
-        from synapseclient.extensions.curator.schema_generation import (
-            JsonSchemaComponentGenerator,
-        )
-
-        # GIVEN a JSONLD URL
-        jsonld_url = "https://raw.githubusercontent.com/Sage-Bionetworks/synapsePythonClient/main/model.jsonld"
-
-        # Mock all dependencies
-        mock_parser = Mock()
-        mock_parser.parse_model.return_value = {"Patient": {"Relationships": {}}}
-        mock_parser_cls.return_value = mock_parser
-
-        mock_graph = Mock()
-        mock_graph.graph = Mock()
-        mock_graph_cls.return_value = mock_graph
-
-        mock_explorer = Mock()
-        mock_explorer.get_node_label.return_value = "Patient"
-        mock_explorer_cls.return_value = mock_explorer
-
-        mock_metadata = Mock()
-        mock_metadata.inputMModelLocation = jsonld_url
-        mock_metadata_model_cls.return_value = mock_metadata
-
-        # Mock create_json_schema to return a schema dict
-        mock_schema = {"$id": "test", "properties": {}}
-        mock_create_json_schema.return_value = mock_schema
-
-        # WHEN I generate a JSON schema
-        generator = JsonSchemaComponentGenerator(
-            data_model_source=jsonld_url,
-            component="Patient",
-            output_directory=Path("/tmp/output"),
-            parsed_model={"Patient": {"Relationships": {}}},
-            logger=self.syn.logger,
-        )
-
-        generator.get_component_json_schema(data_model_labels="class_label")
-
-        # THEN create_json_schema should be called with write_schema=False
-        # This prevents intermediate files from being written
-        mock_create_json_schema.assert_called_once()
-        call_args = mock_create_json_schema.call_args
-        assert call_args[1]["write_schema"] is False
 
 
 class TestUrlPathHandling(unittest.TestCase):

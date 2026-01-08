@@ -61,6 +61,10 @@ class FileSynchronousProtocol(Protocol):
 
                 file_instance = File(path="path/to/file.txt").store(parent=Folder(id="syn456"))
 
+            File with an external URL and a parent folder with the ID `syn456`:
+
+                file_instance = File(name="my_file.txt", external_url="https://example.com/link/to/thing", parent_id="syn456", synapse_store=False).store()
+
             Rename a file (Does not update the file on disk or the name of the downloaded file):
 
                 file_instance = File(id="syn123", download_file=False).get()

@@ -21,7 +21,14 @@ from synapseclient.core import utils
 from synapseclient.core.async_utils import wrap_async_to_sync
 from synapseclient.core.logging_setup import DEFAULT_LOGGER_NAME, SILENT_LOGGER_NAME
 from synapseclient.models import Project as Project_Model
-from synapseclient.models import SubmissionView, Team
+from synapseclient.models import (
+    SubmissionView,
+    Team,
+    WikiHeader,
+    WikiHistorySnapshot,
+    WikiOrderHint,
+    WikiPage,
+)
 
 tracer = trace.get_tracer("synapseclient")
 working_directory = tempfile.mkdtemp(prefix="someTestFolder")
@@ -174,15 +181,17 @@ async def _cleanup(syn: Synapse, items):
                         os.remove(item)
                 except Exception as ex:
                     print(ex)
-        elif isinstance(item, Team):
-            try:
-                await item.delete_async(synapse_client=syn)
-            except Exception as ex:
-                if hasattr(ex, "response") and ex.response.status_code in [404, 403]:
-                    pass
-                else:
-                    print("Error cleaning up entity: " + str(ex))
-        elif isinstance(item, SubmissionView):
+        elif isinstance(
+            item,
+            (
+                Team,
+                SubmissionView,
+                WikiPage,
+                WikiHistorySnapshot,
+                WikiHeader,
+                WikiOrderHint,
+            ),
+        ):
             try:
                 await item.delete_async(synapse_client=syn)
             except Exception as ex:

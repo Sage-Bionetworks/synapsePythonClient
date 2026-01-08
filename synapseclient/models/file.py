@@ -656,9 +656,16 @@ class File(FileSynchronousProtocol, AccessControllable, BaseJSONSchema):
         return (
             not (
                 self.id is not None
-                and (self.path is not None or self.data_file_handle_id is not None)
+                and (
+                    self.path is not None
+                    or self.external_url is not None
+                    or self.data_file_handle_id is not None
+                )
             )
-            and not (self.path is not None and self.parent_id is not None)
+            and not (
+                (self.path is not None or self.external_url is not None)
+                and self.parent_id is not None
+            )
             and not (
                 self.parent_id is not None and self.data_file_handle_id is not None
             )
@@ -766,12 +773,12 @@ class File(FileSynchronousProtocol, AccessControllable, BaseJSONSchema):
             File object.
 
         If no Name is specified this will be derived from the file name. This is the
-        reccommended way to store a file in Synapse.
+        recommended way to store a file in Synapse.
 
         Please note:
         The file, as it appears on disk, will be the file that is downloaded from
         Synapse. The name of the actual File is different from the name of the File
-        Entity in Synapse. It is generally not reccommended to specify a different
+        Entity in Synapse. It is generally not recommended to specify a different
         name for the Entity and the file as it will cause confusion and potential
         conflicts later on.
 
@@ -787,8 +794,9 @@ class File(FileSynchronousProtocol, AccessControllable, BaseJSONSchema):
             The file object.
 
         Raises:
-            ValueError: If the file does not have an ID and a path, or a path and a
-                parent ID, or a data file handle ID and a parent ID.
+            ValueError: If the file does not have an ID and a (path or external_url),
+                or a (path or external_url) and a parent ID, or a data file handle ID
+                and a parent ID.
 
         Example: Using this function
             File with the ID `syn123` at path `path/to/file.txt`:
@@ -803,6 +811,10 @@ class File(FileSynchronousProtocol, AccessControllable, BaseJSONSchema):
 
                 file_instance = await File(path="path/to/file.txt").store_async(parent=Folder(id="syn456"))
 
+            File with an external URL and a parent folder with the ID `syn456`:
+
+                file_instance = await File(name="my_file.txt", external_url="https://example.com/link/to/thing", parent_id="syn456", synapse_store=False).store_async()
+
             File with a parent and existing file handle (This allows multiple entities to reference the underlying file):
 
                 file_instance = await File(data_file_handle_id="123", parent_id="syn456").store_async()
@@ -814,7 +826,7 @@ class File(FileSynchronousProtocol, AccessControllable, BaseJSONSchema):
                 await file_instance.change_metadata_async(name="my_new_name_file.txt")
 
             Rename a file, and the name of the file as downloaded
-                (Does not update the file on disk). Is is reccommended that `name` and
+                (Does not update the file on disk). It is recommended that `name` and
                 `download_as` match to prevent confusion later on:
 
                 file_instance = await File(id="syn123", download_file=False).get_async()
@@ -825,11 +837,16 @@ class File(FileSynchronousProtocol, AccessControllable, BaseJSONSchema):
         self.parent_id = parent.id if parent else self.parent_id
         if self._cannot_store():
             raise ValueError(
-                "The file must have an (ID with a (path or `data_file_handle_id`)), or a "
-                "(path with a (`parent_id` or parent with an id)), or a "
-                "(data_file_handle_id with a (`parent_id` or parent with an id)) to store."
+                "Cannot store file. The file must have one of:\n"
+                "  1. An ID and (path, external_url, or data_file_handle_id)\n"
+                "  2. A (path or external_url) and parent_id\n"
+                "  3. A data_file_handle_id and parent_id"
             )
-        self.name = self.name or (guess_file_name(self.path) if self.path else None)
+        self.name = self.name or (
+            guess_file_name(self.path)
+            if self.path
+            else (guess_file_name(self.external_url) if self.external_url else None)
+        )
         client = Synapse.get_client(synapse_client=synapse_client)
 
         if existing_file := await self._find_existing_file(synapse_client=client):
@@ -847,8 +864,17 @@ class File(FileSynchronousProtocol, AccessControllable, BaseJSONSchema):
                 }
             )
 
-        if self.path:
-            self.path = os.path.expanduser(self.path)
+        # Auto-set synapse_store to False if external_url is provided without a path
+        if self.external_url and not self.path:
+            client.logger.warning(
+                "File has external_url set but synapse_store was not explicitly set to False. "
+                "Automatically setting synapse_store=False to create an ExternalFileHandle."
+            )
+            self.synapse_store = False
+
+        if self.path or self.external_url:
+            if self.path:
+                self.path = os.path.expanduser(self.path)
             async with client._get_parallel_file_transfer_semaphore(
                 asyncio_event_loop=asyncio.get_running_loop()
             ):
@@ -1320,7 +1346,7 @@ async def _needs_upload(
                         entity_to_upload.file_handle.id, entity_to_upload.path
                     )
                 )
-            )
+            ) and entity_to_upload.path
 
             md5_stored_in_synapse = (
                 entity_to_upload.file_handle.content_md5
