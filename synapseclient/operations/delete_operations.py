@@ -79,12 +79,14 @@ def delete(
            parameter or the entity's `version_number` attribute.
 
         **Supported for version-specific deletion:**
+
         - String ID with version (e.g., "syn123.4")
         - File, RecordSet (use version_only=True)
         - Table, Dataset, DatasetCollection, EntityView, MaterializedView,
           SubmissionView, VirtualTable (use version_only=True)
 
         **Not supported for version-specific deletion:**
+
         - Project, Folder, Evaluation, Team, SchemaOrganization, CurationTask, Grid
 
     Arguments:
@@ -306,12 +308,14 @@ async def delete_async(
            parameter or the entity's `version_number` attribute.
 
         **Supported for version-specific deletion:**
+
         - String ID with version (e.g., "syn123.4")
         - File, RecordSet (use version_only=True)
         - Table, Dataset, DatasetCollection, EntityView, MaterializedView,
           SubmissionView, VirtualTable (use version_only=True)
 
         **Not supported for version-specific deletion:**
+
         - Project, Folder, Evaluation, Team, SchemaOrganization, CurationTask, Grid
 
     Arguments:
