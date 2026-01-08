@@ -4,11 +4,13 @@ import gzip
 import os
 import tempfile
 import time
+import uuid
 from typing import Callable
 
 import pytest
 
 from synapseclient import Synapse
+from synapseclient.core import utils
 from synapseclient.core.exceptions import SynapseHTTPError
 from synapseclient.models import (
     Project,
@@ -19,16 +21,21 @@ from synapseclient.models import (
 )
 
 
-@pytest.fixture(scope="session")
+@pytest.fixture(scope="function")
 def wiki_page_fixture(
-    project_model: Project, syn: Synapse, schedule_for_cleanup: Callable[..., None]
+    syn: Synapse, schedule_for_cleanup: Callable[..., None]
 ) -> WikiPage:
     """Create a root wiki page fixture that can be shared across tests."""
-    wiki_title = f"Root Wiki Page"
+    # Create a new project for this test class
+    project = Project(name=f"Test Wiki Project_" + str(uuid.uuid4()))
+    project = project.store(synapse_client=syn)
+    schedule_for_cleanup(project.id)
+
+    wiki_title = f"Root Wiki Page {str(uuid.uuid4())}"
     wiki_markdown = "# Root Wiki Page\n\nThis is a root wiki page."
 
     wiki_page = WikiPage(
-        owner_id=project_model.id,
+        owner_id=project.id,
         title=wiki_title,
         markdown=wiki_markdown,
     )
@@ -47,7 +54,6 @@ class TestWikiPageBasicOperations:
 
     def test_get_wiki_page_by_id(
         self,
-        project_model: Project,
         wiki_page_fixture: WikiPage,
         schedule_for_cleanup: Callable[..., None],
     ) -> None:
@@ -56,7 +62,7 @@ class TestWikiPageBasicOperations:
         root_wiki = wiki_page_fixture
 
         # WHEN retrieving the wiki page by ID
-        retrieved_wiki = WikiPage(owner_id=project_model.id, id=root_wiki.id).get(
+        retrieved_wiki = WikiPage(owner_id=root_wiki.owner_id, id=root_wiki.id).get(
             synapse_client=self.syn
         )
         schedule_for_cleanup(retrieved_wiki.id)
@@ -64,11 +70,10 @@ class TestWikiPageBasicOperations:
         # THEN the retrieved wiki should match the created one
         assert retrieved_wiki.id == root_wiki.id
         assert retrieved_wiki.title == root_wiki.title
-        assert retrieved_wiki.owner_id == project_model.id
+        assert retrieved_wiki.owner_id == root_wiki.owner_id
 
     def test_get_wiki_page_by_title(
         self,
-        project_model: Project,
         wiki_page_fixture: WikiPage,
         schedule_for_cleanup: Callable[..., None],
     ) -> None:
@@ -77,18 +82,17 @@ class TestWikiPageBasicOperations:
         root_wiki = wiki_page_fixture
 
         # WHEN retrieving the wiki page by title
-        retrieved_wiki = WikiPage(owner_id=project_model.id, title=root_wiki.title).get(
-            synapse_client=self.syn
-        )
+        retrieved_wiki = WikiPage(
+            owner_id=root_wiki.owner_id, title=root_wiki.title
+        ).get(synapse_client=self.syn)
         schedule_for_cleanup(retrieved_wiki.id)
         # THEN the retrieved wiki should match the created one
         assert retrieved_wiki.id == root_wiki.id
         assert retrieved_wiki.title == root_wiki.title
-        assert retrieved_wiki.owner_id == project_model.id
+        assert retrieved_wiki.owner_id == root_wiki.owner_id
 
     def test_delete_wiki_page(
         self,
-        project_model: Project,
         wiki_page_fixture: WikiPage,
         schedule_for_cleanup: Callable[..., None],
     ) -> None:
@@ -97,10 +101,10 @@ class TestWikiPageBasicOperations:
 
         # WHEN creating a wiki page to delete
         wiki_page_to_delete = WikiPage(
-            owner_id=project_model.id,
+            owner_id=root_wiki.owner_id,
             parent_id=root_wiki.id,
-            title="Wiki Page to be deleted",
-            markdown=f"# Wiki Page to be deleted\n\nThis is a wiki page to be deleted.",
+            title=f"Wiki Page to be deleted {str(uuid.uuid4())}",
+            markdown="# Wiki Page to be deleted\n\nThis is a wiki page to be deleted.",
         ).store(synapse_client=self.syn)
         schedule_for_cleanup(wiki_page_to_delete.id)
         # WHEN deleting the wiki page
@@ -108,13 +112,12 @@ class TestWikiPageBasicOperations:
 
         # THEN the wiki page should be deleted
         with pytest.raises(SynapseHTTPError, match="404"):
-            WikiPage(owner_id=project_model.id, id=wiki_page_to_delete.id).get(
+            WikiPage(owner_id=root_wiki.owner_id, id=wiki_page_to_delete.id).get(
                 synapse_client=self.syn
             )
 
     def test_create_sub_wiki_page(
         self,
-        project_model: Project,
         wiki_page_fixture: WikiPage,
         schedule_for_cleanup: Callable[..., None],
     ) -> None:
@@ -123,18 +126,19 @@ class TestWikiPageBasicOperations:
         root_wiki = wiki_page_fixture
 
         # WHEN creating a sub-wiki page
+        title = f"Sub Wiki Basic Operations {str(uuid.uuid4())}"
         sub_wiki = WikiPage(
-            owner_id=project_model.id,
+            owner_id=root_wiki.owner_id,
             parent_id=root_wiki.id,
-            title="Sub Wiki Basic Operations",
+            title=title,
             markdown="# Sub Wiki Basic Operations\n\nThis is a sub wiki basic operations page.",
         ).store(synapse_client=self.syn)
         schedule_for_cleanup(sub_wiki.id)
         # THEN the sub-wiki page should be created
         assert sub_wiki.id is not None
-        assert sub_wiki.title == "Sub Wiki Basic Operations"
+        assert sub_wiki.title == title
         assert sub_wiki.parent_id == root_wiki.id
-        assert sub_wiki.owner_id == project_model.id
+        assert sub_wiki.owner_id == root_wiki.owner_id
 
 
 class TestWikiPageAttachments:
@@ -145,33 +149,30 @@ class TestWikiPageAttachments:
         self.syn = syn
         self.schedule_for_cleanup = schedule_for_cleanup
 
-    @pytest.fixture(scope="class")
+    @pytest.fixture(scope="function")
     def wiki_page_with_attachment(
         self,
-        project_model: Project,
         syn: Synapse,
         schedule_for_cleanup: Callable[..., None],
         wiki_page_fixture: WikiPage,
     ) -> tuple[WikiPage, str]:
         """Create a wiki page with an attachment."""
         # Create a temporary file for attachment
-        with tempfile.NamedTemporaryFile(mode="w", suffix=".txt", delete=False) as f:
-            f.write("hello world\n")
-        schedule_for_cleanup(f.name)
+        filename = utils.make_bogus_uuid_file()
+        schedule_for_cleanup(filename)
         # GIVEN a root wiki page
         root_wiki = wiki_page_fixture
         # Create wiki page with attachment
         wiki_page = WikiPage(
-            owner_id=project_model.id,
-            title=f"Sub Wiki with Attachment",
+            owner_id=root_wiki.owner_id,
+            title=f"Sub Wiki with Attachment {str(uuid.uuid4())}",
             markdown="# Sub Wiki with Attachment\n\nThis is a sub wiki with an attachment page.",
             parent_id=root_wiki.id,
-            attachments=[f.name],
+            attachments=[filename],
         )
         wiki_page = wiki_page.store(synapse_client=syn)
         schedule_for_cleanup(wiki_page.id)
-        attachment_name = os.path.basename(f.name)
-        schedule_for_cleanup(attachment_name)
+        attachment_name = os.path.basename(filename)
         return wiki_page, attachment_name
 
     def test_get_attachment_handles(
@@ -259,6 +260,8 @@ class TestWikiPageAttachments:
         download_dir = tempfile.mkdtemp()
         self.schedule_for_cleanup(download_dir)
 
+        time.sleep(15)
+
         # WHEN downloading the attachment preview
         downloaded_path = wiki_page.get_attachment_preview(
             file_name=attachment_name,
@@ -277,7 +280,6 @@ class TestWikiPageAttachments:
     )
     def test_download_attachment_large_file(
         self,
-        project_model: Project,
         syn: Synapse,
         schedule_for_cleanup: Callable[..., None],
         wiki_page_fixture: WikiPage,
@@ -286,7 +288,8 @@ class TestWikiPageAttachments:
         # GIVEN a wiki page with an attachment
         root_wiki = wiki_page_fixture
         # Create a temporary file for attachment with > 8 MiB
-        with tempfile.NamedTemporaryFile(delete=False) as f:
+        filename = utils.make_bogus_uuid_file()
+        with open(filename, "wb") as f:
             f.write(b"\0" * (9 * 1024 * 1024))
 
         # AND a download location
@@ -295,17 +298,17 @@ class TestWikiPageAttachments:
 
         # Create wiki page with attachment
         wiki_page = WikiPage(
-            owner_id=project_model.id,
-            title=f"Sub Wiki with large Attachment",
+            owner_id=root_wiki.owner_id,
+            title=f"Sub Wiki with large Attachment {str(uuid.uuid4())}",
             markdown="# Sub Wiki with large Attachment\n\nThis is a sub wiki with a large attachment page.",
             parent_id=root_wiki.id,
-            attachments=[f.name],
+            attachments=[filename],
         )
         wiki_page = wiki_page.store(synapse_client=self.syn)
         schedule_for_cleanup(wiki_page.id)
         # WHEN downloading the attachment
         downloaded_path = wiki_page.get_attachment(
-            file_name=os.path.basename(f.name),
+            file_name=os.path.basename(filename),
             download_file=True,
             download_location=download_dir,
             synapse_client=self.syn,
@@ -313,38 +316,38 @@ class TestWikiPageAttachments:
         schedule_for_cleanup(downloaded_path)
         # THEN the file should be downloaded
         assert os.path.exists(downloaded_path)
-        assert os.path.basename(downloaded_path) == os.path.basename(f.name)
+        assert os.path.basename(downloaded_path) == os.path.basename(filename)
 
-    @pytest.fixture(scope="class")
+    @pytest.fixture(scope="function")
     def wiki_page_with_gz_attachment(
         self,
-        project_model: Project,
         syn: Synapse,
         schedule_for_cleanup: Callable[..., None],
         wiki_page_fixture: WikiPage,
     ) -> tuple[WikiPage, str]:
         """Create a wiki page with a gzipped attachment."""
         # Create a gzipped file
-        tmp = tempfile.NamedTemporaryFile(suffix=".txt.gz", delete=False)
-        tmp.close()  # Close the file so it can be written to by gzip
-        with gzip.open(tmp.name, "wt") as f:
+        filename = utils.make_bogus_uuid_file()
+        # Rename to add .gz extension
+        gz_filename = filename + ".gz"
+        os.rename(filename, gz_filename)
+        with gzip.open(gz_filename, "wt") as f:
             f.write("hello world\n")
-        schedule_for_cleanup(tmp.name)
+        schedule_for_cleanup(gz_filename)
 
         # GIVEN a root wiki page
         root_wiki = wiki_page_fixture
         # Create wiki page with gz attachment
         wiki_page = WikiPage(
-            owner_id=project_model.id,
-            title=f"Sub Wiki with GZ Attachment",
+            owner_id=root_wiki.owner_id,
+            title=f"Sub Wiki with GZ Attachment {str(uuid.uuid4())}",
             markdown="# Sub Wiki with GZ Attachment\n\nThis is a sub wiki with a gz attachment page.",
             parent_id=root_wiki.id,
-            attachments=[tmp.name],
+            attachments=[gz_filename],
         )
         sub_wiki = wiki_page.store(synapse_client=syn)
         schedule_for_cleanup(sub_wiki.id)
-        attachment_name = os.path.basename(tmp.name)
-        schedule_for_cleanup(attachment_name)
+        attachment_name = os.path.basename(gz_filename)
         return sub_wiki, attachment_name
 
     def test_get_attachment_handles_gz_file(
@@ -442,6 +445,8 @@ class TestWikiPageAttachments:
         download_dir = tempfile.mkdtemp()
         self.schedule_for_cleanup(download_dir)
 
+        time.sleep(15)
+
         # WHEN downloading the attachment preview
         downloaded_path = wiki_page.get_attachment_preview(
             file_name=attachment_name,
@@ -464,10 +469,9 @@ class TestWikiPageMarkdown:
         self.syn = syn
         self.schedule_for_cleanup = schedule_for_cleanup
 
-    @pytest.fixture(scope="class")
+    @pytest.fixture(scope="function")
     def wiki_page_with_markdown(
         self,
-        project_model: Project,
         syn: Synapse,
         schedule_for_cleanup: Callable[..., None],
         wiki_page_fixture: WikiPage,
@@ -475,8 +479,8 @@ class TestWikiPageMarkdown:
         # GIVEN a wiki page with markdown
         root_wiki = wiki_page_fixture
         wiki_page = WikiPage(
-            owner_id=project_model.id,
-            title=f"Sub Wiki Markdown",
+            owner_id=root_wiki.owner_id,
+            title=f"Sub Wiki Markdown {str(uuid.uuid4())}",
             markdown="# Sub Wiki Markdown\n\nThis is a sub wiki markdown page.",
             parent_id=root_wiki.id,
         )
@@ -486,7 +490,6 @@ class TestWikiPageMarkdown:
 
     def test_get_markdown_url(
         self,
-        project_model: Project,
         wiki_page_with_markdown: WikiPage,
         schedule_for_cleanup: Callable[..., None],
     ) -> None:
@@ -495,7 +498,7 @@ class TestWikiPageMarkdown:
 
         # WHEN getting markdown URL
         markdown_url = WikiPage(
-            owner_id=project_model.id, id=root_wiki.id
+            owner_id=root_wiki.owner_id, id=root_wiki.id
         ).get_markdown_file(download_file=False, synapse_client=self.syn)
         schedule_for_cleanup(markdown_url)
         # THEN a URL should be returned
@@ -503,7 +506,6 @@ class TestWikiPageMarkdown:
 
     def test_download_markdown_file(
         self,
-        project_model: Project,
         wiki_page_with_markdown: WikiPage,
         schedule_for_cleanup: Callable[..., None],
     ) -> None:
@@ -515,7 +517,7 @@ class TestWikiPageMarkdown:
 
         # WHEN downloading the markdown file
         downloaded_path = WikiPage(
-            owner_id=project_model.id, id=root_wiki.id
+            owner_id=root_wiki.owner_id, id=root_wiki.id
         ).get_markdown_file(
             download_file=True, download_location=download_dir, synapse_client=self.syn
         )
@@ -527,26 +529,27 @@ class TestWikiPageMarkdown:
             assert "Sub Wiki Markdown" in content
         schedule_for_cleanup(download_dir)
 
-    @pytest.fixture(scope="class")
+    @pytest.fixture(scope="function")
     def wiki_page_with_markdown_gz(
         self,
-        project_model: Project,
         syn: Synapse,
         schedule_for_cleanup: Callable[..., None],
         wiki_page_fixture: WikiPage,
     ) -> WikiPage:
         # GIVEN a wiki page with markdown
         root_wiki = wiki_page_fixture
-        tmp = tempfile.NamedTemporaryFile(suffix=".md.gz", delete=False)
-        tmp.close()  # Close the file so it can be written to by gzip
-        with gzip.open(tmp.name, "wt") as f:
+        filename = utils.make_bogus_uuid_file()
+        # Rename to add .md.gz extension
+        md_gz_filename = filename.replace(".txt", ".md.gz")
+        os.rename(filename, md_gz_filename)
+        with gzip.open(md_gz_filename, "wt") as f:
             f.write("# Test Wiki\n\nThis is test content.")
-        schedule_for_cleanup(tmp.name)
+        schedule_for_cleanup(md_gz_filename)
 
         # Create wiki page with markdown gz
         wiki_page = WikiPage(
-            owner_id=project_model.id,
-            title=f"Test Wiki with GZ Markdown",
+            owner_id=root_wiki.owner_id,
+            title=f"Test Wiki with GZ Markdown {str(uuid.uuid4())}",
             markdown="# Test Wiki with GZ Markdown\n\nThis is test content.",
             parent_id=root_wiki.id,
         )
@@ -556,7 +559,6 @@ class TestWikiPageMarkdown:
 
     def test_get_markdown_url_gz_file(
         self,
-        project_model: Project,
         wiki_page_with_markdown_gz: WikiPage,
         schedule_for_cleanup: Callable[..., None],
     ) -> None:
@@ -565,7 +567,7 @@ class TestWikiPageMarkdown:
 
         # WHEN getting markdown URL
         markdown_url = WikiPage(
-            owner_id=project_model.id, id=root_wiki.id
+            owner_id=root_wiki.owner_id, id=root_wiki.id
         ).get_markdown_file(download_file=False, synapse_client=self.syn)
         schedule_for_cleanup(markdown_url)
         # THEN a URL should be returned
@@ -573,7 +575,6 @@ class TestWikiPageMarkdown:
 
     def test_download_markdown_file_gz_file(
         self,
-        project_model: Project,
         wiki_page_with_markdown_gz: WikiPage,
         schedule_for_cleanup: Callable[..., None],
     ) -> None:
@@ -585,7 +586,7 @@ class TestWikiPageMarkdown:
 
         # WHEN downloading the markdown file
         downloaded_path = WikiPage(
-            owner_id=project_model.id, id=root_wiki.id
+            owner_id=root_wiki.owner_id, id=root_wiki.id
         ).get_markdown_file(
             download_file=True, download_location=download_dir, synapse_client=self.syn
         )
@@ -607,10 +608,9 @@ class TestWikiPageVersioning:
         self.syn = syn
         self.schedule_for_cleanup = schedule_for_cleanup
 
-    @pytest.fixture(scope="class")
+    @pytest.fixture(scope="function")
     def wiki_page_with_multiple_versions(
         self,
-        project_model: Project,
         syn: Synapse,
         schedule_for_cleanup: Callable[..., None],
         wiki_page_fixture: WikiPage,
@@ -618,26 +618,25 @@ class TestWikiPageVersioning:
         # GIVEN a wiki page with multiple versions
         root_wiki = wiki_page_fixture
         wiki_page = WikiPage(
-            owner_id=project_model.id,
-            title="Sub Wiki Versioning",
+            owner_id=root_wiki.owner_id,
+            title=f"Sub Wiki Versioning {str(uuid.uuid4())}",
             markdown="# Sub Wiki Versioning\n\nThis is a sub wiki versioning page.",
             parent_id=root_wiki.id,
         )
         updated_wiki = wiki_page.store(synapse_client=syn)
         # Update the wiki page
         updated_wiki = WikiPage(
-            owner_id=project_model.id, id=updated_wiki.id, title="Version 1"
+            owner_id=root_wiki.owner_id, id=updated_wiki.id, title="Version 1"
         ).store(synapse_client=syn)
         # Update the wiki page
         updated_wiki = WikiPage(
-            owner_id=project_model.id, id=updated_wiki.id, title="Version 2"
+            owner_id=root_wiki.owner_id, id=updated_wiki.id, title="Version 2"
         ).store(synapse_client=syn)
         schedule_for_cleanup(updated_wiki.id)
         return updated_wiki
 
     def test_wiki_page_history(
         self,
-        project_model: Project,
         wiki_page_with_multiple_versions,
         schedule_for_cleanup: Callable[..., None],
     ) -> None:
@@ -646,7 +645,7 @@ class TestWikiPageVersioning:
         # WHEN getting wiki history
         history = []
         for item in WikiHistorySnapshot.get(
-            owner_id=project_model.id, id=sub_wiki.id, synapse_client=self.syn
+            owner_id=sub_wiki.owner_id, id=sub_wiki.id, synapse_client=self.syn
         ):
             history.append(item)
         # THEN history should be returned
@@ -655,7 +654,6 @@ class TestWikiPageVersioning:
 
     def test_restore_wiki_page_version(
         self,
-        project_model: Project,
         wiki_page_with_multiple_versions,
         schedule_for_cleanup: Callable[..., None],
     ) -> None:
@@ -665,13 +663,13 @@ class TestWikiPageVersioning:
         initial_version = "0"
         # WHEN restoring to the initial version
         restored_wiki = WikiPage(
-            owner_id=project_model.id,
+            owner_id=root_wiki.owner_id,
             id=root_wiki.id,
             wiki_version=initial_version,
         ).restore(synapse_client=self.syn)
 
         # THEN the wiki should be restored
-        assert restored_wiki.title == "Sub Wiki Versioning"
+        assert "Sub Wiki Versioning" in restored_wiki.title
         schedule_for_cleanup(restored_wiki)
 
 
@@ -685,19 +683,18 @@ class TestWikiHeader:
 
     def test_get_wiki_header_tree(
         self,
-        project_model: Project,
         wiki_page_fixture: WikiPage,
         schedule_for_cleanup: Callable[..., None],
     ) -> None:
         # WHEN getting the wiki header tree
         headers = []
         for header in WikiHeader.get(
-            owner_id=project_model.id, synapse_client=self.syn
+            owner_id=wiki_page_fixture.owner_id, synapse_client=self.syn
         ):
             headers.append(header)
 
         # THEN headers should be returned
-        assert len(headers) == 8
+        assert len(headers) >= 1
         schedule_for_cleanup(headers)
 
 
@@ -712,11 +709,11 @@ class TestWikiOrderHint:
     def test_get_wiki_order_hint(
         self,
         syn: Synapse,
-        project_model: Project,
+        wiki_page_fixture: WikiPage,
         schedule_for_cleanup: Callable[..., None],
     ) -> None:
         # WHEN getting the wiki order hint
-        order_hint = WikiOrderHint(owner_id=project_model.id).get(
+        order_hint = WikiOrderHint(owner_id=wiki_page_fixture.owner_id).get(
             synapse_client=self.syn
         )
         # THEN order hint should be returned
@@ -726,14 +723,16 @@ class TestWikiOrderHint:
         schedule_for_cleanup(order_hint)
 
     def test_store_wiki_order_hint(
-        self, project_model: Project, schedule_for_cleanup: Callable[..., None]
+        self, wiki_page_fixture: WikiPage, schedule_for_cleanup: Callable[..., None]
     ) -> None:
         # Get headers
-        headers = WikiHeader.get(owner_id=project_model.id, synapse_client=self.syn)
+        headers = WikiHeader.get(
+            owner_id=wiki_page_fixture.owner_id, synapse_client=self.syn
+        )
         # Get the ids of the headers
         header_ids = [header.id for header in headers]
         # Get initial order hint
-        order_hint = WikiOrderHint(owner_id=project_model.id).get(
+        order_hint = WikiOrderHint(owner_id=wiki_page_fixture.owner_id).get(
             synapse_client=self.syn
         )
         schedule_for_cleanup(order_hint)
@@ -743,12 +742,12 @@ class TestWikiOrderHint:
         schedule_for_cleanup(updated_order_hint)
         # THEN the order hint should be updated
         # Retrieve the updated order hint
-        retrieved_order_hint = WikiOrderHint(owner_id=project_model.id).get(
+        retrieved_order_hint = WikiOrderHint(owner_id=wiki_page_fixture.owner_id).get(
             synapse_client=self.syn
         )
         schedule_for_cleanup(retrieved_order_hint)
         assert retrieved_order_hint.id_list == header_ids
-        assert len(retrieved_order_hint.id_list) == 8
+        assert len(retrieved_order_hint.id_list) >= 1
 
     # clean up the wiki pages for other tests in the same session
     def test_cleanup_wiki_pages(self, wiki_page_fixture: WikiPage):
