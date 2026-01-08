@@ -1,5 +1,6 @@
 """Tests for the synapseclient.models.wiki classes."""
 import copy
+import os
 from typing import Any, AsyncGenerator, Dict, List
 from unittest.mock import AsyncMock, Mock, call, mock_open, patch
 
@@ -415,7 +416,7 @@ class TestWikiPage:
         assert results == expected_results
 
     def test_to_gzip_file_with_string_content(self) -> None:
-        self.syn.cache.cache_root_dir = "/tmp/cache"
+        self.syn.cache.cache_root_dir = "temp_cache_dir"
 
         # WHEN I call `_to_gzip_file` with a markdown string
         with patch("builtins.open") as mock_open_file, patch(
@@ -426,20 +427,29 @@ class TestWikiPage:
         # THEN the content should be written to a gzipped file
         mock_open_file.assert_not_called()
         mock_gzip_open.assert_called_once_with(
-            "/tmp/cache/wiki_content/wiki_markdown_Test Wiki Page.md.gz",
+            os.path.join(
+                self.syn.cache.cache_root_dir,
+                "wiki_content",
+                "wiki_markdown_Test Wiki Page.md.gz",
+            ),
             "wt",
             encoding="utf-8",
         )
         mock_gzip_open.return_value.__enter__.return_value.write.assert_called_once_with(
             self.wiki_page.markdown
         )
-        assert file_path == "/tmp/cache/wiki_content/wiki_markdown_Test Wiki Page.md.gz"
+        # normalize the file path
+        assert file_path == os.path.join(
+            self.syn.cache.cache_root_dir,
+            "wiki_content",
+            "wiki_markdown_Test Wiki Page.md.gz",
+        )
 
     def test_to_gzip_file_with_gzipped_file(self) -> None:
         with patch("os.path.isfile"), patch("gzip.open") as mock_gzip_open, patch(
             "builtins.open"
         ) as mock_open_file:
-            self.syn.cache.cache_root_dir = "/tmp/cache"
+            self.syn.cache.cache_root_dir = "temp_cache_dir"
             markdown_file_path = "wiki_markdown_Test Wiki Page.md.gz"
 
             # WHEN I call `_to_gzip_file` with a gzipped file
@@ -449,7 +459,7 @@ class TestWikiPage:
             assert file_path == markdown_file_path
 
     def test_to_gzip_file_with_non_gzipped_file(self) -> None:
-        self.syn.cache.cache_root_dir = "/tmp/cache"
+        self.syn.cache.cache_root_dir = "temp_cache_dir"
 
         # WHEN I call `_to_gzip_file` with a file path
         with patch("os.path.isfile", return_value=True), patch(
@@ -457,17 +467,23 @@ class TestWikiPage:
         ) as mock_open_file, patch("gzip.open") as mock_gzip_open, patch(
             "os.path.exists", return_value=True
         ):
-            file_path = self.wiki_page._to_gzip_file("/path/to/test.txt", self.syn)
+            test_file_path = os.path.join("file_path", "test.txt")
+            file_path = self.wiki_page._to_gzip_file(test_file_path, self.syn)
 
             # THEN the file should be processed
-            mock_open_file.assert_called_once_with("/path/to/test.txt", "rb")
+            mock_open_file.assert_called_once_with(test_file_path, "rb")
             mock_gzip_open.assert_called_once_with(
-                "/tmp/cache/wiki_content/test.txt.gz", "wb"
+                os.path.join(
+                    self.syn.cache.cache_root_dir, "wiki_content", "test.txt.gz"
+                ),
+                "wb",
             )
             gzip_handle = mock_gzip_open.return_value.__enter__.return_value
             open_handle = mock_open_file.return_value.__enter__.return_value
             gzip_handle.writelines.assert_called_once_with(open_handle)
-            assert file_path == "/tmp/cache/wiki_content/test.txt.gz"
+            assert file_path == os.path.join(
+                self.syn.cache.cache_root_dir, "wiki_content", "test.txt.gz"
+            )
 
     def test_to_gzip_file_with_invalid_content(self) -> None:
         # WHEN I call `_to_gzip_file` with invalid content type
@@ -476,8 +492,11 @@ class TestWikiPage:
             self.wiki_page._to_gzip_file(123, self.syn)
 
     def test_unzip_gzipped_file_with_markdown(self) -> None:
-        gzipped_file_path = "/path/to/test.md.gz"
-        expected_unzipped_file_path = "/path/to/test.md"
+        self.syn.cache.cache_root_dir = "temp_cache_dir"
+        gzipped_file_path = os.path.join(self.syn.cache.cache_root_dir, "test.md.gz")
+        expected_unzipped_file_path = os.path.join(
+            self.syn.cache.cache_root_dir, "test.md"
+        )
         markdown_content = "# Test Markdown\n\nThis is a test."
         markdown_content_bytes = markdown_content.encode("utf-8")
 
@@ -502,8 +521,11 @@ class TestWikiPage:
         assert unzipped_file_path == expected_unzipped_file_path
 
     def test_unzip_gzipped_file_with_binary_file(self) -> None:
-        gzipped_file_path = "/path/to/test.bin.gz"
-        expected_unzipped_file_path = "/path/to/test.bin"
+        self.syn.cache.cache_root_dir = "temp_cache_dir"
+        gzipped_file_path = os.path.join(self.syn.cache.cache_root_dir, "test.bin.gz")
+        expected_unzipped_file_path = os.path.join(
+            self.syn.cache.cache_root_dir, "test.bin"
+        )
         binary_content = b"\x00\x01\x02\x03\xff\xfe\xfd"
 
         # WHEN I call `_unzip_gzipped_file` with a binary file
@@ -525,8 +547,11 @@ class TestWikiPage:
         assert unzipped_file_path == expected_unzipped_file_path
 
     def test_unzip_gzipped_file_with_text_file(self) -> None:
-        gzipped_file_path = "/path/to/test.txt.gz"
-        expected_unzipped_file_path = "/path/to/test.txt"
+        self.syn.cache.cache_root_dir = "temp_cache_dir"
+        gzipped_file_path = os.path.join(self.syn.cache.cache_root_dir, "test.txt.gz")
+        expected_unzipped_file_path = os.path.join(
+            self.syn.cache.cache_root_dir, "test.txt"
+        )
         text_content = "This is plain text content."
         text_content_bytes = text_content.encode("utf-8")
 
@@ -1069,7 +1094,7 @@ class TestWikiPage:
 
             # THEN log messages should be printed
             assert mock_logger.call_count == 2
-            assert mock_logger.has_calls(
+            mock_logger.assert_has_calls(
                 [
                     call(
                         "No wiki page exists within the owner. Create a new wiki page."
@@ -1184,13 +1209,13 @@ class TestWikiPage:
 
             # AND log messages should be printed
             assert mock_logger.call_count == 2
-            assert mock_logger.has_calls(
+            mock_logger.assert_has_calls(
                 [
                     call(
                         "A wiki page already exists within the owner. Update the existing wiki page."
                     ),
                     call(
-                        f"Updated wiki page: {self.api_response['title']} with ID: {self.api_response['id']}."
+                        f"Updated wiki page: {mock_put_wiki_response['title']} with ID: {self.api_response['id']}."
                     ),
                 ]
             )
@@ -1238,7 +1263,7 @@ class TestWikiPage:
 
             # THEN log messages should be printed
             assert mock_logger.call_count == 2
-            assert mock_logger.has_calls(
+            mock_logger.assert_has_calls(
                 [
                     call("Creating sub-wiki page under parent ID: parent_wiki"),
                     call(
