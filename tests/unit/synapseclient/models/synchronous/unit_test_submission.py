@@ -647,6 +647,7 @@ class TestSubmission:
     def test_get_evaluation_submissions(self) -> None:
         # GIVEN evaluation parameters
         evaluation_id = EVALUATION_ID
+        status = "SCORED"
 
         # WHEN I call get_evaluation_submissions
         with patch(
@@ -663,6 +664,7 @@ class TestSubmission:
             submissions = []
             for submission in Submission.get_evaluation_submissions(
                 evaluation_id=evaluation_id,
+                status=status,
                 synapse_client=self.syn,
             ):
                 submissions.append(submission)
@@ -670,6 +672,7 @@ class TestSubmission:
             # THEN it should call the API with correct parameters and yield Submission objects
             mock_get_submissions.assert_called_once_with(
                 evaluation_id=evaluation_id,
+                status=status,
                 synapse_client=self.syn,
             )
             assert len(submissions) == 1

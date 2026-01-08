@@ -452,6 +452,7 @@ async def get_submission(
 
 async def get_evaluation_submissions(
     evaluation_id: str,
+    status: Optional[str] = None,
     *,
     synapse_client: Optional["Synapse"] = None,
 ) -> AsyncGenerator[dict[str, Any], None]:
@@ -462,6 +463,8 @@ async def get_evaluation_submissions(
 
     Arguments:
         evaluation_id: The ID of the evaluation queue.
+        status: Optionally filter submissions by a submission status, such as SCORED, VALID,
+                INVALID, OPEN, CLOSED or EVALUATION_IN_PROGRESS.
         synapse_client: If not passed in and caching was not disabled by `Synapse.allow_client_caching(False)`
                         this will use the last created instance from the Synapse class constructor.
 
@@ -473,6 +476,9 @@ async def get_evaluation_submissions(
     client = Synapse.get_client(synapse_client=synapse_client)
 
     uri = f"/evaluation/{evaluation_id}/submission/all"
+
+    if status:
+        uri = uri + "?status=" + status
 
     async for item in rest_get_paginated_async(uri=uri, synapse_client=client):
         yield item
