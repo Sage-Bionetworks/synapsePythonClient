@@ -1656,3 +1656,73 @@ async def update_entity_acl(
     else:
         # Entity inherits from a benefactor, use POST to create new ACL
         return await client.rest_post_async(uri=uri, body=json.dumps(acl))
+
+
+async def is_synapse_id(
+    syn_id: str,
+    *,
+    synapse_client: Optional["Synapse"] = None,
+) -> bool:
+    """
+    Check if given synID is valid (attached to actual entity).
+
+    Arguments:
+        syn_id: A Synapse ID to validate.
+        synapse_client: If not passed in and caching was not disabled by
+            `Synapse.allow_client_caching(False)` this will use the last created
+            instance from the Synapse class constructor.
+
+    Returns:
+        True if the Synapse ID is valid and exists.
+
+    Example: Validating a Synapse ID
+        Check if a Synapse ID exists:
+
+        ```python
+        import asyncio
+        from synapseclient import Synapse
+        from synapseclient.api import is_synapse_id
+
+        syn = Synapse()
+        syn.login()
+
+        async def main():
+            if await is_synapse_id("syn123456"):
+                print("Valid Synapse ID")
+            else:
+                print("Invalid or non-existent Synapse ID")
+
+        asyncio.run(main())
+        ```
+    """
+    from synapseclient.core.exceptions import (
+        SynapseAuthenticationError,
+        SynapseFileNotFoundError,
+    )
+
+    if not isinstance(syn_id, str):
+        return False
+
+    try:
+        await get_entity(entity_id=syn_id, synapse_client=synapse_client)
+    except SynapseFileNotFoundError:
+        return False
+    except (SynapseHTTPError, SynapseAuthenticationError) as err:
+        # Extract status code
+        status = None
+        if hasattr(err, "__context__") and hasattr(err.__context__, "response"):
+            status = err.__context__.response.status_code
+        elif hasattr(err, "response"):
+            status = err.response.status_code
+
+        # If we can't determine the status, re-raise the exception
+        if status is None:
+            raise
+
+        if status in (400, 404):
+            return False
+        # Valid ID but user lacks permission or is not logged in
+        elif status == 403:
+            return True
+        raise
+    return True

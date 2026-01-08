@@ -15,8 +15,10 @@ class TestDeleteOperationsAsync:
     """Tests for the delete_async factory function."""
 
     @pytest.fixture(autouse=True, scope="function")
-    def init(self, syn: Synapse, schedule_for_cleanup: Callable[..., None]) -> None:
-        self.syn = syn
+    def init(
+        self, syn_with_logger: Synapse, schedule_for_cleanup: Callable[..., None]
+    ) -> None:
+        self.syn = syn_with_logger
         self.schedule_for_cleanup = schedule_for_cleanup
 
     async def test_delete_file_by_id_string(self, project_model: Project) -> None:
@@ -268,7 +270,7 @@ class TestDeleteOperationsAsync:
         assert "version_only=True requires a version number" in str(e.value)
 
     async def test_delete_project_ignores_version_parameters(
-        self, syn: Synapse, caplog: pytest.LogCaptureFixture
+        self, caplog: pytest.LogCaptureFixture
     ) -> None:
         """Test that deleting a Project ignores version parameters with warning."""
         # GIVEN a project
@@ -276,12 +278,12 @@ class TestDeleteOperationsAsync:
             name=str(uuid.uuid4()),
             description="Test project for version parameter",
         )
-        project = await project.store_async(synapse_client=syn)
+        project = await project.store_async(synapse_client=self.syn)
         self.schedule_for_cleanup(project.id)
 
         # WHEN I try to delete with version_only=True
         caplog.clear()
-        await delete_async(project, version_only=True, synapse_client=syn)
+        await delete_async(project, version_only=True, synapse_client=self.syn)
 
         # THEN warnings should be logged
         assert any(
@@ -291,7 +293,7 @@ class TestDeleteOperationsAsync:
 
         # AND the entire project should be deleted
         with pytest.raises(SynapseHTTPError) as e:
-            await Project(id=project.id).get_async(synapse_client=syn)
+            await Project(id=project.id).get_async(synapse_client=self.syn)
         assert f"404 Client Error: Entity {project.id} is in trash can." in str(e.value)
 
     async def test_delete_invalid_synapse_id_raises_error(self) -> None:

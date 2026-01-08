@@ -16,6 +16,18 @@ from synapseclient.operations.store_operations import (
     store,
     store_async,
 )
+from synapseclient.operations.utility_operations import (
+    find_entity_id,
+    find_entity_id_async,
+    is_synapse_id,
+    is_synapse_id_async,
+    md5_query,
+    md5_query_async,
+    onweb,
+    onweb_async,
+    print_entity,
+    print_entity_async,
+)
 
 __all__ = [
     "ActivityOptions",
@@ -35,4 +47,15 @@ __all__ = [
     # Delete operations
     "delete",
     "delete_async",
+    # Utility operations
+    "find_entity_id",
+    "find_entity_id_async",
+    "is_synapse_id",
+    "is_synapse_id_async",
+    "md5_query",
+    "md5_query_async",
+    "onweb",
+    "onweb_async",
+    "print_entity",
+    "print_entity_async",
 ]

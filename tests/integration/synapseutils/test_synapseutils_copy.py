@@ -334,7 +334,7 @@ class TestCopyWiki:
         Testing internal links
         ======================
 
-        [test](#!Synapse:%s/wiki/%s)
+        [test](Synapse:%s/wiki/%s)
 
         %s)
         """ % (

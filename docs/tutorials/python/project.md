@@ -30,7 +30,7 @@ project = Project(name="My uniquely named project about Alzheimer's Disease")
 project.store()
 ```
 
-Now that you have created your project you are able to inspect the project in the [synapse web UI](https://www.synapse.org/#!Profile:v/projects/created_by_me).
+Now that you have created your project you are able to inspect the project in the [synapse web UI](https://www.synapse.org/Profile:v/projects/created_by_me).
 
 
 
