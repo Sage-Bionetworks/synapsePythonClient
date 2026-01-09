@@ -686,6 +686,7 @@ class TestWikiHeader:
         wiki_page_fixture: WikiPage,
         schedule_for_cleanup: Callable[..., None],
     ) -> None:
+        time.sleep(15)
         # WHEN getting the wiki header tree
         headers = []
         for header in WikiHeader.get(
@@ -708,10 +709,10 @@ class TestWikiOrderHint:
 
     def test_get_wiki_order_hint(
         self,
-        syn: Synapse,
         wiki_page_fixture: WikiPage,
         schedule_for_cleanup: Callable[..., None],
     ) -> None:
+        time.sleep(15)
         # WHEN getting the wiki order hint
         order_hint = WikiOrderHint(owner_id=wiki_page_fixture.owner_id).get(
             synapse_client=self.syn
@@ -725,6 +726,7 @@ class TestWikiOrderHint:
     def test_store_wiki_order_hint(
         self, wiki_page_fixture: WikiPage, schedule_for_cleanup: Callable[..., None]
     ) -> None:
+        time.sleep(15)
         # Get headers
         headers = WikiHeader.get(
             owner_id=wiki_page_fixture.owner_id, synapse_client=self.syn
@@ -740,6 +742,7 @@ class TestWikiOrderHint:
         order_hint.id_list = header_ids
         updated_order_hint = order_hint.store(synapse_client=self.syn)
         schedule_for_cleanup(updated_order_hint)
+        time.sleep(15)
         # THEN the order hint should be updated
         # Retrieve the updated order hint
         retrieved_order_hint = WikiOrderHint(owner_id=wiki_page_fixture.owner_id).get(
