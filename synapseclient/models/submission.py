@@ -163,8 +163,8 @@ class SubmissionSynchronousProtocol(Protocol):
 
         Arguments:
             evaluation_id: The ID of the evaluation queue.
-            status: Optionally filter submissions by a submission status.
-                    Submission status can be one of <https://rest-docs.synapse.org/rest/org/sagebionetworks/evaluation/model/SubmissionStatusEnum.html>
+            status: Optionally filter submissions by a submission status, such as SCORED, VALID,
+                    INVALID, OPEN, CLOSED or EVALUATION_IN_PROGRESS.
             synapse_client: If not passed in and caching was not disabled by
                 `Synapse.allow_client_caching(False)` this will use the last created
                 instance from the Synapse class constructor.
@@ -200,18 +200,14 @@ class SubmissionSynchronousProtocol(Protocol):
     def get_user_submissions(
         cls,
         evaluation_id: str,
-        user_id: Optional[str] = None,
         *,
         synapse_client: Optional[Synapse] = None,
     ) -> Generator["Submission", None, None]:
         """
         Retrieves all user Submissions for a specified Evaluation queue.
-        If user_id is omitted, this returns the submissions of the caller.
 
         Arguments:
             evaluation_id: The ID of the evaluation queue.
-            user_id: Optionally specify the ID of the user whose submissions will be returned.
-                    If omitted, this returns the submissions of the caller.
             synapse_client: If not passed in and caching was not disabled by
                 `Synapse.allow_client_caching(False)` this will use the last created
                 instance from the Synapse class constructor.
@@ -228,8 +224,7 @@ class SubmissionSynchronousProtocol(Protocol):
             syn.login()
 
             submissions = list(Submission.get_user_submissions(
-                evaluation_id="9999999",
-                user_id="123456"
+                evaluation_id="9999999"
             ))
             print(f"Found {len(submissions)} user submissions")
             ```
@@ -237,14 +232,12 @@ class SubmissionSynchronousProtocol(Protocol):
         yield from wrap_async_generator_to_sync_generator(
             async_gen_func=cls.get_user_submissions_async,
             evaluation_id=evaluation_id,
-            user_id=user_id,
             synapse_client=synapse_client,
         )
 
     @staticmethod
     def get_submission_count(
         evaluation_id: str,
-        status: Optional[str] = None,
         *,
         synapse_client: Optional[Synapse] = None,
     ) -> dict:
@@ -253,8 +246,6 @@ class SubmissionSynchronousProtocol(Protocol):
 
         Arguments:
             evaluation_id: The ID of the evaluation queue.
-            status: Optionally filter submissions by a submission status, such as SCORED, VALID,
-                    INVALID, OPEN, CLOSED or EVALUATION_IN_PROGRESS.
             synapse_client: If not passed in and caching was not disabled by
                 `Synapse.allow_client_caching(False)` this will use the last created
                 instance from the Synapse class constructor.
@@ -264,7 +255,7 @@ class SubmissionSynchronousProtocol(Protocol):
 
         Example: Getting submission count
             &nbsp;
-            Get the total number of SCORED submissions from a specific evaluation.
+            Get the total number of submissions from a specific evaluation.
             ```python
             from synapseclient import Synapse
             from synapseclient.models import Submission
@@ -273,8 +264,7 @@ class SubmissionSynchronousProtocol(Protocol):
             syn.login()
 
             response = Submission.get_submission_count(
-                evaluation_id="9999999",
-                status="SCORED"
+                evaluation_id="9999999"
             )
             print(f"Found {response} submissions")
             ```
@@ -350,14 +340,7 @@ class Submission(SubmissionSynchronousProtocol):
         syn = Synapse()
         syn.login()
 
-        # Get all submissions for a specific user in an evaluation
-        submissions = list(Submission.get_user_submissions(
-            evaluation_id="9999999",
-            user_id="123456"
-        ))
-        print(f"Found {len(submissions)} submissions for user")
-
-        # Get submissions for the current user (omit user_id)
+        # Get submissions for the current user
         my_submissions = list(Submission.get_user_submissions(
             evaluation_id="9999999"
         ))
@@ -766,8 +749,8 @@ class Submission(SubmissionSynchronousProtocol):
 
         Arguments:
             evaluation_id: The ID of the evaluation queue.
-            status: Optionally filter submissions by a submission status.
-                    Submission status can be one of <https://rest-docs.synapse.org/rest/org/sagebionetworks/evaluation/model/SubmissionStatusEnum.html>
+            status: Optionally filter submissions by a submission status, such as SCORED, VALID,
+                    INVALID, OPEN, CLOSED or EVALUATION_IN_PROGRESS.
             synapse_client: If not passed in and caching was not disabled by
                 `Synapse.allow_client_caching(False)` this will use the last created
                 instance from the Synapse class constructor.
@@ -775,9 +758,9 @@ class Submission(SubmissionSynchronousProtocol):
         Yields:
             Individual Submission objects from each page of the response.
 
-        Example: Getting submissions for an evaluation
+        Example: Getting SCORED submissions for an evaluation
             &nbsp;
-            Get SCORED submissions from a specific evaluation.
+            Get submissions from a specific evaluation.
             ```python
             import asyncio
             from synapseclient import Synapse
@@ -811,18 +794,14 @@ class Submission(SubmissionSynchronousProtocol):
     async def get_user_submissions_async(
         cls,
         evaluation_id: str,
-        user_id: Optional[str] = None,
         *,
         synapse_client: Optional[Synapse] = None,
     ) -> AsyncGenerator["Submission", None]:
         """
         Generator to get all user Submissions for a specified Evaluation queue.
-        If user_id is omitted, this returns the submissions of the caller.
 
         Arguments:
             evaluation_id: The ID of the evaluation queue.
-            user_id: Optionally specify the ID of the user whose submissions will be returned.
-                    If omitted, this returns the submissions of the caller.
             synapse_client: If not passed in and caching was not disabled by
                 `Synapse.allow_client_caching(False)` this will use the last created
                 instance from the Synapse class constructor.
@@ -842,8 +821,7 @@ class Submission(SubmissionSynchronousProtocol):
             async def get_user_submissions_example():
                 submissions = []
                 async for submission in Submission.get_user_submissions_async(
-                    evaluation_id="9999999",
-                    user_id="123456"
+                    evaluation_id="9999999"
                 ):
                     submissions.append(submission)
                 print(f"Found {len(submissions)} user submissions")
@@ -853,7 +831,6 @@ class Submission(SubmissionSynchronousProtocol):
         """
         async for submission_data in evaluation_services.get_user_submissions(
             evaluation_id=evaluation_id,
-            user_id=user_id,
             synapse_client=synapse_client,
         ):
             submission_object = cls().fill_from_dict(synapse_submission=submission_data)
@@ -862,7 +839,6 @@ class Submission(SubmissionSynchronousProtocol):
     @staticmethod
     async def get_submission_count_async(
         evaluation_id: str,
-        status: Optional[str] = None,
         *,
         synapse_client: Optional[Synapse] = None,
     ) -> dict:
@@ -871,8 +847,6 @@ class Submission(SubmissionSynchronousProtocol):
 
         Arguments:
             evaluation_id: The ID of the evaluation queue.
-            status: Optionally filter submissions by a submission status, such as SCORED, VALID,
-                    INVALID, OPEN, CLOSED or EVALUATION_IN_PROGRESS.
             synapse_client: If not passed in and caching was not disabled by
                 `Synapse.allow_client_caching(False)` this will use the last created
                 instance from the Synapse class constructor.
@@ -882,7 +856,7 @@ class Submission(SubmissionSynchronousProtocol):
 
         Example: Getting submission count
             &nbsp;
-            Get the total number of SCORED submissions from a specific evaluation.
+            Get the total number of submissions from a specific evaluation.
             ```python
             import asyncio
             from synapseclient import Synapse
@@ -893,8 +867,7 @@ class Submission(SubmissionSynchronousProtocol):
 
             async def get_submission_count_example():
                 response = await Submission.get_submission_count_async(
-                    evaluation_id="9999999",
-                    status="SCORED"
+                    evaluation_id="9999999"
                 )
                 print(f"Found {response} submissions")
 
@@ -902,7 +875,7 @@ class Submission(SubmissionSynchronousProtocol):
             ```
         """
         return await evaluation_services.get_submission_count(
-            evaluation_id=evaluation_id, status=status, synapse_client=synapse_client
+            evaluation_id=evaluation_id, synapse_client=synapse_client
         )
 
     @otel_trace_method(

@@ -514,46 +514,9 @@ class TestSubmissionAsync:
             assert submissions[0].id == SUBMISSION_ID
 
     @pytest.mark.asyncio
-    async def test_get_user_submissions_async(self) -> None:
-        # GIVEN user submission parameters
-        evaluation_id = EVALUATION_ID
-        user_id = USER_ID
-
-        # WHEN I call get_user_submissions_async
-        with patch(
-            "synapseclient.api.evaluation_services.get_user_submissions"
-        ) as mock_get_user_submissions:
-            # Create an async generator function that yields submission data
-            async def mock_async_gen(*args, **kwargs):
-                submission_data = self.get_example_submission_response()
-                yield submission_data
-
-            # Make the mock return our async generator when called
-            mock_get_user_submissions.side_effect = mock_async_gen
-
-            submissions = []
-            async for submission in Submission.get_user_submissions_async(
-                evaluation_id=evaluation_id,
-                user_id=user_id,
-                synapse_client=self.syn,
-            ):
-                submissions.append(submission)
-
-            # THEN it should call the API with correct parameters and yield Submission objects
-            mock_get_user_submissions.assert_called_once_with(
-                evaluation_id=evaluation_id,
-                user_id=user_id,
-                synapse_client=self.syn,
-            )
-            assert len(submissions) == 1
-            assert isinstance(submissions[0], Submission)
-            assert submissions[0].id == SUBMISSION_ID
-
-    @pytest.mark.asyncio
     async def test_get_submission_count_async(self) -> None:
         # GIVEN submission count parameters
         evaluation_id = EVALUATION_ID
-        status = "VALID"
 
         expected_response = 42
 
@@ -565,14 +528,12 @@ class TestSubmissionAsync:
         ) as mock_get_count:
             response = await Submission.get_submission_count_async(
                 evaluation_id=evaluation_id,
-                status=status,
                 synapse_client=self.syn,
             )
 
             # THEN it should call the API with correct parameters
             mock_get_count.assert_called_once_with(
                 evaluation_id=evaluation_id,
-                status=status,
                 synapse_client=self.syn,
             )
             assert response == expected_response

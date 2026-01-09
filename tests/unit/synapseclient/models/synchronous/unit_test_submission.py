@@ -682,7 +682,6 @@ class TestSubmission:
     def test_get_user_submissions(self) -> None:
         # GIVEN user submission parameters
         evaluation_id = EVALUATION_ID
-        user_id = USER_ID
 
         # WHEN I call get_user_submissions
         with patch(
@@ -699,7 +698,6 @@ class TestSubmission:
             submissions = []
             for submission in Submission.get_user_submissions(
                 evaluation_id=evaluation_id,
-                user_id=user_id,
                 synapse_client=self.syn,
             ):
                 submissions.append(submission)
@@ -707,7 +705,6 @@ class TestSubmission:
             # THEN it should call the API with correct parameters and yield Submission objects
             mock_get_user_submissions.assert_called_once_with(
                 evaluation_id=evaluation_id,
-                user_id=user_id,
                 synapse_client=self.syn,
             )
             assert len(submissions) == 1
@@ -717,7 +714,6 @@ class TestSubmission:
     def test_get_submission_count(self) -> None:
         # GIVEN submission count parameters
         evaluation_id = EVALUATION_ID
-        status = "VALID"
 
         expected_response = 42
 
@@ -729,14 +725,12 @@ class TestSubmission:
         ) as mock_get_count:
             response = Submission.get_submission_count(
                 evaluation_id=evaluation_id,
-                status=status,
                 synapse_client=self.syn,
             )
 
             # THEN it should call the API with correct parameters
             mock_get_count.assert_called_once_with(
                 evaluation_id=evaluation_id,
-                status=status,
                 synapse_client=self.syn,
             )
             assert response == expected_response

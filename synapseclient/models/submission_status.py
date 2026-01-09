@@ -569,14 +569,18 @@ class SubmissionStatus(
         Example: Retrieving a submission status by ID
             &nbsp;
             ```python
+            import asyncio
             from synapseclient import Synapse
             from synapseclient.models import SubmissionStatus
 
             syn = Synapse()
             syn.login()
 
-            status = await SubmissionStatus(id="9999999").get_async()
-            print(status)
+            async def main():
+                status = await SubmissionStatus(id="9999999").get_async()
+                print(status)
+
+            asyncio.run(main())
             ```
         """
         if not self.id:
@@ -615,22 +619,26 @@ class SubmissionStatus(
         Example: Update a submission status
             &nbsp;
             ```python
+            import asyncio
             from synapseclient import Synapse
             from synapseclient.models import SubmissionStatus
 
             syn = Synapse()
             syn.login()
 
-            # Get existing status
-            status = await SubmissionStatus(id="9999999").get_async()
+            async def main():
+                # Get existing status
+                status = await SubmissionStatus(id="9999999").get_async()
 
-            # Update fields
-            status.status = "SCORED"
-            status.submission_annotations = {"score": [85.5]}
+                # Update fields
+                status.status = "SCORED"
+                status.submission_annotations = {"score": [85.5]}
 
-            # Store the update
-            status = await status.store_async()
-            print(f"Updated status: {status.status}")
+                # Store the update
+                status = await status.store_async()
+                print(f"Updated status: {status.status}")
+
+            asyncio.run(main())
             ```
         """
         if not self.id:
@@ -702,20 +710,24 @@ class SubmissionStatus(
         Example: Getting all submission statuses for an evaluation
             &nbsp;
             ```python
+            import asyncio
             from synapseclient import Synapse
             from synapseclient.models import SubmissionStatus
 
             syn = Synapse()
             syn.login()
 
-            statuses = await SubmissionStatus.get_all_submission_statuses_async(
-                evaluation_id="9999999",
-                status="SCORED",
-                limit=50
-            )
-            print(f"Found {len(statuses)} submission statuses")
-            for status in statuses:
-                print(f"Status ID: {status.id}, Status: {status.status}")
+            async def main():
+                statuses = await SubmissionStatus.get_all_submission_statuses_async(
+                    evaluation_id="9999999",
+                    status="SCORED",
+                    limit=50
+                )
+                print(f"Found {len(statuses)} submission statuses")
+                for status in statuses:
+                    print(f"Status ID: {status.id}, Status: {status.status}")
+
+            asyncio.run(main())
             ```
         """
         response = await evaluation_services.get_all_submission_statuses(
@@ -766,30 +778,34 @@ class SubmissionStatus(
         Example: Batch update submission statuses
             &nbsp;
             ```python
+            import asyncio
             from synapseclient import Synapse
             from synapseclient.models import SubmissionStatus
 
             syn = Synapse()
             syn.login()
 
-            # Retrieve existing statuses to update
-            statuses = SubmissionStatus.get_all_submission_statuses(
-                evaluation_id="9999999",
-                status="RECEIVED"
+            async def main():
+                # Retrieve existing statuses to update
+                statuses = await SubmissionStatus.get_all_submission_statuses_async(
+                    evaluation_id="9999999",
+                    status="RECEIVED"
+                    )
+
+                # Modify statuses as needed
+                for status in statuses:
+                    status.status = "SCORED"
+
+                # Update statuses in batch
+                response = await SubmissionStatus.batch_update_submission_statuses_async(
+                    evaluation_id="9999999",
+                    statuses=statuses,
+                    is_first_batch=True,
+                    is_last_batch=True
                 )
+                print(f"Batch update completed: {response}")
 
-            # Modify statuses as needed
-            for status in statuses:
-                status.status = "SCORED"
-
-            # Update statuses in batch
-            response = await SubmissionStatus.batch_update_submission_statuses_async(
-                evaluation_id="9999999",
-                statuses=statuses,
-                is_first_batch=True,
-                is_last_batch=True
-            )
-            print(f"Batch update completed: {response}")
+            asyncio.run(main())
             ```
         """
         # Convert SubmissionStatus objects to dictionaries

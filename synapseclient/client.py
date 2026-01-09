@@ -294,17 +294,17 @@ class Synapse(object):
     Example: Getting started
         Logging in to Synapse using an authToken
 
-            ```python
-            import synapseclient
-            syn = synapseclient.login(authToken="authtoken")
-            ```
+        ```python
+        import synapseclient
+        syn = synapseclient.login(authToken="authtoken")
+        ```
 
         Using environment variable or `.synapseConfig`
 
-            ```python
-            import synapseclient
-            syn = synapseclient.login()
-            ```
+        ```python
+        import synapseclient
+        syn = synapseclient.login()
+        ```
 
     Example: Adding an additional `user_agent` value
         This example shows how to add an additional `user_agent` to the HTTP headers
