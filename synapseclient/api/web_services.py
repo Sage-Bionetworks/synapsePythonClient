@@ -102,10 +102,14 @@ async def open_entity_in_browser(
 
     # Construct the URL
     portal_endpoint = client.portalEndpoint
+
+    if portal_endpoint[-1] != "/":
+        portal_endpoint += "/"
+
     if subpage_id is None:
-        url = f"{portal_endpoint}/Synapse:{synapse_id}"
+        url = f"{portal_endpoint}Synapse:{synapse_id}"
     else:
-        url = f"{portal_endpoint}/Wiki:{synapse_id}/ENTITY/{subpage_id}"
+        url = f"{portal_endpoint}Wiki:{synapse_id}/ENTITY/{subpage_id}"
 
     # Open in browser
     webbrowser.open(url)
