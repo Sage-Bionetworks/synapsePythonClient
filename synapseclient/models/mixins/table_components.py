@@ -11,7 +11,7 @@ from collections import OrderedDict
 from dataclasses import dataclass, field
 from datetime import datetime
 from io import BytesIO
-from typing import Any, Dict, List, Optional, Protocol, Tuple, TypeVar, Union
+from typing import Any, Dict, List, Optional, Protocol, Tuple, Union
 
 from tqdm import tqdm
 from tqdm.contrib.logging import logging_redirect_tqdm
@@ -35,6 +35,8 @@ from synapseclient.core.download.download_functions import (
     ensure_download_location_is_directory,
 )
 from synapseclient.core.exceptions import SynapseTimeoutError
+from synapseclient.core.typing_utils import DataFrame as DATA_FRAME_TYPE
+from synapseclient.core.typing_utils import Series as SERIES_TYPE
 from synapseclient.core.upload.multipart_upload_async import (
     multipart_upload_dataframe_async,
     multipart_upload_file_async,
@@ -45,6 +47,7 @@ from synapseclient.core.utils import (
     extract_synapse_id_from_query,
     log_dataclass_diff,
     merge_dataclass_entities,
+    test_import_pandas,
 )
 from synapseclient.models import Activity
 from synapseclient.models.services.search import get_id
@@ -108,9 +111,6 @@ RESERVED_COLUMN_NAMES = [
     "ROW_HASH_CODE",
 ]
 
-DATA_FRAME_TYPE = TypeVar("pd.DataFrame")
-SERIES_TYPE = TypeVar("pd.Series")
-
 LIST_COLUMN_TYPES = {
     "STRING_LIST",
     "INTEGER_LIST",
@@ -119,25 +119,6 @@ LIST_COLUMN_TYPES = {
     "ENTITYID_LIST",
     "USERID_LIST",
 }
-
-
-def test_import_pandas() -> None:
-    """This function is called within other functions and methods to ensure that pandas is installed."""
-    try:
-        import pandas as pd  # noqa F401
-    # used to catch when pandas isn't installed
-    except ModuleNotFoundError:
-        raise ModuleNotFoundError(
-            """\n\nThe pandas package is required for this function!\n
-        Most functions in the synapseclient package don't require the
-        installation of pandas, but some do. Please refer to the installation
-        instructions at: http://pandas.pydata.org/ or
-        https://python-docs.synapse.org/tutorials/installation/#installation-guide-for-pypi-users.
-        \n\n\n"""
-        )
-    # catch other errors (see SYNPY-177)
-    except:  # noqa
-        raise
 
 
 def row_labels_from_id_and_version(rows):
@@ -157,9 +138,54 @@ def row_labels_from_rows(rows: List[Row]) -> List[Row]:
     )
 
 
+def convert_dtypes_to_json_serializable(df):
+    """
+    Convert the dtypes of the int64 and float64 columns to object columns which are JSON serializable types.
+    Also, convert the ROW_ID, ROW_VERSION, and ROW_ID.1 columns to int columns which are JSON serializable types.
+    Arguments:
+        df: The dataframe to convert the dtypes of.
+    Returns:
+        The dataframe with the dtypes converted to JSON serializable types.
+    Example:
+        df = pd.DataFrame({
+            "ROW_ID": [1, 2, 3, 4],
+            "ROW_VERSION": [1, 2, 3, 4],
+            "ROW_ETAG": ['test-etag-1', 'test-etag-2', 'test-etag-3', 'test-etag-4'],
+            "int64_col": [1, 2, 3, None],
+            "float64_col": [1.1, 2.2, 3.3, 4.4],
+            "string_col": ["a", "b", "c", "d"],
+            "string_col_with_na": ["a", "b", "c", None],
+            "boolean_col": [True, False, None, False],
+            "datetime_col": [datetime(2021, 1, 1), datetime(2021, 1, 2), None, datetime(2021, 1, 4)],
+            "int_list_col": [[1, 2, 3], [4, 5, 6], None, [7, 8, 9]],
+            "string_list_col": [["a", "b", "c"], ["d", "e", "f"], None, ["g", "h", "i"]],
+            "boolean_list_col": [[True, None, True], [False, True, False], None, [True, False, True]],
+            "datetime_list_col": [[datetime(2021, 1, 1), datetime(2021, 1, 2), datetime(2021, 1, 3)], [datetime(2021, 1, 4), datetime(2021, 1, 5), datetime(2021, 1, 6)], None, [datetime(2021, 1, 7), datetime(2021, 1, 8), datetime(2021, 1, 9)]],
+            "entityid_list_col": [["syn123", "syn456", None], ["syn101", "syn102", "syn103"], None, ["syn104", "syn105", "syn106"]],
+            "userid_list_col": [["user1", "user2", "user3"], ["user4", "user5", None], None, ["user7", "user8", "user9"]],
+        }).convert_dtypes()
+        df = convert_dtypes_to_json_serializable(df)
+        print(df)
+    """
+    import pandas as pd
+
+    for col in df.columns:
+        df[col] = (
+            df[col].replace({pd.NA: None}).astype(object)
+        )  # this will convert the int64 and float64 columns to object columns
+        # Convert ROW_ prefixed columns back to int (like ROW_ID, ROW_VERSION)
+        if col in [
+            "ROW_ID",
+            "ROW_VERSION",
+            "ROW_ID.1",
+        ]:  # ROW_ID.1 is the temporary row id to constrct row to upsert
+            df[col] = df[col].astype(int)
+    return df
+
+
 async def _query_table_csv(
     query: str,
-    synapse: Synapse,
+    synapse_client: Synapse,
     header: bool = True,
     include_row_id_and_row_version: bool = True,
     # for csvTableDescriptor
@@ -186,7 +212,7 @@ async def _query_table_csv(
 
     Arguments:
         query: The SQL query string to execute against the table.
-        synapse: An authenticated Synapse client instance used for making the API call.
+        synapse_client: An authenticated Synapse client instance used for making the API call.
         header: Should the first line contain the column names as a header in the
             resulting file? Set to True to include the headers, False otherwise.
             The default value is True.
@@ -224,7 +250,7 @@ async def _query_table_csv(
         A tuple containing the download result (QueryJob object) and the path to the downloaded CSV file.
         The download result is a dictionary containing information about the download.
     """
-
+    client = Synapse.get_client(synapse_client=synapse_client)
     csv_descriptor = CsvTableDescriptor(
         separator=separator,
         escape_character=escape_character,
@@ -251,11 +277,11 @@ async def _query_table_csv(
     )
 
     download_from_table_result = await query_job_request.send_job_and_wait_async(
-        synapse_client=synapse, timeout=timeout
+        synapse_client=client, timeout=timeout
     )
 
     file_handle_id = download_from_table_result.results_file_handle_id
-    cached_file_path = synapse.cache.get(
+    cached_file_path = client.cache.get(
         file_handle_id=file_handle_id, path=download_location
     )
     if cached_file_path is not None:
@@ -266,7 +292,7 @@ async def _query_table_csv(
             download_location=download_location
         )
     else:
-        download_dir = synapse.cache.get_cache_dir(file_handle_id=file_handle_id)
+        download_dir = client.cache.get_cache_dir(file_handle_id=file_handle_id)
 
     os.makedirs(download_dir, exist_ok=True)
     filename = f"SYNAPSE_TABLE_QUERY_{file_handle_id}.csv"
@@ -275,13 +301,13 @@ async def _query_table_csv(
         synapse_id=extract_synapse_id_from_query(query),
         entity_type="TableEntity",
         destination=os.path.join(download_dir, filename),
-        synapse_client=synapse,
+        synapse_client=client,
     )
     return download_from_table_result, path
 
 
 def _query_table_next_page(
-    next_page_token: "QueryNextPageToken", table_id: str, synapse: Synapse
+    next_page_token: "QueryNextPageToken", table_id: str, synapse_client: Synapse
 ) -> "QueryResultBundle":
     """
     Retrieve following pages if the result contains a *nextPageToken*
@@ -289,12 +315,13 @@ def _query_table_next_page(
     Arguments:
         next_page_token: Forward this token to get the next page of results.
         table_id:       The Synapse ID of the table
-        synapse: An authenticated Synapse client instance used for making the API call.
+        synapse_client: An authenticated Synapse client instance used for making the API call.
 
     Returns:
         The following page of results as a QueryResultBundle
         <https://rest-docs.synapse.org/rest/org/sagebionetworks/repo/model/table/QueryResultBundle.html>
     """
+    synapse = Synapse.get_client(synapse_client=synapse_client)
     uri = "/entity/{id}/table/query/nextPage/async".format(id=table_id)
     result = synapse._waitForAsync(uri=uri, request=next_page_token.token)
     return QueryResultBundle.fill_from_dict(data=result)
@@ -302,7 +329,7 @@ def _query_table_next_page(
 
 async def _query_table_row_set(
     query: str,
-    synapse: Synapse,
+    synapse_client: Synapse,
     limit: int = None,
     offset: int = None,
     part_mask=None,
@@ -333,7 +360,7 @@ async def _query_table_row_set(
     )
 
     completed_request = await query_bundle_request.send_job_and_wait_async(
-        synapse_client=synapse, timeout=timeout
+        synapse_client=synapse_client, timeout=timeout
     )
 
     return QueryResultBundle(
@@ -352,7 +379,7 @@ async def _query_table_row_set(
 
 async def _table_query(
     query: str,
-    synapse: Optional[Synapse] = None,
+    synapse_client: Optional[Synapse] = None,
     results_as: str = "csv",
     timeout: int = 250,
     **kwargs,
@@ -389,17 +416,15 @@ async def _table_query(
         If `results_as` is "rowset", returns a QueryResultBundle object.
         If `results_as` is "csv", returns a tuple of (QueryJob, csv_path).
     """
-    client = Synapse.get_client(synapse_client=synapse)
-
     if results_as.lower() == "rowset":
         return await _query_table_row_set(
-            query=query, synapse=client, timeout=timeout, **kwargs
+            query=query, synapse_client=synapse_client, timeout=timeout, **kwargs
         )
 
     elif results_as.lower() == "csv":
         result, csv_path = await _query_table_csv(
             query=query,
-            synapse=client,
+            synapse_client=synapse_client,
             quote_character=kwargs.get("quote_character", DEFAULT_QUOTE_CHARACTER),
             escape_character=kwargs.get("escape_character", DEFAULT_ESCAPSE_CHAR),
             line_end=kwargs.get("line_end", str(os.linesep)),
@@ -425,7 +450,7 @@ async def _table_query(
 
 def _rowset_to_pandas_df(
     query_result_bundle: QueryResultBundle,
-    synapse: Synapse,
+    synapse_client: Synapse,
     row_id_and_version_in_index: bool = True,
     **kwargs,
 ) -> "DATA_FRAME_TYPE":
@@ -437,7 +462,7 @@ def _rowset_to_pandas_df(
             table query. This is typically the response from a table query operation
             that includes query results, headers, and pagination information.
             see here: https://rest-docs.synapse.org/rest/org/sagebionetworks/repo/model/table/QueryResultBundle.html
-        synapse: An authenticated Synapse client instance used for making additional
+        synapse_client: An authenticated Synapse client instance used for making additional
             API calls when pagination is required to fetch subsequent pages of results.
         row_id_and_version_in_index: If True, uses ROW_ID, ROW_VERSION (and ROW_ETAG
             if present) as the DataFrame index.
@@ -510,7 +535,9 @@ def _rowset_to_pandas_df(
         # see QueryResult: https://rest-docs.synapse.org/rest/org/sagebionetworks/repo/model/table/QueryResult.html
         # see RowSet: https://rest-docs.synapse.org/rest/org/sagebionetworks/repo/model/table/RowSet.html
         result = _query_table_next_page(
-            next_page_token=next_page_token, table_id=rowset.table_id, synapse=synapse
+            next_page_token=next_page_token,
+            table_id=rowset.table_id,
+            synapse_client=synapse_client,
         )
         rowset = result.query_result.query_results
         next_page_token = result.query_result.next_page_token
@@ -1756,7 +1783,6 @@ def _construct_partial_rows_for_upsert(
         for col in primary_keys[1:]:
             matching_conditions &= chunk_to_check_for_upsert[col] == getattr(row, col)
         matching_row = chunk_to_check_for_upsert.loc[matching_conditions]
-
         # Determines which cells need to be updated
         for column in chunk_to_check_for_upsert.columns:
             if len(matching_row[column].values) > 1:
@@ -1770,10 +1796,54 @@ def _construct_partial_rows_for_upsert(
             column_id = entity.columns[column].id
             column_type = entity.columns[column].column_type
             cell_value = matching_row[column].values[0]
-            if not hasattr(row, column) or cell_value != getattr(row, column):
-                if (isinstance(cell_value, list) and len(cell_value) > 0) or not isna(
-                    cell_value
-                ):
+
+            # Safely compare values, handling pandas NA and arrays
+            row_value = getattr(row, column) if hasattr(row, column) else None
+            values_differ = False
+
+            if not hasattr(row, column):
+                values_differ = True
+            else:
+                # Helper to check if value is NA (handles both scalars and arrays)
+                try:
+                    cell_is_na = isna(cell_value)
+                    # If isna returns an array, check if all elements are NA
+                    if hasattr(cell_is_na, "__iter__"):
+                        # convert np.bool_ to bool
+                        cell_is_na = bool(cell_is_na.all())
+                except (TypeError, ValueError):
+                    cell_is_na = False
+
+                try:
+                    row_is_na = isna(row_value)
+                    # If isna returns an array, check if all elements are NA
+                    if hasattr(row_is_na, "__iter__"):
+                        # convert np.bool_ to bool
+                        row_is_na = bool(row_is_na.all())
+                except (TypeError, ValueError):
+                    row_is_na = False
+
+                if cell_is_na and row_is_na:
+                    # Both are NA, no change needed
+                    values_differ = False
+                elif cell_is_na or row_is_na:
+                    # One is NA, the other is not
+                    values_differ = True
+                else:
+                    # Neither is NA, safe to compare
+                    try:
+                        values_differ = cell_value != row_value
+                        # Handle array comparison result
+                        if hasattr(values_differ, "__iter__"):
+                            # convert np.bool_ to bool
+                            values_differ = bool(values_differ.any())
+                    except (TypeError, ValueError):
+                        # If comparison fails, assume they differ
+                        values_differ = True
+            if values_differ:
+                if (
+                    isinstance(cell_value, list) and len(cell_value) > 0
+                ) or not cell_is_na:
                     partial_change_values[
                         column_id
                     ] = _convert_pandas_row_to_python_types(
@@ -1781,7 +1851,6 @@ def _construct_partial_rows_for_upsert(
                     )
                 else:
                     partial_change_values[column_id] = None
-
         if partial_change_values:
             partial_change = PartialRow(
                 row_id=row.ROW_ID,
@@ -1834,7 +1903,6 @@ async def _push_row_updates_to_synapse(
                 entity_id=entity.id,
                 changes=[change],
             )
-
             result = await request.send_job_and_wait_async(
                 synapse_client=client, timeout=job_timeout
             )
@@ -1981,23 +2049,23 @@ async def _upsert_rows_async(
         )
 
     if isinstance(values, dict):
-        values = DataFrame(values)
+        values = DataFrame(values).convert_dtypes()
     elif isinstance(values, str):
         values = csv_to_pandas_df(filepath=values, **kwargs)
     elif isinstance(values, DataFrame):
-        pass
+        values = values.convert_dtypes()
     else:
         raise ValueError(
             "Don't know how to make tables from values of type %s." % type(values)
         )
 
     client = Synapse.get_client(synapse_client=synapse_client)
-
+    # Replace pd.NA with None so the columns are converted to object columns instead of 'int64' or 'float64' which are not JSON serializable
+    values = convert_dtypes_to_json_serializable(values)
     rows_to_update: List[PartialRow] = []
     chunk_list: List[DataFrame] = []
     for i in range(0, len(values), rows_per_query):
         chunk_list.append(values[i : i + rows_per_query])
-
     all_columns_from_df = [f'"{column}"' for column in values.columns]
     contains_etag = entity.__class__.__name__ in CLASSES_THAT_CONTAIN_ROW_ETAG
     original_synids_and_etags_to_track = {}
@@ -2005,7 +2073,6 @@ async def _upsert_rows_async(
     indexes_of_original_df_with_no_changes = []
     total_row_count_to_update = 0
     row_update_results = None
-
     with logging_redirect_tqdm(loggers=[client.logger]):
         progress_bar = tqdm(
             total=len(values),
@@ -2025,7 +2092,8 @@ async def _upsert_rows_async(
             results = await entity.query_async(
                 query=select_statement, synapse_client=synapse_client
             )
-
+            # Replace pd.NA with None for int64/float64 columns to avoid JSON serialization issues
+            results = convert_dtypes_to_json_serializable(results)
             (
                 rows_to_update,
                 indexes_with_updates,
@@ -2044,7 +2112,6 @@ async def _upsert_rows_async(
             indexes_of_original_df_with_no_changes.extend(indexes_without_updates)
             if syn_id_and_etag_dict:
                 original_synids_and_etags_to_track.update(syn_id_and_etag_dict)
-
             if not dry_run and rows_to_update:
                 row_update_results = await _push_row_updates_to_synapse(
                     entity=entity,
@@ -2740,6 +2807,7 @@ class QueryMixin(QueryMixinSynchronousProtocol):
             header=header,
             download_location=download_location,
             timeout=timeout,
+            synapse_client=synapse_client,
         )
 
         if download_location:
@@ -2747,20 +2815,40 @@ class QueryMixin(QueryMixinSynchronousProtocol):
 
         date_columns = []
         list_columns = []
+        list_column_types = {}
         dtype = {}
 
         if result.headers is not None:
             for column in result.headers:
-                if column.column_type == "STRING":
-                    # we want to identify string columns so that pandas doesn't try to
-                    # automatically parse strings in a string column to other data types
+                if column.column_type in (
+                    "STRING",
+                    "LINK",
+                    "MEDIUMTEXT",
+                    "LARGETEXT",
+                    "ENTITYID",
+                    "SUBMISSIONID",
+                    "EVALUATIONID",
+                    "USERID",
+                    "FILEHANDLEID",
+                ):
+                    # String-based columns (including text types and ID types) should be
+                    # explicitly typed to prevent pandas from automatically converting
+                    # values to other types (e.g., 'syn123' to numeric)
                     dtype[column.name] = str
+                elif column.column_type == "JSON":
+                    # JSON columns are also stored as lists in the CSV and need to be
+                    # parsed with json.loads
+                    list_columns.append(column.name)
+                    list_column_types[column.name] = column.column_type
                 elif column.column_type in LIST_COLUMN_TYPES:
                     list_columns.append(column.name)
+                    list_column_types[column.name] = column.column_type
                 elif column.column_type == "DATE" and convert_to_datetime:
                     date_columns.append(column.name)
+                # Note: DOUBLE, INTEGER, and BOOLEAN types are handled by pandas'
+                # default type inference and do not need explicit dtype specifications
 
-        return csv_to_pandas_df(
+        df = csv_to_pandas_df(
             filepath=csv_path,
             separator=separator or DEFAULT_SEPARATOR,
             quote_char=quote_character or DEFAULT_QUOTE_CHARACTER,
@@ -2768,8 +2856,11 @@ class QueryMixin(QueryMixinSynchronousProtocol):
             row_id_and_version_in_index=False,
             date_columns=date_columns if date_columns else None,
             list_columns=list_columns if list_columns else None,
+            list_column_types=list_column_types if list_column_types else None,
+            dtype=dtype,
             **kwargs,
         )
+        return convert_dtypes_to_json_serializable(df)
 
     @staticmethod
     async def query_part_mask_async(
@@ -2854,13 +2945,14 @@ class QueryMixin(QueryMixinSynchronousProtocol):
             limit=limit,
             offset=offset,
             timeout=timeout,
+            synapse_client=synapse_client,
         )
 
         as_df = await loop.run_in_executor(
             None,
             lambda: _rowset_to_pandas_df(
                 query_result_bundle=results,
-                synapse=client,
+                synapse_client=client,
                 row_id_and_version_in_index=False,
             ),
         )
@@ -3470,14 +3562,16 @@ class TableStoreRowMixin:
 
         original_values = values
         if isinstance(values, dict):
-            values = DataFrame(values)
+            values = DataFrame(values).convert_dtypes()
         elif (
             isinstance(values, str)
             and schema_storage_strategy == SchemaStorageStrategy.INFER_FROM_DATA
         ):
             values = csv_to_pandas_df(filepath=values, **(read_csv_kwargs or {}))
-        elif isinstance(values, DataFrame) or isinstance(values, str):
-            # We don't need to convert a DF, and CSVs will be uploaded as is
+        elif isinstance(values, DataFrame):
+            values = values.convert_dtypes()
+        elif isinstance(values, str):
+            # CSVs will be uploaded as is
             pass
         else:
             raise ValueError(
@@ -4184,9 +4278,16 @@ class TableDeleteRowMixin:
                 existing_rows, on=["ROW_ID", "ROW_VERSION"], how="left", indicator=True
             )
             if not all(merged["_merge"] == "both"):
-                discrepant_idx = merged.loc[merged["_merge"] != "both"].index
-                raise ValueError(
-                    f"Rows with the following ROW_ID and ROW_VERSION pairs were not found in table {self.id}: {', '.join(map(str, discrepant_idx))}."
+                discrepant_rows = (
+                    merged.loc[merged["_merge"] != "both"][["ROW_ID", "ROW_VERSION"]]
+                    .astype(str)
+                    .values
+                )
+                discrepant_tuples = [
+                    f"({', '.join(tuple)})" for tuple in discrepant_rows
+                ]
+                raise LookupError(
+                    f"Rows with the following ROW_ID and ROW_VERSION pairs were not found in table {self.id}: {', '.join(discrepant_tuples)}."
                 )
             client.logger.info(
                 f"Received {len(rows_to_delete)} rows to delete for given dataframe."
@@ -4343,6 +4444,7 @@ def csv_to_pandas_df(
     lines_to_skip: int = 0,
     date_columns: Optional[List[str]] = None,
     list_columns: Optional[List[str]] = None,
+    list_column_types: Optional[Dict[str, str]] = None,
     row_id_and_version_in_index: bool = True,
     dtype: Optional[Dict[str, Any]] = None,
     **kwargs,
@@ -4369,6 +4471,9 @@ def csv_to_pandas_df(
                         it will be used instead of this `lines_to_skip` argument.
         date_columns: The names of the date columns in the file
         list_columns: The names of the list columns in the file
+        list_column_types: A dictionary mapping list column names to their Synapse
+                        column types (e.g., 'INTEGER_LIST', 'USERID_LIST'). Used to
+                        properly convert items within lists to their correct types.
         row_id_and_version_in_index: Whether the file contains rowId and
                                 version in the index, Defaults to `True`.
         dtype: The data type for the file, Defaults to `None`.
@@ -4402,17 +4507,51 @@ def csv_to_pandas_df(
         filepath,
         lineterminator=line_terminator if len(line_terminator) == 1 else None,
         **pandas_args,
-    )
-
+    ).convert_dtypes()
     # parse date columns if exists
     if date_columns:
         df = _convert_df_date_cols_to_datetime(df, date_columns)
-    # Turn list columns into lists
+    # Turn list columns into lists and convert items to their proper types
     if list_columns:
         for col in list_columns:
             # Fill NA values with empty lists, it must be a string for json.loads to work
+            # json.loads will convert null values in boolean list, string list to None.
             df.fillna({col: "[]"}, inplace=True)
             df[col] = df[col].apply(json.loads)
+            # Convert list items to their proper types based on column type
+            if list_column_types and col in list_column_types:
+                column_type = list_column_types[col]
+                if column_type == "INTEGER_LIST":
+                    # Convert items to int, preserving None values. Otherwise int(None) would output TypeError.
+                    df[col] = df[col].apply(
+                        lambda x: (
+                            [int(item) if item is not None else None for item in x]
+                            if isinstance(x, list)
+                            else x
+                        )
+                    )
+                elif column_type in ["USERID_LIST", "ENTITYID_LIST", "STRING_LIST"]:
+                    # USERID items should be strings, converting None values as empty strings
+                    df[col] = df[col].apply(
+                        lambda x: (
+                            [str(item) if item is not None else "" for item in x]
+                            if isinstance(x, list)
+                            else x
+                        )
+                    )
+                elif column_type == "BOOLEAN_LIST":
+                    # Convert items to bool, preserving None values. Otherwise bool(None) would output False
+                    df[col] = df[col].apply(
+                        lambda x: (
+                            [bool(item) if item is not None else None for item in x]
+                            if isinstance(x, list)
+                            else x
+                        )
+                    )
+                elif column_type == "DATE_LIST":
+                    # Date items are already handled by json.loads as they come as numbers
+                    pass
+                # JSON type doesn't need item conversion as it preserves types from json.loads
 
     if (
         row_id_and_version_in_index

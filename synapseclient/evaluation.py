@@ -62,6 +62,8 @@ import json
 import urllib.parse as urllib_urlparse
 from typing import Union
 
+from deprecated import deprecated
+
 from synapseclient.annotations import (
     Annotations,
     from_synapse_annotations,
@@ -71,9 +73,16 @@ from synapseclient.annotations import (
 from synapseclient.core.models.dict_object import DictObject
 
 
+@deprecated(
+    version="4.9.0",
+    reason="To be removed in 5.0.0. "
+    "Use the Evaluation model from synapseclient.models.evaluation instead.",
+)
 class Evaluation(DictObject):
     """
     An Evaluation Submission queue, allowing submissions, retrieval and scoring.
+
+    WARNING - This class is deprecated and will no longer be maintained. Please use the Evaluation model from synapseclient.models.evaluation instead.
 
     Arguments:
         name: Name of the evaluation
@@ -82,7 +91,7 @@ class Evaluation(DictObject):
         submissionReceiptMessage: Message to display to users upon submission
         submissionInstructionsMessage: Message to display to users detailing acceptable formatting for submissions.
 
-    Example: Create and store an Evaluation
+    Example: Create and store an Evaluation (DEPRECATED)
         To create an [Evaluation](https://rest-docs.synapse.org/rest/org/sagebionetworks/evaluation/model/Evaluation.html)
         and store it in Synapse:
 
@@ -96,24 +105,71 @@ class Evaluation(DictObject):
             evaluation = syn.store(Evaluation(
                 name="Q1 Final",
                 description="Predict progression of MMSE scores for final scoring",
-                contentSource="syn2290704"))
+                contentSource="syn12345"))
 
     The *contentSource* field links the evaluation to its [Project][synapseclient.entity.Project]
     (or, really, any synapse ID, but sticking to projects is a good idea).
 
-    [Evaluations](https://rest-docs.synapse.org/rest/org/sagebionetworks/evaluation/model/Evaluation.html)
-    can be retrieved from Synapse by ID:
+    Example: Create and store an Evaluation (NEW METHOD)
+        &nbsp;
+        ```python
+        from synapseclient import Synapse
+        from synapseclient.models import Evaluation
 
-        evaluation = syn.getEvaluation(1901877)
+        # Create client and login
+        syn = Synapse()
+        syn.login()
 
-    ...by the Synapse ID of the content source (associated entity):
+        evaluation = Evaluation(name="My Challenge Evaluation",
+                                description="Description of my challenge evaluation",
+                                content_source="syn12345",
+                                submission_instructions_message="Please submit your entries in the format described here: ...",
+                                submission_receipt_message="Thank you for your submission! Your entry has been received.")
 
-        evaluation = syn.getEvaluationByContentSource('syn12345')
+        evaluation.store()
+        ```
 
-    ...or by the name of the evaluation:
+    Example: Retrieve an Evaluation multiple ways (DEPRECATED)
+        [Evaluations](https://rest-docs.synapse.org/rest/org/sagebionetworks/evaluation/model/Evaluation.html)
+        can be retrieved from Synapse by ID, content source (associated entity), or name:
 
-        evaluation = syn.getEvaluationByName('Foo Challenge Question 1')
+            # Retrieve evaluation by ID
+            evaluation = syn.getEvaluation(9999999)
 
+            # Retrieve evaluation by name
+            evaluation = syn.getEvaluationByName('Foo Challenge Question 1')
+
+            # Retrieve evaluation by content source (associated entity)
+            evaluation = syn.getEvaluationByContentSource('syn12345')
+
+    Example: Retrieve an Evaluation multiple ways (NEW METHOD)
+        &nbsp;
+        ```python
+        from synapseclient import Synapse
+        from synapseclient.models import Evaluation
+
+        # Create client and login
+        syn = Synapse()
+        syn.login()
+
+        # Retrieve evaluation by ID
+        evaluation = Evaluation(id=9999999).get()
+
+        # Retrieve evaluation by name
+        evaluation = Evaluation(name='Foo Challenge Question 1').get()
+
+        # Retrieve all evaluations by content source (associated entity)
+        evaluation = Evaluation.get_evaluations_by_project(id='syn12345')
+
+        # Retrieve all evaluations the active user can submit to
+        evaluations_generator = Evaluation.get_available_evaluations()
+
+        # Retrieve all evaluations the active user has READ/VIEW access to
+        evaluations_generator = Evaluation.get_all_evaluations()
+
+        # Retrieve all evaluations the active user has UPDATE/EDIT access to
+        evaluations_generator = Evaluation.get_all_evaluations(access_type=['UPDATE'])
+        ```
     """
 
     @classmethod
@@ -152,9 +208,16 @@ class Evaluation(DictObject):
         return "/evaluation/acl"
 
 
+@deprecated(
+    version="4.11.0",
+    reason="To be removed in 5.0.0. "
+    "Use the Submission model from synapseclient.models.submission instead.",
+)
 class Submission(DictObject):
     """
     Builds a Synapse submission object.
+
+    WARNING - This class is deprecated and will no longer be maintained. Please use the Submission model from synapseclient.models.submission instead.
 
     Arguments:
         name: Name of submission

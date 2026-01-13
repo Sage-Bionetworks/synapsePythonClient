@@ -28,7 +28,7 @@ from synapseclient.core.exceptions import SynapseHTTPError
 
 # Add Test for UPDATE
 # Add test for existing provenance but the orig doesn't have provenance
-async def test_copy(syn: Synapse, schedule_for_cleanup):
+def test_copy(syn: Synapse, schedule_for_cleanup):
     try:
         execute_test_copy(syn, schedule_for_cleanup)
     except FunctionTimedOut:
@@ -288,8 +288,8 @@ def execute_test_copy(syn: Synapse, schedule_for_cleanup):
 
 
 class TestCopyWiki:
-    @pytest_asyncio.fixture(autouse=True, loop_scope="function", scope="function")
-    async def init(self, syn, schedule_for_cleanup):
+    @pytest.fixture(autouse=True, scope="function")
+    def init(self, syn, schedule_for_cleanup):
         self.syn = syn
         self.schedule_for_cleanup = schedule_for_cleanup
 
@@ -334,7 +334,7 @@ class TestCopyWiki:
         Testing internal links
         ======================
 
-        [test](#!Synapse:%s/wiki/%s)
+        [test](Synapse:%s/wiki/%s)
 
         %s)
         """ % (
@@ -360,11 +360,11 @@ class TestCopyWiki:
 
         self.first_headers = self.syn.getWikiHeaders(self.project_entity)
 
-    async def test_copy_Wiki(self):
+    def test_copy_Wiki(self):
         second_headers = synapseutils.copyWiki(
-            self.syn,
-            self.project_entity.id,
-            self.second_project.id,
+            syn=self.syn,
+            entity=self.project_entity.id,
+            destinationId=self.second_project.id,
             entityMap=self.fileMapping,
         )
 
@@ -406,12 +406,12 @@ class TestCopyWiki:
             # check that attachment file names are the same
             assert orig_file == new_file
 
-    async def test_entitySubPageId_and_destinationSubPageId(self):
+    def test_entitySubPageId_and_destinationSubPageId(self):
         # Test: entitySubPageId
         second_header = synapseutils.copyWiki(
-            self.syn,
-            self.project_entity.id,
-            self.second_project.id,
+            syn=self.syn,
+            entity=self.project_entity.id,
+            destinationId=self.second_project.id,
             entitySubPageId=self.sub_subwiki.id,
             destinationSubPageId=None,
             updateLinks=False,
@@ -450,7 +450,7 @@ class TestCopyWiki:
 
 class TestCopyFileHandles:
     @pytest_asyncio.fixture(autouse=True, loop_scope="function", scope="function")
-    async def init(self, syn, schedule_for_cleanup):
+    def init(self, syn, schedule_for_cleanup):
         self.syn = syn
 
         # create external file handles for https://www.synapse.org/images/logo.svg,
@@ -475,7 +475,7 @@ class TestCopyFileHandles:
         test_entity_1 = self.syn.store(test_entity_1)
         self.obj_id_1 = str(test_entity_1["id"][3:])
 
-    async def test_copy_file_handles(self):
+    def test_copy_file_handles(self):
         # define inputs
         file_handles = [self.file_handle_id_1]
         associate_object_types = ["FileEntity"]

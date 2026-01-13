@@ -1,5 +1,4 @@
 """Integration tests for the CLI."""
-import asyncio
 import filecmp
 import json
 import logging
@@ -8,12 +7,12 @@ import re
 import shutil
 import sys
 import tempfile
+import time
 import uuid
 from io import StringIO
 from unittest.mock import patch
 
 import pytest
-import pytest_asyncio
 
 import synapseclient.__main__ as cmdline
 import synapseclient.core.utils as utils
@@ -32,8 +31,8 @@ from synapseclient import (
 )
 
 
-@pytest_asyncio.fixture(loop_scope="function", scope="function")
-async def test_state(syn: Synapse, project: Project, schedule_for_cleanup):
+@pytest.fixture(scope="function")
+def test_state(syn: Synapse, project: Project, schedule_for_cleanup):
     class State:
         def __init__(self):
             self.syn = syn
@@ -89,7 +88,7 @@ def parse(regex, output):
         raise Exception('ERROR parsing output: "' + str(output) + '"')
 
 
-async def test_command_line_client(test_state):
+def test_command_line_client(test_state):
     print("TESTING CMD LINE CLIENT")
     # Create a Project
     output = run(
@@ -271,7 +270,7 @@ async def test_command_line_client(test_state):
     run(test_state, "synapse" "--skip-checks", "delete", project_id)
 
 
-async def test_command_line_client_annotations(test_state):
+def test_command_line_client_annotations(test_state):
     # Create a Project
     output = run(
         test_state,
@@ -429,7 +428,7 @@ async def test_command_line_client_annotations(test_state):
     assert annotations["foo"] == [456]
 
 
-async def test_command_line_store_and_submit(test_state):
+def test_command_line_store_and_submit(test_state):
     # Create a Project
     output = run(
         test_state,
@@ -582,7 +581,7 @@ async def test_command_line_store_and_submit(test_state):
     run(test_state, "synapse" "--skip-checks", "delete", project_id)
 
 
-async def test_command_get_recursive_and_query(test_state):
+def test_command_get_recursive_and_query(test_state):
     """Tests the 'synapse get -r' and 'synapse get -q' functions"""
 
     project_entity = test_state.project
@@ -619,7 +618,7 @@ async def test_command_get_recursive_and_query(test_state):
 
     # get -r uses syncFromSynapse() which uses getChildren(), which is not immediately consistent,
     # but faster than chunked queries.
-    await asyncio.sleep(2)
+    time.sleep(2)
     # Test recursive get
     run(test_state, "synapse" "--skip-checks", "get", "-r", folder_entity.id)
     # Verify that we downloaded files:
@@ -651,7 +650,7 @@ async def test_command_get_recursive_and_query(test_state):
 
     test_state.syn.store(RowSet(schema=schema1, rows=[Row(r) for r in data1]))
 
-    await asyncio.sleep(3)  # get -q are eventually consistent
+    time.sleep(3)  # get -q are eventually consistent
     # Test Table/View query get
     run(
         test_state,
@@ -672,7 +671,7 @@ async def test_command_get_recursive_and_query(test_state):
     test_state.schedule_for_cleanup(new_paths[0])
 
 
-async def test_command_copy(test_state):
+def test_command_copy(test_state):
     """Tests the 'synapse cp' function"""
 
     # Create a Project
@@ -771,7 +770,7 @@ async def test_command_copy(test_state):
     )
 
 
-async def test_command_line_using_paths(test_state):
+def test_command_line_using_paths(test_state):
     # Create a Project
     project_entity = test_state.syn.store(Project(name=str(uuid.uuid4())))
     test_state.schedule_for_cleanup(project_entity.id)
@@ -876,7 +875,7 @@ async def test_command_line_using_paths(test_state):
     run(test_state, "synapse" "--skip-checks", "show", filename)
 
 
-async def test_table_query(test_state):
+def test_table_query(test_state):
     """Test command line ability to do table query."""
 
     cols = [
@@ -929,7 +928,7 @@ async def test_table_query(test_state):
     )
 
 
-async def test_login(test_state):
+def test_login(test_state):
     alt_syn = Synapse(cache_client=False)
     username = "username"
     auth_token = "my_auth_token"
@@ -954,7 +953,7 @@ async def test_login(test_state):
         mock_get_user_profile.assert_called_once_with()
 
 
-async def test_configPath(test_state):
+def test_configPath(test_state):
     """Test using a user-specified configPath for Synapse configuration file."""
 
     tmp_config_file = tempfile.NamedTemporaryFile(suffix=".synapseConfig", delete=False)
@@ -1002,7 +1001,7 @@ def _create_temp_file_with_cleanup(schedule_for_cleanup, specific_file_text=None
     return filename
 
 
-async def test_create__with_description(test_state):
+def test_create__with_description(test_state):
     output = run(
         test_state,
         "synapse",
@@ -1018,7 +1017,7 @@ async def test_create__with_description(test_state):
     _description_wiki_check(test_state.syn, output, test_state.description_text)
 
 
-async def test_store__with_description(test_state):
+def test_store__with_description(test_state):
     output = run(
         test_state,
         "synapse",
@@ -1034,7 +1033,7 @@ async def test_store__with_description(test_state):
     _description_wiki_check(test_state.syn, output, test_state.description_text)
 
 
-async def test_add__with_description(test_state):
+def test_add__with_description(test_state):
     output = run(
         test_state,
         "synapse",
@@ -1050,7 +1049,7 @@ async def test_add__with_description(test_state):
     _description_wiki_check(test_state.syn, output, test_state.description_text)
 
 
-async def test_create__with_descriptionFile(test_state):
+def test_create__with_descriptionFile(test_state):
     output = run(
         test_state,
         "synapse",
@@ -1066,7 +1065,7 @@ async def test_create__with_descriptionFile(test_state):
     _description_wiki_check(test_state.syn, output, test_state.description_text)
 
 
-async def test_store__with_descriptionFile(test_state):
+def test_store__with_descriptionFile(test_state):
     output = run(
         test_state,
         "synapse",
@@ -1082,7 +1081,7 @@ async def test_store__with_descriptionFile(test_state):
     _description_wiki_check(test_state.syn, output, test_state.description_text)
 
 
-async def test_add__with_descriptionFile(test_state):
+def test_add__with_descriptionFile(test_state):
     output = run(
         test_state,
         "synapse",
@@ -1098,7 +1097,7 @@ async def test_add__with_descriptionFile(test_state):
     _description_wiki_check(test_state.syn, output, test_state.description_text)
 
 
-async def test_create__update_description(test_state):
+def test_create__update_description(test_state):
     name = str(uuid.uuid4())
     output = run(
         test_state,
@@ -1128,7 +1127,7 @@ async def test_create__update_description(test_state):
     _description_wiki_check(test_state.syn, output, test_state.update_description_text)
 
 
-async def test_store__update_description(test_state):
+def test_store__update_description(test_state):
     name = str(uuid.uuid4())
     output = run(
         test_state,
@@ -1158,7 +1157,7 @@ async def test_store__update_description(test_state):
     _description_wiki_check(test_state.syn, output, test_state.update_description_text)
 
 
-async def test_add__update_description(test_state):
+def test_add__update_description(test_state):
     name = str(uuid.uuid4())
     output = run(
         test_state,
@@ -1188,7 +1187,7 @@ async def test_add__update_description(test_state):
     _description_wiki_check(test_state.syn, output, test_state.update_description_text)
 
 
-async def test_create__same_project_name(test_state):
+def test_create__same_project_name(test_state):
     """Test creating project that already exists returns the existing project."""
 
     name = str(uuid.uuid4())
@@ -1206,7 +1205,7 @@ async def test_create__same_project_name(test_state):
 
 
 @patch.object(utils.sys.stdin, "isatty")
-async def test_storeTable_csv(mock_sys, test_state):
+def test_storeTable_csv(mock_sys, test_state):
     # when running on windows os with multiple CPU, the sys.stdin.isatty will return True
     # Thus we mock the utils.sys.stdin.
     mock_sys.return_value = False
@@ -1228,3 +1227,44 @@ async def test_storeTable_csv(mock_sys, test_state):
 
     mapping = json.loads(match.group(1))
     test_state.schedule_for_cleanup(mapping["tableId"])
+
+
+class TestGenerateJSONSchemaFunction:
+    @pytest.fixture(scope="function", autouse=True)
+    @patch("synapseclient.client.Synapse")
+    def setup(self, mock_syn):
+        self.syn = mock_syn
+        self.csv_url = "https://raw.githubusercontent.com/Sage-Bionetworks/synapsePythonClient/refs/heads/develop/tests/unit/synapseclient/extensions/schema_files/data_models/example.model.csv"
+        self.json_url = "https://raw.githubusercontent.com/Sage-Bionetworks/synapsePythonClient/refs/heads/develop/tests/unit/synapseclient/extensions/schema_files/data_models_jsonld/example.model.jsonld"
+
+    def test_csv_url(self):
+        # GIVEN a CSV schema URL
+        parser = cmdline.build_parser()
+        args = parser.parse_args(
+            ["generate-json-schema", self.csv_url, "--data-types", "Patient"]
+        )
+        schema_path = "./Patient.json"
+        try:
+            # WHEN I generate a schema with one datatype and no output path
+            cmdline.generate_json_schema(args, self.syn)
+            # THEN a schema file should be created at ./Patient.json
+            assert os.path.isfile(schema_path)
+        finally:
+            if os.path.isfile(schema_path):
+                os.remove(schema_path)
+
+    def test_jsonld_url(self):
+        # GIVEN a CSV schema URL
+        parser = cmdline.build_parser()
+        args = parser.parse_args(
+            ["generate-json-schema", self.json_url, "--data-types", "Patient"]
+        )
+        schema_path = "./Patient.json"
+        try:
+            # WHEN I generate a schema with one datatype and no output path
+            cmdline.generate_json_schema(args, self.syn)
+            # THEN a schema file should be created at ./Patient.json
+            assert os.path.isfile(schema_path)
+        finally:
+            if os.path.isfile(schema_path):
+                os.remove(schema_path)

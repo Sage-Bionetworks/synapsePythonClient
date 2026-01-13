@@ -1,4 +1,4 @@
-Python Synapse Client
+Synapse Python Client
 =====================
 
 Branch  | Build Status
@@ -36,9 +36,9 @@ or by sending an email to [python-announce+subscribe@sagebase.org](mailto:python
 Installation
 ------------
 
-The Python Synapse client has been tested on versions 3.9, 3.10, 3.11, 3.12 and 3.13 on Mac OS X, Ubuntu Linux and Windows.
+The Python Synapse client has been tested on versions 3.10, 3.11, 3.12, 3.13 and 3.14 on Mac OS X, Ubuntu Linux and Windows.
 
-**Starting from Synapse Python client version 3.0, Synapse Python client requires Python >= 3.9**
+**Starting from Synapse Python client version 3.0, Synapse Python client requires Python >= 3.10**
 
 ### Install using pip
 
@@ -280,7 +280,8 @@ OpenTelemetry (OTEL)
 
 Read more about OpenTelemetry in Python [here](https://opentelemetry.io/docs/instrumentation/python/)
 
-### Quick-start
+
+### Exporting Synapse Client Traces to Jaeger for developers
 The following shows an example of setting up [jaegertracing](https://www.jaegertracing.io/docs/1.50/deployment/#all-in-one) via docker and executing a simple python script that implements the Synapse Python client.
 
 #### Running the jaeger docker container
@@ -317,6 +318,54 @@ to create new spans for your code.
 
 ```python
 import synapseclient
+
+# Enable OpenTelemetry with default settings
+synapseclient.Synapse.enable_open_telemetry()
+tracer = synapseclient.Synapse.get_tracer()
+
+# Then create and use the Synapse client as usual
+with tracer.start_as_current_span("my_function_span"):
+    syn = synapseclient.Synapse()
+    syn.login(authToken='auth_token')
+```
+
+### Exporting Synapse Client Traces to SigNoz Cloud for developers
+
+#### Prerequisites
+1. Create an account and obtain access to Signoz Cloud.
+2. Create an ingestion key by following the step [here](https://signoz.io/docs/ingestion/signoz-cloud/keys/).
+
+#### Environment Variable Configuration
+The following environment variables are required to be set:
+- `OTEL_EXPORTER_OTLP_HEADERS`: `signoz-ingestion-key=<key>`
+- `OTEL_EXPORTER_OTLP_ENDPOINT`: `https://ingest.us.signoz.cloud`
+- `OTEL_SERVICE_NAME`: `your-service-name`
+
+Explanation of both required and optional environment variables:
+##### Required
+* `OTEL_EXPORTER_OTLP_ENDPOINT`: The OTLP endpoint to which telemetry is exported.
+* `OTEL_EXPORTER_OTLP_HEADERS`: Authentication/metadata for exports (e.g., API keys, tokens). For SigNoz, use `signoz-ingestion-key=<key>`.
+
+##### Optional
+* `OTEL_SERVICE_NAME`: Unique identifier for your app/service in telemetry data (defaults to synapseclient). Use a descriptive name so you can easily filter and analyze traces per service.
+* `OTEL_DEBUG_CONSOLE`: Controls local visibility of telemetry data. Set to 'true' to output trace information to the console, which is useful for development and troubleshooting without an external collector.
+* `OTEL_SERVICE_INSTANCE_ID`: Distinguishes between multiple instances of the same service (e.g., 'prod', 'development', 'local'). This helps identify which specific deployment or environment generated particular traces.
+
+#### Enabling OpenTelemetry in your code
+To enable OpenTelemetry with the Synapse Python client, simply call the
+`enable_open_telemetry()` method on the Synapse class. Additionally you can access an
+instance of the OpenTelemetry tracer via the `get_tracer()` call. This will allow you
+to create new spans for your code.
+
+```python
+import synapseclient
+from dotenv import load_dotenv
+
+# Set environment variables
+os.environ["OTEL_EXPORTER_OTLP_ENDPOINT"] = "https://ingest.us.signoz.cloud"
+os.environ["OTEL_EXPORTER_OTLP_HEADERS"] = "signoz-ingestion-key=<your key>"
+os.environ["OTEL_SERVICE_NAME"] = "your-service-name"
+os.environ["OTEL_SERVICE_INSTANCE_ID"] = "local"
 
 # Enable OpenTelemetry with default settings
 synapseclient.Synapse.enable_open_telemetry()

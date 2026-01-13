@@ -5,11 +5,9 @@ import os
 import tempfile
 import uuid
 from typing import Callable
-from unittest import skip
 
 import pandas as pd
 import pytest
-import pytest_asyncio
 
 import synapseclient.core.utils as utils
 import synapseutils
@@ -21,6 +19,9 @@ from synapseclient import Project as SynapseProject
 from synapseclient import Schema, Synapse
 from synapseclient.core.exceptions import SynapseHTTPError
 from synapseclient.models import File, Folder, Project
+
+# from unittest import skip
+
 
 BOGUS_ACTIVITY = "bogus_activity"
 BOGUS_DESCRIPTION = "bogus_description"
@@ -78,8 +79,8 @@ ETAG = "etag"
 MODIFIED_ON = "modifiedOn"
 
 
-@pytest_asyncio.fixture(loop_scope="function", scope="function", autouse=True)
-async def test_state(syn: Synapse, schedule_for_cleanup: Callable[..., None]):
+@pytest.fixture(scope="function", autouse=True)
+def test_state(syn: Synapse, schedule_for_cleanup: Callable[..., None]):
     class TestState:
         def __init__(self):
             self.syn = syn
@@ -132,8 +133,8 @@ def _makeManifest(content, schedule_for_cleanup: Callable[..., None]):
     return filepath
 
 
-@skip("Skip integration tests for soon to be removed code")
-async def test_readManifest(test_state):
+# @skip("Skip integration tests for soon to be removed code")
+def test_readManifest(test_state):
     """Creates multiple manifests and verifies that they validate correctly"""
     # Test manifest with missing columns
     manifest = _makeManifest(
@@ -175,17 +176,17 @@ async def test_readManifest(test_state):
 class TestSyncToSynapse:
     """Testing the .syncToSynapse() function"""
 
-    @skip("Skip integration tests for soon to be removed code")
-    async def test_sync_to_synapse_file_only(
+    # @skip("Skip integration tests for soon to be removed code")
+    def test_sync_to_synapse_file_only(
         self,
         syn: Synapse,
         schedule_for_cleanup: Callable[..., None],
         project_model: Project,
     ) -> None:
         # GIVEN a folder to sync to
-        folder = await Folder(
-            name=str(uuid.uuid4()), parent_id=project_model.id
-        ).store_async()
+        folder = Folder(name=str(uuid.uuid4()), parent_id=project_model.id).store(
+            synapse_client=syn
+        )
         schedule_for_cleanup(folder.id)
 
         # AND 2 temporary files on disk:
@@ -211,24 +212,24 @@ class TestSyncToSynapse:
         synapseutils.syncToSynapse(syn, file_name, sendMessages=SEND_MESSAGE, retries=2)
 
         # THEN I expect that the folder has all of the files
-        await folder.sync_from_synapse_async(download_file=False)
+        folder.sync_from_synapse(download_file=False, synapse_client=syn)
         assert len(folder.files) == 2
 
         # AND each of the files are the ones we uploaded
         for file in folder.files:
             assert file.path in temp_files
 
-    @skip("Skip integration tests for soon to be removed code")
-    async def test_sync_to_synapse_files_with_annotations(
+    # @skip("Skip integration tests for soon to be removed code")
+    def test_sync_to_synapse_files_with_annotations(
         self,
         syn: Synapse,
         schedule_for_cleanup: Callable[..., None],
         project_model: Project,
     ) -> None:
         # GIVEN a folder to sync to
-        folder = await Folder(
-            name=str(uuid.uuid4()), parent_id=project_model.id
-        ).store_async()
+        folder = Folder(name=str(uuid.uuid4()), parent_id=project_model.id).store(
+            synapse_client=syn
+        )
         schedule_for_cleanup(folder.id)
 
         # AND 2 temporary files on disk:
@@ -273,7 +274,7 @@ class TestSyncToSynapse:
         synapseutils.syncToSynapse(syn, file_name, sendMessages=SEND_MESSAGE, retries=2)
 
         # THEN I expect that the folder has all of the files
-        await folder.sync_from_synapse_async(download_file=False)
+        folder.sync_from_synapse(download_file=False, synapse_client=syn)
         assert len(folder.files) == 2
 
         # AND each of the files are the ones we uploaded
@@ -319,17 +320,17 @@ class TestSyncToSynapse:
                 assert file.annotations["foo"] == ["baz"]
                 assert len(file.annotations) == 1
 
-    @skip("Skip integration tests for soon to be removed code")
-    async def test_sync_to_synapse_with_activities(
+    # @skip("Skip integration tests for soon to be removed code")
+    def test_sync_to_synapse_with_activities(
         self,
         syn: Synapse,
         schedule_for_cleanup: Callable[..., None],
         project_model: Project,
     ) -> None:
         # GIVEN a folder to sync to
-        folder = await Folder(
-            name=str(uuid.uuid4()), parent_id=project_model.id
-        ).store_async()
+        folder = Folder(name=str(uuid.uuid4()), parent_id=project_model.id).store(
+            synapse_client=syn
+        )
         schedule_for_cleanup(folder.id)
 
         # AND 2 temporary files on disk:
@@ -355,7 +356,7 @@ class TestSyncToSynapse:
         synapseutils.syncToSynapse(syn, file_name, sendMessages=SEND_MESSAGE, retries=2)
 
         # THEN I expect that the folder has all of the files
-        await folder.sync_from_synapse_async(download_file=False)
+        folder.sync_from_synapse(download_file=False, synapse_client=syn)
         assert len(folder.files) == 2
 
         # AND each of the files are the ones we uploaded
@@ -368,8 +369,8 @@ class TestSyncToSynapse:
             assert file.activity.name == BOGUS_ACTIVITY
             assert file.activity.description == BOGUS_DESCRIPTION
 
-    @skip("Skip integration tests for soon to be removed code")
-    async def test_sync_to_synapse_activities_pointing_to_files(
+    # @skip("Skip integration tests for soon to be removed code")
+    def test_sync_to_synapse_activities_pointing_to_files(
         self,
         syn: Synapse,
         schedule_for_cleanup: Callable[..., None],
@@ -383,9 +384,9 @@ class TestSyncToSynapse:
         file1 <- file2 <- file3
         """
         # GIVEN a folder to sync to
-        folder = await Folder(
-            name=str(uuid.uuid4()), parent_id=project_model.id
-        ).store_async()
+        folder = Folder(name=str(uuid.uuid4()), parent_id=project_model.id).store(
+            synapse_client=syn
+        )
         schedule_for_cleanup(folder.id)
 
         # AND 3 temporary files on disk:
@@ -416,7 +417,7 @@ class TestSyncToSynapse:
         synapseutils.syncToSynapse(syn, file_name, sendMessages=SEND_MESSAGE, retries=2)
 
         # THEN I expect that the folder has all of the files
-        await folder.sync_from_synapse_async(download_file=False)
+        folder.sync_from_synapse(download_file=False, synapse_client=syn)
         assert len(folder.files) == 3
 
         # AND each of the files are the ones we uploaded
@@ -435,17 +436,17 @@ class TestSyncToSynapse:
                 assert len(file.activity.executed) == 1
                 assert file.activity.executed[0].target_id in file_ids
 
-    @skip("Skip integration tests for soon to be removed code")
-    async def test_sync_to_synapse_activities_added_then_removed_from_manifest(
+    # @skip("Skip integration tests for soon to be removed code")
+    def test_sync_to_synapse_activities_added_then_removed_from_manifest(
         self,
         syn: Synapse,
         schedule_for_cleanup: Callable[..., None],
         project_model: Project,
     ) -> None:
         # GIVEN a folder to sync to
-        folder = await Folder(
-            name=str(uuid.uuid4()), parent_id=project_model.id
-        ).store_async()
+        folder = Folder(name=str(uuid.uuid4()), parent_id=project_model.id).store(
+            synapse_client=syn
+        )
         schedule_for_cleanup(folder.id)
 
         # AND temporary file on disk:
@@ -470,7 +471,7 @@ class TestSyncToSynapse:
         synapseutils.syncToSynapse(syn, file_name, sendMessages=SEND_MESSAGE, retries=2)
 
         # THEN I expect that the folder has all of the files
-        await folder.sync_from_synapse_async(download_file=False)
+        folder.sync_from_synapse(download_file=False, synapse_client=syn)
         assert len(folder.files) == 1
 
         # AND the file is the one we uploaded
@@ -499,7 +500,7 @@ class TestSyncToSynapse:
         synapseutils.syncToSynapse(syn, file_name, sendMessages=SEND_MESSAGE, retries=2)
 
         # THEN I expect that the folder has all of the files
-        await folder.sync_from_synapse_async(download_file=False)
+        folder.sync_from_synapse(download_file=False, synapse_client=syn)
         assert len(folder.files) == 1
 
         # AND the file is the one we uploaded
@@ -512,17 +513,17 @@ class TestSyncToSynapse:
         assert len(folder.files[0].activity.used) == 1
         assert folder.files[0].activity.used[0].url == SYNAPSE_URL
 
-    @skip("Skip integration tests for soon to be removed code")
-    async def test_sync_to_synapse_activities_added_then_removed_from_manifest_but_copied_to_new_version(
+    # @skip("Skip integration tests for soon to be removed code")
+    def test_sync_to_synapse_activities_added_then_removed_from_manifest_but_copied_to_new_version(
         self,
         syn: Synapse,
         schedule_for_cleanup: Callable[..., None],
         project_model: Project,
     ) -> None:
         # GIVEN a folder to sync to
-        folder = await Folder(
-            name=str(uuid.uuid4()), parent_id=project_model.id
-        ).store_async()
+        folder = Folder(name=str(uuid.uuid4()), parent_id=project_model.id).store(
+            synapse_client=syn
+        )
         schedule_for_cleanup(folder.id)
 
         # AND temporary file on disk:
@@ -547,7 +548,7 @@ class TestSyncToSynapse:
         synapseutils.syncToSynapse(syn, file_name, sendMessages=SEND_MESSAGE, retries=2)
 
         # THEN I expect that the folder has all of the files
-        await folder.sync_from_synapse_async(download_file=False)
+        folder.sync_from_synapse(download_file=False, synapse_client=syn)
         assert len(folder.files) == 1
 
         # AND the file is the one we uploaded
@@ -586,7 +587,7 @@ class TestSyncToSynapse:
         )
 
         # THEN I expect that the folder has all of the files
-        await folder.sync_from_synapse_async(download_file=False)
+        folder.sync_from_synapse(download_file=False, synapse_client=syn)
         assert len(folder.files) == 1
 
         # AND the file is the one we uploaded
@@ -599,17 +600,17 @@ class TestSyncToSynapse:
         assert len(folder.files[0].activity.used) == 1
         assert folder.files[0].activity.used[0].url == SYNAPSE_URL
 
-    @skip("Skip integration tests for soon to be removed code")
-    async def test_sync_to_synapse_field_not_available_in_manifest_persisted(
+    # @skip("Skip integration tests for soon to be removed code")
+    def test_sync_to_synapse_field_not_available_in_manifest_persisted(
         self,
         syn: Synapse,
         schedule_for_cleanup: Callable[..., None],
         project_model: Project,
     ) -> None:
         # GIVEN a folder to sync to
-        folder = await Folder(
-            name=str(uuid.uuid4()), parent_id=project_model.id
-        ).store_async()
+        folder = Folder(name=str(uuid.uuid4()), parent_id=project_model.id).store(
+            synapse_client=syn
+        )
         schedule_for_cleanup(folder.id)
 
         # AND temporary file on disk:
@@ -634,7 +635,7 @@ class TestSyncToSynapse:
         synapseutils.syncToSynapse(syn, file_name, sendMessages=SEND_MESSAGE, retries=2)
 
         # THEN I expect that the folder has all of the files
-        await folder.sync_from_synapse_async(download_file=False)
+        folder.sync_from_synapse(download_file=False, synapse_client=syn)
         assert len(folder.files) == 1
 
         # AND the file is the one we uploaded
@@ -647,7 +648,7 @@ class TestSyncToSynapse:
 
         # WHEN I update a metadata field on the File not available in the manifest
         folder.files[0].description = "new file description"
-        await folder.files[0].store_async(synapse_client=syn)
+        folder.files[0].store(synapse_client=syn)
         assert folder.files[0].version_number == 2
 
         # WHEN I update the manifest file to remove the activities
@@ -668,7 +669,7 @@ class TestSyncToSynapse:
         synapseutils.syncToSynapse(syn, file_name, sendMessages=SEND_MESSAGE, retries=2)
 
         # THEN I expect that the folder has all of the files
-        await folder.sync_from_synapse_async(download_file=False)
+        folder.sync_from_synapse(download_file=False, synapse_client=syn)
         assert len(folder.files) == 1
 
         # AND the file is the one we uploaded
@@ -679,17 +680,17 @@ class TestSyncToSynapse:
         # AND The metadata field updated is still present
         assert folder.files[0].description == "new file description"
 
-    @skip("Skip integration tests for soon to be removed code")
-    async def test_sync_to_synapse_activities_added_then_removed_with_version_updates(
+    # @skip("Skip integration tests for soon to be removed code")
+    def test_sync_to_synapse_activities_added_then_removed_with_version_updates(
         self,
         syn: Synapse,
         schedule_for_cleanup: Callable[..., None],
         project_model: Project,
     ) -> None:
         # GIVEN a folder to sync to
-        folder = await Folder(
-            name=str(uuid.uuid4()), parent_id=project_model.id
-        ).store_async()
+        folder = Folder(name=str(uuid.uuid4()), parent_id=project_model.id).store(
+            synapse_client=syn
+        )
         schedule_for_cleanup(folder.id)
 
         # AND temporary file on disk:
@@ -714,7 +715,7 @@ class TestSyncToSynapse:
         synapseutils.syncToSynapse(syn, file_name, sendMessages=SEND_MESSAGE, retries=2)
 
         # THEN I expect that the folder has all of the files
-        await folder.sync_from_synapse_async(download_file=False)
+        folder.sync_from_synapse(download_file=False, synapse_client=syn)
         assert len(folder.files) == 1
 
         # AND the file is the one we uploaded
@@ -744,7 +745,7 @@ class TestSyncToSynapse:
         synapseutils.syncToSynapse(syn, file_name, sendMessages=SEND_MESSAGE, retries=2)
 
         # THEN I expect that the folder has all of the files
-        await folder.sync_from_synapse_async(download_file=False)
+        folder.sync_from_synapse(download_file=False, synapse_client=syn)
         assert len(folder.files) == 1
 
         # AND the file is the one we uploaded
@@ -754,9 +755,9 @@ class TestSyncToSynapse:
         assert folder.files[0].activity is None
 
         # AND the first version of the file still has the activity
-        first_file_version = await File(
-            id=folder.files[0].id, version_number=1
-        ).get_async(include_activity=True, synapse_client=syn)
+        first_file_version = File(id=folder.files[0].id, version_number=1).get(
+            include_activity=True, synapse_client=syn
+        )
         assert first_file_version is not None
         assert first_file_version.activity is not None
         assert first_file_version.activity.name == BOGUS_ACTIVITY
@@ -764,8 +765,8 @@ class TestSyncToSynapse:
         assert len(first_file_version.activity.used) == 1
         assert first_file_version.activity.used[0].url == SYNAPSE_URL
 
-    @skip("Skip integration tests for soon to be removed code")
-    async def test_sync_to_synapse_annotations_added_then_removed(
+    # @skip("Skip integration tests for soon to be removed code")
+    def test_sync_to_synapse_annotations_added_then_removed(
         self,
         syn: Synapse,
         schedule_for_cleanup: Callable[..., None],
@@ -778,9 +779,9 @@ class TestSyncToSynapse:
         be persisted on the files.
         """
         # GIVEN a folder to sync to
-        folder = await Folder(
-            name=str(uuid.uuid4()), parent_id=project_model.id
-        ).store_async()
+        folder = Folder(name=str(uuid.uuid4()), parent_id=project_model.id).store(
+            synapse_client=syn
+        )
         schedule_for_cleanup(folder.id)
 
         # AND 3 temporary files on disk:
@@ -808,7 +809,7 @@ class TestSyncToSynapse:
         synapseutils.syncToSynapse(syn, file_name, sendMessages=SEND_MESSAGE, retries=2)
 
         # THEN I expect that the folder has all of the files
-        await folder.sync_from_synapse_async(download_file=False)
+        folder.sync_from_synapse(download_file=False, synapse_client=syn)
         assert len(folder.files) == 3
 
         # AND each of the files are the ones we uploaded
@@ -836,7 +837,7 @@ class TestSyncToSynapse:
         synapseutils.syncToSynapse(syn, file_name, sendMessages=SEND_MESSAGE, retries=2)
 
         # THEN I expect that the folder has all of the files
-        await folder.sync_from_synapse_async(download_file=False)
+        folder.sync_from_synapse(download_file=False, synapse_client=syn)
         assert len(folder.files) == 3
 
         # AND each of the files are the ones we uploaded
@@ -848,8 +849,8 @@ class TestSyncToSynapse:
             assert len(file.annotations.keys()) == 1
             assert list(file.annotations.values())[0][0] in annotations
 
-    @skip("Skip integration tests for soon to be removed code")
-    async def test_sync_to_synapse_annotations_added_then_removed_with_no_annotation_merge(
+    # @skip("Skip integration tests for soon to be removed code")
+    def test_sync_to_synapse_annotations_added_then_removed_with_no_annotation_merge(
         self,
         syn: Synapse,
         schedule_for_cleanup: Callable[..., None],
@@ -862,9 +863,9 @@ class TestSyncToSynapse:
         be removed from the files.
         """
         # GIVEN a folder to sync to
-        folder = await Folder(
-            name=str(uuid.uuid4()), parent_id=project_model.id
-        ).store_async()
+        folder = Folder(name=str(uuid.uuid4()), parent_id=project_model.id).store(
+            synapse_client=syn
+        )
         schedule_for_cleanup(folder.id)
 
         # AND 3 temporary files on disk:
@@ -897,7 +898,7 @@ class TestSyncToSynapse:
         )
 
         # THEN I expect that the folder has all of the files
-        await folder.sync_from_synapse_async(download_file=False)
+        folder.sync_from_synapse(download_file=False, synapse_client=syn)
         assert len(folder.files) == 3
 
         # AND each of the files are the ones we uploaded
@@ -931,7 +932,7 @@ class TestSyncToSynapse:
         )
 
         # THEN I expect that the folder has all of the files
-        await folder.sync_from_synapse_async(download_file=False)
+        folder.sync_from_synapse(download_file=False, synapse_client=syn)
         assert len(folder.files) == 3
 
         # AND each of the files are the ones we uploaded
@@ -942,8 +943,8 @@ class TestSyncToSynapse:
             # AND none of the files have annotations
             assert len(file.annotations.keys()) == 0
 
-    @skip("Skip integration tests for soon to be removed code")
-    async def test_sync_to_synapse_activities_pointing_to_files_and_urls(
+    # @skip("Skip integration tests for soon to be removed code")
+    def test_sync_to_synapse_activities_pointing_to_files_and_urls(
         self,
         syn: Synapse,
         schedule_for_cleanup: Callable[..., None],
@@ -957,9 +958,9 @@ class TestSyncToSynapse:
         file1 <- file2 <- file3 <- file4 <- file5
         """
         # GIVEN a folder to sync to
-        folder = await Folder(
-            name=str(uuid.uuid4()), parent_id=project_model.id
-        ).store_async()
+        folder = Folder(name=str(uuid.uuid4()), parent_id=project_model.id).store(
+            synapse_client=syn
+        )
         schedule_for_cleanup(folder.id)
 
         # AND 3 temporary files on disk:
@@ -997,7 +998,7 @@ class TestSyncToSynapse:
         synapseutils.syncToSynapse(syn, file_name, sendMessages=SEND_MESSAGE, retries=2)
 
         # THEN I expect that the folder has all of the files
-        await folder.sync_from_synapse_async(download_file=False)
+        folder.sync_from_synapse(download_file=False, synapse_client=syn)
         assert len(folder.files) == 3
 
         # AND each of the files are the ones we uploaded
@@ -1021,8 +1022,8 @@ class TestSyncToSynapse:
                 assert file.activity.executed[0].url == SUB_SYNAPSE_URL
                 assert file.activity.executed[1].target_id in file_ids
 
-    @skip("Skip integration tests for soon to be removed code")
-    async def test_sync_to_synapse_all_activities_pointing_to_single_file(
+    # @skip("Skip integration tests for soon to be removed code")
+    def test_sync_to_synapse_all_activities_pointing_to_single_file(
         self,
         syn: Synapse,
         schedule_for_cleanup: Callable[..., None],
@@ -1034,9 +1035,9 @@ class TestSyncToSynapse:
         file1 <- file3
         """
         # GIVEN a folder to sync to
-        folder = await Folder(
-            name=str(uuid.uuid4()), parent_id=project_model.id
-        ).store_async()
+        folder = Folder(name=str(uuid.uuid4()), parent_id=project_model.id).store(
+            synapse_client=syn
+        )
         schedule_for_cleanup(folder.id)
 
         # AND 3 temporary files on disk:
@@ -1067,7 +1068,7 @@ class TestSyncToSynapse:
         synapseutils.syncToSynapse(syn, file_name, sendMessages=SEND_MESSAGE, retries=2)
 
         # THEN I expect that the folder has all of the files
-        await folder.sync_from_synapse_async(download_file=False)
+        folder.sync_from_synapse(download_file=False, synapse_client=syn)
         assert len(folder.files) == 3
 
         # AND the root file of the saving process is present
@@ -1092,8 +1093,8 @@ class TestSyncToSynapse:
                 assert len(file.activity.executed) == 1
                 assert file.activity.executed[0].target_id in file_ids
 
-    @skip("Skip integration tests for soon to be removed code")
-    async def test_sync_to_synapse_single_file_pointing_to_all_other_files(
+    # @skip("Skip integration tests for soon to be removed code")
+    def test_sync_to_synapse_single_file_pointing_to_all_other_files(
         self,
         syn: Synapse,
         schedule_for_cleanup: Callable[..., None],
@@ -1105,9 +1106,9 @@ class TestSyncToSynapse:
         file1 -> file3
         """
         # GIVEN a folder to sync to
-        folder = await Folder(
-            name=str(uuid.uuid4()), parent_id=project_model.id
-        ).store_async()
+        folder = Folder(name=str(uuid.uuid4()), parent_id=project_model.id).store(
+            synapse_client=syn
+        )
         schedule_for_cleanup(folder.id)
 
         # AND 3 temporary files on disk:
@@ -1136,7 +1137,7 @@ class TestSyncToSynapse:
         synapseutils.syncToSynapse(syn, file_name, sendMessages=SEND_MESSAGE, retries=2)
 
         # THEN I expect that the folder has all of the files
-        await folder.sync_from_synapse_async(download_file=False)
+        folder.sync_from_synapse(download_file=False, synapse_client=syn)
         assert len(folder.files) == 3
 
         # AND the root file of the saving process is present
@@ -1164,8 +1165,8 @@ class TestSyncToSynapse:
                 assert file.activity is None
 
 
-@skip("Skip integration tests for soon to be removed code")
-async def test_write_manifest_data_unicode_characters_in_rows(test_state):
+# @skip("Skip integration tests for soon to be removed code")
+def test_write_manifest_data_unicode_characters_in_rows(test_state):
     # SYNPY-693
 
     named_temp_file = tempfile.NamedTemporaryFile("w")
@@ -1189,8 +1190,8 @@ async def test_write_manifest_data_unicode_characters_in_rows(test_state):
 class TestSyncFromSynapse:
     """Testing the .syncFromSynapse() method"""
 
-    @skip("Skip integration tests for soon to be removed code")
-    async def test_folder_sync_from_synapse_files_only(
+    # @skip("Skip integration tests for soon to be removed code")
+    def test_folder_sync_from_synapse_files_only(
         self,
         syn: Synapse,
         schedule_for_cleanup: Callable[..., None],
@@ -1205,9 +1206,9 @@ class TestSyncFromSynapse:
             ├── file2 (uploaded)
         """
         # GIVEN a folder to sync from
-        folder = await Folder(
-            name=str(uuid.uuid4()), parent_id=project_model.id
-        ).store_async()
+        folder = Folder(name=str(uuid.uuid4()), parent_id=project_model.id).store(
+            synapse_client=syn
+        )
         schedule_for_cleanup(folder.id)
 
         # AND 2 temporary files on disk:
@@ -1269,8 +1270,8 @@ class TestSyncFromSynapse:
             assert pd.isna(matching_row[ACTIVITY_NAME_COLUMN].values[0])
             assert pd.isna(matching_row[ACTIVITY_DESCRIPTION_COLUMN].values[0])
 
-    @skip("Skip integration tests for soon to be removed code")
-    async def test_folder_sync_from_synapse_files_with_annotations(
+    # @skip("Skip integration tests for soon to be removed code")
+    def test_folder_sync_from_synapse_files_with_annotations(
         self,
         syn: Synapse,
         schedule_for_cleanup: Callable[..., None],
@@ -1285,9 +1286,9 @@ class TestSyncFromSynapse:
             ├── file2 (uploaded)
         """
         # GIVEN a folder to sync from
-        folder = await Folder(
-            name=str(uuid.uuid4()), parent_id=project_model.id
-        ).store_async()
+        folder = Folder(name=str(uuid.uuid4()), parent_id=project_model.id).store(
+            synapse_client=syn
+        )
         schedule_for_cleanup(folder.id)
 
         # AND 2 temporary files on disk:
@@ -1380,8 +1381,8 @@ class TestSyncFromSynapse:
             )
             assert matching_row[BOOL_ANNO].values[0] == BOOL_ANNO_VALUE_IN_MANIFEST
 
-    @skip("Skip integration tests for soon to be removed code")
-    async def test_folder_sync_from_synapse_files_with_activity(
+    # @skip("Skip integration tests for soon to be removed code")
+    def test_folder_sync_from_synapse_files_with_activity(
         self,
         syn: Synapse,
         schedule_for_cleanup: Callable[..., None],
@@ -1396,9 +1397,9 @@ class TestSyncFromSynapse:
             ├── file2 (uploaded)
         """
         # GIVEN a folder to sync from
-        folder = await Folder(
-            name=str(uuid.uuid4()), parent_id=project_model.id
-        ).store_async()
+        folder = Folder(name=str(uuid.uuid4()), parent_id=project_model.id).store(
+            synapse_client=syn
+        )
         schedule_for_cleanup(folder.id)
 
         # AND 2 temporary files on disk:
@@ -1488,8 +1489,8 @@ class TestSyncFromSynapse:
                 == ACTIVITY_DESCRIPTION
             )
 
-    @skip("Skip integration tests for soon to be removed code")
-    async def test_folder_sync_from_synapse_mix_of_entities(
+    # @skip("Skip integration tests for soon to be removed code")
+    def test_folder_sync_from_synapse_mix_of_entities(
         self,
         syn: Synapse,
         schedule_for_cleanup: Callable[..., None],
@@ -1504,9 +1505,9 @@ class TestSyncFromSynapse:
             └── table_test_syncFromSynapse (uploaded, not synced)
         """
         # GIVEN a folder to sync from
-        folder = await Folder(
-            name=str(uuid.uuid4()), parent_id=project_model.id
-        ).store_async()
+        folder = Folder(name=str(uuid.uuid4()), parent_id=project_model.id).store(
+            synapse_client=syn
+        )
         schedule_for_cleanup(folder.id)
 
         # AND 1 temporary file on disk:
@@ -1572,7 +1573,7 @@ class TestSyncFromSynapse:
             assert pd.isna(matching_row[ACTIVITY_NAME_COLUMN].values[0])
             assert pd.isna(matching_row[ACTIVITY_DESCRIPTION_COLUMN].values[0])
 
-    async def test_folder_sync_from_synapse_files_contained_within_sub_folder(
+    def test_folder_sync_from_synapse_files_contained_within_sub_folder(
         self,
         syn: Synapse,
         schedule_for_cleanup: Callable[..., None],
@@ -1588,15 +1589,15 @@ class TestSyncFromSynapse:
         │       └── file2 (uploaded)
         """
         # GIVEN a folder
-        parent_folder = await Folder(
+        parent_folder = Folder(
             name=str(uuid.uuid4()), parent_id=project_model.id
-        ).store_async()
+        ).store(synapse_client=syn)
         schedule_for_cleanup(parent_folder.id)
 
         # AND a sub folder to sync from
-        sub_folder = await Folder(
-            name=str(uuid.uuid4()), parent_id=parent_folder.id
-        ).store_async()
+        sub_folder = Folder(name=str(uuid.uuid4()), parent_id=parent_folder.id).store(
+            synapse_client=syn
+        )
         schedule_for_cleanup(sub_folder.id)
 
         # AND 2 temporary files on disk:
@@ -1671,8 +1672,8 @@ class TestSyncFromSynapse:
         sub_directory = os.path.join(temp_dir, sub_folder.name)
         verify_manifest(path=os.path.join(sub_directory, MANIFEST_FILE))
 
-    @skip("Skip integration tests for soon to be removed code")
-    async def test_folder_sync_from_synapse_files_contained_within_sub_folder_root_manifest_only(
+    # @skip("Skip integration tests for soon to be removed code")
+    def test_folder_sync_from_synapse_files_contained_within_sub_folder_root_manifest_only(
         self,
         syn: Synapse,
         schedule_for_cleanup: Callable[..., None],
@@ -1690,15 +1691,15 @@ class TestSyncFromSynapse:
         Verifies that only the root manifest is created.
         """
         # GIVEN a folder
-        parent_folder = await Folder(
+        parent_folder = Folder(
             name=str(uuid.uuid4()), parent_id=project_model.id
-        ).store_async()
+        ).store(synapse_client=syn)
         schedule_for_cleanup(parent_folder.id)
 
         # AND a sub folder to sync from
-        sub_folder = await Folder(
-            name=str(uuid.uuid4()), parent_id=parent_folder.id
-        ).store_async()
+        sub_folder = Folder(name=str(uuid.uuid4()), parent_id=parent_folder.id).store(
+            synapse_client=syn
+        )
         schedule_for_cleanup(sub_folder.id)
 
         # AND 2 temporary files on disk:
@@ -1765,8 +1766,8 @@ class TestSyncFromSynapse:
         sub_directory = os.path.join(temp_dir, sub_folder.name)
         assert not os.path.exists(os.path.join(sub_directory, MANIFEST_FILE))
 
-    @skip("Skip integration tests for soon to be removed code")
-    async def test_folder_sync_from_synapse_files_contained_within_sub_folder_suppress_manifest(
+    # @skip("Skip integration tests for soon to be removed code")
+    def test_folder_sync_from_synapse_files_contained_within_sub_folder_suppress_manifest(
         self,
         syn: Synapse,
         schedule_for_cleanup: Callable[..., None],
@@ -1784,15 +1785,15 @@ class TestSyncFromSynapse:
         Verifies that the manifest is not created at all.
         """
         # GIVEN a folder
-        parent_folder = await Folder(
+        parent_folder = Folder(
             name=str(uuid.uuid4()), parent_id=project_model.id
-        ).store_async()
+        ).store(synapse_client=syn)
         schedule_for_cleanup(parent_folder.id)
 
         # AND a sub folder to sync from
-        sub_folder = await Folder(
-            name=str(uuid.uuid4()), parent_id=parent_folder.id
-        ).store_async()
+        sub_folder = Folder(name=str(uuid.uuid4()), parent_id=parent_folder.id).store(
+            synapse_client=syn
+        )
         schedule_for_cleanup(sub_folder.id)
 
         # AND 2 temporary files on disk:
@@ -1826,8 +1827,8 @@ class TestSyncFromSynapse:
         assert not os.path.exists(os.path.join(temp_dir, MANIFEST_FILE))
         assert not os.path.exists(os.path.join(sub_directory, MANIFEST_FILE))
 
-    @skip("Skip integration tests for soon to be removed code")
-    async def test_folder_sync_from_synapse_files_spread_across_folders(
+    # @skip("Skip integration tests for soon to be removed code")
+    def test_folder_sync_from_synapse_files_spread_across_folders(
         self,
         syn: Synapse,
         schedule_for_cleanup: Callable[..., None],
@@ -1845,21 +1846,21 @@ class TestSyncFromSynapse:
         │       └── file3
         """
         # GIVEN a folder
-        parent_folder = await Folder(
+        parent_folder = Folder(
             name=str(uuid.uuid4()), parent_id=project_model.id
-        ).store_async()
+        ).store(synapse_client=syn)
         schedule_for_cleanup(parent_folder.id)
 
         # AND a sub folder to sync from
-        sub_folder_1 = await Folder(
-            name=str(uuid.uuid4()), parent_id=parent_folder.id
-        ).store_async()
+        sub_folder_1 = Folder(name=str(uuid.uuid4()), parent_id=parent_folder.id).store(
+            synapse_client=syn
+        )
         schedule_for_cleanup(sub_folder_1.id)
 
         # AND another sub folder to sync from
-        sub_folder_2 = await Folder(
-            name=str(uuid.uuid4()), parent_id=parent_folder.id
-        ).store_async()
+        sub_folder_2 = Folder(name=str(uuid.uuid4()), parent_id=parent_folder.id).store(
+            synapse_client=syn
+        )
         schedule_for_cleanup(sub_folder_2.id)
 
         # AND 3 temporary files on disk:
@@ -2015,8 +2016,8 @@ class TestSyncFromSynapse:
             assert pd.isna(matching_row[ACTIVITY_DESCRIPTION_COLUMN].values[0])
         assert found_matching_file
 
-    @skip("Skip integration tests for soon to be removed code")
-    async def test_sync_from_synapse_follow_links_files(
+    # @skip("Skip integration tests for soon to be removed code")
+    def test_sync_from_synapse_follow_links_files(
         self,
         syn: Synapse,
         schedule_for_cleanup: Callable[..., None],
@@ -2034,15 +2035,15 @@ class TestSyncFromSynapse:
             └── link_to_file2 -> ../folder_with_files/file2
         """
         # GIVEN a folder
-        folder_with_files = await Folder(
+        folder_with_files = Folder(
             name=str(uuid.uuid4()), parent_id=project_model.id
-        ).store_async()
+        ).store(synapse_client=syn)
         schedule_for_cleanup(folder_with_files.id)
 
         # AND a second folder to sync from
-        folder_with_links = await Folder(
+        folder_with_links = Folder(
             name=str(uuid.uuid4()), parent_id=folder_with_files.id
-        ).store_async()
+        ).store(synapse_client=syn)
         schedule_for_cleanup(folder_with_links.id)
 
         # AND 2 temporary files on disk:
@@ -2106,8 +2107,8 @@ class TestSyncFromSynapse:
             assert pd.isna(matching_row[ACTIVITY_NAME_COLUMN].values[0])
             assert pd.isna(matching_row[ACTIVITY_DESCRIPTION_COLUMN].values[0])
 
-    @skip("Skip integration tests for soon to be removed code")
-    async def test_sync_from_synapse_follow_links_folder(
+    # @skip("Skip integration tests for soon to be removed code")
+    def test_sync_from_synapse_follow_links_folder(
         self,
         syn: Synapse,
         schedule_for_cleanup: Callable[..., None],
@@ -2124,9 +2125,9 @@ class TestSyncFromSynapse:
             └── link_to_folder_with_files -> ../folder_with_files
         """
         # GIVEN a folder
-        folder_with_files = await Folder(
+        folder_with_files = Folder(
             name=str(uuid.uuid4()), parent_id=project_model.id
-        ).store_async()
+        ).store(synapse_client=syn)
         schedule_for_cleanup(folder_with_files.id)
 
         # AND two files in the folder
@@ -2139,9 +2140,9 @@ class TestSyncFromSynapse:
             file_entities.append(file_entity)
 
         # AND a second folder to sync from
-        folder_with_links = await Folder(
+        folder_with_links = Folder(
             name=str(uuid.uuid4()), parent_id=project_model.id
-        ).store_async()
+        ).store(synapse_client=syn)
         schedule_for_cleanup(folder_with_links.id)
 
         # AND a link to folder_with_files in folder_with_links
@@ -2196,8 +2197,8 @@ class TestSyncFromSynapse:
             assert pd.isna(matching_row[ACTIVITY_NAME_COLUMN].values[0])
             assert pd.isna(matching_row[ACTIVITY_DESCRIPTION_COLUMN].values[0])
 
-    @skip("Skip integration tests for soon to be removed code")
-    async def test_sync_from_synapse_follow_links_sync_contains_all_folders(
+    # @skip("Skip integration tests for soon to be removed code")
+    def test_sync_from_synapse_follow_links_sync_contains_all_folders(
         self,
         syn: Synapse,
         schedule_for_cleanup: Callable[..., None],
@@ -2220,21 +2221,21 @@ class TestSyncFromSynapse:
         In this case a FileEntity is returned for each of the files and links (4) total.
         """
         # GIVEN a parent folder
-        parent_folder = await Folder(
+        parent_folder = Folder(
             name=str(uuid.uuid4()), parent_id=project_model.id
-        ).store_async()
+        ).store(synapse_client=syn)
         schedule_for_cleanup(parent_folder.id)
 
         # AND a folder for files
-        folder_with_files = await Folder(
+        folder_with_files = Folder(
             name=str(uuid.uuid4()), parent_id=parent_folder.id
-        ).store_async()
+        ).store(synapse_client=syn)
         schedule_for_cleanup(folder_with_files.id)
 
         # AND a second folder to sync from
-        folder_with_links = await Folder(
+        folder_with_links = Folder(
             name=str(uuid.uuid4()), parent_id=parent_folder.id
-        ).store_async()
+        ).store(synapse_client=syn)
         schedule_for_cleanup(folder_with_links.id)
 
         # AND 2 temporary files on disk:
@@ -2387,8 +2388,8 @@ class TestSyncFromSynapse:
             assert pd.isna(matching_row[ACTIVITY_DESCRIPTION_COLUMN].values[0])
         assert found_matching_file
 
-    @skip("Skip integration tests for soon to be removed code")
-    async def test_sync_from_synapse_dont_follow_links(
+    # @skip("Skip integration tests for soon to be removed code")
+    def test_sync_from_synapse_dont_follow_links(
         self,
         syn: Synapse,
         schedule_for_cleanup: Callable[..., None],
@@ -2406,15 +2407,15 @@ class TestSyncFromSynapse:
             └── link_to_file2 -> ../folder_with_files/file2
         """
         # GIVEN a folder
-        folder_with_files = await Folder(
+        folder_with_files = Folder(
             name=str(uuid.uuid4()), parent_id=project_model.id
-        ).store_async()
+        ).store(synapse_client=syn)
         schedule_for_cleanup(folder_with_files.id)
 
         # AND a second folder to sync from
-        folder_with_links = await Folder(
+        folder_with_links = Folder(
             name=str(uuid.uuid4()), parent_id=folder_with_files.id
-        ).store_async()
+        ).store(synapse_client=syn)
         schedule_for_cleanup(folder_with_links.id)
 
         # AND 2 temporary files on disk:
@@ -2443,8 +2444,8 @@ class TestSyncFromSynapse:
         # AND the manifest has not been created
         assert os.path.exists(os.path.join(temp_dir, MANIFEST_FILE)) is False
 
-    @skip("Skip integration tests for soon to be removed code")
-    async def test_file_sync_from_synapse(
+    # @skip("Skip integration tests for soon to be removed code")
+    def test_file_sync_from_synapse(
         self,
         syn: Synapse,
         schedule_for_cleanup: Callable[..., None],
@@ -2455,9 +2456,9 @@ class TestSyncFromSynapse:
         Also verifies that a manifest file is not created if the entity is a file.
         """
         # GIVEN a folder to sync from
-        folder = await Folder(
-            name=str(uuid.uuid4()), parent_id=project_model.id
-        ).store_async()
+        folder = Folder(name=str(uuid.uuid4()), parent_id=project_model.id).store(
+            synapse_client=syn
+        )
         schedule_for_cleanup(folder.id)
 
         # AND 1 temporary file on disk:
@@ -2486,8 +2487,8 @@ class TestSyncFromSynapse:
         # AND the manifest has not been created
         assert os.path.exists(os.path.join(temp_dir, MANIFEST_FILE)) is False
 
-    @skip("Skip integration tests for soon to be removed code")
-    async def test_file_sync_from_synapse_specific_version(
+    # @skip("Skip integration tests for soon to be removed code")
+    def test_file_sync_from_synapse_specific_version(
         self,
         syn: Synapse,
         schedule_for_cleanup: Callable[..., None],
@@ -2499,9 +2500,9 @@ class TestSyncFromSynapse:
         Also verifies that a manifest file is not created if the entity is a file.
         """
         # GIVEN a folder to sync from
-        folder = await Folder(
-            name=str(uuid.uuid4()), parent_id=project_model.id
-        ).store_async()
+        folder = Folder(name=str(uuid.uuid4()), parent_id=project_model.id).store(
+            synapse_client=syn
+        )
         schedule_for_cleanup(folder.id)
 
         # AND 1 temporary file on disk:

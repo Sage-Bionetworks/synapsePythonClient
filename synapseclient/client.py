@@ -294,17 +294,17 @@ class Synapse(object):
     Example: Getting started
         Logging in to Synapse using an authToken
 
-            ```python
-            import synapseclient
-            syn = synapseclient.login(authToken="authtoken")
-            ```
+        ```python
+        import synapseclient
+        syn = synapseclient.login(authToken="authtoken")
+        ```
 
         Using environment variable or `.synapseConfig`
 
-            ```python
-            import synapseclient
-            syn = synapseclient.login()
-            ```
+        ```python
+        import synapseclient
+        syn = synapseclient.login()
+        ```
 
     Example: Adding an additional `user_agent` value
         This example shows how to add an additional `user_agent` to the HTTP headers
@@ -1529,7 +1529,11 @@ class Synapse(object):
                 return False
             raise
 
-    # TODO: Deprecate method in https://sagebionetworks.jira.com/browse/SYNPY-1623 or later
+    @deprecated(
+        version="4.11.0",
+        reason="To be removed in 5.0.0. "
+        "Use `from synapseclient.operations import is_synapse_id` instead.",
+    )
     def is_synapse_id(self, syn_id: str) -> bool:
         """Checks if given synID is valid (attached to actual entity?)
 
@@ -1560,7 +1564,11 @@ class Synapse(object):
         self.logger.warning("synID must be a string")
         return False
 
-    # TODO: Deprecate method in https://sagebionetworks.jira.com/browse/SYNPY-1623 or later
+    @deprecated(
+        version="4.11.0",
+        reason="To be removed in 5.0.0. "
+        "Use `from synapseclient.operations import onweb` instead.",
+    )
     def onweb(self, entity, subpageId=None):
         """Opens up a browser window to the entity page or wiki-subpage.
 
@@ -1575,20 +1583,50 @@ class Synapse(object):
             entity = self.get(entity, downloadFile=False)
         synId = id_of(entity)
         if subpageId is None:
-            webbrowser.open("%s#!Synapse:%s" % (self.portalEndpoint, synId))
+            webbrowser.open("%s/Synapse:%s" % (self.portalEndpoint, synId))
         else:
             webbrowser.open(
-                "%s#!Wiki:%s/ENTITY/%s" % (self.portalEndpoint, synId, subpageId)
+                "%s/Wiki:%s/ENTITY/%s" % (self.portalEndpoint, synId, subpageId)
             )
 
-    # TODO: Deprecate method in https://sagebionetworks.jira.com/browse/SYNPY-1623 or later
+    @deprecated(
+        version="4.11.0",
+        reason="To be removed in 5.0.0. "
+        "Use `from synapseclient.operations import print_entity` instead.",
+    )
     def printEntity(self, entity, ensure_ascii=True) -> None:
         """
+        **Deprecated with replacement.** This method will be removed in 5.0.0.
+        Use [synapseclient.operations.print_entity][] instead.
+
         Pretty prints an Entity.
 
         Arguments:
             entity: The entity to be printed.
             ensure_ascii: If True, escapes all non-ASCII characters
+
+        Example: Migration to new function
+            &nbsp;
+
+            ```python
+            from synapseclient import Synapse
+            from synapseclient.operations import print_entity
+
+            # Login to Synapse
+            syn = Synapse()
+            syn.login()
+
+            # Print an entity by Synapse ID
+            print_entity("syn123456")
+
+            # Print an entity object
+            from synapseclient.operations import get
+            entity = get(synapse_id="syn123456")
+            print_entity(entity)
+
+            # Print with unicode characters preserved
+            print_entity("syn123456", ensure_ascii=False)
+            ```
 
         Returns:
             None
@@ -1627,7 +1665,10 @@ class Synapse(object):
         "json_schema": "JsonSchemaService",
     }
 
-    # TODO: Deprecate method in https://sagebionetworks.jira.com/browse/SYNPY-1583
+    @deprecated(
+        version="4.11.0",
+        reason="To be removed in 5.0.0.",
+    )
     def get_available_services(self) -> typing.List[str]:
         """Get available Synapse services
         This is a beta feature and is subject to change
@@ -1638,7 +1679,10 @@ class Synapse(object):
         services = self._services.keys()
         return list(services)
 
-    # TODO: Deprecate method in https://sagebionetworks.jira.com/browse/SYNPY-1583
+    @deprecated(
+        version="4.11.0",
+        reason="To be removed in 5.0.0.",
+    )
     def service(self, service_name: str):
         """Get available Synapse services
         This is a beta feature and is subject to change
@@ -1666,8 +1710,61 @@ class Synapse(object):
     #                   Get / Store methods                    #
     ############################################################
 
-    # TODO: Deprecate method in https://sagebionetworks.jira.com/browse/SYNPY-1623
+    @deprecated(
+        version="4.11.0",
+        reason="To be removed in 5.0.0. "
+        "Use `from synapseclient.operations import get` instead.",
+    )
     def get(self, entity, **kwargs):
+        """
+        Gets a Synapse entity from the repository service.
+
+        Arguments:
+            entity:           A Synapse ID (e.g. syn123 or syn123.1, with .1 denoting version), a Synapse Entity object,
+                              a plain dictionary in which 'id' maps to a Synapse ID or a local file that is stored in
+                              Synapse (found by the file MD5)
+            version:          The specific version to get.
+                                Defaults to the most recent version. If not denoted in the entity input.
+            downloadFile:     Whether associated files(s) should be downloaded.
+                                Defaults to True.
+            downloadLocation: Directory where to download the Synapse File Entity.
+                                Defaults to the local cache.
+            followLink:       Whether the link returns the target Entity.
+                                Defaults to False.
+            ifcollision:      Determines how to handle file collisions.
+                                May be "overwrite.local", "keep.local", or "keep.both".
+                                Defaults to "keep.both".
+            limitSearch:      A Synanpse ID used to limit the search in Synapse if entity is specified as a local
+                                file.  That is, if the file is stored in multiple locations in Synapse only the ones
+                                in the specified folder/project will be returned.
+            md5: The MD5 checksum for the file, if known. Otherwise if the file is a
+                local file, it will be calculated automatically.
+
+        Returns:
+            A new Synapse Entity object of the appropriate type.
+
+        Example: Using this function
+            Download file into cache
+
+                entity = syn.get('syn1906479')
+                print(entity.name)
+                print(entity.path)
+
+            Download file into current working directory
+
+                entity = syn.get('syn1906479', downloadLocation='.')
+                print(entity.name)
+                print(entity.path)
+
+            Determine the provenance of a locally stored file as indicated in Synapse
+
+                entity = syn.get('/path/to/file.txt', limitSearch='syn12312')
+                print(syn.getProvenance(entity))
+        """
+        return wrap_async_to_sync(self.get_async(entity, **kwargs))
+
+    # TODO: Deprecate method in https://sagebionetworks.jira.com/browse/SYNPY-1623
+    async def get_async(self, entity, **kwargs):
         """
         Gets a Synapse entity from the repository service.
 
@@ -1748,7 +1845,7 @@ class Synapse(object):
             bundle, entity, kwargs.get("downloadFile", True)
         )
 
-        return_data = self._getWithEntityBundle(
+        return_data = await self._getWithEntityBundle_async(
             entityBundle=bundle, entity=entity, **kwargs
         )
         trace.get_current_span().set_attributes(
@@ -1988,6 +2085,34 @@ class Synapse(object):
         - See [_getEntityBundle][synapseclient.Synapse._getEntityBundle].
         - See [Entity][synapseclient.Entity].
         """
+        return wrap_async_to_sync(
+            self._getWithEntityBundle_async(entityBundle, entity, **kwargs)
+        )
+
+    @deprecated(
+        version="4.9.0",
+        reason="To be removed in 5.0.0. This is a private function and has no direct replacement.",
+    )
+    async def _getWithEntityBundle_async(
+        self, entityBundle: dict, entity: Entity = None, **kwargs
+    ) -> Entity:
+        """
+        Creates a [Entity][synapseclient.Entity] from an entity bundle returned by Synapse.
+        An existing Entity can be supplied in case we want to refresh a stale Entity.
+
+        Arguments:
+            entityBundle: Uses the given dictionary as the meta information of the Entity to get
+            entity:       Optional, entity whose local state will be copied into the returned entity
+            submission:   Optional, access associated files through a submission rather than through an entity.
+
+        Returns:
+            A new Synapse Entity
+
+        Also see:
+        - See [get][synapseclient.Synapse.get].
+        - See [_getEntityBundle][synapseclient.Synapse._getEntityBundle].
+        - See [Entity][synapseclient.Entity].
+        """
         # Note: This version overrides the version of 'entity' (if the object is Mappable)
         kwargs.pop("version", None)
         downloadFile = kwargs.pop("downloadFile", True)
@@ -2035,14 +2160,12 @@ class Synapse(object):
 
             if downloadFile:
                 if file_handle:
-                    wrap_async_to_sync(
-                        coroutine=download_file_entity(
-                            download_location=downloadLocation,
-                            entity=entity,
-                            if_collision=ifcollision,
-                            submission=submission,
-                            synapse_client=self,
-                        )
+                    await download_file_entity(
+                        download_location=downloadLocation,
+                        entity=entity,
+                        if_collision=ifcollision,
+                        submission=submission,
+                        synapse_client=self,
                     )
                 else:  # no filehandle means that we do not have DOWNLOAD permission
                     warning_message = (
@@ -2245,7 +2368,11 @@ class Synapse(object):
                 )
         return downloadPath
 
-    # TODO: Deprecate method in https://sagebionetworks.jira.com/browse/SYNPY-1623
+    @deprecated(
+        version="4.11.0",
+        reason="To be removed in 5.0.0. "
+        "Use `from synapseclient.operations import store` instead.",
+    )
     def store(
         self,
         obj,
@@ -2310,6 +2437,106 @@ class Synapse(object):
                 test_entity = syn.store(test_entity, activity=activity)
 
         """
+        return wrap_async_to_sync(
+            coroutine=self.store_async(
+                obj,
+                createOrUpdate=createOrUpdate,
+                forceVersion=forceVersion,
+                versionLabel=versionLabel,
+                isRestricted=isRestricted,
+                activity=activity,
+                used=used,
+                executed=executed,
+                activityName=activityName,
+                activityDescription=activityDescription,
+                set_annotations=set_annotations,
+            )
+        )
+
+    async def store_async(
+        self,
+        obj,
+        *,
+        createOrUpdate=True,
+        forceVersion=True,
+        versionLabel=None,
+        isRestricted=False,
+        activity=None,
+        used=None,
+        executed=None,
+        activityName=None,
+        activityDescription=None,
+        set_annotations=True,
+    ):
+        """
+        Creates a new Entity or updates an existing Entity, uploading any files in the process.
+
+        Arguments:
+            obj: A Synapse Entity, Evaluation, or Wiki
+            used: The Entity, Synapse ID, or URL used to create the object (can also be a list of these)
+            executed: The Entity, Synapse ID, or URL representing code executed to create the object
+                        (can also be a list of these)
+            activity: Activity object specifying the user's provenance.
+            activityName: Activity name to be used in conjunction with *used* and *executed*.
+            activityDescription: Activity description to be used in conjunction with *used* and *executed*.
+            createOrUpdate: Indicates whether the method should automatically perform an update if the 'obj'
+                            conflicts with an existing Synapse object.
+            forceVersion: Indicates whether the method should increment the version of the object even if nothing
+                            has changed.
+            versionLabel: Arbitrary string used to label the version.
+            isRestricted: If set to true, an email will be sent to the Synapse access control team to start the
+                            process of adding terms-of-use or review board approval for this entity.
+                            You will be contacted with regards to the specific data being restricted and the
+                            requirements of access.
+            set_annotations: If True, set the annotations on the entity. If False, do not set the annotations.
+
+        Returns:
+            A Synapse Entity, Evaluation, or Wiki
+
+        Example: Using this function
+            Creating a new Project:
+
+            ```python
+            import asyncio
+            from synapseclient import Project, Synapse
+
+            syn = Synapse()
+            syn.login()
+
+            async def main():
+                project = Project('My uniquely named project')
+                project = await syn.store_async(project)
+
+            asyncio.run(main())
+            ```
+
+            Adding files with [provenance (aka: Activity)][synapseclient.Activity]:
+
+            A synapse entity *syn1906480* contains data and an entity *syn1917825* contains code
+
+            ```python
+            import asyncio
+            from synapseclient import File, Activity, Synapse
+
+            syn = Synapse()
+            syn.login()
+
+
+            activity = Activity(
+                'Fancy Processing',
+                description='No seriously, really fancy processing',
+                used=['syn1906480', 'http://data_r_us.com/fancy/data.txt'],
+                executed='syn1917825')
+
+            test_entity = File('/path/to/data/file.xyz', description='Fancy new data', parent=project)
+
+            async def main():
+                test_entity = await syn.store_async(test_entity, activity=activity)
+
+            asyncio.run(main())
+            ```
+
+        """
         trace.get_current_span().set_attributes({"thread.id": threading.get_ident()})
         # SYNPY-1031: activity must be Activity object or code will fail later
         if activity:
@@ -2322,13 +2549,15 @@ class Synapse(object):
 
         # _synapse_store hook
         # for objects that know how to store themselves
-        if hasattr(obj, "_synapse_store"):
+        if hasattr(obj, "_synapse_store_async"):
+            return await obj._synapse_store_async(self)
+        elif hasattr(obj, "_synapse_store"):
             return obj._synapse_store(self)
 
         # Handle all non-Entity objects
         if not (isinstance(obj, Entity) or type(obj) == dict):
             if isinstance(obj, Wiki):
-                return self._storeWiki(obj, createOrUpdate)
+                return await self._storeWiki_async(obj, createOrUpdate)
 
             if "id" in obj:  # If ID is present, update
                 trace.get_current_span().set_attributes({"synapse.id": obj["id"]})
@@ -2440,18 +2669,16 @@ class Synapse(object):
                         "Entities of type File must have a parentId."
                     )
 
-                fileHandle = wrap_async_to_sync(
-                    upload_file_handle_async(
-                        self,
-                        parent_id_for_upload,
-                        local_state["path"]
-                        if (synapseStore or local_state_fh.get("externalURL") is None)
-                        else local_state_fh.get("externalURL"),
-                        synapse_store=synapseStore,
-                        md5=local_file_md5_hex or local_state_fh.get("contentMd5"),
-                        file_size=local_state_fh.get("contentSize"),
-                        mimetype=local_state_fh.get("contentType"),
-                    )
+                fileHandle = await upload_file_handle_async(
+                    self,
+                    parent_id_for_upload,
+                    local_state["path"]
+                    if (synapseStore or local_state_fh.get("externalURL") is None)
+                    else local_state_fh.get("externalURL"),
+                    synapse_store=synapseStore,
+                    md5=local_file_md5_hex or local_state_fh.get("contentMd5"),
+                    file_size=local_state_fh.get("contentSize"),
+                    mimetype=local_state_fh.get("contentType"),
                 )
                 properties["dataFileHandleId"] = fileHandle["id"]
                 local_state["_file_handle"] = fileHandle
@@ -2589,7 +2816,7 @@ class Synapse(object):
 
         # Return the updated Entity object
         entity = Entity.create(properties, annotations, local_state)
-        return_data = self.get(entity, downloadFile=False)
+        return_data = await self.get_async(entity, downloadFile=False)
 
         trace.get_current_span().set_attributes(
             {
@@ -2702,7 +2929,11 @@ class Synapse(object):
 
         return bundle
 
-    # TODO: Deprecate method in https://sagebionetworks.jira.com/browse/SYNPY-1623
+    @deprecated(
+        version="4.11.0",
+        reason="To be removed in 5.0.0. "
+        "Use `from synapseclient.operations import delete` instead.",
+    )
     def delete(
         self,
         obj,
@@ -3634,7 +3865,11 @@ class Synapse(object):
                     "nextPageToken"
                 ]
 
-    # TODO: Deprecate method in https://sagebionetworks.jira.com/browse/SYNPY-1623
+    @deprecated(
+        version="4.11.0",
+        reason="To be removed in 5.0.0. "
+        "Use `from synapseclient.operations import md5_query` instead.",
+    )
     def md5Query(self, md5):
         """
         Find the Entities which have attached file(s) which have the given MD5 hash.
@@ -5616,13 +5851,38 @@ class Synapse(object):
         Returns:
             A 3-tuple of the synapse Folder, a the storage location setting, and the project setting dictionaries.
         """
+        return wrap_async_to_sync(
+            self.create_s3_storage_location_async(
+                parent=parent,
+                folder_name=folder_name,
+                folder=folder,
+                bucket_name=bucket_name,
+                base_key=base_key,
+                sts_enabled=sts_enabled,
+            )
+        )
+
+    # TODO: Deprecate method in https://sagebionetworks.jira.com/browse/SYNPY-1441
+    async def create_s3_storage_location_async(
+        self,
+        *,
+        parent=None,
+        folder_name=None,
+        folder=None,
+        bucket_name=None,
+        base_key=None,
+        sts_enabled=False,
+    ) -> Tuple[Folder, Dict[str, str], Dict[str, str]]:
+        """
+        async version of create_s3_storage_location
+        """
         if folder_name and parent:
             if folder:
                 raise ValueError(
                     "folder and  folder_name are mutually exclusive, only one should be passed"
                 )
 
-            folder = self.store(Folder(name=folder_name, parent=parent))
+            folder = await self.store_async(Folder(name=folder_name, parent=parent))
 
         elif not folder:
             raise ValueError("either folder or folder_name should be required")
@@ -6302,6 +6562,60 @@ class Synapse(object):
                 entity = syn.get('syn456')
                 submission = syn.submit(evaluation, entity, name='Our Final Answer', team='Blue Team')
         """
+        return wrap_async_to_sync(
+            self.submit_async(
+                evaluation,
+                entity,
+                name=name,
+                team=team,
+                silent=silent,
+                submitterAlias=submitterAlias,
+                teamName=teamName,
+                dockerTag=dockerTag,
+            )
+        )
+
+    # TODO: Deprecate method in https://sagebionetworks.jira.com/browse/SYNPY-1590
+    async def submit_async(
+        self,
+        evaluation,
+        entity,
+        name=None,
+        team=None,
+        silent=False,
+        submitterAlias=None,
+        teamName=None,
+        dockerTag="latest",
+    ):
+        """
+        Submit an Entity for [evaluation][synapseclient.evaluation.Evaluation].
+
+        Arguments:
+            evalation: Evaluation queue to submit to
+            entity: The Entity containing the Submissions
+            name: A name for this submission. In the absent of this parameter, the entity name will be used.
+                    (Optional) A [synapseclient.team.Team][] object, ID or name of a Team that is registered for the challenge
+            team: (optional) A [synapseclient.team.Team][] object, ID or name of a Team that is registered for the challenge
+            silent: Set to True to suppress output.
+            submitterAlias: (optional) A nickname, possibly for display in leaderboards in place of the submitter's name
+            teamName: (deprecated) A synonym for submitterAlias
+            dockerTag: (optional) The Docker tag must be specified if the entity is a DockerRepository.
+
+        Returns:
+            A [synapseclient.evaluation.Submission][] object
+
+
+        In the case of challenges, a team can optionally be provided to give credit to members of the team that
+        contributed to the submission. The team must be registered for the challenge with which the given evaluation is
+        associated. The caller must be a member of the submitting team.
+
+        Example: Using this function
+            Getting and submitting an evaluation
+
+                evaluation = syn.getEvaluation(123)
+                entity = syn.get('syn456')
+                submission = syn.submit(evaluation, entity, name='Our Final Answer', team='Blue Team')
+        """
 
         require_param(evaluation, "evaluation")
         require_param(entity, "entity")
@@ -6329,7 +6643,7 @@ class Synapse(object):
             entity_version = entity.version_number
         else:
             if "versionNumber" not in entity:
-                entity = self.get(entity, downloadFile=False)
+                entity = await self.get_async(entity, downloadFile=False)
             # version defaults to 1 to hack around required version field and allow submission of files/folders
             entity_version = entity.get("versionNumber", 1)
 
@@ -6704,6 +7018,27 @@ class Synapse(object):
         - [synapseclient.Synapse.get][] for information
              on the *downloadFile*, *downloadLocation*, and *ifcollision* parameters
         """
+        return wrap_async_to_sync(self.getSubmission_async(id=id, **kwargs))
+
+    # TODO: Deprecate method in https://sagebionetworks.jira.com/browse/SYNPY-1590
+    async def getSubmission_async(
+        self, id: typing.Union[str, int, collections.abc.Mapping], **kwargs
+    ) -> Submission:
+        """
+        Gets a [synapseclient.evaluation.Submission][] object based on a given ID
+        or previous [synapseclient.evaluation.Submission][] object.
+
+        Arguments:
+            id: The ID of the submission to retrieve or a [synapseclient.evaluation.Submission][] object
+
+        Returns:
+            A [synapseclient.evaluation.Submission][] object
+
+        See:
+
+        - [synapseclient.Synapse.get][] for information
+             on the *downloadFile*, *downloadLocation*, and *ifcollision* parameters
+        """
 
         submission_id = validate_submission_id(id)
         uri = Submission.getURI(submission_id)
@@ -6723,7 +7058,7 @@ class Synapse(object):
                     annotations
                 )
 
-            related = self._getWithEntityBundle(
+            related = await self._getWithEntityBundle_async(
                 entityBundle=entityBundleJSON,
                 entity=submission["entityId"],
                 submission=submission_id,
@@ -6770,6 +7105,22 @@ class Synapse(object):
         Returns:
             A [synapseclient.wiki.Wiki][] object
         """
+        return wrap_async_to_sync(
+            self.getWiki_async(owner, subpageId=subpageId, version=version)
+        )
+
+    async def getWiki_async(self, owner, subpageId=None, version=None):
+        """
+        Get a [synapseclient.wiki.Wiki][] object from Synapse. Uses wiki2 API which supports versioning.
+
+        Arguments:
+            owner: The entity to which the Wiki is attached
+            subpageId: The id of the specific sub-page or None to get the root Wiki page
+            version: The version of the page to retrieve or None to retrieve the latest
+
+        Returns:
+            A [synapseclient.wiki.Wiki][] object
+        """
         uri = "/entity/{ownerId}/wiki2".format(ownerId=id_of(owner))
         if subpageId is not None:
             uri += "/{wikiId}".format(wikiId=subpageId)
@@ -6785,16 +7136,14 @@ class Synapse(object):
             cache_dir = self.cache.get_cache_dir(wiki.markdownFileHandleId)
             if not os.path.exists(cache_dir):
                 os.makedirs(cache_dir)
-            path = wrap_async_to_sync(
-                coroutine=download_by_file_handle(
-                    file_handle_id=wiki["markdownFileHandleId"],
-                    synapse_id=wiki["id"],
-                    entity_type="WikiMarkdown",
-                    destination=os.path.join(
-                        cache_dir, str(wiki.markdownFileHandleId) + ".md"
-                    ),
-                    synapse_client=self,
-                )
+            path = await download_by_file_handle(
+                file_handle_id=wiki["markdownFileHandleId"],
+                synapse_id=wiki["id"],
+                entity_type="WikiMarkdown",
+                destination=os.path.join(
+                    cache_dir, str(wiki.markdownFileHandleId) + ".md"
+                ),
+                synapse_client=self,
             )
         try:
             import gzip
@@ -6838,6 +7187,21 @@ class Synapse(object):
         Returns:
             An updated Wiki object
         """
+        return wrap_async_to_sync(self._storeWiki_async(wiki, createOrUpdate))
+
+    # TODO: Deprecate method in https://sagebionetworks.jira.com/browse/SYNPY-1351
+    async def _storeWiki_async(self, wiki: Wiki, createOrUpdate: bool) -> Wiki:
+        """
+        Stores or updates the given Wiki.
+
+        Arguments:
+            wiki:           A Wiki object
+            createOrUpdate: Indicates whether the method should automatically perform an update if the 'obj'
+                            conflicts with an existing Synapse object.
+
+        Returns:
+            An updated Wiki object
+        """
         # Make sure the file handle field is a list
         if "attachmentFileHandleIds" not in wiki:
             wiki["attachmentFileHandleIds"] = []
@@ -6845,7 +7209,7 @@ class Synapse(object):
         # Convert all attachments into file handles
         if wiki.get("attachments") is not None:
             for attachment in wiki["attachments"]:
-                fileHandle = wrap_async_to_sync(upload_synapse_s3(self, attachment))
+                fileHandle = await upload_synapse_s3(self, attachment)
                 wiki["attachmentFileHandleIds"].append(fileHandle["id"])
             del wiki["attachments"]
 
@@ -6870,7 +7234,7 @@ class Synapse(object):
                     )
                     or err.response.status_code == 409
                 ):
-                    existing_wiki = self.getWiki(wiki.ownerId)
+                    existing_wiki = await self.getWiki_async(wiki.ownerId)
 
                     # overwrite everything except for the etag (this will keep unmodified fields in the existing wiki)
                     etag = existing_wiki["etag"]
@@ -7704,12 +8068,6 @@ class Synapse(object):
         uri = "/entity/{id}/table/query/nextPage/async".format(id=tableId)
         return self._waitForAsync(uri=uri, request=nextPageToken)
 
-    @deprecated(
-        version="4.9.0",
-        reason="To be removed in 5.0.0. "
-        "Use the `_chunk_and_upload_csv` method on the `from synapseclient.models import Table` class instead. "
-        "Check the docstring for the replacement function example.",
-    )
     def _uploadCsv(
         self,
         filepath: str,
@@ -7792,9 +8150,44 @@ class Synapse(object):
             asyncio.run(upload_csv_with_chunk_method(table_id=TABLE_ID, path=PATH))
             ```
         """
+        return wrap_async_to_sync(
+            self._uploadCsv_async(
+                filepath,
+                schema,
+                updateEtag,
+                quoteCharacter,
+                escapeCharacter,
+                lineEnd,
+                separator,
+                header,
+                linesToSkip,
+            )
+        )
 
-        fileHandleId = wrap_async_to_sync(
-            multipart_upload_file_async(self, filepath, content_type="text/csv")
+    @deprecated(
+        version="4.9.0",
+        reason="To be removed in 5.0.0. "
+        "Use the `_chunk_and_upload_csv` method on the `from synapseclient.models import Table` class instead. "
+        "Check the docstring for the replacement function example.",
+    )
+    async def _uploadCsv_async(
+        self,
+        filepath: str,
+        schema: Union[Entity, str],
+        updateEtag: str = None,
+        quoteCharacter: str = '"',
+        escapeCharacter: str = "\\",
+        lineEnd: str = os.linesep,
+        separator: str = ",",
+        header: bool = True,
+        linesToSkip: int = 0,
+    ) -> dict:
+        """
+        Async version of [_uploadCsv][]
+        """
+
+        fileHandleId = await multipart_upload_file_async(
+            self, filepath, content_type="text/csv"
         )
 
         uploadRequest = {
@@ -8236,7 +8629,15 @@ class Synapse(object):
                     data[file_handle_id] = f.read()
 
         """
+        return wrap_async_to_sync(
+            self.downloadTableColumns_async(table, columns, downloadLocation, **kwargs)
+        )
 
+    # TODO: Deprecate method in https://sagebionetworks.jira.com/browse/SYNPY-1632
+    async def downloadTableColumns_async(
+        self, table, columns, downloadLocation=None, **kwargs
+    ):
+        """Async version of downloadTableColumns."""
         RETRIABLE_FAILURE_CODES = ["EXCEEDS_SIZE_LIMIT"]
         MAX_DOWNLOAD_TRIES = 100
         max_files_per_request = kwargs.get("max_files_per_request", 2500)
@@ -8297,13 +8698,11 @@ class Synapse(object):
             temp_dir = tempfile.mkdtemp()
             zipfilepath = os.path.join(temp_dir, "table_file_download.zip")
             try:
-                zipfilepath = wrap_async_to_sync(
-                    download_by_file_handle(
-                        file_handle_id=response["resultZipFileHandleId"],
-                        synapse_id=table.tableId,
-                        entity_type="TableEntity",
-                        destination=zipfilepath,
-                    )
+                zipfilepath = await download_by_file_handle(
+                    file_handle_id=response["resultZipFileHandleId"],
+                    synapse_id=table.tableId,
+                    entity_type="TableEntity",
+                    destination=zipfilepath,
                 )
                 # TODO handle case when no zip file is returned
                 # TODO test case when we give it partial or all bad file handles
@@ -8521,7 +8920,11 @@ class Synapse(object):
 
         return self.restPUT(uri, body=json.dumps(get_properties(entity)), params=params)
 
-    # TODO: Deprecate method in https://sagebionetworks.jira.com/browse/SYNPY-1623
+    @deprecated(
+        version="4.11.0",
+        reason="To be removed in 5.0.0. "
+        "Use `from synapseclient.operations import find_entity_id` instead.",
+    )
     def findEntityId(self, name, parent=None):
         """
         Find an Entity given its name and parent.
@@ -8568,9 +8971,22 @@ class Synapse(object):
         Returns:
             The metadata of the created message
         """
+        return wrap_async_to_sync(
+            self.sendMessage_async(
+                userIds=userIds,
+                messageSubject=messageSubject,
+                messageBody=messageBody,
+                contentType=contentType,
+            )
+        )
 
-        fileHandleId = wrap_async_to_sync(
-            multipart_upload_string_async(self, messageBody, content_type=contentType)
+    async def sendMessage_async(
+        self, userIds, messageSubject, messageBody, contentType="text/plain"
+    ):
+        """Async version of sendMessage."""
+
+        fileHandleId = await multipart_upload_string_async(
+            self, messageBody, content_type=contentType
         )
         message = dict(
             recipients=userIds, subject=messageSubject, fileHandleId=fileHandleId

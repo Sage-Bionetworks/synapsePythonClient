@@ -61,9 +61,7 @@ class TestGrid:
                 os.unlink(filename)
             raise
 
-    async def test_create_and_list_grid_sessions(
-        self, record_set_fixture: RecordSet
-    ) -> None:
+    def test_create_and_list_grid_sessions(self, record_set_fixture: RecordSet) -> None:
         # GIVEN: A Grid instance with a record_set_id
         grid = Grid(record_set_id=record_set_fixture.id)
 
@@ -97,7 +95,7 @@ class TestGrid:
         assert our_session.started_by == created_grid.started_by
         assert our_session.source_entity_id == record_set_fixture.id
 
-    async def test_create_grid_session_and_reuse_session(
+    def test_create_grid_session_and_reuse_session(
         self, record_set_fixture: RecordSet
     ) -> None:
         # GIVEN: Create the first Grid instance with a record_set_id
@@ -114,7 +112,9 @@ class TestGrid:
         grid2 = Grid(record_set_id=record_set_fixture.id)
 
         # WHEN: Creating a second grid session (should reuse the existing one)
-        created_grid2 = grid2.create(synapse_client=self.syn)
+        created_grid2 = grid2.create(
+            synapse_client=self.syn, attach_to_previous_session=True
+        )
 
         # THEN: The same session should be reused
         assert created_grid2.session_id == first_session_id
@@ -122,7 +122,7 @@ class TestGrid:
         assert created_grid2.started_on == created_grid1.started_on
         assert created_grid2.source_entity_id == record_set_fixture.id
 
-    async def test_create_grid_session_validation_error(self) -> None:
+    def test_create_grid_session_validation_error(self) -> None:
         # GIVEN: A Grid instance with no record_set_id or initial_query
         grid = Grid()
 
@@ -133,7 +133,7 @@ class TestGrid:
         ):
             grid.create(synapse_client=self.syn)
 
-    async def test_delete_grid_session(self, record_set_fixture: RecordSet) -> None:
+    def test_delete_grid_session(self, record_set_fixture: RecordSet) -> None:
         # GIVEN: Create a grid session first
         grid = Grid(record_set_id=record_set_fixture.id)
         created_grid = grid.create(synapse_client=self.syn)
@@ -154,7 +154,7 @@ class TestGrid:
         session_ids = [session.session_id for session in sessions]
         assert session_id not in session_ids
 
-    async def test_delete_grid_session_validation_error(self) -> None:
+    def test_delete_grid_session_validation_error(self) -> None:
         # GIVEN: A Grid instance with no session_id
         grid = Grid()
 

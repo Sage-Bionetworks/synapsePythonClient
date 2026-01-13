@@ -2,6 +2,7 @@
 
 import asyncio
 import functools
+import sys
 from typing import Any, Callable, Coroutine, Union
 
 import nest_asyncio
@@ -83,7 +84,17 @@ def wrap_async_to_sync(coroutine: Coroutine[Any, Any, Any]) -> Any:
     except RuntimeError:
         pass
 
-    if loop:
+    if loop and sys.version_info >= (3, 14, 0):
+        raise RuntimeError(
+            f"Python 3.14+ detected an active event loop, which prevents automatic async-to-sync conversion.\n"
+            f"This is a limitation of asyncio in Python 3.14+.\n\n"
+            f"To resolve this, use the async function directly:\n"
+            f"  • Instead of: result = your_function()\n"
+            f"  • Use: result = await {coroutine.__name__}()\n\n"
+            f"For Jupyter/IPython notebooks: You can use 'await' directly in cells.\n"
+            f"For other async contexts: Ensure you're in an async function and use 'await'."
+        )
+    elif loop:
         nest_asyncio.apply(loop=loop)
         return loop.run_until_complete(coroutine)
     else:
@@ -112,6 +123,17 @@ def wrap_async_generator_to_sync_generator(async_gen_func: Callable, *args, **kw
     except RuntimeError:
         pass
 
+    if loop and sys.version_info >= (3, 14, 0):
+        raise RuntimeError(
+            f"Python 3.14+ detected an active event loop, which prevents automatic async-to-sync conversion.\n"
+            f"This is a limitation of asyncio in Python 3.14+.\n\n"
+            f"To resolve this, use the async generator directly:\n"
+            f"  • Instead of: for item in your_generator():\n"
+            f"  • Use: async for item in {async_gen_func.__name__}():\n\n"
+            f"For Jupyter/IPython notebooks: You can use 'async for' directly in cells.\n"
+            f"For other async contexts: Ensure you're in an async function and use 'async for'."
+        )
+
     if loop:
         nest_asyncio.apply(loop=loop)
 
@@ -122,7 +144,7 @@ def wrap_async_generator_to_sync_generator(async_gen_func: Callable, *args, **kw
         try:
             while True:
                 try:
-                    item = loop.run_until_complete(async_gen.__anext__())
+                    item = loop.run_until_complete(anext(async_gen))
                     yield item
                 except StopAsyncIteration:
                     break
@@ -133,23 +155,26 @@ def wrap_async_generator_to_sync_generator(async_gen_func: Callable, *args, **kw
             except (RuntimeError, StopAsyncIteration):
                 pass
     else:
-        # No running loop, create a new one
-        async def run_generator():
-            async_gen = async_gen_func(*args, **kwargs)
-            items = []
-            try:
-                async for item in async_gen:
-                    items.append(item)
-            finally:
-                try:
-                    await async_gen.aclose()
-                except (RuntimeError, StopAsyncIteration):
-                    pass
-            return items
+        # No running loop, create a new one and yield items one by one
+        async def async_wrapper():
+            async for item in async_gen_func(*args, **kwargs):
+                yield item
 
-        items = asyncio.run(run_generator())
-        for item in items:
-            yield item
+        loop = asyncio.new_event_loop()
+        async_gen = async_wrapper()
+        try:
+            while True:
+                try:
+                    item = loop.run_until_complete(anext(async_gen))
+                    yield item
+                except StopAsyncIteration:
+                    break
+        finally:
+            try:
+                loop.run_until_complete(async_gen.aclose())
+            except (RuntimeError, StopAsyncIteration):
+                pass
+            loop.close()
 
 
 # Adapted from
@@ -181,7 +206,17 @@ def async_to_sync(cls):
             except RuntimeError:
                 pass
 
-            if loop:
+            if loop and sys.version_info >= (3, 14, 0):
+                raise RuntimeError(
+                    f"Python 3.14+ detected an active event loop, which prevents automatic async-to-sync conversion.\n"
+                    f"This is a limitation of asyncio in Python 3.14+.\n\n"
+                    f"To resolve this, call the async method directly:\n"
+                    f"  • Instead of: result = obj.method_name()\n"
+                    f"  • Use: result = await obj.{async_method_name}()\n\n"
+                    f"For Jupyter/IPython notebooks: You can use 'await' directly in cells.\n"
+                    f"For other async contexts: Ensure you're in an async function and use 'await'."
+                )
+            elif loop:
                 nest_asyncio.apply(loop=loop)
                 return loop.run_until_complete(wrapper(*args, **kwargs))
             else:

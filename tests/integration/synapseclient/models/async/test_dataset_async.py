@@ -87,14 +87,18 @@ class TestDataset:
         # Add files if provided
         if files:
             for file in files:
-                stored_file = await file.store_async(parent=project_model)
-                dataset.add_item(stored_file)
+                stored_file = await file.store_async(
+                    parent=project_model, synapse_client=self.syn
+                )
+                await dataset.add_item_async(stored_file, synapse_client=self.syn)
 
         # Add folders if provided
         if folders:
             for folder in folders:
-                stored_folder = await folder.store_async(parent=project_model)
-                dataset.add_item(stored_folder)
+                stored_folder = await folder.store_async(
+                    parent=project_model, synapse_client=self.syn
+                )
+                await dataset.add_item_async(stored_folder, synapse_client=self.syn)
 
         # Store the dataset
         dataset = await dataset.store_async(synapse_client=self.syn)
@@ -166,11 +170,15 @@ class TestDataset:
         # WHEN I store the files and folder
         stored_files = []
         for file in files:
-            stored_file = await file.store_async(parent=project_model)
+            stored_file = await file.store_async(
+                parent=project_model, synapse_client=self.syn
+            )
             stored_files.append(stored_file)
 
         folder.files = folder_files
-        stored_folder = await folder.store_async(parent=project_model)
+        stored_folder = await folder.store_async(
+            parent=project_model, synapse_client=self.syn
+        )
 
         # AND create a dataset with these items
         dataset = Dataset(
@@ -181,10 +189,10 @@ class TestDataset:
 
         # Add individual files
         for file in stored_files:
-            dataset.add_item(file)
+            await dataset.add_item_async(file, synapse_client=self.syn)
 
         # Add folder
-        dataset.add_item(stored_folder)
+        await dataset.add_item_async(stored_folder, synapse_client=self.syn)
 
         # Store the dataset
         dataset = await dataset.store_async(synapse_client=self.syn)
@@ -208,7 +216,7 @@ class TestDataset:
             assert item in retrieved_dataset.items
 
         # WHEN I remove one file from the dataset
-        dataset.remove_item(stored_files[0])
+        await dataset.remove_item_async(stored_files[0], synapse_client=self.syn)
         await dataset.store_async(synapse_client=self.syn)
 
         # THEN that file should no longer be in the dataset
@@ -225,7 +233,9 @@ class TestDataset:
         """Test querying a dataset and different query modes"""
         # GIVEN a dataset with a file and custom column
         file = self.create_file_instance()
-        stored_file = await file.store_async(parent=project_model)
+        stored_file = await file.store_async(
+            parent=project_model, synapse_client=self.syn
+        )
 
         dataset = Dataset(
             name=str(uuid.uuid4()),
@@ -233,7 +243,7 @@ class TestDataset:
             parent_id=project_model.id,
             columns=[Column(name="my_annotation", column_type=ColumnType.STRING)],
         )
-        dataset.add_item(stored_file)
+        await dataset.add_item_async(stored_file, synapse_client=self.syn)
         dataset = await dataset.store_async(synapse_client=self.syn)
         self.schedule_for_cleanup(dataset.id)
 
@@ -249,12 +259,14 @@ class TestDataset:
             primary_keys=["id"],
             wait_for_eventually_consistent_view=True,
             dry_run=False,
+            synapse_client=self.syn,
         )
 
         # THEN I can query the data
         row = await Dataset.query_async(
             query=f"SELECT * FROM {dataset.id} WHERE id = '{stored_file.id}'",
             timeout=QUERY_TIMEOUT_SEC,
+            synapse_client=self.syn,
         )
 
         # AND the query results should match the expected values
@@ -363,8 +375,8 @@ class TestDataset:
         file1 = self.create_file_instance()
         file2 = self.create_file_instance()
 
-        file1 = await file1.store_async(parent=project_model)
-        file2 = await file2.store_async(parent=project_model)
+        file1 = await file1.store_async(parent=project_model, synapse_client=self.syn)
+        file2 = await file2.store_async(parent=project_model, synapse_client=self.syn)
 
         dataset = Dataset(
             name=str(uuid.uuid4()),
@@ -375,14 +387,14 @@ class TestDataset:
         self.schedule_for_cleanup(dataset.id)
 
         # WHEN I add the first file and create a snapshot
-        dataset.add_item(file1)
+        await dataset.add_item_async(file1, synapse_client=self.syn)
         await dataset.store_async(synapse_client=self.syn)
         await dataset.snapshot_async(
             timeout=ASYNC_JOB_TIMEOUT_SEC, synapse_client=self.syn
         )
 
         # AND I add the second file and create another snapshot
-        dataset.add_item(file2)
+        await dataset.add_item_async(file2, synapse_client=self.syn)
         await dataset.store_async(synapse_client=self.syn)
         await dataset.snapshot_async(
             timeout=ASYNC_JOB_TIMEOUT_SEC, synapse_client=self.syn
@@ -436,8 +448,10 @@ class TestDatasetCollection:
 
         if has_file:
             file = self.create_file_instance()
-            stored_file = await file.store_async(parent=project_model)
-            dataset.add_item(stored_file)
+            stored_file = await file.store_async(
+                parent=project_model, synapse_client=self.syn
+            )
+            await dataset.add_item_async(stored_file, synapse_client=self.syn)
 
         dataset = await dataset.store_async(synapse_client=self.syn)
         self.schedule_for_cleanup(dataset.id)
@@ -511,7 +525,7 @@ class TestDatasetCollection:
     async def test_dataset_collection_queries(self, project_model: Project) -> None:
         """Test querying DatasetCollections with various part masks"""
         # GIVEN a dataset and a collection with that dataset
-        dataset = await self.create_dataset(project_model, has_file=True)
+        dataset = await self.create_dataset(project_model=project_model, has_file=True)
 
         collection = DatasetCollection(
             name=str(uuid.uuid4()),
@@ -535,12 +549,14 @@ class TestDatasetCollection:
             primary_keys=["id"],
             wait_for_eventually_consistent_view=True,
             dry_run=False,
+            synapse_client=self.syn,
         )
 
         # THEN I can query and get the updated data
         row = await DatasetCollection.query_async(
             query=f"SELECT * FROM {collection.id} WHERE id = '{dataset.id}'",
             timeout=QUERY_TIMEOUT_SEC,
+            synapse_client=self.syn,
         )
         assert row["id"][0] == dataset.id
         assert row["name"][0] == dataset.name
@@ -577,6 +593,7 @@ class TestDatasetCollection:
             query=f"SELECT * FROM {collection.id}",
             part_mask=QUERY_RESULTS,
             timeout=QUERY_TIMEOUT_SEC,
+            synapse_client=self.syn,
         )
         # THEN the data in the columns should match
         assert results_only.result["id"][0] == dataset.id

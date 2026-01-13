@@ -126,7 +126,7 @@ class TestDataset:
         # THEN I expect the Dataset to have the EntityRef in its items
         assert dataset.items == [EntityRef(id="syn1234", version=1)]
 
-    async def test_add_item_entity_ref(self):
+    def test_add_item_entity_ref(self):
         # GIVEN an empty Dataset
         dataset = Dataset()
         # WHEN I add an EntityRef to it
@@ -134,7 +134,7 @@ class TestDataset:
         # THEN I expect the Dataset to have the EntityRef in its items
         assert dataset.items == [EntityRef(id="syn1234", version=1)]
 
-    async def test_add_item_file(self):
+    def test_add_item_file(self):
         # GIVEN an empty Dataset
         dataset = Dataset()
         # WHEN I add a File to it
@@ -142,7 +142,7 @@ class TestDataset:
         # THEN I expect the Dataset to have the File in its items
         assert dataset.items == [EntityRef(id="syn1234", version=1)]
 
-    async def test_add_item_folder(self):
+    def test_add_item_folder(self):
         # GIVEN an empty Dataset
         dataset = Dataset()
         # WHEN I add a Folder to it
@@ -162,7 +162,7 @@ class TestDataset:
             EntityRef(id="syn1235", version=1),
         ]
 
-    async def test_add_item_invalid_type(self):
+    def test_add_item_invalid_type(self):
         # GIVEN an empty Dataset
         dataset = Dataset()
         # WHEN I add an invalid type to it
@@ -172,7 +172,7 @@ class TestDataset:
         ):
             dataset.add_item(1)
 
-    async def test_remove_entity_ref(self):
+    def test_remove_entity_ref(self):
         # GIVEN a Dataset with an EntityRef
         dataset = Dataset(items=[EntityRef(id="syn1234", version=1)])
         # WHEN I remove the EntityRef from it
@@ -180,7 +180,7 @@ class TestDataset:
         # THEN I expect the Dataset to have no items
         assert dataset.items == []
 
-    async def test_remove_item_entity_ref(self):
+    def test_remove_item_entity_ref(self):
         # GIVEN a Dataset with an EntityRef
         dataset = Dataset(items=[EntityRef(id="syn1234", version=1)])
         # WHEN I remove the EntityRef from it
@@ -188,7 +188,7 @@ class TestDataset:
         # THEN I expect the Dataset to have no items
         assert dataset.items == []
 
-    async def test_remove_item_entity_ref_version(self):
+    def test_remove_item_entity_ref_version(self):
         # GIVEN a Dataset with 2 versions of an EntityRef
         dataset = Dataset(
             items=[
@@ -201,7 +201,7 @@ class TestDataset:
         # THEN I expect the Dataset to only have version 2 of the EntityRef
         assert dataset.items == [EntityRef(id="syn1234", version=2)]
 
-    async def test_remove_item_file(self):
+    def test_remove_item_file(self):
         # GIVEN a Dataset with a File
         dataset = Dataset(items=[EntityRef(id="syn1234", version=1)])
         # WHEN I remove the File from it
@@ -209,7 +209,7 @@ class TestDataset:
         # THEN I expect the Dataset to have no items
         assert dataset.items == []
 
-    async def test_remove_item_folder(self):
+    def test_remove_item_folder(self):
         # GIVEN a Dataset with a Folder
         dataset = Dataset(items=[EntityRef(id="syn1235", version=1)])
         with patch(

@@ -1,0 +1,3 @@
+Attribute,Description,Valid Values,DependsOn,Required,Parent,Validation Rules
+datatype,,,attribute,,DataType,
+attribute,,,,TRUE,DataProperty,

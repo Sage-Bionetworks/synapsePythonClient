@@ -3,7 +3,7 @@ from collections import OrderedDict
 from copy import deepcopy
 from dataclasses import dataclass, field
 from datetime import date, datetime
-from typing import Dict, List, Optional, Protocol, TypeVar, Union
+from typing import Dict, List, Optional, Protocol, Union
 
 from typing_extensions import Self
 
@@ -25,8 +25,6 @@ from synapseclient.models.mixins.table_components import (
     ViewStoreMixin,
 )
 from synapseclient.models.table_components import Column
-
-DATA_FRAME_TYPE = TypeVar("pd.DataFrame")
 
 
 class SubmissionViewSynchronousProtocol(Protocol):

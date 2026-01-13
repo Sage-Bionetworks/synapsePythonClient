@@ -34,7 +34,7 @@ import os
 import re
 import tempfile
 from builtins import zip
-from typing import TYPE_CHECKING, Any, Dict, List, Optional, Tuple, TypeVar, Union
+from typing import TYPE_CHECKING, Any, Dict, List, Optional, Tuple, Union
 
 from synapseclient.core.constants import concrete_types
 from synapseclient.core.exceptions import SynapseError
@@ -44,6 +44,7 @@ from synapseclient.core.utils import (
     from_unix_epoch_time,
     id_of,
     itersubclasses,
+    test_import_pandas,
 )
 
 from .entity import Entity, Folder, Project, entity_type_to_class
@@ -51,6 +52,8 @@ from .evaluation import Evaluation
 
 if TYPE_CHECKING:
     from synapseclient import Synapse
+
+from synapseclient.core.typing_utils import DataFrame as DataFrameType
 
 aggregate_pattern = re.compile(r"(count|max|min|avg|sum)\((.+)\)")
 
@@ -82,8 +85,6 @@ MAX_NUM_TABLE_COLUMNS = 152
 DEFAULT_QUOTE_CHARACTER = '"'
 DEFAULT_SEPARATOR = ","
 DEFAULT_ESCAPSE_CHAR = "\\"
-
-DataFrameType = TypeVar("pd.DataFrame")
 
 
 # This Enum is used to help users determine which Entity types they want in their view
@@ -128,23 +129,6 @@ def _get_view_type_mask_for_deprecated_type(type):
     if type == "file_and_table":
         return EntityViewType.FILE.value | EntityViewType.TABLE.value
     raise ValueError("The provided value is not a valid type: %s", type)
-
-
-def test_import_pandas():
-    try:
-        import pandas as pd  # noqa F401
-    # used to catch when pandas isn't installed
-    except ModuleNotFoundError:
-        raise ModuleNotFoundError(
-            """\n\nThe pandas package is required for this function!\n
-        Most functions in the synapseclient package don't require the
-        installation of pandas, but some do. Please refer to the installation
-        instructions at: http://pandas.pydata.org/.
-        \n\n\n"""
-        )
-    # catch other errors (see SYNPY-177)
-    except:  # noqa
-        raise
 
 
 def as_table_columns(values: Union[str, DataFrameType]):
@@ -1978,8 +1962,8 @@ class RowSetTable(TableAbstractBaseClass):
         super(RowSetTable, self).__init__(schema, etag=rowset.get("etag", None))
         self.rowset = rowset
 
-    def _synapse_store(self, syn):
-        row_reference_set = syn.store(self.rowset)
+    async def _synapse_store_async(self, syn):
+        row_reference_set = await syn.store_async(self.rowset)
         return RowSetTable(self.schema, row_reference_set)
 
     def asDataFrame(self):
@@ -2544,17 +2528,17 @@ class CsvFileTable(TableAbstractBaseClass):
 
         self.setColumnHeaders(headers)
 
-    def _synapse_store(self, syn):
+    async def _synapse_store_async(self, syn: "Synapse"):
         copied_self = copy.copy(self)
-        return copied_self._update_self(syn)
+        return await copied_self._update_self_async(syn)
 
-    def _update_self(self, syn):
+    async def _update_self_async(self, syn: "Synapse"):
         if isinstance(self.schema, Schema) and self.schema.get("id", None) is None:
             # store schema
-            self.schema = syn.store(self.schema)
+            self.schema = await syn.store_async(self.schema)
             self.tableId = self.schema.id
 
-        result = syn._uploadCsv(
+        result = await syn._uploadCsv_async(
             self.filepath,
             self.schema if self.schema else self.tableId,
             updateEtag=self.etag,

@@ -9,6 +9,46 @@ detailing some of the changes.
 the 4.x.x versions hidden behind optional feature flags or different import paths. Any
 breaking changes will not be included until v5.0.
 
+## 4.11.0
+
+
+## Highlights
+
+- Refactored Synapse Python Client to use object-oriented principles for Evaluation, Submission and Wiki
+- Introduced the `synapseclient.extensions` module which contains scripts that extend the core functionality of the Synapse Python Client
+     - [Synapse Curator](https://python-docs.synapse.org/en/stable/reference/extensions/curator/#synapseclient.extensions.curator ) and its [guide](https://python-docs.synapse.org/en/stable/guides/extensions/curator/metadata_curation/) have been added to help with metadata curation tasks in Synapse
+- Implemented JSON Schema creation and validation workflows
+- Deprecated legacy functionality and migrated to new asynchronous APIs
+
+## Features
+
+- [SYNPY-1589] Implement "Evaluation" OOP model by @jaymedina in https://github.com/Sage-Bionetworks/synapsePythonClient/pull/1244
+- [SYNPY-1590] Implement Submission(+Status, +Bundle) OOP model by @jaymedina in https://github.com/Sage-Bionetworks/synapsePythonClient/pull/1250
+- [SYNPY-1351] Implement "Wiki2" OOP model by @danlu1 in https://github.com/Sage-Bionetworks/synapsePythonClient/pull/1206
+
+## Bug Fixes
+
+- [SYNPY-1709] Correct boolean type conversion by @BryanFauble in https://github.com/Sage-Bionetworks/synapsePythonClient/pull/1284
+- [SYNPY-1667] Update Error Messaging when Attempting to Delete Rows that do not exist from Tables by @SageGJ in https://github.com/Sage-Bionetworks/synapsePythonClient/pull/1257
+
+## Tech Debt
+
+- [SYNPY-1426] Deprecate getChildren method and extend sync_from_synapse method by @BryanFauble in https://github.com/Sage-Bionetworks/synapsePythonClient/pull/1222
+- [SYNPY-1426] Deprecate acl and permission management methods by @BryanFauble in https://github.com/Sage-Bionetworks/synapsePythonClient/pull/1223
+- [SYNPY-1426] Noting all final deprecations and the tickets they will be deprecated with by @BryanFauble in https://github.com/Sage-Bionetworks/synapsePythonClient/pull/1226
+
+## Other
+
+- [SYNPY-1633] Add membership_status to Team model and Deprecate Old Method by @linglp in https://github.com/Sage-Bionetworks/synapsePythonClient/pull/1235
+- [SYNPY-1351] Update tutorial script references in Wiki documentation by @BryanFauble in https://github.com/Sage-Bionetworks/synapsePythonClient/pull/1302
+- [SYNPY-1590] Add `docker_commit_services` module to codebase by @jaymedina in https://github.com/Sage-Bionetworks/synapsePythonClient/pull/1304
+- [SYNPY-1351] Adding in test isolation for wiki tests by @BryanFauble in https://github.com/Sage-Bionetworks/synapsePythonClient/pull/1306
+- [SYNPY-1737] Switch urllib3 to version 2 by @BryanFauble in https://github.com/Sage-Bionetworks/synapsePythonClient/pull/1299
+- [SYNPY-1673] Update jsonschema tutorial by @thomasyu888 in https://github.com/Sage-Bionetworks/synapsePythonClient/pull/1260
+- [SYNPY-1673] Add JSON Schema documentation, deprecate old classes by @andrewelamb in https://github.com/Sage-Bionetworks/synapsePythonClient/pull/1262
+- [SYNPY-1672] Extract JSON Schema creation code from schematic by @BryanFauble in https://github.com/Sage-Bionetworks/synapsePythonClient/pull/1266
+- [SYNPY-1668] Creating curator extensions directory by @BryanFauble in https://github.com/Sage-Bionetworks/synapsePythonClient/pull/1263
+
 ## 4.10.0
 
 ## Highlights

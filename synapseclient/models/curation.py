@@ -1148,7 +1148,7 @@ class GridSynchronousProtocol(Protocol):
 
     def create(
         self,
-        attach_to_previous_session=True,
+        attach_to_previous_session=False,
         *,
         timeout: int = 120,
         synapse_client: Optional[Synapse] = None,
@@ -1158,7 +1158,7 @@ class GridSynchronousProtocol(Protocol):
 
         Arguments:
             attach_to_previous_session: If True and using `record_set_id`, will attach
-                to an existing active session if one exists. Defaults to True.
+                to an existing active session if one exists. Defaults to False.
             timeout: The number of seconds to wait for the job to complete or progress
                 before raising a SynapseTimeoutError. Defaults to 120.
             synapse_client: If not passed in and caching was not disabled by
@@ -1448,7 +1448,7 @@ class Grid(GridSynchronousProtocol):
 
     async def create_async(
         self,
-        attach_to_previous_session=True,
+        attach_to_previous_session=False,
         *,
         timeout: int = 120,
         synapse_client: Optional[Synapse] = None,
@@ -1462,7 +1462,7 @@ class Grid(GridSynchronousProtocol):
 
         Arguments:
             attach_to_previous_session: If True and using `record_set_id`, will attach
-                to an existing active session if one exists. Defaults to True.
+                to an existing active session if one exists. Defaults to False.
             timeout: The number of seconds to wait for the job to complete or progress
                 before raising a SynapseTimeoutError. Defaults to 120.
             synapse_client: If not passed in and caching was not disabled by

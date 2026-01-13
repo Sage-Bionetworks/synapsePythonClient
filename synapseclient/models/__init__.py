@@ -15,14 +15,20 @@ from synapseclient.models.curation import (
 )
 from synapseclient.models.dataset import Dataset, DatasetCollection, EntityRef
 from synapseclient.models.entityview import EntityView, ViewTypeMask
+from synapseclient.models.evaluation import Evaluation
 from synapseclient.models.file import File, FileHandle
 from synapseclient.models.folder import Folder
+from synapseclient.models.form import FormData, FormGroup
 from synapseclient.models.link import Link
 from synapseclient.models.materializedview import MaterializedView
 from synapseclient.models.mixins.table_components import QueryMixin
 from synapseclient.models.project import Project
 from synapseclient.models.recordset import RecordSet
+from synapseclient.models.schema_organization import JSONSchema, SchemaOrganization
 from synapseclient.models.services import FailureStrategy
+from synapseclient.models.submission import Submission
+from synapseclient.models.submission_bundle import SubmissionBundle
+from synapseclient.models.submission_status import SubmissionStatus
 from synapseclient.models.submissionview import SubmissionView
 from synapseclient.models.table import Table
 from synapseclient.models.table_components import (
@@ -56,11 +62,18 @@ from synapseclient.models.table_components import (
 from synapseclient.models.team import Team, TeamMember, TeamMembershipStatus
 from synapseclient.models.user import UserGroupHeader, UserPreference, UserProfile
 from synapseclient.models.virtualtable import VirtualTable
+from synapseclient.models.wiki import (
+    WikiHeader,
+    WikiHistorySnapshot,
+    WikiOrderHint,
+    WikiPage,
+)
 
 __all__ = [
     "Activity",
     "UsedURL",
     "UsedEntity",
+    "Evaluation",
     "FailureStrategy",
     "File",
     "FileHandle",
@@ -125,7 +138,21 @@ __all__ = [
     "EntityRef",
     "DatasetCollection",
     # Submission models
+    "Submission",
+    "SubmissionBundle",
+    "SubmissionStatus",
     "SubmissionView",
+    # Wiki models
+    "WikiPage",
+    "WikiOrderHint",
+    "WikiHistorySnapshot",
+    "WikiHeader",
+    # JSON Schema models
+    "SchemaOrganization",
+    "JSONSchema",
+    # Form models
+    "FormGroup",
+    "FormData",
 ]
 
 # Static methods to expose as functions

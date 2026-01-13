@@ -7,7 +7,8 @@ import tempfile
 import uuid
 from datetime import datetime
 from typing import Callable
-from unittest import skip
+
+# from unittest import skip
 from unittest.mock import patch
 
 import pytest
@@ -35,7 +36,7 @@ FILE_DESCRIPTION = "A test file entity"
 NEW_DESCRIPTION = "new description"
 
 
-async def test_login(syn):
+def test_login(syn):
     try:
         config = configparser.RawConfigParser()
         config.read(client.CONFIG_FILE)
@@ -84,7 +85,7 @@ async def test_login(syn):
         syn.login(profile=profile, silent=True)
 
 
-async def testCustomConfigFile(schedule_for_cleanup):
+def testCustomConfigFile(schedule_for_cleanup):
     if os.path.isfile(client.CONFIG_FILE):
         configPath = "./CONFIGFILE"
         shutil.copyfile(client.CONFIG_FILE, configPath)
@@ -100,8 +101,8 @@ async def testCustomConfigFile(schedule_for_cleanup):
         )
 
 
-@skip("Skip integration tests for soon to be removed code")
-async def test_entity_version(syn, project, schedule_for_cleanup):
+# @skip("Skip integration tests for soon to be removed code")
+def test_entity_version(syn, project, schedule_for_cleanup):
     # Make an Entity and make sure the version is one
     entity = File(parent=project["id"])
     entity["path"] = utils.make_bogus_data_file()
@@ -155,8 +156,8 @@ async def test_entity_version(syn, project, schedule_for_cleanup):
     assert returnEntity.versionNumber == 1
 
 
-@skip("Skip integration tests for soon to be removed code")
-async def test_md5_query(syn, project, schedule_for_cleanup):
+# @skip("Skip integration tests for soon to be removed code")
+def test_md5_query(syn, project, schedule_for_cleanup):
     # Add the same Entity several times
     path = utils.make_bogus_data_file()
     schedule_for_cleanup(path)
@@ -177,8 +178,8 @@ async def test_md5_query(syn, project, schedule_for_cleanup):
     assert len(results) == num
 
 
-@skip("Skip integration tests for soon to be removed code")
-async def test_uploadFile_given_dictionary(syn, project, schedule_for_cleanup):
+# @skip("Skip integration tests for soon to be removed code")
+def test_uploadFile_given_dictionary(syn, project, schedule_for_cleanup):
     # Make a Folder Entity the old fashioned way
     folder = {
         "concreteType": Folder._synapse_entity_type,
@@ -209,8 +210,8 @@ async def test_uploadFile_given_dictionary(syn, project, schedule_for_cleanup):
     syn.get(entity["id"])
 
 
-@skip("Skip integration tests for soon to be removed code")
-async def test_upload_file_with_force_version_false(
+# @skip("Skip integration tests for soon to be removed code")
+def test_upload_file_with_force_version_false(
     syn: Synapse, project: Project, schedule_for_cleanup
 ) -> None:
     # GIVEN A bogus file to upload to synapse
@@ -243,8 +244,8 @@ async def test_upload_file_with_force_version_false(
     assert not mocked_file_handle_upload.called
 
 
-@skip("Skip integration tests for soon to be removed code")
-async def test_upload_file_changed_with_force_version_false(
+# @skip("Skip integration tests for soon to be removed code")
+def test_upload_file_changed_with_force_version_false(
     syn: Synapse, project: Project, schedule_for_cleanup
 ) -> None:
     # GIVEN A bogus file to upload to synapse
@@ -279,8 +280,8 @@ async def test_upload_file_changed_with_force_version_false(
     assert before_file_handle_id != entity["dataFileHandleId"]
 
 
-@skip("Skip integration tests for soon to be removed code")
-async def test_uploadFileEntity(syn, project, schedule_for_cleanup):
+# @skip("Skip integration tests for soon to be removed code")
+def test_uploadFileEntity(syn, project, schedule_for_cleanup):
     # Create a FileEntity
     # Dictionaries default to FileEntity as a type
     fname = utils.make_bogus_data_file()
@@ -317,8 +318,8 @@ async def test_uploadFileEntity(syn, project, schedule_for_cleanup):
     assert filecmp.cmp(fname, entity["path"])
 
 
-@skip("Skip integration tests for soon to be removed code")
-async def test_download_multithreaded(syn, project, schedule_for_cleanup):
+# @skip("Skip integration tests for soon to be removed code")
+def test_download_multithreaded(syn, project, schedule_for_cleanup):
     # Create a FileEntity
     # Dictionaries default to FileEntity as a type
     fname = utils.make_bogus_data_file()
@@ -339,8 +340,8 @@ async def test_download_multithreaded(syn, project, schedule_for_cleanup):
     syn.multi_threaded = False
 
 
-@skip("Skip integration tests for soon to be removed code")
-async def test_downloadFile(schedule_for_cleanup):
+# @skip("Skip integration tests for soon to be removed code")
+def test_downloadFile(schedule_for_cleanup):
     # See if the a "wget" works
     filename = utils.download_file(
         "http://dev-versions.synapse.sagebase.org/sage_bionetworks_logo_274x128.png"
@@ -349,8 +350,8 @@ async def test_downloadFile(schedule_for_cleanup):
     assert os.path.exists(filename)
 
 
-@skip("Skip integration tests for soon to be removed code")
-async def test_provenance(syn, project, schedule_for_cleanup):
+# @skip("Skip integration tests for soon to be removed code")
+def test_provenance(syn, project, schedule_for_cleanup):
     # Create a File Entity
     fname = utils.make_bogus_data_file()
     schedule_for_cleanup(fname)
@@ -398,8 +399,8 @@ async def test_provenance(syn, project, schedule_for_cleanup):
     pytest.raises(SynapseHTTPError, syn.getProvenance, data_entity["id"])
 
 
-@skip("Skip integration tests for soon to be removed code")
-async def test_annotations(syn, project, schedule_for_cleanup):
+# @skip("Skip integration tests for soon to be removed code")
+def test_annotations(syn, project, schedule_for_cleanup):
     # Get the annotations of an Entity
     entity = syn.store(Folder(parent=project["id"]))
     anno = syn.get_annotations(entity)
@@ -447,8 +448,8 @@ async def test_annotations(syn, project, schedule_for_cleanup):
     assert annotation["maybe"] == [True, False]
 
 
-@skip("Skip integration tests for soon to be removed code")
-async def test_annotations_on_file_during_create_no_annotations(
+# @skip("Skip integration tests for soon to be removed code")
+def test_annotations_on_file_during_create_no_annotations(
     syn: Synapse, project: Project, schedule_for_cleanup
 ):
     # GIVEN a bogus file
@@ -475,8 +476,8 @@ async def test_annotations_on_file_during_create_no_annotations(
     assert not mock_set_annotations.called
 
 
-@skip("Skip integration tests for soon to be removed code")
-async def test_annotations_on_file_during_create_with_annotations(
+# @skip("Skip integration tests for soon to be removed code")
+def test_annotations_on_file_during_create_with_annotations(
     syn: Synapse, project: Project, schedule_for_cleanup
 ):
     # GIVEN a bogus file
@@ -504,8 +505,8 @@ async def test_annotations_on_file_during_create_with_annotations(
     assert len(annotations) == 2
 
 
-@skip("Skip integration tests for soon to be removed code")
-async def test_get_user_profile(syn):
+# @skip("Skip integration tests for soon to be removed code")
+def test_get_user_profile(syn):
     p1 = syn.getUserProfile()
 
     # get by name
@@ -517,16 +518,16 @@ async def test_get_user_profile(syn):
     assert p2.userName == p1.userName
 
 
-@skip("Skip integration tests for soon to be removed code")
-async def test_findEntityIdByNameAndParent(syn, schedule_for_cleanup):
+# @skip("Skip integration tests for soon to be removed code")
+def test_findEntityIdByNameAndParent(syn, schedule_for_cleanup):
     project_name = str(uuid.uuid1())
     project_id = syn.store(Project(name=project_name))["id"]
     assert project_id == syn.findEntityId(project_name)
     schedule_for_cleanup(project_id)
 
 
-@skip("Skip integration tests for soon to be removed code")
-async def test_getChildren(syn, schedule_for_cleanup):
+# @skip("Skip integration tests for soon to be removed code")
+def test_getChildren(syn, schedule_for_cleanup):
     # setup a hierarchy for folders
     # PROJECT
     # |     \
@@ -593,8 +594,8 @@ class TestPermissionsOnProject:
         self.syn = syn
         self.schedule_for_cleanup = schedule_for_cleanup
 
-    @skip("Skip integration tests for soon to be removed code")
-    async def test_get_acl_default(self) -> None:
+    # @skip("Skip integration tests for soon to be removed code")
+    def test_get_acl_default(self) -> None:
         # GIVEN a project created with default permissions of administrator
         project_with_default_permissions: Entity = self.syn.store(
             Project(name=str(uuid.uuid4()) + "test_get_acl_default_permissions")
@@ -620,8 +621,8 @@ class TestPermissionsOnProject:
         ]
         assert set(expected_permissions) == set(permissions)
 
-    @skip("Skip integration tests for soon to be removed code")
-    async def test_get_acl_read_only_permissions_on_entity(self) -> None:
+    # @skip("Skip integration tests for soon to be removed code")
+    def test_get_acl_read_only_permissions_on_entity(self) -> None:
         # GIVEN a project created with default permissions of administrator
         project_with_read_only_permissions: Entity = self.syn.store(
             Project(name=str(uuid.uuid4()) + "test_get_acl_read_permissions_on_project")
@@ -645,8 +646,8 @@ class TestPermissionsOnProject:
         expected_permissions = ["READ"]
         assert set(expected_permissions) == set(permissions)
 
-    @skip("Skip integration tests for soon to be removed code")
-    async def test_get_acl_through_team_assigned_to_user(self) -> None:
+    # @skip("Skip integration tests for soon to be removed code")
+    def test_get_acl_through_team_assigned_to_user(self) -> None:
         # GIVEN a project created with default permissions of administrator
         project_with_permissions_through_single_team: Entity = self.syn.store(
             Project(
@@ -709,8 +710,8 @@ class TestPermissionsOnProject:
         ]
         assert set(expected_permissions) == set(permissions)
 
-    @skip("Skip integration tests for soon to be removed code")
-    async def test_get_acl_through_multiple_teams_assigned_to_user(self) -> None:
+    # @skip("Skip integration tests for soon to be removed code")
+    def test_get_acl_through_multiple_teams_assigned_to_user(self) -> None:
         # GIVEN a project created with default permissions of administrator
         project_with_permissions_through_multiple_teams: Entity = self.syn.store(
             Project(
@@ -791,8 +792,8 @@ class TestPermissionsOnProject:
         ]
         assert set(expected_permissions) == set(permissions)
 
-    @skip("Skip integration tests for soon to be removed code")
-    async def test_get_acl_for_project_with_public_and_registered_user(self) -> None:
+    # @skip("Skip integration tests for soon to be removed code")
+    def test_get_acl_for_project_with_public_and_registered_user(self) -> None:
         # GIVEN a project created with default permissions of administrator
         project_with_permissions_for_public_and_authenticated_users: Entity = (
             self.syn.store(
@@ -876,8 +877,8 @@ class TestPermissionsOnEntityForCaller:
         self.syn = syn
         self.schedule_for_cleanup = schedule_for_cleanup
 
-    @skip("Skip integration tests for soon to be removed code")
-    async def test_get_permissions_default(self) -> None:
+    # @skip("Skip integration tests for soon to be removed code")
+    def test_get_permissions_default(self) -> None:
         # GIVEN a project created with default permissions of administrator
         project_with_default_permissions: Entity = self.syn.store(
             Project(name=str(uuid.uuid4()) + "test_get_permissions_default_permissions")
@@ -900,8 +901,8 @@ class TestPermissionsOnEntityForCaller:
         ]
         assert set(expected_permissions) == set(permissions.access_types)
 
-    @skip("Skip integration tests for soon to be removed code")
-    async def test_get_permissions_read_only_permissions_on_entity(self) -> None:
+    # @skip("Skip integration tests for soon to be removed code")
+    def test_get_permissions_read_only_permissions_on_entity(self) -> None:
         # GIVEN a project created with default permissions of administrator
         project_with_read_only_permissions: Entity = self.syn.store(
             Project(
@@ -928,8 +929,8 @@ class TestPermissionsOnEntityForCaller:
 
         assert set(expected_permissions) == set(permissions.access_types)
 
-    @skip("Skip integration tests for soon to be removed code")
-    async def test_get_permissions_through_team_assigned_to_user(self) -> None:
+    # @skip("Skip integration tests for soon to be removed code")
+    def test_get_permissions_through_team_assigned_to_user(self) -> None:
         # GIVEN a project created with default permissions of administrator
         project_with_permissions_through_single_team: Entity = self.syn.store(
             Project(
@@ -991,8 +992,8 @@ class TestPermissionsOnEntityForCaller:
         ]
         assert set(expected_permissions) == set(permissions.access_types)
 
-    @skip("Skip integration tests for soon to be removed code")
-    async def test_get_permissions_through_multiple_teams_assigned_to_user(
+    # @skip("Skip integration tests for soon to be removed code")
+    def test_get_permissions_through_multiple_teams_assigned_to_user(
         self,
     ) -> None:
         # GIVEN a project created with default permissions of administrator
@@ -1074,8 +1075,8 @@ class TestPermissionsOnEntityForCaller:
         ]
         assert set(expected_permissions) == set(permissions.access_types)
 
-    @skip("Skip integration tests for soon to be removed code")
-    async def test_get_permissions_for_project_with_registered_user(self) -> None:
+    # @skip("Skip integration tests for soon to be removed code")
+    def test_get_permissions_for_project_with_registered_user(self) -> None:
         # GIVEN a project created with default permissions of administrator
         project_with_permissions_for_authenticated_users: Entity = self.syn.store(
             Project(
@@ -1129,8 +1130,8 @@ class TestPermissionsOnEntityForCaller:
         assert set(expected_permissions) == set(permissions.access_types)
 
 
-@skip("Skip integration tests for soon to be removed code")
-async def test_create_delete_team(syn: Synapse) -> None:
+# @skip("Skip integration tests for soon to be removed code")
+def test_create_delete_team(syn: Synapse) -> None:
     # GIVEN information about a team I want to create
     name = "python_client_integration_test_team_" + str(uuid.uuid4())
     description = "test description"
@@ -1162,7 +1163,7 @@ class TestAsyncRestInterfaces:
         self.syn = syn
         self.schedule_for_cleanup = schedule_for_cleanup
 
-    @skip("Skip integration tests for soon to be removed code")
+    # @skip("Skip integration tests for soon to be removed code")
     async def test_rest_get_async(self, project: Project) -> None:
         # GIVEN a project stored in synapse
 
@@ -1174,7 +1175,7 @@ class TestAsyncRestInterfaces:
         assert new_project_instance["name"] == project["name"]
         assert new_project_instance["etag"] == project["etag"]
 
-    @skip("Skip integration tests for soon to be removed code")
+    # @skip("Skip integration tests for soon to be removed code")
     async def test_rest_post_async(self, project: Project) -> None:
         # GIVEN A bogus file to upload to synapse
         path = utils.make_bogus_uuid_file()
@@ -1187,7 +1188,7 @@ class TestAsyncRestInterfaces:
         )
 
         # AND I store the file in Synapse
-        entity = self.syn.store(entity)
+        entity = await self.syn.store_async(entity)
         self.schedule_for_cleanup(entity.id)
 
         # WHEN I used the rest_post_async method to get the bundle
@@ -1204,7 +1205,7 @@ class TestAsyncRestInterfaces:
         assert entity_bundle["entity"]["name"] == entity.name
         assert entity_bundle["entity"]["etag"] == entity.etag
 
-    @skip("Skip integration tests for soon to be removed code")
+    # @skip("Skip integration tests for soon to be removed code")
     async def test_rest_put_async(self, project: Project) -> None:
         # GIVEN A bogus file to upload to synapse
         path = utils.make_bogus_uuid_file()
@@ -1217,7 +1218,7 @@ class TestAsyncRestInterfaces:
         )
 
         # AND I store the file in Synapse
-        entity = self.syn.store(entity)
+        entity = await self.syn.store_async(entity)
         self.schedule_for_cleanup(entity.id)
 
         # AND I used the rest_post_async method to get the bundle
@@ -1253,7 +1254,7 @@ class TestAsyncRestInterfaces:
         )
         assert entity_bundle_copy["entity"]["description"] == NEW_DESCRIPTION
 
-    @skip("Skip integration tests for soon to be removed code")
+    # @skip("Skip integration tests for soon to be removed code")
     async def test_rest_delete_async(self, project: Project) -> None:
         # GIVEN A bogus file to upload to synapse
         path = utils.make_bogus_uuid_file()
@@ -1266,7 +1267,7 @@ class TestAsyncRestInterfaces:
         )
 
         # AND I store the file in Synapse
-        entity = self.syn.store(entity)
+        entity = await self.syn.store_async(entity)
         self.schedule_for_cleanup(entity.id)
 
         # WHEN I use rest_delete_async to delete the entity
