@@ -33,8 +33,6 @@ from synapseclient import Synapse
 from synapseclient.core.typing_utils import DataFrame as DATA_FRAME_TYPE
 from synapseclient.core.typing_utils import np, nx
 
-# from synapseclient.core.utils import test_import_pandas
-
 
 def check_curator_imports() -> None:
     """Attempts to import all necessary packages for the Curator extension.
@@ -43,11 +41,11 @@ def check_curator_imports() -> None:
         ImportError: If one or more Curator packages are not installed.
     """
     try:
-        import inflection  # noqa
-        import networkx  # noqa
-        import pandarallel  # noqa
-        import pandas  # noqa
-        import rdflib  # noqa
+        import inflection  # noqa: F401
+        import networkx  # noqa: F401
+        import pandarallel  # noqa: F401
+        import pandas  # noqa: F401
+        import rdflib  # noqa: F401
     except ImportError as exception:
         msg = (
             "One or more packages needed for the Curator extension are not installed."
