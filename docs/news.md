@@ -21,47 +21,27 @@ breaking changes will not be included until v5.0.
 
 ## Features
 
-- [SYNPY-1653] Created RecordSet, Grid, and CurationTask classes by @BryanFauble in https://github.com/Sage-Bionetworks/synapsePythonClient/pull/1246
-- [SYNPY-1625] Added JSON schema organization management functions by @BryanFauble in https://github.com/Sage-Bionetworks/synapsePythonClient/pull/1225
-- [SYNPY-1623] Factory function for get and creation of link entity by @BryanFauble in https://github.com/Sage-Bionetworks/synapsePythonClient/pull/1243
 - [SYNPY-1589] Implement "Evaluation" OOP model by @jaymedina in https://github.com/Sage-Bionetworks/synapsePythonClient/pull/1244
 - [SYNPY-1590] Implement Submission(+Status, +Bundle) OOP model by @jaymedina in https://github.com/Sage-Bionetworks/synapsePythonClient/pull/1250
-- [SYNPY-1613] Implement "Wiki2" OOP model by @danlu1 in https://github.com/Sage-Bionetworks/synapsePythonClient/pull/1206
+- [SYNPY-1351] Implement "Wiki2" OOP model by @danlu1 in https://github.com/Sage-Bionetworks/synapsePythonClient/pull/1206
 
 ## Bug Fixes
 
-- [SYNPY-1198] Handle S3 upload errors by retrying without ACL for IBM buckets by @BryanFauble in https://github.com/Sage-Bionetworks/synapsePythonClient/pull/1239
 - [SYNPY-1709] Correct boolean type conversion by @BryanFauble in https://github.com/Sage-Bionetworks/synapsePythonClient/pull/1284
-- [GEN-1667] Delete Table Rows Using Filtered DataFrame by @danlu1 in https://github.com/Sage-Bionetworks/synapsePythonClient/pull/1254
 - [SYNPY-1667] Update Error Messaging when Attempting to Delete Rows that do not exist from Tables by @SageGJ in https://github.com/Sage-Bionetworks/synapsePythonClient/pull/1257
 
 ## Tech Debt
 
-- [SYNPY-1426] Deprecate user and team services in Synapse client by @BryanFauble in https://github.com/Sage-Bionetworks/synapsePythonClient/pull/1212
-- [SYNPY-1426] Deprecate activity services in Synapse client by @BryanFauble in https://github.com/Sage-Bionetworks/synapsePythonClient/pull/1215
-- [SYNPY-1426] Deprecate `create_snapshot_version` in client by @BryanFauble in https://github.com/Sage-Bionetworks/synapsePythonClient/pull/1217
-- [SYNPY-1426] Deprecate column method calls by @BryanFauble in https://github.com/Sage-Bionetworks/synapsePythonClient/pull/1218
-- [SYNPY-1426] Deprecate move method by @BryanFauble in https://github.com/Sage-Bionetworks/synapsePythonClient/pull/1219
-- [SYNPY-1426] Deprecate annotations by @BryanFauble in https://github.com/Sage-Bionetworks/synapsePythonClient/pull/1221
 - [SYNPY-1426] Deprecate getChildren method and extend sync_from_synapse method by @BryanFauble in https://github.com/Sage-Bionetworks/synapsePythonClient/pull/1222
 - [SYNPY-1426] Deprecate acl and permission management methods by @BryanFauble in https://github.com/Sage-Bionetworks/synapsePythonClient/pull/1223
 - [SYNPY-1426] Noting all final deprecations and the tickets they will be deprecated with by @BryanFauble in https://github.com/Sage-Bionetworks/synapsePythonClient/pull/1226
-- [SYNPY-1632] Deprecate tables from the Synapse class and table.py module by @linglp in https://github.com/Sage-Bionetworks/synapsePythonClient/pull/1233
 
 ## Other
 
-- [SYNPY-1637] Add 'Contact Us' section with support link in navigation by @BryanFauble in https://github.com/Sage-Bionetworks/synapsePythonClient/pull/1230
-- [SYNPY-1642] Make sure paramiko is < 4.0.0 by @linglp in https://github.com/Sage-Bionetworks/synapsePythonClient/pull/1231
-- [SYNPY-1588] Enable `Agent` Integration tests by @linglp in https://github.com/Sage-Bionetworks/synapsePythonClient/pull/1229
 - [SYNPY-1633] Add membership_status to Team model and Deprecate Old Method by @linglp in https://github.com/Sage-Bionetworks/synapsePythonClient/pull/1235
-- [SYNPY-1592] Dedicated test accounts for each set of integration test runs by @BryanFauble in https://github.com/Sage-Bionetworks/synapsePythonClient/pull/1240
-- [SYNPY-1634, SYNPY-1377] Use new OOP models in tutorials by @thomasyu888 in https://github.com/Sage-Bionetworks/synapsePythonClient/pull/1241
-- [SYNPY-1634] Add walk method to containers by @BryanFauble in https://github.com/Sage-Bionetworks/synapsePythonClient/pull/1242
 - [SYNPY-1351] Update tutorial script references in Wiki documentation by @BryanFauble in https://github.com/Sage-Bionetworks/synapsePythonClient/pull/1302
-- [SYNPY-1743] Remove test cases for rest_get_paginated_async by @danlu1 in https://github.com/Sage-Bionetworks/synapsePythonClient/pull/1303
 - [SYNPY-1590] Add `docker_commit_services` module to codebase by @jaymedina in https://github.com/Sage-Bionetworks/synapsePythonClient/pull/1304
 - [SYNPY-1351] Adding in test isolation for wiki tests by @BryanFauble in https://github.com/Sage-Bionetworks/synapsePythonClient/pull/1306
-- [SYNPY-1613] Allow download from presigned url by @danlu1 in https://github.com/Sage-Bionetworks/synapsePythonClient/pull/1249
 - [SYNPY-1737] Switch urllib3 to version 2 by @BryanFauble in https://github.com/Sage-Bionetworks/synapsePythonClient/pull/1299
 - [SYNPY-1673] Update jsonschema tutorial by @thomasyu888 in https://github.com/Sage-Bionetworks/synapsePythonClient/pull/1260
 - [SYNPY-1673] Add JSON Schema documentation, deprecate old classes by @andrewelamb in https://github.com/Sage-Bionetworks/synapsePythonClient/pull/1262
