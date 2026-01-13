@@ -141,7 +141,7 @@ jobs:
         shell: bash
 
         # keep versions consistent with the first and last from the strategy matrix
-        if: ${{ (contains(fromJSON('["3.10"]'), matrix.python) || contains(fromJSON('["3.14"]'), matrix.python)) && steps.secret-check.outputs.secrets_available == 'true'}}
+        if: ${{ (contains(fromJSON('["3.10"]'), matrix.python) || contains(fromJSON('["3.14"]'), matrix.python)) && steps.secret-check.outputs.secrets_available == 'true' && github.event_name != 'release'}}
         run: |
           # Set SYNAPSE_PROFILE based on OS and Python version
           if [ "${{ startsWith(matrix.os, 'ubuntu') }}" == "true" ]; then
