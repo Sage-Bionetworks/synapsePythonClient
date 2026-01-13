@@ -48,7 +48,7 @@ def check_curator_imports() -> None:
         import rdflib  # noqa: F401
     except ImportError as exception:
         msg = (
-            "One or more packages needed for the Curator extension are not installed."
+            "One or more packages needed for the Curator extension are not installed. "
             "Please install using 'pip install --upgrade 'synapseclient[curator]'"
         )
         raise ImportError(msg) from exception
