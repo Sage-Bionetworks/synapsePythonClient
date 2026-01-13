@@ -15,7 +15,7 @@ breaking changes will not be included until v5.0.
 ## Highlights
 
 - Refactored Synapse Python Client to use object-oriented principles
-- Added support for new Synapse entities like RecordSet, Grid, and CurationTask
+- Added guide for setting up metadata curation workflows in Synapse with Curator extension.
 - Implemented JSON Schema creation and validation workflows
 - Deprecated legacy functionality and migrated to new asynchronous APIs
 
@@ -46,7 +46,7 @@ breaking changes will not be included until v5.0.
 - [SYNPY-1673] Update jsonschema tutorial by @thomasyu888 in https://github.com/Sage-Bionetworks/synapsePythonClient/pull/1260
 - [SYNPY-1673] Add JSON Schema documentation, deprecate old classes by @andrewelamb in https://github.com/Sage-Bionetworks/synapsePythonClient/pull/1262
 - [SYNPY-1672] Extract JSON Schema creation code from schematic by @BryanFauble in https://github.com/Sage-Bionetworks/synapsePythonClient/pull/1266
-- [SYNPY-1668] Creating curator extensions directory by @BryanFauble in https://github.com/Sage-Bionetworks/synapsePyth
+- [SYNPY-1668] Creating curator extensions directory by @BryanFauble in https://github.com/Sage-Bionetworks/synapsePythonClient/pull/1263
 
 ## 4.10.0
 
