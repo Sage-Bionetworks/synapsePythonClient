@@ -1,0 +1,6469 @@
+
+<!doctype html>
+<html lang="en" class="no-js">
+  <head>
+    
+      <meta charset="utf-8">
+      <meta name="viewport" content="width=device-width,initial-scale=1">
+      
+        <meta name="description" content="A Python client for Sage Bionetworks' Synapse, a collaborative, open-source research platform that allows teams to share data, track analyses, and collaborate. The Python client can be used as a library for development of software that communicates with Synapse or as a command-line utility.">
+      
+      
+        <meta name="author" content="Bryan Fauble">
+      
+      
+      
+        <link rel="prev" href="../sharing_settings/">
+      
+      
+        <link rel="next" href="../upload_data_in_bulk/">
+      
+      
+        
+      
+      
+      <link rel="icon" href="../../../assets/favicon.png">
+      <meta name="generator" content="mkdocs-1.6.1, mkdocs-material-9.7.1">
+    
+    
+      
+        <title>Wiki - Synapse Python/Command Line Client Documentation</title>
+      
+    
+    
+      <link rel="stylesheet" href="../../../assets/stylesheets/main.484c7ddc.min.css">
+      
+        
+        <link rel="stylesheet" href="../../../assets/stylesheets/palette.ab4e12ef.min.css">
+      
+      
+  
+  
+    
+      
+      
+    
+  
+    
+      
+      
+    
+  
+  
+  <style>:root{--md-admonition-icon--note:url('data:image/svg+xml;charset=utf-8,%3Csvg%20xmlns%3D%22http%3A//www.w3.org/2000/svg%22%20viewBox%3D%220%200%2016%2016%22%3E%3Cpath%20d%3D%22M1%207.775V2.75C1%201.784%201.784%201%202.75%201h5.025c.464%200%20.91.184%201.238.513l6.25%206.25a1.75%201.75%200%200%201%200%202.474l-5.026%205.026a1.75%201.75%200%200%201-2.474%200l-6.25-6.25A1.75%201.75%200%200%201%201%207.775m1.5%200c0%20.066.026.13.073.177l6.25%206.25a.25.25%200%200%200%20.354%200l5.025-5.025a.25.25%200%200%200%200-.354l-6.25-6.25a.25.25%200%200%200-.177-.073H2.75a.25.25%200%200%200-.25.25ZM6%205a1%201%200%201%201%200%202%201%201%200%200%201%200-2%22/%3E%3C/svg%3E');--md-admonition-icon--info:url('data:image/svg+xml;charset=utf-8,%3Csvg%20xmlns%3D%22http%3A//www.w3.org/2000/svg%22%20viewBox%3D%220%200%2016%2016%22%3E%3Cpath%20d%3D%22M0%208a8%208%200%201%201%2016%200A8%208%200%200%201%200%208m8-6.5a6.5%206.5%200%201%200%200%2013%206.5%206.5%200%200%200%200-13M6.5%207.75A.75.75%200%200%201%207.25%207h1a.75.75%200%200%201%20.75.75v2.75h.25a.75.75%200%200%201%200%201.5h-2a.75.75%200%200%201%200-1.5h.25v-2h-.25a.75.75%200%200%201-.75-.75M8%206a1%201%200%201%201%200-2%201%201%200%200%201%200%202%22/%3E%3C/svg%3E');}</style>
+
+
+
+    
+    
+      
+    
+    
+      
+        
+        
+        <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+        <link rel="stylesheet" href="https://fonts.googleapis.com/css?family=Roboto:300,300i,400,400i,700,700i%7CRoboto+Mono:400,400i,700,700i&display=fallback">
+        <style>:root{--md-text-font:"Roboto";--md-code-font:"Roboto Mono"}</style>
+      
+    
+    
+      <link rel="stylesheet" href="../../../assets/_mkdocstrings.css">
+    
+      <link rel="stylesheet" href="../../../css/custom.css">
+    
+      <link rel="stylesheet" href="../../../termynal.css">
+    
+    <script>__md_scope=new URL("../../..",location),__md_hash=e=>[...e].reduce(((e,_)=>(e<<5)-e+_.charCodeAt(0)),0),__md_get=(e,_=localStorage,t=__md_scope)=>JSON.parse(_.getItem(t.pathname+"."+e)),__md_set=(e,_,t=localStorage,a=__md_scope)=>{try{t.setItem(a.pathname+"."+e,JSON.stringify(_))}catch(e){}}</script>
+    
+      
+
+    
+    
+  </head>
+  
+  
+    
+    
+      
+    
+    
+    
+    
+    <body dir="ltr" data-md-color-scheme="default" data-md-color-primary="white" data-md-color-accent="indigo">
+  
+    
+    <input class="md-toggle" data-md-toggle="drawer" type="checkbox" id="__drawer" autocomplete="off">
+    <input class="md-toggle" data-md-toggle="search" type="checkbox" id="__search" autocomplete="off">
+    <label class="md-overlay" for="__drawer"></label>
+    <div data-md-component="skip">
+      
+        
+        <a href="#wikis" class="md-skip">
+          Skip to content
+        </a>
+      
+    </div>
+    <div data-md-component="announce">
+      
+    </div>
+    
+    
+      
+
+  
+
+<header class="md-header md-header--shadow md-header--lifted" data-md-component="header">
+  <nav class="md-header__inner md-grid" aria-label="Header">
+    <a href="../../.." title="Synapse Python/Command Line Client Documentation" class="md-header__button md-logo" aria-label="Synapse Python/Command Line Client Documentation" data-md-component="logo">
+      
+  <img src="../../../assets/synapse_logo.png" alt="logo">
+
+    </a>
+    <label class="md-header__button md-icon" for="__drawer">
+      
+      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M3 6h18v2H3zm0 5h18v2H3zm0 5h18v2H3z"/></svg>
+    </label>
+    <div class="md-header__title" data-md-component="header-title">
+      <div class="md-header__ellipsis">
+        <div class="md-header__topic">
+          <span class="md-ellipsis">
+            Synapse Python/Command Line Client Documentation
+          </span>
+        </div>
+        <div class="md-header__topic" data-md-component="header-topic">
+          <span class="md-ellipsis">
+            
+              Wiki
+            
+          </span>
+        </div>
+      </div>
+    </div>
+    
+      
+        <form class="md-header__option" data-md-component="palette">
+  
+    
+    
+    
+    <input class="md-option" data-md-color-media="(prefers-color-scheme: light)" data-md-color-scheme="default" data-md-color-primary="white" data-md-color-accent="indigo"  aria-label="Switch to dark mode"  type="radio" name="__palette" id="__palette_0">
+    
+      <label class="md-header__button md-icon" title="Switch to dark mode" for="__palette_1" hidden>
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M17 6H7c-3.31 0-6 2.69-6 6s2.69 6 6 6h10c3.31 0 6-2.69 6-6s-2.69-6-6-6m0 10H7c-2.21 0-4-1.79-4-4s1.79-4 4-4h10c2.21 0 4 1.79 4 4s-1.79 4-4 4M7 9c-1.66 0-3 1.34-3 3s1.34 3 3 3 3-1.34 3-3-1.34-3-3-3"/></svg>
+      </label>
+    
+  
+    
+    
+    
+    <input class="md-option" data-md-color-media="(prefers-color-scheme: dark)" data-md-color-scheme="slate" data-md-color-primary="black" data-md-color-accent="indigo"  aria-label="Switch to light mode"  type="radio" name="__palette" id="__palette_1">
+    
+      <label class="md-header__button md-icon" title="Switch to light mode" for="__palette_0" hidden>
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M17 7H7a5 5 0 0 0-5 5 5 5 0 0 0 5 5h10a5 5 0 0 0 5-5 5 5 0 0 0-5-5m0 8a3 3 0 0 1-3-3 3 3 0 0 1 3-3 3 3 0 0 1 3 3 3 3 0 0 1-3 3"/></svg>
+      </label>
+    
+  
+</form>
+      
+    
+    
+      <script>var palette=__md_get("__palette");if(palette&&palette.color){if("(prefers-color-scheme)"===palette.color.media){var media=matchMedia("(prefers-color-scheme: light)"),input=document.querySelector(media.matches?"[data-md-color-media='(prefers-color-scheme: light)']":"[data-md-color-media='(prefers-color-scheme: dark)']");palette.color.media=input.getAttribute("data-md-color-media"),palette.color.scheme=input.getAttribute("data-md-color-scheme"),palette.color.primary=input.getAttribute("data-md-color-primary"),palette.color.accent=input.getAttribute("data-md-color-accent")}for(var[key,value]of Object.entries(palette.color))document.body.setAttribute("data-md-color-"+key,value)}</script>
+    
+    
+    
+      
+      
+        <label class="md-header__button md-icon" for="__search">
+          
+          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M9.5 3A6.5 6.5 0 0 1 16 9.5c0 1.61-.59 3.09-1.56 4.23l.27.27h.79l5 5-1.5 1.5-5-5v-.79l-.27-.27A6.52 6.52 0 0 1 9.5 16 6.5 6.5 0 0 1 3 9.5 6.5 6.5 0 0 1 9.5 3m0 2C7 5 5 7 5 9.5S7 14 9.5 14 14 12 14 9.5 12 5 9.5 5"/></svg>
+        </label>
+        <div class="md-search" data-md-component="search" role="dialog">
+  <label class="md-search__overlay" for="__search"></label>
+  <div class="md-search__inner" role="search">
+    <form class="md-search__form" name="search">
+      <input type="text" class="md-search__input" name="query" aria-label="Search" placeholder="Search" autocapitalize="off" autocorrect="off" autocomplete="off" spellcheck="false" data-md-component="search-query" required>
+      <label class="md-search__icon md-icon" for="__search">
+        
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M9.5 3A6.5 6.5 0 0 1 16 9.5c0 1.61-.59 3.09-1.56 4.23l.27.27h.79l5 5-1.5 1.5-5-5v-.79l-.27-.27A6.52 6.52 0 0 1 9.5 16 6.5 6.5 0 0 1 3 9.5 6.5 6.5 0 0 1 9.5 3m0 2C7 5 5 7 5 9.5S7 14 9.5 14 14 12 14 9.5 12 5 9.5 5"/></svg>
+        
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M20 11v2H8l5.5 5.5-1.42 1.42L4.16 12l7.92-7.92L13.5 5.5 8 11z"/></svg>
+      </label>
+      <nav class="md-search__options" aria-label="Search">
+        
+          <a href="javascript:void(0)" class="md-search__icon md-icon" title="Share" aria-label="Share" data-clipboard data-clipboard-text="" data-md-component="search-share" tabindex="-1">
+            
+            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M18 16.08c-.76 0-1.44.3-1.96.77L8.91 12.7c.05-.23.09-.46.09-.7s-.04-.47-.09-.7l7.05-4.11c.54.5 1.25.81 2.04.81a3 3 0 0 0 3-3 3 3 0 0 0-3-3 3 3 0 0 0-3 3c0 .24.04.47.09.7L8.04 9.81C7.5 9.31 6.79 9 6 9a3 3 0 0 0-3 3 3 3 0 0 0 3 3c.79 0 1.5-.31 2.04-.81l7.12 4.15c-.05.21-.08.43-.08.66 0 1.61 1.31 2.91 2.92 2.91s2.92-1.3 2.92-2.91A2.92 2.92 0 0 0 18 16.08"/></svg>
+          </a>
+        
+        <button type="reset" class="md-search__icon md-icon" title="Clear" aria-label="Clear" tabindex="-1">
+          
+          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M19 6.41 17.59 5 12 10.59 6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 12 13.41 17.59 19 19 17.59 13.41 12z"/></svg>
+        </button>
+      </nav>
+      
+        <div class="md-search__suggest" data-md-component="search-suggest"></div>
+      
+    </form>
+    <div class="md-search__output">
+      <div class="md-search__scrollwrap" tabindex="0" data-md-scrollfix>
+        <div class="md-search-result" data-md-component="search-result">
+          <div class="md-search-result__meta">
+            Initializing search
+          </div>
+          <ol class="md-search-result__list" role="presentation"></ol>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+      
+    
+    
+      <div class="md-header__source">
+        <a href="https://github.com/Sage-Bionetworks/synapsePythonClient" title="Go to repository" class="md-source" data-md-component="source">
+  <div class="md-source__icon md-icon">
+    
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 448 512"><!--! Font Awesome Free 7.1.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2025 Fonticons, Inc.--><path d="M439.6 236.1 244 40.5c-5.4-5.5-12.8-8.5-20.4-8.5s-15 3-20.4 8.4L162.5 81l51.5 51.5c27.1-9.1 52.7 16.8 43.4 43.7l49.7 49.7c34.2-11.8 61.2 31 35.5 56.7-26.5 26.5-70.2-2.9-56-37.3L240.3 199v121.9c25.3 12.5 22.3 41.8 9.1 55-6.4 6.4-15.2 10.1-24.3 10.1s-17.8-3.6-24.3-10.1c-17.6-17.6-11.1-46.9 11.2-56v-123c-20.8-8.5-24.6-30.7-18.6-45L142.6 101 8.5 235.1C3 240.6 0 247.9 0 255.5s3 15 8.5 20.4l195.6 195.7c5.4 5.4 12.7 8.4 20.4 8.4s15-3 20.4-8.4l194.7-194.7c5.4-5.4 8.4-12.8 8.4-20.4s-3-15-8.4-20.4"/></svg>
+  </div>
+  <div class="md-source__repository">
+    synapsePythonClient
+  </div>
+</a>
+      </div>
+    
+  </nav>
+  
+    
+      
+<nav class="md-tabs" aria-label="Tabs" data-md-component="tabs">
+  <div class="md-grid">
+    <ul class="md-tabs__list">
+      
+        
+  
+  
+  
+  
+    
+    
+      <li class="md-tabs__item">
+        <a href="../../.." class="md-tabs__link">
+          
+  
+  
+  Home
+
+        </a>
+      </li>
+    
+  
+
+      
+        
+  
+  
+  
+    
+  
+  
+    
+    
+      <li class="md-tabs__item md-tabs__item--active">
+        <a href="../../home/" class="md-tabs__link">
+          
+  
+  
+  Tutorials
+
+        </a>
+      </li>
+    
+  
+
+      
+        
+  
+  
+  
+  
+    
+    
+      <li class="md-tabs__item">
+        <a href="../../../guides/home/" class="md-tabs__link">
+          
+  
+  
+  How-To Guides
+
+        </a>
+      </li>
+    
+  
+
+      
+        
+  
+  
+  
+  
+    
+    
+      <li class="md-tabs__item">
+        <a href="../../../reference/client/" class="md-tabs__link">
+          
+  
+  
+  API Reference
+
+        </a>
+      </li>
+    
+  
+
+      
+        
+  
+  
+  
+  
+    
+    
+      <li class="md-tabs__item">
+        <a href="../../../explanations/home/" class="md-tabs__link">
+          
+  
+  
+  Further Reading
+
+        </a>
+      </li>
+    
+  
+
+      
+        
+  
+  
+  
+  
+    
+    
+      <li class="md-tabs__item">
+        <a href="../../../news/" class="md-tabs__link">
+          
+  
+  
+  News
+
+        </a>
+      </li>
+    
+  
+
+      
+        
+  
+  
+  
+  
+    <li class="md-tabs__item">
+      <a href="https://sagebionetworks.jira.com/servicedesk/customer/portal/9/group/16/create/206" class="md-tabs__link">
+        
+  
+  
+    
+  
+  Contact Us
+
+      </a>
+    </li>
+  
+
+      
+    </ul>
+  </div>
+</nav>
+    
+  
+</header>
+    
+    <div class="md-container" data-md-component="container">
+      
+      
+        
+      
+      <main class="md-main" data-md-component="main">
+        <div class="md-main__inner md-grid">
+          
+            
+              
+              <div class="md-sidebar md-sidebar--primary" data-md-component="sidebar" data-md-type="navigation" >
+                <div class="md-sidebar__scrollwrap">
+                  <div class="md-sidebar__inner">
+                    
+
+
+  
+
+
+<nav class="md-nav md-nav--primary md-nav--lifted" aria-label="Navigation" data-md-level="0">
+  <label class="md-nav__title" for="__drawer">
+    <a href="../../.." title="Synapse Python/Command Line Client Documentation" class="md-nav__button md-logo" aria-label="Synapse Python/Command Line Client Documentation" data-md-component="logo">
+      
+  <img src="../../../assets/synapse_logo.png" alt="logo">
+
+    </a>
+    Synapse Python/Command Line Client Documentation
+  </label>
+  
+    <div class="md-nav__source">
+      <a href="https://github.com/Sage-Bionetworks/synapsePythonClient" title="Go to repository" class="md-source" data-md-component="source">
+  <div class="md-source__icon md-icon">
+    
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 448 512"><!--! Font Awesome Free 7.1.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2025 Fonticons, Inc.--><path d="M439.6 236.1 244 40.5c-5.4-5.5-12.8-8.5-20.4-8.5s-15 3-20.4 8.4L162.5 81l51.5 51.5c27.1-9.1 52.7 16.8 43.4 43.7l49.7 49.7c34.2-11.8 61.2 31 35.5 56.7-26.5 26.5-70.2-2.9-56-37.3L240.3 199v121.9c25.3 12.5 22.3 41.8 9.1 55-6.4 6.4-15.2 10.1-24.3 10.1s-17.8-3.6-24.3-10.1c-17.6-17.6-11.1-46.9 11.2-56v-123c-20.8-8.5-24.6-30.7-18.6-45L142.6 101 8.5 235.1C3 240.6 0 247.9 0 255.5s3 15 8.5 20.4l195.6 195.7c5.4 5.4 12.7 8.4 20.4 8.4s15-3 20.4-8.4l194.7-194.7c5.4-5.4 8.4-12.8 8.4-20.4s-3-15-8.4-20.4"/></svg>
+  </div>
+  <div class="md-source__repository">
+    synapsePythonClient
+  </div>
+</a>
+    </div>
+  
+  <ul class="md-nav__list" data-md-scrollfix>
+    
+      
+      
+  
+  
+  
+  
+    
+    
+    
+    
+      
+      
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_1" >
+        
+          
+          <label class="md-nav__link" for="__nav_1" id="__nav_1_label" tabindex="0">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Home
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_1_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_1">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Home
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../.." class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Home
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    
+    
+    
+    
+      
+      
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_1_2" >
+        
+          
+          <label class="md-nav__link" for="__nav_1_2" id="__nav_1_2_label" tabindex="0">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Setup
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="2" aria-labelledby="__nav_1_2_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_1_2">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Setup
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../installation/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Installation
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../authentication/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Authentication
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../configuration/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Configuration
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+    
+  
+  
+  
+    
+    
+    
+    
+      
+        
+        
+      
+      
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--active md-nav__item--section md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_2" checked>
+        
+          
+          <label class="md-nav__link" for="__nav_2" id="__nav_2_label" tabindex="">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Tutorials
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_2_label" aria-expanded="true">
+          <label class="md-nav__title" for="__nav_2">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Tutorials
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../home/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Home
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+    
+  
+  
+  
+    
+    
+    
+    
+      
+      
+        
+          
+          
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--active md-nav__item--section md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_2_2" checked>
+        
+          
+          <label class="md-nav__link" for="__nav_2_2" id="__nav_2_2_label" tabindex="">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Working with the Python client
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="2" aria-labelledby="__nav_2_2_label" aria-expanded="true">
+          <label class="md-nav__title" for="__nav_2_2">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Working with the Python client
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../python_client/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Python client
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../project/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Project
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../folder/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Folder
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../file/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    File
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../evaluation/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Evaluation
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../submission/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Submission
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../annotation/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Annotation
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../entityview/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Entity View
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../table/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Table
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../virtualtable/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    VirtualTable
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../dataset/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Dataset
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../dataset_collection/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Dataset Collection
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../materializedview/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Materialized View
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../submissionview/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Submission View
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../sharing_settings/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Sharing Settings
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+    
+  
+  
+  
+    <li class="md-nav__item md-nav__item--active">
+      
+      <input class="md-nav__toggle md-toggle" type="checkbox" id="__toc">
+      
+      
+        
+      
+      
+        <label class="md-nav__link md-nav__link--active" for="__toc">
+          
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Wiki
+  
+
+    
+  </span>
+  
+  
+
+          <span class="md-nav__icon md-icon"></span>
+        </label>
+      
+      <a href="./" class="md-nav__link md-nav__link--active">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Wiki
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+      
+        
+
+<nav class="md-nav md-nav--secondary" aria-label="Table of contents">
+  
+  
+  
+    
+  
+  
+    <label class="md-nav__title" for="__toc">
+      <span class="md-nav__icon md-icon"></span>
+      Table of contents
+    </label>
+    <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
+      
+        <li class="md-nav__item">
+  <a href="#tutorial-purpose" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Tutorial Purpose
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#prerequisites" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Prerequisites
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#1-create-a-wiki-page" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        1. Create a Wiki page
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="1. Create a Wiki page">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#initial-setup" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Initial setup
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#2-update-a-wiki-page" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        2. Update a Wiki page
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#3-restore-a-wiki-page-to-a-previous-version" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        3. Restore a Wiki page to a previous version
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#4-get-a-wiki-page" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        4. Get a Wiki page
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#5-create-a-sub-wiki-page" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        5. Create a sub-Wiki page
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#6-create-a-wiki-page-from-markdown" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        6. Create a Wiki page from markdown
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="6. Create a Wiki page from markdown">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#create-a-wiki-page-directly-from-a-string" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Create a Wiki page directly from a string:
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#create-a-wiki-page-from-a-markdown-file" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Create a Wiki page from a markdown file
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#7-download-wiki-page-markdown" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        7. Download Wiki page markdown
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="7. Download Wiki page markdown">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#download-the-markdown-file-url-for-a-wiki-page" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Download the markdown file URL for a Wiki page
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#download-the-markdown-file-for-a-wiki-page-that-is-created-from-plain-text-the-downloaded-file-will-be-named-wiki_markdown_wiki_page_titlemd" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Download the markdown file for a Wiki page that is created from plain text, the downloaded file will be named wiki_markdown_&lt;wiki_page_title&gt;.md
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#download-the-markdown-file-for-a-wiki-page-that-is-created-from-a-markdown-file" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Download the markdown file for a Wiki page that is created from a markdown file
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#8-create-wiki-pages-with-attachments" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        8. Create Wiki pages with attachments
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="8. Create Wiki pages with attachments">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#create-a-wiki-page-with-attachments" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Create a Wiki page with attachments
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#9-retrieve-attachment-handles-and-urls-and-download-attachments-and-previews" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        9. Retrieve attachment handles and URLs, and download attachments and previews
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="9. Retrieve attachment handles and URLs, and download attachments and previews">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#get-attachment-handles" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Get attachment handles
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#get-attachment-url-without-downloading" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Get attachment URL without downloading
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#download-an-attachment-file" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Download an attachment file
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#get-attachment-preview-url" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Get attachment preview URL
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#download-an-attachment-preview" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Download an attachment preview
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#10-retrieve-wiki-page-hierarchy-using-wikiheader" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        10. Retrieve Wiki page hierarchy using WikiHeader
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="10. Retrieve Wiki page hierarchy using WikiHeader">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#get-wiki-header-tree" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Get Wiki header tree
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#11-access-wiki-version-history-using-wikihistorysnapshot" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        11. Access Wiki version history using WikiHistorySnapshot
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="11. Access Wiki version history using WikiHistorySnapshot">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#get-wiki-history" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Get Wiki history
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#12-get-set-and-update-wiki-page-ordering-using-wikiorderhint" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        12. Get, set, and update Wiki page ordering using WikiOrderHint
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="12. Get, set, and update Wiki page ordering using WikiOrderHint">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#get-the-current-order-hint" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Get the current order hint
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#set-the-wiki-order-hint" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Set the Wiki order hint
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#update-wiki-order-hint" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Update Wiki order hint
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#13-delete-wiki-pages" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        13. Delete Wiki pages
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#source-code-for-this-tutorial" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Source Code for this Tutorial
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#references" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        References
+      
+    </span>
+  </a>
+  
+</li>
+      
+    </ul>
+  
+</nav>
+      
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../upload_data_in_bulk/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Upload data in bulk
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../download_data_in_bulk/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Download data in bulk
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../schema_operations/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Creating JSON Schema
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../json_schema/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Working with JSON Schema
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../command_line_client/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Working with the Command Line Client
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../reticulate/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Synapseclient with R through reticulate
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+    
+    
+      
+      
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_3" >
+        
+          
+          <label class="md-nav__link" for="__nav_3" id="__nav_3_label" tabindex="0">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    How-To Guides
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_3_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_3">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    How-To Guides
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../guides/home/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Home
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../guides/data_storage/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Data Storage
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../guides/accessing_the_rest_api/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Access the REST API
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    
+    
+    
+    
+      
+      
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_3_4" >
+        
+          
+          <label class="md-nav__link" for="__nav_3_4" id="__nav_3_4_label" tabindex="0">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Extensions
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="2" aria-labelledby="__nav_3_4_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_3_4">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Extensions
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../guides/extensions/curator/metadata_curation/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Curator
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+    
+    
+      
+      
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_4" >
+        
+          
+          <label class="md-nav__link" for="__nav_4" id="__nav_4_label" tabindex="0">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    API Reference
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_4_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_4">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    API Reference
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../reference/client/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Client
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../reference/synapse_utils/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Synapse Utils
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../reference/entity/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Entity
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../reference/project/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Project
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../reference/folder/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Folder
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../reference/file/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    File
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../reference/annotations/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Annotations
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../reference/tables/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Tables
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../reference/table_schema/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Table Schema
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../reference/view_schema/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Entity View Schema
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../reference/activity/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Activity/Provenance
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../reference/teams/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Teams
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../reference/wiki/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Wiki
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../reference/evaluation/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Evaluation
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../reference/link/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Link
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../reference/docker_repository/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    DockerRepository
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../reference/json_schema/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    JSON Schema
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../reference/exceptions/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Exceptions
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../reference/permissions/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Permissions
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../reference/core/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Core
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../reference/rest_apis/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    REST Apis
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    
+    
+    
+    
+      
+      
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_4_22" >
+        
+          
+          <label class="md-nav__link" for="__nav_4_22" id="__nav_4_22_label" tabindex="0">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Experimental
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="2" aria-labelledby="__nav_4_22_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_4_22">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Experimental
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../reference/experimental/sync/factory_operations/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Factory Operations
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../reference/experimental/sync/agent/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Agent
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../reference/experimental/sync/project/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Project
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../reference/experimental/sync/folder/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Folder
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../reference/experimental/sync/file/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    File
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../reference/experimental/sync/evaluation/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Evaluation
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../reference/experimental/sync/submission/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Submission
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../reference/experimental/sync/submission_status/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    SubmissionStatus
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../reference/experimental/sync/submission_bundle/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    SubmissionBundle
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../reference/experimental/sync/table/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Table
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../reference/experimental/sync/virtualtable/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    VirtualTable
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../reference/experimental/sync/dataset/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Dataset
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../reference/experimental/sync/dataset_collection/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Dataset Collection
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../reference/experimental/sync/entityview/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    EntityView
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../reference/experimental/sync/materializedview/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    MaterializedView
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../reference/experimental/sync/submissionview/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    SubmissionView
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../reference/experimental/sync/activity/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Activity
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../reference/experimental/sync/team/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Team
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../reference/experimental/sync/user_profile/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    UserProfile
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../reference/experimental/sync/curator/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Curator
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../reference/experimental/sync/link_entity/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Link
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../reference/experimental/functional_interfaces/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Functional Interfaces
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../reference/experimental/sync/schema_organization/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    SchemaOrganization
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../reference/experimental/sync/json_schema/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    JSONSchema
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../reference/experimental/sync/wiki/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Wiki
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../reference/experimental/sync/form/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    FormGroup and Form
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    
+    
+    
+    
+      
+      
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_4_22_27" >
+        
+          
+          <label class="md-nav__link" for="__nav_4_22_27" id="__nav_4_22_27_label" tabindex="0">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Extensions
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="3" aria-labelledby="__nav_4_22_27_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_4_22_27">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Extensions
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../reference/extensions/curator/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Curator
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    
+    
+    
+    
+      
+      
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_4_22_28" >
+        
+          
+          <label class="md-nav__link" for="__nav_4_22_28" id="__nav_4_22_28_label" tabindex="0">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Asynchronous
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="3" aria-labelledby="__nav_4_22_28_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_4_22_28">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Asynchronous
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../reference/experimental/async/factory_operations/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Factory Operations
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../reference/experimental/async/agent/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Agent
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../reference/experimental/async/project/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Project
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../reference/experimental/async/folder/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Folder
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../reference/experimental/async/file/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    File
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../reference/experimental/async/evaluation/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Evaluation
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../reference/experimental/async/submission/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Submission
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../reference/experimental/async/submission_status/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    SubmissionStatus
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../reference/experimental/async/submission_bundle/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    SubmissionBundle
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../reference/experimental/async/table/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Table
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../reference/experimental/async/virtualtable/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    VirtualTable
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../reference/experimental/async/dataset/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Dataset
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../reference/experimental/async/dataset_collection/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Dataset Collection
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../reference/experimental/async/entityview/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    EntityView
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../reference/experimental/async/materializedview/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    MaterializedView
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../reference/experimental/async/submissionview/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    SubmissionView
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../reference/experimental/async/activity/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Activity
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../reference/experimental/async/team/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Team
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../reference/experimental/async/user_profile/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    UserProfile
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../reference/experimental/async/curator/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Curator
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../reference/experimental/async/link_entity/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Link
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../reference/experimental/async/schema_organization/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    SchemaOrganization
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../reference/experimental/async/json_schema/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    JSONSchema
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../reference/experimental/async/wiki/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Wiki
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../reference/experimental/async/form/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    FormGroup and Form
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    
+    
+    
+    
+      
+      
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_4_22_29" >
+        
+          
+          <label class="md-nav__link" for="__nav_4_22_29" id="__nav_4_22_29_label" tabindex="0">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Mixins
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="3" aria-labelledby="__nav_4_22_29_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_4_22_29">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Mixins
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../reference/experimental/mixins/access_controllable/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    AccessControllable
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../reference/experimental/mixins/storable_container/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    StorableContainer
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../reference/experimental/mixins/asynchronous_communicator/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    AsynchronousCommunicator
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../reference/experimental/mixins/failure_strategy/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    FailureStrategy
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../reference/experimental/mixins/base_json_schema/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    BaseJSONSchema
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../reference/experimental/mixins/container_json_schema/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    ContainerEntityJSONSchema
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../reference/experimental/mixins/form_data/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    FormData
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../reference/experimental/mixins/form_group/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    FormGroup
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+    
+    
+      
+      
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_5" >
+        
+          
+          <label class="md-nav__link" for="__nav_5" id="__nav_5_label" tabindex="0">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Further Reading
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_5_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_5">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Further Reading
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../explanations/home/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Home
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../explanations/domain_models_of_synapse/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Domain Models of Synapse
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../explanations/access_control/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Access Control
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../explanations/properties_vs_annotations/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Properties vs Annotations
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../explanations/manifest_tsv/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Manifest TSV
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../explanations/benchmarking/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Benchmarking
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../explanations/structuring_your_project/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Structuring Your Project
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../explanations/asyncio_in_python_3_14/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Asyncio Changes in Python 3.14
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../explanations/curator_data_model/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Curator Data model
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+    
+    
+      
+      
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_6" >
+        
+          
+          <label class="md-nav__link" for="__nav_6" id="__nav_6_label" tabindex="0">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    News
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_6_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_6">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    News
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../news/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Release Notes
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="https://sagebionetworks.jira.com/servicedesk/customer/portal/9/group/16/create/206" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Contact Us
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+  </ul>
+</nav>
+                  </div>
+                </div>
+              </div>
+            
+            
+              
+              <div class="md-sidebar md-sidebar--secondary" data-md-component="sidebar" data-md-type="toc" >
+                <div class="md-sidebar__scrollwrap">
+                  <div class="md-sidebar__inner">
+                    
+
+<nav class="md-nav md-nav--secondary" aria-label="Table of contents">
+  
+  
+  
+    
+  
+  
+    <label class="md-nav__title" for="__toc">
+      <span class="md-nav__icon md-icon"></span>
+      Table of contents
+    </label>
+    <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
+      
+        <li class="md-nav__item">
+  <a href="#tutorial-purpose" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Tutorial Purpose
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#prerequisites" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Prerequisites
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#1-create-a-wiki-page" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        1. Create a Wiki page
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="1. Create a Wiki page">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#initial-setup" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Initial setup
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#2-update-a-wiki-page" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        2. Update a Wiki page
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#3-restore-a-wiki-page-to-a-previous-version" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        3. Restore a Wiki page to a previous version
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#4-get-a-wiki-page" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        4. Get a Wiki page
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#5-create-a-sub-wiki-page" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        5. Create a sub-Wiki page
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#6-create-a-wiki-page-from-markdown" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        6. Create a Wiki page from markdown
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="6. Create a Wiki page from markdown">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#create-a-wiki-page-directly-from-a-string" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Create a Wiki page directly from a string:
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#create-a-wiki-page-from-a-markdown-file" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Create a Wiki page from a markdown file
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#7-download-wiki-page-markdown" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        7. Download Wiki page markdown
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="7. Download Wiki page markdown">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#download-the-markdown-file-url-for-a-wiki-page" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Download the markdown file URL for a Wiki page
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#download-the-markdown-file-for-a-wiki-page-that-is-created-from-plain-text-the-downloaded-file-will-be-named-wiki_markdown_wiki_page_titlemd" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Download the markdown file for a Wiki page that is created from plain text, the downloaded file will be named wiki_markdown_&lt;wiki_page_title&gt;.md
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#download-the-markdown-file-for-a-wiki-page-that-is-created-from-a-markdown-file" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Download the markdown file for a Wiki page that is created from a markdown file
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#8-create-wiki-pages-with-attachments" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        8. Create Wiki pages with attachments
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="8. Create Wiki pages with attachments">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#create-a-wiki-page-with-attachments" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Create a Wiki page with attachments
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#9-retrieve-attachment-handles-and-urls-and-download-attachments-and-previews" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        9. Retrieve attachment handles and URLs, and download attachments and previews
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="9. Retrieve attachment handles and URLs, and download attachments and previews">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#get-attachment-handles" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Get attachment handles
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#get-attachment-url-without-downloading" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Get attachment URL without downloading
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#download-an-attachment-file" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Download an attachment file
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#get-attachment-preview-url" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Get attachment preview URL
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#download-an-attachment-preview" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Download an attachment preview
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#10-retrieve-wiki-page-hierarchy-using-wikiheader" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        10. Retrieve Wiki page hierarchy using WikiHeader
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="10. Retrieve Wiki page hierarchy using WikiHeader">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#get-wiki-header-tree" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Get Wiki header tree
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#11-access-wiki-version-history-using-wikihistorysnapshot" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        11. Access Wiki version history using WikiHistorySnapshot
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="11. Access Wiki version history using WikiHistorySnapshot">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#get-wiki-history" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Get Wiki history
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#12-get-set-and-update-wiki-page-ordering-using-wikiorderhint" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        12. Get, set, and update Wiki page ordering using WikiOrderHint
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="12. Get, set, and update Wiki page ordering using WikiOrderHint">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#get-the-current-order-hint" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Get the current order hint
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#set-the-wiki-order-hint" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Set the Wiki order hint
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#update-wiki-order-hint" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Update Wiki order hint
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#13-delete-wiki-pages" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        13. Delete Wiki pages
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#source-code-for-this-tutorial" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Source Code for this Tutorial
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#references" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        References
+      
+    </span>
+  </a>
+  
+</li>
+      
+    </ul>
+  
+</nav>
+                  </div>
+                </div>
+              </div>
+            
+          
+          
+            <div class="md-content" data-md-component="content">
+              
+              <article class="md-content__inner md-typeset">
+                
+                  
+
+
+  
+  
+
+
+<h1 id="wikis">Wikis<a class="headerlink" href="#wikis" title="Permanent link">&para;</a></h1>
+<p>Wikis in Synapse provide rich documentation and collaborative content for projects, folders, files, datasets, and other entities. They support markdown formatting, file attachments, hierarchical organization, version history, and custom ordering. Wikis are managed through the Synapse Python client using models like:</p>
+<ul>
+<li><strong><a href="https://rest-docs.synapse.org/rest/org/sagebionetworks/repo/model/v2/wiki/V2WikiPage.html">WikiPage</a></strong>: The main Wiki page model for creating and managing Wiki content</li>
+<li><strong><a href="https://rest-docs.synapse.org/rest/org/sagebionetworks/repo/model/v2/wiki/V2WikiHeader.html">WikiHeader</a></strong>: Represents Wiki page headers and hierarchy information</li>
+<li><strong><a href="https://rest-docs.synapse.org/rest/org/sagebionetworks/repo/model/v2/wiki/V2WikiHistorySnapshot.html">WikiHistorySnapshot</a></strong>: Provides access to Wiki version history</li>
+<li><strong><a href="https://rest-docs.synapse.org/rest/org/sagebionetworks/repo/model/v2/wiki/V2WikiOrderHint.html">WikiOrderHint</a></strong>: Manages the order of Wiki pages within an entity</li>
+</ul>
+<p><strong>Important:</strong> Wikis inherit the sharing permissions of its associated Synapse entities. Anyone with view access or higher can see the Wiki’s content. If a project, folder, or file is shared publicly, the linked Wiki will also be publicly visible, including to users who are not logged in to Synapse. For this reason, protected human data must not be stored in Synapse Wikis.</p>
+<p>You can view your Wiki pages in the <a href="https://www.synapse.org/">Synapse web UI</a> by navigating to your project and clicking on the Wiki tab.</p>
+<h2 id="tutorial-purpose">Tutorial Purpose<a class="headerlink" href="#tutorial-purpose" title="Permanent link">&para;</a></h2>
+<p>In this tutorial you will:</p>
+<ol>
+<li>Create, read, update, and restore Wiki pages</li>
+<li>Create Wiki pages from markdown text and files, and download markdown content</li>
+<li>Create Wiki pages with attachments, retrieve attachment handles and URLs, and download attachments and previews</li>
+<li>Retrieve Wiki page hierarchy using WikiHeader</li>
+<li>Access Wiki version history using WikiHistorySnapshot</li>
+<li>Get, set, and update Wiki page ordering using WikiOrderHint</li>
+<li>Delete Wiki pages</li>
+</ol>
+<h2 id="prerequisites">Prerequisites<a class="headerlink" href="#prerequisites" title="Permanent link">&para;</a></h2>
+<ul>
+<li>Make sure that you have completed the <a href="../../installation/">Installation</a> and <a href="../../authentication/">Authentication</a> setup.</li>
+<li>This tutorial assumes you have a basic understanding of Synapse projects. If you need to create a project, see the <a href="../project/">Projects tutorial</a>.</li>
+</ul>
+<h2 id="1-create-a-wiki-page">1. Create a Wiki page<a class="headerlink" href="#1-create-a-wiki-page" title="Permanent link">&para;</a></h2>
+<h3 id="initial-setup">Initial setup<a class="headerlink" href="#initial-setup" title="Permanent link">&para;</a></h3>
+<p><div class="highlight"><pre><span></span><code><span class="kn">import</span><span class="w"> </span><span class="nn">os</span>
+
+<span class="kn">from</span><span class="w"> </span><span class="nn">synapseclient</span><span class="w"> </span><span class="kn">import</span> <span class="n">Synapse</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">synapseclient.models</span><span class="w"> </span><span class="kn">import</span> <span class="p">(</span>
+    <span class="n">Project</span><span class="p">,</span>
+    <span class="n">WikiHeader</span><span class="p">,</span>
+    <span class="n">WikiHistorySnapshot</span><span class="p">,</span>
+    <span class="n">WikiOrderHint</span><span class="p">,</span>
+    <span class="n">WikiPage</span><span class="p">,</span>
+<span class="p">)</span>
+
+<span class="n">syn</span> <span class="o">=</span> <span class="n">Synapse</span><span class="p">()</span>
+<span class="n">syn</span><span class="o">.</span><span class="n">login</span><span class="p">()</span>
+
+<span class="c1"># Get the project</span>
+<span class="n">project</span> <span class="o">=</span> <span class="n">Project</span><span class="p">(</span><span class="n">name</span><span class="o">=</span><span class="s2">&quot;My uniquely named project about Alzheimer&#39;s Disease&quot;</span><span class="p">)</span><span class="o">.</span><span class="n">get</span><span class="p">()</span>
+</code></pre></div>
+A Wiki page requires an owner object, a title, and markdown. Here is an example to create a new root Wiki page for your project with plain text markdown:
+<div class="highlight"><pre><span></span><code><span class="c1"># Create a new wiki page for the project with plain text markdown</span>
+<span class="n">root_wiki_page</span> <span class="o">=</span> <span class="n">WikiPage</span><span class="p">(</span>
+    <span class="n">owner_id</span><span class="o">=</span><span class="n">project</span><span class="o">.</span><span class="n">id</span><span class="p">,</span>
+    <span class="n">title</span><span class="o">=</span><span class="s2">&quot;My Root Wiki Page&quot;</span><span class="p">,</span>
+    <span class="n">markdown</span><span class="o">=</span><span class="s2">&quot;# Welcome to My Root Wiki</span><span class="se">\n\n</span><span class="s2">This is a sample root wiki page created with the Synapse client.&quot;</span><span class="p">,</span>
+<span class="p">)</span><span class="o">.</span><span class="n">store</span><span class="p">()</span>
+</code></pre></div></p>
+<p>Alternatively, you can create a Wiki page from an existing markdown file.
+<div class="highlight"><pre><span></span><code><span class="n">markdown_file_path</span> <span class="o">=</span> <span class="s2">&quot;path/to/your_markdown_file.md&quot;</span>
+<span class="n">root_wiki_page</span> <span class="o">=</span> <span class="n">WikiPage</span><span class="p">(</span>
+    <span class="n">owner_id</span><span class="o">=</span><span class="n">project</span><span class="o">.</span><span class="n">id</span><span class="p">,</span>
+    <span class="n">title</span><span class="o">=</span><span class="s2">&quot;My First Root Wiki Page Version with existing markdown file&quot;</span><span class="p">,</span>
+    <span class="n">markdown</span><span class="o">=</span><span class="n">markdown_file_path</span><span class="p">,</span>
+<span class="p">)</span><span class="o">.</span><span class="n">store</span><span class="p">()</span>
+</code></pre></div></p>
+<details class="example">
+  <summary>You'll notice the output looks like:</summary>
+
+<div class="highlight"><pre><span></span><code>Uploaded file handle ... for Wiki page markdown.
+No Wiki page exists within the owner. Create a new Wiki page.
+Created Wiki page: My Root Wiki Page with ID: ...
+</code></pre></div>
+</details>
+
+<h2 id="2-update-a-wiki-page">2. Update a Wiki page<a class="headerlink" href="#2-update-a-wiki-page" title="Permanent link">&para;</a></h2>
+<p>To update an existing Wiki page, create a new WikiPage object with the same <code>id</code> and new content:</p>
+<div class="highlight"><pre><span></span><code><span class="c1"># Update the wiki page</span>
+<span class="n">root_wiki_page_new</span> <span class="o">=</span> <span class="n">WikiPage</span><span class="p">(</span>
+    <span class="n">owner_id</span><span class="o">=</span><span class="n">project</span><span class="o">.</span><span class="n">id</span><span class="p">,</span>
+    <span class="n">title</span><span class="o">=</span><span class="s2">&quot;My First Root Wiki Page NEW&quot;</span><span class="p">,</span>
+    <span class="n">markdown</span><span class="o">=</span><span class="s2">&quot;# Welcome to My Root Wiki NEW</span><span class="se">\n\n</span><span class="s2">This is a sample root wiki page created with the Synapse client.&quot;</span><span class="p">,</span>
+    <span class="nb">id</span><span class="o">=</span><span class="n">root_wiki_page</span><span class="o">.</span><span class="n">id</span><span class="p">,</span>
+<span class="p">)</span><span class="o">.</span><span class="n">store</span><span class="p">()</span>
+</code></pre></div>
+<details class="example">
+  <summary>You'll notice the output looks like:</summary>
+
+<div class="highlight"><pre><span></span><code>Uploaded file handle ... for Wiki page markdown.
+A Wiki page already exists within the owner. Update the existing Wiki page.
+Updated Wiki page: My First Root Wiki Page NEW with ID: ...
+</code></pre></div>
+</details>
+
+<h2 id="3-restore-a-wiki-page-to-a-previous-version">3. Restore a Wiki page to a previous version<a class="headerlink" href="#3-restore-a-wiki-page-to-a-previous-version" title="Permanent link">&para;</a></h2>
+<p>You can restore a Wiki page to any previous version by specifying the <code>Wiki_version</code> parameter:
+<div class="highlight"><pre><span></span><code><span class="c1"># Restore the wiki page to the original version</span>
+<span class="n">wiki_page_restored</span> <span class="o">=</span> <span class="n">WikiPage</span><span class="p">(</span>
+    <span class="n">owner_id</span><span class="o">=</span><span class="n">project</span><span class="o">.</span><span class="n">id</span><span class="p">,</span> <span class="nb">id</span><span class="o">=</span><span class="n">root_wiki_page</span><span class="o">.</span><span class="n">id</span><span class="p">,</span> <span class="n">wiki_version</span><span class="o">=</span><span class="s2">&quot;0&quot;</span>
+<span class="p">)</span><span class="o">.</span><span class="n">restore</span><span class="p">()</span>
+</code></pre></div></p>
+<p>Check if the content is restored.
+<div class="highlight"><pre><span></span><code><span class="c1"># check if the content is restored</span>
+<span class="k">assert</span> <span class="p">(</span>
+    <span class="n">root_wiki_page</span><span class="o">.</span><span class="n">markdown_file_handle_id</span> <span class="o">==</span> <span class="n">wiki_page_restored</span><span class="o">.</span><span class="n">markdown_file_handle_id</span>
+<span class="p">),</span> <span class="s2">&quot;Markdown file handle ID does not match after restore&quot;</span>
+<span class="k">assert</span> <span class="p">(</span>
+    <span class="n">root_wiki_page</span><span class="o">.</span><span class="n">id</span> <span class="o">==</span> <span class="n">wiki_page_restored</span><span class="o">.</span><span class="n">id</span>
+<span class="p">),</span> <span class="s2">&quot;Wiki page ID does not match after restore&quot;</span>
+<span class="k">assert</span> <span class="p">(</span>
+    <span class="n">root_wiki_page</span><span class="o">.</span><span class="n">title</span> <span class="o">==</span> <span class="n">wiki_page_restored</span><span class="o">.</span><span class="n">title</span>
+<span class="p">),</span> <span class="s2">&quot;Wiki page title does not match after restore&quot;</span>
+</code></pre></div></p>
+<h2 id="4-get-a-wiki-page">4. Get a Wiki page<a class="headerlink" href="#4-get-a-wiki-page" title="Permanent link">&para;</a></h2>
+<p>You can retrieve Wiki pages in several ways. To find a Wiki page id, you can get the WikiHeader tree to see all Wiki pages in the hierarchy (see the WikiHeader section below).</p>
+<p>Once you know the Wiki page id, you can retrieve a specific Wiki page:
+<div class="highlight"><pre><span></span><code><span class="c1"># Once you know the Wiki page id, you can retrieve the Wiki page with the id</span>
+<span class="n">retrieved_wiki</span> <span class="o">=</span> <span class="n">WikiPage</span><span class="p">(</span><span class="n">owner_id</span><span class="o">=</span><span class="n">project</span><span class="o">.</span><span class="n">id</span><span class="p">,</span> <span class="nb">id</span><span class="o">=</span><span class="n">root_wiki_page</span><span class="o">.</span><span class="n">id</span><span class="p">)</span><span class="o">.</span><span class="n">get</span><span class="p">()</span>
+</code></pre></div></p>
+<p>Alternatively, you can retrieve a Wiki page by its title:
+<div class="highlight"><pre><span></span><code><span class="n">retrieved_wiki</span> <span class="o">=</span> <span class="n">WikiPage</span><span class="p">(</span><span class="n">owner_id</span><span class="o">=</span><span class="n">project</span><span class="o">.</span><span class="n">id</span><span class="p">,</span> <span class="n">title</span><span class="o">=</span><span class="n">root_wiki_page</span><span class="o">.</span><span class="n">title</span><span class="p">)</span><span class="o">.</span><span class="n">get</span><span class="p">()</span>
+</code></pre></div></p>
+<p>Verify that the retrieved Wiki page matches the original Wiki page
+<div class="highlight"><pre><span></span><code><span class="k">assert</span> <span class="p">(</span>
+    <span class="n">root_wiki_page</span><span class="o">.</span><span class="n">markdown_file_handle_id</span> <span class="o">==</span> <span class="n">retrieved_wiki</span><span class="o">.</span><span class="n">markdown_file_handle_id</span>
+<span class="p">),</span> <span class="s2">&quot;Markdown file handle ID does not match retrieved wiki page&quot;</span>
+<span class="k">assert</span> <span class="p">(</span>
+    <span class="n">root_wiki_page</span><span class="o">.</span><span class="n">id</span> <span class="o">==</span> <span class="n">retrieved_wiki</span><span class="o">.</span><span class="n">id</span>
+<span class="p">),</span> <span class="s2">&quot;Wiki page ID does not match retrieved wiki page&quot;</span>
+<span class="k">assert</span> <span class="p">(</span>
+    <span class="n">root_wiki_page</span><span class="o">.</span><span class="n">title</span> <span class="o">==</span> <span class="n">retrieved_wiki</span><span class="o">.</span><span class="n">title</span>
+<span class="p">),</span> <span class="s2">&quot;Wiki page title does not match retrieved wiki page&quot;</span>
+</code></pre></div></p>
+<h2 id="5-create-a-sub-wiki-page">5. Create a sub-Wiki page<a class="headerlink" href="#5-create-a-sub-wiki-page" title="Permanent link">&para;</a></h2>
+<p>You can create a sub-Wiki page under an existing Wiki page.
+<div class="highlight"><pre><span></span><code><span class="n">sub_wiki_1</span> <span class="o">=</span> <span class="n">WikiPage</span><span class="p">(</span>
+    <span class="n">owner_id</span><span class="o">=</span><span class="n">project</span><span class="o">.</span><span class="n">id</span><span class="p">,</span>
+    <span class="n">title</span><span class="o">=</span><span class="s2">&quot;Sub Wiki Page 1&quot;</span><span class="p">,</span>
+    <span class="n">parent_id</span><span class="o">=</span><span class="n">root_wiki_page</span><span class="o">.</span><span class="n">id</span><span class="p">,</span>
+    <span class="n">markdown</span><span class="o">=</span><span class="s2">&quot;# Sub Page 1</span><span class="se">\n\n</span><span class="s2">This is a sub-page of another wiki.&quot;</span><span class="p">,</span>
+<span class="p">)</span><span class="o">.</span><span class="n">store</span><span class="p">()</span>
+</code></pre></div></p>
+<details class="example">
+  <summary>You'll notice the output looks like:</summary>
+<div class="highlight"><pre><span></span><code>Uploaded file handle ... for wiki page markdown.
+Creating sub-wiki page under parent ID: ...
+Created sub-wiki page: Sub Wiki Page 1 with ID: ... under parent: ...
+</code></pre></div>
+</details>
+
+<h2 id="6-create-a-wiki-page-from-markdown">6. Create a Wiki page from markdown<a class="headerlink" href="#6-create-a-wiki-page-from-markdown" title="Permanent link">&para;</a></h2>
+<h3 id="create-a-wiki-page-directly-from-a-string">Create a Wiki page directly from a string:<a class="headerlink" href="#create-a-wiki-page-directly-from-a-string" title="Permanent link">&para;</a></h3>
+<p>You can create a Wiki page from a single-line or multi-line Python string. Here is an example of creating a Wiki page from a multi-line Python string:</p>
+<div class="highlight"><pre><span></span><code><span class="c1"># Section 2: WikiPage Markdown Operations</span>
+<span class="c1"># Create wiki page from markdown text</span>
+<span class="n">markdown_content</span> <span class="o">=</span> <span class="s2">&quot;&quot;&quot;# Sample Markdown Content</span>
+
+<span class="s2">## Section 1</span>
+<span class="s2">This is a sample markdown file with multiple sections.</span>
+
+<span class="s2">## Section 2</span>
+<span class="s2">- List item 1</span>
+<span class="s2">- List item 2</span>
+<span class="s2">- List item 3</span>
+
+<span class="s2">## Section 3</span>
+<span class="s2">- List item 1</span>
+<span class="s2">- List item 2</span>
+<span class="s2">- List item 3</span>
+
+<span class="s2">&quot;&quot;&quot;</span>
+<span class="n">sub_wiki_2</span> <span class="o">=</span> <span class="n">WikiPage</span><span class="p">(</span>
+    <span class="n">owner_id</span><span class="o">=</span><span class="n">project</span><span class="o">.</span><span class="n">id</span><span class="p">,</span>
+    <span class="n">parent_id</span><span class="o">=</span><span class="n">root_wiki_page</span><span class="o">.</span><span class="n">id</span><span class="p">,</span>
+    <span class="n">title</span><span class="o">=</span><span class="s2">&quot;Sub Page 2 created from markdown text&quot;</span><span class="p">,</span>
+    <span class="n">markdown</span><span class="o">=</span><span class="n">markdown_content</span><span class="p">,</span>
+<span class="p">)</span><span class="o">.</span><span class="n">store</span><span class="p">()</span>
+</code></pre></div>
+<h3 id="create-a-wiki-page-from-a-markdown-file">Create a Wiki page from a markdown file<a class="headerlink" href="#create-a-wiki-page-from-a-markdown-file" title="Permanent link">&para;</a></h3>
+<p>You can also create a Wiki page from an existing markdown file. Markdown files may be uploaded in either non-gzipped or gzipped format:</p>
+<div class="highlight"><pre><span></span><code><span class="c1"># Create a wiki page from a markdown file</span>
+<span class="n">markdown_file_path</span> <span class="o">=</span> <span class="s2">&quot;~/temp/temp_markdown_file.md.gz&quot;</span>
+
+<span class="c1"># Create wiki page from markdown file</span>
+<span class="n">sub_wiki_3</span> <span class="o">=</span> <span class="n">WikiPage</span><span class="p">(</span>
+    <span class="n">owner_id</span><span class="o">=</span><span class="n">project</span><span class="o">.</span><span class="n">id</span><span class="p">,</span>
+    <span class="n">parent_id</span><span class="o">=</span><span class="n">root_wiki_page</span><span class="o">.</span><span class="n">id</span><span class="p">,</span>
+    <span class="n">title</span><span class="o">=</span><span class="s2">&quot;Sub Page 3 created from markdown file&quot;</span><span class="p">,</span>
+    <span class="n">markdown</span><span class="o">=</span><span class="n">markdown_file_path</span><span class="p">,</span>
+<span class="p">)</span><span class="o">.</span><span class="n">store</span><span class="p">()</span>
+</code></pre></div>
+<h2 id="7-download-wiki-page-markdown">7. Download Wiki page markdown<a class="headerlink" href="#7-download-wiki-page-markdown" title="Permanent link">&para;</a></h2>
+<p>You can download the markdown content of a Wiki page back to a file.</p>
+<h3 id="download-the-markdown-file-url-for-a-wiki-page">Download the markdown file URL for a Wiki page<a class="headerlink" href="#download-the-markdown-file-url-for-a-wiki-page" title="Permanent link">&para;</a></h3>
+<div class="highlight"><pre><span></span><code><span class="c1"># Download the markdown file</span>
+<span class="c1"># Note: If the markdown is generated from plain text using the client, the downloaded file will be named wiki_markdown_&lt;wiki_page_title&gt;.md.gz. If it is generated from an existing markdown file, the downloaded file will retain the original filename.</span>
+<span class="c1"># Download the markdown file for sub_wiki_2 that is created from markdown text</span>
+<span class="n">wiki_page_markdown_2_url</span> <span class="o">=</span> <span class="n">WikiPage</span><span class="p">(</span>
+    <span class="n">owner_id</span><span class="o">=</span><span class="n">project</span><span class="o">.</span><span class="n">id</span><span class="p">,</span>
+    <span class="nb">id</span><span class="o">=</span><span class="n">sub_wiki_2</span><span class="o">.</span><span class="n">id</span><span class="p">,</span>
+<span class="p">)</span><span class="o">.</span><span class="n">get_markdown_file</span><span class="p">(</span>
+    <span class="n">download_file</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span>
+<span class="p">)</span>
+</code></pre></div>
+<h3 id="download-the-markdown-file-for-a-wiki-page-that-is-created-from-plain-text-the-downloaded-file-will-be-named-wiki_markdown_wiki_page_titlemd">Download the markdown file for a Wiki page that is created from plain text, the downloaded file will be named <code>wiki_markdown_&lt;wiki_page_title&gt;.md</code><a class="headerlink" href="#download-the-markdown-file-for-a-wiki-page-that-is-created-from-plain-text-the-downloaded-file-will-be-named-wiki_markdown_wiki_page_titlemd" title="Permanent link">&para;</a></h3>
+<div class="highlight"><pre><span></span><code><span class="c1"># Download the markdown file for sub_wiki_2 that is created from markdown text</span>
+<span class="n">wiki_page_markdown_2</span> <span class="o">=</span> <span class="n">WikiPage</span><span class="p">(</span>
+    <span class="n">owner_id</span><span class="o">=</span><span class="n">project</span><span class="o">.</span><span class="n">id</span><span class="p">,</span> <span class="nb">id</span><span class="o">=</span><span class="n">sub_wiki_2</span><span class="o">.</span><span class="n">id</span>
+<span class="p">)</span><span class="o">.</span><span class="n">get_markdown_file</span><span class="p">(</span><span class="n">download_file</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span> <span class="n">download_location</span><span class="o">=</span><span class="s2">&quot;.&quot;</span><span class="p">)</span>
+</code></pre></div>
+<details class="example">
+  <summary>You'll notice the output looks like:</summary>
+<div class="highlight"><pre><span></span><code>Your markdown content in plain text
+Downloaded and unzipped the markdown file for wiki page ... to path/to/wiki_markdown_Sub Page 2 created from markdown text.md.
+</code></pre></div>
+</details>
+
+<h3 id="download-the-markdown-file-for-a-wiki-page-that-is-created-from-a-markdown-file">Download the markdown file for a Wiki page that is created from a markdown file<a class="headerlink" href="#download-the-markdown-file-for-a-wiki-page-that-is-created-from-a-markdown-file" title="Permanent link">&para;</a></h3>
+<div class="highlight"><pre><span></span><code><span class="c1"># Download the markdown file for sub_wiki_3 that is created from a markdown file</span>
+<span class="n">wiki_page_markdown_3</span> <span class="o">=</span> <span class="n">WikiPage</span><span class="p">(</span>
+    <span class="n">owner_id</span><span class="o">=</span><span class="n">project</span><span class="o">.</span><span class="n">id</span><span class="p">,</span> <span class="nb">id</span><span class="o">=</span><span class="n">sub_wiki_3</span><span class="o">.</span><span class="n">id</span>
+<span class="p">)</span><span class="o">.</span><span class="n">get_markdown_file</span><span class="p">(</span><span class="n">download_file</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span> <span class="n">download_location</span><span class="o">=</span><span class="s2">&quot;.&quot;</span><span class="p">)</span>
+</code></pre></div>
+<details class="example">
+  <summary>You'll notice the output looks like:</summary>
+<div class="highlight"><pre><span></span><code>Downloaded and unzipped the markdown file for wiki page ... to path/to/sample_wiki.md.
+</code></pre></div>
+</details>
+
+<h2 id="8-create-wiki-pages-with-attachments">8. Create Wiki pages with attachments<a class="headerlink" href="#8-create-wiki-pages-with-attachments" title="Permanent link">&para;</a></h2>
+<p>Wiki pages can include file attachments, which are useful for sharing supplementary materials such as images, data files, or documents. Attachment files may be uploaded in either non-gzipped or gzipped format:</p>
+<h3 id="create-a-wiki-page-with-attachments">Create a Wiki page with attachments<a class="headerlink" href="#create-a-wiki-page-with-attachments" title="Permanent link">&para;</a></h3>
+<p>First, create a file to attach. Then create a Wiki page with the attachment. Note that attachment file names in markdown need special formatting: replace <code>.</code> with <code>%2E</code> and <code>_</code> with <code>%5F</code>. You can utilize the static method <code>WikiPage.reformat_attachment_file_name</code> to reformat the file name.</p>
+<div class="highlight"><pre><span></span><code><span class="c1"># Section 3: WikiPage with Attachments</span>
+<span class="c1"># Create a temporary file for the attachment</span>
+<span class="n">attachment_file_name</span> <span class="o">=</span> <span class="s2">&quot;path/to/temp_attachment.txt&quot;</span>
+
+<span class="c1"># reformat &#39;.&#39; and &#39;_&#39; in the attachment file name to be a valid attachment path</span>
+<span class="n">attachment_file_name_reformatted</span> <span class="o">=</span> <span class="n">WikiPage</span><span class="o">.</span><span class="n">reformat_attachment_file_name</span><span class="p">(</span>
+    <span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">basename</span><span class="p">(</span><span class="n">attachment_file_name</span><span class="p">)</span>
+<span class="p">)</span>
+<span class="n">sub_wiki_4</span> <span class="o">=</span> <span class="n">WikiPage</span><span class="p">(</span>
+    <span class="n">owner_id</span><span class="o">=</span><span class="n">project</span><span class="o">.</span><span class="n">id</span><span class="p">,</span>
+    <span class="n">parent_id</span><span class="o">=</span><span class="n">root_wiki_page</span><span class="o">.</span><span class="n">id</span><span class="p">,</span>
+    <span class="n">title</span><span class="o">=</span><span class="s2">&quot;Sub Page 4 with Attachments&quot;</span><span class="p">,</span>
+    <span class="n">markdown</span><span class="o">=</span><span class="sa">f</span><span class="s2">&quot;# Sub Page 4 with Attachments</span><span class="se">\n\n</span><span class="s2">This is a attachment: $</span><span class="se">{{</span><span class="s2">previewattachment?fileName=</span><span class="si">{</span><span class="n">attachment_file_name_reformatted</span><span class="si">}</span><span class="se">}}</span><span class="s2">&quot;</span><span class="p">,</span>
+    <span class="n">attachments</span><span class="o">=</span><span class="p">[</span><span class="n">attachment_file_name</span><span class="p">],</span>
+<span class="p">)</span><span class="o">.</span><span class="n">store</span><span class="p">()</span>
+</code></pre></div>
+<details class="example">
+  <summary>You'll notice the output looks like:</summary>
+<div class="highlight"><pre><span></span><code>Uploaded file handle ... for wiki page attachment.
+Creating sub-wiki page under parent ID: ...
+Created sub-wiki page: Sub Page 4 with Attachments with ID: ... under parent: ...
+</code></pre></div>
+</details>
+
+<p>To include images in your Wiki page, you DO NOT need to reformat the file name for image files (e.g., PNG, JPG, JPEG).
+<div class="highlight"><pre><span></span><code><span class="c1"># Inlucde images in the markdown file</span>
+<span class="n">image_file_path</span> <span class="o">=</span> <span class="s2">&quot;path/to/test_image.png&quot;</span>
+<span class="c1"># use the original file name instead of the gzipped file name for images</span>
+<span class="n">image_file_name</span> <span class="o">=</span> <span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">basename</span><span class="p">(</span><span class="n">image_file_path</span><span class="p">)</span>
+<span class="n">markdown_content</span> <span class="o">=</span> <span class="sa">f</span><span class="s2">&quot;# Sub Page 5 with images</span><span class="se">\n\n</span><span class="s2">This is an attached image: $</span><span class="se">{{</span><span class="s2">image?fileName=test_image.png&amp;align=None&amp;scale=100&amp;responsive=true&amp;altText=</span><span class="se">}}</span><span class="s2">&quot;</span>
+<span class="n">sub_wiki_5</span> <span class="o">=</span> <span class="n">WikiPage</span><span class="p">(</span>
+    <span class="n">owner_id</span><span class="o">=</span><span class="n">project</span><span class="o">.</span><span class="n">id</span><span class="p">,</span>
+    <span class="n">parent_id</span><span class="o">=</span><span class="n">root_wiki_page</span><span class="o">.</span><span class="n">id</span><span class="p">,</span>
+    <span class="n">title</span><span class="o">=</span><span class="s2">&quot;Sub Page 5 with Images&quot;</span><span class="p">,</span>
+    <span class="n">markdown</span><span class="o">=</span><span class="n">markdown_content</span><span class="p">,</span>
+    <span class="n">attachments</span><span class="o">=</span><span class="p">[</span><span class="n">image_file_path</span><span class="p">],</span>
+<span class="p">)</span><span class="o">.</span><span class="n">store</span><span class="p">()</span>
+</code></pre></div></p>
+<details class="example">
+  <summary>You'll notice the output looks like:</summary>
+<div class="highlight"><pre><span></span><code>Uploaded file handle ... for wiki page attachment.
+Creating sub-wiki page under parent ID: ...
+Created sub-wiki page: Sub Page 5 with Attachments with ID: ... under parent: ...
+</code></pre></div>
+</details>
+
+<h2 id="9-retrieve-attachment-handles-and-urls-and-download-attachments-and-previews">9. Retrieve attachment handles and URLs, and download attachments and previews<a class="headerlink" href="#9-retrieve-attachment-handles-and-urls-and-download-attachments-and-previews" title="Permanent link">&para;</a></h2>
+<h3 id="get-attachment-handles">Get attachment handles<a class="headerlink" href="#get-attachment-handles" title="Permanent link">&para;</a></h3>
+<p>Retrieve the file handles of all attachments on a Wiki page:</p>
+<div class="highlight"><pre><span></span><code><span class="c1"># Get attachment handles</span>
+<span class="n">attachment_handles</span> <span class="o">=</span> <span class="n">WikiPage</span><span class="p">(</span>
+    <span class="n">owner_id</span><span class="o">=</span><span class="n">project</span><span class="o">.</span><span class="n">id</span><span class="p">,</span> <span class="nb">id</span><span class="o">=</span><span class="n">sub_wiki_4</span><span class="o">.</span><span class="n">id</span>
+<span class="p">)</span><span class="o">.</span><span class="n">get_attachment_handles</span><span class="p">()</span>
+</code></pre></div>
+<details class="example">
+  <summary>You'll notice the output looks like:</summary>
+<div class="highlight"><pre><span></span><code>{&#39;list&#39;: [{&#39;id&#39;: &#39;...&#39;, &#39;etag&#39;: ..., &#39;concreteType&#39;: &#39;org.sagebionetworks.repo.model.file.S3FileHandle&#39;, &#39;contentType&#39;: &#39;...&#39;, &#39;contentMd5&#39;: &#39;...&#39;, &#39;fileName&#39;: &#39;...&#39;, &#39;storageLocationId&#39;: 1,..., &#39;isPreview&#39;: False}]}
+</code></pre></div>
+</details>
+
+<h3 id="get-attachment-url-without-downloading">Get attachment URL without downloading<a class="headerlink" href="#get-attachment-url-without-downloading" title="Permanent link">&para;</a></h3>
+<p>You can retrieve the URL of an attachment without downloading it. Attachment file name can be in either non-gzipped or gzipped format.</p>
+<div class="highlight"><pre><span></span><code><span class="c1"># Get attachment URL without downloading</span>
+<span class="n">wiki_page_attachment_url</span> <span class="o">=</span> <span class="n">WikiPage</span><span class="p">(</span>
+    <span class="n">owner_id</span><span class="o">=</span><span class="n">project</span><span class="o">.</span><span class="n">id</span><span class="p">,</span> <span class="nb">id</span><span class="o">=</span><span class="n">sub_wiki_4</span><span class="o">.</span><span class="n">id</span>
+<span class="p">)</span><span class="o">.</span><span class="n">get_attachment</span><span class="p">(</span>
+    <span class="n">file_name</span><span class="o">=</span><span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">basename</span><span class="p">(</span><span class="n">attachment_file_name</span><span class="p">),</span>
+    <span class="n">download_file</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span>
+<span class="p">)</span>
+</code></pre></div>
+<details class="example">
+  <summary>You'll notice the output looks like:</summary>
+<div class="highlight"><pre><span></span><code>&#39;https://data.prod.sagebase.org/...&#39;
+</code></pre></div>
+</details>
+
+<h3 id="download-an-attachment-file">Download an attachment file<a class="headerlink" href="#download-an-attachment-file" title="Permanent link">&para;</a></h3>
+<p>Download an attachment file to your local machine and unzip it using <code>WikiPage.unzip_gzipped_file</code> function.
+<div class="highlight"><pre><span></span><code><span class="c1"># Download an attachment</span>
+<span class="n">wiki_page_attachment</span> <span class="o">=</span> <span class="n">WikiPage</span><span class="p">(</span><span class="n">owner_id</span><span class="o">=</span><span class="n">project</span><span class="o">.</span><span class="n">id</span><span class="p">,</span> <span class="nb">id</span><span class="o">=</span><span class="n">sub_wiki_4</span><span class="o">.</span><span class="n">id</span><span class="p">)</span><span class="o">.</span><span class="n">get_attachment</span><span class="p">(</span>
+    <span class="n">file_name</span><span class="o">=</span><span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">basename</span><span class="p">(</span><span class="n">attachment_file_name</span><span class="p">),</span>
+    <span class="n">download_file</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span>
+    <span class="n">download_location</span><span class="o">=</span><span class="s2">&quot;.&quot;</span><span class="p">,</span>
+<span class="p">)</span>
+<span class="c1"># Unzip the attachment file</span>
+<span class="n">unzipped_attachment_file_path</span> <span class="o">=</span> <span class="n">WikiPage</span><span class="o">.</span><span class="n">unzip_gzipped_file</span><span class="p">(</span><span class="n">wiki_page_attachment</span><span class="p">)</span>
+</code></pre></div></p>
+<h3 id="get-attachment-preview-url">Get attachment preview URL<a class="headerlink" href="#get-attachment-preview-url" title="Permanent link">&para;</a></h3>
+<p>You can also retrieve preview URLs for attachments. When using <code>get_attachment_preview</code>, specify the original file name, not the file name returned in the attachment handle response when isPreview=True. The file name can be in either non-gzipped or gzipped format.
+The downloaded file will still be named according to the file name provided in the response when isPreview=True. Note that image attachments do not have preview files.
+<div class="highlight"><pre><span></span><code><span class="c1"># Download an attachment preview. Instead of using the file_name from the attachmenthandle response when isPreview=True, you should use the original file name in the get_attachment_preview request. The downloaded file will still be named according to the file_name provided in the response when isPreview=True.</span>
+<span class="c1"># Get attachment preview URL without downloading</span>
+<span class="n">attachment_preview_url</span> <span class="o">=</span> <span class="n">WikiPage</span><span class="p">(</span>
+    <span class="n">owner_id</span><span class="o">=</span><span class="n">project</span><span class="o">.</span><span class="n">id</span><span class="p">,</span> <span class="nb">id</span><span class="o">=</span><span class="n">sub_wiki_4</span><span class="o">.</span><span class="n">id</span>
+<span class="p">)</span><span class="o">.</span><span class="n">get_attachment_preview</span><span class="p">(</span>
+    <span class="n">file_name</span><span class="o">=</span><span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">basename</span><span class="p">(</span><span class="n">attachment_file_name</span><span class="p">),</span>
+    <span class="n">download_file</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span>
+<span class="p">)</span>
+</code></pre></div></p>
+<h3 id="download-an-attachment-preview">Download an attachment preview<a class="headerlink" href="#download-an-attachment-preview" title="Permanent link">&para;</a></h3>
+<p>Download the preview version of an attachment:</p>
+<div class="highlight"><pre><span></span><code><span class="c1"># Download an attachment preview</span>
+<span class="n">attachment_preview</span> <span class="o">=</span> <span class="n">WikiPage</span><span class="p">(</span>
+    <span class="n">owner_id</span><span class="o">=</span><span class="n">project</span><span class="o">.</span><span class="n">id</span><span class="p">,</span> <span class="nb">id</span><span class="o">=</span><span class="n">sub_wiki_4</span><span class="o">.</span><span class="n">id</span>
+<span class="p">)</span><span class="o">.</span><span class="n">get_attachment_preview</span><span class="p">(</span>
+    <span class="n">file_name</span><span class="o">=</span><span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">basename</span><span class="p">(</span><span class="n">attachment_file_name</span><span class="p">),</span>
+    <span class="n">download_file</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span>
+    <span class="n">download_location</span><span class="o">=</span><span class="s2">&quot;.&quot;</span><span class="p">,</span>
+<span class="p">)</span>
+</code></pre></div>
+<p>The downloaded preview file will be named <code>preview.&lt;your attachment file type&gt;</code> (or according to the file name in the attachment handle response when <code>isPreview=True</code>).</p>
+<h2 id="10-retrieve-wiki-page-hierarchy-using-wikiheader">10. Retrieve Wiki page hierarchy using WikiHeader<a class="headerlink" href="#10-retrieve-wiki-page-hierarchy-using-wikiheader" title="Permanent link">&para;</a></h2>
+<p>WikiHeader allows you to retrieve the hierarchical structure of Wiki pages within an entity.</p>
+<h3 id="get-wiki-header-tree">Get Wiki header tree<a class="headerlink" href="#get-wiki-header-tree" title="Permanent link">&para;</a></h3>
+<p>Retrieve the complete Wiki page hierarchy for a project:</p>
+<div class="highlight"><pre><span></span><code><span class="c1"># Section 4: WikiHeader - Working with Wiki Hierarchy</span>
+<span class="c1"># Get wiki header tree (hierarchy)</span>
+<span class="n">headers</span> <span class="o">=</span> <span class="n">WikiHeader</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="n">owner_id</span><span class="o">=</span><span class="n">project</span><span class="o">.</span><span class="n">id</span><span class="p">)</span>
+</code></pre></div>
+<details class="example">
+  <summary>You'll notice the output shows the Wiki hierarchy:</summary>
+<div class="highlight"><pre><span></span><code>[WikiHeader(id=&#39;...&#39;, title=&#39;My Root Wiki Page&#39;, ...), WikiHeader(id=&#39;...&#39;, title=&#39;Sub Wiki Page 1&#39;, ...)]
+</code></pre></div>
+</details>
+
+<h2 id="11-access-wiki-version-history-using-wikihistorysnapshot">11. Access Wiki version history using WikiHistorySnapshot<a class="headerlink" href="#11-access-wiki-version-history-using-wikihistorysnapshot" title="Permanent link">&para;</a></h2>
+<p>WikiHistorySnapshot provides access to the version history of Wiki pages, allowing you to see all previous versions and their metadata.</p>
+<h3 id="get-wiki-history">Get Wiki history<a class="headerlink" href="#get-wiki-history" title="Permanent link">&para;</a></h3>
+<p>Retrieve the version history for a specific Wiki page:</p>
+<div class="highlight"><pre><span></span><code><span class="c1"># Section 5. WikiHistorySnapshot - Version History</span>
+<span class="c1"># Get wiki history for root_wiki_page</span>
+<span class="n">history</span> <span class="o">=</span> <span class="n">WikiHistorySnapshot</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="n">owner_id</span><span class="o">=</span><span class="n">project</span><span class="o">.</span><span class="n">id</span><span class="p">,</span> <span class="nb">id</span><span class="o">=</span><span class="n">root_wiki_page</span><span class="o">.</span><span class="n">id</span><span class="p">)</span>
+</code></pre></div>
+<details class="example">
+  <summary>You'll notice the output shows the history of versions:</summary>
+<div class="highlight"><pre><span></span><code>[WikiHistorySnapshot(version=&#39;..&#39;, modified_on=&#39;...&#39;, modified_by=&#39;...&#39;), ..., WikiHistorySnapshot(version=&#39;...&#39;,...)]
+</code></pre></div>
+</details>
+
+<h2 id="12-get-set-and-update-wiki-page-ordering-using-wikiorderhint">12. Get, set, and update Wiki page ordering using WikiOrderHint<a class="headerlink" href="#12-get-set-and-update-wiki-page-ordering-using-wikiorderhint" title="Permanent link">&para;</a></h2>
+<p>WikiOrderHint allows you to control the order in which Wiki pages are displayed. By default, Wiki pages don't have an explicit order, so you need to set it explicitly.</p>
+<h3 id="get-the-current-order-hint">Get the current order hint<a class="headerlink" href="#get-the-current-order-hint" title="Permanent link">&para;</a></h3>
+<p>First, retrieve the current order hint (which may be empty initially):</p>
+<div class="highlight"><pre><span></span><code><span class="c1"># Section 6. WikiOrderHint - Ordering Wiki Pages</span>
+<span class="c1"># Set the wiki order hint</span>
+<span class="n">order_hint</span> <span class="o">=</span> <span class="n">WikiOrderHint</span><span class="p">(</span><span class="n">owner_id</span><span class="o">=</span><span class="n">project</span><span class="o">.</span><span class="n">id</span><span class="p">)</span><span class="o">.</span><span class="n">get</span><span class="p">()</span>
+</code></pre></div>
+<details class="example">
+  <summary>You'll notice the output looks like:</summary>
+<div class="highlight"><pre><span></span><code>WikiOrderHint(owner_id=&#39;...&#39;, owner_object_type=&#39;ENTITY&#39;, id_list=[], etag=&#39;...&#39;)
+</code></pre></div>
+</details>
+
+<h3 id="set-the-wiki-order-hint">Set the Wiki order hint<a class="headerlink" href="#set-the-wiki-order-hint" title="Permanent link">&para;</a></h3>
+<p>Set the order of Wiki pages by providing a list of Wiki page IDs in the desired order:</p>
+<div class="highlight"><pre><span></span><code><span class="c1"># As you can see from the printed message, the order hint is not set by default, so you need to set it explicitly at the beginning.</span>
+<span class="n">order_hint</span><span class="o">.</span><span class="n">id_list</span> <span class="o">=</span> <span class="p">[</span>
+    <span class="n">root_wiki_page</span><span class="o">.</span><span class="n">id</span><span class="p">,</span>
+    <span class="n">sub_wiki_3</span><span class="o">.</span><span class="n">id</span><span class="p">,</span>
+    <span class="n">sub_wiki_4</span><span class="o">.</span><span class="n">id</span><span class="p">,</span>
+    <span class="n">sub_wiki_1</span><span class="o">.</span><span class="n">id</span><span class="p">,</span>
+    <span class="n">sub_wiki_2</span><span class="o">.</span><span class="n">id</span><span class="p">,</span>
+    <span class="n">sub_wiki_5</span><span class="o">.</span><span class="n">id</span><span class="p">,</span>
+<span class="p">]</span>
+<span class="n">order_hint</span><span class="o">.</span><span class="n">store</span><span class="p">()</span>
+</code></pre></div>
+<details class="example">
+  <summary>You'll notice the output shows the updated order:</summary>
+<div class="highlight"><pre><span></span><code>WikiOrderHint(id_list=[&#39;...&#39;, &#39;...&#39;, ...])
+</code></pre></div>
+</details>
+
+<h3 id="update-wiki-order-hint">Update Wiki order hint<a class="headerlink" href="#update-wiki-order-hint" title="Permanent link">&para;</a></h3>
+<p>You can update the order hint at any time by retrieving it, modifying the <code>id_list</code>, and storing it again:</p>
+<div class="highlight"><pre><span></span><code><span class="c1"># Update wiki order hint</span>
+<span class="n">order_hint</span> <span class="o">=</span> <span class="n">WikiOrderHint</span><span class="p">(</span><span class="n">owner_id</span><span class="o">=</span><span class="n">project</span><span class="o">.</span><span class="n">id</span><span class="p">)</span><span class="o">.</span><span class="n">get</span><span class="p">()</span>
+<span class="n">order_hint</span><span class="o">.</span><span class="n">id_list</span> <span class="o">=</span> <span class="p">[</span>
+    <span class="n">root_wiki_page</span><span class="o">.</span><span class="n">id</span><span class="p">,</span>
+    <span class="n">sub_wiki_1</span><span class="o">.</span><span class="n">id</span><span class="p">,</span>
+    <span class="n">sub_wiki_2</span><span class="o">.</span><span class="n">id</span><span class="p">,</span>
+    <span class="n">sub_wiki_3</span><span class="o">.</span><span class="n">id</span><span class="p">,</span>
+    <span class="n">sub_wiki_4</span><span class="o">.</span><span class="n">id</span><span class="p">,</span>
+    <span class="n">sub_wiki_5</span><span class="o">.</span><span class="n">id</span><span class="p">,</span>
+<span class="p">]</span>
+<span class="n">order_hint</span><span class="o">.</span><span class="n">store</span><span class="p">()</span>
+</code></pre></div>
+<h2 id="13-delete-wiki-pages">13. Delete Wiki pages<a class="headerlink" href="#13-delete-wiki-pages" title="Permanent link">&para;</a></h2>
+<p>Delete a Wiki page by providing the owner ID and Wiki page ID:</p>
+<div class="highlight"><pre><span></span><code><span class="c1"># Delete a wiki page</span>
+<span class="n">sub_wiki_6</span> <span class="o">=</span> <span class="n">WikiPage</span><span class="p">(</span>
+    <span class="n">owner_id</span><span class="o">=</span><span class="n">project</span><span class="o">.</span><span class="n">id</span><span class="p">,</span>
+    <span class="n">parent_id</span><span class="o">=</span><span class="n">root_wiki_page</span><span class="o">.</span><span class="n">id</span><span class="p">,</span>
+    <span class="n">title</span><span class="o">=</span><span class="s2">&quot;Sub Page 6 to be deleted&quot;</span><span class="p">,</span>
+    <span class="n">markdown</span><span class="o">=</span><span class="sa">f</span><span class="s2">&quot;# Sub Page 6 to be deleted</span><span class="se">\n\n</span><span class="s2">This is a sub page to be deleted.&quot;</span><span class="p">,</span>
+<span class="p">)</span><span class="o">.</span><span class="n">store</span><span class="p">()</span>
+<span class="n">wiki_page_to_delete</span> <span class="o">=</span> <span class="n">WikiPage</span><span class="p">(</span><span class="n">owner_id</span><span class="o">=</span><span class="n">project</span><span class="o">.</span><span class="n">id</span><span class="p">,</span> <span class="nb">id</span><span class="o">=</span><span class="n">sub_wiki_6</span><span class="o">.</span><span class="n">id</span><span class="p">)</span><span class="o">.</span><span class="n">delete</span><span class="p">()</span>
+</code></pre></div>
+<h2 id="source-code-for-this-tutorial">Source Code for this Tutorial<a class="headerlink" href="#source-code-for-this-tutorial" title="Permanent link">&para;</a></h2>
+<details class="quote">
+  <summary>Click to show me</summary>
+<div class="highlight"><pre><span></span><code><span class="ch">#!/usr/bin/env python3</span>
+<span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">Tutorial script demonstrating the Synapse Wiki models functionality.</span>
+
+<span class="sd">This script shows how to:</span>
+<span class="sd">1. Create, read, update, and restore wiki pages</span>
+<span class="sd">2. Create wiki pages from markdown text and files, and download markdown content</span>
+<span class="sd">3. Create wiki pages with attachments, retrieve attachment handles and URLs, and download attachments and previews</span>
+<span class="sd">4. Retrieve wiki page hierarchy using WikiHeader</span>
+<span class="sd">5. Access wiki version history using WikiHistorySnapshot</span>
+<span class="sd">6. Get, set, and update wiki page ordering using WikiOrderHint</span>
+<span class="sd">7. Delete wiki pages</span>
+
+<span class="sd">&quot;&quot;&quot;</span>
+<span class="kn">import</span><span class="w"> </span><span class="nn">os</span>
+
+<span class="kn">from</span><span class="w"> </span><span class="nn">synapseclient</span><span class="w"> </span><span class="kn">import</span> <span class="n">Synapse</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">synapseclient.models</span><span class="w"> </span><span class="kn">import</span> <span class="p">(</span>
+    <span class="n">Project</span><span class="p">,</span>
+    <span class="n">WikiHeader</span><span class="p">,</span>
+    <span class="n">WikiHistorySnapshot</span><span class="p">,</span>
+    <span class="n">WikiOrderHint</span><span class="p">,</span>
+    <span class="n">WikiPage</span><span class="p">,</span>
+<span class="p">)</span>
+
+<span class="n">syn</span> <span class="o">=</span> <span class="n">Synapse</span><span class="p">()</span>
+<span class="n">syn</span><span class="o">.</span><span class="n">login</span><span class="p">()</span>
+
+<span class="c1"># Get the project</span>
+<span class="n">project</span> <span class="o">=</span> <span class="n">Project</span><span class="p">(</span><span class="n">name</span><span class="o">=</span><span class="s2">&quot;My uniquely named project about Alzheimer&#39;s Disease&quot;</span><span class="p">)</span><span class="o">.</span><span class="n">get</span><span class="p">()</span>
+
+<span class="c1"># Section1: Create, read, and update wiki pages</span>
+<span class="c1"># Create a new wiki page for the project with plain text markdown</span>
+<span class="n">root_wiki_page</span> <span class="o">=</span> <span class="n">WikiPage</span><span class="p">(</span>
+    <span class="n">owner_id</span><span class="o">=</span><span class="n">project</span><span class="o">.</span><span class="n">id</span><span class="p">,</span>
+    <span class="n">title</span><span class="o">=</span><span class="s2">&quot;My Root Wiki Page&quot;</span><span class="p">,</span>
+    <span class="n">markdown</span><span class="o">=</span><span class="s2">&quot;# Welcome to My Root Wiki</span><span class="se">\n\n</span><span class="s2">This is a sample root wiki page created with the Synapse client.&quot;</span><span class="p">,</span>
+<span class="p">)</span><span class="o">.</span><span class="n">store</span><span class="p">()</span>
+
+<span class="c1"># OR you can create a wiki page with an existing markdown file. More instructions can be found in section 2.</span>
+<span class="n">markdown_file_path</span> <span class="o">=</span> <span class="s2">&quot;path/to/your_markdown_file.md&quot;</span>
+<span class="n">root_wiki_page</span> <span class="o">=</span> <span class="n">WikiPage</span><span class="p">(</span>
+    <span class="n">owner_id</span><span class="o">=</span><span class="n">project</span><span class="o">.</span><span class="n">id</span><span class="p">,</span>
+    <span class="n">title</span><span class="o">=</span><span class="s2">&quot;My First Root Wiki Page Version with existing markdown file&quot;</span><span class="p">,</span>
+    <span class="n">markdown</span><span class="o">=</span><span class="n">markdown_file_path</span><span class="p">,</span>
+<span class="p">)</span><span class="o">.</span><span class="n">store</span><span class="p">()</span>
+
+<span class="c1"># Update the wiki page</span>
+<span class="n">root_wiki_page_new</span> <span class="o">=</span> <span class="n">WikiPage</span><span class="p">(</span>
+    <span class="n">owner_id</span><span class="o">=</span><span class="n">project</span><span class="o">.</span><span class="n">id</span><span class="p">,</span>
+    <span class="n">title</span><span class="o">=</span><span class="s2">&quot;My First Root Wiki Page NEW&quot;</span><span class="p">,</span>
+    <span class="n">markdown</span><span class="o">=</span><span class="s2">&quot;# Welcome to My Root Wiki NEW</span><span class="se">\n\n</span><span class="s2">This is a sample root wiki page created with the Synapse client.&quot;</span><span class="p">,</span>
+    <span class="nb">id</span><span class="o">=</span><span class="n">root_wiki_page</span><span class="o">.</span><span class="n">id</span><span class="p">,</span>
+<span class="p">)</span><span class="o">.</span><span class="n">store</span><span class="p">()</span>
+
+<span class="c1"># Restore the wiki page to the original version</span>
+<span class="n">wiki_page_restored</span> <span class="o">=</span> <span class="n">WikiPage</span><span class="p">(</span>
+    <span class="n">owner_id</span><span class="o">=</span><span class="n">project</span><span class="o">.</span><span class="n">id</span><span class="p">,</span> <span class="nb">id</span><span class="o">=</span><span class="n">root_wiki_page</span><span class="o">.</span><span class="n">id</span><span class="p">,</span> <span class="n">wiki_version</span><span class="o">=</span><span class="s2">&quot;0&quot;</span>
+<span class="p">)</span><span class="o">.</span><span class="n">restore</span><span class="p">()</span>
+
+<span class="c1"># check if the content is restored</span>
+<span class="k">assert</span> <span class="p">(</span>
+    <span class="n">root_wiki_page</span><span class="o">.</span><span class="n">markdown_file_handle_id</span> <span class="o">==</span> <span class="n">wiki_page_restored</span><span class="o">.</span><span class="n">markdown_file_handle_id</span>
+<span class="p">),</span> <span class="s2">&quot;Markdown file handle ID does not match after restore&quot;</span>
+<span class="k">assert</span> <span class="p">(</span>
+    <span class="n">root_wiki_page</span><span class="o">.</span><span class="n">id</span> <span class="o">==</span> <span class="n">wiki_page_restored</span><span class="o">.</span><span class="n">id</span>
+<span class="p">),</span> <span class="s2">&quot;Wiki page ID does not match after restore&quot;</span>
+<span class="k">assert</span> <span class="p">(</span>
+    <span class="n">root_wiki_page</span><span class="o">.</span><span class="n">title</span> <span class="o">==</span> <span class="n">wiki_page_restored</span><span class="o">.</span><span class="n">title</span>
+<span class="p">),</span> <span class="s2">&quot;Wiki page title does not match after restore&quot;</span>
+
+<span class="c1"># Get the wiki page</span>
+<span class="c1"># Once you know the Wiki page id, you can retrieve the Wiki page with the id</span>
+<span class="n">retrieved_wiki</span> <span class="o">=</span> <span class="n">WikiPage</span><span class="p">(</span><span class="n">owner_id</span><span class="o">=</span><span class="n">project</span><span class="o">.</span><span class="n">id</span><span class="p">,</span> <span class="nb">id</span><span class="o">=</span><span class="n">root_wiki_page</span><span class="o">.</span><span class="n">id</span><span class="p">)</span><span class="o">.</span><span class="n">get</span><span class="p">()</span>
+
+<span class="c1"># Or you can retrieve the Wiki page with the title</span>
+<span class="n">retrieved_wiki</span> <span class="o">=</span> <span class="n">WikiPage</span><span class="p">(</span><span class="n">owner_id</span><span class="o">=</span><span class="n">project</span><span class="o">.</span><span class="n">id</span><span class="p">,</span> <span class="n">title</span><span class="o">=</span><span class="n">root_wiki_page</span><span class="o">.</span><span class="n">title</span><span class="p">)</span><span class="o">.</span><span class="n">get</span><span class="p">()</span>
+
+<span class="c1"># Check if the retrieved Wiki page is the same as the original Wiki page</span>
+<span class="k">assert</span> <span class="p">(</span>
+    <span class="n">root_wiki_page</span><span class="o">.</span><span class="n">markdown_file_handle_id</span> <span class="o">==</span> <span class="n">retrieved_wiki</span><span class="o">.</span><span class="n">markdown_file_handle_id</span>
+<span class="p">),</span> <span class="s2">&quot;Markdown file handle ID does not match retrieved wiki page&quot;</span>
+<span class="k">assert</span> <span class="p">(</span>
+    <span class="n">root_wiki_page</span><span class="o">.</span><span class="n">id</span> <span class="o">==</span> <span class="n">retrieved_wiki</span><span class="o">.</span><span class="n">id</span>
+<span class="p">),</span> <span class="s2">&quot;Wiki page ID does not match retrieved wiki page&quot;</span>
+<span class="k">assert</span> <span class="p">(</span>
+    <span class="n">root_wiki_page</span><span class="o">.</span><span class="n">title</span> <span class="o">==</span> <span class="n">retrieved_wiki</span><span class="o">.</span><span class="n">title</span>
+<span class="p">),</span> <span class="s2">&quot;Wiki page title does not match retrieved wiki page&quot;</span>
+
+<span class="c1"># Create a sub-wiki page</span>
+<span class="n">sub_wiki_1</span> <span class="o">=</span> <span class="n">WikiPage</span><span class="p">(</span>
+    <span class="n">owner_id</span><span class="o">=</span><span class="n">project</span><span class="o">.</span><span class="n">id</span><span class="p">,</span>
+    <span class="n">title</span><span class="o">=</span><span class="s2">&quot;Sub Wiki Page 1&quot;</span><span class="p">,</span>
+    <span class="n">parent_id</span><span class="o">=</span><span class="n">root_wiki_page</span><span class="o">.</span><span class="n">id</span><span class="p">,</span>
+    <span class="n">markdown</span><span class="o">=</span><span class="s2">&quot;# Sub Page 1</span><span class="se">\n\n</span><span class="s2">This is a sub-page of another wiki.&quot;</span><span class="p">,</span>
+<span class="p">)</span><span class="o">.</span><span class="n">store</span><span class="p">()</span>
+
+<span class="c1"># Section 2: WikiPage Markdown Operations</span>
+<span class="c1"># Create wiki page from markdown text</span>
+<span class="n">markdown_content</span> <span class="o">=</span> <span class="s2">&quot;&quot;&quot;# Sample Markdown Content</span>
+
+<span class="s2">## Section 1</span>
+<span class="s2">This is a sample markdown file with multiple sections.</span>
+
+<span class="s2">## Section 2</span>
+<span class="s2">- List item 1</span>
+<span class="s2">- List item 2</span>
+<span class="s2">- List item 3</span>
+
+<span class="s2">## Section 3</span>
+<span class="s2">- List item 1</span>
+<span class="s2">- List item 2</span>
+<span class="s2">- List item 3</span>
+
+<span class="s2">&quot;&quot;&quot;</span>
+<span class="n">sub_wiki_2</span> <span class="o">=</span> <span class="n">WikiPage</span><span class="p">(</span>
+    <span class="n">owner_id</span><span class="o">=</span><span class="n">project</span><span class="o">.</span><span class="n">id</span><span class="p">,</span>
+    <span class="n">parent_id</span><span class="o">=</span><span class="n">root_wiki_page</span><span class="o">.</span><span class="n">id</span><span class="p">,</span>
+    <span class="n">title</span><span class="o">=</span><span class="s2">&quot;Sub Page 2 created from markdown text&quot;</span><span class="p">,</span>
+    <span class="n">markdown</span><span class="o">=</span><span class="n">markdown_content</span><span class="p">,</span>
+<span class="p">)</span><span class="o">.</span><span class="n">store</span><span class="p">()</span>
+
+
+<span class="c1"># Create a wiki page from a markdown file</span>
+<span class="n">markdown_file_path</span> <span class="o">=</span> <span class="s2">&quot;~/temp/temp_markdown_file.md.gz&quot;</span>
+
+<span class="c1"># Create wiki page from markdown file</span>
+<span class="n">sub_wiki_3</span> <span class="o">=</span> <span class="n">WikiPage</span><span class="p">(</span>
+    <span class="n">owner_id</span><span class="o">=</span><span class="n">project</span><span class="o">.</span><span class="n">id</span><span class="p">,</span>
+    <span class="n">parent_id</span><span class="o">=</span><span class="n">root_wiki_page</span><span class="o">.</span><span class="n">id</span><span class="p">,</span>
+    <span class="n">title</span><span class="o">=</span><span class="s2">&quot;Sub Page 3 created from markdown file&quot;</span><span class="p">,</span>
+    <span class="n">markdown</span><span class="o">=</span><span class="n">markdown_file_path</span><span class="p">,</span>
+<span class="p">)</span><span class="o">.</span><span class="n">store</span><span class="p">()</span>
+
+<span class="c1"># Download the markdown file</span>
+<span class="c1"># Note: If the markdown is generated from plain text using the client, the downloaded file will be named wiki_markdown_&lt;wiki_page_title&gt;.md.gz. If it is generated from an existing markdown file, the downloaded file will retain the original filename.</span>
+<span class="c1"># Download the markdown file for sub_wiki_2 that is created from markdown text</span>
+<span class="n">wiki_page_markdown_2_url</span> <span class="o">=</span> <span class="n">WikiPage</span><span class="p">(</span>
+    <span class="n">owner_id</span><span class="o">=</span><span class="n">project</span><span class="o">.</span><span class="n">id</span><span class="p">,</span>
+    <span class="nb">id</span><span class="o">=</span><span class="n">sub_wiki_2</span><span class="o">.</span><span class="n">id</span><span class="p">,</span>
+<span class="p">)</span><span class="o">.</span><span class="n">get_markdown_file</span><span class="p">(</span>
+    <span class="n">download_file</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span>
+<span class="p">)</span>
+
+<span class="c1"># Download the markdown file for sub_wiki_2 that is created from markdown text</span>
+<span class="n">wiki_page_markdown_2</span> <span class="o">=</span> <span class="n">WikiPage</span><span class="p">(</span>
+    <span class="n">owner_id</span><span class="o">=</span><span class="n">project</span><span class="o">.</span><span class="n">id</span><span class="p">,</span> <span class="nb">id</span><span class="o">=</span><span class="n">sub_wiki_2</span><span class="o">.</span><span class="n">id</span>
+<span class="p">)</span><span class="o">.</span><span class="n">get_markdown_file</span><span class="p">(</span><span class="n">download_file</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span> <span class="n">download_location</span><span class="o">=</span><span class="s2">&quot;.&quot;</span><span class="p">)</span>
+
+<span class="c1"># Download the markdown file for sub_wiki_3 that is created from a markdown file</span>
+<span class="n">wiki_page_markdown_3</span> <span class="o">=</span> <span class="n">WikiPage</span><span class="p">(</span>
+    <span class="n">owner_id</span><span class="o">=</span><span class="n">project</span><span class="o">.</span><span class="n">id</span><span class="p">,</span> <span class="nb">id</span><span class="o">=</span><span class="n">sub_wiki_3</span><span class="o">.</span><span class="n">id</span>
+<span class="p">)</span><span class="o">.</span><span class="n">get_markdown_file</span><span class="p">(</span><span class="n">download_file</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span> <span class="n">download_location</span><span class="o">=</span><span class="s2">&quot;.&quot;</span><span class="p">)</span>
+
+<span class="c1"># Section 3: WikiPage with Attachments</span>
+<span class="c1"># Create a temporary file for the attachment</span>
+<span class="n">attachment_file_name</span> <span class="o">=</span> <span class="s2">&quot;path/to/temp_attachment.txt&quot;</span>
+
+<span class="c1"># reformat &#39;.&#39; and &#39;_&#39; in the attachment file name to be a valid attachment path</span>
+<span class="n">attachment_file_name_reformatted</span> <span class="o">=</span> <span class="n">WikiPage</span><span class="o">.</span><span class="n">reformat_attachment_file_name</span><span class="p">(</span>
+    <span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">basename</span><span class="p">(</span><span class="n">attachment_file_name</span><span class="p">)</span>
+<span class="p">)</span>
+<span class="n">sub_wiki_4</span> <span class="o">=</span> <span class="n">WikiPage</span><span class="p">(</span>
+    <span class="n">owner_id</span><span class="o">=</span><span class="n">project</span><span class="o">.</span><span class="n">id</span><span class="p">,</span>
+    <span class="n">parent_id</span><span class="o">=</span><span class="n">root_wiki_page</span><span class="o">.</span><span class="n">id</span><span class="p">,</span>
+    <span class="n">title</span><span class="o">=</span><span class="s2">&quot;Sub Page 4 with Attachments&quot;</span><span class="p">,</span>
+    <span class="n">markdown</span><span class="o">=</span><span class="sa">f</span><span class="s2">&quot;# Sub Page 4 with Attachments</span><span class="se">\n\n</span><span class="s2">This is a attachment: $</span><span class="se">{{</span><span class="s2">previewattachment?fileName=</span><span class="si">{</span><span class="n">attachment_file_name_reformatted</span><span class="si">}</span><span class="se">}}</span><span class="s2">&quot;</span><span class="p">,</span>
+    <span class="n">attachments</span><span class="o">=</span><span class="p">[</span><span class="n">attachment_file_name</span><span class="p">],</span>
+<span class="p">)</span><span class="o">.</span><span class="n">store</span><span class="p">()</span>
+
+<span class="c1"># Inlucde images in the markdown file</span>
+<span class="n">image_file_path</span> <span class="o">=</span> <span class="s2">&quot;path/to/test_image.png&quot;</span>
+<span class="c1"># use the original file name instead of the gzipped file name for images</span>
+<span class="n">image_file_name</span> <span class="o">=</span> <span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">basename</span><span class="p">(</span><span class="n">image_file_path</span><span class="p">)</span>
+<span class="n">markdown_content</span> <span class="o">=</span> <span class="sa">f</span><span class="s2">&quot;# Sub Page 5 with images</span><span class="se">\n\n</span><span class="s2">This is an attached image: $</span><span class="se">{{</span><span class="s2">image?fileName=test_image.png&amp;align=None&amp;scale=100&amp;responsive=true&amp;altText=</span><span class="se">}}</span><span class="s2">&quot;</span>
+<span class="n">sub_wiki_5</span> <span class="o">=</span> <span class="n">WikiPage</span><span class="p">(</span>
+    <span class="n">owner_id</span><span class="o">=</span><span class="n">project</span><span class="o">.</span><span class="n">id</span><span class="p">,</span>
+    <span class="n">parent_id</span><span class="o">=</span><span class="n">root_wiki_page</span><span class="o">.</span><span class="n">id</span><span class="p">,</span>
+    <span class="n">title</span><span class="o">=</span><span class="s2">&quot;Sub Page 5 with Images&quot;</span><span class="p">,</span>
+    <span class="n">markdown</span><span class="o">=</span><span class="n">markdown_content</span><span class="p">,</span>
+    <span class="n">attachments</span><span class="o">=</span><span class="p">[</span><span class="n">image_file_path</span><span class="p">],</span>
+<span class="p">)</span><span class="o">.</span><span class="n">store</span><span class="p">()</span>
+
+<span class="c1"># Get attachment handles</span>
+<span class="n">attachment_handles</span> <span class="o">=</span> <span class="n">WikiPage</span><span class="p">(</span>
+    <span class="n">owner_id</span><span class="o">=</span><span class="n">project</span><span class="o">.</span><span class="n">id</span><span class="p">,</span> <span class="nb">id</span><span class="o">=</span><span class="n">sub_wiki_4</span><span class="o">.</span><span class="n">id</span>
+<span class="p">)</span><span class="o">.</span><span class="n">get_attachment_handles</span><span class="p">()</span>
+
+<span class="c1"># Get attachment URL without downloading</span>
+<span class="n">wiki_page_attachment_url</span> <span class="o">=</span> <span class="n">WikiPage</span><span class="p">(</span>
+    <span class="n">owner_id</span><span class="o">=</span><span class="n">project</span><span class="o">.</span><span class="n">id</span><span class="p">,</span> <span class="nb">id</span><span class="o">=</span><span class="n">sub_wiki_4</span><span class="o">.</span><span class="n">id</span>
+<span class="p">)</span><span class="o">.</span><span class="n">get_attachment</span><span class="p">(</span>
+    <span class="n">file_name</span><span class="o">=</span><span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">basename</span><span class="p">(</span><span class="n">attachment_file_name</span><span class="p">),</span>
+    <span class="n">download_file</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span>
+<span class="p">)</span>
+
+<span class="c1"># Download an attachment</span>
+<span class="n">wiki_page_attachment</span> <span class="o">=</span> <span class="n">WikiPage</span><span class="p">(</span><span class="n">owner_id</span><span class="o">=</span><span class="n">project</span><span class="o">.</span><span class="n">id</span><span class="p">,</span> <span class="nb">id</span><span class="o">=</span><span class="n">sub_wiki_4</span><span class="o">.</span><span class="n">id</span><span class="p">)</span><span class="o">.</span><span class="n">get_attachment</span><span class="p">(</span>
+    <span class="n">file_name</span><span class="o">=</span><span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">basename</span><span class="p">(</span><span class="n">attachment_file_name</span><span class="p">),</span>
+    <span class="n">download_file</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span>
+    <span class="n">download_location</span><span class="o">=</span><span class="s2">&quot;.&quot;</span><span class="p">,</span>
+<span class="p">)</span>
+<span class="c1"># Unzip the attachment file</span>
+<span class="n">unzipped_attachment_file_path</span> <span class="o">=</span> <span class="n">WikiPage</span><span class="o">.</span><span class="n">unzip_gzipped_file</span><span class="p">(</span><span class="n">wiki_page_attachment</span><span class="p">)</span>
+
+<span class="c1"># Download an attachment preview. Instead of using the file_name from the attachmenthandle response when isPreview=True, you should use the original file name in the get_attachment_preview request. The downloaded file will still be named according to the file_name provided in the response when isPreview=True.</span>
+<span class="c1"># Get attachment preview URL without downloading</span>
+<span class="n">attachment_preview_url</span> <span class="o">=</span> <span class="n">WikiPage</span><span class="p">(</span>
+    <span class="n">owner_id</span><span class="o">=</span><span class="n">project</span><span class="o">.</span><span class="n">id</span><span class="p">,</span> <span class="nb">id</span><span class="o">=</span><span class="n">sub_wiki_4</span><span class="o">.</span><span class="n">id</span>
+<span class="p">)</span><span class="o">.</span><span class="n">get_attachment_preview</span><span class="p">(</span>
+    <span class="n">file_name</span><span class="o">=</span><span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">basename</span><span class="p">(</span><span class="n">attachment_file_name</span><span class="p">),</span>
+    <span class="n">download_file</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span>
+<span class="p">)</span>
+
+<span class="c1"># Download an attachment preview</span>
+<span class="n">attachment_preview</span> <span class="o">=</span> <span class="n">WikiPage</span><span class="p">(</span>
+    <span class="n">owner_id</span><span class="o">=</span><span class="n">project</span><span class="o">.</span><span class="n">id</span><span class="p">,</span> <span class="nb">id</span><span class="o">=</span><span class="n">sub_wiki_4</span><span class="o">.</span><span class="n">id</span>
+<span class="p">)</span><span class="o">.</span><span class="n">get_attachment_preview</span><span class="p">(</span>
+    <span class="n">file_name</span><span class="o">=</span><span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">basename</span><span class="p">(</span><span class="n">attachment_file_name</span><span class="p">),</span>
+    <span class="n">download_file</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span>
+    <span class="n">download_location</span><span class="o">=</span><span class="s2">&quot;.&quot;</span><span class="p">,</span>
+<span class="p">)</span>
+
+<span class="c1"># Section 4: WikiHeader - Working with Wiki Hierarchy</span>
+<span class="c1"># Get wiki header tree (hierarchy)</span>
+<span class="n">headers</span> <span class="o">=</span> <span class="n">WikiHeader</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="n">owner_id</span><span class="o">=</span><span class="n">project</span><span class="o">.</span><span class="n">id</span><span class="p">)</span>
+
+<span class="c1"># Section 5. WikiHistorySnapshot - Version History</span>
+<span class="c1"># Get wiki history for root_wiki_page</span>
+<span class="n">history</span> <span class="o">=</span> <span class="n">WikiHistorySnapshot</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="n">owner_id</span><span class="o">=</span><span class="n">project</span><span class="o">.</span><span class="n">id</span><span class="p">,</span> <span class="nb">id</span><span class="o">=</span><span class="n">root_wiki_page</span><span class="o">.</span><span class="n">id</span><span class="p">)</span>
+
+<span class="c1"># Section 6. WikiOrderHint - Ordering Wiki Pages</span>
+<span class="c1"># Set the wiki order hint</span>
+<span class="n">order_hint</span> <span class="o">=</span> <span class="n">WikiOrderHint</span><span class="p">(</span><span class="n">owner_id</span><span class="o">=</span><span class="n">project</span><span class="o">.</span><span class="n">id</span><span class="p">)</span><span class="o">.</span><span class="n">get</span><span class="p">()</span>
+<span class="c1"># As you can see from the printed message, the order hint is not set by default, so you need to set it explicitly at the beginning.</span>
+<span class="n">order_hint</span><span class="o">.</span><span class="n">id_list</span> <span class="o">=</span> <span class="p">[</span>
+    <span class="n">root_wiki_page</span><span class="o">.</span><span class="n">id</span><span class="p">,</span>
+    <span class="n">sub_wiki_3</span><span class="o">.</span><span class="n">id</span><span class="p">,</span>
+    <span class="n">sub_wiki_4</span><span class="o">.</span><span class="n">id</span><span class="p">,</span>
+    <span class="n">sub_wiki_1</span><span class="o">.</span><span class="n">id</span><span class="p">,</span>
+    <span class="n">sub_wiki_2</span><span class="o">.</span><span class="n">id</span><span class="p">,</span>
+    <span class="n">sub_wiki_5</span><span class="o">.</span><span class="n">id</span><span class="p">,</span>
+<span class="p">]</span>
+<span class="n">order_hint</span><span class="o">.</span><span class="n">store</span><span class="p">()</span>
+
+<span class="c1"># Update wiki order hint</span>
+<span class="n">order_hint</span> <span class="o">=</span> <span class="n">WikiOrderHint</span><span class="p">(</span><span class="n">owner_id</span><span class="o">=</span><span class="n">project</span><span class="o">.</span><span class="n">id</span><span class="p">)</span><span class="o">.</span><span class="n">get</span><span class="p">()</span>
+<span class="n">order_hint</span><span class="o">.</span><span class="n">id_list</span> <span class="o">=</span> <span class="p">[</span>
+    <span class="n">root_wiki_page</span><span class="o">.</span><span class="n">id</span><span class="p">,</span>
+    <span class="n">sub_wiki_1</span><span class="o">.</span><span class="n">id</span><span class="p">,</span>
+    <span class="n">sub_wiki_2</span><span class="o">.</span><span class="n">id</span><span class="p">,</span>
+    <span class="n">sub_wiki_3</span><span class="o">.</span><span class="n">id</span><span class="p">,</span>
+    <span class="n">sub_wiki_4</span><span class="o">.</span><span class="n">id</span><span class="p">,</span>
+    <span class="n">sub_wiki_5</span><span class="o">.</span><span class="n">id</span><span class="p">,</span>
+<span class="p">]</span>
+<span class="n">order_hint</span><span class="o">.</span><span class="n">store</span><span class="p">()</span>
+
+<span class="c1"># Delete a wiki page</span>
+<span class="n">sub_wiki_6</span> <span class="o">=</span> <span class="n">WikiPage</span><span class="p">(</span>
+    <span class="n">owner_id</span><span class="o">=</span><span class="n">project</span><span class="o">.</span><span class="n">id</span><span class="p">,</span>
+    <span class="n">parent_id</span><span class="o">=</span><span class="n">root_wiki_page</span><span class="o">.</span><span class="n">id</span><span class="p">,</span>
+    <span class="n">title</span><span class="o">=</span><span class="s2">&quot;Sub Page 6 to be deleted&quot;</span><span class="p">,</span>
+    <span class="n">markdown</span><span class="o">=</span><span class="sa">f</span><span class="s2">&quot;# Sub Page 6 to be deleted</span><span class="se">\n\n</span><span class="s2">This is a sub page to be deleted.&quot;</span><span class="p">,</span>
+<span class="p">)</span><span class="o">.</span><span class="n">store</span><span class="p">()</span>
+<span class="n">wiki_page_to_delete</span> <span class="o">=</span> <span class="n">WikiPage</span><span class="p">(</span><span class="n">owner_id</span><span class="o">=</span><span class="n">project</span><span class="o">.</span><span class="n">id</span><span class="p">,</span> <span class="nb">id</span><span class="o">=</span><span class="n">sub_wiki_6</span><span class="o">.</span><span class="n">id</span><span class="p">)</span><span class="o">.</span><span class="n">delete</span><span class="p">()</span>
+</code></pre></div>
+</details>
+
+<h2 id="references">References<a class="headerlink" href="#references" title="Permanent link">&para;</a></h2>
+<ul>
+<li><a class="autorefs autorefs-internal" title="            synapseclient.models.WikiPage
+
+
+  
+      dataclass
+  " href="../../../reference/experimental/async/wiki/#synapseclient.models.WikiPage">WikiPage</a></li>
+<li><a class="autorefs autorefs-internal" title="            synapseclient.models.WikiHeader
+
+
+  
+      dataclass
+  " href="../../../reference/experimental/async/wiki/#synapseclient.models.WikiHeader">WikiHeader</a></li>
+<li><a class="autorefs autorefs-internal" title="            synapseclient.models.WikiHistorySnapshot
+
+
+  
+      dataclass
+  " href="../../../reference/experimental/async/wiki/#synapseclient.models.WikiHistorySnapshot">WikiHistorySnapshot</a></li>
+<li><a class="autorefs autorefs-internal" title="            synapseclient.models.WikiOrderHint
+
+
+  
+      dataclass
+  " href="../../../reference/experimental/async/wiki/#synapseclient.models.WikiOrderHint">WikiOrderHint</a></li>
+<li><a class="autorefs autorefs-internal" title="            synapseclient.models.Project
+
+
+  
+      dataclass
+  " href="../../../reference/experimental/async/project/#synapseclient.models.Project">Project</a></li>
+<li><a class="autorefs autorefs-internal" title="            login" href="../../../reference/client/#synapseclient.Synapse.login">syn.login</a></li>
+<li><a href="../project/">Related tutorial: Projects</a></li>
+</ul>
+
+
+
+
+
+
+
+
+
+
+
+
+                
+              </article>
+            </div>
+          
+          
+<script>var target=document.getElementById(location.hash.slice(1));target&&target.name&&(target.checked=target.name.startsWith("__tabbed_"))</script>
+        </div>
+        
+      </main>
+      
+        <footer class="md-footer">
+  
+    
+      
+      <nav class="md-footer__inner md-grid" aria-label="Footer" >
+        
+          
+          <a href="../sharing_settings/" class="md-footer__link md-footer__link--prev" aria-label="Previous: Sharing Settings">
+            <div class="md-footer__button md-icon">
+              
+              <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M20 11v2H8l5.5 5.5-1.42 1.42L4.16 12l7.92-7.92L13.5 5.5 8 11z"/></svg>
+            </div>
+            <div class="md-footer__title">
+              <span class="md-footer__direction">
+                Previous
+              </span>
+              <div class="md-ellipsis">
+                Sharing Settings
+              </div>
+            </div>
+          </a>
+        
+        
+          
+          <a href="../upload_data_in_bulk/" class="md-footer__link md-footer__link--next" aria-label="Next: Upload data in bulk">
+            <div class="md-footer__title">
+              <span class="md-footer__direction">
+                Next
+              </span>
+              <div class="md-ellipsis">
+                Upload data in bulk
+              </div>
+            </div>
+            <div class="md-footer__button md-icon">
+              
+              <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M4 11v2h12l-5.5 5.5 1.42 1.42L19.84 12l-7.92-7.92L10.5 5.5 16 11z"/></svg>
+            </div>
+          </a>
+        
+      </nav>
+    
+  
+  <div class="md-footer-meta md-typeset">
+    <div class="md-footer-meta__inner md-grid">
+      <div class="md-copyright">
+  
+  
+    Made with
+    <a href="https://squidfunk.github.io/mkdocs-material/" target="_blank" rel="noopener">
+      Material for MkDocs
+    </a>
+  
+</div>
+      
+        
+<div class="md-social">
+  
+    
+    
+    
+    
+      
+      
+    
+    <a href="https://github.com/Sage-Bionetworks/synapsePythonClient" target="_blank" rel="noopener" title="github.com" class="md-social__link">
+      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512"><!--! Font Awesome Free 7.1.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2025 Fonticons, Inc.--><path d="M173.9 397.4c0 2-2.3 3.6-5.2 3.6-3.3.3-5.6-1.3-5.6-3.6 0-2 2.3-3.6 5.2-3.6 3-.3 5.6 1.3 5.6 3.6m-31.1-4.5c-.7 2 1.3 4.3 4.3 4.9 2.6 1 5.6 0 6.2-2s-1.3-4.3-4.3-5.2c-2.6-.7-5.5.3-6.2 2.3m44.2-1.7c-2.9.7-4.9 2.6-4.6 4.9.3 2 2.9 3.3 5.9 2.6 2.9-.7 4.9-2.6 4.6-4.6-.3-1.9-3-3.2-5.9-2.9M252.8 8C114.1 8 8 113.3 8 252c0 110.9 69.8 205.8 169.5 239.2 12.8 2.3 17.3-5.6 17.3-12.1 0-6.2-.3-40.4-.3-61.4 0 0-70 15-84.7-29.8 0 0-11.4-29.1-27.8-36.6 0 0-22.9-15.7 1.6-15.4 0 0 24.9 2 38.6 25.8 21.9 38.6 58.6 27.5 72.9 20.9 2.3-16 8.8-27.1 16-33.7-55.9-6.2-112.3-14.3-112.3-110.5 0-27.5 7.6-41.3 23.6-58.9-2.6-6.5-11.1-33.3 2.6-67.9 20.9-6.5 69 27 69 27 20-5.6 41.5-8.5 62.8-8.5s42.8 2.9 62.8 8.5c0 0 48.1-33.6 69-27 13.7 34.7 5.2 61.4 2.6 67.9 16 17.7 25.8 31.5 25.8 58.9 0 96.5-58.9 104.2-114.8 110.5 9.2 7.9 17 22.9 17 46.4 0 33.7-.3 75.4-.3 83.6 0 6.5 4.6 14.4 17.3 12.1C436.2 457.8 504 362.9 504 252 504 113.3 391.5 8 252.8 8M105.2 352.9c-1.3 1-1 3.3.7 5.2 1.6 1.6 3.9 2.3 5.2 1 1.3-1 1-3.3-.7-5.2-1.6-1.6-3.9-2.3-5.2-1m-10.8-8.1c-.7 1.3.3 2.9 2.3 3.9 1.6 1 3.6.7 4.3-.7.7-1.3-.3-2.9-2.3-3.9-2-.6-3.6-.3-4.3.7m32.4 35.6c-1.6 1.3-1 4.3 1.3 6.2 2.3 2.3 5.2 2.6 6.5 1 1.3-1.3.7-4.3-1.3-6.2-2.2-2.3-5.2-2.6-6.5-1m-11.4-14.7c-1.6 1-1.6 3.6 0 5.9s4.3 3.3 5.6 2.3c1.6-1.3 1.6-3.9 0-6.2-1.4-2.3-4-3.3-5.6-2"/></svg>
+    </a>
+  
+    
+    
+    
+    
+      
+      
+    
+    <a href="https://github.com/Sage-Bionetworks/synapsePythonClient/pkgs/container/synapsepythonclient" target="_blank" rel="noopener" title="github.com" class="md-social__link">
+      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 640 512"><!--! Font Awesome Free 7.1.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2025 Fonticons, Inc.--><path d="M349.9 236.3h-66.1v-59.4h66.1zm0-204.3h-66.1v60.7h66.1zm78.2 144.8H362v59.4h66.1zm-156.3-72.1h-66.1v60.1h66.1zm78.1 0h-66.1v60.1h66.1zm276.8 100c-14.4-9.7-47.6-13.2-73.1-8.4-3.3-24-16.7-44.9-41.1-63.7l-14-9.3-9.3 14c-18.4 27.8-23.4 73.6-3.7 103.8-8.7 4.7-25.8 11.1-48.4 10.7H2.4c-8.7 50.8 5.8 116.8 44 162.1 37.1 43.9 92.7 66.2 165.4 66.2 157.4 0 273.9-72.5 328.4-204.2 21.4.4 67.6.1 91.3-45.2 1.5-2.5 6.6-13.2 8.5-17.1zm-511.1-27.9h-66v59.4h66.1v-59.4zm78.1 0h-66.1v59.4h66.1zm78.1 0h-66.1v59.4h66.1zm-78.1-72.1h-66.1v60.1h66.1z"/></svg>
+    </a>
+  
+    
+    
+    
+    
+      
+      
+    
+    <a href="https://pypi.org/project/synapseclient/" target="_blank" rel="noopener" title="pypi.org" class="md-social__link">
+      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 448 512"><!--! Font Awesome Free 7.1.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2025 Fonticons, Inc.--><path d="M439.8 200.5c-7.7-30.9-22.3-54.2-53.4-54.2h-40.1v47.4c0 36.8-31.2 67.8-66.8 67.8H172.7c-29.2 0-53.4 25-53.4 54.3v101.8c0 29 25.2 46 53.4 54.3 33.8 9.9 66.3 11.7 106.8 0 26.9-7.8 53.4-23.5 53.4-54.3v-40.7H226.2v-13.6h160.2c31.1 0 42.6-21.7 53.4-54.2 11.2-33.5 10.7-65.7 0-108.6M286.2 444.7a20.4 20.4 0 1 1 0-40.7 20.4 20.4 0 1 1 0 40.7M167.8 248.1h106.8c29.7 0 53.4-24.5 53.4-54.3V91.9c0-29-24.4-50.7-53.4-55.6-35.8-5.9-74.7-5.6-106.8.1-45.2 8-53.4 24.7-53.4 55.6v40.7h106.9v13.6h-147c-31.1 0-58.3 18.7-66.8 54.2-9.8 40.7-10.2 66.1 0 108.6 7.6 31.6 25.7 54.2 56.8 54.2H101v-48.8c0-35.3 30.5-66.4 66.8-66.4m-6.6-183.4a20.4 20.4 0 1 1 0 40.8 20.4 20.4 0 1 1 0-40.8"/></svg>
+    </a>
+  
+</div>
+      
+    </div>
+  </div>
+</footer>
+      
+    </div>
+    <div class="md-dialog" data-md-component="dialog">
+      <div class="md-dialog__inner md-typeset"></div>
+    </div>
+    
+      <div class="md-progress" data-md-component="progress" role="progressbar"></div>
+    
+    
+    
+      
+      
+      <script id="__config" type="application/json">{"annotate": null, "base": "../../..", "features": ["content.code.copy", "navigation.footer", "navigation.sections", "search.highlight", "search.share", "search.suggest", "toc.follow", "navigation.tabs", "navigation.tabs.sticky", "navigation.instant", "navigation.instant.progress"], "search": "../../../assets/javascripts/workers/search.2c215733.min.js", "tags": null, "translations": {"clipboard.copied": "Copied to clipboard", "clipboard.copy": "Copy to clipboard", "search.result.more.one": "1 more on this page", "search.result.more.other": "# more on this page", "search.result.none": "No matching documents", "search.result.one": "1 matching document", "search.result.other": "# matching documents", "search.result.placeholder": "Type to start searching", "search.result.term.missing": "Missing", "select.version": "Select version"}, "version": null}</script>
+    
+    
+      <script src="../../../assets/javascripts/bundle.79ae519e.min.js"></script>
+      
+        <script src="../../../termynal.js"></script>
+      
+        <script src="../../../js/open_in_new_tab.js"></script>
+      
+    
+  </body>
+</html>

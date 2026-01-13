@@ -1,0 +1,13 @@
+/* Indentation. */
+div.doc-contents {
+    padding-left: 25px;
+    border-left: .05rem solid var(--md-typeset-table-color);
+}
+
+.md-typeset table tbody {
+    font-size: .7rem
+}
+
+.md-grid {
+    max-width: 1700px;
+}

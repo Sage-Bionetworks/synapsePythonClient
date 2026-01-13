@@ -1,0 +1,6867 @@
+
+<!doctype html>
+<html lang="en" class="no-js">
+  <head>
+    
+      <meta charset="utf-8">
+      <meta name="viewport" content="width=device-width,initial-scale=1">
+      
+        <meta name="description" content="A Python client for Sage Bionetworks' Synapse, a collaborative, open-source research platform that allows teams to share data, track analyses, and collaborate. The Python client can be used as a library for development of software that communicates with Synapse or as a command-line utility.">
+      
+      
+        <meta name="author" content="Bryan Fauble">
+      
+      
+      
+        <link rel="prev" href="../python/json_schema/">
+      
+      
+        <link rel="next" href="../reticulate/">
+      
+      
+        
+      
+      
+      <link rel="icon" href="../../assets/favicon.png">
+      <meta name="generator" content="mkdocs-1.6.1, mkdocs-material-9.7.1">
+    
+    
+      
+        <title>Working with the Command Line Client - Synapse Python/Command Line Client Documentation</title>
+      
+    
+    
+      <link rel="stylesheet" href="../../assets/stylesheets/main.484c7ddc.min.css">
+      
+        
+        <link rel="stylesheet" href="../../assets/stylesheets/palette.ab4e12ef.min.css">
+      
+      
+  
+  
+    
+      
+      
+    
+  
+    
+      
+      
+    
+  
+  
+  <style>:root{--md-admonition-icon--note:url('data:image/svg+xml;charset=utf-8,%3Csvg%20xmlns%3D%22http%3A//www.w3.org/2000/svg%22%20viewBox%3D%220%200%2016%2016%22%3E%3Cpath%20d%3D%22M1%207.775V2.75C1%201.784%201.784%201%202.75%201h5.025c.464%200%20.91.184%201.238.513l6.25%206.25a1.75%201.75%200%200%201%200%202.474l-5.026%205.026a1.75%201.75%200%200%201-2.474%200l-6.25-6.25A1.75%201.75%200%200%201%201%207.775m1.5%200c0%20.066.026.13.073.177l6.25%206.25a.25.25%200%200%200%20.354%200l5.025-5.025a.25.25%200%200%200%200-.354l-6.25-6.25a.25.25%200%200%200-.177-.073H2.75a.25.25%200%200%200-.25.25ZM6%205a1%201%200%201%201%200%202%201%201%200%200%201%200-2%22/%3E%3C/svg%3E');--md-admonition-icon--info:url('data:image/svg+xml;charset=utf-8,%3Csvg%20xmlns%3D%22http%3A//www.w3.org/2000/svg%22%20viewBox%3D%220%200%2016%2016%22%3E%3Cpath%20d%3D%22M0%208a8%208%200%201%201%2016%200A8%208%200%200%201%200%208m8-6.5a6.5%206.5%200%201%200%200%2013%206.5%206.5%200%200%200%200-13M6.5%207.75A.75.75%200%200%201%207.25%207h1a.75.75%200%200%201%20.75.75v2.75h.25a.75.75%200%200%201%200%201.5h-2a.75.75%200%200%201%200-1.5h.25v-2h-.25a.75.75%200%200%201-.75-.75M8%206a1%201%200%201%201%200-2%201%201%200%200%201%200%202%22/%3E%3C/svg%3E');}</style>
+
+
+
+    
+    
+      
+    
+    
+      
+        
+        
+        <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+        <link rel="stylesheet" href="https://fonts.googleapis.com/css?family=Roboto:300,300i,400,400i,700,700i%7CRoboto+Mono:400,400i,700,700i&display=fallback">
+        <style>:root{--md-text-font:"Roboto";--md-code-font:"Roboto Mono"}</style>
+      
+    
+    
+      <link rel="stylesheet" href="../../assets/_mkdocstrings.css">
+    
+      <link rel="stylesheet" href="../../css/custom.css">
+    
+      <link rel="stylesheet" href="../../termynal.css">
+    
+    <script>__md_scope=new URL("../..",location),__md_hash=e=>[...e].reduce(((e,_)=>(e<<5)-e+_.charCodeAt(0)),0),__md_get=(e,_=localStorage,t=__md_scope)=>JSON.parse(_.getItem(t.pathname+"."+e)),__md_set=(e,_,t=localStorage,a=__md_scope)=>{try{t.setItem(a.pathname+"."+e,JSON.stringify(_))}catch(e){}}</script>
+    
+      
+
+    
+    
+  </head>
+  
+  
+    
+    
+      
+    
+    
+    
+    
+    <body dir="ltr" data-md-color-scheme="default" data-md-color-primary="white" data-md-color-accent="indigo">
+  
+    
+    <input class="md-toggle" data-md-toggle="drawer" type="checkbox" id="__drawer" autocomplete="off">
+    <input class="md-toggle" data-md-toggle="search" type="checkbox" id="__search" autocomplete="off">
+    <label class="md-overlay" for="__drawer"></label>
+    <div data-md-component="skip">
+      
+        
+        <a href="#command-line-client" class="md-skip">
+          Skip to content
+        </a>
+      
+    </div>
+    <div data-md-component="announce">
+      
+    </div>
+    
+    
+      
+
+  
+
+<header class="md-header md-header--shadow md-header--lifted" data-md-component="header">
+  <nav class="md-header__inner md-grid" aria-label="Header">
+    <a href="../.." title="Synapse Python/Command Line Client Documentation" class="md-header__button md-logo" aria-label="Synapse Python/Command Line Client Documentation" data-md-component="logo">
+      
+  <img src="../../assets/synapse_logo.png" alt="logo">
+
+    </a>
+    <label class="md-header__button md-icon" for="__drawer">
+      
+      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M3 6h18v2H3zm0 5h18v2H3zm0 5h18v2H3z"/></svg>
+    </label>
+    <div class="md-header__title" data-md-component="header-title">
+      <div class="md-header__ellipsis">
+        <div class="md-header__topic">
+          <span class="md-ellipsis">
+            Synapse Python/Command Line Client Documentation
+          </span>
+        </div>
+        <div class="md-header__topic" data-md-component="header-topic">
+          <span class="md-ellipsis">
+            
+              Working with the Command Line Client
+            
+          </span>
+        </div>
+      </div>
+    </div>
+    
+      
+        <form class="md-header__option" data-md-component="palette">
+  
+    
+    
+    
+    <input class="md-option" data-md-color-media="(prefers-color-scheme: light)" data-md-color-scheme="default" data-md-color-primary="white" data-md-color-accent="indigo"  aria-label="Switch to dark mode"  type="radio" name="__palette" id="__palette_0">
+    
+      <label class="md-header__button md-icon" title="Switch to dark mode" for="__palette_1" hidden>
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M17 6H7c-3.31 0-6 2.69-6 6s2.69 6 6 6h10c3.31 0 6-2.69 6-6s-2.69-6-6-6m0 10H7c-2.21 0-4-1.79-4-4s1.79-4 4-4h10c2.21 0 4 1.79 4 4s-1.79 4-4 4M7 9c-1.66 0-3 1.34-3 3s1.34 3 3 3 3-1.34 3-3-1.34-3-3-3"/></svg>
+      </label>
+    
+  
+    
+    
+    
+    <input class="md-option" data-md-color-media="(prefers-color-scheme: dark)" data-md-color-scheme="slate" data-md-color-primary="black" data-md-color-accent="indigo"  aria-label="Switch to light mode"  type="radio" name="__palette" id="__palette_1">
+    
+      <label class="md-header__button md-icon" title="Switch to light mode" for="__palette_0" hidden>
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M17 7H7a5 5 0 0 0-5 5 5 5 0 0 0 5 5h10a5 5 0 0 0 5-5 5 5 0 0 0-5-5m0 8a3 3 0 0 1-3-3 3 3 0 0 1 3-3 3 3 0 0 1 3 3 3 3 0 0 1-3 3"/></svg>
+      </label>
+    
+  
+</form>
+      
+    
+    
+      <script>var palette=__md_get("__palette");if(palette&&palette.color){if("(prefers-color-scheme)"===palette.color.media){var media=matchMedia("(prefers-color-scheme: light)"),input=document.querySelector(media.matches?"[data-md-color-media='(prefers-color-scheme: light)']":"[data-md-color-media='(prefers-color-scheme: dark)']");palette.color.media=input.getAttribute("data-md-color-media"),palette.color.scheme=input.getAttribute("data-md-color-scheme"),palette.color.primary=input.getAttribute("data-md-color-primary"),palette.color.accent=input.getAttribute("data-md-color-accent")}for(var[key,value]of Object.entries(palette.color))document.body.setAttribute("data-md-color-"+key,value)}</script>
+    
+    
+    
+      
+      
+        <label class="md-header__button md-icon" for="__search">
+          
+          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M9.5 3A6.5 6.5 0 0 1 16 9.5c0 1.61-.59 3.09-1.56 4.23l.27.27h.79l5 5-1.5 1.5-5-5v-.79l-.27-.27A6.52 6.52 0 0 1 9.5 16 6.5 6.5 0 0 1 3 9.5 6.5 6.5 0 0 1 9.5 3m0 2C7 5 5 7 5 9.5S7 14 9.5 14 14 12 14 9.5 12 5 9.5 5"/></svg>
+        </label>
+        <div class="md-search" data-md-component="search" role="dialog">
+  <label class="md-search__overlay" for="__search"></label>
+  <div class="md-search__inner" role="search">
+    <form class="md-search__form" name="search">
+      <input type="text" class="md-search__input" name="query" aria-label="Search" placeholder="Search" autocapitalize="off" autocorrect="off" autocomplete="off" spellcheck="false" data-md-component="search-query" required>
+      <label class="md-search__icon md-icon" for="__search">
+        
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M9.5 3A6.5 6.5 0 0 1 16 9.5c0 1.61-.59 3.09-1.56 4.23l.27.27h.79l5 5-1.5 1.5-5-5v-.79l-.27-.27A6.52 6.52 0 0 1 9.5 16 6.5 6.5 0 0 1 3 9.5 6.5 6.5 0 0 1 9.5 3m0 2C7 5 5 7 5 9.5S7 14 9.5 14 14 12 14 9.5 12 5 9.5 5"/></svg>
+        
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M20 11v2H8l5.5 5.5-1.42 1.42L4.16 12l7.92-7.92L13.5 5.5 8 11z"/></svg>
+      </label>
+      <nav class="md-search__options" aria-label="Search">
+        
+          <a href="javascript:void(0)" class="md-search__icon md-icon" title="Share" aria-label="Share" data-clipboard data-clipboard-text="" data-md-component="search-share" tabindex="-1">
+            
+            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M18 16.08c-.76 0-1.44.3-1.96.77L8.91 12.7c.05-.23.09-.46.09-.7s-.04-.47-.09-.7l7.05-4.11c.54.5 1.25.81 2.04.81a3 3 0 0 0 3-3 3 3 0 0 0-3-3 3 3 0 0 0-3 3c0 .24.04.47.09.7L8.04 9.81C7.5 9.31 6.79 9 6 9a3 3 0 0 0-3 3 3 3 0 0 0 3 3c.79 0 1.5-.31 2.04-.81l7.12 4.15c-.05.21-.08.43-.08.66 0 1.61 1.31 2.91 2.92 2.91s2.92-1.3 2.92-2.91A2.92 2.92 0 0 0 18 16.08"/></svg>
+          </a>
+        
+        <button type="reset" class="md-search__icon md-icon" title="Clear" aria-label="Clear" tabindex="-1">
+          
+          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M19 6.41 17.59 5 12 10.59 6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 12 13.41 17.59 19 19 17.59 13.41 12z"/></svg>
+        </button>
+      </nav>
+      
+        <div class="md-search__suggest" data-md-component="search-suggest"></div>
+      
+    </form>
+    <div class="md-search__output">
+      <div class="md-search__scrollwrap" tabindex="0" data-md-scrollfix>
+        <div class="md-search-result" data-md-component="search-result">
+          <div class="md-search-result__meta">
+            Initializing search
+          </div>
+          <ol class="md-search-result__list" role="presentation"></ol>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+      
+    
+    
+      <div class="md-header__source">
+        <a href="https://github.com/Sage-Bionetworks/synapsePythonClient" title="Go to repository" class="md-source" data-md-component="source">
+  <div class="md-source__icon md-icon">
+    
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 448 512"><!--! Font Awesome Free 7.1.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2025 Fonticons, Inc.--><path d="M439.6 236.1 244 40.5c-5.4-5.5-12.8-8.5-20.4-8.5s-15 3-20.4 8.4L162.5 81l51.5 51.5c27.1-9.1 52.7 16.8 43.4 43.7l49.7 49.7c34.2-11.8 61.2 31 35.5 56.7-26.5 26.5-70.2-2.9-56-37.3L240.3 199v121.9c25.3 12.5 22.3 41.8 9.1 55-6.4 6.4-15.2 10.1-24.3 10.1s-17.8-3.6-24.3-10.1c-17.6-17.6-11.1-46.9 11.2-56v-123c-20.8-8.5-24.6-30.7-18.6-45L142.6 101 8.5 235.1C3 240.6 0 247.9 0 255.5s3 15 8.5 20.4l195.6 195.7c5.4 5.4 12.7 8.4 20.4 8.4s15-3 20.4-8.4l194.7-194.7c5.4-5.4 8.4-12.8 8.4-20.4s-3-15-8.4-20.4"/></svg>
+  </div>
+  <div class="md-source__repository">
+    synapsePythonClient
+  </div>
+</a>
+      </div>
+    
+  </nav>
+  
+    
+      
+<nav class="md-tabs" aria-label="Tabs" data-md-component="tabs">
+  <div class="md-grid">
+    <ul class="md-tabs__list">
+      
+        
+  
+  
+  
+  
+    
+    
+      <li class="md-tabs__item">
+        <a href="../.." class="md-tabs__link">
+          
+  
+  
+  Home
+
+        </a>
+      </li>
+    
+  
+
+      
+        
+  
+  
+  
+    
+  
+  
+    
+    
+      <li class="md-tabs__item md-tabs__item--active">
+        <a href="../home/" class="md-tabs__link">
+          
+  
+  
+  Tutorials
+
+        </a>
+      </li>
+    
+  
+
+      
+        
+  
+  
+  
+  
+    
+    
+      <li class="md-tabs__item">
+        <a href="../../guides/home/" class="md-tabs__link">
+          
+  
+  
+  How-To Guides
+
+        </a>
+      </li>
+    
+  
+
+      
+        
+  
+  
+  
+  
+    
+    
+      <li class="md-tabs__item">
+        <a href="../../reference/client/" class="md-tabs__link">
+          
+  
+  
+  API Reference
+
+        </a>
+      </li>
+    
+  
+
+      
+        
+  
+  
+  
+  
+    
+    
+      <li class="md-tabs__item">
+        <a href="../../explanations/home/" class="md-tabs__link">
+          
+  
+  
+  Further Reading
+
+        </a>
+      </li>
+    
+  
+
+      
+        
+  
+  
+  
+  
+    
+    
+      <li class="md-tabs__item">
+        <a href="../../news/" class="md-tabs__link">
+          
+  
+  
+  News
+
+        </a>
+      </li>
+    
+  
+
+      
+        
+  
+  
+  
+  
+    <li class="md-tabs__item">
+      <a href="https://sagebionetworks.jira.com/servicedesk/customer/portal/9/group/16/create/206" class="md-tabs__link">
+        
+  
+  
+    
+  
+  Contact Us
+
+      </a>
+    </li>
+  
+
+      
+    </ul>
+  </div>
+</nav>
+    
+  
+</header>
+    
+    <div class="md-container" data-md-component="container">
+      
+      
+        
+      
+      <main class="md-main" data-md-component="main">
+        <div class="md-main__inner md-grid">
+          
+            
+              
+              <div class="md-sidebar md-sidebar--primary" data-md-component="sidebar" data-md-type="navigation" >
+                <div class="md-sidebar__scrollwrap">
+                  <div class="md-sidebar__inner">
+                    
+
+
+  
+
+
+<nav class="md-nav md-nav--primary md-nav--lifted" aria-label="Navigation" data-md-level="0">
+  <label class="md-nav__title" for="__drawer">
+    <a href="../.." title="Synapse Python/Command Line Client Documentation" class="md-nav__button md-logo" aria-label="Synapse Python/Command Line Client Documentation" data-md-component="logo">
+      
+  <img src="../../assets/synapse_logo.png" alt="logo">
+
+    </a>
+    Synapse Python/Command Line Client Documentation
+  </label>
+  
+    <div class="md-nav__source">
+      <a href="https://github.com/Sage-Bionetworks/synapsePythonClient" title="Go to repository" class="md-source" data-md-component="source">
+  <div class="md-source__icon md-icon">
+    
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 448 512"><!--! Font Awesome Free 7.1.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2025 Fonticons, Inc.--><path d="M439.6 236.1 244 40.5c-5.4-5.5-12.8-8.5-20.4-8.5s-15 3-20.4 8.4L162.5 81l51.5 51.5c27.1-9.1 52.7 16.8 43.4 43.7l49.7 49.7c34.2-11.8 61.2 31 35.5 56.7-26.5 26.5-70.2-2.9-56-37.3L240.3 199v121.9c25.3 12.5 22.3 41.8 9.1 55-6.4 6.4-15.2 10.1-24.3 10.1s-17.8-3.6-24.3-10.1c-17.6-17.6-11.1-46.9 11.2-56v-123c-20.8-8.5-24.6-30.7-18.6-45L142.6 101 8.5 235.1C3 240.6 0 247.9 0 255.5s3 15 8.5 20.4l195.6 195.7c5.4 5.4 12.7 8.4 20.4 8.4s15-3 20.4-8.4l194.7-194.7c5.4-5.4 8.4-12.8 8.4-20.4s-3-15-8.4-20.4"/></svg>
+  </div>
+  <div class="md-source__repository">
+    synapsePythonClient
+  </div>
+</a>
+    </div>
+  
+  <ul class="md-nav__list" data-md-scrollfix>
+    
+      
+      
+  
+  
+  
+  
+    
+    
+    
+    
+      
+      
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_1" >
+        
+          
+          <label class="md-nav__link" for="__nav_1" id="__nav_1_label" tabindex="0">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Home
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_1_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_1">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Home
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../.." class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Home
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    
+    
+    
+    
+      
+      
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_1_2" >
+        
+          
+          <label class="md-nav__link" for="__nav_1_2" id="__nav_1_2_label" tabindex="0">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Setup
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="2" aria-labelledby="__nav_1_2_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_1_2">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Setup
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../installation/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Installation
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../authentication/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Authentication
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../configuration/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Configuration
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+    
+  
+  
+  
+    
+    
+    
+    
+      
+        
+        
+      
+      
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--active md-nav__item--section md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_2" checked>
+        
+          
+          <label class="md-nav__link" for="__nav_2" id="__nav_2_label" tabindex="">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Tutorials
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_2_label" aria-expanded="true">
+          <label class="md-nav__title" for="__nav_2">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Tutorials
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../home/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Home
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    
+    
+    
+    
+      
+      
+        
+          
+          
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--section md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_2_2" >
+        
+          
+          <label class="md-nav__link" for="__nav_2_2" id="__nav_2_2_label" tabindex="">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Working with the Python client
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="2" aria-labelledby="__nav_2_2_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_2_2">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Working with the Python client
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../python_client/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Python client
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../python/project/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Project
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../python/folder/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Folder
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../python/file/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    File
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../python/evaluation/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Evaluation
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../python/submission/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Submission
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../python/annotation/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Annotation
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../python/entityview/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Entity View
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../python/table/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Table
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../python/virtualtable/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    VirtualTable
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../python/dataset/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Dataset
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../python/dataset_collection/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Dataset Collection
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../python/materializedview/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Materialized View
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../python/submissionview/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Submission View
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../python/sharing_settings/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Sharing Settings
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../python/wiki/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Wiki
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../python/upload_data_in_bulk/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Upload data in bulk
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../python/download_data_in_bulk/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Download data in bulk
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../python/schema_operations/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Creating JSON Schema
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../python/json_schema/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Working with JSON Schema
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+    
+  
+  
+  
+    <li class="md-nav__item md-nav__item--active">
+      
+      <input class="md-nav__toggle md-toggle" type="checkbox" id="__toc">
+      
+      
+        
+      
+      
+        <label class="md-nav__link md-nav__link--active" for="__toc">
+          
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Working with the Command Line Client
+  
+
+    
+  </span>
+  
+  
+
+          <span class="md-nav__icon md-icon"></span>
+        </label>
+      
+      <a href="./" class="md-nav__link md-nav__link--active">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Working with the Command Line Client
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+      
+        
+
+<nav class="md-nav md-nav--secondary" aria-label="Table of contents">
+  
+  
+  
+    
+  
+  
+    <label class="md-nav__title" for="__toc">
+      <span class="md-nav__icon md-icon"></span>
+      Table of contents
+    </label>
+    <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
+      
+        <li class="md-nav__item">
+  <a href="#usage" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Usage
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#options" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Options
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#subcommands" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Subcommands
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Subcommands">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#get" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        get
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#manifest" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        manifest
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#sync" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        sync
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#store" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        store
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#add" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        add
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#mv" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        mv
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#cp" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        cp
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#get-download-list" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        get-download-list
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#associate" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        associate
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#delete" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        delete
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#query" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        query
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#submit" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        submit
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#show" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        show
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#cat" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        cat
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#list" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        list
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#config" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        config
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#set-provenance" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        set-provenance
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#get-provenance" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        get-provenance
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#set-annotations" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        set-annotations
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#get-annotations" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        get-annotations
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#create" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        create
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#store-table" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        store-table
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#onweb" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        onweb
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#login" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        login
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#test-encoding" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        test-encoding
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#get-sts-token" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        get-sts-token
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#migrate" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        migrate
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#generate-json-schema" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        generate-json-schema
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+    </ul>
+  
+</nav>
+      
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../reticulate/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Synapseclient with R through reticulate
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+    
+    
+      
+      
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_3" >
+        
+          
+          <label class="md-nav__link" for="__nav_3" id="__nav_3_label" tabindex="0">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    How-To Guides
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_3_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_3">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    How-To Guides
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../guides/home/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Home
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../guides/data_storage/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Data Storage
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../guides/accessing_the_rest_api/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Access the REST API
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    
+    
+    
+    
+      
+      
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_3_4" >
+        
+          
+          <label class="md-nav__link" for="__nav_3_4" id="__nav_3_4_label" tabindex="0">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Extensions
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="2" aria-labelledby="__nav_3_4_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_3_4">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Extensions
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../guides/extensions/curator/metadata_curation/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Curator
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+    
+    
+      
+      
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_4" >
+        
+          
+          <label class="md-nav__link" for="__nav_4" id="__nav_4_label" tabindex="0">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    API Reference
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_4_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_4">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    API Reference
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../reference/client/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Client
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../reference/synapse_utils/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Synapse Utils
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../reference/entity/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Entity
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../reference/project/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Project
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../reference/folder/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Folder
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../reference/file/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    File
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../reference/annotations/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Annotations
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../reference/tables/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Tables
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../reference/table_schema/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Table Schema
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../reference/view_schema/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Entity View Schema
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../reference/activity/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Activity/Provenance
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../reference/teams/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Teams
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../reference/wiki/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Wiki
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../reference/evaluation/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Evaluation
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../reference/link/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Link
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../reference/docker_repository/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    DockerRepository
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../reference/json_schema/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    JSON Schema
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../reference/exceptions/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Exceptions
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../reference/permissions/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Permissions
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../reference/core/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Core
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../reference/rest_apis/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    REST Apis
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    
+    
+    
+    
+      
+      
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_4_22" >
+        
+          
+          <label class="md-nav__link" for="__nav_4_22" id="__nav_4_22_label" tabindex="0">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Experimental
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="2" aria-labelledby="__nav_4_22_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_4_22">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Experimental
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../reference/experimental/sync/factory_operations/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Factory Operations
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../reference/experimental/sync/agent/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Agent
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../reference/experimental/sync/project/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Project
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../reference/experimental/sync/folder/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Folder
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../reference/experimental/sync/file/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    File
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../reference/experimental/sync/evaluation/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Evaluation
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../reference/experimental/sync/submission/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Submission
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../reference/experimental/sync/submission_status/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    SubmissionStatus
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../reference/experimental/sync/submission_bundle/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    SubmissionBundle
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../reference/experimental/sync/table/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Table
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../reference/experimental/sync/virtualtable/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    VirtualTable
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../reference/experimental/sync/dataset/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Dataset
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../reference/experimental/sync/dataset_collection/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Dataset Collection
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../reference/experimental/sync/entityview/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    EntityView
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../reference/experimental/sync/materializedview/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    MaterializedView
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../reference/experimental/sync/submissionview/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    SubmissionView
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../reference/experimental/sync/activity/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Activity
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../reference/experimental/sync/team/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Team
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../reference/experimental/sync/user_profile/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    UserProfile
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../reference/experimental/sync/curator/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Curator
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../reference/experimental/sync/link_entity/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Link
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../reference/experimental/functional_interfaces/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Functional Interfaces
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../reference/experimental/sync/schema_organization/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    SchemaOrganization
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../reference/experimental/sync/json_schema/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    JSONSchema
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../reference/experimental/sync/wiki/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Wiki
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../reference/experimental/sync/form/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    FormGroup and Form
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    
+    
+    
+    
+      
+      
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_4_22_27" >
+        
+          
+          <label class="md-nav__link" for="__nav_4_22_27" id="__nav_4_22_27_label" tabindex="0">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Extensions
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="3" aria-labelledby="__nav_4_22_27_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_4_22_27">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Extensions
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../reference/extensions/curator/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Curator
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    
+    
+    
+    
+      
+      
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_4_22_28" >
+        
+          
+          <label class="md-nav__link" for="__nav_4_22_28" id="__nav_4_22_28_label" tabindex="0">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Asynchronous
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="3" aria-labelledby="__nav_4_22_28_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_4_22_28">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Asynchronous
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../reference/experimental/async/factory_operations/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Factory Operations
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../reference/experimental/async/agent/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Agent
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../reference/experimental/async/project/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Project
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../reference/experimental/async/folder/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Folder
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../reference/experimental/async/file/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    File
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../reference/experimental/async/evaluation/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Evaluation
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../reference/experimental/async/submission/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Submission
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../reference/experimental/async/submission_status/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    SubmissionStatus
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../reference/experimental/async/submission_bundle/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    SubmissionBundle
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../reference/experimental/async/table/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Table
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../reference/experimental/async/virtualtable/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    VirtualTable
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../reference/experimental/async/dataset/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Dataset
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../reference/experimental/async/dataset_collection/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Dataset Collection
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../reference/experimental/async/entityview/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    EntityView
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../reference/experimental/async/materializedview/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    MaterializedView
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../reference/experimental/async/submissionview/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    SubmissionView
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../reference/experimental/async/activity/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Activity
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../reference/experimental/async/team/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Team
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../reference/experimental/async/user_profile/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    UserProfile
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../reference/experimental/async/curator/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Curator
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../reference/experimental/async/link_entity/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Link
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../reference/experimental/async/schema_organization/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    SchemaOrganization
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../reference/experimental/async/json_schema/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    JSONSchema
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../reference/experimental/async/wiki/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Wiki
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../reference/experimental/async/form/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    FormGroup and Form
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    
+    
+    
+    
+      
+      
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_4_22_29" >
+        
+          
+          <label class="md-nav__link" for="__nav_4_22_29" id="__nav_4_22_29_label" tabindex="0">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Mixins
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="3" aria-labelledby="__nav_4_22_29_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_4_22_29">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Mixins
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../reference/experimental/mixins/access_controllable/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    AccessControllable
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../reference/experimental/mixins/storable_container/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    StorableContainer
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../reference/experimental/mixins/asynchronous_communicator/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    AsynchronousCommunicator
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../reference/experimental/mixins/failure_strategy/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    FailureStrategy
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../reference/experimental/mixins/base_json_schema/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    BaseJSONSchema
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../reference/experimental/mixins/container_json_schema/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    ContainerEntityJSONSchema
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../reference/experimental/mixins/form_data/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    FormData
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../reference/experimental/mixins/form_group/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    FormGroup
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+    
+    
+      
+      
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_5" >
+        
+          
+          <label class="md-nav__link" for="__nav_5" id="__nav_5_label" tabindex="0">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Further Reading
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_5_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_5">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Further Reading
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../explanations/home/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Home
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../explanations/domain_models_of_synapse/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Domain Models of Synapse
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../explanations/access_control/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Access Control
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../explanations/properties_vs_annotations/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Properties vs Annotations
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../explanations/manifest_tsv/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Manifest TSV
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../explanations/benchmarking/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Benchmarking
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../explanations/structuring_your_project/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Structuring Your Project
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../explanations/asyncio_in_python_3_14/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Asyncio Changes in Python 3.14
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../explanations/curator_data_model/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Curator Data model
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+    
+    
+      
+      
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_6" >
+        
+          
+          <label class="md-nav__link" for="__nav_6" id="__nav_6_label" tabindex="0">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    News
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_6_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_6">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    News
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../news/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Release Notes
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="https://sagebionetworks.jira.com/servicedesk/customer/portal/9/group/16/create/206" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Contact Us
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+  </ul>
+</nav>
+                  </div>
+                </div>
+              </div>
+            
+            
+              
+              <div class="md-sidebar md-sidebar--secondary" data-md-component="sidebar" data-md-type="toc" >
+                <div class="md-sidebar__scrollwrap">
+                  <div class="md-sidebar__inner">
+                    
+
+<nav class="md-nav md-nav--secondary" aria-label="Table of contents">
+  
+  
+  
+    
+  
+  
+    <label class="md-nav__title" for="__toc">
+      <span class="md-nav__icon md-icon"></span>
+      Table of contents
+    </label>
+    <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
+      
+        <li class="md-nav__item">
+  <a href="#usage" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Usage
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#options" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Options
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#subcommands" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Subcommands
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Subcommands">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#get" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        get
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#manifest" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        manifest
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#sync" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        sync
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#store" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        store
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#add" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        add
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#mv" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        mv
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#cp" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        cp
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#get-download-list" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        get-download-list
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#associate" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        associate
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#delete" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        delete
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#query" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        query
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#submit" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        submit
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#show" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        show
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#cat" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        cat
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#list" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        list
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#config" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        config
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#set-provenance" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        set-provenance
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#get-provenance" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        get-provenance
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#set-annotations" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        set-annotations
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#get-annotations" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        get-annotations
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#create" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        create
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#store-table" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        store-table
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#onweb" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        onweb
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#login" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        login
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#test-encoding" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        test-encoding
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#get-sts-token" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        get-sts-token
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#migrate" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        migrate
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#generate-json-schema" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        generate-json-schema
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+    </ul>
+  
+</nav>
+                  </div>
+                </div>
+              </div>
+            
+          
+          
+            <div class="md-content" data-md-component="content">
+              
+              <article class="md-content__inner md-typeset">
+                
+                  
+
+
+  
+  
+
+
+<h1 id="command-line-client">Command Line Client<a class="headerlink" href="#command-line-client" title="Permanent link">&para;</a></h1>
+<p>The Synapse Python Client can be used from the command line via the <code>synapse</code> command.</p>
+<blockquote>
+<p><strong>Note:</strong> The command line client is installed along with Installation of the Synapse Python client.</p>
+</blockquote>
+<h2 id="usage">Usage<a class="headerlink" href="#usage" title="Permanent link">&para;</a></h2>
+<p>For help, type:</p>
+<div class="highlight"><pre><span></span><code>synapse<span class="w"> </span>-h
+</code></pre></div>
+<p>For help on specific commands, type:</p>
+<p><div class="highlight"><pre><span></span><code>synapse<span class="w"> </span><span class="o">[</span>command<span class="o">]</span><span class="w"> </span>-h
+</code></pre></div>
+<strong>Note:</strong> All higher-level commands support the --profile (or -r) flag to specify which Synapse profile to use from your ~/.synapseConfig file. If not specified, the default profile is used.</p>
+<p>Test your login credentials with an auth token environment variable:</p>
+<div class="termy" data-termynal data-ty-macos data-ty-title="bash"><span data-ty="input" data-ty-prompt="&gt;">synapse login -p $MY_SYNAPSE_TOKEN</span><span data-ty>Welcome, First Last!<br><br>Logged in as: username (1234567)<br></span></div>
+
+<p>The usage is as follows:</p>
+<div class="highlight"><pre><span></span><code>synapse<span class="w"> </span><span class="o">[</span>-h<span class="o">]</span><span class="w"> </span><span class="o">[</span>--version<span class="o">]</span><span class="w"> </span><span class="o">[</span>-u<span class="w"> </span>SYNAPSEUSER<span class="o">]</span><span class="w"> </span><span class="o">[</span>-p<span class="w"> </span>SYNAPSE_AUTH_TOKEN<span class="o">]</span><span class="w"> </span><span class="o">[</span>-c<span class="w"> </span>CONFIGPATH<span class="o">]</span><span class="w"> </span><span class="o">[</span>--debug<span class="o">]</span><span class="w"> </span><span class="o">[</span>--silent<span class="o">]</span><span class="w"> </span><span class="o">[</span>-s<span class="o">]</span>
+<span class="w">        </span><span class="o">[</span>--otel<span class="w"> </span><span class="o">{</span>console,otlp<span class="o">}]</span><span class="w"> </span><span class="o">[</span>--profile<span class="w"> </span>SYNAPSE_CONFIG_PROFILE<span class="o">]</span>
+<span class="w">        </span><span class="o">{</span>get,manifest,sync,store,add,mv,cp,get-download-list,associate,delete,query,submit,show,cat,list,config,set-provenance,get-provenance,set-annotations,get-annotations,create,store-table,onweb,login,test-encoding,get-sts-token,migrate<span class="o">}</span>
+<span class="w">        </span>...
+</code></pre></div>
+<h2 id="options">Options<a class="headerlink" href="#options" title="Permanent link">&para;</a></h2>
+<table>
+<thead>
+<tr>
+<th>Name</th>
+<th>Type</th>
+<th>Description</th>
+<th>Default</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>--version</code></td>
+<td>Flag</td>
+<td>Show program’s version number and exit</td>
+<td></td>
+</tr>
+<tr>
+<td><code>-u, --username</code></td>
+<td>Option</td>
+<td>Username used to connect to Synapse</td>
+<td></td>
+</tr>
+<tr>
+<td><code>-p, --password</code></td>
+<td>Option</td>
+<td>Auth Token used to connect to Synapse</td>
+<td></td>
+</tr>
+<tr>
+<td><code>-r, --profile</code></td>
+<td>Option</td>
+<td>Name of the Synapse profile to use (from ~/.synapseConfig). Defaults to 'default'.</td>
+<td>'default'</td>
+</tr>
+<tr>
+<td><code>-c, --configPath</code></td>
+<td>Option</td>
+<td>Path to configuration file used to connect to Synapse</td>
+<td>“~/.synapseConfig”</td>
+</tr>
+<tr>
+<td><code>--debug</code></td>
+<td>Flag</td>
+<td>Set to debug mode, additional output and error messages are printed to the console</td>
+<td>False</td>
+</tr>
+<tr>
+<td><code>--silent</code></td>
+<td>Flag</td>
+<td>Set to silent mode, console output is suppressed</td>
+<td>False</td>
+</tr>
+<tr>
+<td><code>-s, --skip-checks</code></td>
+<td>Flag</td>
+<td>Suppress checking for version upgrade messages and endpoint redirection</td>
+<td>False</td>
+</tr>
+<tr>
+<td><code>--otel</code></td>
+<td>Option</td>
+<td>Enable the usage of OpenTelemetry for tracing. Possible choices: console, otlp</td>
+<td></td>
+</tr>
+</tbody>
+</table>
+<h2 id="subcommands">Subcommands<a class="headerlink" href="#subcommands" title="Permanent link">&para;</a></h2>
+<ul>
+<li><a href="#get">get</a>: downloads a file from Synapse</li>
+<li><a href="#manifest">manifest</a>: Generate manifest for uploading directory tree to Synapse.</li>
+<li><a href="#sync">sync</a>: Synchronize files described in a manifest to Synapse</li>
+<li><a href="#store">store</a>: uploads and adds a file to Synapse</li>
+<li><a href="#add">add</a>: uploads and adds a file to Synapse</li>
+<li><a href="#mv">mv</a>: Moves a file/folder in Synapse</li>
+<li><a href="#cp">cp</a>: Copies specific versions of synapse content such as files, folders and projects by recursively copying all sub-content</li>
+<li><a href="#get-download-list">get-download-list</a>: Download files from the Synapse download cart</li>
+<li><a href="#associate">associate</a>: Associate local files with the files stored in Synapse so that calls to “synapse get” and “synapse show” don’t re-download the files but use the already existing file.</li>
+<li><a href="#delete">delete</a>: removes a dataset from Synapse</li>
+<li><a href="#query">query</a>: Performs SQL like queries on Synapse</li>
+<li><a href="#submit">submit</a>: submit an entity or a file for evaluation</li>
+<li><a href="#show">show</a>: show metadata for an entity</li>
+<li><a href="#cat">cat</a>: prints a dataset from Synapse</li>
+<li><a href="#list">list</a>: List Synapse entities contained by the given Project or Folder. Note: May not be supported in future versions of the client.</li>
+<li><a href="#config">config</a>: Create or modify a Synapse configuration file</li>
+<li><a href="#set-provenance">set-provenance</a>: create provenance records</li>
+<li><a href="#get-provenance">get-provenance</a>: show provenance records</li>
+<li><a href="#set-annotations">set-annotations</a>: create annotations records</li>
+<li><a href="#get-annotations">get-annotations</a>: show annotations records</li>
+<li><a href="#create">create</a>: Creates folders or projects on Synapse</li>
+<li><a href="#store-table">store-table</a>: Creates a Synapse Table given a csv</li>
+<li><a href="#onweb">onweb</a>: opens Synapse website for Entity</li>
+<li><a href="#login">login</a>: Verify credentials can be used to login to Synapse.
+        This does not need to be used prior to executing other commands.</li>
+<li><a href="#test-encoding">test-encoding</a>: test character encoding to help diagnose problems</li>
+<li><a href="#get-sts-token">get-sts-token</a>: Get an STS token for access to AWS S3 storage underlying Synapse</li>
+<li><a href="#migrate">migrate</a>: Migrate Synapse entities to a different storage location</li>
+<li><a href="#generate-json-schema">generate-json-schema</a>: Generate JSON Schema(s) from a data model</li>
+</ul>
+<h3 id="get"><code>get</code><a class="headerlink" href="#get" title="Permanent link">&para;</a></h3>
+<div class="highlight"><pre><span></span><code>synapse<span class="w"> </span>get<span class="w"> </span><span class="o">[</span>-h<span class="o">]</span><span class="w"> </span><span class="o">[</span>-q<span class="w"> </span>queryString<span class="o">]</span><span class="w"> </span><span class="o">[</span>-v<span class="w"> </span>VERSION<span class="o">]</span><span class="w"> </span><span class="o">[</span>-r<span class="o">]</span><span class="w"> </span><span class="o">[</span>--followLink<span class="o">]</span><span class="w"> </span><span class="o">[</span>--limitSearch<span class="w"> </span>projId<span class="o">]</span><span class="w"> </span><span class="o">[</span>--downloadLocation<span class="w"> </span>path<span class="o">]</span>
+<span class="w">            </span><span class="o">[</span>--multiThreaded<span class="o">]</span><span class="w"> </span><span class="o">[</span>--manifest<span class="w"> </span><span class="o">{</span>all,root,suppress<span class="o">}]</span>
+<span class="w">            </span><span class="o">[</span><span class="nb">local</span><span class="w"> </span>path<span class="o">]</span>
+</code></pre></div>
+<table>
+<thead>
+<tr>
+<th>Name</th>
+<th>Type</th>
+<th>Description</th>
+<th>Default</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>local path</code></td>
+<td>Positional</td>
+<td>Synapse ID of form syn123 of desired data object.</td>
+<td></td>
+</tr>
+<tr>
+<td><code>-q, --query</code></td>
+<td>Named</td>
+<td>Optional query parameter, will fetch all of the entities returned by a query.</td>
+<td></td>
+</tr>
+<tr>
+<td><code>-v, --version</code></td>
+<td>Named</td>
+<td>Synapse version number of entity to retrieve.</td>
+<td>Most recent version</td>
+</tr>
+<tr>
+<td><code>-r, --recursive</code></td>
+<td>Named</td>
+<td>Fetches content in Synapse recursively contained in the parentId specified by id.</td>
+<td>False</td>
+</tr>
+<tr>
+<td><code>--followLink</code></td>
+<td>Named</td>
+<td>Determines whether the link returns the target Entity.</td>
+<td>False</td>
+</tr>
+<tr>
+<td><code>--limitSearch</code></td>
+<td>Named</td>
+<td>Synapse ID of a container such as project or folder to limit search for files if using a path.</td>
+<td></td>
+</tr>
+<tr>
+<td><code>--downloadLocation</code></td>
+<td>Named</td>
+<td>Directory to download file to.</td>
+<td>“./”</td>
+</tr>
+<tr>
+<td><code>--multiThreaded</code></td>
+<td>Named</td>
+<td>Download file using a multiple threaded implementation.</td>
+<td>True</td>
+</tr>
+<tr>
+<td><code>--manifest</code></td>
+<td>Named</td>
+<td>Determines whether creating manifest file automatically.</td>
+<td>“all”</td>
+</tr>
+</tbody>
+</table>
+<h3 id="manifest"><code>manifest</code><a class="headerlink" href="#manifest" title="Permanent link">&para;</a></h3>
+<p>Generate manifest for uploading directory tree to Synapse.</p>
+<div class="highlight"><pre><span></span><code>synapse<span class="w"> </span>manifest<span class="w"> </span><span class="o">[</span>-h<span class="o">]</span><span class="w"> </span>--parent-id<span class="w"> </span>syn123<span class="w"> </span><span class="o">[</span>--manifest-file<span class="w"> </span>OUTPUT<span class="o">]</span><span class="w"> </span>PATH
+</code></pre></div>
+<table>
+<thead>
+<tr>
+<th>Name</th>
+<th>Type</th>
+<th>Description</th>
+<th>Default</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>PATH</code></td>
+<td>Positional</td>
+<td>A path to a file or folder whose manifest will be generated.</td>
+<td></td>
+</tr>
+<tr>
+<td><code>--parent-id</code></td>
+<td>Named</td>
+<td>Synapse ID of project or folder where to upload data.</td>
+<td></td>
+</tr>
+<tr>
+<td><code>--manifest-file</code></td>
+<td>Named</td>
+<td>A TSV output file path where the generated manifest is stored.</td>
+<td>stdout</td>
+</tr>
+</tbody>
+</table>
+<h3 id="sync"><code>sync</code><a class="headerlink" href="#sync" title="Permanent link">&para;</a></h3>
+<p>Synchronize files described in a manifest to Synapse.</p>
+<div class="highlight"><pre><span></span><code>synapse<span class="w"> </span>sync<span class="w"> </span><span class="o">[</span>-h<span class="o">]</span><span class="w"> </span><span class="o">[</span>--dryRun<span class="o">]</span><span class="w"> </span><span class="o">[</span>--sendMessages<span class="o">]</span><span class="w"> </span><span class="o">[</span>--retries<span class="w"> </span>INT<span class="o">]</span><span class="w"> </span>FILE
+</code></pre></div>
+<table>
+<thead>
+<tr>
+<th>Name</th>
+<th>Type</th>
+<th>Description</th>
+<th>Default</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>FILE</code></td>
+<td>Positional</td>
+<td>A tsv file with file locations and metadata to be pushed to Synapse. See <a class="autorefs autorefs-internal" title="            syncToSynapse" href="../../reference/synapse_utils/#synapseutils.sync.syncToSynapse">synapseutils.sync.syncToSynapse</a> for details on the format of a manifest.</td>
+<td></td>
+</tr>
+<tr>
+<td><code>--dryRun</code></td>
+<td>Named</td>
+<td>Perform validation without uploading.</td>
+<td>False</td>
+</tr>
+<tr>
+<td><code>--sendMessages</code></td>
+<td>Named</td>
+<td>Send notifications via Synapse messaging (email) at specific intervals, on errors and on completion.</td>
+<td>False</td>
+</tr>
+<tr>
+<td><code>--retries</code></td>
+<td>Named</td>
+<td>Number of retries for failed uploads.</td>
+<td>4</td>
+</tr>
+</tbody>
+</table>
+<h3 id="store"><code>store</code><a class="headerlink" href="#store" title="Permanent link">&para;</a></h3>
+<p>Uploads and adds a file to Synapse.</p>
+<div class="highlight"><pre><span></span><code>synapse<span class="w"> </span>store<span class="w"> </span><span class="o">[</span>-h<span class="o">]</span><span class="w"> </span><span class="o">(</span>--parentid<span class="w"> </span>syn123<span class="w"> </span><span class="p">|</span><span class="w"> </span>--id<span class="w"> </span>syn123<span class="w"> </span><span class="p">|</span><span class="w"> </span>--type<span class="w"> </span>TYPE<span class="o">)</span><span class="w"> </span><span class="o">[</span>--name<span class="w"> </span>NAME<span class="o">]</span>
+<span class="w">              </span><span class="o">[</span>--description<span class="w"> </span>DESCRIPTION<span class="w"> </span><span class="p">|</span><span class="w"> </span>--descriptionFile<span class="w"> </span>DESCRIPTION_FILE_PATH<span class="o">]</span><span class="w"> </span><span class="o">[</span>--used<span class="w"> </span><span class="o">[</span>target<span class="w"> </span><span class="o">[</span>target<span class="w"> </span>...<span class="o">]]]</span>
+<span class="w">              </span><span class="o">[</span>--executed<span class="w"> </span><span class="o">[</span>target<span class="w"> </span><span class="o">[</span>target<span class="w"> </span>...<span class="o">]]]</span><span class="w"> </span><span class="o">[</span>--limitSearch<span class="w"> </span>projId<span class="o">]</span><span class="w"> </span><span class="o">[</span>--noForceVersion<span class="o">]</span><span class="w"> </span><span class="o">[</span>--annotations<span class="w"> </span>ANNOTATIONS<span class="o">]</span>
+<span class="w">              </span><span class="o">[</span>--replace<span class="o">]</span>
+<span class="w">              </span><span class="o">[</span>FILE<span class="o">]</span>
+</code></pre></div>
+<table>
+<thead>
+<tr>
+<th>Name</th>
+<th>Type</th>
+<th>Description</th>
+<th>Default</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>FILE</code></td>
+<td>Positional</td>
+<td>File to be added to synapse.</td>
+<td></td>
+</tr>
+<tr>
+<td><code>--parentid, --parentId</code></td>
+<td>Named</td>
+<td>Synapse ID of project or folder where to upload data (must be specified if –id is not used).</td>
+<td></td>
+</tr>
+<tr>
+<td><code>--id</code></td>
+<td>Named</td>
+<td>Optional Id of entity in Synapse to be updated.</td>
+<td></td>
+</tr>
+<tr>
+<td><code>--type</code></td>
+<td>Named</td>
+<td>Type of object, such as “File”, “Folder”, or “Project”, to create in Synapse.</td>
+<td>“File”</td>
+</tr>
+<tr>
+<td><code>--name</code></td>
+<td>Named</td>
+<td>Name of data object in Synapse.</td>
+<td></td>
+</tr>
+<tr>
+<td><code>--description</code></td>
+<td>Named</td>
+<td>Description of data object in Synapse.</td>
+<td></td>
+</tr>
+<tr>
+<td><code>--descriptionFile</code></td>
+<td>Named</td>
+<td>Path to a markdown file containing description of project/folder.</td>
+<td></td>
+</tr>
+<tr>
+<td><code>--used</code></td>
+<td>Named</td>
+<td>Synapse ID, a url, or a local file path (of a file previously uploaded to Synapse) from which the specified entity is derived.</td>
+<td></td>
+</tr>
+<tr>
+<td><code>--executed</code></td>
+<td>Named</td>
+<td>Synapse ID, a url, or a local file path (of a file previously uploaded to Synapse) that was executed to generate the specified entity.</td>
+<td></td>
+</tr>
+<tr>
+<td><code>--limitSearch</code></td>
+<td>Named</td>
+<td>Synapse ID of a container such as project or folder to limit search for provenance files.</td>
+<td></td>
+</tr>
+<tr>
+<td><code>--noForceVersion</code></td>
+<td>Named</td>
+<td>Do not force a new version to be created if the contents of the file have not changed.</td>
+<td>False</td>
+</tr>
+<tr>
+<td><code>--annotations</code></td>
+<td>Named</td>
+<td>Annotations to add as a JSON formatted string, should evaluate to a dictionary (key/value pairs). Example: ‘{“foo”: 1, “bar”:”quux”}’</td>
+<td></td>
+</tr>
+<tr>
+<td><code>--replace</code></td>
+<td>Named</td>
+<td>Replace all existing annotations with the given annotations.</td>
+<td>False</td>
+</tr>
+</tbody>
+</table>
+<h3 id="add"><code>add</code><a class="headerlink" href="#add" title="Permanent link">&para;</a></h3>
+<p>Uploads and adds a file to Synapse.</p>
+<div class="highlight"><pre><span></span><code>synapse<span class="w"> </span>add<span class="w"> </span><span class="o">[</span>-h<span class="o">]</span><span class="w"> </span><span class="o">(</span>--parentid<span class="w"> </span>syn123<span class="w"> </span><span class="p">|</span><span class="w"> </span>--id<span class="w"> </span>syn123<span class="w"> </span><span class="p">|</span><span class="w"> </span>--type<span class="w"> </span>TYPE<span class="o">)</span><span class="w"> </span><span class="o">[</span>--name<span class="w"> </span>NAME<span class="o">]</span>
+<span class="w">            </span><span class="o">[</span>--description<span class="w"> </span>DESCRIPTION<span class="w"> </span><span class="p">|</span><span class="w"> </span>--descriptionFile<span class="w"> </span>DESCRIPTION_FILE_PATH<span class="o">]</span><span class="w"> </span><span class="o">[</span>--used<span class="w"> </span><span class="o">[</span>target<span class="w"> </span><span class="o">[</span>target<span class="w"> </span>...<span class="o">]]]</span>
+<span class="w">            </span><span class="o">[</span>--executed<span class="w"> </span><span class="o">[</span>target<span class="w"> </span><span class="o">[</span>target<span class="w"> </span>...<span class="o">]]]</span><span class="w"> </span><span class="o">[</span>--limitSearch<span class="w"> </span>projId<span class="o">]</span><span class="w"> </span><span class="o">[</span>--noForceVersion<span class="o">]</span><span class="w"> </span><span class="o">[</span>--annotations<span class="w"> </span>ANNOTATIONS<span class="o">]</span><span class="w"> </span><span class="o">[</span>--replace<span class="o">]</span>
+<span class="w">            </span><span class="o">[</span>FILE<span class="o">]</span>
+</code></pre></div>
+<table>
+<thead>
+<tr>
+<th>Name</th>
+<th>Type</th>
+<th>Description</th>
+<th>Default</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>FILE</code></td>
+<td>Positional</td>
+<td>File to be added to synapse.</td>
+<td></td>
+</tr>
+<tr>
+<td><code>--parentid, --parentId</code></td>
+<td>Named</td>
+<td>Synapse ID of project or folder where to upload data (must be specified if –id is not used).</td>
+<td></td>
+</tr>
+<tr>
+<td><code>--id</code></td>
+<td>Named</td>
+<td>Optional Id of entity in Synapse to be updated.</td>
+<td></td>
+</tr>
+<tr>
+<td><code>--type</code></td>
+<td>Named</td>
+<td>Type of object, such as “File”, “Folder”, or “Project”, to create in Synapse.</td>
+<td>“File”</td>
+</tr>
+<tr>
+<td><code>--name</code></td>
+<td>Named</td>
+<td>Name of data object in Synapse.</td>
+<td></td>
+</tr>
+<tr>
+<td><code>--description</code></td>
+<td>Named</td>
+<td>Description of data object in Synapse.</td>
+<td></td>
+</tr>
+<tr>
+<td><code>--descriptionFile</code></td>
+<td>Named</td>
+<td>Path to a markdown file containing description of project/folder.</td>
+<td></td>
+</tr>
+<tr>
+<td><code>--used</code></td>
+<td>Named</td>
+<td>Synapse ID, a url, or a local file path (of a file previously uploaded to Synapse) from which the specified entity is derived.</td>
+<td></td>
+</tr>
+<tr>
+<td><code>--executed</code></td>
+<td>Named</td>
+<td>Synapse ID, a url, or a local file path (of a file previously uploaded to Synapse) that was executed to generate the specified entity.</td>
+<td></td>
+</tr>
+<tr>
+<td><code>--limitSearch</code></td>
+<td>Named</td>
+<td>Synapse ID of a container such as project or folder to limit search for provenance files.</td>
+<td></td>
+</tr>
+<tr>
+<td><code>--noForceVersion</code></td>
+<td>Named</td>
+<td>Do not force a new version to be created if the contents of the file have not changed.</td>
+<td>False</td>
+</tr>
+<tr>
+<td><code>--annotations</code></td>
+<td>Named</td>
+<td>Annotations to add as a JSON formatted string, should evaluate to a dictionary (key/value pairs). Example: ‘{“foo”: 1, “bar”:”quux”}’</td>
+<td></td>
+</tr>
+<tr>
+<td><code>--replace</code></td>
+<td>Named</td>
+<td>Replace all existing annotations with the given annotations.</td>
+<td>False</td>
+</tr>
+</tbody>
+</table>
+<h3 id="mv"><code>mv</code><a class="headerlink" href="#mv" title="Permanent link">&para;</a></h3>
+<p>Moves a file/folder in Synapse.</p>
+<div class="highlight"><pre><span></span><code>synapse<span class="w"> </span>mv<span class="w"> </span><span class="o">[</span>-h<span class="o">]</span><span class="w"> </span>--id<span class="w"> </span>syn123<span class="w"> </span>--parentid<span class="w"> </span>syn123
+</code></pre></div>
+<table>
+<thead>
+<tr>
+<th>Name</th>
+<th>Type</th>
+<th>Description</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>--id</code></td>
+<td>Named</td>
+<td>Id of entity in Synapse to be moved.</td>
+</tr>
+<tr>
+<td><code>--parentid, --parentId</code></td>
+<td>Named</td>
+<td>Synapse ID of project or folder where file/folder will be moved.</td>
+</tr>
+</tbody>
+</table>
+<h3 id="cp"><code>cp</code><a class="headerlink" href="#cp" title="Permanent link">&para;</a></h3>
+<p>Copies specific versions of synapse content such as files, folders and projects by recursively copying all sub-content.</p>
+<div class="highlight"><pre><span></span><code>synapse<span class="w"> </span>cp<span class="w"> </span><span class="o">[</span>-h<span class="o">]</span><span class="w"> </span>--destinationId<span class="w"> </span>syn123<span class="w"> </span><span class="o">[</span>--version<span class="w"> </span><span class="m">1</span><span class="o">]</span><span class="w"> </span><span class="o">[</span>--setProvenance<span class="w"> </span>traceback<span class="o">]</span><span class="w"> </span><span class="o">[</span>--updateExisting<span class="o">]</span><span class="w"> </span><span class="o">[</span>--skipCopyAnnotations<span class="o">]</span>
+<span class="w">           </span><span class="o">[</span>--excludeTypes<span class="w"> </span><span class="o">[</span>file<span class="w"> </span>table<span class="w"> </span><span class="o">[</span>file<span class="w"> </span>table<span class="w"> </span>...<span class="o">]]]</span><span class="w"> </span><span class="o">[</span>--skipCopyWiki<span class="o">]</span>
+<span class="w">           </span>syn123
+</code></pre></div>
+<table>
+<thead>
+<tr>
+<th>Name</th>
+<th>Type</th>
+<th>Description</th>
+<th>Default</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>syn123</code></td>
+<td>Positional</td>
+<td>Id of entity in Synapse to be copied.</td>
+<td></td>
+</tr>
+<tr>
+<td><code>--destinationId</code></td>
+<td>Named</td>
+<td>Synapse ID of project or folder where file will be copied to.</td>
+<td></td>
+</tr>
+<tr>
+<td><code>--version, -v</code></td>
+<td>Named</td>
+<td>Synapse version number of File or Link to retrieve. This parameter cannot be used when copying Projects or Folders. Defaults to most recent version.</td>
+<td>Most recent version</td>
+</tr>
+<tr>
+<td><code>--setProvenance</code></td>
+<td>Named</td>
+<td>Has three values to set the provenance of the copied entity-traceback: Sets to the source entityexisting: Sets to source entity’s original provenance (if it exists)None/none: No provenance is set</td>
+<td>"traceback"</td>
+</tr>
+<tr>
+<td><code>--updateExisting</code></td>
+<td>Named</td>
+<td>Will update the file if there is already a file that is named the same in the destination</td>
+<td>False</td>
+</tr>
+<tr>
+<td><code>--skipCopyAnnotations</code></td>
+<td>Named</td>
+<td>Do not copy the annotations</td>
+<td>False</td>
+</tr>
+<tr>
+<td><code>--excludeTypes</code></td>
+<td>Named</td>
+<td>Accepts a list of entity types (file, table, link) which determines which entity types to not copy.</td>
+<td>[]</td>
+</tr>
+<tr>
+<td><code>--skipCopyWiki</code></td>
+<td>Named</td>
+<td>Do not copy the wiki pages</td>
+<td>False</td>
+</tr>
+</tbody>
+</table>
+<h3 id="get-download-list"><code>get-download-list</code><a class="headerlink" href="#get-download-list" title="Permanent link">&para;</a></h3>
+<p>Download files from the Synapse download cart.</p>
+<div class="highlight"><pre><span></span><code>synapse<span class="w"> </span>get-download-list<span class="w"> </span><span class="o">[</span>-h<span class="o">]</span><span class="w"> </span><span class="o">[</span>--downloadLocation<span class="w"> </span>path<span class="o">]</span>
+</code></pre></div>
+<table>
+<thead>
+<tr>
+<th>Name</th>
+<th>Type</th>
+<th>Description</th>
+<th>Default</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>--downloadLocation</code></td>
+<td>Named</td>
+<td>Directory to download file to.</td>
+<td>"./"</td>
+</tr>
+</tbody>
+</table>
+<h3 id="associate"><code>associate</code><a class="headerlink" href="#associate" title="Permanent link">&para;</a></h3>
+<p>Associate local files with the files stored in Synapse so that calls to “synapse get” and “synapse show” don’t re-download the files but use the already existing file.</p>
+<div class="highlight"><pre><span></span><code>synapse<span class="w"> </span>associate<span class="w"> </span><span class="o">[</span>-h<span class="o">]</span><span class="w"> </span><span class="o">[</span>--limitSearch<span class="w"> </span>projId<span class="o">]</span><span class="w"> </span><span class="o">[</span>-r<span class="o">]</span><span class="w"> </span>path
+</code></pre></div>
+<table>
+<thead>
+<tr>
+<th>Name</th>
+<th>Type</th>
+<th>Description</th>
+<th>Default</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>path</code></td>
+<td>Positional</td>
+<td>Local file path.</td>
+<td></td>
+</tr>
+<tr>
+<td><code>--limitSearch</code></td>
+<td>Named</td>
+<td>Synapse ID of a container such as project or folder to limit search to.</td>
+<td></td>
+</tr>
+<tr>
+<td><code>-r</code></td>
+<td>Named</td>
+<td>Perform recursive association with all local files in a folder.</td>
+<td>False</td>
+</tr>
+</tbody>
+</table>
+<h3 id="delete"><code>delete</code><a class="headerlink" href="#delete" title="Permanent link">&para;</a></h3>
+<p>Removes a dataset from Synapse.</p>
+<div class="highlight"><pre><span></span><code>synapse<span class="w"> </span>delete<span class="w"> </span><span class="o">[</span>-h<span class="o">]</span><span class="w"> </span><span class="o">[</span>--version<span class="w"> </span>VERSION<span class="o">]</span><span class="w"> </span>syn123
+</code></pre></div>
+<table>
+<thead>
+<tr>
+<th>Name</th>
+<th>Type</th>
+<th>Description</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>syn123</code></td>
+<td>Positional</td>
+<td>Synapse ID of form syn123 of desired data object.</td>
+</tr>
+<tr>
+<td><code>--version</code></td>
+<td>Named</td>
+<td>Version number to delete of given entity.</td>
+</tr>
+</tbody>
+</table>
+<h3 id="query"><code>query</code><a class="headerlink" href="#query" title="Permanent link">&para;</a></h3>
+<p>Performs SQL like queries on Synapse.</p>
+<div class="highlight"><pre><span></span><code>synapse<span class="w"> </span>query<span class="w"> </span><span class="o">[</span>-h<span class="o">]</span><span class="w"> </span><span class="o">[</span>string<span class="w"> </span><span class="o">[</span>string<span class="w"> </span>...<span class="o">]]</span>
+</code></pre></div>
+<table>
+<thead>
+<tr>
+<th>Name</th>
+<th>Type</th>
+<th>Description</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>string</code></td>
+<td>Positional</td>
+<td>A query string. Note that when using the command line query strings must be passed intact as a single string. In most shells this can mean wrapping the query in quotes as appropriate and escaping any quotes that may appear within the query string itself. Example: <code>synapse query "select \"column has spaces\" from syn123"</code>. See <a href="https://rest-docs.synapse.org/rest/org/sagebionetworks/repo/web/controller/TableExamples.html">Table Examples</a> for more information.</td>
+</tr>
+</tbody>
+</table>
+<h3 id="submit"><code>submit</code><a class="headerlink" href="#submit" title="Permanent link">&para;</a></h3>
+<p>Submit an entity or a file for evaluation.</p>
+<div class="highlight"><pre><span></span><code>synapse<span class="w"> </span>submit<span class="w"> </span><span class="o">[</span>-h<span class="o">]</span><span class="w"> </span><span class="o">[</span>--evaluationID<span class="w"> </span>EVALUATIONID<span class="o">]</span><span class="w"> </span><span class="o">[</span>--evaluationName<span class="w"> </span>EVALUATIONNAME<span class="o">]</span><span class="w"> </span><span class="o">[</span>--entity<span class="w"> </span>ENTITY<span class="o">]</span><span class="w"> </span><span class="o">[</span>--file<span class="w"> </span>FILE<span class="o">]</span>
+<span class="w">               </span><span class="o">[</span>--parentId<span class="w"> </span>PARENTID<span class="o">]</span><span class="w"> </span><span class="o">[</span>--name<span class="w"> </span>NAME<span class="o">]</span><span class="w"> </span><span class="o">[</span>--teamName<span class="w"> </span>TEAMNAME<span class="o">]</span><span class="w"> </span><span class="o">[</span>--submitterAlias<span class="w"> </span>ALIAS<span class="o">]</span><span class="w"> </span><span class="o">[</span>--used<span class="w"> </span><span class="o">[</span>target<span class="w"> </span><span class="o">[</span>target<span class="w"> </span>...<span class="o">]]]</span>
+<span class="w">               </span><span class="o">[</span>--executed<span class="w"> </span><span class="o">[</span>target<span class="w"> </span><span class="o">[</span>target<span class="w"> </span>...<span class="o">]]]</span><span class="w"> </span><span class="o">[</span>--limitSearch<span class="w"> </span>projId<span class="o">]</span>
+</code></pre></div>
+<table>
+<thead>
+<tr>
+<th>Name</th>
+<th>Type</th>
+<th>Description</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>--evaluationID, --evaluationId, --evalID</code></td>
+<td>Named</td>
+<td>Evaluation ID where the entity/file will be submitted.</td>
+</tr>
+<tr>
+<td><code>--evaluationName, --evalN</code></td>
+<td>Named</td>
+<td>Evaluation Name where the entity/file will be submitted.</td>
+</tr>
+<tr>
+<td><code>--entity, --eid, --entityId, --id</code></td>
+<td>Named</td>
+<td>Synapse ID of the entity to be submitted.</td>
+</tr>
+<tr>
+<td><code>--file, -f</code></td>
+<td>Named</td>
+<td>File to be submitted to the challenge.</td>
+</tr>
+<tr>
+<td><code>--parentId, --parentid, --parent</code></td>
+<td>Named</td>
+<td>Synapse ID of project or folder where to upload data.</td>
+</tr>
+<tr>
+<td><code>--name</code></td>
+<td>Named</td>
+<td>Name of the submission.</td>
+</tr>
+<tr>
+<td><code>--teamName, --team</code></td>
+<td>Named</td>
+<td>Submit on behalf of a registered team.</td>
+</tr>
+<tr>
+<td><code>--submitterAlias, --alias</code></td>
+<td>Named</td>
+<td>A nickname, possibly for display in leaderboards.</td>
+</tr>
+<tr>
+<td><code>--used</code></td>
+<td>Named</td>
+<td>Synapse ID, a url, or a local file path (of a file previously uploaded to Synapse) from which the specified entity is derived.</td>
+</tr>
+<tr>
+<td><code>--executed</code></td>
+<td>Named</td>
+<td>Synapse ID, a url, or a local file path (of a file previously uploaded to Synapse) that was executed to generate the specified entity.</td>
+</tr>
+<tr>
+<td><code>--limitSearch</code></td>
+<td>Named</td>
+<td>Synapse ID of a container such as project or folder to limit search for provenance files.</td>
+</tr>
+</tbody>
+</table>
+<h3 id="show"><code>show</code><a class="headerlink" href="#show" title="Permanent link">&para;</a></h3>
+<p>Show metadata for an entity.</p>
+<div class="highlight"><pre><span></span><code>synapse<span class="w"> </span>show<span class="w"> </span><span class="o">[</span>-h<span class="o">]</span><span class="w"> </span><span class="o">[</span>--limitSearch<span class="w"> </span>projId<span class="o">]</span><span class="w"> </span>syn123
+</code></pre></div>
+<table>
+<thead>
+<tr>
+<th>Name</th>
+<th>Type</th>
+<th>Description</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>syn123</code></td>
+<td>Positional</td>
+<td>Synapse ID of form syn123 of desired synapse object.</td>
+</tr>
+<tr>
+<td><code>--limitSearch</code></td>
+<td>Named</td>
+<td>Synapse ID of a container such as project or folder to limit search for provenance files.</td>
+</tr>
+</tbody>
+</table>
+<h3 id="cat"><code>cat</code><a class="headerlink" href="#cat" title="Permanent link">&para;</a></h3>
+<p>Prints a dataset from Synapse.</p>
+<div class="highlight"><pre><span></span><code>synapse<span class="w"> </span>cat<span class="w"> </span><span class="o">[</span>-h<span class="o">]</span><span class="w"> </span><span class="o">[</span>-v<span class="w"> </span>VERSION<span class="o">]</span><span class="w"> </span>syn123
+</code></pre></div>
+<table>
+<thead>
+<tr>
+<th>Name</th>
+<th>Type</th>
+<th>Description</th>
+<th>Default</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>syn123</code></td>
+<td>Positional</td>
+<td>Synapse ID of form syn123 of desired data object.</td>
+<td></td>
+</tr>
+<tr>
+<td><code>-v, --version</code></td>
+<td>Named</td>
+<td>Synapse version number of entity to display.</td>
+<td>Most recent version</td>
+</tr>
+</tbody>
+</table>
+<h3 id="list"><code>list</code><a class="headerlink" href="#list" title="Permanent link">&para;</a></h3>
+<p>List Synapse entities contained by the given Project or Folder. Note: May not be supported in future versions of the client.</p>
+<div class="highlight"><pre><span></span><code>synapse<span class="w"> </span>list<span class="w"> </span><span class="o">[</span>-h<span class="o">]</span><span class="w"> </span><span class="o">[</span>-r<span class="o">]</span><span class="w"> </span><span class="o">[</span>-l<span class="o">]</span><span class="w"> </span><span class="o">[</span>-m<span class="o">]</span><span class="w"> </span>syn123
+</code></pre></div>
+<table>
+<thead>
+<tr>
+<th>Name</th>
+<th>Type</th>
+<th>Description</th>
+<th>Default</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>syn123</code></td>
+<td>Positional</td>
+<td>Synapse ID of a project or folder.</td>
+<td></td>
+</tr>
+<tr>
+<td><code>-r, --recursive</code></td>
+<td>Named</td>
+<td>Recursively list contents of the subtree descending from the given Synapse ID.</td>
+<td>False</td>
+</tr>
+<tr>
+<td><code>-l, --long</code></td>
+<td>Named</td>
+<td>List synapse entities in long format.</td>
+<td>False</td>
+</tr>
+<tr>
+<td><code>-m, --modified</code></td>
+<td>Named</td>
+<td>List modified by and modified date.</td>
+<td>False</td>
+</tr>
+</tbody>
+</table>
+<h3 id="config"><code>config</code><a class="headerlink" href="#config" title="Permanent link">&para;</a></h3>
+<p>Create or modify a Synapse configuration file. This command interactively prompts for a username and a Synapse Personal Access Token (Auth Token) and writes them to the ~/.synapseConfig file.
+Supports multiple profiles.</p>
+<div class="highlight"><pre><span></span><code>synapse<span class="w"> </span>config<span class="w"> </span><span class="o">[</span>-h<span class="o">]</span>
+</code></pre></div>
+<div class="highlight"><pre><span></span><code>synapse<span class="w"> </span>--profile<span class="w"> </span>PROFILE_NAME<span class="w"> </span>config
+</code></pre></div>
+<table>
+<thead>
+<tr>
+<th>Name</th>
+<th>Type</th>
+<th>Description</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>-h</code></td>
+<td>Named</td>
+<td>Show the help message and exit.</td>
+</tr>
+<tr>
+<td><code>-r, --profile</code></td>
+<td>Named</td>
+<td>Optional name of the Synapse profile to create or update in the config file. <br/>If omitted, modifies the <code>[default]</code> section.</td>
+</tr>
+</tbody>
+</table>
+<h3 id="set-provenance"><code>set-provenance</code><a class="headerlink" href="#set-provenance" title="Permanent link">&para;</a></h3>
+<p>Create provenance records.</p>
+<div class="highlight"><pre><span></span><code>synapse<span class="w"> </span>set-provenance<span class="w"> </span><span class="o">[</span>-h<span class="o">]</span><span class="w"> </span>--id<span class="w"> </span>syn123<span class="w"> </span><span class="o">[</span>--name<span class="w"> </span>NAME<span class="o">]</span><span class="w"> </span><span class="o">[</span>--description<span class="w"> </span>DESCRIPTION<span class="o">]</span><span class="w"> </span><span class="o">[</span>-o<span class="w"> </span><span class="o">[</span>OUTPUT_FILE<span class="o">]]</span>
+<span class="w">                       </span><span class="o">[</span>--used<span class="w"> </span><span class="o">[</span>target<span class="w"> </span><span class="o">[</span>target<span class="w"> </span>...<span class="o">]]]</span><span class="w"> </span><span class="o">[</span>--executed<span class="w"> </span><span class="o">[</span>target<span class="w"> </span><span class="o">[</span>target<span class="w"> </span>...<span class="o">]]]</span><span class="w"> </span><span class="o">[</span>--limitSearch<span class="w"> </span>projId<span class="o">]</span>
+</code></pre></div>
+<table>
+<thead>
+<tr>
+<th>Name</th>
+<th>Type</th>
+<th>Description</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>--id</code></td>
+<td>Named</td>
+<td>Synapse ID of entity whose provenance we are accessing.</td>
+</tr>
+<tr>
+<td><code>--name</code></td>
+<td>Named</td>
+<td>Name of the activity that generated the entity.</td>
+</tr>
+<tr>
+<td><code>--description</code></td>
+<td>Named</td>
+<td>Description of the activity that generated the entity.</td>
+</tr>
+<tr>
+<td><code>-o, --output</code></td>
+<td>Named</td>
+<td>Output the provenance record in JSON format.</td>
+</tr>
+<tr>
+<td><code>--used</code></td>
+<td>Named</td>
+<td>Synapse ID, a url, or a local file path (of a file previously uploaded to Synapse) from which the specified entity is derived.</td>
+</tr>
+<tr>
+<td><code>--executed</code></td>
+<td>Named</td>
+<td>Synapse ID, a url, or a local file path (of a file previously uploaded to Synapse) that was executed to generate the specified entity.</td>
+</tr>
+<tr>
+<td><code>--limitSearch</code></td>
+<td>Named</td>
+<td>Synapse ID of a container such as project or folder to limit search for provenance files.</td>
+</tr>
+</tbody>
+</table>
+<h3 id="get-provenance"><code>get-provenance</code><a class="headerlink" href="#get-provenance" title="Permanent link">&para;</a></h3>
+<p>Show provenance records.</p>
+<div class="highlight"><pre><span></span><code>synapse<span class="w"> </span>get-provenance<span class="w"> </span><span class="o">[</span>-h<span class="o">]</span><span class="w"> </span>--id<span class="w"> </span>syn123<span class="w"> </span><span class="o">[</span>--version<span class="w"> </span>version<span class="o">]</span><span class="w"> </span><span class="o">[</span>-o<span class="w"> </span><span class="o">[</span>OUTPUT_FILE<span class="o">]]</span>
+</code></pre></div>
+<table>
+<thead>
+<tr>
+<th>Name</th>
+<th>Type</th>
+<th>Description</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>--id</code></td>
+<td>Named</td>
+<td>Synapse ID of entity whose provenance we are accessing.</td>
+</tr>
+<tr>
+<td><code>--version</code></td>
+<td>Named</td>
+<td>Version of Synapse entity whose provenance we are accessing.</td>
+</tr>
+<tr>
+<td><code>-o, --output</code></td>
+<td>Named</td>
+<td>Output the provenance record in JSON format.</td>
+</tr>
+</tbody>
+</table>
+<h3 id="set-annotations"><code>set-annotations</code><a class="headerlink" href="#set-annotations" title="Permanent link">&para;</a></h3>
+<p>Create annotations records.</p>
+<div class="highlight"><pre><span></span><code>synapse<span class="w"> </span>set-annotations<span class="w"> </span><span class="o">[</span>-h<span class="o">]</span><span class="w"> </span>--id<span class="w"> </span>syn123<span class="w"> </span>--annotations<span class="w"> </span>ANNOTATIONS<span class="w"> </span><span class="o">[</span>-r<span class="o">]</span>
+</code></pre></div>
+<table>
+<thead>
+<tr>
+<th>Name</th>
+<th>Type</th>
+<th>Description</th>
+<th>Default</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>--id</code></td>
+<td>Named</td>
+<td>Synapse ID of entity whose annotations we are accessing.</td>
+<td></td>
+</tr>
+<tr>
+<td><code>--annotations</code></td>
+<td>Named</td>
+<td>Annotations to add as a JSON formatted string, should evaluate to a dictionary (key/value pairs). Example: ‘{“foo”: 1, “bar”:”quux”}’.</td>
+<td></td>
+</tr>
+<tr>
+<td><code>-r, --replace</code></td>
+<td>Named</td>
+<td>Replace all existing annotations with the given annotations.</td>
+<td>False</td>
+</tr>
+</tbody>
+</table>
+<h3 id="get-annotations"><code>get-annotations</code><a class="headerlink" href="#get-annotations" title="Permanent link">&para;</a></h3>
+<p>Show annotations records.</p>
+<div class="highlight"><pre><span></span><code>synapse<span class="w"> </span>get-annotations<span class="w"> </span><span class="o">[</span>-h<span class="o">]</span><span class="w"> </span>--id<span class="w"> </span>syn123<span class="w"> </span><span class="o">[</span>-o<span class="w"> </span><span class="o">[</span>OUTPUT_FILE<span class="o">]]</span>
+</code></pre></div>
+<table>
+<thead>
+<tr>
+<th>Name</th>
+<th>Type</th>
+<th>Description</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>--id</code></td>
+<td>Named</td>
+<td>Synapse ID of entity whose annotations we are accessing.</td>
+</tr>
+<tr>
+<td><code>-o, --output</code></td>
+<td>Named</td>
+<td>Output the annotations record in JSON format.</td>
+</tr>
+</tbody>
+</table>
+<h3 id="create"><code>create</code><a class="headerlink" href="#create" title="Permanent link">&para;</a></h3>
+<p>Creates folders or projects on Synapse.</p>
+<div class="highlight"><pre><span></span><code>synapse<span class="w"> </span>create<span class="w"> </span><span class="o">[</span>-h<span class="o">]</span><span class="w"> </span><span class="o">[</span>--parentid<span class="w"> </span>syn123<span class="o">]</span><span class="w"> </span>--name<span class="w"> </span>NAME<span class="w"> </span><span class="o">[</span>--description<span class="w"> </span>DESCRIPTION<span class="w"> </span><span class="p">|</span><span class="w"> </span>--descriptionFile<span class="w"> </span>DESCRIPTION_FILE_PATH<span class="o">]</span><span class="w"> </span><span class="nb">type</span>
+</code></pre></div>
+<table>
+<thead>
+<tr>
+<th>Name</th>
+<th>Type</th>
+<th>Description</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>type</code></td>
+<td>Positional</td>
+<td>Type of object to create in synapse one of {Project, Folder}.</td>
+</tr>
+<tr>
+<td><code>--parentid, --parentId</code></td>
+<td>Named</td>
+<td>Synapse ID of project or folder where to place folder [not used with project].</td>
+</tr>
+<tr>
+<td><code>--name</code></td>
+<td>Named</td>
+<td>Name of folder/project.</td>
+</tr>
+<tr>
+<td><code>--description</code></td>
+<td>Named</td>
+<td>Description of project/folder.</td>
+</tr>
+<tr>
+<td><code>--descriptionFile</code></td>
+<td>Named</td>
+<td>Path to a markdown file containing description of project/folder.</td>
+</tr>
+</tbody>
+</table>
+<h3 id="store-table"><code>store-table</code><a class="headerlink" href="#store-table" title="Permanent link">&para;</a></h3>
+<p>Creates a Synapse Table given a csv.</p>
+<div class="highlight"><pre><span></span><code>synapse<span class="w"> </span>store-table<span class="w"> </span><span class="o">[</span>-h<span class="o">]</span><span class="w"> </span>--name<span class="w"> </span>NAME<span class="w"> </span><span class="o">[</span>--parentid<span class="w"> </span>syn123<span class="o">]</span><span class="w"> </span><span class="o">[</span>--csv<span class="w"> </span>foo.csv<span class="o">]</span>
+</code></pre></div>
+<table>
+<thead>
+<tr>
+<th>Name</th>
+<th>Type</th>
+<th>Description</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>--name</code></td>
+<td>Named</td>
+<td>Name of Table.</td>
+</tr>
+<tr>
+<td><code>--parentid, --parentId</code></td>
+<td>Named</td>
+<td>Synapse ID of project.</td>
+</tr>
+<tr>
+<td><code>--csv</code></td>
+<td>Named</td>
+<td>Path to csv.</td>
+</tr>
+</tbody>
+</table>
+<h3 id="onweb"><code>onweb</code><a class="headerlink" href="#onweb" title="Permanent link">&para;</a></h3>
+<p>Opens Synapse website for Entity.</p>
+<div class="highlight"><pre><span></span><code>synapse<span class="w"> </span>onweb<span class="w"> </span><span class="o">[</span>-h<span class="o">]</span><span class="w"> </span>id
+</code></pre></div>
+<table>
+<thead>
+<tr>
+<th>Name</th>
+<th>Type</th>
+<th>Description</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>id</code></td>
+<td>Positional</td>
+<td>Synapse id.</td>
+</tr>
+</tbody>
+</table>
+<h3 id="login"><code>login</code><a class="headerlink" href="#login" title="Permanent link">&para;</a></h3>
+<p>Verify credentials can be used to login to Synapse.
+This does not need to be used prior to executing other commands.</p>
+<div class="highlight"><pre><span></span><code>synapse<span class="w"> </span>--profile<span class="w"> </span>PROFILE_NAME<span class="w"> </span>login<span class="w"> </span><span class="o">[</span>-h<span class="o">]</span><span class="w"> </span><span class="o">[</span>-u<span class="w"> </span>SYNAPSEUSER<span class="o">]</span><span class="w"> </span><span class="o">[</span>-p<span class="w"> </span>SYNAPSE_AUTH_TOKEN<span class="o">]</span>
+</code></pre></div>
+<table>
+<thead>
+<tr>
+<th>Name</th>
+<th>Type</th>
+<th>Description</th>
+<th>Default</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>-u, --username</code></td>
+<td>Named</td>
+<td>Username used to connect to Synapse.</td>
+<td></td>
+</tr>
+<tr>
+<td><code>-p, --password</code></td>
+<td>Named</td>
+<td>Synapse Auth Token (aka: Personal Access Token) used to connect to Synapse</td>
+<td></td>
+</tr>
+<tr>
+<td><code>-r, --profile</code></td>
+<td>Named</td>
+<td>Name of the Synapse profile (from .synapseConfig) to log in under</td>
+<td></td>
+</tr>
+</tbody>
+</table>
+<p>If --profile is provided, the credentials will be validated and the login will be associated with the given profile.
+If no profile is specified, the default '[default]' section in ~/.synapseConfig will be used.</p>
+<h3 id="test-encoding"><code>test-encoding</code><a class="headerlink" href="#test-encoding" title="Permanent link">&para;</a></h3>
+<p>Test character encoding to help diagnose problems.</p>
+<div class="highlight"><pre><span></span><code>synapse<span class="w"> </span>test-encoding<span class="w"> </span><span class="o">[</span>-h<span class="o">]</span>
+</code></pre></div>
+<table>
+<thead>
+<tr>
+<th>Name</th>
+<th>Type</th>
+<th>Description</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>-h</code></td>
+<td>Named</td>
+<td>Show the help message and exit.</td>
+</tr>
+</tbody>
+</table>
+<h3 id="get-sts-token"><code>get-sts-token</code><a class="headerlink" href="#get-sts-token" title="Permanent link">&para;</a></h3>
+<p>Get an STS token for access to AWS S3 storage underlying Synapse.</p>
+<div class="highlight"><pre><span></span><code>synapse<span class="w"> </span>get-sts-token<span class="w"> </span><span class="o">[</span>-h<span class="o">]</span><span class="w"> </span><span class="o">[</span>-o<span class="w"> </span><span class="o">{</span>json,boto,shell,bash,cmd,powershell<span class="o">}]</span><span class="w"> </span>id<span class="w"> </span><span class="o">{</span>read_write,read_only<span class="o">}</span>
+</code></pre></div>
+<table>
+<thead>
+<tr>
+<th>Name</th>
+<th>Type</th>
+<th>Description</th>
+<th>Default</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>id</code></td>
+<td>Positional</td>
+<td>Synapse id.</td>
+<td></td>
+</tr>
+<tr>
+<td><code>permission</code></td>
+<td>Positional</td>
+<td>Possible choices: read_write, read_only.</td>
+<td></td>
+</tr>
+<tr>
+<td><code>-o, --output</code></td>
+<td>Named</td>
+<td>Possible choices: json, boto, shell, bash, cmd, powershell.</td>
+<td>"shell"</td>
+</tr>
+</tbody>
+</table>
+<h3 id="migrate"><code>migrate</code><a class="headerlink" href="#migrate" title="Permanent link">&para;</a></h3>
+<p>Migrate Synapse entities to a different storage location.</p>
+<div class="highlight"><pre><span></span><code>synapse<span class="w"> </span>migrate<span class="w"> </span><span class="o">[</span>-h<span class="o">]</span><span class="w"> </span><span class="o">[</span>--source_storage_location_ids<span class="w"> </span><span class="o">[</span>SOURCE_STORAGE_LOCATION_IDS<span class="w"> </span><span class="o">[</span>SOURCE_STORAGE_LOCATION_IDS<span class="w"> </span>...<span class="o">]]]</span>
+<span class="w">                </span><span class="o">[</span>--file_version_strategy<span class="w"> </span>FILE_VERSION_STRATEGY<span class="o">]</span><span class="w"> </span><span class="o">[</span>--include_table_files<span class="o">]</span><span class="w"> </span><span class="o">[</span>--continue_on_error<span class="o">]</span>
+<span class="w">                </span><span class="o">[</span>--csv_log_path<span class="w"> </span>CSV_LOG_PATH<span class="o">]</span><span class="w"> </span><span class="o">[</span>--dryRun<span class="o">]</span><span class="w"> </span><span class="o">[</span>--force<span class="o">]</span>
+<span class="w">                </span>id<span class="w"> </span>dest_storage_location_id<span class="w"> </span>db_path
+</code></pre></div>
+<table>
+<thead>
+<tr>
+<th>Name</th>
+<th>Type</th>
+<th>Description</th>
+<th>Default</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>id</code></td>
+<td>Positional</td>
+<td>Synapse id.</td>
+<td></td>
+</tr>
+<tr>
+<td><code>dest_storage_location_id</code></td>
+<td>Positional</td>
+<td>Destination Synapse storage location id.</td>
+<td></td>
+</tr>
+<tr>
+<td><code>db_path</code></td>
+<td>Positional</td>
+<td>Local system path where a record keeping file can be stored.</td>
+<td></td>
+</tr>
+<tr>
+<td><code>--source_storage_location_ids</code></td>
+<td>Named</td>
+<td>Source Synapse storage location ids. If specified only files in these storage locations will be migrated.</td>
+<td></td>
+</tr>
+<tr>
+<td><code>--file_version_strategy</code></td>
+<td>Named</td>
+<td>One of ‘new’, ‘latest’, ‘all’, ‘skip’. New creates a new version of each entity, latest migrates the most recent version, all migrates all versions, skip avoids migrating file entities (use when exclusively targeting table attached files.</td>
+<td>"new"</td>
+</tr>
+<tr>
+<td><code>--include_table_files</code></td>
+<td>Named</td>
+<td>Include table attached files when migrating.</td>
+<td>False</td>
+</tr>
+<tr>
+<td><code>--continue_on_error</code></td>
+<td>Named</td>
+<td>Whether to continue processing other entities if migration of one fails.</td>
+<td>False</td>
+</tr>
+<tr>
+<td><code>--csv_log_path</code></td>
+<td>Named</td>
+<td>Path where to log a csv documenting the changes from the migration.</td>
+<td></td>
+</tr>
+<tr>
+<td><code>--dryRun</code></td>
+<td>Named</td>
+<td>Dry run, files will be indexed by not migrated.</td>
+<td>False</td>
+</tr>
+<tr>
+<td><code>--force</code></td>
+<td>Named</td>
+<td>Bypass interactive prompt confirming migration.</td>
+<td>False</td>
+</tr>
+</tbody>
+</table>
+<h3 id="generate-json-schema"><code>generate-json-schema</code><a class="headerlink" href="#generate-json-schema" title="Permanent link">&para;</a></h3>
+<p>Generate JSON Schema(s) from a data model</p>
+<div class="highlight"><pre><span></span><code>synapse<span class="w"> </span>generate-json-schema<span class="w"> </span><span class="o">[</span>-h<span class="o">]</span><span class="w"> </span><span class="o">[</span>--data-types<span class="w"> </span>data_type1,<span class="w"> </span>data_type2<span class="o">]</span><span class="w"> </span><span class="o">[</span>--output<span class="w"> </span>dir_name<span class="o">]</span><span class="w"> </span><span class="o">[</span>--data-model-labels<span class="w"> </span>class_label<span class="o">]</span><span class="w"> </span>data_model_path
+</code></pre></div>
+<table>
+<thead>
+<tr>
+<th>Name</th>
+<th>Type</th>
+<th>Description</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>data_model_path</code></td>
+<td>Positional</td>
+<td>Data model path or URL</td>
+</tr>
+<tr>
+<td><code>--data-types</code></td>
+<td>Named</td>
+<td>Optional list of data types to create JSON Schema for</td>
+</tr>
+<tr>
+<td><code>--output</code></td>
+<td>Named</td>
+<td>Optional. Either a file path ending in '.json', or a directory path</td>
+</tr>
+<tr>
+<td><code>--data-model-labels</code></td>
+<td>Named</td>
+<td>Either 'class_label', or 'display_label'</td>
+</tr>
+</tbody>
+</table>
+
+
+
+
+
+
+
+
+
+
+
+
+                
+              </article>
+            </div>
+          
+          
+<script>var target=document.getElementById(location.hash.slice(1));target&&target.name&&(target.checked=target.name.startsWith("__tabbed_"))</script>
+        </div>
+        
+      </main>
+      
+        <footer class="md-footer">
+  
+    
+      
+      <nav class="md-footer__inner md-grid" aria-label="Footer" >
+        
+          
+          <a href="../python/json_schema/" class="md-footer__link md-footer__link--prev" aria-label="Previous: Working with JSON Schema">
+            <div class="md-footer__button md-icon">
+              
+              <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M20 11v2H8l5.5 5.5-1.42 1.42L4.16 12l7.92-7.92L13.5 5.5 8 11z"/></svg>
+            </div>
+            <div class="md-footer__title">
+              <span class="md-footer__direction">
+                Previous
+              </span>
+              <div class="md-ellipsis">
+                Working with JSON Schema
+              </div>
+            </div>
+          </a>
+        
+        
+          
+          <a href="../reticulate/" class="md-footer__link md-footer__link--next" aria-label="Next: Synapseclient with R through reticulate">
+            <div class="md-footer__title">
+              <span class="md-footer__direction">
+                Next
+              </span>
+              <div class="md-ellipsis">
+                Synapseclient with R through reticulate
+              </div>
+            </div>
+            <div class="md-footer__button md-icon">
+              
+              <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M4 11v2h12l-5.5 5.5 1.42 1.42L19.84 12l-7.92-7.92L10.5 5.5 16 11z"/></svg>
+            </div>
+          </a>
+        
+      </nav>
+    
+  
+  <div class="md-footer-meta md-typeset">
+    <div class="md-footer-meta__inner md-grid">
+      <div class="md-copyright">
+  
+  
+    Made with
+    <a href="https://squidfunk.github.io/mkdocs-material/" target="_blank" rel="noopener">
+      Material for MkDocs
+    </a>
+  
+</div>
+      
+        
+<div class="md-social">
+  
+    
+    
+    
+    
+      
+      
+    
+    <a href="https://github.com/Sage-Bionetworks/synapsePythonClient" target="_blank" rel="noopener" title="github.com" class="md-social__link">
+      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512"><!--! Font Awesome Free 7.1.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2025 Fonticons, Inc.--><path d="M173.9 397.4c0 2-2.3 3.6-5.2 3.6-3.3.3-5.6-1.3-5.6-3.6 0-2 2.3-3.6 5.2-3.6 3-.3 5.6 1.3 5.6 3.6m-31.1-4.5c-.7 2 1.3 4.3 4.3 4.9 2.6 1 5.6 0 6.2-2s-1.3-4.3-4.3-5.2c-2.6-.7-5.5.3-6.2 2.3m44.2-1.7c-2.9.7-4.9 2.6-4.6 4.9.3 2 2.9 3.3 5.9 2.6 2.9-.7 4.9-2.6 4.6-4.6-.3-1.9-3-3.2-5.9-2.9M252.8 8C114.1 8 8 113.3 8 252c0 110.9 69.8 205.8 169.5 239.2 12.8 2.3 17.3-5.6 17.3-12.1 0-6.2-.3-40.4-.3-61.4 0 0-70 15-84.7-29.8 0 0-11.4-29.1-27.8-36.6 0 0-22.9-15.7 1.6-15.4 0 0 24.9 2 38.6 25.8 21.9 38.6 58.6 27.5 72.9 20.9 2.3-16 8.8-27.1 16-33.7-55.9-6.2-112.3-14.3-112.3-110.5 0-27.5 7.6-41.3 23.6-58.9-2.6-6.5-11.1-33.3 2.6-67.9 20.9-6.5 69 27 69 27 20-5.6 41.5-8.5 62.8-8.5s42.8 2.9 62.8 8.5c0 0 48.1-33.6 69-27 13.7 34.7 5.2 61.4 2.6 67.9 16 17.7 25.8 31.5 25.8 58.9 0 96.5-58.9 104.2-114.8 110.5 9.2 7.9 17 22.9 17 46.4 0 33.7-.3 75.4-.3 83.6 0 6.5 4.6 14.4 17.3 12.1C436.2 457.8 504 362.9 504 252 504 113.3 391.5 8 252.8 8M105.2 352.9c-1.3 1-1 3.3.7 5.2 1.6 1.6 3.9 2.3 5.2 1 1.3-1 1-3.3-.7-5.2-1.6-1.6-3.9-2.3-5.2-1m-10.8-8.1c-.7 1.3.3 2.9 2.3 3.9 1.6 1 3.6.7 4.3-.7.7-1.3-.3-2.9-2.3-3.9-2-.6-3.6-.3-4.3.7m32.4 35.6c-1.6 1.3-1 4.3 1.3 6.2 2.3 2.3 5.2 2.6 6.5 1 1.3-1.3.7-4.3-1.3-6.2-2.2-2.3-5.2-2.6-6.5-1m-11.4-14.7c-1.6 1-1.6 3.6 0 5.9s4.3 3.3 5.6 2.3c1.6-1.3 1.6-3.9 0-6.2-1.4-2.3-4-3.3-5.6-2"/></svg>
+    </a>
+  
+    
+    
+    
+    
+      
+      
+    
+    <a href="https://github.com/Sage-Bionetworks/synapsePythonClient/pkgs/container/synapsepythonclient" target="_blank" rel="noopener" title="github.com" class="md-social__link">
+      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 640 512"><!--! Font Awesome Free 7.1.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2025 Fonticons, Inc.--><path d="M349.9 236.3h-66.1v-59.4h66.1zm0-204.3h-66.1v60.7h66.1zm78.2 144.8H362v59.4h66.1zm-156.3-72.1h-66.1v60.1h66.1zm78.1 0h-66.1v60.1h66.1zm276.8 100c-14.4-9.7-47.6-13.2-73.1-8.4-3.3-24-16.7-44.9-41.1-63.7l-14-9.3-9.3 14c-18.4 27.8-23.4 73.6-3.7 103.8-8.7 4.7-25.8 11.1-48.4 10.7H2.4c-8.7 50.8 5.8 116.8 44 162.1 37.1 43.9 92.7 66.2 165.4 66.2 157.4 0 273.9-72.5 328.4-204.2 21.4.4 67.6.1 91.3-45.2 1.5-2.5 6.6-13.2 8.5-17.1zm-511.1-27.9h-66v59.4h66.1v-59.4zm78.1 0h-66.1v59.4h66.1zm78.1 0h-66.1v59.4h66.1zm-78.1-72.1h-66.1v60.1h66.1z"/></svg>
+    </a>
+  
+    
+    
+    
+    
+      
+      
+    
+    <a href="https://pypi.org/project/synapseclient/" target="_blank" rel="noopener" title="pypi.org" class="md-social__link">
+      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 448 512"><!--! Font Awesome Free 7.1.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2025 Fonticons, Inc.--><path d="M439.8 200.5c-7.7-30.9-22.3-54.2-53.4-54.2h-40.1v47.4c0 36.8-31.2 67.8-66.8 67.8H172.7c-29.2 0-53.4 25-53.4 54.3v101.8c0 29 25.2 46 53.4 54.3 33.8 9.9 66.3 11.7 106.8 0 26.9-7.8 53.4-23.5 53.4-54.3v-40.7H226.2v-13.6h160.2c31.1 0 42.6-21.7 53.4-54.2 11.2-33.5 10.7-65.7 0-108.6M286.2 444.7a20.4 20.4 0 1 1 0-40.7 20.4 20.4 0 1 1 0 40.7M167.8 248.1h106.8c29.7 0 53.4-24.5 53.4-54.3V91.9c0-29-24.4-50.7-53.4-55.6-35.8-5.9-74.7-5.6-106.8.1-45.2 8-53.4 24.7-53.4 55.6v40.7h106.9v13.6h-147c-31.1 0-58.3 18.7-66.8 54.2-9.8 40.7-10.2 66.1 0 108.6 7.6 31.6 25.7 54.2 56.8 54.2H101v-48.8c0-35.3 30.5-66.4 66.8-66.4m-6.6-183.4a20.4 20.4 0 1 1 0 40.8 20.4 20.4 0 1 1 0-40.8"/></svg>
+    </a>
+  
+</div>
+      
+    </div>
+  </div>
+</footer>
+      
+    </div>
+    <div class="md-dialog" data-md-component="dialog">
+      <div class="md-dialog__inner md-typeset"></div>
+    </div>
+    
+      <div class="md-progress" data-md-component="progress" role="progressbar"></div>
+    
+    
+    
+      
+      
+      <script id="__config" type="application/json">{"annotate": null, "base": "../..", "features": ["content.code.copy", "navigation.footer", "navigation.sections", "search.highlight", "search.share", "search.suggest", "toc.follow", "navigation.tabs", "navigation.tabs.sticky", "navigation.instant", "navigation.instant.progress"], "search": "../../assets/javascripts/workers/search.2c215733.min.js", "tags": null, "translations": {"clipboard.copied": "Copied to clipboard", "clipboard.copy": "Copy to clipboard", "search.result.more.one": "1 more on this page", "search.result.more.other": "# more on this page", "search.result.none": "No matching documents", "search.result.one": "1 matching document", "search.result.other": "# matching documents", "search.result.placeholder": "Type to start searching", "search.result.term.missing": "Missing", "select.version": "Select version"}, "version": null}</script>
+    
+    
+      <script src="../../assets/javascripts/bundle.79ae519e.min.js"></script>
+      
+        <script src="../../termynal.js"></script>
+      
+        <script src="../../js/open_in_new_tab.js"></script>
+      
+    
+  </body>
+</html>
