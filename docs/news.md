@@ -14,8 +14,9 @@ breaking changes will not be included until v5.0.
 
 ## Highlights
 
-- Refactored Synapse Python Client to use object-oriented principles
-- Added guide for [setting up metadata curation workflows](https://python-docs.synapse.org/en/stable/guides/extensions/curator/metadata_curation/) in Synapse with Curator extension
+- Refactored Synapse Python Client to use object-oriented principles for Evaluation, Submission and Wiki
+- Introduced the `synapseclient.extensions` module which contains scripts that extend the core functionality of the Synapse Python Client
+     - [Synapse Curator](https://python-docs.synapse.org/en/stable/reference/extensions/curator/#synapseclient.extensions.curator ) and its [guide](https://python-docs.synapse.org/en/stable/guides/extensions/curator/metadata_curation/) have been added to help with metadata curation tasks in Synapse
 - Implemented JSON Schema creation and validation workflows
 - Deprecated legacy functionality and migrated to new asynchronous APIs
 
