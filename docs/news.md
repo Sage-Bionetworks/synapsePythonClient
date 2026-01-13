@@ -15,7 +15,7 @@ breaking changes will not be included until v5.0.
 ## Highlights
 
 - Refactored Synapse Python Client to use object-oriented principles
-- Added guide for setting up metadata curation workflows in Synapse with Curator extension.
+- Added guide for [setting up metadata curation workflows](https://python-docs.synapse.org/en/stable/guides/extensions/curator/metadata_curation/) in Synapse with Curator extension
 - Implemented JSON Schema creation and validation workflows
 - Deprecated legacy functionality and migrated to new asynchronous APIs
 
