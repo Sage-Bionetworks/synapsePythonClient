@@ -29,7 +29,30 @@ from typing import (
 
 from deprecated import deprecated
 
-from synapseclient.core.utils import test_import_pandas
+from synapseclient import Synapse
+from synapseclient.core.typing_utils import DataFrame as DATA_FRAME_TYPE
+from synapseclient.core.typing_utils import np, nx
+
+
+def check_curator_imports() -> None:
+    """Attempts to import all necessary packages for the Curator extension.
+
+    Raises:
+        ImportError: If one or more Curator packages are not installed.
+    """
+    try:
+        import inflection  # noqa: F401
+        import networkx  # noqa: F401
+        import pandarallel  # noqa: F401
+        import pandas  # noqa: F401
+        import rdflib  # noqa: F401
+    except ImportError as exception:
+        msg = (
+            "One or more packages needed for the Curator extension are not installed. "
+            "Please install using 'pip install --upgrade 'synapseclient[curator]'"
+        )
+        raise ImportError(msg) from exception
+
 
 try:
     from dataclasses_json import config, dataclass_json
@@ -44,25 +67,6 @@ except ImportError:
         """Dummy config function when dataclasses_json is not installed"""
         return None
 
-
-try:
-    from inflection import camelize
-except ImportError:
-    # inflection is an optional dependency only available with curator extra
-    def camelize(string, uppercase_first_letter=True):
-        """Dummy camelize function when inflection is not installed"""
-        return None
-
-
-try:
-    from rdflib import Namespace
-except ImportError:
-    # rdflib is an optional dependency
-    Namespace = None  # type: ignore
-
-from synapseclient import Synapse
-from synapseclient.core.typing_utils import DataFrame as DATA_FRAME_TYPE
-from synapseclient.core.typing_utils import np, nx
 
 if TYPE_CHECKING:
     NUMPY_INT_64 = np.int64
@@ -329,7 +333,7 @@ def find_and_convert_ints(
         is_int: dataframe with boolean values indicating which cells were converted to type int
 
     """
-    test_import_pandas()
+
     from pandarallel import pandarallel
     from pandas import DataFrame
     from pandas.api.types import is_integer
@@ -381,7 +385,6 @@ def convert_floats(dataframe: DATA_FRAME_TYPE) -> DATA_FRAME_TYPE:
     Returns:
         float_df: dataframe with values that were converted to type float. Columns are type object
     """
-    test_import_pandas()
     from pandas import to_numeric
 
     # create a separate copy of the manifest
@@ -399,7 +402,6 @@ def convert_floats(dataframe: DATA_FRAME_TYPE) -> DATA_FRAME_TYPE:
 
 
 def get_str_pandas_na_values() -> List[str]:
-    test_import_pandas()
     from pandas._libs.parsers import STR_NA_VALUES  # type: ignore
 
     STR_NA_VALUES_FILTERED = deepcopy(STR_NA_VALUES)
@@ -430,7 +432,6 @@ def read_csv(
     Returns:
         pd.DataFrame: The dataframe created from the CSV file or buffer.
     """
-    test_import_pandas()
     from pandas import read_csv as pandas_read_csv
 
     STR_NA_VALUES_FILTERED = get_str_pandas_na_values()
@@ -474,7 +475,6 @@ def load_df(
         pd.DataFrame: a processed dataframe for manifests or unprocessed df for data models and
       where indicated
     """
-    test_import_pandas()
     from pandas import DataFrame
 
     # Read CSV to df as type specified in kwargs
@@ -654,7 +654,6 @@ class DataModelCSVParser:
                     Relationships: {
                                     CSV Header: Value}}}
         """
-        test_import_pandas()
         from pandas import isnull
 
         # Check csv schema follows expectations.
@@ -723,7 +722,6 @@ class DataModelCSVParser:
             dict: A dictionary containing the parsed column type information if present
             else an empty dict
         """
-        test_import_pandas()
         from pandas import isna
 
         column_type = attr.get("columnType")
@@ -795,7 +793,6 @@ class DataModelCSVParser:
             A dictionary containing the format value if it exists
             else an empty dict
         """
-        test_import_pandas()
         from pandas import isna
 
         format_value = attribute_dict.get("Format")
@@ -2493,6 +2490,8 @@ def get_property_label_from_display_name(
     Returns:
         label, str: property label of display name
     """
+    from inflection import camelize
+
     # This is the newer more strict method
     if strict_camel_case:
         display_name = display_name.strip().translate({ord(c): "_" for c in whitespace})
@@ -2562,6 +2561,8 @@ def get_class_label_from_display_name(
     Returns:
         label, str: class label of display name
     """
+    from inflection import camelize
+
     # This is the newer more strict method
     if strict_camel_case:
         display_name = display_name.strip().translate({ord(c): "_" for c in whitespace})
@@ -3198,6 +3199,8 @@ class DataModelNodes:
     """Data model Nodes"""
 
     def __init__(self, attribute_relationships_dict: dict, logger: Logger):
+        from rdflib import Namespace
+
         self.logger = logger
         self.namespaces = {
             "rdf": Namespace("http://www.w3.org/1999/02/22-rdf-syntax-ns#")
@@ -4058,7 +4061,7 @@ def parsed_model_as_dataframe(
     Returns:
         pd.DataFrame, DataFrame representation of the parsed model.
     """
-    test_import_pandas()
+
     from pandas import DataFrame
 
     # Convert the parsed model dictionary to a DataFrame
@@ -5606,7 +5609,7 @@ def generate_jsonschema(
         )
         ```
     """
-
+    check_curator_imports()
     data_model_parser = DataModelParser(
         path_to_data_model=data_model_source, logger=synapse_client.logger
     )
@@ -5773,6 +5776,7 @@ def generate_jsonld(
         )
         ```
     """
+    check_curator_imports()
     syn = Synapse.get_client(synapse_client=synapse_client)
 
     # Instantiate Parser
