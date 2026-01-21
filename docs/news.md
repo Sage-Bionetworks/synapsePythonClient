@@ -9,6 +9,12 @@ detailing some of the changes.
 the 4.x.x versions hidden behind optional feature flags or different import paths. Any
 breaking changes will not be included until v5.0.
 
+## 4.4.2 (2025-01-21)
+
+### Bug Fixes
+- Upgraded `urllib3` and `setuptools` to address code scanning security vulnerabilities and errors.
+
+
 ## 4.4.1 (2024-07-05)
 
 ### Bug Fixes
