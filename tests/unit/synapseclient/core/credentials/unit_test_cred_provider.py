@@ -410,7 +410,7 @@ class TestAWSParameterStoreCredentialsProvider(object):
                 "Version": 502,
                 "LastModifiedDate": "Sun, 20 Apr 1969 16:20:00 GMT",
                 "ARN": "arn:aws:ssm:us-east-1:123123123:parameter/synapse/cred/i-12134312",
-                "DataType": "text",
+                # "DataType": "text",
             },
         }
         stubber.add_response("get_parameter", response)
