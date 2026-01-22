@@ -10,10 +10,12 @@ the 4.x.x versions hidden behind optional feature flags or different import path
 breaking changes will not be included until v5.0.
 
 ## 4.4.2 (2025-01-21)
+### Highlights
+- No longer support python 3.8
 
 ### Bug Fixes
 - Upgraded `urllib3` and `setuptools` to address code scanning security vulnerabilities and errors.
-- No longer support python 3.8
+
 
 ## 4.4.1 (2024-07-05)
 
