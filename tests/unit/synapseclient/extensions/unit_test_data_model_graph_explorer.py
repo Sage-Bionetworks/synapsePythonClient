@@ -126,10 +126,7 @@ def test_get_node_maximum_minimum_value(
 
 @pytest.mark.parametrize(
     "node_label, is_template",
-    [
-        ("Patient", True),
-        ("Sex", False),
-    ],
+    [("Patient", True), ("Biospecimen", True), ("Sex", False), ("Cancer", False)],
 )
 def test_get_node_is_template(
     dmge: DataModelGraphExplorer, node_label: str, is_template: bool
