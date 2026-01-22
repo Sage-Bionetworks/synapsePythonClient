@@ -39,7 +39,6 @@
             },
             "sms:displayName": "Patient",
             "sms:required": "sms:false",
-            "sms:IsTemplate": "sms:true",
             "sms:requiresDependency": [
                 {
                     "@id": "bts:PatientID"
