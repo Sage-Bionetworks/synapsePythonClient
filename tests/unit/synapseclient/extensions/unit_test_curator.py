@@ -1969,7 +1969,7 @@ class TestGenerateJsonschema(unittest.TestCase):
 
             # THEN schemas should be generated
             assert isinstance(schemas, list)
-            assert len(schemas) > 0
+            assert len(schemas) == 9
             assert isinstance(file_paths, list)
             assert len(file_paths) == len(schemas)
 
@@ -2001,7 +2001,7 @@ class TestGenerateJsonschema(unittest.TestCase):
 
             # THEN schemas should be generated
             assert isinstance(schemas, list)
-            assert len(schemas) > 0
+            assert len(schemas) == 1
             assert isinstance(file_paths, list)
             assert len(file_paths) == len(schemas)
 
@@ -2040,8 +2040,8 @@ class TestGenerateJsonschema(unittest.TestCase):
             )
 
             # THEN schemas should be generated
-            assert len(schemas) > 0
-            assert len(file_paths) > 0
+            assert len(schemas) == 9
+            assert len(file_paths) == 9
 
             # AND files should exist
             for file_path in file_paths:
@@ -2387,8 +2387,8 @@ class TestGenerateJsonschema(unittest.TestCase):
             assert paths[0] == "./test/test.json"
 
         finally:
-            if os.path.isfile("./test.json"):
-                os.remove("./test.json")
+            if os.path.isfile("./test/test.json"):
+                os.remove("./test/test.json")
 
     def test_generate_jsonschema_exception_no_datatypes(self):
         """Test that an exception is raised when no datatypes are provided, and a JSON path is"""

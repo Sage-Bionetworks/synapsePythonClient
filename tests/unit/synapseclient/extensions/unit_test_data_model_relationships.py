@@ -5,7 +5,7 @@ import pytest
 from synapseclient.extensions.curator.schema_generation import DataModelRelationships
 
 
-class TestDataModelRelationships2:
+class TestDataModelRelationships:
     """Tests for DataModelRelationships class"""
 
     def test_define_data_model_relationships(self, dmr: DataModelRelationships):
@@ -40,7 +40,6 @@ class TestDataModelRelationships2:
             "Valid Values",
             "DependsOn",
             "Required",
-            "Parent",
             "Validation Rules",
         ]
 
@@ -65,6 +64,7 @@ class TestDataModelRelationships2:
                 "required": "Required",
                 "validationRules": "Validation Rules",
                 "isPartOf": None,
+                "IsTemplate": "IsTemplate",
                 "id": "Source",
                 "maximum": "Maximum",
                 "minimum": "Minimum",

@@ -38,6 +38,7 @@ class Helpers:
 
         # Parse Model
         parsed_data_model = data_model_parser.parse_model()
+        print(parsed_data_model["Patient"])
 
         # Instantiate DataModelGraph
         data_model_grapher = DataModelGraph(

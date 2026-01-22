@@ -684,6 +684,10 @@ class DataModelCSVParser:
                     attr_rel_dictionary[attribute_name]["Relationships"].update(
                         {relationship: parsed_rel_entry}
                     )
+            is_template_dict = self.parse_is_template(attr)
+            attr_rel_dictionary[attribute_name]["Relationships"].update(
+                is_template_dict
+            )
             if model_includes_column_type:
                 column_type_dict = self.parse_column_type(attr)
                 attr_rel_dictionary[attribute_name]["Relationships"].update(
@@ -710,6 +714,7 @@ class DataModelCSVParser:
                 attr_rel_dictionary[attribute_name]["Relationships"].update(
                     pattern_dict
                 )
+
         return attr_rel_dictionary
 
     def parse_column_type(self, attr: dict) -> dict:
@@ -850,6 +855,40 @@ class DataModelCSVParser:
         model_dict = self.gather_csv_attributes_relationships(model_df)
 
         return model_dict
+
+    def parse_is_template(self, attribute_dict: dict) -> dict[str, bool]:
+        """Parse the IsTemplate value for a given attribute.
+
+        Args:
+            attribute_dict: The attribute dictionary.
+
+        Returns:
+            dict: A dictionary containing the parsed IsTemplate value.
+
+        Raises:
+            ValueError: If the IsTemplate value is not a boolean.
+        """
+        from pandas import isna
+
+        is_template_value = attribute_dict.get("IsTemplate")
+
+        if isna(is_template_value):
+            template_value = False
+        elif isinstance(is_template_value, str):
+            if is_template_value.lower() == "true":
+                template_value = True
+            else:
+                template_value = False
+        else:
+            try:
+                template_value = bool(is_template_value)
+            except ValueError as exception:
+                raise ValueError(
+                    f"The IsTemplate value: {is_template_value} is not boolean, "
+                    "please correct this value in the data model."
+                ) from exception
+
+        return {"IsTemplate": template_value}
 
 
 class DataModelJSONLDParser:
@@ -1118,7 +1157,6 @@ class DataModelJSONLDParser:
                             attr_rel_dictionary[attr_key]["Relationships"].update(
                                 {rel_csv_header: parsed_rel_entry}
                             )
-
                 elif (
                     rel_vals["jsonld_key"] in entry.keys()
                     and not rel_vals["csv_header"]
@@ -1935,6 +1973,22 @@ class DataModelGraphExplorer:
             return self.get_node_label(node_display_name)
         raise ValueError("Either 'node_label' or 'node_display_name' must be provided.")
 
+    def get_node_is_template(
+        self, node_label: Optional[str] = None, node_display_name: Optional[str] = None
+    ) -> bool:
+        """Check if a given node is a template or not
+
+        Args:
+            node_label: Label of the node for which you need to look up.
+            node_display_name: Display name of the node for which you want look up.
+        Returns:
+            True: If the given node is a template
+        """
+        node_label = self._get_node_label(node_label, node_display_name)
+        rel_node_label = self.dmr.get_relationship_value("IsTemplate", "node_label")
+        node_is_template = self.graph.nodes[node_label][rel_node_label]
+        return node_is_template
+
 
 @dataclass_json
 @dataclass
@@ -2296,7 +2350,7 @@ class DataModelJsonLD:
                     ):
                         template[jsonld_key] = "bts:" + template[jsonld_key]
                     elif (
-                        rel_key == "required"
+                        rel_key in ["required", "IsTemplate"]
                         and rel_func == convert_bool_to_str
                         and "sms" not in str(template[jsonld_key]).lower()
                     ):
@@ -2971,6 +3025,19 @@ class DataModelRelationships:
                     "standard": convert_bool_to_str,
                 },
             },
+            "IsTemplate": {
+                "jsonld_key": "sms:IsTemplate",
+                "csv_header": "IsTemplate",
+                "node_label": "IsTemplate",
+                "type": bool,
+                "jsonld_default": "sms:false",
+                "required_header": False,
+                "edge_rel": False,
+                "node_attr_dict": {
+                    "default": False,
+                    "standard": convert_bool_to_str,
+                },
+            },
             "subClassOf": {
                 "jsonld_key": "rdfs:subClassOf",
                 "csv_header": "Parent",
@@ -2980,7 +3047,7 @@ class DataModelRelationships:
                 "jsonld_default": [{"@id": "bts:Thing"}],
                 "type": list,
                 "edge_rel": True,
-                "required_header": True,
+                "required_header": False,
             },
             "validationRules": {
                 "jsonld_key": "sms:validationRules",
@@ -5630,12 +5697,7 @@ def generate_jsonschema(
     # Gets all data types if none are specified
     if data_types is None or len(data_types) == 0:
         data_types = [
-            dmge.get_node_label(node[0])
-            for node in [
-                (k, v)
-                for k, v in parsed_data_model.items()
-                if v["Relationships"].get("Parent") == ["DataType"]
-            ]
+            node for node in dmge.find_classes() if dmge.get_node_is_template(node)
         ]
 
     if len(data_types) != 1 and output is not None and output.endswith(".json"):
