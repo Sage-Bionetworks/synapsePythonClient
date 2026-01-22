@@ -48,7 +48,7 @@ jobs:
         os: [ubuntu-20.04, macos-12, windows-2022]
 
         # if changing the below change the run-integration-tests versions and the check-deploy versions
-        python: [3.8, '3.9', '3.10', '3.11']
+        python: ['3.9', '3.10', '3.11']
 
     runs-on: ${{ matrix.os }}
 
@@ -263,7 +263,7 @@ jobs:
 
       - uses: actions/setup-python@v5
         with:
-          python-version: 3.8
+          python-version: '3.9'
 
       - name: set-release-env
         shell: bash
@@ -401,7 +401,7 @@ jobs:
         os: [ubuntu-20.04, macos-12, windows-2022]
 
         # python versions should be consistent with the strategy matrix and the runs-integration-tests versions
-        python: [3.8, '3.9', '3.10', '3.11']
+        python: ['3.9', '3.10', '3.11']
 
     runs-on: ${{ matrix.os }}
 
