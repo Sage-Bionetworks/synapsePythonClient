@@ -2102,7 +2102,6 @@ class DataModelJsonLD:
 
         class_template = ClassTemplate()
         self.class_template = json.loads(class_template.to_json())
-        self.logger = logger
 
     def get_edges_associated_with_node(
         self, node: str
@@ -2333,7 +2332,7 @@ class DataModelJsonLD:
             if rel_key:
                 rel_key = rel_key[0]
                 # If the current relationship can be defined with a 'node_attr_dict'
-                if "node_attr_dict" in self.rel_dict[rel_key].keys():
+                if "node_attr_dict" in self.rel_dict[rel_key]:
                     try:
                         # if possible pull standard function to get node information
                         rel_func = self.rel_dict[rel_key]["node_attr_dict"]["standard"]
@@ -2341,7 +2340,7 @@ class DataModelJsonLD:
                         # if not pull default function to get node information
                         rel_func = self.rel_dict[rel_key]["node_attr_dict"]["default"]
 
-                    # Add appropritae contexts that have been removed in previous steps
+                    # Add appropriate contexts that have been removed in previous steps
                     # (for JSONLD) or did not exist to begin with (csv)
                     if (
                         rel_key == "id"
@@ -2350,7 +2349,7 @@ class DataModelJsonLD:
                     ):
                         template[jsonld_key] = "bts:" + template[jsonld_key]
                     elif (
-                        rel_key in ["required", "IsTemplate"]
+                        self.rel_dict[rel_key].get("type") == bool
                         and rel_func == convert_bool_to_str
                         and "sms" not in str(template[jsonld_key]).lower()
                     ):
