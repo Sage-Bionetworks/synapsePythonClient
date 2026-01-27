@@ -165,6 +165,45 @@ class TestDataModelCsvParser:
         ):
             csv_dmp.gather_csv_attributes_relationships(model_df=model_df)
 
+    @pytest.mark.parametrize(
+        "attribute_dict, expected_dict",
+        [
+            ({}, {"IsTemplate": False}),
+            ({"IsTemplate": np.nan}, {"IsTemplate": False}),
+            ({"IsTemplate": None}, {"IsTemplate": False}),
+            ({"IsTemplate": ""}, {"IsTemplate": False}),
+            ({"IsTemplate": "false"}, {"IsTemplate": False}),
+            ({"IsTemplate": "False"}, {"IsTemplate": False}),
+            ({"IsTemplate": "FALSE"}, {"IsTemplate": False}),
+            ({"IsTemplate": False}, {"IsTemplate": False}),
+            ({"IsTemplate": "true"}, {"IsTemplate": True}),
+            ({"IsTemplate": "True"}, {"IsTemplate": True}),
+            ({"IsTemplate": "TRUE"}, {"IsTemplate": True}),
+            ({"IsTemplate": True}, {"IsTemplate": True}),
+        ],
+        ids=[
+            "empty dict",
+            "np.nan",
+            "None",
+            "empty string",
+            "false",
+            "False",
+            "FALSE",
+            "bool False",
+            "True",
+            "True",
+            "TRUE",
+            "bool True",
+        ],
+    )
+    def test_parse_is_template(
+        self,
+        csv_dmp: DataModelCSVParser,
+        attribute_dict: dict[str, Any],
+        expected_dict: dict[str, str],
+    ) -> None:
+        assert csv_dmp.parse_is_template(attribute_dict) == expected_dict
+
 
 class TestDataModelJsonLdParser:
     def test_gather_jsonld_attributes_relationships(
