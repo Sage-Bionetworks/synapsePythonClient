@@ -5699,6 +5699,14 @@ def generate_jsonschema(
             node for node in dmge.find_classes() if dmge.get_node_is_template(node)
         ]
 
+    if len(data_types) == 0:
+        msg = (
+            "No data types found in the data model. "
+            "Please ensure the data model is correctly specified. "
+            "Use the 'IsInstance' column in your data model to define data types."
+        )
+        raise ValueError(msg)
+
     if len(data_types) != 1 and output is not None and output.endswith(".json"):
         raise ValueError(
             f"Cannot write {len(data_types)} schemas to single file '{output}'. "
