@@ -5703,7 +5703,7 @@ def generate_jsonschema(
         msg = (
             "No data types found in the data model. "
             "Please ensure the data model is correctly specified. "
-            "Use the 'IsInstance' column in your data model to define data types."
+            "Use the 'IsTemplate' column in your data model to define data types."
         )
         raise ValueError(msg)
 
