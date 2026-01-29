@@ -154,7 +154,7 @@ def create_record_based_metadata_task(
 
     Arguments:
         project_id: The Synapse ID of the project where the folder exists.
-        folder_id: The Synapse ID of the folder to upload to.
+        folder_id: The Synapse ID of the folder to upload RecordSet to.
         record_set_name: Name for the RecordSet.
         record_set_description: Description for the RecordSet.
         curation_task_name: Name for the CurationTask (used as data_type field).

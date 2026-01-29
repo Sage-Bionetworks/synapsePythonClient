@@ -73,7 +73,7 @@ Use this when metadata describes individual data files and is stored as annotati
 record_set, curation_task, data_grid = create_record_based_metadata_task(
     synapse_client=syn,
     project_id="syn123456789",         # Your project ID
-    folder_id="syn987654321",          # Folder where files are stored
+    folder_id="syn987654321",          # Folder where RecordSet Entity will be stored
     record_set_name="AnimalMetadata_Records",
     record_set_description="Centralized metadata for animal study data",
     curation_task_name="AnimalMetadata_Curation", # Must be unique within the project
@@ -104,7 +104,7 @@ entity_view_id, task_id = create_file_based_metadata_task(
     folder_id="syn987654321",          # Folder containing your data files
     curation_task_name="FileMetadata_Curation", # Must be unique within the project
     instructions="Annotate each file with metadata according to the schema requirements.",
-    attach_wiki=True,                  # Creates a wiki in the folder with the entity view (Defaults to False)
+    attach_wiki=False,                 # Creates a wiki in the folder with the entity view (Defaults to False)
     entity_view_name="Animal Study Files View",
     schema_uri=schema_uri              # Schema found in Step 2
 )
