@@ -73,7 +73,7 @@ Use this when metadata describes individual data files and is stored as annotati
 record_set, curation_task, data_grid = create_record_based_metadata_task(
     synapse_client=syn,
     project_id="syn123456789",         # Your project ID
-    folder_id="syn987654321",          # Folder where files are stored
+    folder_id="syn987654321",          # Folder where RecordSet Entity will be stored
     record_set_name="AnimalMetadata_Records",
     record_set_description="Centralized metadata for animal study data",
     curation_task_name="AnimalMetadata_Curation", # Must be unique within the project
