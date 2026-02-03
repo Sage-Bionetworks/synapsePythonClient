@@ -197,7 +197,7 @@ JSON Schema output:
 
 The format of this attribute. See [format](https://json-schema.org/understanding-json-schema/reference/type#format) The type of this attribute must be "string" or "string_list". The value of this column will appear as the `format` of this attribute in the JSON Schema. Must be one of:
 
-Note: If you want your data to MATCH a regex use the `Pattern`  column. If you want your data to BE a regex pattern use this column, with the the `regex` value.
+Note: If you want your data to MATCH a regex use the `Pattern` column. If you want your data to BE a regex pattern use this column, with the the `regex` value.
 
 - `date-time`
 - `email`
