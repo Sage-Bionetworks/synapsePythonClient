@@ -18,6 +18,10 @@ from synapseclient.models.mixins import (
     ContainerEntityJSONSchema,
     StorableContainer,
 )
+from synapseclient.models.mixins.manifest import ManifestGeneratable
+from synapseclient.models.mixins.storage_location_mixin import (
+    StorageLocationConfigurable,
+)
 from synapseclient.models.protocols.folder_protocol import FolderSynchronousProtocol
 from synapseclient.models.services.search import get_id
 from synapseclient.models.services.storable_entity import store_entity
@@ -47,6 +51,8 @@ class Folder(
     AccessControllable,
     StorableContainer,
     ContainerEntityJSONSchema,
+    StorageLocationConfigurable,
+    ManifestGeneratable,
 ):
     """Folder is a hierarchical container for organizing data in Synapse.
 

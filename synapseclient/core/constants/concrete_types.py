@@ -9,7 +9,23 @@ SYNAPSE_S3_STORAGE_LOCATION_SETTING = (
 EXTERNAL_S3_STORAGE_LOCATION_SETTING = (
     "org.sagebionetworks.repo.model.project.ExternalS3StorageLocationSetting"
 )
-# EXTERNAL_GCP_STORAGE_LOCATION_SETTING = 'org.sagebionetworks.repo.model.project.ExternalGoogleCloudStorageLocationSetting'  # noqa: E501
+EXTERNAL_GCP_STORAGE_LOCATION_SETTING = (
+    "org.sagebionetworks.repo.model.project.ExternalGoogleCloudStorageLocationSetting"
+)
+EXTERNAL_STORAGE_LOCATION_SETTING = (
+    "org.sagebionetworks.repo.model.project.ExternalStorageLocationSetting"
+)
+EXTERNAL_OBJECT_STORAGE_LOCATION_SETTING = (
+    "org.sagebionetworks.repo.model.project.ExternalObjectStorageLocationSetting"
+)
+PROXY_STORAGE_LOCATION_SETTINGS = (
+    "org.sagebionetworks.repo.model.project.ProxyStorageLocationSettings"
+)
+
+# Concrete types for ProjectSettings
+UPLOAD_DESTINATION_LIST_SETTING = (
+    "org.sagebionetworks.repo.model.project.UploadDestinationListSetting"
+)
 
 # Concrete types for UploadDestinations
 SYNAPSE_S3_UPLOAD_DESTINATION = (
@@ -115,6 +131,14 @@ FILE_BASED_METADATA_TASK_PROPERTIES = (
 )
 RECORD_BASED_METADATA_TASK_PROPERTIES = (
     "org.sagebionetworks.repo.model.curation.metadata.RecordBasedMetadataTaskProperties"
+)
+
+# Download List Types
+DOWNLOAD_LIST_MANIFEST_REQUEST = (
+    "org.sagebionetworks.repo.model.download.DownloadListManifestRequest"
+)
+DOWNLOAD_LIST_MANIFEST_RESPONSE = (
+    "org.sagebionetworks.repo.model.download.DownloadListManifestResponse"
 )
 
 # Grid Session Types

@@ -5512,6 +5512,11 @@ class Synapse(object):
             "/externalFileHandle", json.dumps(file_handle), self.fileHandleEndpoint
         )
 
+    @deprecated(
+        version="4.12.0",
+        reason="To be removed in 5.0.0. "
+        "Use `synapseclient.api.post_external_s3_file_handle()` instead.",
+    )
     def create_external_s3_file_handle(
         self,
         bucket_name,
@@ -5650,7 +5655,11 @@ class Synapse(object):
     # Project/Folder storage location settings #
     ############################################
 
-    # TODO: Deprecate method in https://sagebionetworks.jira.com/browse/SYNPY-1441
+    @deprecated(
+        version="4.12.0",
+        reason="To be removed in 5.0.0. "
+        "Use `StorageLocation(...).store()` from synapseclient.models instead.",
+    )
     def createStorageLocationSetting(self, storage_type, **kwargs):
         """
         Creates an IMMUTABLE storage location based on the specified type.
@@ -5707,7 +5716,12 @@ class Synapse(object):
 
         return self.restPOST("/storageLocation", body=json.dumps(kwargs))
 
-    # TODO: Deprecate method in https://sagebionetworks.jira.com/browse/SYNPY-1441
+    @deprecated(
+        version="4.12.0",
+        reason="To be removed in 5.0.0. "
+        "Use `StorageLocation(storage_location_id=id).get()` from "
+        "synapseclient.models instead.",
+    )
     def getMyStorageLocationSetting(self, storage_location_id):
         """
         Get a StorageLocationSetting by its id.
@@ -5721,7 +5735,12 @@ class Synapse(object):
         """
         return self.restGET("/storageLocation/%s" % storage_location_id)
 
-    # TODO: Deprecate method in https://sagebionetworks.jira.com/browse/SYNPY-1441
+    @deprecated(
+        version="4.12.0",
+        reason="To be removed in 5.0.0. "
+        "Use `Folder(id=...).set_storage_location(...)` or "
+        "`Project(id=...).set_storage_location(...)` from synapseclient.models instead.",
+    )
     def setStorageLocation(self, entity, storage_location_id):
         """
         Sets the storage location for a Project or Folder
@@ -5759,7 +5778,12 @@ class Synapse(object):
                 "/projectSettings", body=json.dumps(project_destination)
             )
 
-    # TODO: Deprecate method in https://sagebionetworks.jira.com/browse/SYNPY-1441
+    @deprecated(
+        version="4.12.0",
+        reason="To be removed in 5.0.0. "
+        "Use `Folder(id=...).get_project_setting(...)` or "
+        "`Project(id=...).get_project_setting(...)` from synapseclient.models instead.",
+    )
     def getProjectSetting(self, project, setting_type):
         """
         Gets the ProjectSetting for a project.
@@ -5787,7 +5811,12 @@ class Synapse(object):
             response if response else None
         )  # if no project setting, a empty string is returned as the response
 
-    # TODO: Deprecate method in https://sagebionetworks.jira.com/browse/SYNPY-1441
+    @deprecated(
+        version="4.12.0",
+        reason="To be removed in 5.0.0. "
+        "Use `Folder(id=...).get_sts_storage_token(...)` or "
+        "`Project(id=...).get_sts_storage_token(...)` from synapseclient.models instead.",
+    )
     def get_sts_storage_token(
         self, entity, permission, *, output_format="json", min_remaining_life=None
     ):
@@ -5820,7 +5849,11 @@ class Synapse(object):
             min_remaining_life=min_remaining_life,
         )
 
-    # TODO: Deprecate method in https://sagebionetworks.jira.com/browse/SYNPY-1441
+    @deprecated(
+        version="4.12.0",
+        reason="To be removed in 5.0.0. "
+        "Use `StorageLocation.setup_s3(...)` from synapseclient.models instead.",
+    )
     def create_s3_storage_location(
         self,
         *,
@@ -5862,7 +5895,11 @@ class Synapse(object):
             )
         )
 
-    # TODO: Deprecate method in https://sagebionetworks.jira.com/browse/SYNPY-1441
+    @deprecated(
+        version="4.12.0",
+        reason="To be removed in 5.0.0. "
+        "Use `StorageLocation.setup_s3_async(...)` from synapseclient.models instead.",
+    )
     async def create_s3_storage_location_async(
         self,
         *,

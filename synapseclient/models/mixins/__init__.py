@@ -20,11 +20,20 @@ from synapseclient.models.mixins.json_schema import (
     JSONSchemaValidationStatistics,
     ValidationException,
 )
+from synapseclient.models.mixins.manifest import (
+    DEFAULT_GENERATED_MANIFEST_KEYS,
+    MANIFEST_FILENAME,
+    ManifestGeneratable,
+)
 from synapseclient.models.mixins.storable_container import StorableContainer
+from synapseclient.models.mixins.storage_location_mixin import (
+    StorageLocationConfigurable,
+)
 
 __all__ = [
     "AccessControllable",
     "StorableContainer",
+    "StorageLocationConfigurable",
     "AsynchronousCommunicator",
     "BaseJSONSchema",
     "ContainerEntityJSONSchema",
@@ -40,4 +49,7 @@ __all__ = [
     "FormChangeRequest",
     "FormSubmissionStatus",
     "StateEnum",
+    "ManifestGeneratable",
+    "MANIFEST_FILENAME",
+    "DEFAULT_GENERATED_MANIFEST_KEYS",
 ]

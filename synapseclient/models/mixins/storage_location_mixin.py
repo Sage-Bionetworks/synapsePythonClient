@@ -1,0 +1,450 @@
+"""Mixin for entities that can have their storage location configured."""
+
+import asyncio
+from typing import Any, Dict, List, Optional, Union
+
+from synapseclient import Synapse
+from synapseclient.api.storage_location_services import (
+    create_project_setting,
+    delete_project_setting,
+    get_project_setting,
+    update_project_setting,
+)
+from synapseclient.core.async_utils import async_to_sync, otel_trace_method
+from synapseclient.core.constants import concrete_types
+from synapseclient.models.protocols.storage_location_mixin_protocol import (
+    StorageLocationConfigurableSynchronousProtocol,
+)
+from synapseclient.models.services.migration import (
+    index_files_for_migration_async as _index_files_for_migration_async,
+)
+from synapseclient.models.services.migration import (
+    migrate_indexed_files_async as _migrate_indexed_files_async,
+)
+from synapseclient.models.services.migration_types import MigrationResult
+
+# Default storage location ID used by Synapse
+DEFAULT_STORAGE_LOCATION_ID = 1
+
+
+@async_to_sync
+class StorageLocationConfigurable(StorageLocationConfigurableSynchronousProtocol):
+    """Mixin for objects that can have their storage location configured.
+
+    In order to use this mixin, the class must have an `id` attribute.
+
+    This mixin provides methods for:
+    - Setting and getting the upload storage location for an entity
+    - Getting STS (AWS Security Token Service) credentials for direct S3 access
+    - Migrating files to a new storage location
+    """
+
+    id: Optional[str] = None
+    """The unique immutable ID for this entity."""
+
+    @otel_trace_method(
+        method_to_trace_name=lambda self, **kwargs: f"Entity_SetStorageLocation: {self.id}"
+    )
+    async def set_storage_location_async(
+        self,
+        storage_location_id: Optional[Union[int, List[int]]] = None,
+        *,
+        synapse_client: Optional[Synapse] = None,
+    ) -> Dict[str, Any]:
+        """Set the upload storage location for this entity. This configures where
+        files uploaded to this entity will be stored.
+
+        Arguments:
+            storage_location_id: The storage location ID(s) to set. Can be a single
+                ID, a list of IDs (first is default, max 10), or None to use
+                Synapse default storage.
+            synapse_client: If not passed in and caching was not disabled by
+                `Synapse.allow_client_caching(False)` this will use the last created
+                instance from the Synapse class constructor.
+
+        Returns:
+            The project setting dict returned from Synapse.
+
+        Raises:
+            ValueError: If the entity does not have an id set.
+
+        Example: Using this function
+            Set storage location on a folder:
+
+                import asyncio
+                from synapseclient import Synapse
+                from synapseclient.models import Folder
+
+                syn = Synapse()
+                syn.login()
+
+                async def main():
+                    folder = await Folder(id="syn123").get_async()
+                    setting = await folder.set_storage_location_async(
+                        storage_location_id=12345
+                    )
+                    print(setting)
+
+                asyncio.run(main())
+        """
+        if not self.id:
+            raise ValueError("The entity must have an id set.")
+
+        if storage_location_id is None:
+            storage_location_id = DEFAULT_STORAGE_LOCATION_ID
+
+        locations = (
+            storage_location_id
+            if isinstance(storage_location_id, list)
+            else [storage_location_id]
+        )
+
+        existing_setting = await get_project_setting(
+            project_id=self.id,
+            setting_type="upload",
+            synapse_client=synapse_client,
+        )
+
+        if existing_setting is not None:
+            existing_setting["locations"] = locations
+            await update_project_setting(
+                body=existing_setting,
+                synapse_client=synapse_client,
+            )
+            return await get_project_setting(
+                project_id=self.id,
+                setting_type="upload",
+                synapse_client=synapse_client,
+            )
+        else:
+            project_destination = {
+                "concreteType": concrete_types.UPLOAD_DESTINATION_LIST_SETTING,
+                "settingsType": "upload",
+                "locations": locations,
+                "projectId": self.id,
+            }
+            return await create_project_setting(
+                body=project_destination,
+                synapse_client=synapse_client,
+            )
+
+    @otel_trace_method(
+        method_to_trace_name=lambda self, **kwargs: f"Entity_GetProjectSetting: {self.id}"
+    )
+    async def get_project_setting_async(
+        self,
+        setting_type: str = "upload",
+        *,
+        synapse_client: Optional[Synapse] = None,
+    ) -> Optional[Dict[str, Any]]:
+        """Get the project setting for this entity.
+
+        Arguments:
+            setting_type: The type of setting to retrieve. One of:
+                'upload', 'external_sync', 'requester_pays'. Default: 'upload'.
+            synapse_client: If not passed in and caching was not disabled by
+                `Synapse.allow_client_caching(False)` this will use the last created
+                instance from the Synapse class constructor.
+
+        Returns:
+            The project setting as a dictionary, or None if no setting exists.
+
+        Raises:
+            ValueError: If the entity does not have an id set.
+
+        Example: Using this function
+            Get the upload settings for a folder:
+
+                import asyncio
+                from synapseclient import Synapse
+                from synapseclient.models import Folder
+
+                syn = Synapse()
+                syn.login()
+
+                async def main():
+                    folder = await Folder(id="syn123").get_async()
+                    setting = await folder.get_project_setting_async(setting_type="upload")
+                    if setting:
+                        print(f"Storage locations: {setting.get('locations')}")
+
+                asyncio.run(main())
+        """
+        if not self.id:
+            raise ValueError("The entity must have an id set.")
+
+        if setting_type not in {"upload", "external_sync", "requester_pays"}:
+            raise ValueError(f"Invalid setting_type: {setting_type}")
+
+        return await get_project_setting(
+            project_id=self.id,
+            setting_type=setting_type,
+            synapse_client=synapse_client,
+        )
+
+    @otel_trace_method(
+        method_to_trace_name=lambda self, **kwargs: f"Entity_DeleteProjectSetting: {self.id}"
+    )
+    async def delete_project_setting_async(
+        self,
+        setting_id: str,
+        *,
+        synapse_client: Optional[Synapse] = None,
+    ) -> None:
+        """Delete a project setting by its setting ID.
+
+        Arguments:
+            setting_id: The ID of the project setting to delete.
+            synapse_client: If not passed in and caching was not disabled by
+                `Synapse.allow_client_caching(False)` this will use the last created
+                instance from the Synapse class constructor.
+
+        Returns:
+            None
+
+        Raises:
+            ValueError: If the entity does not have an id set.
+
+        Example: Using this function
+            Delete the upload settings for a folder:
+
+                import asyncio
+                from synapseclient import Synapse
+                from synapseclient.models import Folder
+
+                syn = Synapse()
+                syn.login()
+
+                async def main():
+                    folder = await Folder(id="syn123").get_async()
+                    setting = await folder.get_project_setting_async(setting_type="upload")
+                    if setting:
+                        await folder.delete_project_setting_async(setting_id=setting['id'])
+
+                asyncio.run(main())
+        """
+        if not self.id:
+            raise ValueError("The entity must have an id set.")
+
+        await delete_project_setting(
+            setting_id=setting_id,
+            synapse_client=synapse_client,
+        )
+
+    @otel_trace_method(
+        method_to_trace_name=lambda self, **kwargs: f"Entity_GetStsStorageToken: {self.id}"
+    )
+    async def get_sts_storage_token_async(
+        self,
+        permission: str,
+        *,
+        output_format: str = "json",
+        min_remaining_life: Optional[int] = None,
+        synapse_client: Optional[Synapse] = None,
+    ) -> Any:
+        """Get STS (AWS Security Token Service) credentials for direct access to
+        the storage location backing this entity. These credentials can be used
+        with AWS tools like awscli and boto3.
+
+        Arguments:
+            permission: The permission level for the token. Must be 'read_only'
+                or 'read_write'.
+            output_format: The output format for the credentials. Options:
+                'json' (default), 'boto', 'shell', 'bash', 'cmd', 'powershell'.
+            min_remaining_life: The minimum remaining life (in seconds) for a
+                cached token before a new one is fetched.
+            synapse_client: If not passed in and caching was not disabled by
+                `Synapse.allow_client_caching(False)` this will use the last created
+                instance from the Synapse class constructor.
+
+        Returns:
+            The STS credentials in the requested format.
+
+        Raises:
+            ValueError: If the entity does not have an id set.
+
+        Example: Using credentials with boto3
+            Get STS credentials for an STS-enabled folder and use with boto3:
+
+                import asyncio
+                import boto3
+                from synapseclient import Synapse
+                from synapseclient.models import Folder
+
+                syn = Synapse()
+                syn.login()
+
+                async def main():
+                    folder = await Folder(id="syn123").get_async()
+                    credentials = await folder.get_sts_storage_token_async(
+                        permission="read_write",
+                        output_format="boto",
+                    )
+                    s3_client = boto3.client('s3', **credentials)
+
+                asyncio.run(main())
+        """
+        if not self.id:
+            raise ValueError("The entity must have an id set.")
+
+        from synapseclient.core import sts_transfer
+
+        client = Synapse.get_client(synapse_client=synapse_client)
+
+        return await asyncio.to_thread(
+            sts_transfer.get_sts_credentials,
+            client,
+            self.id,
+            permission,
+            output_format=output_format,
+            min_remaining_life=min_remaining_life,
+        )
+
+    @otel_trace_method(
+        method_to_trace_name=lambda self, **kwargs: f"Entity_IndexFilesForMigration: {self.id}"
+    )
+    async def index_files_for_migration_async(
+        self,
+        dest_storage_location_id: int,
+        db_path: Optional[str] = None,
+        *,
+        source_storage_location_ids: Optional[List[int]] = None,
+        file_version_strategy: str = "new",
+        include_table_files: bool = False,
+        continue_on_error: bool = False,
+        synapse_client: Optional[Synapse] = None,
+    ) -> MigrationResult:
+        """Index files in this entity for migration to a new storage location.
+
+        This is the first step in migrating files to a new storage location.
+        After indexing, use `migrate_indexed_files` to perform the actual migration.
+
+        Arguments:
+            dest_storage_location_id: The destination storage location ID.
+            db_path: Path to the SQLite database file for tracking migration state.
+                If not provided, a temporary directory will be used. The path
+                can be retrieved from the returned MigrationResult.db_path.
+            source_storage_location_ids: Optional list of source storage location IDs
+                to filter which files to migrate. If None, all files are indexed.
+            file_version_strategy: Strategy for handling file versions. Options:
+                'new' (default) - create new versions, 'all' - migrate all versions,
+                'latest' - only migrate latest version, 'skip' - skip if file exists.
+            include_table_files: Whether to include files attached to tables.
+            continue_on_error: Whether to continue indexing if an error occurs.
+            synapse_client: If not passed in and caching was not disabled by
+                `Synapse.allow_client_caching(False)` this will use the last created
+                instance from the Synapse class constructor.
+
+        Returns:
+            A MigrationResult object containing indexing statistics and the database
+            path (accessible via result.db_path).
+
+        Example: Indexing files for migration
+            Index files in a project for migration:
+
+                import asyncio
+                from synapseclient import Synapse
+                from synapseclient.models import Project
+
+                syn = Synapse()
+                syn.login()
+
+                async def main():
+                    project = await Project(id="syn123").get_async()
+                    result = await project.index_files_for_migration_async(
+                        dest_storage_location_id=12345,
+                    )
+                    print(f"Database path: {result.db_path}")
+                    print(f"Indexed {result.counts_by_status}")
+
+                asyncio.run(main())
+        """
+        if not self.id:
+            raise ValueError("The entity must have an id set.")
+
+        return await _index_files_for_migration_async(
+            entity_id=self.id,
+            dest_storage_location_id=str(dest_storage_location_id),
+            db_path=db_path,
+            source_storage_location_ids=(
+                [str(s) for s in source_storage_location_ids]
+                if source_storage_location_ids
+                else None
+            ),
+            file_version_strategy=file_version_strategy,
+            include_table_files=include_table_files,
+            continue_on_error=continue_on_error,
+            synapse_client=synapse_client,
+        )
+
+    @otel_trace_method(
+        method_to_trace_name=lambda self, **kwargs: f"Entity_MigrateIndexedFiles: {self.id}"
+    )
+    async def migrate_indexed_files_async(
+        self,
+        db_path: str,
+        *,
+        create_table_snapshots: bool = True,
+        continue_on_error: bool = False,
+        force: bool = False,
+        synapse_client: Optional[Synapse] = None,
+    ) -> Optional[MigrationResult]:
+        """Migrate files that have been indexed with `index_files_for_migration`.
+
+        This is the second step in migrating files to a new storage location.
+        Files must first be indexed using `index_files_for_migration`.
+
+        Arguments:
+            db_path: Path to the SQLite database file created by
+                `index_files_for_migration`. You can get this from the
+                MigrationResult.db_path returned by index_files_for_migration.
+            create_table_snapshots: Whether to create table snapshots before
+                migrating table files.
+            continue_on_error: Whether to continue migration if an error occurs.
+            force: Whether to force migration of files that have already been
+                migrated. Also bypasses interactive confirmation.
+            synapse_client: If not passed in and caching was not disabled by
+                `Synapse.allow_client_caching(False)` this will use the last created
+                instance from the Synapse class constructor.
+
+        Returns:
+            A MigrationResult object containing migration statistics, or None
+            if the user declined the confirmation prompt.
+
+        Example: Migrating indexed files
+            Migrate previously indexed files:
+
+                import asyncio
+                from synapseclient import Synapse
+                from synapseclient.models import Project
+
+                syn = Synapse()
+                syn.login()
+
+                async def main():
+                    project = await Project(id="syn123").get_async()
+
+                    # Index first
+                    index_result = await project.index_files_for_migration_async(
+                        dest_storage_location_id=12345,
+                    )
+
+                    # Then migrate using the db_path from index result
+                    result = await project.migrate_indexed_files_async(
+                        db_path=index_result.db_path,
+                        force=True,  # Skip interactive confirmation
+                    )
+                    print(f"Migrated {result.counts_by_status}")
+
+                asyncio.run(main())
+        """
+        if not self.id:
+            raise ValueError("The entity must have an id set.")
+
+        return await _migrate_indexed_files_async(
+            db_path=db_path,
+            create_table_snapshots=create_table_snapshots,
+            continue_on_error=continue_on_error,
+            force=force,
+            synapse_client=synapse_client,
+        )
