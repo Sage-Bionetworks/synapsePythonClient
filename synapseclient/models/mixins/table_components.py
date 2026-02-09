@@ -138,9 +138,23 @@ def row_labels_from_rows(rows: List[Row]) -> List[Row]:
     )
 
 
+# class EllipsisJSONEncoder(json.JSONEncoder):
+#     """Custom JSON encoder that handles Ellipsis and pandas NA objects by converting them to strings."""
+#     def default(self, obj):
+#         if obj is ...:
+#             return "..."
+#         # Handle pandas NA types
+#         import pandas as pd
+#         if obj is pd.NA or (hasattr(obj, '__class__') and obj.__class__.__name__ == 'NAType'):
+#             return None
+#         return super().default(obj)
+
+
 def convert_dtypes_to_json_serializable(df):
     """
     Convert the dtypes of the int64 and float64 columns to object columns which are JSON serializable types.
+    Convert the list and dict columns to JSON strings which are JSON serializable types.
+    Replace both Ellipsis and pandas NA within nested structures which are not JSON serializable types.
     Also, convert the ROW_ID, ROW_VERSION, and ROW_ID.1 columns to int columns which are JSON serializable types.
     Arguments:
         df: The dataframe to convert the dtypes of.
@@ -163,6 +177,29 @@ def convert_dtypes_to_json_serializable(df):
             "datetime_list_col": [[datetime(2021, 1, 1), datetime(2021, 1, 2), datetime(2021, 1, 3)], [datetime(2021, 1, 4), datetime(2021, 1, 5), datetime(2021, 1, 6)], None, [datetime(2021, 1, 7), datetime(2021, 1, 8), datetime(2021, 1, 9)]],
             "entityid_list_col": [["syn123", "syn456", None], ["syn101", "syn102", "syn103"], None, ["syn104", "syn105", "syn106"]],
             "userid_list_col": [["user1", "user2", "user3"], ["user4", "user5", None], None, ["user7", "user8", "user9"]],
+            "json_col_with_quotes": [
+                {
+                    "id": 1,
+                    "description": 'Text with "quotes" in the description field',
+                    "references": []
+                },
+                {
+                    "id": 2,
+                    "description": 'Another description with "quoted text" here',`
+                    "references": ["ref1", "ref2"]
+                },
+                {
+                    "id": 3,
+                    "description": 'Description containing "multiple" quoted "words"',
+                    "references": [...]
+                }
+                {
+                    "id": 4,
+                    "description": 'Description containing apostrophes sage\'s',
+                    "references": [...]
+                }
+
+            ],
         }).convert_dtypes()
         df = convert_dtypes_to_json_serializable(df)
         print(df)
@@ -170,9 +207,6 @@ def convert_dtypes_to_json_serializable(df):
     import pandas as pd
 
     for col in df.columns:
-        df[col] = (
-            df[col].replace({pd.NA: None}).astype(object)
-        )  # this will convert the int64 and float64 columns to object columns
         # Convert ROW_ prefixed columns back to int (like ROW_ID, ROW_VERSION)
         if col in [
             "ROW_ID",
@@ -180,6 +214,49 @@ def convert_dtypes_to_json_serializable(df):
             "ROW_ID.1",
         ]:  # ROW_ID.1 is the temporary row id to constrct row to upsert
             df[col] = df[col].astype(int)
+
+        # Check if any values in the column are lists, dicts, or JSON strings, and serialize them to JSON
+        if df[col].notna().any():
+            sample_values = df[col].dropna()
+            if len(sample_values):
+
+                def _serialize_json_value(x):
+                    if x is None:
+                        return None
+                    # Serialize lists and dicts to JSON using custom encoder for Ellipsis handling
+                    if isinstance(x, (list, dict)):
+                        # Replace both Ellipsis and pd.NA within nested structures
+                        def _reformat_special_values(obj):
+                            if obj is ...:
+                                return "..."
+                            # Handle pandas NA - check type name to avoid array ambiguity
+                            if obj is pd.NA:
+                                return None
+                            if isinstance(obj, dict):
+                                return {
+                                    k: _reformat_special_values(v)
+                                    for k, v in obj.items()
+                                }
+                            if isinstance(obj, list):
+                                return [_reformat_special_values(item) for item in obj]
+                            return obj
+
+                        cleaned_x = _reformat_special_values(x)
+                        return json.dumps(cleaned_x, ensure_ascii=False).replace(
+                            '\\"', "\\'"
+                        )
+
+                    # Handle standalone ellipsis
+                    if x is ...:
+                        return "..."
+                    return x
+
+                df[col] = df[col].apply(lambda x: _serialize_json_value(x))
+
+                # restore the original values of the column especially for the int64 and float64 columns since apply function changes the dtype
+                df[col] = df[col].convert_dtypes()
+                # convert the int64 and float64 columns to object columns which are JSON serializable types
+                df[col] = df[col].replace({pd.NA: None}).astype(object)
     return df
 
 
@@ -4031,8 +4108,9 @@ class TableStoreRowMixin:
             to_csv_kwargs: Additional arguments to pass to the `pd.DataFrame.to_csv`
                 function when writing the data to a CSV file.
         """
+        # Serializes dict/list values to JSON strings
+        df = convert_dtypes_to_json_serializable(df)
         # Loop over the rows of the DF to determine the size/boundries we'll be uploading
-
         chunks_to_upload = []
         size_of_chunk = 0
         buffer = BytesIO()
