@@ -1,5 +1,9 @@
 from synapseclient import Synapse
-from synapseclient.extensions.curator import generate_jsonschema
+from synapseclient.extensions.curator import (
+    bind_jsonschema,
+    generate_jsonschema,
+    register_jsonschema,
+)
 
 # Path or URL to your data model (CSV or JSONLD format)
 # Example: "path/to/my_data_model.csv" or "https://raw.githubusercontent.com/example.csv"
@@ -52,3 +56,23 @@ schemas, file_paths = generate_jsonschema(
     data_types=DATA_TYPE,
     synapse_client=syn,
 )
+
+# Register a JSON Schema to Synapse
+schema_uri, message = register_jsonschema(
+    schema_path="temp/Patient.json",  # Path to the generated JSON Schema file
+    organization_name="my.organization",  # Your Synapse organization name
+    schema_name="patient.schema",  # Name for the schema
+    schema_version="0.0.1",  # Optional version number
+    synapse_client=syn,
+)
+print(message)
+print(f"Registered schema URI: {schema_uri}")
+
+# Bind a JSON Schema to a Synapse entity
+result = bind_jsonschema(
+    entity_id="syn12345678",  # Replace with your entity ID (file, folder, etc.)
+    json_schema_uri=schema_uri,  # URI from the registration step above
+    enable_derived_annotations=True,  # Enable auto-population of metadata
+    synapse_client=syn,
+)
+print(f"Successfully bound schema to entity: {result}")
