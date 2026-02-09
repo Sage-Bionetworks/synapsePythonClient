@@ -1013,11 +1013,11 @@ class TestBindJSONSchemaFunction:
         # THEN enable_derived_annotations should be True
         assert args.enable_derived_annotations is True
 
-    @patch("asyncio.run")
-    def test_bind_json_schema_calls_api(self, mock_asyncio_run):
-        """Test that bind_json_schema calls the API correctly."""
-        # GIVEN a mocked API response
-        mock_asyncio_run.return_value = {"entityId": "syn12345678"}
+    @patch("synapseclient.__main__.bind_jsonschema")
+    def test_bind_json_schema_calls_wrapper(self, mock_bind_jsonschema):
+        """Test that bind_json_schema calls the wrapper function correctly."""
+        # GIVEN a mocked wrapper response
+        mock_bind_jsonschema.return_value = {"entityId": "syn12345678"}
         parser = cmdline.build_parser()
         args = parser.parse_args(
             [
@@ -1029,5 +1029,10 @@ class TestBindJSONSchemaFunction:
         )
         # WHEN I call bind_json_schema
         cmdline.bind_json_schema(args, self.syn)
-        # THEN asyncio.run should be called once
-        mock_asyncio_run.assert_called_once()
+        # THEN bind_jsonschema should be called with correct arguments
+        mock_bind_jsonschema.assert_called_once_with(
+            entity_id="syn12345678",
+            json_schema_uri="my.org-schema.name-1.0.0",
+            enable_derived_annotations=True,
+            synapse_client=self.syn,
+        )
