@@ -127,11 +127,16 @@ def bind_jsonschema(
         ```
     """
     from synapseclient import Synapse
+    from synapseclient.operations import FileOptions, get
 
     syn = Synapse.get_client(synapse_client=synapse_client)
 
     # Get the entity (File, Folder, or Project)
-    entity = syn.get(entity_id, downloadFile=False)
+    entity = get(
+        file_options=FileOptions(download_file=False),
+        synapse_id=entity_id,
+        synapse_client=syn,
+    )
 
     # Bind the schema using the entity's bind_schema method
     result = entity.bind_schema(
