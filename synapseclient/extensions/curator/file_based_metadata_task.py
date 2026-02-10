@@ -298,6 +298,7 @@ def create_file_based_metadata_task(
     entity_view_name: str = "JSON Schema view",
     schema_uri: Optional[str] = None,
     enable_derived_annotations: bool = False,
+    assignee_principal_id: Optional[str] = None,
     *,
     synapse_client: Optional[Synapse] = None,
 ) -> Tuple[str, str]:
@@ -322,7 +323,8 @@ def create_file_based_metadata_task(
             instructions="Please curate this metadata according to the schema requirements",
             attach_wiki=False,
             entity_view_name="Biospecimen Metadata View",
-            schema_uri="sage.schemas.v2571-amp.Biospecimen.schema-0.0.1"
+            schema_uri="sage.schemas.v2571-amp.Biospecimen.schema-0.0.1",
+            assignee_principal_id="123456"  # Optional: Assign to a user or team
         )
         ```
 
@@ -338,6 +340,11 @@ def create_file_based_metadata_task(
             the schema will be bound to the folder before creating the entity view.
             (e.g., 'sage.schemas.v2571-amp.Biospecimen.schema-0.0.1')
         enable_derived_annotations: If true, enable derived annotations. Defaults to False.
+        assignee_principal_id: The principal ID of the user or team to assign to this
+            curation task. If None (default), the task will be unassigned. For metadata
+            tasks, this determines the owner of the grid session. Team members can all
+            join grid sessions owned by their team, while user-owned grid sessions are
+            restricted to that user only.
         synapse_client: If not passed in and caching was not disabled by
                 `Synapse.allow_client_caching(False)` this will use the last created
                 instance from the Synapse class constructor.
@@ -445,6 +452,7 @@ def create_file_based_metadata_task(
             data_type=task_datatype,
             project_id=project.id,
             instructions=instructions,
+            assignee_principal_id=assignee_principal_id,
             task_properties=FileBasedMetadataTaskProperties(
                 upload_folder_id=folder_id,
                 file_view_id=entity_view_id,

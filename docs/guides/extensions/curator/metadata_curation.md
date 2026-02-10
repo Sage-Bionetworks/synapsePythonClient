@@ -107,7 +107,8 @@ entity_view_id, task_id = create_file_based_metadata_task(
     instructions="Annotate each file with metadata according to the schema requirements.",
     attach_wiki=False,                 # Creates a wiki in the folder with the entity view (Defaults to False)
     entity_view_name="Animal Study Files View",
-    schema_uri=schema_uri              # Schema found in Step 2
+    schema_uri=schema_uri,             # Schema found in Step 2
+    assignee_principal_id="123456"     # Optional: Assign to a user or team
 )
 
 print(f"Created EntityView: {entity_view_id}")
@@ -173,7 +174,8 @@ entity_view_id, task_id = create_file_based_metadata_task(
     instructions="Annotate each file with complete metadata according to schema.",
     attach_wiki=True,
     entity_view_name="Animal Study Files View",
-    schema_uri=schema_uri
+    schema_uri=schema_uri,
+    assignee_principal_id="123456"  # Optional: Assign to a user or team
 )
 
 print(f"File-based workflow created:")
