@@ -10,6 +10,7 @@ from typing import TYPE_CHECKING, Optional
 
 if TYPE_CHECKING:
     from synapseclient import Synapse
+    from synapseclient.models.schema_organization import JSONSchema
 
 
 def register_jsonschema(
@@ -18,7 +19,7 @@ def register_jsonschema(
     schema_name: str,
     schema_version: Optional[str] = None,
     synapse_client: Optional["Synapse"] = None,
-) -> str:
+) -> "JSONSchema":
     """
     Register a JSON schema to a Synapse organization.
 
@@ -36,7 +37,7 @@ def register_jsonschema(
                        instance from the Synapse class constructor
 
     Returns:
-        The URI of the registered schema
+        The registered JSONSchema object
 
     Example: Register a JSON schema
         ```python
@@ -46,14 +47,15 @@ def register_jsonschema(
         syn = Synapse()
         syn.login()
 
-        schema_uri = register_jsonschema(
+        json_schema = register_jsonschema(
             schema_path="/path/to/schema.json",
             organization_name="my.org",
             schema_name="my.schema",
             schema_version="0.0.1",
             synapse_client=syn
         )
-        print(f"Registered schema URI: {schema_uri}")
+        print(f"Registered schema URI: {json_schema.uri}")
+        print(f"Schema version: {json_schema.version}")
         ```
     """
     from synapseclient import Synapse
@@ -75,16 +77,13 @@ def register_jsonschema(
         synapse_client=syn,
     )
 
-    # Get the schema URI from the JSONSchema object
-    schema_uri = json_schema.uri
-
     # Log success message
     syn.logger.info(
         f"Successfully registered schema '{schema_name}' to organization '{organization_name}'"
     )
-    syn.logger.info(f"Schema URI: {schema_uri}")
+    syn.logger.info(f"Schema URI: {json_schema.uri}")
 
-    return schema_uri
+    return json_schema
 
 
 def bind_jsonschema(
