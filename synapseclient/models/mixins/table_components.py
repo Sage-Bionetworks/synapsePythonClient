@@ -207,14 +207,6 @@ def convert_dtypes_to_json_serializable(df):
     import pandas as pd
 
     for col in df.columns:
-        # Convert ROW_ prefixed columns back to int (like ROW_ID, ROW_VERSION)
-        if col in [
-            "ROW_ID",
-            "ROW_VERSION",
-            "ROW_ID.1",
-        ]:  # ROW_ID.1 is the temporary row id to constrct row to upsert
-            df[col] = df[col].astype(int)
-
         # Check if any values in the column are lists, dicts, or JSON strings, and serialize them to JSON
         if df[col].notna().any():
             sample_values = df[col].dropna()
@@ -257,6 +249,14 @@ def convert_dtypes_to_json_serializable(df):
                 df[col] = df[col].convert_dtypes()
                 # convert the int64 and float64 columns to object columns which are JSON serializable types
                 df[col] = df[col].replace({pd.NA: None}).astype(object)
+
+        # Convert ROW_ prefixed columns back to int (like ROW_ID, ROW_VERSION)
+        if col in [
+            "ROW_ID",
+            "ROW_VERSION",
+            "ROW_ID.1",
+        ]:  # ROW_ID.1 is the temporary row id to constrct row to upsert
+            df[col] = df[col].astype(int)
     return df
 
 
