@@ -130,29 +130,15 @@ def bind_jsonschema(
 
     syn = Synapse.get_client(synapse_client=synapse_client)
 
-    # Get the entity to determine its type and use its bind_schema method
+    # Get the entity (File, Folder, or Project)
     entity = syn.get(entity_id, downloadFile=False)
 
-    # Use the entity's bind_schema method if available (new OOP models)
-    if hasattr(entity, "bind_schema"):
-        result = entity.bind_schema(
-            json_schema_uri=json_schema_uri,
-            enable_derived_annotations=enable_derived_annotations,
-            synapse_client=syn,
-        )
-    else:
-        # Fallback to direct API call for old-style entities
-        from synapseclient.api.json_schema_services import bind_json_schema_to_entity
-        import asyncio
-
-        result = asyncio.run(
-            bind_json_schema_to_entity(
-                synapse_id=entity_id,
-                json_schema_uri=json_schema_uri,
-                enable_derived_annotations=enable_derived_annotations,
-                synapse_client=syn,
-            )
-        )
+    # Bind the schema using the entity's bind_schema method
+    result = entity.bind_schema(
+        json_schema_uri=json_schema_uri,
+        enable_derived_annotations=enable_derived_annotations,
+        synapse_client=syn,
+    )
 
     # Convert result to dictionary format for consistent return type
     if hasattr(result, "__dict__"):
