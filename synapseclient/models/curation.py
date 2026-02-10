@@ -466,6 +466,11 @@ class CurationTask(CurationTaskSynchronousProtocol):
     modified_by: Optional[str] = None
     """(Read Only) The ID of the user that last modified this task"""
 
+    assignee_principal_id: Optional[str] = None
+    """The principal ID of the user or team assigned to this task. Null if unassigned. For metadata
+    tasks, determines the owner of the grid session. Team members can all join grid sessions
+    owned by their team, while user-owned grid sessions are restricted to that user only."""
+
     _last_persistent_instance: Optional["CurationTask"] = field(
         default=None, repr=False, compare=False
     )
@@ -510,6 +515,7 @@ class CurationTask(CurationTaskSynchronousProtocol):
         self.modified_on = synapse_response.get("modifiedOn", None)
         self.created_by = synapse_response.get("createdBy", None)
         self.modified_by = synapse_response.get("modifiedBy", None)
+        self.assignee_principal_id = synapse_response.get("assigneePrincipalId", None)
 
         task_properties_dict = synapse_response.get("taskProperties", None)
         if task_properties_dict:
@@ -536,6 +542,7 @@ class CurationTask(CurationTaskSynchronousProtocol):
         request_dict["modifiedOn"] = self.modified_on
         request_dict["createdBy"] = self.created_by
         request_dict["modifiedBy"] = self.modified_by
+        request_dict["assigneePrincipalId"] = self.assignee_principal_id
 
         if self.task_properties is not None:
             request_dict["taskProperties"] = self.task_properties.to_synapse_request()

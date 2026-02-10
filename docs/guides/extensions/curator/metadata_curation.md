@@ -80,7 +80,8 @@ record_set, curation_task, data_grid = create_record_based_metadata_task(
     upsert_keys=["StudyKey"],          # Fields that uniquely identify records
     instructions="Complete all required fields according to the schema. Use StudyKey to link records to your data files.",
     schema_uri=schema_uri,             # Schema found in Step 2
-    bind_schema_to_record_set=True
+    bind_schema_to_record_set=True,
+    assignee_principal_id="123456"     # Optional: Assign to a user or team
 )
 
 print(f"Created RecordSet: {record_set.id}")
@@ -156,7 +157,8 @@ record_set, curation_task, data_grid = create_record_based_metadata_task(
     upsert_keys=["StudyKey"],
     instructions="Complete metadata for all study animals using StudyKey to link records to data files.",
     schema_uri=schema_uri,
-    bind_schema_to_record_set=True
+    bind_schema_to_record_set=True,
+    assignee_principal_id="123456"  # Optional: Assign to a user or team
 )
 
 print(f"Record-based workflow created:")
