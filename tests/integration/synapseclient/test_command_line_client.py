@@ -1268,3 +1268,176 @@ class TestGenerateJSONSchemaFunction:
         finally:
             if os.path.isfile(schema_path):
                 os.remove(schema_path)
+
+
+class TestSchemaManagementCommands:
+    """Integration tests for register-json-schema and bind-json-schema CLI commands"""
+
+    @pytest.fixture(scope="function")
+    def schema_test_state(self, syn: Synapse, project: Project, schedule_for_cleanup):
+        """Set up test state with organization and schema file"""
+        from synapseclient.models import SchemaOrganization
+
+        class SchemaState:
+            def __init__(self):
+                self.syn = syn
+                self.project = project
+                self.schedule_for_cleanup = schedule_for_cleanup
+                self.parser = cmdline.build_parser()
+
+                # Create a test organization
+                org_name = f"test.org.{str(uuid.uuid4())[:8]}"
+                self.organization = SchemaOrganization(org_name)
+                self.organization.store(synapse_client=syn)
+
+                # Create a temporary schema file
+                schema_definition = {
+                    "$id": "test.schema",
+                    "type": "object",
+                    "properties": {
+                        "name": {"type": "string"},
+                        "age": {"type": "integer"},
+                    },
+                    "required": ["name"],
+                }
+                self.schema_file = tempfile.NamedTemporaryFile(
+                    mode="w", suffix=".json", delete=False
+                )
+                json.dump(schema_definition, self.schema_file)
+                self.schema_file.close()
+
+        state = SchemaState()
+
+        def cleanup():
+            # Clean up schema file
+            if os.path.exists(state.schema_file.name):
+                os.remove(state.schema_file.name)
+            # Clean up organization and its schemas
+            for schema in state.organization.get_json_schemas(synapse_client=syn):
+                schema.delete(synapse_client=syn)
+            state.organization.delete(synapse_client=syn)
+
+        schedule_for_cleanup(cleanup)
+        return state
+
+    def test_register_json_schema(self, schema_test_state):
+        """Test register-json-schema CLI command"""
+        schema_name = f"test.schema.{str(uuid.uuid4())[:8]}"
+
+        # Run register-json-schema command
+        output = run(
+            schema_test_state,
+            "synapse",
+            "--skip-checks",
+            "register-json-schema",
+            schema_test_state.schema_file.name,
+            schema_test_state.organization.name,
+            schema_name,
+            "--schema-version",
+            "1.0.0",
+        )
+
+        # Verify success message in output
+        assert "Successfully registered schema" in output
+        assert schema_name in output
+        assert schema_test_state.organization.name in output
+
+    def test_bind_json_schema(self, schema_test_state):
+        """Test bind-json-schema CLI command"""
+        from synapseclient.models import Folder
+
+        # First register a schema
+        schema_name = f"test.schema.{str(uuid.uuid4())[:8]}"
+        output = run(
+            schema_test_state,
+            "synapse",
+            "--skip-checks",
+            "register-json-schema",
+            schema_test_state.schema_file.name,
+            schema_test_state.organization.name,
+            schema_name,
+            "--schema-version",
+            "1.0.0",
+        )
+
+        # Extract the schema URI from output (format: org-name-version)
+        schema_uri = f"{schema_test_state.organization.name}-{schema_name}-1.0.0"
+
+        # Create a test folder
+        folder = Folder(
+            name=f"test.folder.{str(uuid.uuid4())[:8]}",
+            parent_id=schema_test_state.project.id,
+        )
+        folder.store(synapse_client=schema_test_state.syn)
+
+        try:
+            # Run bind-json-schema command
+            output = run(
+                schema_test_state,
+                "synapse",
+                "--skip-checks",
+                "bind-json-schema",
+                folder.id,
+                schema_uri,
+                "--enable-derived-annotations",
+            )
+
+            # Verify success message in output
+            assert "Successfully bound schema" in output
+            assert schema_uri in output
+            assert folder.id in output
+        finally:
+            # Cleanup folder
+            schema_test_state.syn.delete(folder.id)
+
+    def test_register_and_bind_workflow(self, schema_test_state):
+        """Test complete workflow: register schema and bind to entity"""
+        from synapseclient.models import Folder
+
+        schema_name = f"test.schema.{str(uuid.uuid4())[:8]}"
+
+        # Step 1: Register the schema
+        output = run(
+            schema_test_state,
+            "synapse",
+            "--skip-checks",
+            "register-json-schema",
+            schema_test_state.schema_file.name,
+            schema_test_state.organization.name,
+            schema_name,
+            "--schema-version",
+            "2.0.0",
+        )
+
+        assert "Successfully registered schema" in output
+
+        # Step 2: Create a folder
+        folder = Folder(
+            name=f"test.folder.{str(uuid.uuid4())[:8]}",
+            parent_id=schema_test_state.project.id,
+        )
+        folder.store(synapse_client=schema_test_state.syn)
+
+        try:
+            # Step 3: Bind the schema to the folder
+            schema_uri = f"{schema_test_state.organization.name}-{schema_name}-2.0.0"
+            output = run(
+                schema_test_state,
+                "synapse",
+                "--skip-checks",
+                "bind-json-schema",
+                folder.id,
+                schema_uri,
+            )
+
+            assert "Successfully bound schema" in output
+
+            # Step 4: Verify the binding by fetching the folder
+            retrieved_folder = schema_test_state.syn.get(folder.id, downloadFile=False)
+            bound_schema = retrieved_folder.get_schema(
+                synapse_client=schema_test_state.syn
+            )
+            assert bound_schema is not None
+        finally:
+            # Cleanup folder
+            schema_test_state.syn.delete(folder.id)
