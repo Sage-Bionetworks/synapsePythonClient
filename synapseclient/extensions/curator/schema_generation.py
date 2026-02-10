@@ -5137,7 +5137,7 @@ class JSONSchema:  # pylint: disable=too-many-instance-attributes
 def _set_conditional_dependencies(
     json_schema: JSONSchema,
     graph_state: GraphTraversalState,
-    use_property_display_names: bool = True,
+    use_property_display_names: bool = False,
 ) -> None:
     """
     This sets conditional requirements in the "allOf" keyword.
@@ -5204,7 +5204,7 @@ def _set_conditional_dependencies(
 
 
 def _create_enum_array_property(
-    node: TraversalNode, use_valid_value_display_names: bool = True
+    node: TraversalNode, use_valid_value_display_names: bool = False
 ) -> Property:
     """
     Creates a JSON Schema property array with enum items
@@ -5270,7 +5270,7 @@ def _create_array_property(node: TraversalNode) -> Property:
 
 
 def _create_enum_property(
-    node: TraversalNode, use_valid_value_display_names: bool = True
+    node: TraversalNode, use_valid_value_display_names: bool = False
 ) -> Property:
     """
     Creates a JSON Schema property enum
@@ -5346,8 +5346,8 @@ def _set_type_specific_keywords(schema: dict[str, Any], node: TraversalNode) -> 
 def _set_property(
     json_schema: JSONSchema,
     node: TraversalNode,
-    use_property_display_names: bool = True,
-    use_valid_value_display_names: bool = True,
+    use_property_display_names: bool = False,
+    use_valid_value_display_names: bool = False,
 ) -> None:
     """
     Sets a property in the JSON schema. that is required by the schema
@@ -5393,8 +5393,8 @@ def _process_node(
     json_schema: JSONSchema,
     graph_state: GraphTraversalState,
     logger: Logger,
-    use_property_display_names: bool = True,
-    use_valid_value_display_names: bool = True,
+    use_property_display_names: bool = False,
+    use_valid_value_display_names: bool = False,
 ) -> None:
     """
     Processes a node in the data model graph.
@@ -5473,8 +5473,8 @@ def create_json_schema(  # pylint: disable=too-many-arguments
     write_schema: bool = True,
     schema_path: Optional[str] = None,
     jsonld_path: Optional[str] = None,
-    use_property_display_names: bool = True,
-    use_valid_value_display_names: bool = True,
+    use_property_display_names: bool = False,
+    use_valid_value_display_names: bool = False,
 ) -> dict[str, Any]:
     """
     Creates a JSONSchema dict for the datatype in the data model.
@@ -5594,7 +5594,8 @@ def generate_jsonschema(
     synapse_client: Synapse,
     data_types: Optional[list[str]] = None,
     output: Optional[str] = None,
-    data_model_labels: DisplayLabelType = "class_label",
+    use_property_display_names: bool = False,
+    use_valid_value_display_names: bool = False,
 ) -> tuple[list[dict[str, Any]], list[str]]:
     """
     Generate JSON Schema files from a data model.
@@ -5612,9 +5613,11 @@ def generate_jsonschema(
             - If None, schemas will be written to the current working directory, with filenames formatted as `<DataType>.json`.
             - If a directory path, schemas will be written to that directory, with filenames formatted as `<Output>/<DataType>.json`.
             - If a file path (must end with `.json`) and a single data type is specified, the schema for that data type will be written to that file.
-        data_model_labels: Label format for properties in the generated schema:
-            - `"class_label"` (default): Uses standard attribute names as property keys
-            - `"display_label"`: Uses display names if valid (no blacklisted characters),.
+        use_property_display_names: If True, the properties in the JSONSchema
+          will be written using node display names
+        use_valid_value_display_names: If True, the valid_values in the JSONSchema
+          will be written using node display names
+
 
     Returns:
         A tuple containing:
@@ -5670,8 +5673,20 @@ def generate_jsonschema(
             data_model_source="https://raw.githubusercontent.com/org/repo/main/model.csv",
             output_directory="./schemas",
             data_type=None,
-            data_model_labels="class_label",
             synapse_client=syn
+        )
+        ```
+
+        Generate JSON Schema using labels instead of display names:
+
+        ```python
+        schemas, file_paths = generate_jsonschema(
+            data_model_source="https://raw.githubusercontent.com/org/repo/main/model.csv",
+            output_directory="./schemas",
+            data_type=None,
+            synapse_client=syn,
+            use_property_display_names=False,
+            use_valid_value_display_names=False,
         )
         ```
     """
@@ -5728,7 +5743,8 @@ def generate_jsonschema(
             logger=synapse_client.logger,
             write_schema=True,
             schema_path=schema_path,
-            use_property_display_names=(data_model_labels == "display_label"),
+            use_property_display_names=use_property_display_names,
+            use_valid_value_display_names=use_valid_value_display_names,
         )
         for data_type, schema_path in zip(data_types, schema_paths)
     ]

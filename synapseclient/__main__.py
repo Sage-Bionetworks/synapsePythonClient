@@ -808,7 +808,8 @@ def generate_json_schema(args, syn):
         data_model_source=args.data_model_path,
         output=args.output,
         data_types=args.data_types,
-        data_model_labels=args.data_model_labels,
+        use_property_display_names=args.use_property_display_names,
+        use_valid_value_display_names=args.use_valid_value_display_names,
         synapse_client=syn,
     )
     logging.info(f"Created JSON Schema files: [{paths}]")
@@ -1833,15 +1834,16 @@ https://rest-docs.synapse.org/rest/org/sagebionetworks/repo/web/controller/Table
         ),
     )
     parser_generate_json_schema.add_argument(
-        "--data-model-labels",
-        type=str,
-        default="class_label",
-        choices=["class_label", "display_label"],
-        help=(
-            "Optional Label format for properties in the generated schema. "
-            "'class_label' uses standard attribute names (default). "
-            "'display_label' uses display names when valid"
-        ),
+        "--use-property-display-names",
+        action="store_true",
+        default=False,
+        help="Use display names for properties in the generated JSON Schema",
+    )
+    parser_generate_json_schema.add_argument(
+        "--use-valid-value-display-names",
+        action="store_true",
+        default=False,
+        help="Use display names for valid values in the generated JSON Schema",
     )
     parser_generate_json_schema.set_defaults(func=generate_json_schema)
 

@@ -1963,7 +1963,6 @@ class TestGenerateJsonschema(unittest.TestCase):
                 data_model_source=self.test_schema_path,
                 output=temp_dir,
                 data_types=None,
-                data_model_labels="class_label",
                 synapse_client=self.syn,
             )
 
@@ -1995,7 +1994,6 @@ class TestGenerateJsonschema(unittest.TestCase):
                 data_model_source=self.minimal_test_schema_path,
                 output=temp_dir,
                 data_types=None,
-                data_model_labels="class_label",
                 synapse_client=self.syn,
             )
 
@@ -2035,7 +2033,6 @@ class TestGenerateJsonschema(unittest.TestCase):
                 data_model_source=jsonld_path,
                 output=temp_dir,
                 data_types=None,
-                data_model_labels="class_label",
                 synapse_client=self.syn,
             )
 
@@ -2061,7 +2058,6 @@ class TestGenerateJsonschema(unittest.TestCase):
                 data_model_source=self.test_schema_path,
                 output=temp_dir,
                 data_types=target_components,
-                data_model_labels="class_label",
                 synapse_client=self.syn,
             )
 
@@ -2086,7 +2082,8 @@ class TestGenerateJsonschema(unittest.TestCase):
                 data_model_source=self.test_schema_path,
                 output=temp_dir,
                 data_types=["Patient"],
-                data_model_labels="display_label",
+                use_property_display_names=True,
+                use_valid_value_display_names=True,
                 synapse_client=self.syn,
             )
 
@@ -2110,7 +2107,6 @@ class TestGenerateJsonschema(unittest.TestCase):
                 data_model_source=self.test_schema_path,
                 output=temp_dir,
                 data_types=["Patient"],
-                data_model_labels="class_label",
                 synapse_client=self.syn,
             )
 
@@ -2137,7 +2133,6 @@ class TestGenerateJsonschema(unittest.TestCase):
                 data_model_source=self.test_schema_path,
                 output=temp_dir,
                 data_types=["Patient"],
-                data_model_labels="class_label",
                 synapse_client=self.syn,
             )
 
@@ -2175,7 +2170,6 @@ class TestGenerateJsonschema(unittest.TestCase):
                 data_model_source=self.test_schema_path,
                 output=temp_dir,
                 data_types=["MockComponent"],
-                data_model_labels="class_label",
                 synapse_client=self.syn,
             )
 
@@ -2224,7 +2218,6 @@ class TestGenerateJsonschema(unittest.TestCase):
                 data_model_source=self.test_schema_path,
                 output=temp_dir,
                 data_types=["Patient"],
-                data_model_labels="class_label",
                 synapse_client=self.syn,
             )
 
@@ -2271,7 +2264,6 @@ class TestGenerateJsonschema(unittest.TestCase):
                 data_model_source=self.test_schema_path,
                 output=temp_dir,
                 data_types=["MockComponent"],
-                data_model_labels="class_label",
                 synapse_client=self.syn,
             )
 
@@ -2306,7 +2298,6 @@ class TestGenerateJsonschema(unittest.TestCase):
                 data_model_source=self.test_schema_path,
                 output=temp_dir,
                 data_types=["Patient"],
-                data_model_labels="class_label",
                 synapse_client=self.syn,
             )
 
@@ -2328,7 +2319,6 @@ class TestGenerateJsonschema(unittest.TestCase):
                 data_model_source=self.test_schema_path,
                 output=temp_dir,
                 data_types=None,
-                data_model_labels="class_label",
                 synapse_client=self.syn,
             )
 

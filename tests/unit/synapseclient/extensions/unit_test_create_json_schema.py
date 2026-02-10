@@ -953,6 +953,8 @@ def test_create_json_schema_with_display_names(
         datatype=datatype,
         schema_name=f"{datatype}_validation",
         schema_path=test_path,
+        use_property_display_names=True,
+        use_valid_value_display_names=True,
         logger=logger,
     )
     with open(expected_path, encoding="utf-8") as file1, open(
@@ -997,7 +999,6 @@ def test_create_json_schema_with_class_label_using_jsonld(
         datatype=datatype,
         schema_name=f"{datatype}_validation",
         schema_path=test_path,
-        use_property_display_names=False,
         logger=logger,
     )
     with open(expected_path, encoding="utf-8") as file1, open(
@@ -1262,7 +1263,7 @@ def test_set_conditional_dependencies(
                         "description": "TBD",
                         "title": "List Enum",
                         "type": "array",
-                        "items": {"enum": ["ab", "cd", "ef", "gh"], "type": "string"},
+                        "items": {"enum": ["Ab", "Cd", "Ef", "Gh"], "type": "string"},
                     }
                 },
                 required=["ListEnum"],
@@ -1277,7 +1278,7 @@ def test_set_conditional_dependencies(
                         "description": "TBD",
                         "title": "List Enum Not Required",
                         "type": "array",
-                        "items": {"enum": ["ab", "cd", "ef", "gh"], "type": "string"},
+                        "items": {"enum": ["Ab", "Cd", "Ef", "Gh"], "type": "string"},
                     }
                 },
                 required=[],
@@ -1291,7 +1292,7 @@ def test_set_conditional_dependencies(
                     "Enum": {
                         "description": "TBD",
                         "title": "Enum",
-                        "enum": ["ab", "cd", "ef", "gh"],
+                        "enum": ["Ab", "Cd", "Ef", "Gh"],
                     }
                 },
                 required=["Enum"],
@@ -1338,7 +1339,7 @@ def test_set_property(
 ) -> None:
     """Tests for set_property"""
     schema = JSONSchema()
-    _set_property(schema, test_nodes[node_name], use_property_display_names=False)
+    _set_property(schema, test_nodes[node_name])
     assert schema == expected_schema
 
 
@@ -1350,9 +1351,9 @@ def test_set_property(
             {
                 "type": "array",
                 "title": "array",
-                "items": {"enum": ["ab", "cd", "ef", "gh"], "type": "string"},
+                "items": {"enum": ["Ab", "Cd", "Ef", "Gh"], "type": "string"},
             },
-            [[], ["ab"]],
+            [[], ["Ab"]],
             [[None], ["x"]],
         ),
         (
@@ -1360,9 +1361,9 @@ def test_set_property(
             {
                 "type": "array",
                 "title": "array",
-                "items": {"enum": ["ab", "cd", "ef", "gh"], "type": "string"},
+                "items": {"enum": ["Ab", "Cd", "Ef", "Gh"], "type": "string"},
             },
-            [[], ["ab"]],
+            [[], ["Ab"]],
             [[None], ["x"]],
         ),
     ],
@@ -1444,18 +1445,18 @@ def test_create_array_property(
         # If is_required is True, no type is added
         (
             "Enum",
-            {"enum": ["ab", "cd", "ef", "gh"], "title": "enum"},
-            ["ab"],
+            {"enum": ["Ab", "Cd", "Ef", "Gh"], "title": "enum"},
+            ["Ab"],
             [1, "x", None],
         ),
         # SYNPY 1699: If is_required is False, null type is no longer added
         (
             "EnumNotRequired",
             {
-                "enum": ["ab", "cd", "ef", "gh"],
+                "enum": ["Ab", "Cd", "Ef", "Gh"],
                 "title": "enum",
             },
-            ["ab"],
+            ["Ab"],
             [1, "x"],
         ),
     ],
