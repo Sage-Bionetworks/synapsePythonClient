@@ -4895,7 +4895,6 @@ class GraphTraversalState:  # pylint: disable=too-many-instance-attributes
                 source_node=self.source_node,
                 logger=self.logger,
             )
-            # self.current_node.valid_values is class label
             self._update_valid_values_map(
                 self.current_node.name, self.current_node.valid_values
             )
@@ -5007,9 +5006,11 @@ class GraphTraversalState:  # pylint: disable=too-many-instance-attributes
                         display_name_value = self.dmge.get_nodes_display_names([value])[
                             0
                         ]
-                    conditional_properties.append(
-                        (watched_property, display_name_value)
-                    )
+                        conditional_properties.append(
+                            (watched_property, display_name_value)
+                        )
+                    else:
+                        conditional_properties.append((watched_property, value))
         return conditional_properties
 
     def _update_valid_values_map(
