@@ -820,15 +820,13 @@ def generate_json_schema(args, syn):
 
 def register_json_schema(args, syn):
     """Register a JSON schema to a Synapse organization."""
-    schema_uri, message = register_jsonschema(
+    register_jsonschema(
         schema_path=args.schema_path,
         organization_name=args.organization_name,
         schema_name=args.schema_name,
         schema_version=args.schema_version,
         synapse_client=syn,
     )
-    syn.logger.info(message)
-    syn.logger.info(f"Schema URI: {schema_uri}")
 
 
 def bind_json_schema(args, syn):

@@ -58,14 +58,13 @@ schemas, file_paths = generate_jsonschema(
 )
 
 # Register a JSON Schema to Synapse
-schema_uri, message = register_jsonschema(
+schema_uri = register_jsonschema(
     schema_path="temp/Patient.json",  # Path to the generated JSON Schema file
     organization_name="my.organization",  # Your Synapse organization name
     schema_name="patient.schema",  # Name for the schema
     schema_version="0.0.1",  # Optional version number
     synapse_client=syn,
 )
-print(message)
 print(f"Registered schema URI: {schema_uri}")
 
 # Bind a JSON Schema to a Synapse entity

@@ -18,7 +18,7 @@ def register_jsonschema(
     schema_name: str,
     schema_version: Optional[str] = None,
     synapse_client: Optional["Synapse"] = None,
-) -> tuple[str, str]:
+) -> str:
     """
     Register a JSON schema to a Synapse organization.
 
@@ -36,9 +36,7 @@ def register_jsonschema(
                        instance from the Synapse class constructor
 
     Returns:
-        A tuple of (schema_uri, message) where:
-        - schema_uri is the full URI of the registered schema
-        - message is a success message
+        The URI of the registered schema
 
     Example: Register a JSON schema
         ```python
@@ -48,18 +46,20 @@ def register_jsonschema(
         syn = Synapse()
         syn.login()
 
-        schema_uri, message = register_jsonschema(
+        schema_uri = register_jsonschema(
             schema_path="/path/to/schema.json",
             organization_name="my.org",
             schema_name="my.schema",
             schema_version="0.0.1",
             synapse_client=syn
         )
-        print(message)
-        print(f"Schema URI: {schema_uri}")
+        print(f"Registered schema URI: {schema_uri}")
         ```
     """
+    from synapseclient import Synapse
     from synapseclient.models.schema_organization import JSONSchema
+
+    syn = Synapse.get_client(synapse_client=synapse_client)
 
     # Load the schema from file
     with open(schema_path, "r") as f:
@@ -72,15 +72,19 @@ def register_jsonschema(
     json_schema.store(
         schema_body=schema_body,
         version=schema_version,
-        synapse_client=synapse_client,
+        synapse_client=syn,
     )
 
     # Get the schema URI from the JSONSchema object
     schema_uri = json_schema.uri
 
-    message = f"Successfully registered schema '{schema_name}' to organization '{organization_name}'"
+    # Log success message
+    syn.logger.info(
+        f"Successfully registered schema '{schema_name}' to organization '{organization_name}'"
+    )
+    syn.logger.info(f"Schema URI: {schema_uri}")
 
-    return schema_uri, message
+    return schema_uri
 
 
 def bind_jsonschema(
