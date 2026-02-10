@@ -138,18 +138,6 @@ def row_labels_from_rows(rows: List[Row]) -> List[Row]:
     )
 
 
-# class EllipsisJSONEncoder(json.JSONEncoder):
-#     """Custom JSON encoder that handles Ellipsis and pandas NA objects by converting them to strings."""
-#     def default(self, obj):
-#         if obj is ...:
-#             return "..."
-#         # Handle pandas NA types
-#         import pandas as pd
-#         if obj is pd.NA or (hasattr(obj, '__class__') and obj.__class__.__name__ == 'NAType'):
-#             return None
-#         return super().default(obj)
-
-
 def convert_dtypes_to_json_serializable(df):
     """
     Convert the dtypes of the int64 and float64 columns to object columns which are JSON serializable types.
@@ -207,7 +195,6 @@ def convert_dtypes_to_json_serializable(df):
     import pandas as pd
 
     for col in df.columns:
-        # Check if any values in the column are lists, dicts, or JSON strings, and serialize them to JSON
         if df[col].notna().any():
             sample_values = df[col].dropna()
             if len(sample_values):
@@ -215,9 +202,8 @@ def convert_dtypes_to_json_serializable(df):
                 def _serialize_json_value(x):
                     if x is None:
                         return None
-                    # Serialize lists and dicts to JSON using custom encoder for Ellipsis handling
                     if isinstance(x, (list, dict)):
-                        # Replace both Ellipsis and pd.NA within nested structures
+
                         def _reformat_special_values(obj):
                             if obj is ...:
                                 return "..."
@@ -237,7 +223,6 @@ def convert_dtypes_to_json_serializable(df):
                         return json.dumps(cleaned_x, ensure_ascii=False).replace(
                             '\\"', "\\'"
                         )
-
                     # Handle standalone ellipsis
                     if x is ...:
                         return "..."
@@ -247,7 +232,6 @@ def convert_dtypes_to_json_serializable(df):
 
                 # restore the original values of the column especially for the int64 and float64 columns since apply function changes the dtype
                 df[col] = df[col].convert_dtypes()
-                # convert the int64 and float64 columns to object columns which are JSON serializable types
                 df[col] = df[col].replace({pd.NA: None}).astype(object)
 
         # Convert ROW_ prefixed columns back to int (like ROW_ID, ROW_VERSION)
