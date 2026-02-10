@@ -89,6 +89,16 @@ Create a JSON Schema
 
 If you don't set `output` parameter the JSON Schema file will be created in the current working directory.
 
+## 8. Create a JSON Schema using display names
+
+Create a JSON Schema
+
+```python
+{!docs/tutorials/python/tutorial_scripts/schema_operations.py!lines=56-63}
+```
+
+You can have Curator format the property names and/or valid values in the JSON Schema. This will remove whitespace and special characters.
+
 ## Source Code for this Tutorial
 
 <details class="quote">

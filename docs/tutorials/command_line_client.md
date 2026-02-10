@@ -552,9 +552,10 @@ Generate JSON Schema(s) from a data model
 synapse generate-json-schema [-h] [--data-types data_type1, data_type2] [--output dir_name] [--data-model-labels class_label] data_model_path
 ```
 
-| Name                     | Type       | Description                                                         |
-|--------------------------|------------|---------------------------------------------------------------------|
-| `data_model_path`        | Positional | Data model path or URL                                              |
-| `--data-types`           | Named      | Optional list of data types to create JSON Schema for               |
-| `--output`               | Named      | Optional. Either a file path ending in '.json', or a directory path |
-| `--data-model-labels`    | Named      | Either 'class_label', or 'display_label'                            |
+| Name                              | Type       | Description                                                                       |
+|-----------------------------------|------------|-----------------------------------------------------------------------------------|
+| `data_model_path`                 | Positional | Data model path or URL                                                            |
+| `--data-types`                    | Named      | Optional list of data types to create JSON Schema for                             |
+| `--output`                        | Named      | Optional. Either a file path ending in '.json', or a directory path               |
+| `--use-property-display-names`    | Named      | Optional. Defaults to False. Formats the property name strings in the JSON Schema |
+| `--use-valid-value-display-names` | Named      | Optional. Defaults to False. Formats the valid value strings in the JSON Schema   |
