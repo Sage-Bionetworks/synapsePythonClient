@@ -976,3 +976,26 @@ class TestGenerateJSONSchemaFunction:
         finally:
             if os.path.isfile(schema_path):
                 os.remove(schema_path)
+
+    def test_display_names(self):
+        # GIVEN a CSV schema file
+        parser = cmdline.build_parser()
+        args = parser.parse_args(
+            [
+                "generate-json-schema",
+                self.csv_path,
+                "--data-types",
+                "Patient",
+                "--use-property-display-names",
+                "--use-valid-value-display-names",
+            ]
+        )
+        schema_path = "./Patient.json"
+        try:
+            # WHEN I generate a schema with one datatype and no output path
+            cmdline.generate_json_schema(args, self.syn)
+            # THEN a schema file should be created at ./Patient.json
+            assert os.path.isfile(schema_path)
+        finally:
+            if os.path.isfile(schema_path):
+                os.remove(schema_path)
