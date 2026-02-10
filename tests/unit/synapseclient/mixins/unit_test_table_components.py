@@ -3726,7 +3726,7 @@ class TestCsvToPandasDf:
             date_columns=["created_date"],
         )
         # THEN assert the date column is converted to datetime
-        assert str(df["created_date"].dtype) == "datetime64[ns, UTC]"
+        assert str(df["created_date"].dtype) == "datetime64[ms, UTC]"
 
         expected_dates = pd.to_datetime(
             [1609459200000, 1609545600000, 1609632000000], unit="ms", utc=True
