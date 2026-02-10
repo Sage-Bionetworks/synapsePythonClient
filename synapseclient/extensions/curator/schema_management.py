@@ -75,10 +75,8 @@ def register_jsonschema(
         synapse_client=synapse_client,
     )
 
-    # Build the schema URI
-    schema_uri = f"{organization_name}-{schema_name}"
-    if schema_version:
-        schema_uri += f"-{schema_version}"
+    # Get the schema URI from the JSONSchema object
+    schema_uri = json_schema.uri
 
     message = f"Successfully registered schema '{schema_name}' to organization '{organization_name}'"
 
