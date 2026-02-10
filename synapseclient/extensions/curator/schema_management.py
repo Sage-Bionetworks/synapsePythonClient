@@ -145,7 +145,4 @@ def bind_jsonschema(
         synapse_client=syn,
     )
 
-    # Convert result to dictionary format for consistent return type
-    if hasattr(result, "__dict__"):
-        return vars(result)
     return result
