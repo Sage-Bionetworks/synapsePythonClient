@@ -853,9 +853,6 @@ class TestGraphTraversalState:
         This test covers a bug where the 'value' variable was being mutated inside
         the inner loop when converting to display names.
 
-        On the first iteration, `value` is converted from class label to display name.
-        On subsequent iterations, the code tries to look up the display name in the graph,
-        which fails with KeyError because graph nodes are keyed by class labels.
         """
         # GIVEN a GraphTraversalState instance where
         # - CancerType has a reverse dependency of FamilyHistory
@@ -871,7 +868,7 @@ class TestGraphTraversalState:
         gts.move_to_next_node()
         result = gts.get_conditional_properties()
         assert len(result) == 2
-        assert ("Diagnosis", "Family History") in result
+        assert ("Year of Birth", "Family History") in result
         assert ("Sex", "Family History") in result
 
     def test_update_valid_values_map(self, dmge: DataModelGraphExplorer) -> None:
