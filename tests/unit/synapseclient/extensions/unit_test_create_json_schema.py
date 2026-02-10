@@ -851,27 +851,28 @@ class TestGraphTraversalState:
         """Test GraphTraversalState.get_conditional_properties with multiple watched properties.
 
         This test covers a bug where the 'value' variable was being mutated inside
-        the inner loop when converting to display names, causing a KeyError on
-        subsequent iterations when there are multiple watched properties for the
-        same valid value.
+        the inner loop when converting to display names.
+
+        On the first iteration, `value` is converted from class label to display name.
+        On subsequent iterations, the code tries to look up the display name in the graph,
+        which fails with KeyError because graph nodes are keyed by class labels.
         """
         # GIVEN a GraphTraversalState instance where
-        # - CancerType has a reverse dependency of Cancer
-        # - Cancer is a valid value of MULTIPLE attributes (Diagnosis AND FamilyHistory)
+        # - CancerType has a reverse dependency of FamilyHistory
+        # - FamilyHistory is a valid value of MULTIPLE attributes
         gts = GraphTraversalState(dmge, "Patient", logger=Mock())
         gts._nodes_to_process = ["CancerType"]
-        gts._reverse_dependencies = {"CancerType": ["Cancer"]}
-        # Cancer is a valid value for both Diagnosis and FamilyHistory
-        gts._valid_values_map = {"Cancer": ["Diagnosis", "FamilyHistory"]}
+
+        # Use FamilyHistory because its display name ("Family History") differs from class label
+        gts._reverse_dependencies = {"CancerType": ["FamilyHistory"]}
+        # FamilyHistory triggers multiple watched properties - this is key to triggering the bug
+        gts._valid_values_map = {"FamilyHistory": ["Sex", "YearofBirth"]}
         # WHEN using move_to_next_node
         gts.move_to_next_node()
-        # THEN the current node should have conditional properties for BOTH
-        # watched properties, and the call should not raise a KeyError
         result = gts.get_conditional_properties()
-        # Should return tuples for both Diagnosis and FamilyHistory
         assert len(result) == 2
-        assert ("Diagnosis", "Cancer") in result
-        assert ("Family History", "Cancer") in result
+        assert ("Diagnosis", "Family History") in result
+        assert ("Sex", "Family History") in result
 
     def test_update_valid_values_map(self, dmge: DataModelGraphExplorer) -> None:
         """Test GraphTraversalState._update_valid_values_map"""
