@@ -20,6 +20,7 @@ from synapseclient.models import (
     Project,
     RecordBasedMetadataTaskProperties,
     RecordSet,
+    Team,
     ViewTypeMask,
 )
 
@@ -146,6 +147,12 @@ class TestCurationTaskStore:
     def init(self, syn: Synapse, schedule_for_cleanup: Callable[..., None]) -> None:
         self.syn = syn
         self.schedule_for_cleanup = schedule_for_cleanup
+
+    @pytest.fixture(autouse=True, scope="function")
+    def team(self) -> Team:
+        team = Team(name=f"test_team_{uuid.uuid4()}").create(synapse_client=self.syn)
+        self.schedule_for_cleanup(str(team.id))
+        return team
 
     @pytest.fixture(scope="function")
     def folder_with_view(self, project_model: Project) -> tuple[Folder, EntityView]:
@@ -275,7 +282,7 @@ class TestCurationTaskStore:
         assert stored_task.created_by is not None
 
     def test_store_record_based_curation_task(
-        self, project_model: Project, record_set: RecordSet
+        self, project_model: Project, record_set: RecordSet, team: Team
     ) -> None:
         # GIVEN a project and record set
         # AND a RecordBasedMetadataTaskProperties
@@ -290,6 +297,7 @@ class TestCurationTaskStore:
             project_id=project_model.id,
             instructions="Please curate this record-based test data.",
             task_properties=task_properties,
+            assignee_principal_id=str(team.id),
         )
 
         # WHEN I store the curation task
@@ -307,6 +315,7 @@ class TestCurationTaskStore:
         assert stored_task.etag is not None
         assert stored_task.created_on is not None
         assert stored_task.created_by is not None
+        assert stored_task.assignee_principal_id == str(team.id)
 
     def test_store_update_existing_curation_task(
         self, project_model: Project, record_set: RecordSet
