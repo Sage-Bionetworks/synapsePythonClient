@@ -4123,7 +4123,7 @@ class TestConvertDtypesToJsonSerializable:
         assert len(result) == 0
         assert len(result.columns) == 0
 
-    def test_mixed_column_types(self):
+    def test_mixed_column_types_no_conversion_needed(self):
         """Test that multiple column types are handled correctly together"""
         # GIVEN a dataframe with mixed column types
         df = pd.DataFrame(
@@ -4165,7 +4165,7 @@ class TestConvertDtypesToJsonSerializable:
         assert result["nested_dict"].iloc[1] == '{"data": {"list": [1, 2, "..."]}}'
 
     def test_nullable_int64_with_pd_na(self):
-        """Test that Int64 columns with pd.NA get pd.NA converted to '[]' by _serialize_json_value"""
+        """Test that Int64 columns with pd.NA get pd.NA converted to None by _serialize_json_value"""
         # GIVEN a dataframe with nullable Int64 column containing pd.NA
         df = pd.DataFrame(
             {"nullable_int_col": pd.array([1, 2, pd.NA, 4, pd.NA], dtype="Int64")}
@@ -4174,7 +4174,7 @@ class TestConvertDtypesToJsonSerializable:
         # WHEN convert_dtypes_to_json_serializable is called
         result = convert_dtypes_to_json_serializable(df)
 
-        # THEN the column should be object type and pd.NA should be converted to "[]"
+        # THEN the column should be object type and pd.NA should be converted to None
         assert is_object_dtype(result.nullable_int_col)
         expected_result = pd.DataFrame(
             {"nullable_int_col": [1, 2, None, 4, None]}
