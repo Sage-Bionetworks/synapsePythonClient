@@ -50,7 +50,10 @@ from synapseclient.extensions.curator.schema_registry import (
     get_latest_schema_uri,
 )
 from synapseclient.models import ColumnType
-from synapseclient.models.curation import FileBasedMetadataTaskProperties
+from synapseclient.models.curation import (
+    FileBasedMetadataTaskProperties,
+    RecordBasedMetadataTaskProperties,
+)
 from synapseclient.models.mixins import JSONSchemaBinding
 from synapseclient.models.mixins.json_schema import JSONSchemaVersionInfo
 
@@ -939,6 +942,91 @@ class TestCreateRecordBasedMetadataTask(unittest.TestCase):
                 bind_schema_to_record_set=False,
                 synapse_client=self.mock_syn,
             )
+
+    @patch(
+        "synapseclient.extensions.curator.record_based_metadata_task.Synapse.get_client"
+    )
+    @patch(
+        "synapseclient.extensions.curator.record_based_metadata_task.extract_schema_properties_from_web"
+    )
+    @patch(
+        "synapseclient.extensions.curator.record_based_metadata_task.tempfile.NamedTemporaryFile"
+    )
+    @patch("synapseclient.extensions.curator.record_based_metadata_task.RecordSet")
+    @patch("synapseclient.extensions.curator.record_based_metadata_task.CurationTask")
+    @patch("synapseclient.extensions.curator.record_based_metadata_task.Grid")
+    @patch("builtins.open")
+    def test_create_record_based_metadata_task_with_assignee(
+        self,
+        mock_open,
+        mock_grid_cls,
+        mock_curation_task_cls,
+        mock_record_set_cls,
+        mock_temp_file,
+        mock_extract_schema,
+        mock_get_client,
+    ):
+        """Test successful creation of record-based metadata task with assignee_principal_id."""
+        # GIVEN a record-based metadata task with assignee_principal_id
+        mock_get_client.return_value = self.mock_syn
+
+        mock_df = pd.DataFrame(columns=["specimenID", "age", "diagnosis"])
+        mock_extract_schema.return_value = mock_df
+
+        mock_temp = Mock()
+        mock_temp.name = "/tmp/test.csv"
+        mock_temp_file.return_value = mock_temp
+
+        mock_record_set = Mock()
+        mock_record_set.id = "syn87654321"
+        mock_record_set_instance = Mock()
+        mock_record_set_instance.store.return_value = mock_record_set
+        mock_record_set_cls.return_value = mock_record_set_instance
+
+        mock_task = Mock()
+        mock_task.task_id = "task123"
+        mock_curation_task = Mock()
+        mock_curation_task.store.return_value = mock_task
+        mock_curation_task_cls.return_value = mock_curation_task
+
+        mock_grid = Mock()
+        mock_grid_instance = Mock()
+        mock_grid_instance.export_to_record_set.return_value = mock_grid
+        mock_grid_cls.return_value = mock_grid_instance
+
+        # WHEN I create the record-based metadata task with assignee_principal_id
+        result = create_record_based_metadata_task(
+            project_id=self.project_id,
+            folder_id=self.folder_id,
+            record_set_name=self.record_set_name,
+            record_set_description=self.record_set_description,
+            curation_task_name=self.curation_task_name,
+            upsert_keys=self.upsert_keys,
+            instructions=self.instructions,
+            schema_uri=self.schema_uri,
+            bind_schema_to_record_set=True,
+            assignee_principal_id="syn1234",
+            synapse_client=self.mock_syn,
+        )
+
+        # THEN the task should be created successfully
+        assert isinstance(result, tuple)
+        assert len(result) == 3
+        record_set, task, grid = result
+        assert record_set == mock_record_set
+        assert task == mock_task
+        assert grid == mock_grid
+
+        # AND the CurationTask should be called with the correct assignee_principal_id
+        mock_curation_task_cls.assert_called_once_with(
+            data_type=self.curation_task_name,
+            project_id=self.project_id,
+            instructions=self.instructions,
+            assignee_principal_id="syn1234",
+            task_properties=RecordBasedMetadataTaskProperties(
+                record_set_id=mock_record_set.id
+            ),
+        )
 
 
 class TestQuerySchemaRegistry(unittest.TestCase):
