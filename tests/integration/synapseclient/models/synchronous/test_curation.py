@@ -246,7 +246,7 @@ class TestCurationTaskStore:
             raise
 
     def test_store_file_based_curation_task(
-        self, project_model: Project, folder_with_view: tuple[Folder, EntityView]
+        self, team, project_model: Project, folder_with_view: tuple[Folder, EntityView]
     ) -> None:
         # GIVEN a project, folder, and entity view
         folder, entity_view = folder_with_view
@@ -264,6 +264,7 @@ class TestCurationTaskStore:
             project_id=project_model.id,
             instructions="Please curate this test data.",
             task_properties=task_properties,
+            assignee_principal_id=str(team.id),
         )
 
         # WHEN I store the curation task
@@ -280,6 +281,7 @@ class TestCurationTaskStore:
         assert stored_task.etag is not None
         assert stored_task.created_on is not None
         assert stored_task.created_by is not None
+        assert stored_task.assignee_principal_id == str(team.id)
 
     def test_store_record_based_curation_task(
         self, project_model: Project, record_set: RecordSet, team: Team
