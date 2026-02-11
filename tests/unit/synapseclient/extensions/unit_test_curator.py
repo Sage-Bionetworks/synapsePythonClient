@@ -50,6 +50,7 @@ from synapseclient.extensions.curator.schema_registry import (
     get_latest_schema_uri,
 )
 from synapseclient.models import ColumnType
+from synapseclient.models.curation import FileBasedMetadataTaskProperties
 from synapseclient.models.mixins import JSONSchemaBinding
 from synapseclient.models.mixins.json_schema import JSONSchemaVersionInfo
 
@@ -427,6 +428,73 @@ class TestCreateFileBasedMetadataTask(unittest.TestCase):
         self.assertEqual(result, ("syn87654321", "task123"))
         # Verify that syn.get was called twice (for parent folder and project)
         self.assertEqual(self.mock_syn.get.call_count, 2)
+
+    @patch(
+        "synapseclient.extensions.curator.file_based_metadata_task.Synapse.get_client"
+    )
+    @patch(
+        "synapseclient.extensions.curator.file_based_metadata_task.create_json_schema_entity_view"
+    )
+    @patch("synapseclient.extensions.curator.file_based_metadata_task.Folder")
+    @patch("synapseclient.extensions.curator.file_based_metadata_task.CurationTask")
+    def test_create_file_based_metadata_task_with_assignee(
+        self,
+        mock_curation_task_cls,
+        mock_folder_cls,
+        mock_create_entity_view,
+        mock_get_client,
+    ):
+        """Test successful creation of filed-based metadata task with assign_principal_id."""
+        # GIVEN a file-based metadata task with assign_principal_id set to True
+        mock_get_client.return_value = self.mock_syn
+        mock_create_entity_view.return_value = "test_entity_view_id"
+
+        mock_folder = Mock()
+        mock_folder_cls.return_value = mock_folder
+        mock_folder.get.return_value = mock_folder
+        mock_folder.parent_id = "syn11111111"
+
+        mock_project = Mock()
+        mock_project.concreteType = "org.sagebionetworks.repo.model.Project"
+        mock_project.id = "syn22222222"
+        self.mock_syn.get.return_value = mock_project
+
+        mock_task = Mock()
+        mock_task.task_id = "task123"
+        mock_curation_task = Mock()
+        mock_curation_task.store.return_value = mock_task
+        mock_curation_task_cls.return_value = mock_curation_task
+
+        # WHEN I create the file-based metadata task with assign_principal_id=True
+        result = create_file_based_metadata_task(
+            folder_id=self.folder_id,
+            curation_task_name=self.curation_task_name,
+            instructions=self.instructions,
+            attach_wiki=False,
+            entity_view_name=self.entity_view_name,
+            schema_uri=self.schema_uri,
+            enable_derived_annotations=True,
+            assignee_principal_id="syn1234",
+            synapse_client=self.mock_syn,
+        )
+
+        mock_curation_task_cls.assert_called_once_with(
+            data_type=self.curation_task_name,
+            project_id="syn22222222",
+            instructions=self.instructions,
+            assignee_principal_id="syn1234",
+            task_properties=FileBasedMetadataTaskProperties(
+                upload_folder_id=self.folder_id,
+                file_view_id=mock_create_entity_view.return_value,
+            ),
+        )
+        # THEN the task should be created successfully
+        assert result == ("test_entity_view_id", "task123")
+        mock_create_entity_view.assert_called_once_with(
+            syn=self.mock_syn,
+            synapse_entity_id=self.folder_id,
+            entity_view_name=self.entity_view_name,
+        )
 
 
 class TestCreateRecordBasedMetadataTask(unittest.TestCase):
