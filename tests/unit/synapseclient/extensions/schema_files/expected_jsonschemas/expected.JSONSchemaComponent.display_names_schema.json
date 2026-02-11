@@ -21,10 +21,10 @@
       "oneOf": [
         {
           "enum": [
-            "ab",
-            "cd",
-            "ef",
-            "gh"
+            "Ab",
+            "Cd",
+            "Ef",
+            "Gh"
           ],
           "title": "enum"
         }
@@ -36,10 +36,10 @@
       "oneOf": [
         {
           "enum": [
-            "ab",
-            "cd",
-            "ef",
-            "gh"
+            "Ab",
+            "Cd",
+            "Ef",
+            "Gh"
           ],
           "title": "enum"
         },
@@ -73,10 +73,10 @@
         {
           "items": {
             "enum": [
-              "ab",
-              "cd",
-              "ef",
-              "gh"
+              "Ab",
+              "Cd",
+              "Ef",
+              "Gh"
             ]
           },
           "title": "array",
@@ -91,10 +91,10 @@
         {
           "items": {
             "enum": [
-              "ab",
-              "cd",
-              "ef",
-              "gh"
+              "Ab",
+              "Cd",
+              "Ef",
+              "Gh"
             ]
           },
           "title": "array",

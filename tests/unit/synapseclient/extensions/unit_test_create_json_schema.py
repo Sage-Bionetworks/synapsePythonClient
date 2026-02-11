@@ -922,7 +922,7 @@ def test_create_json_schema_with_class_label(
         datatype=datatype,
         schema_name=f"{datatype}_validation",
         schema_path=test_path,
-        use_property_display_names=False,
+        use_display_names=False,
         logger=logger,
     )
     with open(expected_path, encoding="utf-8") as file1, open(
@@ -990,6 +990,8 @@ def test_create_json_schema_with_class_label_using_jsonld(
     """Tests for JSONSchemaGenerator.create_json_schema"""
     test_path = get_test_schema_path(test_directory, datatype)
     expected_path = get_expected_schema_path(datatype)
+    print(test_path)
+    print(expected_path)
     logger = logging.getLogger(__name__)
 
     create_json_schema(
@@ -997,7 +999,7 @@ def test_create_json_schema_with_class_label_using_jsonld(
         datatype=datatype,
         schema_name=f"{datatype}_validation",
         schema_path=test_path,
-        use_property_display_names=False,
+        use_display_names=False,
         logger=logger,
     )
     with open(expected_path, encoding="utf-8") as file1, open(
@@ -1161,7 +1163,7 @@ def test_set_conditional_dependencies_nothing_added(
     gts.current_node.name = "CancerType"
     gts.current_node.display_name = "Cancer Type"
     _set_conditional_dependencies(
-        json_schema=json_schema, graph_state=gts, use_property_display_names=False
+        json_schema=json_schema, graph_state=gts, use_display_names=False
     )
     assert json_schema == {"allOf": []}
 
@@ -1245,7 +1247,7 @@ def test_set_conditional_dependencies(
     gts.current_node.name = "CancerType"
     gts.current_node.display_name = "Cancer Type"
     _set_conditional_dependencies(
-        json_schema=json_schema, graph_state=gts, use_property_display_names=False
+        json_schema=json_schema, graph_state=gts, use_display_names=False
     )
     assert json_schema == expected_schema
 
@@ -1262,7 +1264,7 @@ def test_set_conditional_dependencies(
                         "description": "TBD",
                         "title": "List Enum",
                         "type": "array",
-                        "items": {"enum": ["ab", "cd", "ef", "gh"], "type": "string"},
+                        "items": {"enum": ["Ab", "Cd", "Ef", "Gh"], "type": "string"},
                     }
                 },
                 required=["ListEnum"],
@@ -1277,7 +1279,7 @@ def test_set_conditional_dependencies(
                         "description": "TBD",
                         "title": "List Enum Not Required",
                         "type": "array",
-                        "items": {"enum": ["ab", "cd", "ef", "gh"], "type": "string"},
+                        "items": {"enum": ["Ab", "Cd", "Ef", "Gh"], "type": "string"},
                     }
                 },
                 required=[],
@@ -1291,7 +1293,7 @@ def test_set_conditional_dependencies(
                     "Enum": {
                         "description": "TBD",
                         "title": "Enum",
-                        "enum": ["ab", "cd", "ef", "gh"],
+                        "enum": ["Ab", "Cd", "Ef", "Gh"],
                     }
                 },
                 required=["Enum"],
@@ -1338,7 +1340,7 @@ def test_set_property(
 ) -> None:
     """Tests for set_property"""
     schema = JSONSchema()
-    _set_property(schema, test_nodes[node_name], use_property_display_names=False)
+    _set_property(schema, test_nodes[node_name], use_display_names=False)
     assert schema == expected_schema
 
 

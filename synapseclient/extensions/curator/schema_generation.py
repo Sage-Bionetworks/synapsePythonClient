@@ -5137,7 +5137,7 @@ class JSONSchema:  # pylint: disable=too-many-instance-attributes
 def _set_conditional_dependencies(
     json_schema: JSONSchema,
     graph_state: GraphTraversalState,
-    use_property_display_names: bool = True,
+    use_display_names: bool = True,
 ) -> None:
     """
     This sets conditional requirements in the "allOf" keyword.
@@ -5177,20 +5177,19 @@ def _set_conditional_dependencies(
     Arguments:
         json_schema: The JSON Scheme where the node might be set as a property
         graph_state: The instance tracking the current state of the graph
-        use_property_display_names: If True, the properties in the JSONSchema
-          will be written using node display names
+        use_display_names: If True, the properties and enums in the JSONSchema
+            will be written using display names, otherwise the formatted labels will be used
+
     """
     if graph_state.current_node is None:
         raise ValueError("Node Processor contains no node.")
 
-    if use_property_display_names:
+    if use_display_names:
         node_name = graph_state.current_node.display_name
     else:
         node_name = graph_state.current_node.name
 
-    conditional_properties = graph_state.get_conditional_properties(
-        use_property_display_names
-    )
+    conditional_properties = graph_state.get_conditional_properties(use_display_names)
     for prop in conditional_properties:
         attribute, value = prop
         conditional_schema = {
@@ -5204,7 +5203,7 @@ def _set_conditional_dependencies(
 
 
 def _create_enum_array_property(
-    node: TraversalNode, use_valid_value_display_names: bool = True
+    node: TraversalNode, use_display_names: bool = True
 ) -> Property:
     """
     Creates a JSON Schema property array with enum items
@@ -5219,13 +5218,13 @@ def _create_enum_array_property(
 
     Arguments:
         node: The node to make the property of
-        use_valid_value_display_names: If True, the valid_values in the JSONSchema
-          will be written using node display names
+        use_display_names: If True, the properties and enums in the JSONSchema
+            will be written using display names, otherwise the formatted labels will be used
 
     Returns:
         JSON object
     """
-    if use_valid_value_display_names:
+    if use_display_names:
         valid_values = node.valid_value_display_names
     else:
         valid_values = node.valid_values
@@ -5270,7 +5269,7 @@ def _create_array_property(node: TraversalNode) -> Property:
 
 
 def _create_enum_property(
-    node: TraversalNode, use_valid_value_display_names: bool = True
+    node: TraversalNode, use_display_names: bool = True
 ) -> Property:
     """
     Creates a JSON Schema property enum
@@ -5283,11 +5282,13 @@ def _create_enum_property(
 
     Arguments:
         node: The node to make the property of
+        use_display_names: If True, the properties and enums in the JSONSchema
+            will be written using display names, otherwise the formatted labels will be used
 
     Returns:
         JSON object
     """
-    if use_valid_value_display_names:
+    if use_display_names:
         valid_values = node.valid_value_display_names
     else:
         valid_values = node.valid_values
@@ -5346,8 +5347,7 @@ def _set_type_specific_keywords(schema: dict[str, Any], node: TraversalNode) -> 
 def _set_property(
     json_schema: JSONSchema,
     node: TraversalNode,
-    use_property_display_names: bool = True,
-    use_valid_value_display_names: bool = True,
+    use_display_names: bool = True,
 ) -> None:
     """
     Sets a property in the JSON schema. that is required by the schema
@@ -5355,21 +5355,19 @@ def _set_property(
     Arguments:
         json_schema: The JSON Scheme where the node might be set as a property
         graph_state: The node the write the property for
-        use_property_display_names: If True, the properties in the JSONSchema
-          will be written using node display names
-        use_valid_value_display_names: If True, the valid_values in the JSONSchema
-          will be written using node display names
+        use_display_names: If True, the properties and enums in the JSONSchema
+            will be written using display names, otherwise the formatted labels will be used
     """
-    if use_property_display_names:
+    if use_display_names:
         node_name = node.display_name
     else:
         node_name = node.name
 
     if node.valid_values:
         if node.is_array:
-            prop = _create_enum_array_property(node, use_valid_value_display_names)
+            prop = _create_enum_array_property(node, use_display_names)
         else:
-            prop = _create_enum_property(node, use_valid_value_display_names)
+            prop = _create_enum_property(node, use_display_names)
 
     else:
         if node.is_array:
@@ -5393,8 +5391,7 @@ def _process_node(
     json_schema: JSONSchema,
     graph_state: GraphTraversalState,
     logger: Logger,
-    use_property_display_names: bool = True,
-    use_valid_value_display_names: bool = True,
+    use_display_names: bool = True,
 ) -> None:
     """
     Processes a node in the data model graph.
@@ -5404,10 +5401,8 @@ def _process_node(
     Argument:
         json_schema: The JSON Scheme where the node might be set as a property
         graph_state: The instance tracking the current state of the graph
-        use_property_display_names: If True, the properties in the JSONSchema
-          will be written using node display names
-        use_valid_value_display_names: If True, the valid_values in the JSONSchema
-          will be written using node display names
+        use_display_names: If True, the properties and enums in the JSONSchema
+            will be written using display names, otherwise the formatted labels will be used
     """
     if graph_state.current_node is None:
         raise ValueError("Node Processor contains no node.")
@@ -5419,7 +5414,7 @@ def _process_node(
             _set_conditional_dependencies(
                 json_schema=json_schema,
                 graph_state=graph_state,
-                use_property_display_names=use_property_display_names,
+                use_display_names=use_display_names,
             )
             # This is to ensure that all properties that are conditional dependencies are not
             #   required, but only become required when the conditional dependency is met.
@@ -5427,8 +5422,7 @@ def _process_node(
         _set_property(
             json_schema=json_schema,
             node=graph_state.current_node,
-            use_property_display_names=use_property_display_names,
-            use_valid_value_display_names=use_valid_value_display_names,
+            use_display_names=use_display_names,
         )
         graph_state.update_processed_nodes_with_current_node()
         logger.info("Property set in JSON Schema for %s", graph_state.current_node.name)
@@ -5473,8 +5467,7 @@ def create_json_schema(  # pylint: disable=too-many-arguments
     write_schema: bool = True,
     schema_path: Optional[str] = None,
     jsonld_path: Optional[str] = None,
-    use_property_display_names: bool = True,
-    use_valid_value_display_names: bool = True,
+    use_display_names: bool = True,
 ) -> dict[str, Any]:
     """
     Creates a JSONSchema dict for the datatype in the data model.
@@ -5501,10 +5494,8 @@ def create_json_schema(  # pylint: disable=too-many-arguments
             when it is hosted on the Internet).
         schema_path: Where to save the JSON Schema file
         jsonld_path: Used to name the file if the path isn't supplied
-        use_property_display_names: If True, the properties in the JSONSchema
-          will be written using node display names
-        use_valid_value_display_names: If True, the valid_values in the JSONSchema
-          will be written using node display names
+        use_display_names: If True, the properties and enums in the JSONSchema
+            will be written using display names, otherwise the formatted labels will be used
 
     Returns:
         JSON Schema as a dictionary.
@@ -5523,8 +5514,7 @@ def create_json_schema(  # pylint: disable=too-many-arguments
                 json_schema=json_schema,
                 graph_state=graph_state,
                 logger=logger,
-                use_property_display_names=use_property_display_names,
-                use_valid_value_display_names=use_valid_value_display_names,
+                use_display_names=use_display_names,
             )
         graph_state.move_to_next_node()
 
@@ -5728,7 +5718,7 @@ def generate_jsonschema(
             logger=synapse_client.logger,
             write_schema=True,
             schema_path=schema_path,
-            use_property_display_names=(data_model_labels == "display_label"),
+            use_display_names=(data_model_labels == "display_label"),
         )
         for data_type, schema_path in zip(data_types, schema_paths)
     ]
