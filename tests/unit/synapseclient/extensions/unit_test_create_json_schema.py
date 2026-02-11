@@ -990,8 +990,6 @@ def test_create_json_schema_with_class_label_using_jsonld(
     """Tests for JSONSchemaGenerator.create_json_schema"""
     test_path = get_test_schema_path(test_directory, datatype)
     expected_path = get_expected_schema_path(datatype)
-    print(test_path)
-    print(expected_path)
     logger = logging.getLogger(__name__)
 
     create_json_schema(
