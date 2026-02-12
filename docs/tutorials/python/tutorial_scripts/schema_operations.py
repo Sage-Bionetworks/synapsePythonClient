@@ -52,3 +52,11 @@ schemas, file_paths = generate_jsonschema(
     data_types=DATA_TYPE,
     synapse_client=syn,
 )
+
+# Create JSON Schema in using display names for both properties names and valid values
+schemas, file_paths = generate_jsonschema(
+    data_model_source=DATA_MODEL_SOURCE,
+    data_types=DATA_TYPE,
+    data_model_labels="display_label",
+    synapse_client=syn,
+)

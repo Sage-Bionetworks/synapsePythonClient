@@ -728,11 +728,11 @@ class TestGraphTraversalState:
         """Test GraphTraversalState.__init__"""
         # GIVEN a GraphTraversalState instance with 5 nodes
         gts = GraphTraversalState(dmge, "Patient", logger=Mock())
-        # THEN the current_node, current_node_display_name, and first item in
+        # THEN the current_node, current_node_display_label, and first item in
         #  root dependencies should be "Component"
         assert gts.current_node.name == "Component"
         assert gts._root_dependencies[0] == "Component"
-        assert gts.current_node.display_name == "Component"
+        assert gts.current_node.display_label == "Component"
         # THEN
         #  - root_dependencies should be 5 items long
         #  - nodes to process should be the same minus "Component"
@@ -756,13 +756,13 @@ class TestGraphTraversalState:
         gts._nodes_to_process = ["YearofBirth"]
         # THEN the current_node should be "Component" and node to process has 1 node
         assert gts.current_node.name == "Component"
-        assert gts.current_node.display_name == "Component"
+        assert gts.current_node.display_label == "Component"
         assert gts._nodes_to_process == ["YearofBirth"]
         # WHEN using move_to_next_node
         gts.move_to_next_node()
         # THEN the current_node should now be YearofBirth and no nodes to process
         assert gts.current_node.name == "YearofBirth"
-        assert gts.current_node.display_name == "Year of Birth"
+        assert gts.current_node.display_label == "Year of Birth"
         assert not gts._nodes_to_process
 
     def test_are_nodes_remaining(self, dmge: DataModelGraphExplorer) -> None:
@@ -948,7 +948,7 @@ def test_create_json_schema_with_class_label(
         datatype=datatype,
         schema_name=f"{datatype}_validation",
         schema_path=test_path,
-        use_property_display_names=False,
+        use_display_labels=False,
         logger=logger,
     )
     with open(expected_path, encoding="utf-8") as file1, open(
@@ -1023,7 +1023,7 @@ def test_create_json_schema_with_class_label_using_jsonld(
         datatype=datatype,
         schema_name=f"{datatype}_validation",
         schema_path=test_path,
-        use_property_display_names=False,
+        use_display_labels=False,
         logger=logger,
     )
     with open(expected_path, encoding="utf-8") as file1, open(
@@ -1187,7 +1187,7 @@ def test_set_conditional_dependencies_nothing_added(
     gts.current_node.name = "CancerType"
     gts.current_node.display_name = "Cancer Type"
     _set_conditional_dependencies(
-        json_schema=json_schema, graph_state=gts, use_property_display_names=False
+        json_schema=json_schema, graph_state=gts, use_display_labels=False
     )
     assert json_schema == {"allOf": []}
 
@@ -1271,7 +1271,7 @@ def test_set_conditional_dependencies(
     gts.current_node.name = "CancerType"
     gts.current_node.display_name = "Cancer Type"
     _set_conditional_dependencies(
-        json_schema=json_schema, graph_state=gts, use_property_display_names=False
+        json_schema=json_schema, graph_state=gts, use_display_labels=False
     )
     assert json_schema == expected_schema
 
@@ -1288,7 +1288,7 @@ def test_set_conditional_dependencies(
                         "description": "TBD",
                         "title": "List Enum",
                         "type": "array",
-                        "items": {"enum": ["ab", "cd", "ef", "gh"], "type": "string"},
+                        "items": {"enum": ["Ab", "Cd", "Ef", "Gh"], "type": "string"},
                     }
                 },
                 required=["ListEnum"],
@@ -1303,7 +1303,7 @@ def test_set_conditional_dependencies(
                         "description": "TBD",
                         "title": "List Enum Not Required",
                         "type": "array",
-                        "items": {"enum": ["ab", "cd", "ef", "gh"], "type": "string"},
+                        "items": {"enum": ["Ab", "Cd", "Ef", "Gh"], "type": "string"},
                     }
                 },
                 required=[],
@@ -1317,7 +1317,7 @@ def test_set_conditional_dependencies(
                     "Enum": {
                         "description": "TBD",
                         "title": "Enum",
-                        "enum": ["ab", "cd", "ef", "gh"],
+                        "enum": ["Ab", "Cd", "Ef", "Gh"],
                     }
                 },
                 required=["Enum"],
@@ -1364,7 +1364,7 @@ def test_set_property(
 ) -> None:
     """Tests for set_property"""
     schema = JSONSchema()
-    _set_property(schema, test_nodes[node_name], use_property_display_names=False)
+    _set_property(schema, test_nodes[node_name], use_display_labels=False)
     assert schema == expected_schema
 
 
