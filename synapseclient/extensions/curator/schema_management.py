@@ -10,7 +10,8 @@ from typing import TYPE_CHECKING, Optional
 
 if TYPE_CHECKING:
     from synapseclient import Synapse
-    from synapseclient.models.schema_organization import JSONSchema, JSONSchemaBinding
+    from synapseclient.models.mixins.json_schema import JSONSchemaBinding
+    from synapseclient.models.schema_organization import JSONSchema
 
 
 def register_jsonschema(
