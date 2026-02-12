@@ -845,6 +845,32 @@ class TestGraphTraversalState:
         # THEN the current node should have conditional properties
         assert gts.get_conditional_properties() == [("Diagnosis", "Cancer")]
 
+    def test_get_conditional_properties_multiple_watched_properties(
+        self, dmge: DataModelGraphExplorer
+    ) -> None:
+        """Test GraphTraversalState.get_conditional_properties with multiple watched properties.
+
+        This test covers a bug where the 'value' variable was being mutated inside
+        the inner loop when converting to display names.
+
+        """
+        # GIVEN a GraphTraversalState instance where
+        # - CancerType has a reverse dependency of FamilyHistory
+        # - FamilyHistory is a valid value of MULTIPLE attributes
+        gts = GraphTraversalState(dmge, "Patient", logger=Mock())
+        gts._nodes_to_process = ["CancerType"]
+
+        # Use FamilyHistory because its display name ("Family History") differs from class label
+        gts._reverse_dependencies = {"CancerType": ["FamilyHistory"]}
+        # FamilyHistory triggers multiple watched properties - this is key to triggering the bug
+        gts._valid_values_map = {"FamilyHistory": ["Sex", "YearofBirth"]}
+        # WHEN using move_to_next_node
+        gts.move_to_next_node()
+        result = gts.get_conditional_properties()
+        assert len(result) == 2
+        assert ("Year of Birth", "Family History") in result
+        assert ("Sex", "Family History") in result
+
     def test_update_valid_values_map(self, dmge: DataModelGraphExplorer) -> None:
         """Test GraphTraversalState._update_valid_values_map"""
         # GIVEN a GraphTraversalState instance

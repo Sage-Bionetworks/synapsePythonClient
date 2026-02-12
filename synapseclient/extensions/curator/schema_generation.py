@@ -4994,6 +4994,7 @@ class GraphTraversalState:  # pylint: disable=too-many-instance-attributes
         if self.current_node is None:
             raise ValueError("Current node is None")
         conditional_properties: list[tuple[str, str]] = []
+
         for value in self._reverse_dependencies[self.current_node.name]:
             if value in self._valid_values_map:
                 properties = sorted(self._valid_values_map[value])
@@ -5002,8 +5003,14 @@ class GraphTraversalState:  # pylint: disable=too-many-instance-attributes
                         watched_property = self.dmge.get_nodes_display_names(
                             [watched_property]
                         )[0]
-                        value = self.dmge.get_nodes_display_names([value])[0]
-                    conditional_properties.append((watched_property, value))
+                        display_name_value = self.dmge.get_nodes_display_names([value])[
+                            0
+                        ]
+                        conditional_properties.append(
+                            (watched_property, display_name_value)
+                        )
+                    else:
+                        conditional_properties.append((watched_property, value))
         return conditional_properties
 
     def _update_valid_values_map(
