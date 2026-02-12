@@ -10,7 +10,7 @@ from typing import TYPE_CHECKING, Optional
 
 if TYPE_CHECKING:
     from synapseclient import Synapse
-    from synapseclient.models.schema_organization import JSONSchema
+    from synapseclient.models.schema_organization import JSONSchema, JSONSchemaBinding
 
 
 def register_jsonschema(
@@ -91,7 +91,7 @@ def bind_jsonschema(
     json_schema_uri: str,
     enable_derived_annotations: bool = False,
     synapse_client: Optional["Synapse"] = None,
-) -> dict:
+) -> "JSONSchemaBinding":
     """
     Bind a JSON schema to a Synapse entity.
 
@@ -107,7 +107,7 @@ def bind_jsonschema(
                        instance from the Synapse class constructor
 
     Returns:
-        A dictionary containing the binding details
+        The JSONSchemaBinding object containing the binding details
 
     Example: Bind a JSON schema to an entity
         ```python
