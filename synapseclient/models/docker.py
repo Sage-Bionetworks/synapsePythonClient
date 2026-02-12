@@ -333,7 +333,7 @@ class DockerRepository(DockerRepositorySynchronousProtocol):
                 # parent_id must be a Project ID
                 docker_repo = await DockerRepository(
                     parent_id="syn123",
-                    repository_name="my-repo"
+                    repository_name="my-user-name/my-repo"
                 ).store_async()
                 return docker_repo
 
@@ -341,13 +341,9 @@ class DockerRepository(DockerRepositorySynchronousProtocol):
             print(docker_repo.id)
             ```
         """
-        if not self.id and not self.parent_id:
+        if not self.parent_id or not self.repository_name:
             raise ValueError(
-                "The Docker repository must have a parent_id set to store."
-            )
-        if not self.id and not self.repository_name:
-            raise ValueError(
-                "The Docker repository must have a repository_name set to store."
+                "Creating a new Docker repository requires both parent_id and repository_name."
             )
 
         if self.has_changed:
@@ -377,7 +373,7 @@ class DockerRepository(DockerRepositorySynchronousProtocol):
                 instance from the Synapse class constructor.
 
         Raises:
-            ValueError: If the Docker repository does not have an id set.
+            ValueError: If the Docker repository does not have an id set for deletion.
 
         Example: Using this function
             Delete a Docker repository:
@@ -398,7 +394,7 @@ class DockerRepository(DockerRepositorySynchronousProtocol):
             ```
         """
         if not self.id:
-            raise ValueError("The Docker repository must have an id set.")
+            raise ValueError("Deleting a Docker repository requires an id to be set.")
 
         loop = asyncio.get_event_loop()
         await loop.run_in_executor(
