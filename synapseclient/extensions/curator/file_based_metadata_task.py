@@ -5,7 +5,7 @@ This module provides library functions for creating file-based metadata curation
 in Synapse, including EntityView creation, CurationTask setup, and Wiki attachment.
 """
 
-from typing import Any, Optional, Tuple
+from typing import Any, Optional, Tuple, Union
 
 from synapseclient import Synapse  # type: ignore
 from synapseclient import Wiki  # type: ignore
@@ -298,7 +298,7 @@ def create_file_based_metadata_task(
     entity_view_name: str = "JSON Schema view",
     schema_uri: Optional[str] = None,
     enable_derived_annotations: bool = False,
-    assignee_principal_id: Optional[str] = None,
+    assignee_principal_id: Optional[Union[str, int]] = None,
     *,
     synapse_client: Optional[Synapse] = None,
 ) -> Tuple[str, str]:
@@ -324,7 +324,7 @@ def create_file_based_metadata_task(
             attach_wiki=False,
             entity_view_name="Biospecimen Metadata View",
             schema_uri="sage.schemas.v2571-amp.Biospecimen.schema-0.0.1",
-            assignee_principal_id="123456"  # Optional: Assign to a user or team
+            assignee_principal_id=123456  # Optional: Assign to a user or team (can be str or int)
         )
         ```
 
@@ -341,10 +341,10 @@ def create_file_based_metadata_task(
             (e.g., 'sage.schemas.v2571-amp.Biospecimen.schema-0.0.1')
         enable_derived_annotations: If true, enable derived annotations. Defaults to False.
         assignee_principal_id: The principal ID of the user or team to assign to this
-            curation task. If None (default), the task will be unassigned. For metadata
-            tasks, this determines the owner of the grid session. Team members can all
-            join grid sessions owned by their team, while user-owned grid sessions are
-            restricted to that user only.
+            curation task. Can be provided as either a string or an integer. If None
+            (default), the task will be unassigned. For metadata tasks, this determines
+            the owner of the grid session. Team members can all join grid sessions owned
+            by their team, while user-owned grid sessions are restricted to that user only.
         synapse_client: If not passed in and caching was not disabled by
                 `Synapse.allow_client_caching(False)` this will use the last created
                 instance from the Synapse class constructor.
@@ -452,7 +452,11 @@ def create_file_based_metadata_task(
             data_type=task_datatype,
             project_id=project.id,
             instructions=instructions,
-            assignee_principal_id=assignee_principal_id,
+            assignee_principal_id=(
+                str(assignee_principal_id)
+                if assignee_principal_id is not None
+                else None
+            ),
             task_properties=FileBasedMetadataTaskProperties(
                 upload_folder_id=folder_id,
                 file_view_id=entity_view_id,
