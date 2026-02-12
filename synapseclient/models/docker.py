@@ -248,7 +248,6 @@ class DockerRepository(DockerRepositorySynchronousProtocol):
 
         bundle = await get_entity_id_bundle2(
             entity_id=self.id,
-            request={"includeEntity": True},
             synapse_client=synapse_client,
         )
         self.fill_from_dict(synapse_entity=bundle["entity"])

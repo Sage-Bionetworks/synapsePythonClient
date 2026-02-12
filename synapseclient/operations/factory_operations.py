@@ -11,7 +11,6 @@ if TYPE_CHECKING:
     from synapseclient.models import (
         Dataset,
         DatasetCollection,
-        DockerRepository,
         EntityView,
         File,
         Folder,
@@ -195,7 +194,6 @@ async def _handle_entity_instance(
 ) -> Union[
     "Dataset",
     "DatasetCollection",
-    "DockerRepository",
     "EntityView",
     "File",
     "Folder",
@@ -351,7 +349,6 @@ async def _handle_link_entity(
 ) -> Union[
     "Dataset",
     "DatasetCollection",
-    "DockerRepository",
     "EntityView",
     "File",
     "Folder",
@@ -396,7 +393,6 @@ def get(
 ) -> Union[
     "Dataset",
     "DatasetCollection",
-    "DockerRepository",
     "EntityView",
     "File",
     "Folder",
@@ -701,7 +697,6 @@ async def get_async(
 ) -> Union[
     "Dataset",
     "DatasetCollection",
-    "DockerRepository",
     "EntityView",
     "File",
     "Folder",
@@ -1025,7 +1020,6 @@ async def get_async(
     from synapseclient.models import (
         Dataset,
         DatasetCollection,
-        DockerRepository,
         EntityView,
         File,
         Folder,
@@ -1046,7 +1040,6 @@ async def get_async(
     entity_types = (
         Dataset,
         DatasetCollection,
-        DockerRepository,
         EntityView,
         File,
         Folder,
@@ -1201,14 +1194,6 @@ async def get_async(
             version_number=version_number,
             activity_options=activity_options,
             table_options=table_options,
-            synapse_client=synapse_client,
-        )
-
-    elif entity_type == concrete_types.DOCKER_REPOSITORY:
-        return await _handle_simple_entity(
-            entity_class=DockerRepository,
-            synapse_id=synapse_id,
-            version_number=version_number,
             synapse_client=synapse_client,
         )
 
