@@ -57,6 +57,6 @@ schemas, file_paths = generate_jsonschema(
 schemas, file_paths = generate_jsonschema(
     data_model_source=DATA_MODEL_SOURCE,
     data_types=DATA_TYPE,
-    use__display_names=True,
+    data_model_labels="display_label",
     synapse_client=syn,
 )
