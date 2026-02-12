@@ -148,10 +148,10 @@ class TestCurationTaskStore:
         self.syn = syn
         self.schedule_for_cleanup = schedule_for_cleanup
 
-    @pytest.fixture(autouse=True, scope="function")
+    @pytest.fixture(scope="function")
     def team(self) -> Team:
         team = Team(name=f"test_team_{uuid.uuid4()}").create(synapse_client=self.syn)
-        self.schedule_for_cleanup(str(team.id))
+        self.schedule_for_cleanup(team)
         return team
 
     @pytest.fixture(scope="function")

@@ -447,8 +447,8 @@ class TestCreateFileBasedMetadataTask(unittest.TestCase):
         mock_create_entity_view,
         mock_get_client,
     ):
-        """Test successful creation of filed-based metadata task with assign_principal_id."""
-        # GIVEN a file-based metadata task with assign_principal_id set to True
+        """Test successful creation of file-based metadata task with assignee_principal_id."""
+        # GIVEN a file-based metadata task with assignee_principal_id
         mock_get_client.return_value = self.mock_syn
         mock_create_entity_view.return_value = "test_entity_view_id"
 
