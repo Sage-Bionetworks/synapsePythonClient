@@ -63,21 +63,17 @@ def register_jsonschema(
 
     syn = Synapse.get_client(synapse_client=synapse_client)
 
-    # Load the schema from file
     with open(schema_path, "r") as f:
         schema_body = json.load(f)
 
-    # Create JSONSchema instance
     json_schema = JSONSchema(name=schema_name, organization_name=organization_name)
 
-    # Store the schema with optional version
     json_schema.store(
         schema_body=schema_body,
         version=schema_version,
         synapse_client=syn,
     )
 
-    # Log success message
     syn.logger.info(
         f"Successfully registered schema '{schema_name}' to organization '{organization_name}'"
     )
@@ -131,14 +127,12 @@ def bind_jsonschema(
 
     syn = Synapse.get_client(synapse_client=synapse_client)
 
-    # Get the entity (File, Folder, or Project)
     entity = get(
         file_options=FileOptions(download_file=False),
         synapse_id=entity_id,
         synapse_client=syn,
     )
 
-    # Bind the schema using the entity's bind_schema method
     result = entity.bind_schema(
         json_schema_uri=json_schema_uri,
         enable_derived_annotations=enable_derived_annotations,
