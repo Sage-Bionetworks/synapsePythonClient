@@ -922,7 +922,7 @@ def test_create_json_schema_with_class_label(
         datatype=datatype,
         schema_name=f"{datatype}_validation",
         schema_path=test_path,
-        use_display_names=False,
+        use_display_labels=False,
         logger=logger,
     )
     with open(expected_path, encoding="utf-8") as file1, open(
@@ -997,7 +997,7 @@ def test_create_json_schema_with_class_label_using_jsonld(
         datatype=datatype,
         schema_name=f"{datatype}_validation",
         schema_path=test_path,
-        use_display_names=False,
+        use_display_labels=False,
         logger=logger,
     )
     with open(expected_path, encoding="utf-8") as file1, open(
@@ -1161,7 +1161,7 @@ def test_set_conditional_dependencies_nothing_added(
     gts.current_node.name = "CancerType"
     gts.current_node.display_name = "Cancer Type"
     _set_conditional_dependencies(
-        json_schema=json_schema, graph_state=gts, use_display_names=False
+        json_schema=json_schema, graph_state=gts, use_display_labels=False
     )
     assert json_schema == {"allOf": []}
 
@@ -1245,7 +1245,7 @@ def test_set_conditional_dependencies(
     gts.current_node.name = "CancerType"
     gts.current_node.display_name = "Cancer Type"
     _set_conditional_dependencies(
-        json_schema=json_schema, graph_state=gts, use_display_names=False
+        json_schema=json_schema, graph_state=gts, use_display_labels=False
     )
     assert json_schema == expected_schema
 
@@ -1338,7 +1338,7 @@ def test_set_property(
 ) -> None:
     """Tests for set_property"""
     schema = JSONSchema()
-    _set_property(schema, test_nodes[node_name], use_display_names=False)
+    _set_property(schema, test_nodes[node_name], use_display_labels=False)
     assert schema == expected_schema
 
 

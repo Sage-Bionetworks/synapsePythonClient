@@ -4630,9 +4630,9 @@ class TraversalNode:  # pylint: disable=too-many-instance-attributes
         name: The name of the node
         source_node: The name of the node where the graph traversal started
         dmge: A DataModelGraphExplorer with the data model loaded
-        display_name: The display name of the node
+        display_label: The display name of the node
         valid_values: The valid values of the node if any
-        valid_value_display_names: The display names of the valid values of the node if any
+        valid_value_display_labels: The display names of the valid values of the node if any
         is_required: Whether or not this node is required
         dependencies: This nodes dependencies
         description: This nodes description, gotten from the comment in the data model
@@ -4977,7 +4977,7 @@ class GraphTraversalState:  # pylint: disable=too-many-instance-attributes
         self._processed_nodes.append(self.current_node.name)
 
     def get_conditional_properties(
-        self, use_node_display_names: bool = True
+        self, use_display_labels: bool = True
     ) -> list[tuple[str, str]]:
         """Returns the conditional dependencies for the current node
 
@@ -4985,8 +4985,8 @@ class GraphTraversalState:  # pylint: disable=too-many-instance-attributes
             ValueError: If there is no current node
 
         Arguments:
-            use_node_display_names: If True the the attributes in the
-              conditional dependencies are return with their display names
+            use_display_labels: If True the the attributes in the
+              conditional dependencies are return with their display labels
 
         Returns:
             The watched_property, and the value for it that triggers the condition
@@ -4998,7 +4998,7 @@ class GraphTraversalState:  # pylint: disable=too-many-instance-attributes
             if value in self._valid_values_map:
                 properties = sorted(self._valid_values_map[value])
                 for watched_property in properties:
-                    if use_node_display_names:
+                    if use_display_labels:
                         watched_property = self.dmge.get_nodes_display_names(
                             [watched_property]
                         )[0]
@@ -5007,32 +5007,32 @@ class GraphTraversalState:  # pylint: disable=too-many-instance-attributes
         return conditional_properties
 
     def _update_valid_values_map(
-        self, node_display_name: str, valid_values_display_names: list[str]
+        self, node_display_label: str, valid_values_display_labels: list[str]
     ) -> None:
         """Updates the valid_values map
 
         Arguments:
-            node_display_name: The display name of the node
-            valid_values_display_names: The display names of the the nodes valid values
+            node_display_label: The display label of the node
+            valid_values_display_labels: The display labels of the the nodes valid values
         """
-        for node in valid_values_display_names:
+        for node in valid_values_display_labels:
             if node not in self._valid_values_map:
                 self._valid_values_map[node] = []
-            self._valid_values_map[node].append(node_display_name)
+            self._valid_values_map[node].append(node_display_label)
 
     def _update_reverse_dependencies(
-        self, node_display_name: str, node_dependencies_display_names: list[str]
+        self, node_display_label: str, node_dependencies_display_labels: list[str]
     ) -> None:
         """Updates the reverse dependencies
 
         Arguments:
-            node_display_name: The display name of the node
-            node_dependencies_display_names: the display names of the reverse dependencies
+            node_display_label: The display label of the node
+            node_dependencies_display_labels: the display labels of the reverse dependencies
         """
-        for dep in node_dependencies_display_names:
+        for dep in node_dependencies_display_labels:
             if dep not in self._reverse_dependencies:
                 self._reverse_dependencies[dep] = []
-            self._reverse_dependencies[dep].append(node_display_name)
+            self._reverse_dependencies[dep].append(node_display_label)
 
     def _update_nodes_to_process(self, nodes: list[str]) -> None:
         """Updates the nodes to process with the input nodes
@@ -5137,7 +5137,7 @@ class JSONSchema:  # pylint: disable=too-many-instance-attributes
 def _set_conditional_dependencies(
     json_schema: JSONSchema,
     graph_state: GraphTraversalState,
-    use_display_names: bool = True,
+    use_display_labels: bool = True,
 ) -> None:
     """
     This sets conditional requirements in the "allOf" keyword.
@@ -5177,19 +5177,19 @@ def _set_conditional_dependencies(
     Arguments:
         json_schema: The JSON Scheme where the node might be set as a property
         graph_state: The instance tracking the current state of the graph
-        use_display_names: If True, the properties and enums in the JSONSchema
-            will be written using display names, otherwise the formatted labels will be used
+        use_display_labels: If True, the properties and enums in the JSONSchema
+            will be written using display labels, otherwise the formatted labels will be used
 
     """
     if graph_state.current_node is None:
         raise ValueError("Node Processor contains no node.")
 
-    if use_display_names:
+    if use_display_labels:
         node_name = graph_state.current_node.display_name
     else:
         node_name = graph_state.current_node.name
 
-    conditional_properties = graph_state.get_conditional_properties(use_display_names)
+    conditional_properties = graph_state.get_conditional_properties(use_display_labels)
     for prop in conditional_properties:
         attribute, value = prop
         conditional_schema = {
@@ -5203,7 +5203,7 @@ def _set_conditional_dependencies(
 
 
 def _create_enum_array_property(
-    node: TraversalNode, use_display_names: bool = True
+    node: TraversalNode, use_display_labels: bool = True
 ) -> Property:
     """
     Creates a JSON Schema property array with enum items
@@ -5218,13 +5218,13 @@ def _create_enum_array_property(
 
     Arguments:
         node: The node to make the property of
-        use_display_names: If True, the properties and enums in the JSONSchema
-            will be written using display names, otherwise the formatted labels will be used
+        use_display_labels: If True, the properties and enums in the JSONSchema
+            will be written using display labels, otherwise the formatted labels will be used
 
     Returns:
         JSON object
     """
-    if use_display_names:
+    if use_display_labels:
         valid_values = node.valid_value_display_names
     else:
         valid_values = node.valid_values
@@ -5269,7 +5269,7 @@ def _create_array_property(node: TraversalNode) -> Property:
 
 
 def _create_enum_property(
-    node: TraversalNode, use_display_names: bool = True
+    node: TraversalNode, use_display_labels: bool = True
 ) -> Property:
     """
     Creates a JSON Schema property enum
@@ -5282,13 +5282,13 @@ def _create_enum_property(
 
     Arguments:
         node: The node to make the property of
-        use_display_names: If True, the properties and enums in the JSONSchema
-            will be written using display names, otherwise the formatted labels will be used
+        use_display_labels: If True, the properties and enums in the JSONSchema
+            will be written using display labels, otherwise the formatted labels will be used
 
     Returns:
         JSON object
     """
-    if use_display_names:
+    if use_display_labels:
         valid_values = node.valid_value_display_names
     else:
         valid_values = node.valid_values
@@ -5347,7 +5347,7 @@ def _set_type_specific_keywords(schema: dict[str, Any], node: TraversalNode) -> 
 def _set_property(
     json_schema: JSONSchema,
     node: TraversalNode,
-    use_display_names: bool = True,
+    use_display_labels: bool = True,
 ) -> None:
     """
     Sets a property in the JSON schema. that is required by the schema
@@ -5355,19 +5355,19 @@ def _set_property(
     Arguments:
         json_schema: The JSON Scheme where the node might be set as a property
         graph_state: The node the write the property for
-        use_display_names: If True, the properties and enums in the JSONSchema
-            will be written using display names, otherwise the formatted labels will be used
+        use_display_labels: If True, the properties and enums in the JSONSchema
+            will be written using display labels, otherwise the formatted labels will be used
     """
-    if use_display_names:
+    if use_display_labels:
         node_name = node.display_name
     else:
         node_name = node.name
 
     if node.valid_values:
         if node.is_array:
-            prop = _create_enum_array_property(node, use_display_names)
+            prop = _create_enum_array_property(node, use_display_labels)
         else:
-            prop = _create_enum_property(node, use_display_names)
+            prop = _create_enum_property(node, use_display_labels)
 
     else:
         if node.is_array:
@@ -5391,7 +5391,7 @@ def _process_node(
     json_schema: JSONSchema,
     graph_state: GraphTraversalState,
     logger: Logger,
-    use_display_names: bool = True,
+    use_display_labels: bool = True,
 ) -> None:
     """
     Processes a node in the data model graph.
@@ -5401,8 +5401,8 @@ def _process_node(
     Argument:
         json_schema: The JSON Scheme where the node might be set as a property
         graph_state: The instance tracking the current state of the graph
-        use_display_names: If True, the properties and enums in the JSONSchema
-            will be written using display names, otherwise the formatted labels will be used
+        use_display_labels: If True, the properties and enums in the JSONSchema
+            will be written using display labels, otherwise the formatted labels will be used
     """
     if graph_state.current_node is None:
         raise ValueError("Node Processor contains no node.")
@@ -5414,7 +5414,7 @@ def _process_node(
             _set_conditional_dependencies(
                 json_schema=json_schema,
                 graph_state=graph_state,
-                use_display_names=use_display_names,
+                use_display_labels=use_display_labels,
             )
             # This is to ensure that all properties that are conditional dependencies are not
             #   required, but only become required when the conditional dependency is met.
@@ -5422,7 +5422,7 @@ def _process_node(
         _set_property(
             json_schema=json_schema,
             node=graph_state.current_node,
-            use_display_names=use_display_names,
+            use_display_labels=use_display_labels,
         )
         graph_state.update_processed_nodes_with_current_node()
         logger.info("Property set in JSON Schema for %s", graph_state.current_node.name)
@@ -5467,7 +5467,7 @@ def create_json_schema(  # pylint: disable=too-many-arguments
     write_schema: bool = True,
     schema_path: Optional[str] = None,
     jsonld_path: Optional[str] = None,
-    use_display_names: bool = True,
+    use_display_labels: bool = True,
 ) -> dict[str, Any]:
     """
     Creates a JSONSchema dict for the datatype in the data model.
@@ -5494,7 +5494,7 @@ def create_json_schema(  # pylint: disable=too-many-arguments
             when it is hosted on the Internet).
         schema_path: Where to save the JSON Schema file
         jsonld_path: Used to name the file if the path isn't supplied
-        use_display_names: If True, the properties and enums in the JSONSchema
+        use_display_labels: If True, the properties and enums in the JSONSchema
             will be written using display names, otherwise the formatted labels will be used
 
     Returns:
@@ -5514,7 +5514,7 @@ def create_json_schema(  # pylint: disable=too-many-arguments
                 json_schema=json_schema,
                 graph_state=graph_state,
                 logger=logger,
-                use_display_names=use_display_names,
+                use_display_labels=use_display_labels,
             )
         graph_state.move_to_next_node()
 
@@ -5718,7 +5718,7 @@ def generate_jsonschema(
             logger=synapse_client.logger,
             write_schema=True,
             schema_path=schema_path,
-            use_display_names=(data_model_labels == "display_label"),
+            use_display_labels=(data_model_labels == "display_label"),
         )
         for data_type, schema_path in zip(data_types, schema_paths)
     ]
