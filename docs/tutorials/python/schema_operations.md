@@ -18,22 +18,10 @@ This tutorial uses the Python client as a library. To use the CLI tool, see the 
 * You have a working [installation](../installation.md) of the Synapse Python Client.
 * You have a data model, see this [data model_documentation](../../explanations/curator_data_model.md).
 
-## 1. Imports
+## 1. Initial set up
 
 ```python
-{!docs/tutorials/python/tutorial_scripts/schema_operations.py!lines=1-6}
-```
-
-You'll need to import:
-- `Synapse` - for authentication
-- `generate_jsonschema` - to create schemas from data models
-- `register_jsonschema` - to register schemas in Synapse
-- `bind_jsonschema` - to bind schemas to entities
-
-## 2. Set up your variables
-
-```python
-{!docs/tutorials/python/tutorial_scripts/schema_operations.py!lines=8-15}
+{!docs/tutorials/python/tutorial_scripts/schema_operations.py!lines=1-18}
 ```
 
 To create a JSON Schema you need a data model, and the data types you want to create.
@@ -42,13 +30,7 @@ The data model must be in either CSV or JSON-LD form. The data model may be a lo
 
 The data types must exist in your data model. This can be a list of data types, or `None` to create all data types in the data model.
 
-## 3. Log into Synapse
-
-```python
-{!docs/tutorials/python/tutorial_scripts/schema_operations.py!lines=17-18}
-```
-
-## 4. Create a JSON Schema
+## 2. Create a JSON Schema
 
 Create a JSON Schema
 
@@ -60,7 +42,7 @@ You should see the first JSON Schema for the datatype you selected printed.
 It will look like [this schema](https://repo-prod.prod.sagebase.org/repo/v1/schema/type/registered/dpetest-test.schematic.Patient).
 By setting the `output` parameter as path to a "temp" directory, the file will be created as "temp/Patient.json".
 
-## 5. Create multiple JSON Schema
+## 3. Create multiple JSON Schema
 
 Create multiple JSON Schema
 
@@ -70,7 +52,7 @@ Create multiple JSON Schema
 
 The `data_types` parameter is a list and can have multiple data types.
 
-## 6. Create every JSON Schema
+## 4. Create every JSON Schema
 
 Create every JSON Schema
 
@@ -80,7 +62,7 @@ Create every JSON Schema
 
 If you don't set a `data_types` parameter a JSON Schema will be created for every data type in the data model.
 
-## 7. Create a JSON Schema with a certain path
+## 5. Create a JSON Schema with a certain path
 
 Create a JSON Schema
 
@@ -90,7 +72,7 @@ Create a JSON Schema
 
 If you have only one data type and set the `output` parameter to a file path(ending in.json), the JSON Schema file will have that path.
 
-## 8. Create a JSON Schema in the current working directory
+## 6. Create a JSON Schema in the current working directory
 
 Create a JSON Schema
 
@@ -100,7 +82,7 @@ Create a JSON Schema
 
 If you don't set `output` parameter the JSON Schema file will be created in the current working directory.
 
-## 9. Register a JSON Schema to Synapse
+## 7. Register a JSON Schema to Synapse
 
 Once you've created a JSON Schema file, you can register it to a Synapse organization.
 
@@ -114,7 +96,7 @@ The `register_jsonschema` function:
 - Returns the schema URI and a success message
 - You can optionally specify a version (e.g., "0.0.1") or let it auto-generate
 
-## 10. Bind a JSON Schema to a Synapse Entity
+## 8. Bind a JSON Schema to a Synapse Entity
 
 After registering a schema, you can bind it to Synapse entities (files, folders, etc.) for metadata validation.
 
