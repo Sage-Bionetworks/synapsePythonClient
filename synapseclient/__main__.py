@@ -831,7 +831,7 @@ def register_json_schema(args, syn):
 
 def bind_json_schema(args, syn):
     """Bind a JSON schema to a Synapse entity."""
-    bind_jsonschema(
+    result = bind_jsonschema(
         entity_id=args.id,
         json_schema_uri=args.json_schema_uri,
         enable_derived_annotations=args.enable_derived_annotations,
@@ -840,6 +840,7 @@ def bind_json_schema(args, syn):
     syn.logger.info(
         f"Successfully bound schema '{args.json_schema_uri}' to entity '{args.id}'"
     )
+    return result
 
 
 def build_parser():
