@@ -4630,9 +4630,9 @@ class TraversalNode:  # pylint: disable=too-many-instance-attributes
         name: The name of the node
         source_node: The name of the node where the graph traversal started
         dmge: A DataModelGraphExplorer with the data model loaded
-        display_label: The display name of the node
+        display_label: The display label of the node
         valid_values: The valid values of the node if any
-        valid_value_display_labels: The display names of the valid values of the node if any
+        valid_value_display_labels: The display labels of the valid values of the node if any
         is_required: Whether or not this node is required
         dependencies: This nodes dependencies
         description: This nodes description, gotten from the comment in the data model
@@ -4648,9 +4648,9 @@ class TraversalNode:  # pylint: disable=too-many-instance-attributes
     source_node: str
     dmge: DataModelGraphExplorer
     logger: Logger
-    display_name: str = field(init=False)
+    display_label: str = field(init=False)
     valid_values: list[str] = field(init=False)
-    valid_value_display_names: list[str] = field(init=False)
+    valid_value_display_labels: list[str] = field(init=False)
     is_required: bool = field(init=False)
     dependencies: list[str] = field(init=False)
     description: str = field(init=False)
@@ -4665,18 +4665,18 @@ class TraversalNode:  # pylint: disable=too-many-instance-attributes
         """
         Uses the dmge to fill in most of the fields of the dataclass
         """
-        self.display_name = self.dmge.get_nodes_display_names([self.name])[0]
+        self.display_label = self.dmge.get_nodes_display_names([self.name])[0]
         self.valid_values = sorted(self.dmge.get_node_range(node_label=self.name))
-        self.valid_value_display_names = sorted(
+        self.valid_value_display_labels = sorted(
             self.dmge.get_node_range(node_label=self.name, display_names=True)
         )
         validation_rules = self.dmge.get_component_node_validation_rules(
-            manifest_component=self.source_node, node_display_name=self.display_name
+            manifest_component=self.source_node, node_display_name=self.display_label
         )
         self.is_required = self.dmge.get_component_node_required(
             manifest_component=self.source_node,
             node_validation_rules=validation_rules,
-            node_display_name=self.display_name,
+            node_display_name=self.display_label,
         )
         self.dependencies = sorted(
             self.dmge.get_node_dependencies(
@@ -4684,19 +4684,21 @@ class TraversalNode:  # pylint: disable=too-many-instance-attributes
             )
         )
         self.description = self.dmge.get_node_comment(
-            node_display_name=self.display_name
+            node_display_name=self.display_label
         )
         column_type = self.dmge.get_node_column_type(
-            node_display_name=self.display_name
+            node_display_name=self.display_label
         )
         maximum = self.dmge.get_node_maximum_minimum_value(
-            relationship_value="maximum", node_display_name=self.display_name
+            relationship_value="maximum", node_display_name=self.display_label
         )
         minimum = self.dmge.get_node_maximum_minimum_value(
-            relationship_value="minimum", node_display_name=self.display_name
+            relationship_value="minimum", node_display_name=self.display_label
         )
-        pattern = self.dmge.get_node_column_pattern(node_display_name=self.display_name)
-        format = self.dmge.get_node_format(node_display_name=self.display_name)
+        pattern = self.dmge.get_node_column_pattern(
+            node_display_name=self.display_label
+        )
+        format = self.dmge.get_node_format(node_display_name=self.display_label)
 
         self.type, explicit_is_array = self._determine_type_and_array(column_type)
 
@@ -4825,7 +4827,7 @@ class TraversalNode:  # pylint: disable=too-many-instance-attributes
             ):
                 types = keyword_dict["types"]
                 msg = (
-                    f"For attribute '{self.display_name}': columnType is '{self.type.value}' "
+                    f"For attribute '{self.display_label}': columnType is '{self.type.value}' "
                     f"but {keyword} constraint (value: {keyword_dict['value']}) "
                     f"is specified. Please set columnType to one of: {types}."
                 )
@@ -4856,7 +4858,7 @@ class GraphTraversalState:  # pylint: disable=too-many-instance-attributes
     dmge: DataModelGraphExplorer
     source_node: str
     logger: Logger
-    current_node: Optional[Node] = field(init=False)
+    current_node: Optional[TraversalNode] = field(init=False)
     _root_dependencies: list[str] = field(init=False)
     _nodes_to_process: list[str] = field(init=False)
     _processed_nodes: list[str] = field(init=False)
@@ -5185,7 +5187,7 @@ def _set_conditional_dependencies(
         raise ValueError("Node Processor contains no node.")
 
     if use_display_labels:
-        node_name = graph_state.current_node.display_name
+        node_name = graph_state.current_node.display_label
     else:
         node_name = graph_state.current_node.name
 
@@ -5225,7 +5227,7 @@ def _create_enum_array_property(
         JSON object
     """
     if use_display_labels:
-        valid_values = node.valid_value_display_names
+        valid_values = node.valid_value_display_labels
     else:
         valid_values = node.valid_values
     items: Items = {"enum": valid_values, "type": "string"}
@@ -5289,7 +5291,7 @@ def _create_enum_property(
         JSON object
     """
     if use_display_labels:
-        valid_values = node.valid_value_display_names
+        valid_values = node.valid_value_display_labels
     else:
         valid_values = node.valid_values
 
@@ -5359,7 +5361,7 @@ def _set_property(
             will be written using display labels, otherwise the formatted labels will be used
     """
     if use_display_labels:
-        node_name = node.display_name
+        node_name = node.display_label
     else:
         node_name = node.name
 
@@ -5379,7 +5381,7 @@ def _set_property(
         prop["pattern"] = node.pattern
 
     prop["description"] = node.description
-    prop["title"] = node.display_name
+    prop["title"] = node.display_label
     schema_property = {node_name: prop}
     json_schema.update_property(schema_property)
 

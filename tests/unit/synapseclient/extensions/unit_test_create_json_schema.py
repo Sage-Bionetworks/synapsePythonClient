@@ -728,11 +728,11 @@ class TestGraphTraversalState:
         """Test GraphTraversalState.__init__"""
         # GIVEN a GraphTraversalState instance with 5 nodes
         gts = GraphTraversalState(dmge, "Patient", logger=Mock())
-        # THEN the current_node, current_node_display_name, and first item in
+        # THEN the current_node, current_node_display_label, and first item in
         #  root dependencies should be "Component"
         assert gts.current_node.name == "Component"
         assert gts._root_dependencies[0] == "Component"
-        assert gts.current_node.display_name == "Component"
+        assert gts.current_node.display_label == "Component"
         # THEN
         #  - root_dependencies should be 5 items long
         #  - nodes to process should be the same minus "Component"
@@ -756,13 +756,13 @@ class TestGraphTraversalState:
         gts._nodes_to_process = ["YearofBirth"]
         # THEN the current_node should be "Component" and node to process has 1 node
         assert gts.current_node.name == "Component"
-        assert gts.current_node.display_name == "Component"
+        assert gts.current_node.display_label == "Component"
         assert gts._nodes_to_process == ["YearofBirth"]
         # WHEN using move_to_next_node
         gts.move_to_next_node()
         # THEN the current_node should now be YearofBirth and no nodes to process
         assert gts.current_node.name == "YearofBirth"
-        assert gts.current_node.display_name == "Year of Birth"
+        assert gts.current_node.display_label == "Year of Birth"
         assert not gts._nodes_to_process
 
     def test_are_nodes_remaining(self, dmge: DataModelGraphExplorer) -> None:
