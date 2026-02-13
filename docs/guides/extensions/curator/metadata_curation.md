@@ -18,6 +18,7 @@ By following this guide, you will:
 - Python environment with synapseclient and the `curator` extension installed (ie. `pip install --upgrade "synapseclient[curator]"`)
 - An existing Synapse project and folder where you want to manage metadata
 - A JSON Schema registered in Synapse (many schemas are already available for Sage-affiliated projects, or you can register your own by following the [JSON Schema tutorial](../../../tutorials/python/json_schema.md))
+- (Optional) An existing Synapse team if you want multiple users to collaborate on the same Grid session. Pass the team's ID as `assignee_principal_id` when creating the curation task.
 
 ## Step 1: Authenticate and import required functions
 
@@ -69,8 +70,6 @@ all_schemas = query_schema_registry(
 
 Use this when metadata describes individual data files and is stored as annotations directly on each file.
 
-**Team collaboration**: To enable multiple users to collaborate on a Grid session, assign the task to a Synapse team using `assignee_principal_id`. The team must exist before creating the task for collaboration on a grid.
-
 ```python
 record_set, curation_task, data_grid = create_record_based_metadata_task(
     synapse_client=syn,
@@ -100,8 +99,6 @@ print(f"Created CurationTask: {curation_task.task_id}")
 ### Option B: File-based metadata (for unique per-file metadata)
 
 Use this when metadata is normalized in structured records to eliminate duplication and ensure consistency.
-
-**Team collaboration**: To enable multiple users to collaborate on a Grid session, assign the task to a Synapse team using `assignee_principal_id`. The team must exist before creating the task for collaboration on a grid.
 
 ```python
 entity_view_id, task_id = create_file_based_metadata_task(
