@@ -69,6 +69,8 @@ all_schemas = query_schema_registry(
 
 Use this when metadata describes individual data files and is stored as annotations directly on each file.
 
+**Team collaboration**: To enable multiple users to collaborate on a Grid session, assign the task to a Synapse team using `assignee_principal_id`. The team must exist before creating the task for collaboration on a grid.
+
 ```python
 record_set, curation_task, data_grid = create_record_based_metadata_task(
     synapse_client=syn,
@@ -98,6 +100,8 @@ print(f"Created CurationTask: {curation_task.task_id}")
 ### Option B: File-based metadata (for unique per-file metadata)
 
 Use this when metadata is normalized in structured records to eliminate duplication and ensure consistency.
+
+**Team collaboration**: To enable multiple users to collaborate on a Grid session, assign the task to a Synapse team using `assignee_principal_id`. The team must exist before creating the task for collaboration on a grid.
 
 ```python
 entity_view_id, task_id = create_file_based_metadata_task(
