@@ -220,9 +220,8 @@ def convert_dtypes_to_json_serializable(df):
                             return obj
 
                         cleaned_x = _reformat_special_values(x)
-                        return json.dumps(cleaned_x, ensure_ascii=False).replace(
-                            '\\"', "\\'"
-                        )
+                        # return json.dumps(cleaned_x, ensure_ascii=False)
+                        return cleaned_x
                     # Handle standalone ellipsis
                     if x is ...:
                         return "..."
