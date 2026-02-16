@@ -2,14 +2,17 @@
 
 import asyncio
 from dataclasses import dataclass, field, replace
-from typing import Any, Dict, Optional
+from datetime import date, datetime
+from typing import Any, Dict, List, Optional, Union
 
 from synapseclient import Synapse
+from synapseclient.api import get_from_entity_factory
 from synapseclient.api.docker_services import get_entity_id_by_repository_name
-from synapseclient.api.entity_bundle_services_v2 import get_entity_id_bundle2
 from synapseclient.core.async_utils import async_to_sync
 from synapseclient.core.constants.concrete_types import DOCKER_REPOSITORY
 from synapseclient.core.utils import delete_none_keys
+from synapseclient.models import Annotations
+from synapseclient.models.mixins import AccessControllable
 from synapseclient.models.protocols.docker_protocol import (
     DockerRepositorySynchronousProtocol,
 )
@@ -18,7 +21,7 @@ from synapseclient.models.services.storable_entity import store_entity
 
 @dataclass()
 @async_to_sync
-class DockerRepository(DockerRepositorySynchronousProtocol):
+class DockerRepository(DockerRepositorySynchronousProtocol, AccessControllable):
     """A Docker repository entity within Synapse.
 
     A Docker repository is a lightweight virtual machine image.
@@ -107,6 +110,25 @@ class DockerRepository(DockerRepositorySynchronousProtocol):
     the repository is hosted on Synapse's Docker registry. If False, it references
     an external Docker registry."""
 
+    annotations: Optional[
+        Dict[
+            str,
+            Union[
+                List[str],
+                List[bool],
+                List[float],
+                List[int],
+                List[date],
+                List[datetime],
+            ],
+        ]
+    ] = field(default_factory=dict, compare=False)
+    """Additional metadata associated with the folder. The key is the name of your
+    desired annotations. The value is an object containing a list of values
+    (use empty list to represent no values for key) and the value type associated with
+    all values in the list. To remove all annotations set this to an empty dict `{}`
+    or None and store the entity."""
+
     _last_persistent_instance: Optional["DockerRepository"] = field(
         default=None, repr=False, compare=False
     )
@@ -126,12 +148,16 @@ class DockerRepository(DockerRepositorySynchronousProtocol):
         del self._last_persistent_instance
         self._last_persistent_instance = replace(self)
 
-    def fill_from_dict(self, synapse_entity: Dict[str, Any]) -> "DockerRepository":
+    def fill_from_dict(
+        self, synapse_entity: Dict[str, Any], set_annotations: bool = True
+    ) -> "DockerRepository":
         """
         Converts a response from the REST API into this dataclass.
 
         Arguments:
             synapse_entity: The response from the REST API.
+            set_annotations: Whether to set the annotations from the response.
+
 
         Returns:
             The DockerRepository object.
@@ -148,6 +174,10 @@ class DockerRepository(DockerRepositorySynchronousProtocol):
         self.repository_name = synapse_entity.get("repositoryName", None)
         self.is_managed = synapse_entity.get("isManaged", None)
 
+        if set_annotations:
+            self.annotations = Annotations.from_dict(
+                synapse_entity.get("annotations", None)
+            )
         return self
 
     def to_synapse_request(self) -> Dict[str, Any]:
@@ -246,11 +276,11 @@ class DockerRepository(DockerRepositorySynchronousProtocol):
                 synapse_client=synapse_client,
             )
 
-        bundle = await get_entity_id_bundle2(
-            entity_id=self.id,
+        await get_from_entity_factory(
+            entity_to_update=self,
+            synapse_id_or_path=self.id,
             synapse_client=synapse_client,
         )
-        self.fill_from_dict(synapse_entity=bundle["entity"])
 
         self._set_last_persistent_instance()
         Synapse.get_client(synapse_client=synapse_client).logger.debug(
@@ -352,7 +382,7 @@ class DockerRepository(DockerRepositorySynchronousProtocol):
                 entity=self.to_synapse_request(),
                 synapse_client=synapse_client,
             )
-            self.fill_from_dict(synapse_entity=entity)
+            self.fill_from_dict(synapse_entity=entity, set_annotations=False)
 
         self._set_last_persistent_instance()
         Synapse.get_client(synapse_client=synapse_client).logger.debug(

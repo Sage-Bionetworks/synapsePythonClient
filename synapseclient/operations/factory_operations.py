@@ -11,6 +11,7 @@ if TYPE_CHECKING:
     from synapseclient.models import (
         Dataset,
         DatasetCollection,
+        DockerRepository,
         EntityView,
         File,
         Folder,
@@ -194,6 +195,7 @@ async def _handle_entity_instance(
 ) -> Union[
     "Dataset",
     "DatasetCollection",
+    "DockerRepository",
     "EntityView",
     "File",
     "Folder",
@@ -265,9 +267,9 @@ async def _handle_simple_entity(
     synapse_id: str,
     version_number: Optional[int] = None,
     synapse_client: Optional["Synapse"] = None,
-) -> Union["Project", "Folder"]:
+) -> Union["Project", "Folder", "DockerRepository"]:
     """
-    Handle simple entities that only need basic setup (Project, Folder, DatasetCollection).
+    Handle simple entities that only need basic setup (Project, Folder, DockerRepository).
     """
     entity = entity_class(id=synapse_id)
     if version_number and hasattr(entity, "version_number"):
@@ -349,6 +351,7 @@ async def _handle_link_entity(
 ) -> Union[
     "Dataset",
     "DatasetCollection",
+    "DockerRepository",
     "EntityView",
     "File",
     "Folder",
@@ -393,6 +396,7 @@ def get(
 ) -> Union[
     "Dataset",
     "DatasetCollection",
+    "DockerRepository",
     "EntityView",
     "File",
     "Folder",
@@ -697,6 +701,7 @@ async def get_async(
 ) -> Union[
     "Dataset",
     "DatasetCollection",
+    "DockerRepository",
     "EntityView",
     "File",
     "Folder",
@@ -1020,6 +1025,7 @@ async def get_async(
     from synapseclient.models import (
         Dataset,
         DatasetCollection,
+        DockerRepository,
         EntityView,
         File,
         Folder,
@@ -1040,6 +1046,7 @@ async def get_async(
     entity_types = (
         Dataset,
         DatasetCollection,
+        DockerRepository,
         EntityView,
         File,
         Folder,
@@ -1122,6 +1129,14 @@ async def get_async(
     elif entity_type == concrete_types.FOLDER_ENTITY:
         return await _handle_simple_entity(
             entity_class=Folder,
+            synapse_id=synapse_id,
+            version_number=version_number,
+            synapse_client=synapse_client,
+        )
+
+    elif entity_type == concrete_types.DOCKER_REPOSITORY:
+        return await _handle_simple_entity(
+            entity_class=DockerRepository,
             synapse_id=synapse_id,
             version_number=version_number,
             synapse_client=synapse_client,

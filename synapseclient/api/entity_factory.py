@@ -335,6 +335,7 @@ async def _cast_into_class_type(
         Annotations,
         Dataset,
         DatasetCollection,
+        DockerRepository,
         EntityView,
         File,
         Folder,
@@ -379,6 +380,7 @@ async def _cast_into_class_type(
         concrete_types.SUBMISSION_VIEW: SubmissionView,
         concrete_types.VIRTUAL_TABLE: VirtualTable,
         concrete_types.LINK_ENTITY: Link,
+        concrete_types.DOCKER_REPOSITORY: DockerRepository,
     }
 
     entity_class = ENTITY_TYPE_MAP.get(entity["concreteType"], None)
