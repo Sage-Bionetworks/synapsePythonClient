@@ -129,14 +129,22 @@ class TestDockerRepository:
         """Test getting a Docker repository by ID."""
         docker = DockerRepository(id=TEST_ID)
 
-        # Mock get_from_entity_factory to simulate filling the entity with data
+        # Mock get_from_entity_factory to simulate filling the entity with data.
+        # The implementation (see entity_factory.py:_cast_into_class_type):
+        #   1. Fetches entity bundle from Synapse API (get_entity_id_bundle2)
+        #   2. Calls _cast_into_class_type which calls entity.fill_from_dict(set_annotations=False)
+        #   3. Then separately sets entity.annotations from the bundle
+        test_annotation = {"anno": "value"}
+
         async def mock_get_from_entity_factory(
             entity_to_update, synapse_id_or_path, synapse_client
         ):
-            # Simulate what get_from_entity_factory does - it fills the entity in place
+            from synapseclient.models import Annotations
+
             entity_to_update.fill_from_dict(
-                self.get_example_docker_output(), set_annotations=True
+                self.get_example_docker_output(), set_annotations=False
             )
+            entity_to_update.annotations = Annotations.from_dict(test_annotation)
 
         with patch(
             "synapseclient.models.docker.get_from_entity_factory",
@@ -164,7 +172,7 @@ class TestDockerRepository:
             assert result.parent_id == TEST_PARENT_ID
             assert result.repository_name == TEST_REPOSITORY_NAME
             assert result.is_managed == TEST_IS_MANAGED
-            assert result.annotations == TEST_ANNOTATIONS
+            assert result.annotations == test_annotation
 
     async def test_get_docker_by_repository_name(self) -> None:
         """Test getting a managed Docker repository by repository name."""
@@ -180,9 +188,13 @@ class TestDockerRepository:
         async def mock_get_from_entity_factory(
             entity_to_update, synapse_id_or_path, synapse_client
         ):
+            from synapseclient.models import Annotations
+
             entity_to_update.fill_from_dict(
-                self.get_example_docker_output(), set_annotations=True
+                self.get_example_docker_output(), set_annotations=False
             )
+            # Separately set annotations to match real implementation
+            entity_to_update.annotations = Annotations.from_dict(TEST_ANNOTATIONS)
 
         with patch(
             "synapseclient.models.docker.get_entity_id_by_repository_name",
