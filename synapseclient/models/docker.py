@@ -17,6 +17,7 @@ from synapseclient.models.protocols.docker_protocol import (
     DockerRepositorySynchronousProtocol,
 )
 from synapseclient.models.services.storable_entity import store_entity
+from synapseclient.operations import delete
 
 
 @dataclass()
@@ -110,6 +111,9 @@ class DockerRepository(DockerRepositorySynchronousProtocol, AccessControllable):
     the repository is hosted on Synapse's Docker registry. If False, it references
     an external Docker registry."""
 
+    concrete_type: Optional[str] = None
+    """Indicates which implementation of Entity this object represents. The value is the fully qualified class name, e.g. org.sagebionetworks.repo.model.FileEntity."""
+
     annotations: Optional[
         Dict[
             str,
@@ -173,6 +177,7 @@ class DockerRepository(DockerRepositorySynchronousProtocol, AccessControllable):
         self.parent_id = synapse_entity.get("parentId", None)
         self.repository_name = synapse_entity.get("repositoryName", None)
         self.is_managed = synapse_entity.get("isManaged", None)
+        self.concrete_type = synapse_entity.get("concreteType", None)
 
         if set_annotations:
             self.annotations = Annotations.from_dict(
@@ -429,8 +434,8 @@ class DockerRepository(DockerRepositorySynchronousProtocol, AccessControllable):
         loop = asyncio.get_event_loop()
         await loop.run_in_executor(
             None,
-            lambda: Synapse.get_client(synapse_client=synapse_client).delete(
-                obj=self.id,
+            lambda: delete(
+                self.id,
             ),
         )
 
