@@ -78,7 +78,7 @@ class TestDockerRepository:
             },
         }
 
-    async def test_fill_from_dict(self) -> None:
+    def test_fill_from_dict(self) -> None:
         docker_output = DockerRepository().fill_from_dict(
             self.get_example_docker_output()
         )
@@ -97,7 +97,7 @@ class TestDockerRepository:
         assert docker_output.annotations == TEST_ANNOTATIONS
         assert docker_output.concrete_type == TEST_CONCRETE_TYPE
 
-    async def test_to_synapse_request(self):
+    def test_to_synapse_request(self):
         docker = DockerRepository(
             id=TEST_ID,
             name=TEST_NAME,
@@ -125,12 +125,12 @@ class TestDockerRepository:
         assert request_dict["parentId"] == TEST_PARENT_ID
         assert request_dict["repositoryName"] == TEST_REPOSITORY_NAME
 
-    async def test_get_docker_by_id(self) -> None:
+    def test_get_docker_by_id(self) -> None:
         """Test getting a Docker repository by ID."""
         docker = DockerRepository(id=TEST_ID)
 
         # Mock get_from_entity_factory to simulate filling the entity with data.
-        # The implementation (see entity_factory.py:_cast_into_class_type):
+        # The real implementation (see entity_factory.py:_cast_into_class_type):
         #   1. Fetches entity bundle from Synapse API (get_entity_id_bundle2)
         #   2. Calls _cast_into_class_type which calls entity.fill_from_dict(set_annotations=False)
         #   3. Then separately sets entity.annotations from the bundle
@@ -151,7 +151,7 @@ class TestDockerRepository:
             new_callable=AsyncMock,
             side_effect=mock_get_from_entity_factory,
         ) as mocked_get_from_factory:
-            result = await docker.get_async(synapse_client=self.syn)
+            result = docker.get(synapse_client=self.syn)
 
             # Verify get_from_entity_factory was called with correct parameters
             mocked_get_from_factory.assert_called_once_with(
@@ -174,7 +174,7 @@ class TestDockerRepository:
             assert result.is_managed == TEST_IS_MANAGED
             assert result.annotations == test_annotation
 
-    async def test_get_docker_by_repository_name(self) -> None:
+    def test_get_docker_by_repository_name(self) -> None:
         """Test getting a managed Docker repository by repository name."""
         docker = DockerRepository(repository_name=TEST_REPOSITORY_NAME)
         test_annotation = {"anno": "value"}
@@ -206,7 +206,7 @@ class TestDockerRepository:
             new_callable=AsyncMock,
             side_effect=mock_get_from_entity_factory,
         ) as mocked_get_from_factory:
-            result = await docker.get_async(synapse_client=self.syn)
+            result = docker.get(synapse_client=self.syn)
 
             # Verify repository name lookup was called
             mocked_get_id.assert_called_once_with(
@@ -226,7 +226,7 @@ class TestDockerRepository:
             assert result.repository_name == TEST_REPOSITORY_NAME
             assert result.annotations == test_annotation
 
-    async def test_store_docker(self) -> None:
+    def test_store_docker(self) -> None:
         """Test storing a Docker repository."""
         docker = DockerRepository(
             parent_id=TEST_PARENT_ID,
@@ -240,7 +240,7 @@ class TestDockerRepository:
             new_callable=AsyncMock,
             return_value=self.get_example_docker_output(),
         ) as mocked_store:
-            result = await docker.store_async(synapse_client=self.syn)
+            result = docker.store(synapse_client=self.syn)
 
             # Verify store_entity was called
             mocked_store.assert_called_once()
@@ -251,16 +251,16 @@ class TestDockerRepository:
             assert result.description == TEST_DESCRIPTION
             assert result.repository_name == TEST_REPOSITORY_NAME
 
-    async def test_delete_docker(self) -> None:
+    def test_delete_docker(self) -> None:
         """Test deleting a Docker repository."""
         docker = DockerRepository(id=TEST_ID)
 
-        # Mock the delete function
+        # Mock the delete function that's imported in docker.py
         with patch(
             "synapseclient.models.docker.delete",
             return_value=None,
         ) as mocked_delete:
-            await docker.delete_async(synapse_client=self.syn)
+            docker.delete(synapse_client=self.syn)
 
             # Verify delete was called with the entity ID
             mocked_delete.assert_called_once_with(TEST_ID)
