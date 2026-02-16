@@ -70,6 +70,9 @@ def get_partial_dataframe_chunk(
             header=False,
             index=False,
             float_format="%.12g",
+            doublequote=False,
+            escapechar="\\",
+            quoting=0,
             **(to_csv_kwargs or {}),
         )
         number_of_bytes_in_buffer = buffer.tell()
