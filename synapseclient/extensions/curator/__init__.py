@@ -7,7 +7,12 @@ This module provides library functions for metadata curation tasks in Synapse.
 from .file_based_metadata_task import create_file_based_metadata_task
 from .record_based_metadata_task import create_record_based_metadata_task
 from .schema_generation import generate_jsonld, generate_jsonschema
-from .schema_management import bind_jsonschema, register_jsonschema
+from .schema_management import (
+    bind_jsonschema,
+    bind_jsonschema_async,
+    register_jsonschema,
+    register_jsonschema_async,
+)
 from .schema_registry import query_schema_registry
 
 __all__ = [
@@ -17,5 +22,7 @@ __all__ = [
     "generate_jsonld",
     "generate_jsonschema",
     "register_jsonschema",
+    "register_jsonschema_async",
     "bind_jsonschema",
+    "bind_jsonschema_async",
 ]
