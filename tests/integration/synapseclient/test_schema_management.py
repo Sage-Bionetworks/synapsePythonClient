@@ -61,7 +61,7 @@ def fixture_test_project(syn: Synapse, request) -> Project:
 
 
 @pytest.fixture(name="test_schema_file", scope="function")
-def fixture_test_schema_file():
+def fixture_test_schema_file(request):
     """
     Creates a temporary JSON schema file for testing
     """
@@ -81,11 +81,12 @@ def fixture_test_schema_file():
         json.dump(schema_definition, temp_file)
         temp_path = temp_file.name
 
-    yield temp_path
+    def cleanup():
+        if os.path.exists(temp_path):
+            os.remove(temp_path)
 
-    # Cleanup
-    if os.path.exists(temp_path):
-        os.remove(temp_path)
+    request.addfinalizer(cleanup)
+    return temp_path
 
 
 class TestRegisterJsonSchema:
