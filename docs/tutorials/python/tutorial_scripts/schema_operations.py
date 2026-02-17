@@ -57,6 +57,14 @@ schemas, file_paths = generate_jsonschema(
     synapse_client=syn,
 )
 
+# Create JSON Schema using display names for both properties names and valid values
+schemas, file_paths = generate_jsonschema(
+    data_model_source=DATA_MODEL_SOURCE,
+    data_types=DATA_TYPE,
+    data_model_labels="display_label",
+    synapse_client=syn,
+)
+
 # Register a JSON Schema to Synapse
 json_schema = register_jsonschema(
     schema_path="temp/Patient.json",  # Path to the generated JSON Schema file

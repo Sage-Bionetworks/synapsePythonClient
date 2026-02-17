@@ -82,12 +82,22 @@ Create a JSON Schema
 
 If you don't set `output` parameter the JSON Schema file will be created in the current working directory.
 
-## 7. Register a JSON Schema to Synapse
+## 7. Create a JSON Schema using display names
+
+Create a JSON Schema
+
+```python
+{!docs/tutorials/python/tutorial_scripts/schema_operations.py!lines=60-66}
+```
+
+You can have Curator format the property names and valid values in the JSON Schema. This will remove whitespace and special characters.
+
+## 8. Register a JSON Schema to Synapse
 
 Once you've created a JSON Schema file, you can register it to a Synapse organization.
 
 ```python
-{!docs/tutorials/python/tutorial_scripts/schema_operations.py!lines=60-69}
+{!docs/tutorials/python/tutorial_scripts/schema_operations.py!lines=68-76}
 ```
 
 The `register_jsonschema` function:
@@ -96,12 +106,12 @@ The `register_jsonschema` function:
 - Returns the schema URI and a success message
 - You can optionally specify a version (e.g., "0.0.1") or let it auto-generate
 
-## 8. Bind a JSON Schema to a Synapse Entity
+## 9. Bind a JSON Schema to a Synapse Entity
 
 After registering a schema, you can bind it to Synapse entities (files, folders, etc.) for metadata validation.
 
 ```python
-{!docs/tutorials/python/tutorial_scripts/schema_operations.py!lines=71-78}
+{!docs/tutorials/python/tutorial_scripts/schema_operations.py!lines=78-85}
 ```
 
 The `bind_jsonschema` function:
