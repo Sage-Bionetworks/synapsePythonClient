@@ -13,6 +13,16 @@ DATA_MODEL_SOURCE = "tests/unit/synapseclient/extensions/schema_files/example.mo
 DATA_TYPE = ["Patient"]
 # Directory where JSON Schema files will be saved
 OUTPUT_DIRECTORY = "temp"
+# Path to a generated JSON Schema file for registration
+SCHEMA_PATH = "temp/Patient.json"
+# Your Synapse organization name for schema registration
+ORGANIZATION_NAME = "my.organization"
+# Name for the schema
+SCHEMA_NAME = "patient.schema"
+# Version number for the schema
+SCHEMA_VERSION = "0.0.1"
+# Synapse entity ID to bind the schema to (file, folder, etc.)
+ENTITY_ID = "syn12345678"
 
 syn = Synapse()
 syn.login()
@@ -67,19 +77,19 @@ schemas, file_paths = generate_jsonschema(
 
 # Register a JSON Schema to Synapse
 json_schema = register_jsonschema(
-    schema_path="temp/Patient.json",  # Path to the generated JSON Schema file
-    organization_name="my.organization",  # Your Synapse organization name
-    schema_name="patient.schema",  # Name for the schema
-    schema_version="0.0.1",  # Optional version number
+    schema_path=SCHEMA_PATH,
+    organization_name=ORGANIZATION_NAME,
+    schema_name=SCHEMA_NAME,
+    schema_version=SCHEMA_VERSION,
     synapse_client=syn,
 )
 print(f"Registered schema URI: {json_schema.uri}")
 
 # Bind a JSON Schema to a Synapse entity
 result = bind_jsonschema(
-    entity_id="syn12345678",  # Replace with your entity ID (file, folder, etc.)
-    json_schema_uri=json_schema.uri,  # URI from the registered schema
-    enable_derived_annotations=True,  # Enable auto-population of metadata
+    entity_id=ENTITY_ID,
+    json_schema_uri=json_schema.uri,
+    enable_derived_annotations=True,
     synapse_client=syn,
 )
 print(f"Successfully bound schema to entity: {result}")
