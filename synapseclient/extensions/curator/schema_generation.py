@@ -5092,17 +5092,26 @@ class JSONSchema:
             The dataclass as a dict.
         """
         json_schema_dict = asdict(self)
+        # Change dataclass attribute names to JSON Schema keywords
+        # Dataclass attributes can't start with $
         keywords_to_change = {
             "schema_id": "$id",
             "schema": "$schema",
         }
         for old_word, new_word in keywords_to_change.items():
             json_schema_dict[new_word] = json_schema_dict.pop(old_word)
+
+        # Converts the conditional dependencies to allOf conditions and adds them to the JSON Schema dict
+        # The conditional dependencies are not added to the JSON Schema dict directly because they are not
+        #  in the correct format to be added as is, and they need to be converted to allOf conditions first.
+        # Finally the conditional dependencies are removed from the JSON Schema dict because they are not a
+        #  valid JSON Schema keyword
         if self.conditional_dependencies:
             json_schema_dict["allOf"] = self._convert_conditional_properties_to_all_of(
                 self.conditional_dependencies
             )
         json_schema_dict.pop("conditional_dependencies")
+
         return json_schema_dict
 
     def add_required_property(self, name: str) -> None:
@@ -5201,6 +5210,12 @@ class JSONSchema:
             }
         """
         all_of = []
+        """
+        for (
+            watched_property,
+            enum_value,
+        ), dependent_properties in conditional_dependencies.items():
+        """
         for (
             watched_property,
             enum_value,
