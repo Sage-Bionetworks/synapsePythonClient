@@ -161,7 +161,8 @@ class TestBindJsonSchema:
             # Verify the binding
             assert result is not None
         finally:
-            # Cleanup
+            # Cleanup: unbind schema before deleting folder
+            folder.unbind_schema(synapse_client=syn)
             syn.delete(folder.id)
 
     def test_bind_jsonschema_with_derived_annotations(
@@ -198,7 +199,8 @@ class TestBindJsonSchema:
             # Verify the binding
             assert result is not None
         finally:
-            # Cleanup
+            # Cleanup: unbind schema before deleting folder
+            folder.unbind_schema(synapse_client=syn)
             syn.delete(folder.id)
 
 
@@ -254,5 +256,6 @@ class TestRegisterAndBindWorkflow:
             bound_schema = retrieved_folder.get_schema(synapse_client=syn)
             assert bound_schema is not None
         finally:
-            # Cleanup
+            # Cleanup: unbind schema before deleting folder
+            folder.unbind_schema(synapse_client=syn)
             syn.delete(folder.id)
