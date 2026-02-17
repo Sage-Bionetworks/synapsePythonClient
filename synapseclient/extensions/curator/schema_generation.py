@@ -5210,12 +5210,6 @@ class JSONSchema:
             }
         """
         all_of = []
-        """
-        for (
-            watched_property,
-            enum_value,
-        ), dependent_properties in conditional_dependencies.items():
-        """
         for (
             watched_property,
             enum_value,
