@@ -1,3 +1,4 @@
+import json
 import os
 import re
 from collections import OrderedDict
@@ -4035,8 +4036,8 @@ class TestConvertDtypesToJsonSerializable:
         result = convert_dtypes_to_json_serializable(df)
 
         # THEN Ellipsis should be converted to "..." in JSON string
-        assert result["list_with_ellipsis"].iloc[0] == '[1, 2, "..."]'
-        assert result["list_with_ellipsis"].iloc[1] == '[4, "...", 6]'
+        assert result["list_with_ellipsis"].iloc[0] == [1, 2, "..."]
+        assert result["list_with_ellipsis"].iloc[1] == [4, "...", 6]
         assert is_object_dtype(result.list_with_ellipsis)
 
     def test_ellipsis_handling_in_dict(self):
@@ -4055,8 +4056,8 @@ class TestConvertDtypesToJsonSerializable:
         result = convert_dtypes_to_json_serializable(df)
 
         # THEN Ellipsis should be converted to "..." in JSON string
-        assert result.dict_with_ellipsis.iloc[0] == '{"id": 1, "data": "..."}'
-        assert result.dict_with_ellipsis.iloc[1] == '{"id": 2, "items": [1, "..."]}'
+        assert result.dict_with_ellipsis.iloc[0] == {"id": 1, "data": "..."}
+        assert result.dict_with_ellipsis.iloc[1] == {"id": 2, "items": [1, "..."]}
         assert is_object_dtype(result.dict_with_ellipsis)
 
     def test_standalone_ellipsis(self):
@@ -4081,9 +4082,9 @@ class TestConvertDtypesToJsonSerializable:
         result = convert_dtypes_to_json_serializable(df)
 
         # THEN None should be converted to "[]"
-        assert result["list_col"].iloc[0] == "[1, 2, 3]"
+        assert result["list_col"].iloc[0] == [1, 2, 3]
         assert result["list_col"].iloc[1] == None
-        assert result["list_col"].iloc[2] == "[7, 8, 9]"
+        assert result["list_col"].iloc[2] == [7, 8, 9]
 
     def test_dict_with_quotes_in_values(self):
         """Test that dicts with quotes in string values are properly handled"""
@@ -4101,14 +4102,8 @@ class TestConvertDtypesToJsonSerializable:
         result = convert_dtypes_to_json_serializable(df)
 
         # THEN the JSON string should be properly formatted
-        assert (
-            result["dict_col"].iloc[0]
-            == '{"description": "Text with \\\'quotes\\\' here"}'
-        )
-        assert (
-            result["dict_col"].iloc[1]
-            == '{"description": "Another \\\'quoted\\\' text"}'
-        )
+        assert result["dict_col"].iloc[0] == {"description": 'Text with "quotes" here'}
+        assert result["dict_col"].iloc[1] == {"description": 'Another "quoted" text'}
         assert is_object_dtype(result.dict_col)
 
     def test_empty_dataframe(self):
@@ -4161,8 +4156,8 @@ class TestConvertDtypesToJsonSerializable:
         result = convert_dtypes_to_json_serializable(df)
 
         # THEN Ellipsis should be converted in nested structures
-        assert result["nested_dict"].iloc[0] == '{"outer": {"inner": "..."}}'
-        assert result["nested_dict"].iloc[1] == '{"data": {"list": [1, 2, "..."]}}'
+        assert result["nested_dict"].iloc[0] == {"outer": {"inner": "..."}}
+        assert result["nested_dict"].iloc[1] == {"data": {"list": [1, 2, "..."]}}
 
     def test_nullable_int64_with_pd_na(self):
         """Test that Int64 columns with pd.NA get pd.NA converted to None by _serialize_json_value"""
