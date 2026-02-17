@@ -44,7 +44,7 @@ def fixture_test_project(syn: Synapse, request) -> Project:
     project.store(synapse_client=syn)
 
     def delete_project():
-        syn.delete(project.id)
+        project.delete(synapse_client=syn)
 
     request.addfinalizer(delete_project)
     return project
