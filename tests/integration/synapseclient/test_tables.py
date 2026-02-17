@@ -314,26 +314,6 @@ def test_materialized_view(syn, project):
 
 
 # @skip("Skip integration tests for soon to be removed code")
-def test_dataset(syn, project):
-    cols = [
-        Column(name="id", columnType="ENTITYID"),
-        Column(name="name", columnType="STRING"),
-    ]
-
-    dataset = Dataset(
-        name="Test Pokedex",
-        parent=project,
-        dataset_items=[{"entityId": "syn20685093", "versionNumber": 1}],
-        columns=cols,
-        addAnnotationColumns=False,
-        addDefaultViewColumns=False,
-    )
-    dataset = syn.store(dataset)
-    dataset_df = syn.tableQuery(f"SELECT * FROM {dataset.id}").asDataFrame()
-    assert all(dataset_df.columns == ["id", "name"])
-
-
-# @skip("Skip integration tests for soon to be removed code")
 def test_tables_csv(syn, project):
     # Define schema
     cols = [
