@@ -5066,7 +5066,9 @@ class JSONSchema:
         description: An optional description of the object described by this schema.
         properties: A list of property schemas.
         required: A list of properties required by the schema.
-        all_of: A list of conditions the schema must meet. This should be removed if empty.
+        conditional_dependencies: A mapping of conditional dependencies to be added to the "allOf" keyword in JSON Schema.
+            The key is a tuple of (watched_property, enum_value)
+            The value is a list of properties that become required when watched_property has the value enum_value.
     """
 
     schema_id: str = ""
@@ -5140,6 +5142,13 @@ class JSONSchema:
     def add_conditional_dependency(
         self, watched_property: str, enum_value: str, dependent_property: str
     ) -> None:
+        """
+        Adds a conditional dependency to the conditional dependencies dict
+        Arguments:
+            watched_property: The property that is being watched
+            enum_value: The value of the watched property that triggers the condition
+            dependent_property: The property that becomes required when the condition is triggered
+        """
         if (watched_property, enum_value) not in self.conditional_dependencies:
             self.conditional_dependencies[(watched_property, enum_value)] = []
         self.conditional_dependencies[(watched_property, enum_value)].append(
@@ -5150,6 +5159,47 @@ class JSONSchema:
     def _convert_conditional_properties_to_all_of(
         conditional_dependencies: dict[tuple[str, str], list[str]]
     ) -> list[AllOf]:
+        """
+        Converts the conditional dependencies dict to a list of JSON Schema allOf conditions
+
+        Arguments:
+            conditional_dependencies: A mapping of conditional dependencies to be added to the "allOf" keyword in JSON Schema.
+                The key is a tuple of (watched_property, enum_value)
+                The value is a list of properties that become required when watched_property has the value enum_value.
+
+        Returns:
+            A list of JSON Schema allOf conditions
+
+
+        For example:
+            In the example data model the Patient component has the Diagnosis attribute.
+            The Diagnosis attribute has valid values of ["Healthy", "Cancer"].
+            The Cancer valid value is also an attribute that dependsOn on the
+                attributes Cancer Type and Family History
+            Cancer Type and Family History are attributes with valid values.
+            Therefore: When Diagnosis == "Cancer", Cancer Type and Family History should become required
+
+        Example conditional schema:
+            "if":{
+                "properties":{
+                    "Diagnosis":{
+                        "enum":[
+                            "Cancer"
+                        ]
+                    }
+                }
+            },
+            "then":{
+                "properties":{
+                    "FamilyHistory":{
+                        "not":{
+                            "type":"null"
+                        }
+                    }
+                },
+                    "required":["FamilyHistory"]
+            }
+        """
         all_of = []
         for (
             watched_property,
@@ -5174,39 +5224,8 @@ def _set_conditional_dependencies(
     use_display_labels: bool = True,
 ) -> None:
     """
-    This sets conditional requirements in the "allOf" keyword.
+    This translates conditional requirements in a JSONSchema object from a GraphTraversalState object
     This is used when certain properties are required depending on the value of another property.
-
-    For example:
-      In the example data model the Patient component has the Diagnosis attribute.
-      The Diagnosis attribute has valid values of ["Healthy", "Cancer"].
-      The Cancer valid value is also an attribute that dependsOn on the
-        attributes Cancer Type and Family History
-      Cancer Type and Family History are attributes with valid values.
-      Therefore: When Diagnosis == "Cancer", Cancer Type and Family History should become required
-
-    Example conditional schema:
-        "if":{
-            "properties":{
-               "Diagnosis":{
-                  "enum":[
-                     "Cancer"
-                  ]
-               }
-            }
-         },
-         "then":{
-            "properties":{
-               "FamilyHistory":{
-                  "not":{
-                     "type":"null"
-                  }
-               }
-            },
-            "required":[
-               "FamilyHistory"
-            ]
-         }
 
     Arguments:
         json_schema: The JSON Scheme where the node might be set as a property
