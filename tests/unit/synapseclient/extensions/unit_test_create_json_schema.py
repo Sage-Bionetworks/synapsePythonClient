@@ -1219,68 +1219,29 @@ def test_set_conditional_dependencies_nothing_added(
     assert json_schema == {"allOf": []}
 
 
-'''
 @pytest.mark.parametrize(
-    "reverse_dependencies, valid_values_map, expected_schema",
+    "reverse_dependencies, valid_values_map, expected_conditional_dependencies",
     [
         (
             {"CancerType": ["Cancer"]},
             {"Cancer": ["Diagnosis"]},
-            JSONSchema(
-                all_of=[
-                    {
-                        "if": {"properties": {"Diagnosis": {"enum": ["Cancer"]}}},
-                        "then": {
-                            "properties": {"CancerType": {"not": {"type": "null"}}},
-                            "required": ["CancerType"],
-                        },
-                    }
-                ]
-            ),
+            {("Diagnosis", "Cancer"): ["CancerType"]},
         ),
         (
             {"CancerType": ["Cancer"]},
             {"Cancer": ["Diagnosis1", "Diagnosis2"]},
-            JSONSchema(
-                all_of=[
-                    {
-                        "if": {"properties": {"Diagnosis1": {"enum": ["Cancer"]}}},
-                        "then": {
-                            "properties": {"CancerType": {"not": {"type": "null"}}},
-                            "required": ["CancerType"],
-                        },
-                    },
-                    {
-                        "if": {"properties": {"Diagnosis2": {"enum": ["Cancer"]}}},
-                        "then": {
-                            "properties": {"CancerType": {"not": {"type": "null"}}},
-                            "required": ["CancerType"],
-                        },
-                    },
-                ]
-            ),
+            {
+                ("Diagnosis1", "Cancer"): ["CancerType"],
+                ("Diagnosis2", "Cancer"): ["CancerType"],
+            },
         ),
         (
             {"CancerType": ["Cancer1", "Cancer2"]},
             {"Cancer1": ["Diagnosis1"], "Cancer2": ["Diagnosis2"]},
-            JSONSchema(
-                all_of=[
-                    {
-                        "if": {"properties": {"Diagnosis1": {"enum": ["Cancer1"]}}},
-                        "then": {
-                            "properties": {"CancerType": {"not": {"type": "null"}}},
-                            "required": ["CancerType"],
-                        },
-                    },
-                    {
-                        "if": {"properties": {"Diagnosis2": {"enum": ["Cancer2"]}}},
-                        "then": {
-                            "properties": {"CancerType": {"not": {"type": "null"}}},
-                            "required": ["CancerType"],
-                        },
-                    },
-                ]
-            ),
+            {
+                ("Diagnosis1", "Cancer1"): ["CancerType"],
+                ("Diagnosis2", "Cancer2"): ["CancerType"],
+            },
         ),
     ],
     ids=["one rev dep, one enum", "two rev deps, one enum", "two rev deps, two enums"],
@@ -1288,7 +1249,7 @@ def test_set_conditional_dependencies_nothing_added(
 def test_set_conditional_dependencies(
     reverse_dependencies: dict[str, list[str]],
     valid_values_map: dict[str, list[str]],
-    expected_schema: JSONSchema,
+    expected_conditional_dependencies: dict[tuple[str, str], list[str]],
     dmge: DataModelGraphExplorer,
 ) -> None:
     """Tests for _set_conditional_dependencies"""
@@ -1297,12 +1258,10 @@ def test_set_conditional_dependencies(
     gts._reverse_dependencies = reverse_dependencies
     gts._valid_values_map = valid_values_map
     gts.current_node.name = "CancerType"
-    gts.current_node.display_name = "Cancer Type"
     _set_conditional_dependencies(
         json_schema=json_schema, graph_state=gts, use_display_labels=False
     )
-    assert json_schema == expected_schema
-'''
+    assert json_schema.conditional_dependencies == expected_conditional_dependencies
 
 
 @pytest.mark.parametrize(
