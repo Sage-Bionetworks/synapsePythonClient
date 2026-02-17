@@ -41,10 +41,16 @@
             "not": {
               "type": "null"
             }
+          },
+          "GenomeFASTA": {
+            "not": {
+              "type": "null"
+            }
           }
         },
         "required": [
-          "GenomeBuild"
+          "GenomeBuild",
+          "GenomeFASTA"
         ]
       }
     },
@@ -68,29 +74,6 @@
         },
         "required": [
           "GenomeBuild"
-        ]
-      }
-    },
-    {
-      "if": {
-        "properties": {
-          "FileFormat": {
-            "enum": [
-              "CRAM"
-            ]
-          }
-        }
-      },
-      "then": {
-        "properties": {
-          "GenomeFASTA": {
-            "not": {
-              "type": "null"
-            }
-          }
-        },
-        "required": [
-          "GenomeFASTA"
         ]
       }
     }

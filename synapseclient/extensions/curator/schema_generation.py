@@ -5053,7 +5053,7 @@ class GraphTraversalState:  # pylint: disable=too-many-instance-attributes
 
 
 @dataclass
-class JSONSchema:  # pylint: disable=too-many-instance-attributes
+class JSONSchema:
     """
     A dataclass representing a JSON Schema.
     Each attribute represents a keyword in a JSON Schema.
@@ -5076,7 +5076,9 @@ class JSONSchema:  # pylint: disable=too-many-instance-attributes
     description: str = "TBD"
     properties: dict[str, Property] = field(default_factory=dict)
     required: list[str] = field(default_factory=list)
-    all_of: list[AllOf] = field(default_factory=list)
+    conditional_dependencies: dict[tuple[str, str], list[str]] = field(
+        default_factory=dict
+    )
 
     def as_json_schema_dict(
         self,
@@ -5091,12 +5093,14 @@ class JSONSchema:  # pylint: disable=too-many-instance-attributes
         keywords_to_change = {
             "schema_id": "$id",
             "schema": "$schema",
-            "all_of": "allOf",
         }
         for old_word, new_word in keywords_to_change.items():
             json_schema_dict[new_word] = json_schema_dict.pop(old_word)
-        if not self.all_of:
-            json_schema_dict.pop("allOf")
+        if self.conditional_dependencies:
+            json_schema_dict["allOf"] = self._convert_conditional_properties_to_all_of(
+                self.conditional_dependencies
+            )
+        json_schema_dict.pop("conditional_dependencies")
         return json_schema_dict
 
     def add_required_property(self, name: str) -> None:
@@ -5107,15 +5111,6 @@ class JSONSchema:  # pylint: disable=too-many-instance-attributes
             name: The name of the property
         """
         self.required.append(name)
-
-    def add_to_all_of_list(self, item: AllOf) -> None:
-        """
-        Adds a property to the all_of list
-
-        Arguments:
-            item: The item to add to the all_of list
-        """
-        self.all_of.append(item)
 
     def update_property(self, property_dict: dict[str, Property]) -> None:
         """
@@ -5141,6 +5136,36 @@ class JSONSchema:  # pylint: disable=too-many-instance-attributes
                 f"Attempting to add property that already exists: {property_dict}"
             )
         self.properties.update(property_dict)
+
+    def add_conditional_dependency(
+        self, watched_property: str, enum_value: str, dependent_property: str
+    ) -> None:
+        if (watched_property, enum_value) not in self.conditional_dependencies:
+            self.conditional_dependencies[(watched_property, enum_value)] = []
+        self.conditional_dependencies[(watched_property, enum_value)].append(
+            dependent_property
+        )
+
+    @staticmethod
+    def _convert_conditional_properties_to_all_of(
+        conditional_dependencies: dict[tuple[str, str], list[str]]
+    ) -> list[AllOf]:
+        all_of = []
+        for (
+            watched_property,
+            enum_value,
+        ), dependent_properties in conditional_dependencies.items():
+            conditional_dep = {
+                "if": {"properties": {watched_property: {"enum": [enum_value]}}},
+                "then": {
+                    "properties": {
+                        prop: {"not": {"type": "null"}} for prop in dependent_properties
+                    },
+                    "required": dependent_properties,
+                },
+            }
+            all_of.append(conditional_dep)
+        return all_of
 
 
 def _set_conditional_dependencies(
@@ -5201,14 +5226,9 @@ def _set_conditional_dependencies(
     conditional_properties = graph_state.get_conditional_properties(use_display_labels)
     for prop in conditional_properties:
         attribute, value = prop
-        conditional_schema = {
-            "if": {"properties": {attribute: {"enum": [value]}}},
-            "then": {
-                "properties": {node_name: {"not": {"type": "null"}}},
-                "required": [node_name],
-            },
-        }
-        json_schema.add_to_all_of_list(conditional_schema)
+        json_schema.add_conditional_dependency(
+            watched_property=attribute, enum_value=value, dependent_property=node_name
+        )
 
 
 def _create_enum_array_property(
