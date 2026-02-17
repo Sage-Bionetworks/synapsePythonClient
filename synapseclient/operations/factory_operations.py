@@ -269,7 +269,7 @@ async def _handle_simple_entity(
     synapse_client: Optional["Synapse"] = None,
 ) -> Union["Project", "Folder", "DockerRepository"]:
     """
-    Handle simple entities that only need basic setup (Project, Folder, DockerRepository).
+    Handle simple entities that only need basic setup (Project, Folder, DatasetCollection, DockerRepository).
     """
     entity = entity_class(id=synapse_id)
     if version_number and hasattr(entity, "version_number"):
