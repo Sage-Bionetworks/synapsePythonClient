@@ -27,19 +27,9 @@ def fixture_test_organization(syn: Synapse, request) -> SchemaOrganization:
 
     def delete_org():
         # Delete all schemas in the organization
-        # Try to delete each schema, but continue if one fails (e.g., still bound to entity)
         for schema in org.get_json_schemas(synapse_client=syn):
-            try:
-                schema.delete(synapse_client=syn)
-            except Exception:
-                # Schema might still be bound to an entity, skip it
-                pass
-        # Try to delete the organization, but don't fail if schemas couldn't be deleted
-        try:
-            org.delete(synapse_client=syn)
-        except Exception:
-            # Organization might still have schemas that couldn't be deleted
-            pass
+            schema.delete(synapse_client=syn)
+        org.delete(synapse_client=syn)
 
     request.addfinalizer(delete_org)
     return org
