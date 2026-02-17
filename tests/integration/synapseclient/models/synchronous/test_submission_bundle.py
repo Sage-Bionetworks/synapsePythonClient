@@ -26,7 +26,7 @@ class TestSubmissionBundleRetrieval:
         self.schedule_for_cleanup = schedule_for_cleanup
 
     @pytest.fixture(scope="function")
-    async def test_project(
+    def test_project(
         self, syn: Synapse, schedule_for_cleanup: Callable[..., None]
     ) -> Project:
         project = Project(name=f"test_project_{uuid.uuid4()}").store(synapse_client=syn)
@@ -34,7 +34,7 @@ class TestSubmissionBundleRetrieval:
         return project
 
     @pytest.fixture(scope="function")
-    async def test_evaluation(
+    def test_evaluation(
         self,
         test_project: Project,
         syn: Synapse,
@@ -51,7 +51,7 @@ class TestSubmissionBundleRetrieval:
         return evaluation
 
     @pytest.fixture(scope="function")
-    async def test_file(
+    def test_file(
         self,
         test_project: Project,
         syn: Synapse,
@@ -70,7 +70,7 @@ class TestSubmissionBundleRetrieval:
         return file_entity
 
     @pytest.fixture(scope="function")
-    async def test_submission(
+    def test_submission(
         self,
         test_evaluation: Evaluation,
         test_file: File,
@@ -87,7 +87,7 @@ class TestSubmissionBundleRetrieval:
         return submission
 
     @pytest.fixture(scope="function")
-    async def multiple_submissions(
+    def multiple_submissions(
         self,
         test_evaluation: Evaluation,
         test_file: File,
@@ -107,7 +107,7 @@ class TestSubmissionBundleRetrieval:
             submissions.append(submission)
         return submissions
 
-    async def test_get_evaluation_submission_bundles_basic(
+    def test_get_evaluation_submission_bundles_basic(
         self, test_evaluation: Evaluation, test_submission: Submission
     ):
         """Test getting submission bundles for an evaluation."""
@@ -138,7 +138,7 @@ class TestSubmissionBundleRetrieval:
         # AND our test submission should be found
         assert found_test_bundle, "Test submission should be found in bundles"
 
-    async def test_get_evaluation_submission_bundles_generator_behavior(
+    def test_get_evaluation_submission_bundles_generator_behavior(
         self, test_evaluation: Evaluation
     ):
         """Test that the generator returns SubmissionBundle objects correctly."""
@@ -157,7 +157,7 @@ class TestSubmissionBundleRetrieval:
         # AND all bundles should be valid SubmissionBundle objects
         assert all(isinstance(bundle, SubmissionBundle) for bundle in bundles)
 
-    async def test_get_evaluation_submission_bundles_with_status_filter(
+    def test_get_evaluation_submission_bundles_with_status_filter(
         self, test_evaluation: Evaluation, test_submission: Submission
     ):
         """Test getting submission bundles filtered by status."""
@@ -192,7 +192,7 @@ class TestSubmissionBundleRetrieval:
         assert "No enum constant" in str(exc_info.value)
         assert "NONEXISTENT_STATUS" in str(exc_info.value)
 
-    async def test_get_evaluation_submission_bundles_generator_behavior_with_multiple(
+    def test_get_evaluation_submission_bundles_generator_behavior_with_multiple(
         self, test_evaluation: Evaluation, multiple_submissions: list[Submission]
     ):
         """Test generator behavior when getting submission bundles with multiple submissions."""
@@ -228,7 +228,7 @@ class TestSubmissionBundleRetrieval:
             bundle_submission_ids
         ), "All created submissions should be found in bundles"
 
-    async def test_get_evaluation_submission_bundles_invalid_evaluation(self):
+    def test_get_evaluation_submission_bundles_invalid_evaluation(self):
         """Test getting submission bundles for invalid evaluation ID."""
         # WHEN I try to get submission bundles for a non-existent evaluation
         with pytest.raises(SynapseHTTPError) as exc_info:
@@ -242,7 +242,7 @@ class TestSubmissionBundleRetrieval:
         # THEN it should raise a SynapseHTTPError (likely 403 or 404)
         assert exc_info.value.response.status_code in [403, 404]
 
-    async def test_get_user_submission_bundles_basic(
+    def test_get_user_submission_bundles_basic(
         self, test_evaluation: Evaluation, test_submission: Submission
     ):
         """Test getting user submission bundles for an evaluation."""
@@ -274,7 +274,7 @@ class TestSubmissionBundleRetrieval:
         # AND our test submission should be found
         assert found_test_bundle, "Test submission should be found in user bundles"
 
-    async def test_get_user_submission_bundles_generator_behavior_with_multiple(
+    def test_get_user_submission_bundles_generator_behavior_with_multiple(
         self, test_evaluation: Evaluation, multiple_submissions: list[Submission]
     ):
         """Test generator behavior when getting user submission bundles with multiple submissions."""
@@ -320,7 +320,7 @@ class TestSubmissionBundleDataIntegrity:
         self.schedule_for_cleanup = schedule_for_cleanup
 
     @pytest.fixture(scope="function")
-    async def test_project(
+    def test_project(
         self, syn: Synapse, schedule_for_cleanup: Callable[..., None]
     ) -> Project:
         project = Project(name=f"test_project_{uuid.uuid4()}").store(synapse_client=syn)
@@ -328,7 +328,7 @@ class TestSubmissionBundleDataIntegrity:
         return project
 
     @pytest.fixture(scope="function")
-    async def test_evaluation(
+    def test_evaluation(
         self,
         test_project: Project,
         syn: Synapse,
@@ -345,7 +345,7 @@ class TestSubmissionBundleDataIntegrity:
         return evaluation
 
     @pytest.fixture(scope="function")
-    async def test_file(
+    def test_file(
         self,
         test_project: Project,
         syn: Synapse,
@@ -364,7 +364,7 @@ class TestSubmissionBundleDataIntegrity:
         return file_entity
 
     @pytest.fixture(scope="function")
-    async def test_submission(
+    def test_submission(
         self,
         test_evaluation: Evaluation,
         test_file: File,
@@ -380,7 +380,7 @@ class TestSubmissionBundleDataIntegrity:
         schedule_for_cleanup(submission.id)
         return submission
 
-    async def test_submission_bundle_data_consistency(
+    def test_submission_bundle_data_consistency(
         self, test_evaluation: Evaluation, test_submission: Submission, test_file: File
     ):
         """Test that submission bundles maintain data consistency between submission and status."""
@@ -412,7 +412,7 @@ class TestSubmissionBundleDataIntegrity:
             assert test_bundle.submission_status.id == test_submission.id
             assert test_bundle.submission_status.entity_id == test_file.id
 
-    async def test_submission_bundle_status_updates_reflected(
+    def test_submission_bundle_status_updates_reflected(
         self, test_evaluation: Evaluation, test_submission: Submission
     ):
         """Test that submission status updates are reflected in bundles."""
@@ -469,7 +469,7 @@ class TestSubmissionBundleEdgeCases:
         self.schedule_for_cleanup = schedule_for_cleanup
 
     @pytest.fixture(scope="function")
-    async def test_project(
+    def test_project(
         self, syn: Synapse, schedule_for_cleanup: Callable[..., None]
     ) -> Project:
         project = Project(name=f"test_project_{uuid.uuid4()}").store(synapse_client=syn)
@@ -477,7 +477,7 @@ class TestSubmissionBundleEdgeCases:
         return project
 
     @pytest.fixture(scope="function")
-    async def test_evaluation(
+    def test_evaluation(
         self,
         test_project: Project,
         syn: Synapse,
@@ -493,7 +493,7 @@ class TestSubmissionBundleEdgeCases:
         schedule_for_cleanup(evaluation.id)
         return evaluation
 
-    async def test_get_evaluation_submission_bundles_empty_evaluation(
+    def test_get_evaluation_submission_bundles_empty_evaluation(
         self, test_evaluation: Evaluation
     ):
         """Test getting submission bundles from an evaluation with no submissions."""
@@ -510,7 +510,7 @@ class TestSubmissionBundleEdgeCases:
         assert isinstance(bundles, list)
         assert len(bundles) == 0
 
-    async def test_get_user_submission_bundles_empty_evaluation(
+    def test_get_user_submission_bundles_empty_evaluation(
         self, test_evaluation: Evaluation
     ):
         """Test getting user submission bundles from an evaluation with no submissions."""
@@ -527,7 +527,7 @@ class TestSubmissionBundleEdgeCases:
         assert isinstance(bundles, list)
         assert len(bundles) == 0
 
-    async def test_get_evaluation_submission_bundles_generator_consistency(
+    def test_get_evaluation_submission_bundles_generator_consistency(
         self, test_evaluation: Evaluation
     ):
         """Test that the generator produces consistent results across multiple iterations."""
@@ -544,7 +544,7 @@ class TestSubmissionBundleEdgeCases:
         assert isinstance(bundles, list)
         # The actual count doesn't matter since the evaluation is empty
 
-    async def test_get_user_submission_bundles_generator_empty_results(
+    def test_get_user_submission_bundles_generator_empty_results(
         self, test_evaluation: Evaluation
     ):
         """Test that user submission bundles generator handles empty results correctly."""
@@ -561,7 +561,7 @@ class TestSubmissionBundleEdgeCases:
         assert isinstance(bundles, list)
         assert len(bundles) == 0
 
-    async def test_get_submission_bundles_with_default_parameters(
+    def test_get_submission_bundles_with_default_parameters(
         self, test_evaluation: Evaluation
     ):
         """Test that default parameters work correctly."""

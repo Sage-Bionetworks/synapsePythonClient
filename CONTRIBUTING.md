@@ -428,8 +428,11 @@ April 2024 it was found that during a single run of all integration tests almost
 connections were created and subsequently closed during the test run. As such the
 following set of guidelines should be followed:
 
-- All tests should use the `async` keyword. This allows any tests to share the
-underlying HTTPX async client for requests.
+- **Test function signatures:**
+  - Tests in `tests/integration/synapseclient/models/async/` should use `async def` to test async methods
+  - Tests in `tests/integration/synapseclient/models/synchronous/` should use regular `def` to test synchronous methods
+  - **Important (Python 3.14+):** Synchronous tests must NOT use `async def`, as this creates an active event loop that prevents synchronous methods from working correctly
+- **Fixtures:** Can be `async def` if they need to call async methods, but should use regular `def` when calling synchronous methods
 - Any non `session` scoped fixtures should not execute an HTTP request. If the fixture
 does need to execute a request it should not be scoped to `function`. This is because
 each scope level runs it's own event loop; Connection pools cannot be shared between

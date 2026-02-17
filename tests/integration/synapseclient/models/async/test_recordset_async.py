@@ -666,10 +666,10 @@ class TestRecordSetGetDetailedValidationResultsAsync:
             results_df.loc[4, "is_valid"] == False
         ), "Row 4 should be invalid (value below minimum)"  # noqa: E712
         assert (
-            "-50 is not greater or equal to 0"
+            "-50.0 is not greater or equal to 0"
             in results_df.loc[4, "validation_error_message"]
         ), f"Row 4 should have minimum violation, got: {results_df.loc[4, 'validation_error_message']}"
-        assert "#/value: -50 is not greater or equal to 0" in str(
+        assert "#/value: -50.0 is not greater or equal to 0" in str(
             results_df.loc[4, "all_validation_messages"]
         ), f"Row 4 all_validation_messages incorrect: {results_df.loc[4, 'all_validation_messages']}"
 

@@ -17,7 +17,7 @@ class TestSubmissionCreation:
         self.schedule_for_cleanup = schedule_for_cleanup
 
     @pytest.fixture(scope="function")
-    async def test_project(
+    def test_project(
         self, syn: Synapse, schedule_for_cleanup: Callable[..., None]
     ) -> Project:
         """Create a test project for submission tests."""
@@ -26,7 +26,7 @@ class TestSubmissionCreation:
         return project
 
     @pytest.fixture(scope="function")
-    async def test_evaluation(
+    def test_evaluation(
         self,
         test_project: Project,
         syn: Synapse,
@@ -45,7 +45,7 @@ class TestSubmissionCreation:
         return created_evaluation
 
     @pytest.fixture(scope="function")
-    async def test_file(
+    def test_file(
         self,
         test_project: Project,
         syn: Synapse,
@@ -74,7 +74,7 @@ class TestSubmissionCreation:
             # Clean up the temporary file
             os.unlink(temp_file_path)
 
-    async def test_store_submission_successfully(
+    def test_store_submission_successfully(
         self, test_evaluation: Evaluation, test_file: File
     ):
         # WHEN I create a submission with valid data
@@ -95,9 +95,7 @@ class TestSubmissionCreation:
         assert created_submission.created_on is not None
         assert created_submission.version_number is not None
 
-    async def test_store_submission_without_entity_id(
-        self, test_evaluation: Evaluation
-    ):
+    def test_store_submission_without_entity_id(self, test_evaluation: Evaluation):
         # WHEN I try to create a submission without entity_id
         submission = Submission(
             evaluation_id=test_evaluation.id,
@@ -108,7 +106,7 @@ class TestSubmissionCreation:
         with pytest.raises(ValueError, match="entity_id is required"):
             submission.store(synapse_client=self.syn)
 
-    async def test_store_submission_without_evaluation_id(self, test_file: File):
+    def test_store_submission_without_evaluation_id(self, test_file: File):
         # WHEN I try to create a submission without evaluation_id
         submission = Submission(
             entity_id=test_file.id,
@@ -119,9 +117,7 @@ class TestSubmissionCreation:
         with pytest.raises(ValueError, match="missing the 'evaluation_id' attribute"):
             submission.store(synapse_client=self.syn)
 
-    async def test_store_submission_with_docker_repository(
-        self, test_evaluation: Evaluation
-    ):
+    def test_store_submission_with_docker_repository(self, test_evaluation: Evaluation):
         # GIVEN we would need a Docker repository entity (mocked for this test)
         # This test demonstrates the expected behavior for Docker repository submissions
 
@@ -147,7 +143,7 @@ class TestSubmissionRetrieval:
         self.schedule_for_cleanup = schedule_for_cleanup
 
     @pytest.fixture(scope="function")
-    async def test_project(
+    def test_project(
         self, syn: Synapse, schedule_for_cleanup: Callable[..., None]
     ) -> Project:
         """Create a test project for submission tests."""
@@ -156,7 +152,7 @@ class TestSubmissionRetrieval:
         return project
 
     @pytest.fixture(scope="function")
-    async def test_evaluation(
+    def test_evaluation(
         self,
         test_project: Project,
         syn: Synapse,
@@ -175,7 +171,7 @@ class TestSubmissionRetrieval:
         return created_evaluation
 
     @pytest.fixture(scope="function")
-    async def test_file(
+    def test_file(
         self,
         test_project: Project,
         syn: Synapse,
@@ -203,7 +199,7 @@ class TestSubmissionRetrieval:
             os.unlink(temp_file_path)
 
     @pytest.fixture(scope="function")
-    async def test_submission(
+    def test_submission(
         self,
         test_evaluation: Evaluation,
         test_file: File,
@@ -220,7 +216,7 @@ class TestSubmissionRetrieval:
         schedule_for_cleanup(created_submission.id)
         return created_submission
 
-    async def test_get_submission_by_id(
+    def test_get_submission_by_id(
         self, test_submission: Submission, test_evaluation: Evaluation, test_file: File
     ):
         # WHEN I get a submission by ID
@@ -236,7 +232,7 @@ class TestSubmissionRetrieval:
         assert retrieved_submission.user_id is not None
         assert retrieved_submission.created_on is not None
 
-    async def test_get_evaluation_submissions(
+    def test_get_evaluation_submissions(
         self, test_evaluation: Evaluation, test_submission: Submission
     ):
         # WHEN I get all submissions for an evaluation
@@ -254,7 +250,7 @@ class TestSubmissionRetrieval:
         submission_ids = [sub.id for sub in submissions]
         assert test_submission.id in submission_ids
 
-    async def test_get_evaluation_submissions_generator_behavior(
+    def test_get_evaluation_submissions_generator_behavior(
         self, test_evaluation: Evaluation
     ):
         # WHEN I get submissions using the generator
@@ -272,7 +268,7 @@ class TestSubmissionRetrieval:
         # AND all submissions should be valid Submission objects
         assert all(isinstance(sub, Submission) for sub in submissions)
 
-    async def test_get_user_submissions(self, test_evaluation: Evaluation):
+    def test_get_user_submissions(self, test_evaluation: Evaluation):
         # WHEN I get submissions for the current user
         submissions_generator = Submission.get_user_submissions(
             evaluation_id=test_evaluation.id, synapse_client=self.syn
@@ -283,9 +279,7 @@ class TestSubmissionRetrieval:
         # Note: Could be empty if user hasn't made submissions to this evaluation
         assert all(isinstance(sub, Submission) for sub in submissions)
 
-    async def test_get_user_submissions_generator_behavior(
-        self, test_evaluation: Evaluation
-    ):
+    def test_get_user_submissions_generator_behavior(self, test_evaluation: Evaluation):
         # WHEN I get user submissions using the generator
         submissions_generator = Submission.get_user_submissions(
             evaluation_id=test_evaluation.id,
@@ -301,7 +295,7 @@ class TestSubmissionRetrieval:
         # AND all submissions should be valid Submission objects
         assert all(isinstance(sub, Submission) for sub in submissions)
 
-    async def test_get_submission_count(self, test_evaluation: Evaluation):
+    def test_get_submission_count(self, test_evaluation: Evaluation):
         # WHEN I get the submission count for an evaluation
         response = Submission.get_submission_count(
             evaluation_id=test_evaluation.id, synapse_client=self.syn
@@ -319,7 +313,7 @@ class TestSubmissionDeletion:
         self.schedule_for_cleanup = schedule_for_cleanup
 
     @pytest.fixture(scope="function")
-    async def test_project(
+    def test_project(
         self, syn: Synapse, schedule_for_cleanup: Callable[..., None]
     ) -> Project:
         """Create a test project for submission tests."""
@@ -328,7 +322,7 @@ class TestSubmissionDeletion:
         return project
 
     @pytest.fixture(scope="function")
-    async def test_evaluation(
+    def test_evaluation(
         self,
         test_project: Project,
         syn: Synapse,
@@ -347,7 +341,7 @@ class TestSubmissionDeletion:
         return created_evaluation
 
     @pytest.fixture(scope="function")
-    async def test_file(
+    def test_file(
         self,
         test_project: Project,
         syn: Synapse,
@@ -374,7 +368,7 @@ class TestSubmissionDeletion:
         finally:
             os.unlink(temp_file_path)
 
-    async def test_delete_submission_successfully(
+    def test_delete_submission_successfully(
         self, test_evaluation: Evaluation, test_file: File
     ):
         # GIVEN a submission
@@ -392,7 +386,7 @@ class TestSubmissionDeletion:
         with pytest.raises(SynapseHTTPError):
             Submission(id=created_submission.id).get(synapse_client=self.syn)
 
-    async def test_delete_submission_without_id(self):
+    def test_delete_submission_without_id(self):
         # WHEN I try to delete a submission without an ID
         submission = Submission(entity_id="syn123", evaluation_id="456")
 
@@ -408,7 +402,7 @@ class TestSubmissionCancel:
         self.schedule_for_cleanup = schedule_for_cleanup
 
     @pytest.fixture(scope="function")
-    async def test_project(
+    def test_project(
         self, syn: Synapse, schedule_for_cleanup: Callable[..., None]
     ) -> Project:
         """Create a test project for submission tests."""
@@ -417,7 +411,7 @@ class TestSubmissionCancel:
         return project
 
     @pytest.fixture(scope="function")
-    async def test_evaluation(
+    def test_evaluation(
         self,
         test_project: Project,
         syn: Synapse,
@@ -436,7 +430,7 @@ class TestSubmissionCancel:
         return created_evaluation
 
     @pytest.fixture(scope="function")
-    async def test_file(
+    def test_file(
         self,
         test_project: Project,
         syn: Synapse,
@@ -463,7 +457,7 @@ class TestSubmissionCancel:
         finally:
             os.unlink(temp_file_path)
 
-    async def test_cancel_submission_without_id(self):
+    def test_cancel_submission_without_id(self):
         # WHEN I try to cancel a submission without an ID
         submission = Submission(entity_id="syn123", evaluation_id="456")
 
@@ -478,7 +472,7 @@ class TestSubmissionValidation:
         self.syn = syn
         self.schedule_for_cleanup = schedule_for_cleanup
 
-    async def test_get_submission_without_id(self):
+    def test_get_submission_without_id(self):
         # WHEN I try to get a submission without an ID
         submission = Submission(entity_id="syn123", evaluation_id="456")
 
@@ -486,7 +480,7 @@ class TestSubmissionValidation:
         with pytest.raises(ValueError, match="must have an ID to get"):
             submission.get(synapse_client=self.syn)
 
-    async def test_to_synapse_request_missing_entity_id(self):
+    def test_to_synapse_request_missing_entity_id(self):
         # WHEN I try to create a request without entity_id
         submission = Submission(evaluation_id="456", name="Test")
 
@@ -497,7 +491,7 @@ class TestSubmissionValidation:
         ):
             submission.to_synapse_request()
 
-    async def test_to_synapse_request_missing_evaluation_id(self):
+    def test_to_synapse_request_missing_evaluation_id(self):
         # WHEN I try to create a request without evaluation_id
         submission = Submission(entity_id="syn123", name="Test")
 
@@ -505,7 +499,7 @@ class TestSubmissionValidation:
         with pytest.raises(ValueError, match="missing the 'evaluation_id' attribute"):
             submission.to_synapse_request()
 
-    async def test_to_synapse_request_valid_data(self):
+    def test_to_synapse_request_valid_data(self):
         # WHEN I create a request with valid required data
         submission = Submission(
             entity_id="syn123456",
@@ -528,7 +522,7 @@ class TestSubmissionValidation:
         assert request_body["dockerRepositoryName"] == "test/repo"
         assert request_body["dockerDigest"] == "sha256:abc123"
 
-    async def test_to_synapse_request_minimal_data(self):
+    def test_to_synapse_request_minimal_data(self):
         # WHEN I create a request with only required data
         submission = Submission(entity_id="syn123456", evaluation_id="789")
 
@@ -545,7 +539,7 @@ class TestSubmissionValidation:
 
 
 class TestSubmissionDataMapping:
-    async def test_fill_from_dict_complete_data(self):
+    def test_fill_from_dict_complete_data(self):
         # GIVEN a complete submission response from the REST API
         api_response = {
             "id": "123456",
@@ -584,7 +578,7 @@ class TestSubmissionDataMapping:
         assert submission.docker_repository_name == "test/repo"
         assert submission.docker_digest == "sha256:abc123"
 
-    async def test_fill_from_dict_minimal_data(self):
+    def test_fill_from_dict_minimal_data(self):
         # GIVEN a minimal submission response from the REST API
         api_response = {
             "id": "123456",
