@@ -436,6 +436,7 @@ class DockerRepository(DockerRepositorySynchronousProtocol, AccessControllable):
             None,
             lambda: delete(
                 self.id,
+                synapse_client=synapse_client,
             ),
         )
 
