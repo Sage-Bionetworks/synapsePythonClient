@@ -982,23 +982,18 @@ class TestRowStorage:
             {
                 "id": [1, 2, 3],
                 "json_data": [
-                    {"description": "Text with 'quotes' here", "value": 100},
-                    {"description": "Another 'quoted' text", "value": 200},
-                    {"description": "Multiple 'quoted' 'words' here", "value": 300},
+                    {"description": 'Text with "quotes" here', "value": 100},
+                    {"description": 'Another "quoted" text', "value": 200},
+                    {"description": 'Multiple "quoted" "words" here', "value": 300},
                 ],
             }
         )
         assert is_object_dtype(results.json_data)
-        for idx, row in results.iterrows():
-            retrieved_data = json.loads(row["json_data"])
-            assert (
-                retrieved_data["description"]
-                == expected_result.loc[idx, "json_data"]["description"]
-            )
-            assert (
-                retrieved_data["value"]
-                == expected_result.loc[idx, "json_data"]["value"]
-            )
+        pd.testing.assert_frame_equal(
+            results.drop(columns=["ROW_ID", "ROW_VERSION"]),
+            expected_result,
+            check_dtype=False,
+        )
 
     def test_store_rows_with_ellipsis_in_list_columns(
         self, project_model: Project
@@ -1046,9 +1041,11 @@ class TestRowStorage:
                 "string_list": [["a", "b", "..."], ["d", "...", "f"], ["g", "h", "i"]],
             }
         )
-        for idx, row in results.iterrows():
-            retrieved_data = json.loads(row["string_list"])
-            assert retrieved_data == expected_result.loc[idx, "string_list"]
+        pd.testing.assert_frame_equal(
+            results.drop(columns=["ROW_ID", "ROW_VERSION"]),
+            expected_result,
+            check_dtype=False,
+        )
 
     def test_store_rows_with_ellipsis_in_json_columns(
         self, project_model: Project
@@ -1103,9 +1100,11 @@ class TestRowStorage:
                 ],
             }
         )
-        for idx, row in results.iterrows():
-            retrieved_data = json.loads(row["json_data"])
-            assert retrieved_data == expected_result.loc[idx, "json_data"]
+        pd.testing.assert_frame_equal(
+            results.drop(columns=["ROW_ID", "ROW_VERSION"]),
+            expected_result,
+            check_dtype=False,
+        )
         assert is_object_dtype(results.json_data)
 
     def test_store_rows_with_standalone_ellipsis(self, project_model: Project) -> None:
@@ -1196,9 +1195,11 @@ class TestRowStorage:
                 "int_list": [[1, 2, 3], [], [7, 8, 9], []],
             }
         )
-        for idx, row in results.iterrows():
-            retrieved_data = json.loads(row["int_list"])
-            assert retrieved_data == expected_result.loc[idx, "int_list"]
+        pd.testing.assert_frame_equal(
+            results.drop(columns=["ROW_ID", "ROW_VERSION"]),
+            expected_result,
+            check_dtype=False,
+        )
         assert is_object_dtype(results.int_list)
 
     def test_store_rows_with_nullable_integer_columns(
@@ -1316,9 +1317,11 @@ class TestRowStorage:
                 ],
             }
         )
-        for idx, row in results.iterrows():
-            retrieved_data = json.loads(row["json_data"])
-            assert retrieved_data == expected_result.loc[idx, "json_data"]
+        pd.testing.assert_frame_equal(
+            results.drop(columns=["ROW_ID", "ROW_VERSION"]),
+            expected_result,
+            check_dtype=False,
+        )
         assert is_object_dtype(results.json_data)
 
 
@@ -1884,64 +1887,10 @@ class TestUpsertRows:
             )
             expected_results = expected_results.convert_dtypes()
             expected_results = expected_results.replace({pd.NA: None})
+            # import pdb; pdb.set_trace()
             pd.testing.assert_frame_equal(
-                results_after_insert.drop(
-                    columns=[
-                        "column_string_LIST",
-                        "column_integer_LIST",
-                        "column_boolean_LIST",
-                        "column_date_LIST",
-                        "column_entity_id_list",
-                        "column_user_id_list",
-                        "column_json",
-                    ]
-                ),
-                expected_results.drop(
-                    columns=[
-                        "column_string_LIST",
-                        "column_integer_LIST",
-                        "column_boolean_LIST",
-                        "column_date_LIST",
-                        "column_entity_id_list",
-                        "column_user_id_list",
-                        "column_json",
-                    ]
-                ),
-                check_dtype=False,
+                results_after_insert, expected_results, check_dtype=False
             )
-            for idx, row in results_after_insert.iterrows():
-                retrieved_data_string_list = json.loads(row["column_string_LIST"])
-                assert (
-                    retrieved_data_string_list
-                    == expected_results.loc[idx, "column_string_LIST"]
-                )
-                retrieved_data_integer_list = json.loads(row["column_integer_LIST"])
-                assert (
-                    retrieved_data_integer_list
-                    == expected_results.loc[idx, "column_integer_LIST"]
-                )
-                retrieved_data_boolean_list = json.loads(row["column_boolean_LIST"])
-                assert (
-                    retrieved_data_boolean_list
-                    == expected_results.loc[idx, "column_boolean_LIST"]
-                )
-                retrieved_data_date_list = json.loads(row["column_date_LIST"])
-                assert (
-                    retrieved_data_date_list
-                    == expected_results.loc[idx, "column_date_LIST"]
-                )
-                retrieved_data_entity_id_list = json.loads(row["column_entity_id_list"])
-                assert (
-                    retrieved_data_entity_id_list
-                    == expected_results.loc[idx, "column_entity_id_list"]
-                )
-                retrieved_data_user_id_list = json.loads(row["column_user_id_list"])
-                assert (
-                    retrieved_data_user_id_list
-                    == expected_results.loc[idx, "column_user_id_list"]
-                )
-                retrieved_data_json = json.loads(row["column_json"])
-                assert retrieved_data_json == expected_results.loc[idx, "column_json"]
 
             # Create a second test file to update references
             path2 = utils.make_bogus_data_file()
@@ -2126,6 +2075,8 @@ class TestUpsertRows:
                     ],
                 }
             )
+            expected_results = expected_results.convert_dtypes()
+            expected_results = expected_results.replace({pd.NA: None})
             pd.testing.assert_frame_equal(results, expected_results, check_dtype=False)
 
             # WHEN I upsert with multiple primary keys and null values

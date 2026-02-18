@@ -1033,23 +1033,18 @@ class TestRowStorage:
             {
                 "id": [1, 2, 3],
                 "json_data": [
-                    {"description": "Text with 'quotes' here", "value": 100},
-                    {"description": "Another 'quoted' text", "value": 200},
-                    {"description": "Multiple 'quoted' 'words' here", "value": 300},
+                    {"description": 'Text with "quotes" here', "value": 100},
+                    {"description": 'Another "quoted" text', "value": 200},
+                    {"description": 'Multiple "quoted" "words" here', "value": 300},
                 ],
             }
         )
         assert is_object_dtype(results.json_data)
-        for idx, row in results.iterrows():
-            retrieved_data = json.loads(row["json_data"])
-            assert (
-                retrieved_data["description"]
-                == expected_result.loc[idx, "json_data"]["description"]
-            )
-            assert (
-                retrieved_data["value"]
-                == expected_result.loc[idx, "json_data"]["value"]
-            )
+        pd.testing.assert_frame_equal(
+            results.drop(columns=["ROW_ID", "ROW_VERSION"]),
+            expected_result,
+            check_dtype=False,
+        )
 
     async def test_store_rows_with_ellipsis_in_list_columns(
         self, project_model: Project
@@ -1098,9 +1093,11 @@ class TestRowStorage:
                 "string_list": [["a", "b", "..."], ["d", "...", "f"], ["g", "h", "i"]],
             }
         )
-        for idx, row in results.iterrows():
-            retrieved_data = json.loads(row["string_list"])
-            assert retrieved_data == expected_result.loc[idx, "string_list"]
+        pd.testing.assert_frame_equal(
+            results.drop(columns=["ROW_ID", "ROW_VERSION"]),
+            expected_result,
+            check_dtype=False,
+        )
 
     async def test_store_rows_with_ellipsis_in_json_columns(
         self, project_model: Project
@@ -1156,9 +1153,11 @@ class TestRowStorage:
                 ],
             }
         )
-        for idx, row in results.iterrows():
-            retrieved_data = json.loads(row["json_data"])
-            assert retrieved_data == expected_result.loc[idx, "json_data"]
+        pd.testing.assert_frame_equal(
+            results.drop(columns=["ROW_ID", "ROW_VERSION"]),
+            expected_result,
+            check_dtype=False,
+        )
         assert is_object_dtype(results.json_data)
 
     async def test_store_rows_with_standalone_ellipsis(
@@ -1207,8 +1206,11 @@ class TestRowStorage:
                 "string_col": ["value1", "...", "value3"],
             }
         )
-        for idx, row in results.iterrows():
-            assert row["string_col"] == expected_result.loc[idx, "string_col"]
+        pd.testing.assert_frame_equal(
+            results.drop(columns=["ROW_ID", "ROW_VERSION"]),
+            expected_result,
+            check_dtype=False,
+        )
         assert is_object_dtype(results.string_col)
 
     async def test_store_rows_with_pd_na_in_lists(self, project_model: Project) -> None:
@@ -1253,9 +1255,11 @@ class TestRowStorage:
                 "int_list": [[1, 2, 3], [], [7, 8, 9], []],
             }
         )
-        for idx, row in results.iterrows():
-            retrieved_data = json.loads(row["int_list"])
-            assert retrieved_data == expected_result.loc[idx, "int_list"]
+        pd.testing.assert_frame_equal(
+            results.drop(columns=["ROW_ID", "ROW_VERSION"]),
+            expected_result,
+            check_dtype=False,
+        )
         assert is_object_dtype(results.int_list)
 
     async def test_store_rows_with_nullable_integer_columns(
@@ -1375,9 +1379,11 @@ class TestRowStorage:
                 ],
             }
         )
-        for idx, row in results.iterrows():
-            retrieved_data = json.loads(row["json_data"])
-            assert retrieved_data == expected_result.loc[idx, "json_data"]
+        pd.testing.assert_frame_equal(
+            results.drop(columns=["ROW_ID", "ROW_VERSION"]),
+            expected_result,
+            check_dtype=False,
+        )
         assert is_object_dtype(results.json_data)
 
 
@@ -1952,6 +1958,10 @@ class TestUpsertRows:
                     ],
                 }
             )
+
+            expected_results = expected_results.convert_dtypes()
+            expected_results = expected_results.replace({pd.NA: None})
+            # import pdb; pdb.set_trace()
             pd.testing.assert_frame_equal(
                 results_after_insert, expected_results, check_dtype=False
             )
@@ -2137,6 +2147,8 @@ class TestUpsertRows:
                     ],
                 }
             )
+            expected_results = expected_results.convert_dtypes()
+            expected_results = expected_results.replace({pd.NA: None})
             pd.testing.assert_frame_equal(results, expected_results, check_dtype=False)
 
             # WHEN I upsert with multiple primary keys and null values
