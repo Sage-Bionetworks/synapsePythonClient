@@ -41,7 +41,7 @@ class TestFormGroup:
 
 
 class TestFormData:
-    @pytest.fixture(autouse=True, scope="session")
+    @pytest.fixture(autouse=True, scope="class")
     async def test_form_group(
         self, syn: Synapse, schedule_for_cleanup: Callable[..., None]
     ) -> FormGroup:
@@ -54,7 +54,7 @@ class TestFormData:
 
         return form_group
 
-    @pytest.fixture(autouse=True, scope="session")
+    @pytest.fixture(autouse=True, scope="class")
     async def test_file(
         self, syn: Synapse, schedule_for_cleanup: Callable[..., None]
     ) -> File:

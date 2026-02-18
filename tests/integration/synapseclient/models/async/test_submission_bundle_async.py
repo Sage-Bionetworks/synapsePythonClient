@@ -25,7 +25,7 @@ class TestSubmissionBundleRetrievalAsync:
         self.syn = syn
         self.schedule_for_cleanup = schedule_for_cleanup
 
-    @pytest.fixture(scope="function")
+    @pytest.fixture(scope="class")
     async def test_project(
         self, syn: Synapse, schedule_for_cleanup: Callable[..., None]
     ) -> Project:
@@ -35,7 +35,7 @@ class TestSubmissionBundleRetrievalAsync:
         schedule_for_cleanup(project.id)
         return project
 
-    @pytest.fixture(scope="function")
+    @pytest.fixture(scope="class")
     async def test_evaluation(
         self,
         test_project: Project,
@@ -316,7 +316,7 @@ class TestSubmissionBundleDataIntegrityAsync:
         self.syn = syn
         self.schedule_for_cleanup = schedule_for_cleanup
 
-    @pytest.fixture(scope="function")
+    @pytest.fixture(scope="class")
     async def test_project(
         self, syn: Synapse, schedule_for_cleanup: Callable[..., None]
     ) -> Project:
@@ -326,7 +326,7 @@ class TestSubmissionBundleDataIntegrityAsync:
         schedule_for_cleanup(project.id)
         return project
 
-    @pytest.fixture(scope="function")
+    @pytest.fixture(scope="class")
     async def test_evaluation(
         self,
         test_project: Project,
@@ -494,7 +494,7 @@ class TestSubmissionBundleEdgeCasesAsync:
         self.syn = syn
         self.schedule_for_cleanup = schedule_for_cleanup
 
-    @pytest.fixture(scope="function")
+    @pytest.fixture(scope="class")
     async def test_project(
         self, syn: Synapse, schedule_for_cleanup: Callable[..., None]
     ) -> Project:
@@ -504,7 +504,7 @@ class TestSubmissionBundleEdgeCasesAsync:
         schedule_for_cleanup(project.id)
         return project
 
-    @pytest.fixture(scope="function")
+    @pytest.fixture(scope="class")
     async def test_evaluation(
         self,
         test_project: Project,
