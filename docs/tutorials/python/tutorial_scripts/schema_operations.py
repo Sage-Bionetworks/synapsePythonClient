@@ -27,21 +27,11 @@ ENTITY_ID = "syn12345678"
 syn = Synapse()
 syn.login()
 
-schemas, file_paths = generate_jsonschema(
-    data_model_source=DATA_MODEL_SOURCE,
-    output=OUTPUT_DIRECTORY,
-    data_types=DATA_TYPE,
-    synapse_client=syn,
-)
-
-print(schemas[0])
-
-
 # Create JSON Schemas for multiple data types
 schemas, file_paths = generate_jsonschema(
     data_model_source=DATA_MODEL_SOURCE,
     output=OUTPUT_DIRECTORY,
-    data_types=["Patient", "Biospecimen"],
+    data_types=DATA_TYPE,
     synapse_client=syn,
 )
 
