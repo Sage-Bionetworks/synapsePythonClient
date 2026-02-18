@@ -9,6 +9,7 @@ In this tutorial, you will learn how to create, register, and bind JSON Schemas 
 ## Tutorial Purpose
 
 You will learn the complete JSON Schema workflow:
+
 1. **Generate** JSON schemas from your data model
 2. **Register** schemas to a Synapse organization
 3. **Bind** schemas to Synapse entities for metadata validation
