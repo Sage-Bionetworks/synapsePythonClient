@@ -349,6 +349,22 @@ class TestJSONSchema:
         assert expected_cancer in all_of
         assert expected_healthy in all_of
 
+    def test_convert_no_conditional_properties_to_all_of(self) -> None:
+        """Test JSONSchema._convert_conditional_properties_to_all_of method."""
+        # GIVEN a JSONSchema instance
+        schema = JSONSchema()
+
+        # AND an empty conditional dependencies
+        conditional_dependencies = {}
+
+        # WHEN converting to allOf
+        all_of = schema._convert_conditional_properties_to_all_of(
+            conditional_dependencies
+        )
+
+        # THEN the result also be empty
+        assert len(all_of) == 0
+
 
 @pytest.mark.parametrize(
     "node_name, expected_type, expected_is_array, expected_min, expected_max, expected_pattern, expected_format",
