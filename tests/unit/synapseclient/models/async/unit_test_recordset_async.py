@@ -61,6 +61,10 @@ class TestRecordSet:
     @pytest.fixture(autouse=True, scope="function")
     def init_syn(self, syn: Synapse) -> None:
         self.syn = syn
+        original_cache = syn.cache
+        yield
+        # Restore cache to prevent leaking MagicMock to other tests
+        syn.cache = original_cache
 
     def test_fill_from_dict(self) -> None:
         # GIVEN a RecordSet entity response
