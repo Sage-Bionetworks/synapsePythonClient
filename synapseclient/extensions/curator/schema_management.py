@@ -32,7 +32,7 @@ def register_jsonschema(
     Arguments:
         schema_path: Path to the JSON schema file to register
         organization_name: Name of the organization to register the schema under
-        schema_name: The name of the JSON schema
+        schema_name: Name of the JSON schema
         schema_version: Optional version of the schema (e.g., '0.0.1').
                        If not specified, a version will be auto-generated.
         synapse_client: If not passed in and caching was not disabled by
