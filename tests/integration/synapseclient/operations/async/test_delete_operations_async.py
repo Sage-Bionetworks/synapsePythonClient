@@ -7,7 +7,7 @@ import pytest
 from synapseclient import Synapse
 from synapseclient.core import utils
 from synapseclient.core.exceptions import SynapseHTTPError
-from synapseclient.models import File, Project, RecordSet
+from synapseclient.models import DockerRepository, File, Project, RecordSet
 from synapseclient.operations import delete_async
 
 
@@ -491,3 +491,45 @@ class TestDeleteOperationsAsync:
         assert not any(
             "Version conflict" in record.message for record in caplog.records
         )
+
+    async def test_delete_docker_repo_by_id_string_async(
+        self, project_model: Project
+    ) -> None:
+        """Test deleting a Docker repository using a string ID."""
+        # GIVEN a Docker repository stored in synapse
+        docker_repo = await DockerRepository(
+            parent_id=project_model.id,
+            repository_name="username/test-delete-string",
+        ).store_async(synapse_client=self.syn)
+        self.schedule_for_cleanup(docker_repo.id)
+
+        # WHEN I delete using string ID
+        await delete_async(docker_repo.id, synapse_client=self.syn)
+
+        # THEN the repository should be deleted
+        with pytest.raises(SynapseHTTPError) as e:
+            DockerRepository(id=docker_repo.id).get(synapse_client=self.syn)
+            assert f"404 Client Error: Entity {docker_repo.id} is in trash can" in str(
+                e.value
+            )
+
+    async def test_delete_docker_repo_by_objec_async(
+        self, project_model: Project
+    ) -> None:
+        """Test deleting a Docker repository using a DockerRepository object."""
+        # GIVEN a Docker repository stored in synapse
+        docker_repo = await DockerRepository(
+            parent_id=project_model.id,
+            repository_name="username/test-delete-object",
+        ).store_async(synapse_client=self.syn)
+        self.schedule_for_cleanup(docker_repo.id)
+
+        # WHEN I delete using the DockerRepository object
+        await delete_async(docker_repo, synapse_client=self.syn)
+
+        # THEN the repository should be deleted
+        with pytest.raises(SynapseHTTPError) as e:
+            DockerRepository(id=docker_repo.id).get(synapse_client=self.syn)
+            assert f"404 Client Error: Entity {docker_repo.id} is in trash can" in str(
+                e.value
+            )
