@@ -59,7 +59,9 @@ The data types must exist in your data model. This can be a list of data types, 
 
 ## 2. Create JSON Schemas
 
-Create multiple JSON Schema
+### Create multiple JSON Schema
+
+The JSONschema looks like [this](https://repo-prod.prod.sagebase.org/repo/v1/schema/type/registered/dpetest-test.schematic.Patient). By setting the `output` parameter as path to a "temp" directory, the file will be created as "temp/Patient.json". The `data_types` parameter is a list and can have multiple data types.
 
 ```python
 # Create JSON Schemas for multiple data types
@@ -71,15 +73,9 @@ schemas, file_paths = generate_jsonschema(
 )
 ```
 
-The JSONschema looks like [this](https://repo-prod.prod.sagebase.org/repo/v1/schema/type/registered/dpetest-test.schematic.Patient).
+### Create every JSON schema
 
-By setting the `output` parameter as path to a "temp" directory, the file will be created as "temp/Patient.json".
-
-The `data_types` parameter is a list and can have multiple data types.
-
-## 3. Create every JSON Schema
-
-Create every JSON Schema
+If you don't set a `data_types` parameter a JSON Schema will be created for every data type in the data model.
 
 ```python
 # Create JSON Schemas for all data types
@@ -90,11 +86,9 @@ schemas, file_paths = generate_jsonschema(
 )
 ```
 
-If you don't set a `data_types` parameter a JSON Schema will be created for every data type in the data model.
+### Create a JSON Schema with a certain path
 
-## 4. Create a JSON Schema with a certain path
-
-Create a JSON Schema
+If you have only one data type and set the `output` parameter to a file path(ending in.json), the JSON Schema file will have that path.
 
 ```python
 # Specify path for JSON Schema
@@ -106,14 +100,11 @@ schemas, file_paths = generate_jsonschema(
 )
 ```
 
-If you have only one data type and set the `output` parameter to a file path(ending in.json), the JSON Schema file will have that path.
+### Create a JSON Schema in the current working directory
 
-## 5. Create a JSON Schema in the current working directory
-
-Create a JSON Schema
+If you don't set `output` parameter the JSON Schema file will be created in the current working directory.
 
 ```python
-# Create JSON Schema in cwd
 schemas, file_paths = generate_jsonschema(
     data_model_source=DATA_MODEL_SOURCE,
     data_types=DATA_TYPE,
@@ -121,11 +112,10 @@ schemas, file_paths = generate_jsonschema(
 )
 ```
 
-If you don't set `output` parameter the JSON Schema file will be created in the current working directory.
 
-## 6. Create a JSON Schema using display names
+### Create a JSON Schema using display names
 
-Create a JSON Schema
+You can have Curator format the property names and valid values in the JSON Schema. This will remove whitespace and special characters.
 
 ```python
 # Create JSON Schema using display names for both properties names and valid values
@@ -137,11 +127,16 @@ schemas, file_paths = generate_jsonschema(
 )
 ```
 
-You can have Curator format the property names and valid values in the JSON Schema. This will remove whitespace and special characters.
 
-## 7. Register a JSON Schema to Synapse
+## 3. Register a JSON Schema to Synapse
 
 Once you've created a JSON Schema file, you can register it to a Synapse organization.
+
+The `register_jsonschema` function:
+- Takes a path to your generated JSON Schema file
+- Registers it with the specified organization in Synapse
+- Returns the schema URI and a success message
+- You can optionally specify a version (e.g., "0.0.1") or let it auto-generate
 
 ```python
 # Register a JSON Schema to Synapse
@@ -155,15 +150,16 @@ json_schema = register_jsonschema(
 print(f"Registered schema URI: {json_schema.uri}")
 ```
 
-The `register_jsonschema` function:
-- Takes a path to your generated JSON Schema file
-- Registers it with the specified organization in Synapse
-- Returns the schema URI and a success message
-- You can optionally specify a version (e.g., "0.0.1") or let it auto-generate
 
 ## 8. Bind a JSON Schema to a Synapse Entity
 
 After registering a schema, you can bind it to Synapse entities (files, folders, etc.) for metadata validation.
+
+The `bind_jsonschema` function:
+- Takes a Synapse entity ID (e.g., "syn12345678")
+- Binds the registered schema URI to that entity
+- Optionally enables derived annotations to auto-populate metadata
+- Returns binding details
 
 ```python
 # Bind a JSON Schema to a Synapse entity
@@ -175,13 +171,6 @@ result = bind_jsonschema(
 )
 print(f"Successfully bound schema to entity: {result}")
 ```
-
-The `bind_jsonschema` function:
-- Takes a Synapse entity ID (e.g., "syn12345678")
-- Binds the registered schema URI to that entity
-- Optionally enables derived annotations to auto-populate metadata
-- Returns binding details
-
 
 ## Reference
 - [JSON Schema Object Definition](https://rest-docs.synapse.org/rest/org/sagebionetworks/repo/model/schema/JsonSchema.html)
