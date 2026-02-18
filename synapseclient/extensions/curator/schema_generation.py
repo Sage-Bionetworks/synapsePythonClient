@@ -5066,7 +5066,7 @@ class JSONSchema:
         description: An optional description of the object described by this schema.
         properties: A list of property schemas.
         required: A list of properties required by the schema.
-        conditional_dependencies: A mapping of conditional dependencies to be added to the "allOf" keyword in JSON Schema.
+        _conditional_dependencies: A mapping of conditional dependencies to be added to the "allOf" keyword in JSON Schema.
             The key is a tuple of (watched_property, enum_value)
             The value is a list of properties that become required when watched_property has the value enum_value.
     """
@@ -5078,7 +5078,7 @@ class JSONSchema:
     description: str = "TBD"
     properties: dict[str, Property] = field(default_factory=dict)
     required: list[str] = field(default_factory=list)
-    conditional_dependencies: dict[tuple[str, str], list[str]] = field(
+    _conditional_dependencies: dict[tuple[str, str], list[str]] = field(
         default_factory=dict
     )
 
@@ -5106,12 +5106,11 @@ class JSONSchema:
         #  in the correct format to be added as is, and they need to be converted to allOf conditions first.
         # Finally the conditional dependencies are removed from the JSON Schema dict because they are not a
         #  valid JSON Schema keyword
-        if self.conditional_dependencies:
+        if self._conditional_dependencies:
             json_schema_dict["allOf"] = self._convert_conditional_properties_to_all_of(
-                self.conditional_dependencies
+                self._conditional_dependencies
             )
-        json_schema_dict.pop("conditional_dependencies")
-
+        json_schema_dict.pop("_conditional_dependencies")
         return json_schema_dict
 
     def add_required_property(self, name: str) -> None:
@@ -5158,11 +5157,14 @@ class JSONSchema:
             enum_value: The value of the watched property that triggers the condition
             dependent_property: The property that becomes required when the condition is triggered
         """
-        if (watched_property, enum_value) not in self.conditional_dependencies:
-            self.conditional_dependencies[(watched_property, enum_value)] = []
-        self.conditional_dependencies[(watched_property, enum_value)].append(
-            dependent_property
-        )
+        if (watched_property, enum_value) not in self._conditional_dependencies:
+            self._conditional_dependencies[(watched_property, enum_value)] = [
+                dependent_property
+            ]
+        else:
+            self._conditional_dependencies[(watched_property, enum_value)].append(
+                dependent_property
+            )
 
     @staticmethod
     def _convert_conditional_properties_to_all_of(

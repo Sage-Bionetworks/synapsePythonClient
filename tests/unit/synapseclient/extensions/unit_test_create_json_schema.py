@@ -7,7 +7,6 @@ import json
 import logging
 import os
 from typing import Any, Optional
-from unittest import mock
 from unittest.mock import Mock
 
 import pytest
@@ -264,7 +263,7 @@ class TestJSONSchema:
         assert schema.description == "TBD"
         assert not schema.properties
         assert not schema.required
-        assert not schema.conditional_dependencies
+        assert not schema._conditional_dependencies
 
     def test_as_json_schema_dict(self) -> None:
         """Test the JSONSchema.as_json_schema_dict method"""
@@ -1261,7 +1260,7 @@ def test_set_conditional_dependencies(
     _set_conditional_dependencies(
         json_schema=json_schema, graph_state=gts, use_display_labels=False
     )
-    assert json_schema.conditional_dependencies == expected_conditional_dependencies
+    assert json_schema._conditional_dependencies == expected_conditional_dependencies
 
 
 @pytest.mark.parametrize(
