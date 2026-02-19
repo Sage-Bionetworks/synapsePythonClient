@@ -5053,7 +5053,7 @@ class GraphTraversalState:  # pylint: disable=too-many-instance-attributes
 
 
 @dataclass
-class JSONSchema:  # pylint: disable=too-many-instance-attributes
+class JSONSchema:
     """
     A dataclass representing a JSON Schema.
     Each attribute represents a keyword in a JSON Schema.
@@ -5066,7 +5066,9 @@ class JSONSchema:  # pylint: disable=too-many-instance-attributes
         description: An optional description of the object described by this schema.
         properties: A list of property schemas.
         required: A list of properties required by the schema.
-        all_of: A list of conditions the schema must meet. This should be removed if empty.
+        _conditional_dependencies: A mapping of conditional dependencies to be added to the "allOf" keyword in JSON Schema.
+            The key is a tuple of (watched_property, enum_value)
+            The value is a list of properties that become required when watched_property has the value enum_value.
     """
 
     schema_id: str = ""
@@ -5076,7 +5078,9 @@ class JSONSchema:  # pylint: disable=too-many-instance-attributes
     description: str = "TBD"
     properties: dict[str, Property] = field(default_factory=dict)
     required: list[str] = field(default_factory=list)
-    all_of: list[AllOf] = field(default_factory=list)
+    _conditional_dependencies: dict[tuple[str, str], list[str]] = field(
+        default_factory=dict
+    )
 
     def as_json_schema_dict(
         self,
@@ -5088,15 +5092,25 @@ class JSONSchema:  # pylint: disable=too-many-instance-attributes
             The dataclass as a dict.
         """
         json_schema_dict = asdict(self)
+        # Change dataclass attribute names to JSON Schema keywords
+        # Dataclass attributes can't start with $
         keywords_to_change = {
             "schema_id": "$id",
             "schema": "$schema",
-            "all_of": "allOf",
         }
         for old_word, new_word in keywords_to_change.items():
             json_schema_dict[new_word] = json_schema_dict.pop(old_word)
-        if not self.all_of:
-            json_schema_dict.pop("allOf")
+
+        # Converts the conditional dependencies to allOf conditions and adds them to the JSON Schema dict
+        # The conditional dependencies are not added to the JSON Schema dict directly because they are not
+        #  in the correct format to be added as is, and they need to be converted to allOf conditions first.
+        # Finally the conditional dependencies are removed from the JSON Schema dict because they are not a
+        #  valid JSON Schema keyword
+        if self._conditional_dependencies:
+            json_schema_dict["allOf"] = self._convert_conditional_properties_to_all_of(
+                self._conditional_dependencies
+            )
+        json_schema_dict.pop("_conditional_dependencies")
         return json_schema_dict
 
     def add_required_property(self, name: str) -> None:
@@ -5107,15 +5121,6 @@ class JSONSchema:  # pylint: disable=too-many-instance-attributes
             name: The name of the property
         """
         self.required.append(name)
-
-    def add_to_all_of_list(self, item: AllOf) -> None:
-        """
-        Adds a property to the all_of list
-
-        Arguments:
-            item: The item to add to the all_of list
-        """
-        self.all_of.append(item)
 
     def update_property(self, property_dict: dict[str, Property]) -> None:
         """
@@ -5142,6 +5147,87 @@ class JSONSchema:  # pylint: disable=too-many-instance-attributes
             )
         self.properties.update(property_dict)
 
+    def add_conditional_dependency(
+        self, watched_property: str, enum_value: str, dependent_property: str
+    ) -> None:
+        """
+        Adds a conditional dependency to the conditional dependencies dict
+        Arguments:
+            watched_property: The property that is being watched
+            enum_value: The value of the watched property that triggers the condition
+            dependent_property: The property that becomes required when the condition is triggered
+        """
+        if (watched_property, enum_value) not in self._conditional_dependencies:
+            self._conditional_dependencies[(watched_property, enum_value)] = [
+                dependent_property
+            ]
+        else:
+            self._conditional_dependencies[(watched_property, enum_value)].append(
+                dependent_property
+            )
+
+    @staticmethod
+    def _convert_conditional_properties_to_all_of(
+        conditional_dependencies: dict[tuple[str, str], list[str]]
+    ) -> list[AllOf]:
+        """
+        Converts the conditional dependencies dict to a list of JSON Schema allOf conditions
+
+        Arguments:
+            conditional_dependencies: A mapping of conditional dependencies to be added to the "allOf" keyword in JSON Schema.
+                The key is a tuple of (watched_property, enum_value)
+                The value is a list of properties that become required when watched_property has the value enum_value.
+
+        Returns:
+            A list of JSON Schema allOf conditions
+
+
+        For example:
+            In the example data model the Patient component has the Diagnosis attribute.
+            The Diagnosis attribute has valid values of ["Healthy", "Cancer"].
+            The Cancer valid value is also an attribute that dependsOn on the
+                attributes Cancer Type and Family History
+            Cancer Type and Family History are attributes with valid values.
+            Therefore: When Diagnosis == "Cancer", Cancer Type and Family History should become required
+
+        Example conditional schema:
+            "if":{
+                "properties":{
+                    "Diagnosis":{
+                        "enum":[
+                            "Cancer"
+                        ]
+                    }
+                }
+            },
+            "then":{
+                "properties":{
+                    "FamilyHistory":{
+                        "not":{
+                            "type":"null"
+                        }
+                    }
+                },
+                    "required":["FamilyHistory"]
+            }
+        """
+        all_of = []
+        for (
+            watched_property,
+            enum_value,
+        ), dependent_properties in conditional_dependencies.items():
+            conditional_dep = {
+                "if": {"properties": {watched_property: {"enum": [enum_value]}}},
+                "then": {
+                    "properties": {
+                        prop: {"not": {"type": "null"}} for prop in dependent_properties
+                    },
+                    "required": dependent_properties,
+                },
+            }
+            all_of.append(conditional_dep)
+        return all_of
+
 
 def _set_conditional_dependencies(
     json_schema: JSONSchema,
@@ -5149,39 +5235,8 @@ def _set_conditional_dependencies(
     use_display_labels: bool = True,
 ) -> None:
     """
-    This sets conditional requirements in the "allOf" keyword.
+    This translates conditional requirements in a JSONSchema object from a GraphTraversalState object
     This is used when certain properties are required depending on the value of another property.
-
-    For example:
-      In the example data model the Patient component has the Diagnosis attribute.
-      The Diagnosis attribute has valid values of ["Healthy", "Cancer"].
-      The Cancer valid value is also an attribute that dependsOn on the
-        attributes Cancer Type and Family History
-      Cancer Type and Family History are attributes with valid values.
-      Therefore: When Diagnosis == "Cancer", Cancer Type and Family History should become required
-
-    Example conditional schema:
-        "if":{
-            "properties":{
-               "Diagnosis":{
-                  "enum":[
-                     "Cancer"
-                  ]
-               }
-            }
-         },
-         "then":{
-            "properties":{
-               "FamilyHistory":{
-                  "not":{
-                     "type":"null"
-                  }
-               }
-            },
-            "required":[
-               "FamilyHistory"
-            ]
-         }
 
     Arguments:
         json_schema: The JSON Scheme where the node might be set as a property
@@ -5201,14 +5256,9 @@ def _set_conditional_dependencies(
     conditional_properties = graph_state.get_conditional_properties(use_display_labels)
     for prop in conditional_properties:
         attribute, value = prop
-        conditional_schema = {
-            "if": {"properties": {attribute: {"enum": [value]}}},
-            "then": {
-                "properties": {node_name: {"not": {"type": "null"}}},
-                "required": [node_name],
-            },
-        }
-        json_schema.add_to_all_of_list(conditional_schema)
+        json_schema.add_conditional_dependency(
+            watched_property=attribute, enum_value=value, dependent_property=node_name
+        )
 
 
 def _create_enum_array_property(

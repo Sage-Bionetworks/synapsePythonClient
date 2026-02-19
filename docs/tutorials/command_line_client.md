@@ -82,6 +82,8 @@ synapse [-h] [--version] [-u SYNAPSEUSER] [-p SYNAPSE_AUTH_TOKEN] [-c CONFIGPATH
 - [get-sts-token](#get-sts-token): Get an STS token for access to AWS S3 storage underlying Synapse
 - [migrate](#migrate): Migrate Synapse entities to a different storage location
 - [generate-json-schema](#generate-json-schema): Generate JSON Schema(s) from a data model
+- [register-json-schema](#register-json-schema): Register a JSON Schema to a Synapse organization
+- [bind-json-schema](#bind-json-schema): Bind a JSON Schema to a Synapse entity
 
 ### `get`
 
@@ -558,3 +560,32 @@ synapse generate-json-schema [-h] [--data-types data_type1, data_type2] [--outpu
 | `--data-types`           | Named      | Optional list of data types to create JSON Schema for               |
 | `--output`               | Named      | Optional. Either a file path ending in '.json', or a directory path |
 | `--data-model-labels`    | Named      | Either 'class_label', or 'display_label'                            |
+
+### `register-json-schema`
+
+Register a JSON Schema to a Synapse organization for later binding to entities.
+
+```bash
+synapse register-json-schema [-h] [--schema-version VERSION] schema_path organization_name schema_name
+```
+
+| Name                  | Type       | Description                                                                         | Default |
+|-----------------------|------------|-------------------------------------------------------------------------------------|---------|
+| `schema_path`         | Positional | Path to the JSON schema file to register                                            |         |
+| `organization_name`   | Positional | Name of the organization to register the schema under                               |         |
+| `schema_name`         | Positional | The name of the JSON schema                                                         |         |
+| `--schema-version`    | Named      | Version of the schema to register (e.g., '0.0.1'). If not specified, auto-generated | None    |
+
+### `bind-json-schema`
+
+Bind a registered JSON Schema to a Synapse entity for metadata validation.
+
+```bash
+synapse bind-json-schema [-h] [--enable-derived-annotations] id json_schema_uri
+```
+
+| Name                          | Type       | Description                                                                        | Default |
+|-------------------------------|------------|------------------------------------------------------------------------------------|---------|
+| `id`                          | Positional | The Synapse ID of the entity to bind the schema to (e.g., syn12345678)             |         |
+| `json_schema_uri`             | Positional | The URI of the JSON Schema to bind (e.g., 'my.org-schema.name-1.0.0')              |         |
+| `--enable-derived-annotations`| Named      | Enable derived annotations to auto-populate annotations from schema                | False   |

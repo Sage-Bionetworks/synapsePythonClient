@@ -18,25 +18,7 @@
             "not": {
               "type": "null"
             }
-          }
-        },
-        "required": [
-          "Cancer Type"
-        ]
-      }
-    },
-    {
-      "if": {
-        "properties": {
-          "Diagnosis": {
-            "enum": [
-              "Cancer"
-            ]
-          }
-        }
-      },
-      "then": {
-        "properties": {
+          },
           "Family History": {
             "not": {
               "type": "null"
@@ -44,6 +26,7 @@
           }
         },
         "required": [
+          "Cancer Type",
           "Family History"
         ]
       }

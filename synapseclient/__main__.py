@@ -36,6 +36,10 @@ from synapseclient.core.exceptions import (
     SynapseNoCredentialsError,
 )
 from synapseclient.extensions.curator.schema_generation import generate_jsonschema
+from synapseclient.extensions.curator.schema_management import (
+    bind_jsonschema,
+    register_jsonschema,
+)
 from synapseclient.wiki import Wiki
 
 tracer = trace.get_tracer("synapseclient")
@@ -812,6 +816,31 @@ def generate_json_schema(args, syn):
         synapse_client=syn,
     )
     logging.info(f"Created JSON Schema files: [{paths}]")
+
+
+def register_json_schema(args, syn):
+    """Register a JSON schema to a Synapse organization."""
+    register_jsonschema(
+        schema_path=args.schema_path,
+        organization_name=args.organization_name,
+        schema_name=args.schema_name,
+        schema_version=args.schema_version,
+        synapse_client=syn,
+    )
+
+
+def bind_json_schema(args, syn):
+    """Bind a JSON schema to a Synapse entity."""
+    result = bind_jsonschema(
+        entity_id=args.id,
+        json_schema_uri=args.json_schema_uri,
+        enable_derived_annotations=args.enable_derived_annotations,
+        synapse_client=syn,
+    )
+    syn.logger.info(
+        f"Successfully bound schema '{args.json_schema_uri}' to entity '{args.id}'"
+    )
+    return result
 
 
 def build_parser():
@@ -1844,6 +1873,54 @@ https://rest-docs.synapse.org/rest/org/sagebionetworks/repo/web/controller/Table
         ),
     )
     parser_generate_json_schema.set_defaults(func=generate_json_schema)
+
+    parser_register_json_schema = subparsers.add_parser(
+        "register-json-schema", help="Register a JSON Schema to a Synapse organization."
+    )
+    parser_register_json_schema.add_argument(
+        "schema_path",
+        type=str,
+        help="Path to the JSON schema file to register",
+    )
+    parser_register_json_schema.add_argument(
+        "organization_name",
+        type=str,
+        help="Name of the organization to register the schema under",
+    )
+    parser_register_json_schema.add_argument(
+        "schema_name",
+        type=str,
+        help="The name of the JSON schema",
+    )
+    parser_register_json_schema.add_argument(
+        "--schema-version",
+        dest="schema_version",
+        type=str,
+        default=None,
+        help="Version of the schema to register (e.g., '0.0.1'). If not specified, a version will be auto-generated.",
+    )
+    parser_register_json_schema.set_defaults(func=register_json_schema)
+
+    parser_bind_json_schema = subparsers.add_parser(
+        "bind-json-schema", help="Bind a JSON Schema to a Synapse entity."
+    )
+    parser_bind_json_schema.add_argument(
+        "id",
+        type=str,
+        help="The Synapse ID of the entity to bind the schema to (e.g., syn12345678).",
+    )
+    parser_bind_json_schema.add_argument(
+        "json_schema_uri",
+        type=str,
+        help="The URI of the JSON Schema to bind (e.g., 'my.org-schema.name-1.0.0').",
+    )
+    parser_bind_json_schema.add_argument(
+        "--enable-derived-annotations",
+        action="store_true",
+        default=False,
+        help="Enable derived annotations to auto-populate annotations from schema. Defaults to False.",
+    )
+    parser_bind_json_schema.set_defaults(func=bind_json_schema)
 
     parser_migrate.set_defaults(func=migrate)
 
