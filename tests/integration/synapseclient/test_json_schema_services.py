@@ -150,7 +150,7 @@ class TestJsonSchemaSchemas:
             self.simple_schema, self.schema_name, f"0.{self.rint}.1"
         )
         js.bind_json_schema(new_version.uri, synapse_id)
-        sleep(3)
+        sleep(1)
         # TODO: look into why this doesn't work
         # js.validate(synapse_id)
         js.validate_children(synapse_id)

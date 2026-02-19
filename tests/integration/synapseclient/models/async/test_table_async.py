@@ -2179,13 +2179,14 @@ class TestColumnModifications:
 
 
 class TestQuerying:
-    @pytest.fixture(autouse=True, scope="function")
-    def init(self, syn: Synapse, schedule_for_cleanup: Callable[..., None]) -> None:
-        self.syn = syn
-        self.schedule_for_cleanup = schedule_for_cleanup
-
-    async def test_query_to_csv(self, project_model: Project) -> None:
-        # GIVEN a table with a column defined
+    @pytest.fixture(scope="class")
+    async def populated_table(
+        self,
+        project_model: Project,
+        syn: Synapse,
+        schedule_for_cleanup: Callable[..., None],
+    ):
+        """Class-scoped fixture providing a table with test data for query tests."""
         table_name = str(uuid.uuid4())
         table = Table(
             name=table_name,
@@ -2196,11 +2197,10 @@ class TestQuerying:
                 Column(name="float_column", column_type=ColumnType.DOUBLE),
             ],
         )
-        table = await table.store_async(synapse_client=self.syn)
-        self.schedule_for_cleanup(table.id)
+        table = await table.store_async(synapse_client=syn)
+        schedule_for_cleanup(table.id)
 
-        # AND data for the table stored in synapse
-        data_for_table = pd.DataFrame(
+        data = pd.DataFrame(
             {
                 "column_string": ["value1", "value2", "value3", "value4"],
                 "integer_column": [1, 2, 3, None],
@@ -2208,14 +2208,22 @@ class TestQuerying:
             }
         )
         await table.store_rows_async(
-            values=data_for_table, schema_storage_strategy=None, synapse_client=self.syn
+            values=data, schema_storage_strategy=None, synapse_client=syn
         )
+
+        return table, data
+
+    async def test_query_to_csv(
+        self, project_model: Project, populated_table, syn: Synapse
+    ) -> None:
+        # GIVEN a table with data already stored in synapse
+        table, data = populated_table
 
         # WHEN I query the table with a temporary directory
         with tempfile.TemporaryDirectory() as temp_dir_name:
             results = await query_async(
                 query=f"SELECT * FROM {table.id}",
-                synapse_client=self.syn,
+                synapse_client=syn,
                 download_location=temp_dir_name,
             )
             # THEN The returned result should be a path to the CSV
@@ -2225,41 +2233,20 @@ class TestQuerying:
 
         # AND the data in the columns should match
         pd.testing.assert_series_equal(
-            as_dataframe["column_string"], data_for_table["column_string"]
+            as_dataframe["column_string"], data["column_string"]
         )
         pd.testing.assert_series_equal(
-            as_dataframe["integer_column"], data_for_table["integer_column"]
+            as_dataframe["integer_column"], data["integer_column"]
         )
         pd.testing.assert_series_equal(
-            as_dataframe["float_column"], data_for_table["float_column"]
+            as_dataframe["float_column"], data["float_column"]
         )
 
-    async def test_part_mask_query_everything(self, project_model: Project) -> None:
-        # GIVEN a table with a column defined
-        table_name = str(uuid.uuid4())
-        table = Table(
-            name=table_name,
-            parent_id=project_model.id,
-            columns=[
-                Column(name="column_string", column_type=ColumnType.STRING),
-                Column(name="integer_column", column_type=ColumnType.INTEGER),
-                Column(name="float_column", column_type=ColumnType.DOUBLE),
-            ],
-        )
-        table = await table.store_async(synapse_client=self.syn)
-        self.schedule_for_cleanup(table.id)
-
-        # AND data for the table stored in synapse
-        data_for_table = pd.DataFrame(
-            {
-                "column_string": ["value1", "value2", "value3", "value4"],
-                "integer_column": [1, 2, 3, None],
-                "float_column": [1.1, 2.2, 3.3, None],
-            }
-        )
-        await table.store_rows_async(
-            values=data_for_table, schema_storage_strategy=None, synapse_client=self.syn
-        )
+    async def test_part_mask_query_everything(
+        self, project_model: Project, populated_table, syn: Synapse
+    ) -> None:
+        # GIVEN a table with data already stored in synapse
+        table, data = populated_table
 
         # WHEN I query the table with a part mask
         QUERY_RESULTS = 0x1
@@ -2270,20 +2257,20 @@ class TestQuerying:
 
         results = await query_part_mask_async(
             query=f"SELECT * FROM {table.id}",
-            synapse_client=self.syn,
+            synapse_client=syn,
             part_mask=part_mask,
             timeout=QUERY_TIMEOUT_SEC,
         )
 
         # THEN the data in the columns should match
         pd.testing.assert_series_equal(
-            results.result["column_string"], data_for_table["column_string"]
+            results.result["column_string"], data["column_string"]
         )
         pd.testing.assert_series_equal(
-            results.result["integer_column"], data_for_table["integer_column"]
+            results.result["integer_column"], data["integer_column"]
         )
         pd.testing.assert_series_equal(
-            results.result["float_column"], data_for_table["float_column"]
+            results.result["float_column"], data["float_column"]
         )
 
         # AND the part mask should be reflected in the results
@@ -2293,51 +2280,30 @@ class TestQuerying:
         assert results.sum_file_sizes.sum_file_size_bytes is not None
         assert results.last_updated_on is not None
 
-    async def test_part_mask_query_results_only(self, project_model: Project) -> None:
-        # GIVEN a table with a column defined
-        table_name = str(uuid.uuid4())
-        table = Table(
-            name=table_name,
-            parent_id=project_model.id,
-            columns=[
-                Column(name="column_string", column_type=ColumnType.STRING),
-                Column(name="integer_column", column_type=ColumnType.INTEGER),
-                Column(name="float_column", column_type=ColumnType.DOUBLE),
-            ],
-        )
-        table = await table.store_async(synapse_client=self.syn)
-        self.schedule_for_cleanup(table.id)
-
-        # AND data for the table stored in synapse
-        data_for_table = pd.DataFrame(
-            {
-                "column_string": ["value1", "value2", "value3", "value4"],
-                "integer_column": [1, 2, 3, None],
-                "float_column": [1.1, 2.2, 3.3, None],
-            }
-        )
-        await table.store_rows_async(
-            values=data_for_table, schema_storage_strategy=None, synapse_client=self.syn
-        )
+    async def test_part_mask_query_results_only(
+        self, project_model: Project, populated_table, syn: Synapse
+    ) -> None:
+        # GIVEN a table with data already stored in synapse
+        table, data = populated_table
 
         # WHEN I query the table with a part mask
         QUERY_RESULTS = 0x1
         results = await query_part_mask_async(
             query=f"SELECT * FROM {table.id}",
-            synapse_client=self.syn,
+            synapse_client=syn,
             part_mask=QUERY_RESULTS,
             timeout=QUERY_TIMEOUT_SEC,
         )
 
         # THEN the data in the columns should match
         pd.testing.assert_series_equal(
-            results.result["column_string"], data_for_table["column_string"]
+            results.result["column_string"], data["column_string"]
         )
         pd.testing.assert_series_equal(
-            results.result["integer_column"], data_for_table["integer_column"]
+            results.result["integer_column"], data["integer_column"]
         )
         pd.testing.assert_series_equal(
-            results.result["float_column"], data_for_table["float_column"]
+            results.result["float_column"], data["float_column"]
         )
 
         # AND the part mask should be reflected in the results

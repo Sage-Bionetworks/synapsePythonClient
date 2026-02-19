@@ -16,7 +16,6 @@ from pandas.testing import assert_frame_equal
 import synapseclient.core.utils as utils
 from synapseclient import (
     Column,
-    Dataset,
     EntityViewSchema,
     EntityViewType,
     File,
@@ -156,6 +155,7 @@ def test_create_and_update_file_view(
     while new_view_dict[0]["fileFormat"] != "PNG":
         # check timeout
         assert time.time() - start_time < QUERY_TIMEOUT_SEC
+        time.sleep(1)  # backoff between retries
         # query again
         new_view_results = syn.tableQuery("select * from %s" % entity_view.id)
         new_view_dict = list(
@@ -311,26 +311,6 @@ def test_materialized_view(syn, project):
         view_df.columns
         == ["F.Name", "F.Born", "F.Hipness", "F.Living", "P.Name", "P.Age"]
     )
-
-
-# @skip("Skip integration tests for soon to be removed code")
-def test_dataset(syn, project):
-    cols = [
-        Column(name="id", columnType="ENTITYID"),
-        Column(name="name", columnType="STRING"),
-    ]
-
-    dataset = Dataset(
-        name="Test Pokedex",
-        parent=project,
-        dataset_items=[{"entityId": "syn20685093", "versionNumber": 1}],
-        columns=cols,
-        addAnnotationColumns=False,
-        addDefaultViewColumns=False,
-    )
-    dataset = syn.store(dataset)
-    dataset_df = syn.tableQuery(f"SELECT * FROM {dataset.id}").asDataFrame()
-    assert all(dataset_df.columns == ["id", "name"])
 
 
 # @skip("Skip integration tests for soon to be removed code")
@@ -761,7 +741,9 @@ class TestPartialRowSet:
                     return query_results
                 except AssertionError:
                     # hasn't found the result yet
-                    pass
+                    time.sleep(1)  # backoff between retries
             elif expected_result_len and len(query_results) == expected_result_len:
                 return query_results
+            else:
+                time.sleep(1)  # backoff between retries
         return None

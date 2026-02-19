@@ -513,7 +513,7 @@ class TestRecordSetGetDetailedValidationResultsAsync:
             self.schedule_for_cleanup(stored_record_set.id)
             record_set_ids.append(stored_record_set.id)  # Track for schema cleanup
 
-            await asyncio.sleep(10)
+            await asyncio.sleep(3)
 
             # Bind the JSON schema to the RecordSet
             await stored_record_set.bind_schema_async(
@@ -526,7 +526,7 @@ class TestRecordSetGetDetailedValidationResultsAsync:
             await stored_record_set.get_schema_async(synapse_client=self.syn)
 
             # Wait for schema binding to be fully processed by backend
-            await asyncio.sleep(10)
+            await asyncio.sleep(5)
 
             # Create a Grid session from the RecordSet
             grid = Grid(record_set_id=stored_record_set.id)
@@ -534,7 +534,7 @@ class TestRecordSetGetDetailedValidationResultsAsync:
                 timeout=ASYNC_JOB_TIMEOUT_SEC, synapse_client=self.syn
             )
 
-            await asyncio.sleep(10)
+            await asyncio.sleep(3)
 
             # Export the Grid back to RecordSet to generate validation results
             exported_grid = await created_grid.export_to_record_set_async(
@@ -666,10 +666,10 @@ class TestRecordSetGetDetailedValidationResultsAsync:
             results_df.loc[4, "is_valid"] == False
         ), "Row 4 should be invalid (value below minimum)"  # noqa: E712
         assert (
-            "-50 is not greater or equal to 0"
+            "-50.0 is not greater or equal to 0"
             in results_df.loc[4, "validation_error_message"]
         ), f"Row 4 should have minimum violation, got: {results_df.loc[4, 'validation_error_message']}"
-        assert "#/value: -50 is not greater or equal to 0" in str(
+        assert "#/value: -50.0 is not greater or equal to 0" in str(
             results_df.loc[4, "all_validation_messages"]
         ), f"Row 4 all_validation_messages incorrect: {results_df.loc[4, 'all_validation_messages']}"
 

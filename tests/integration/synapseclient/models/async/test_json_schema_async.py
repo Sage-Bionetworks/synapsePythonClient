@@ -19,6 +19,7 @@ from synapseclient.models import (
     ViewTypeMask,
 )
 from synapseclient.services.json_schema import JsonSchemaOrganization
+from tests.integration.helpers import wait_for_condition
 
 DESCRIPTION_FOLDER = "This is a folder for testing JSON schema functionality."
 DESCRIPTION_FILE = "This is an example file."
@@ -293,11 +294,24 @@ class TestJSONSchema:
             response = await created_entity.get_schema_async(synapse_client=self.syn)
             assert response.enable_derived_annotations == True
 
-            await asyncio.sleep(2)
+            # Poll until derived keys are populated (backend needs time to process)
+            async def _get_derived_keys():
+                try:
+                    result = await created_entity.get_schema_derived_keys_async(
+                        synapse_client=self.syn
+                    )
+                    # Keys are empty until backend finishes deriving them
+                    if result and result.keys:
+                        return result
+                    return None
+                except SynapseHTTPError:
+                    return None
 
-            # Retrieve the derived keys from the folder
-            response = await created_entity.get_schema_derived_keys_async(
-                synapse_client=self.syn
+            response = await wait_for_condition(
+                _get_derived_keys,
+                timeout_seconds=30,
+                poll_interval_seconds=2,
+                description="schema derived keys to be populated",
             )
 
             assert set(response.keys) == {"productId", "productName"}
@@ -340,12 +354,28 @@ class TestJSONSchema:
                 "productQuantity": "invalid string",
             }
             await created_entity.store_async(synapse_client=self.syn)
-            # Ensure annotations are stored
-            await asyncio.sleep(2)
 
-            # Validate the folder against the JSON schema
-            response = await created_entity.validate_schema_async(
-                synapse_client=self.syn
+            # Poll until validation results are available
+            async def _validate_invalid():
+                try:
+                    r = await created_entity.validate_schema_async(
+                        synapse_client=self.syn
+                    )
+                    if (
+                        r
+                        and r.validation_response
+                        and r.validation_response.is_valid is False
+                    ):
+                        return r
+                    return None
+                except SynapseHTTPError:
+                    return None
+
+            response = await wait_for_condition(
+                _validate_invalid,
+                timeout_seconds=30,
+                poll_interval_seconds=2,
+                description="schema validation results (invalid) to be available",
             )
             assert response.validation_response.is_valid == False
             assert response.validation_response.id is not None
@@ -398,10 +428,24 @@ class TestJSONSchema:
                 "productQuantity": 100,
             }
             await created_entity.store_async(synapse_client=self.syn)
-            # Ensure annotations are stored
-            await asyncio.sleep(2)
-            response = await created_entity.validate_schema_async(
-                synapse_client=self.syn
+
+            # Poll until validation results are available
+            async def _validate_valid():
+                try:
+                    r = await created_entity.validate_schema_async(
+                        synapse_client=self.syn
+                    )
+                    if r and r.is_valid is True:
+                        return r
+                    return None
+                except SynapseHTTPError:
+                    return None
+
+            response = await wait_for_condition(
+                _validate_valid,
+                timeout_seconds=30,
+                poll_interval_seconds=2,
+                description="schema validation results (valid) to be available",
             )
             assert response.is_valid == True
         finally:
@@ -471,15 +515,30 @@ class TestJSONSchema:
 
             await file_1.store_async(parent=created_entity, synapse_client=self.syn)
             await file_2.store_async(parent=created_entity, synapse_client=self.syn)
-            # Ensure annotations are stored
-            await asyncio.sleep(2)
 
-            # validate the entity against the JSON SCHEMA
-            await created_entity.validate_schema_async(synapse_client=self.syn)
+            # Poll until validation statistics reflect both children
+            async def _get_stats():
+                try:
+                    # Trigger validation first
+                    await created_entity.validate_schema_async(synapse_client=self.syn)
+                    stats = await created_entity.get_schema_validation_statistics_async(
+                        synapse_client=self.syn
+                    )
+                    if (
+                        stats
+                        and stats.number_of_valid_children == 1
+                        and stats.number_of_invalid_children == 1
+                    ):
+                        return stats
+                    return None
+                except SynapseHTTPError:
+                    return None
 
-            # Get validation statistics of the entity
-            response = await created_entity.get_schema_validation_statistics_async(
-                synapse_client=self.syn
+            response = await wait_for_condition(
+                _get_stats,
+                timeout_seconds=30,
+                poll_interval_seconds=2,
+                description="validation statistics to reflect both children",
             )
             assert response.number_of_valid_children == 1
             assert response.number_of_invalid_children == 1
@@ -546,14 +605,29 @@ class TestJSONSchema:
 
             await file_1.store_async(parent=created_entity, synapse_client=self.syn)
             await file_2.store_async(parent=created_entity, synapse_client=self.syn)
-            # Ensure annotations are stored
-            await asyncio.sleep(2)
 
-            # Get invalid validation results of the folder
-            # The generator `gen` yields validation results for entities that failed JSON schema validation.
-            # Each item in `gen` is expected to be a dictionary containing details about the validation failure.
-            gen = created_entity.get_invalid_validation_async(synapse_client=self.syn)
-            async for item in gen:
+            # Poll until invalid validation results are available
+            async def _get_invalid_results():
+                try:
+                    results = []
+                    gen = created_entity.get_invalid_validation_async(
+                        synapse_client=self.syn
+                    )
+                    async for item in gen:
+                        results.append(item)
+                    return results if results else None
+                except SynapseHTTPError:
+                    return None
+
+            invalid_results = await wait_for_condition(
+                _get_invalid_results,
+                timeout_seconds=30,
+                poll_interval_seconds=2,
+                description="invalid validation results to be available",
+            )
+
+            # Verify the invalid validation results
+            for item in invalid_results:
                 validation_response = item.validation_response
                 validation_error_message = item.validation_error_message
                 validation_exception = item.validation_exception
