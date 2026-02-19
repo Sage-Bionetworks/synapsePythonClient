@@ -513,7 +513,7 @@ class TestRecordSetGetDetailedValidationResultsAsync:
             self.schedule_for_cleanup(stored_record_set.id)
             record_set_ids.append(stored_record_set.id)  # Track for schema cleanup
 
-            await asyncio.sleep(10)
+            await asyncio.sleep(3)
 
             # Bind the JSON schema to the RecordSet
             await stored_record_set.bind_schema_async(
@@ -526,7 +526,7 @@ class TestRecordSetGetDetailedValidationResultsAsync:
             await stored_record_set.get_schema_async(synapse_client=self.syn)
 
             # Wait for schema binding to be fully processed by backend
-            await asyncio.sleep(10)
+            await asyncio.sleep(5)
 
             # Create a Grid session from the RecordSet
             grid = Grid(record_set_id=stored_record_set.id)
@@ -534,7 +534,7 @@ class TestRecordSetGetDetailedValidationResultsAsync:
                 timeout=ASYNC_JOB_TIMEOUT_SEC, synapse_client=self.syn
             )
 
-            await asyncio.sleep(10)
+            await asyncio.sleep(3)
 
             # Export the Grid back to RecordSet to generate validation results
             exported_grid = await created_grid.export_to_record_set_async(

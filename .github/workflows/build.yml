@@ -46,6 +46,7 @@ jobs:
   # run unit (and integration tests if account secrets available) on our build matrix
   test:
     needs: [pre-commit]
+    timeout-minutes: 180
 
     strategy:
       fail-fast: false

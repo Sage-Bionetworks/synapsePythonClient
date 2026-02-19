@@ -16,7 +16,6 @@ from pandas.testing import assert_frame_equal
 import synapseclient.core.utils as utils
 from synapseclient import (
     Column,
-    Dataset,
     EntityViewSchema,
     EntityViewType,
     File,
@@ -156,6 +155,7 @@ def test_create_and_update_file_view(
     while new_view_dict[0]["fileFormat"] != "PNG":
         # check timeout
         assert time.time() - start_time < QUERY_TIMEOUT_SEC
+        time.sleep(1)  # backoff between retries
         # query again
         new_view_results = syn.tableQuery("select * from %s" % entity_view.id)
         new_view_dict = list(
@@ -741,7 +741,9 @@ class TestPartialRowSet:
                     return query_results
                 except AssertionError:
                     # hasn't found the result yet
-                    pass
+                    time.sleep(1)  # backoff between retries
             elif expected_result_len and len(query_results) == expected_result_len:
                 return query_results
+            else:
+                time.sleep(1)  # backoff between retries
         return None

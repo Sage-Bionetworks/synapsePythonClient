@@ -140,7 +140,7 @@ class TestSchemaOrganization:
         assert not exists
         # WHEN I store the organization the metadata will be saved
         await organization.store_async(synapse_client=self.syn)
-        await asyncio.sleep(10)
+        await asyncio.sleep(3)
         assert organization.name is not None
         assert organization.id is not None
         assert organization.created_by is not None
@@ -167,7 +167,7 @@ class TestSchemaOrganization:
     ) -> None:
         # GIVEN an organization with no schemas and one with 3 schemas
         await organization.store_async(synapse_client=self.syn)
-        await asyncio.sleep(10)
+        await asyncio.sleep(3)
         # THEN get_json_schema_list should return the correct list of schemas
         schema_list = []
         async for item in organization.get_json_schemas_async(synapse_client=self.syn):
@@ -191,7 +191,7 @@ class TestSchemaOrganization:
             await organization.get_acl_async(synapse_client=self.syn)
         # GIVEN an organization that has been created
         await organization.store_async(synapse_client=self.syn)
-        await asyncio.sleep(10)
+        await asyncio.sleep(3)
         acl = await organization.get_acl_async(synapse_client=self.syn)
         resource_access: list[dict[str, Any]] = acl["resourceAccess"]
         # THEN the resource access should be have one principal

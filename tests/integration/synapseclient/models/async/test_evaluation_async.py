@@ -53,13 +53,13 @@ class TestGetEvaluation:
         self.syn = syn
         self.schedule_for_cleanup = schedule_for_cleanup
 
-    @pytest.fixture(scope="function")
+    @pytest.fixture(scope="class")
     async def test_project(
         self, syn: Synapse, schedule_for_cleanup: Callable[..., None]
     ) -> Project:
         """Create a test project for evaluation tests."""
         project = await Project(name=f"test_project_{uuid.uuid4()}").store_async(
-            synapse_client=self.syn
+            synapse_client=syn
         )
         schedule_for_cleanup(project.id)
         return project
@@ -209,13 +209,13 @@ class TestStoreEvaluation:
         self.syn = syn
         self.schedule_for_cleanup = schedule_for_cleanup
 
-    @pytest.fixture(scope="function")
+    @pytest.fixture(scope="class")
     async def test_project(
         self, syn: Synapse, schedule_for_cleanup: Callable[..., None]
     ) -> Project:
         """Create a test project for evaluation tests."""
         project = await Project(name=f"test_project_{uuid.uuid4()}").store_async(
-            synapse_client=self.syn
+            synapse_client=syn
         )
         schedule_for_cleanup(project.id)
         return project
@@ -340,13 +340,13 @@ class TestDeleteEvaluation:
         self.syn = syn
         self.schedule_for_cleanup = schedule_for_cleanup
 
-    @pytest.fixture(scope="function")
+    @pytest.fixture(scope="class")
     async def test_project(
         self, syn: Synapse, schedule_for_cleanup: Callable[..., None]
     ) -> Project:
         """Create a test project for evaluation tests."""
         project = await Project(name=f"test_project_{uuid.uuid4()}").store_async(
-            synapse_client=self.syn
+            synapse_client=syn
         )
         schedule_for_cleanup(project.id)
         return project
@@ -385,13 +385,13 @@ class TestEvaluationAccess:
         self.syn = syn
         self.schedule_for_cleanup = schedule_for_cleanup
 
-    @pytest.fixture(scope="function")
+    @pytest.fixture(scope="class")
     async def test_project(
         self, syn: Synapse, schedule_for_cleanup: Callable[..., None]
     ) -> Project:
         """Create a test project for evaluation tests."""
         project = await Project(name=f"test_project_{uuid.uuid4()}").store_async(
-            synapse_client=self.syn
+            synapse_client=syn
         )
         schedule_for_cleanup(project.id)
         return project

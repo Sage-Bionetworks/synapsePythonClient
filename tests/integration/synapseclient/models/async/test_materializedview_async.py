@@ -212,8 +212,14 @@ class TestMaterializedViewWithData:
         self.syn = syn
         self.schedule_for_cleanup = schedule_for_cleanup
 
-    async def setup_table_with_data(self, project_model: Project):
-        """Helper method to create a table with data for testing"""
+    @pytest.fixture(scope="class")
+    async def base_table_with_data(
+        self,
+        project_model: Project,
+        syn: Synapse,
+        schedule_for_cleanup: Callable[..., None],
+    ) -> Table:
+        """Create a table with data, shared across all tests in this class."""
         table_name = str(uuid.uuid4())
         table = Table(
             name=table_name,
@@ -223,18 +229,20 @@ class TestMaterializedViewWithData:
                 Column(name="age", column_type=ColumnType.INTEGER),
             ],
         )
-        table = await table.store_async(synapse_client=self.syn)
-        self.schedule_for_cleanup(table.id)
+        table = await table.store_async(synapse_client=syn)
+        schedule_for_cleanup(table.id)
 
         # Insert data into the table
         data = pd.DataFrame({"name": ["Alice", "Bob"], "age": [30, 25]})
-        await table.store_rows_async(data, synapse_client=self.syn)
+        await table.store_rows_async(data, synapse_client=syn)
 
         return table
 
-    async def test_query_materialized_view(self, project_model: Project) -> None:
+    async def test_query_materialized_view(
+        self, project_model: Project, base_table_with_data: Table
+    ) -> None:
         # GIVEN a table with data
-        table = await self.setup_table_with_data(project_model)
+        table = base_table_with_data
 
         # AND a materialized view based on the table
         materialized_view = MaterializedView(
@@ -257,9 +265,11 @@ class TestMaterializedViewWithData:
         assert query_result["name"].tolist() == ["Alice", "Bob"]
         assert query_result["age"].tolist() == [30, 25]
 
-    async def test_update_defining_sql(self, project_model: Project) -> None:
+    async def test_update_defining_sql(
+        self, project_model: Project, base_table_with_data: Table
+    ) -> None:
         # GIVEN a table with data
-        table = await self.setup_table_with_data(project_model)
+        table = base_table_with_data
 
         # AND a materialized view based on the table
         materialized_view = MaterializedView(
@@ -275,7 +285,7 @@ class TestMaterializedViewWithData:
         materialized_view = await materialized_view.store_async(synapse_client=self.syn)
 
         # AND querying the materialized view (with delay for eventual consistency)
-        await asyncio.sleep(5)
+        await asyncio.sleep(2)
         query_result = await materialized_view.query_async(
             f"SELECT * FROM {materialized_view.id}",
             synapse_client=self.syn,
@@ -334,13 +344,13 @@ class TestMaterializedViewWithData:
         await table.store_rows_async(data, synapse_client=self.syn)
 
         # AND querying again (with delay for eventual consistency)
-        await asyncio.sleep(5)
+        await asyncio.sleep(2)
         query_result = await materialized_view.query_async(
             f"SELECT * FROM {materialized_view.id}",
             synapse_client=self.syn,
             timeout=QUERY_TIMEOUT_SEC,
         )
-        await asyncio.sleep(5)
+        await asyncio.sleep(2)
         query_result = await materialized_view.query_async(
             f"SELECT * FROM {materialized_view.id}",
             synapse_client=self.syn,
@@ -356,7 +366,20 @@ class TestMaterializedViewWithData:
         self, project_model: Project
     ) -> None:
         # GIVEN a table with data
-        table = await self.setup_table_with_data(project_model)
+        table_name = str(uuid.uuid4())
+        table = Table(
+            name=table_name,
+            parent_id=project_model.id,
+            columns=[
+                Column(name="name", column_type=ColumnType.STRING),
+                Column(name="age", column_type=ColumnType.INTEGER),
+            ],
+        )
+        table = await table.store_async(synapse_client=self.syn)
+        self.schedule_for_cleanup(table.id)
+
+        data = pd.DataFrame({"name": ["Alice", "Bob"], "age": [30, 25]})
+        await table.store_rows_async(data, synapse_client=self.syn)
 
         # AND a materialized view based on the table
         materialized_view = MaterializedView(
@@ -373,7 +396,7 @@ class TestMaterializedViewWithData:
         )
 
         # AND querying the materialized view (with delay for eventual consistency)
-        await asyncio.sleep(5)
+        await asyncio.sleep(2)
         query_result = await materialized_view.query_async(
             f"SELECT * FROM {materialized_view.id}",
             synapse_client=self.syn,
@@ -388,9 +411,11 @@ class TestMaterializedViewWithData:
         # THEN the query results should reflect the removed data
         assert len(query_result) == 0
 
-    async def test_query_part_mask_async(self, project_model: Project) -> None:
+    async def test_query_part_mask_async(
+        self, project_model: Project, base_table_with_data: Table
+    ) -> None:
         # GIVEN a table with data
-        table = await self.setup_table_with_data(project_model)
+        table = base_table_with_data
 
         # AND a materialized view based on the table
         materialized_view = MaterializedView(

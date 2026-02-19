@@ -180,25 +180,28 @@ Now that you have chosen a JIRA ticket and have your own fork of this repository
 
 All code added to the client must have tests. These might include unit tests (to test specific functionality of code that was added to support fixing the bug or feature), integration tests (to test that the feature is usable - e.g., it should have complete the expected behavior as reported in the feature request or bug report), or both.
 
-The Python client uses [`pytest`](https://docs.pytest.org/en/latest/) to run tests. The test code is located in the [test](./test) subdirectory.
+The Python client uses [`pytest`](https://docs.pytest.org/en/latest/) to run tests. The test code is located in the [tests](./tests) subdirectory.
 
 Here's how to run the test suite:
 
-> *Note:* The entire set of tests takes approximately 20 minutes to run.
-
 ```
-# Unit tests
-pytest -vs tests/unit
+# Unit tests (~1-2 minutes)
+pytest -sv tests/unit
 
-# Integration tests - The integration tests should be run against the `dev` synapse server
-pytest -vs tests/integration
+# Integration tests (requires Synapse credentials, ~30-60 minutes)
+# Uses pytest-xdist for parallel execution with fixture-aware distribution
+pytest -sv tests/integration -n 8 --dist loadscope
+
+# Integration tests excluding CLI tests (which must run serially)
+pytest -sv tests/integration -n 8 --dist loadscope \
+  --ignore=tests/integration/synapseclient/test_command_line_client.py
 ```
 
 To test a specific feature, specify the full path to the function to run:
 
 ```
 # Test table query functionality from the command line client
-pytest -vs tests/integration/synapseclient/test_command_line_client.py::test_table_query
+pytest -sv tests/integration/synapseclient/test_command_line_client.py::test_table_query
 ````
 
 #### Integration testing against the `dev` synapse server
@@ -244,8 +247,8 @@ When adding support for a new Python version (e.g., adding Python 3.15), update 
 
 **CI/CD configuration files:**
 1. **`.github/workflows/build.yml`**:
-   - Add the new version to the `python` matrix under the `test` job strategy
-   - Ensure the new version is included in integration test runs (typically the latest version should be tested)
+   - Add the new version to the `unit-tests` job matrix (all Python versions run on Ubuntu; only one version per macOS/Windows)
+   - Add the new version to the `integration-tests` job matrix if it should be integration-tested (typically the oldest and newest supported versions)
    - Update any Python version comments or documentation within the workflow
 
 **Testing:**
@@ -269,7 +272,7 @@ When dropping support for an old Python version (e.g., removing Python 3.10), up
 
 **CI/CD configuration files:**
 1. **`.github/workflows/build.yml`**:
-   - Remove the old version from the `python` matrix under the `test` job strategy
+   - Remove the old version from the `unit-tests` and `integration-tests` job matrices
    - Update the cache key version (e.g., increment `v28` to `v29`) to invalidate old caches
 
 **Documentation:**
@@ -315,10 +318,10 @@ available at runtime:
     1. Update the examples in the docstring to remove the await or async function calls.
     1. Import the protocol class you created and add it to the class constructor to
     inherit the protocol class.
-1. Write unit and integration tests for BOTH the async and non-async versions.
-    1. Write your tests once with async in mind.
-    1. Copy them to a non-async testing directory.
-    1. Remove the async-related keywords and imports.
+1. Write unit and integration tests for the **async** version only.
+    1. The `@async_to_sync` decorator automatically generates the sync wrapper at runtime.
+    1. The sync wrapper is covered by dedicated unit tests in `tests/unit/synapseclient/core/unit_test_async_to_sync.py` and a smoke integration test in `tests/integration/synapseclient/models/synchronous/test_sync_wrapper_smoke.py`.
+    1. **Do not** create duplicate synchronous test files.
 1. Add the method definitions to the appropriate markdown file for generated doc pages.
 
 ##### Creating a new async method to be called internally by the client
@@ -331,8 +334,9 @@ generation of non-async code.
 
 ##### Modifying an existing async method
 When you make a modification to an async method please also copy any changes to the
-definition of the method OR docstring into the non-async method defintion. It is
-expected that you manually keep them in-sync.
+definition of the method OR docstring into the non-async Protocol class definition. The
+sync wrapper is generated automatically by the `@async_to_sync` decorator, so only the
+Protocol class (used for static type checking) needs to be updated manually.
 
 ### Code style
 
@@ -430,13 +434,16 @@ following set of guidelines should be followed:
 
 - **Test function signatures:**
   - Tests in `tests/integration/synapseclient/models/async/` should use `async def` to test async methods
-  - Tests in `tests/integration/synapseclient/models/synchronous/` should use regular `def` to test synchronous methods
-  - **Important (Python 3.14+):** Synchronous tests must NOT use `async def`, as this creates an active event loop that prevents synchronous methods from working correctly
-- **Fixtures:** Can be `async def` if they need to call async methods, but should use regular `def` when calling synchronous methods
-- Any non `session` scoped fixtures should not execute an HTTP request. If the fixture
-does need to execute a request it should not be scoped to `function`. This is because
-each scope level runs it's own event loop; Connection pools cannot be shared between
-each of the event loops.
+  - A single sync wrapper smoke test in `tests/integration/synapseclient/models/synchronous/test_sync_wrapper_smoke.py` covers the `@async_to_sync` decorator against the real API. **Do not** create additional per-model synchronous integration test files.
+  - **Important (Python 3.14+):** Synchronous tests must NOT use `async def`, as this creates an active event loop that prevents synchronous methods from working correctly. The sync smoke test is skipped on Python 3.14+.
+- **Fixtures:** Can be `async def` if they need to call async methods, but should use regular `def` when calling synchronous methods.
+- **Fixture scoping guidelines:**
+  - `session` scope: Use for the Synapse client (`syn`), shared project (`project_model`), and `schedule_for_cleanup`. These are created once per test session/worker.
+  - `class` scope: Use for expensive container entities (Projects, Evaluations, Tables, Folders with files) that are **not mutated** by tests — only used as parents or read-only containers. This avoids redundant entity creation across tests within a class.
+  - `function` scope: Use for entities that tests **mutate** (e.g., files with changed names, datasets with added/removed items, submission statuses being updated). Each test gets a fresh entity.
+  - All fixtures that create Synapse entities **must** call `schedule_for_cleanup()` to register them for cleanup at session end.
+- **Polling and retries:** For eventual-consistency scenarios (e.g., waiting for permission propagation, schema binding, attachment preview generation), use `wait_for_condition()` from `tests/integration/helpers.py` instead of hardcoded `asyncio.sleep()` calls. This uses exponential backoff and returns as soon as the condition is met.
+- **Parallel execution:** Tests run with `pytest -n 8 --dist loadscope`, which ensures all tests in a class execute on the same worker sequentially. Session-scoped fixtures are shared within each worker.
 
 ### Repository Admins
 
