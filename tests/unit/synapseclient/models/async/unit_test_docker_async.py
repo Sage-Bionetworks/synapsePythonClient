@@ -263,4 +263,5 @@ class TestDockerRepository:
             await docker.delete_async(synapse_client=self.syn)
 
             # Verify delete was called with the entity ID
-            mocked_delete.assert_called_once_with(TEST_ID)
+
+            mocked_delete.assert_called_once_with(TEST_ID, synapse_client=self.syn)
