@@ -511,7 +511,7 @@ class TestDeleteOperationsAsync:
 
         # THEN the repository should be deleted
         with pytest.raises(SynapseHTTPError) as e:
-            await DockerRepository(id=docker_repo.id).get(synapse_client=self.syn)
+            await DockerRepository(id=docker_repo.id).get_async(synapse_client=self.syn)
             assert f"404 Client Error: Entity {docker_repo.id} is in trash can" in str(
                 e.value
             )
@@ -535,7 +535,7 @@ class TestDeleteOperationsAsync:
 
         # THEN the repository should be deleted
         with pytest.raises(SynapseHTTPError) as e:
-            await DockerRepository(id=docker_repo.id).get(synapse_client=syn)
+            await DockerRepository(id=docker_repo.id).get_async(synapse_client=syn)
             assert f"404 Client Error: Entity {docker_repo.id} is in trash can" in str(
                 e.value
             )
