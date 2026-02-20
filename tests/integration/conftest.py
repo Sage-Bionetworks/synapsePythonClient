@@ -200,7 +200,10 @@ async def _cleanup(syn: Synapse, items):
                 else:
                     print("Error cleaning up entity: " + str(ex))
         else:
-            sys.stderr.write("Don't know how to clean: %s" % str(item))
+            sys.stderr.write(
+                "Don't know how to clean: %s (type: %s)"
+                % (str(item), type(item).__name__)
+            )
 
 
 active_span_processors = []

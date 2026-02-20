@@ -244,7 +244,7 @@ class TestActivity:
         )
         file = await self.create_file_with_activity(project, activity=activity)
         stored_activity = file.activity
-        await asyncio.sleep(2)
+        await asyncio.sleep(1)
 
         # WHEN I retrieve the activity by parent ID
         retrieved_activity = await Activity.get_async(
@@ -277,7 +277,7 @@ class TestActivity:
         )
         file = await self.create_file_with_activity(project, activity=activity)
         stored_activity = file.activity
-        await asyncio.sleep(2)
+        await asyncio.sleep(1)
 
         # WHEN I retrieve the activity by parent ID with version
         retrieved_activity = await Activity.get_async(
@@ -335,7 +335,7 @@ class TestActivity:
 
         stored_activity1 = file1.activity
         stored_activity2 = file2.activity
-        await asyncio.sleep(2)
+        await asyncio.sleep(1)
 
         # WHEN I retrieve using activity_id from first activity and parent_id from second
         retrieved_activity = await Activity.get_async(

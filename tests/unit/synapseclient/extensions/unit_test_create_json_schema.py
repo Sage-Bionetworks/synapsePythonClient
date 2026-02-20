@@ -7,7 +7,6 @@ import json
 import logging
 import os
 from typing import Any, Optional
-from unittest import mock
 from unittest.mock import Mock
 
 import pytest
@@ -264,7 +263,7 @@ class TestJSONSchema:
         assert schema.description == "TBD"
         assert not schema.properties
         assert not schema.required
-        assert not schema.all_of
+        assert not schema._conditional_dependencies
 
     def test_as_json_schema_dict(self) -> None:
         """Test the JSONSchema.as_json_schema_dict method"""
@@ -292,19 +291,6 @@ class TestJSONSchema:
         # THEN both properties should be retrievable
         assert schema.required == ["name1", "name2"]
 
-    def test_add_to_all_of_list(self) -> None:
-        """Test the JSONSchema.add_to_all_of_list method"""
-        # GIVEN a JSONSchema instance
-        schema = JSONSchema()
-        # WHEN adding a dict to the all of list
-        schema.add_to_all_of_list({"if": {}, "then": {}})
-        # THEN that dict should be retrievable
-        assert schema.all_of == [{"if": {}, "then": {}}]
-        # WHEN adding a second dict
-        schema.add_to_all_of_list({"if2": {}, "then2": {}})
-        # THEN both dicts should be retrievable
-        assert schema.all_of == [{"if": {}, "then": {}}, {"if2": {}, "then2": {}}]
-
     def test_update_property(self) -> None:
         """
         Test JSONSchema.update_property method.
@@ -322,6 +308,62 @@ class TestJSONSchema:
         schema.update_property({"name2": "property2"})
         # THEN the new key and old key should be retrievable
         assert schema.properties == {"name1": "property1", "name2": "property2"}
+
+    def test_convert_conditional_properties_to_all_of(self) -> None:
+        """Test JSONSchema._convert_conditional_properties_to_all_of method."""
+        # GIVEN a JSONSchema instance
+        schema = JSONSchema()
+
+        # AND some conditional dependencies
+        conditional_dependencies = {
+            ("Diagnosis", "Cancer"): ["CancerType", "Stage"],
+            ("Diagnosis", "Healthy"): ["CheckupDate"],
+        }
+
+        # WHEN converting to allOf
+        all_of = schema._convert_conditional_properties_to_all_of(
+            conditional_dependencies
+        )
+
+        # THEN the result should match the expected structure
+        expected_cancer = {
+            "if": {"properties": {"Diagnosis": {"enum": ["Cancer"]}}},
+            "then": {
+                "properties": {
+                    "CancerType": {"not": {"type": "null"}},
+                    "Stage": {"not": {"type": "null"}},
+                },
+                "required": ["CancerType", "Stage"],
+            },
+        }
+
+        expected_healthy = {
+            "if": {"properties": {"Diagnosis": {"enum": ["Healthy"]}}},
+            "then": {
+                "properties": {"CheckupDate": {"not": {"type": "null"}}},
+                "required": ["CheckupDate"],
+            },
+        }
+
+        assert len(all_of) == 2
+        assert expected_cancer in all_of
+        assert expected_healthy in all_of
+
+    def test_convert_no_conditional_properties_to_all_of(self) -> None:
+        """Test JSONSchema._convert_conditional_properties_to_all_of method."""
+        # GIVEN a JSONSchema instance
+        schema = JSONSchema()
+
+        # AND an empty conditional dependencies
+        conditional_dependencies = {}
+
+        # WHEN converting to allOf
+        all_of = schema._convert_conditional_properties_to_all_of(
+            conditional_dependencies
+        )
+
+        # THEN the result also be empty
+        assert len(all_of) == 0
 
 
 @pytest.mark.parametrize(
@@ -728,11 +770,11 @@ class TestGraphTraversalState:
         """Test GraphTraversalState.__init__"""
         # GIVEN a GraphTraversalState instance with 5 nodes
         gts = GraphTraversalState(dmge, "Patient", logger=Mock())
-        # THEN the current_node, current_node_display_name, and first item in
+        # THEN the current_node, current_node_display_label, and first item in
         #  root dependencies should be "Component"
         assert gts.current_node.name == "Component"
         assert gts._root_dependencies[0] == "Component"
-        assert gts.current_node.display_name == "Component"
+        assert gts.current_node.display_label == "Component"
         # THEN
         #  - root_dependencies should be 5 items long
         #  - nodes to process should be the same minus "Component"
@@ -756,13 +798,13 @@ class TestGraphTraversalState:
         gts._nodes_to_process = ["YearofBirth"]
         # THEN the current_node should be "Component" and node to process has 1 node
         assert gts.current_node.name == "Component"
-        assert gts.current_node.display_name == "Component"
+        assert gts.current_node.display_label == "Component"
         assert gts._nodes_to_process == ["YearofBirth"]
         # WHEN using move_to_next_node
         gts.move_to_next_node()
         # THEN the current_node should now be YearofBirth and no nodes to process
         assert gts.current_node.name == "YearofBirth"
-        assert gts.current_node.display_name == "Year of Birth"
+        assert gts.current_node.display_label == "Year of Birth"
         assert not gts._nodes_to_process
 
     def test_are_nodes_remaining(self, dmge: DataModelGraphExplorer) -> None:
@@ -845,6 +887,32 @@ class TestGraphTraversalState:
         # THEN the current node should have conditional properties
         assert gts.get_conditional_properties() == [("Diagnosis", "Cancer")]
 
+    def test_get_conditional_properties_multiple_watched_properties(
+        self, dmge: DataModelGraphExplorer
+    ) -> None:
+        """Test GraphTraversalState.get_conditional_properties with multiple watched properties.
+
+        This test covers a bug where the 'value' variable was being mutated inside
+        the inner loop when converting to display names.
+
+        """
+        # GIVEN a GraphTraversalState instance where
+        # - CancerType has a reverse dependency of FamilyHistory
+        # - FamilyHistory is a valid value of MULTIPLE attributes
+        gts = GraphTraversalState(dmge, "Patient", logger=Mock())
+        gts._nodes_to_process = ["CancerType"]
+
+        # Use FamilyHistory because its display name ("Family History") differs from class label
+        gts._reverse_dependencies = {"CancerType": ["FamilyHistory"]}
+        # FamilyHistory triggers multiple watched properties - this is key to triggering the bug
+        gts._valid_values_map = {"FamilyHistory": ["Sex", "YearofBirth"]}
+        # WHEN using move_to_next_node
+        gts.move_to_next_node()
+        result = gts.get_conditional_properties()
+        assert len(result) == 2
+        assert ("Year of Birth", "Family History") in result
+        assert ("Sex", "Family History") in result
+
     def test_update_valid_values_map(self, dmge: DataModelGraphExplorer) -> None:
         """Test GraphTraversalState._update_valid_values_map"""
         # GIVEN a GraphTraversalState instance
@@ -922,7 +990,7 @@ def test_create_json_schema_with_class_label(
         datatype=datatype,
         schema_name=f"{datatype}_validation",
         schema_path=test_path,
-        use_property_display_names=False,
+        use_display_labels=False,
         logger=logger,
     )
     with open(expected_path, encoding="utf-8") as file1, open(
@@ -997,7 +1065,7 @@ def test_create_json_schema_with_class_label_using_jsonld(
         datatype=datatype,
         schema_name=f"{datatype}_validation",
         schema_path=test_path,
-        use_property_display_names=False,
+        use_display_labels=False,
         logger=logger,
     )
     with open(expected_path, encoding="utf-8") as file1, open(
@@ -1161,72 +1229,34 @@ def test_set_conditional_dependencies_nothing_added(
     gts.current_node.name = "CancerType"
     gts.current_node.display_name = "Cancer Type"
     _set_conditional_dependencies(
-        json_schema=json_schema, graph_state=gts, use_property_display_names=False
+        json_schema=json_schema, graph_state=gts, use_display_labels=False
     )
     assert json_schema == {"allOf": []}
 
 
 @pytest.mark.parametrize(
-    "reverse_dependencies, valid_values_map, expected_schema",
+    "reverse_dependencies, valid_values_map, expected_conditional_dependencies",
     [
         (
             {"CancerType": ["Cancer"]},
             {"Cancer": ["Diagnosis"]},
-            JSONSchema(
-                all_of=[
-                    {
-                        "if": {"properties": {"Diagnosis": {"enum": ["Cancer"]}}},
-                        "then": {
-                            "properties": {"CancerType": {"not": {"type": "null"}}},
-                            "required": ["CancerType"],
-                        },
-                    }
-                ]
-            ),
+            {("Diagnosis", "Cancer"): ["CancerType"]},
         ),
         (
             {"CancerType": ["Cancer"]},
             {"Cancer": ["Diagnosis1", "Diagnosis2"]},
-            JSONSchema(
-                all_of=[
-                    {
-                        "if": {"properties": {"Diagnosis1": {"enum": ["Cancer"]}}},
-                        "then": {
-                            "properties": {"CancerType": {"not": {"type": "null"}}},
-                            "required": ["CancerType"],
-                        },
-                    },
-                    {
-                        "if": {"properties": {"Diagnosis2": {"enum": ["Cancer"]}}},
-                        "then": {
-                            "properties": {"CancerType": {"not": {"type": "null"}}},
-                            "required": ["CancerType"],
-                        },
-                    },
-                ]
-            ),
+            {
+                ("Diagnosis1", "Cancer"): ["CancerType"],
+                ("Diagnosis2", "Cancer"): ["CancerType"],
+            },
         ),
         (
             {"CancerType": ["Cancer1", "Cancer2"]},
             {"Cancer1": ["Diagnosis1"], "Cancer2": ["Diagnosis2"]},
-            JSONSchema(
-                all_of=[
-                    {
-                        "if": {"properties": {"Diagnosis1": {"enum": ["Cancer1"]}}},
-                        "then": {
-                            "properties": {"CancerType": {"not": {"type": "null"}}},
-                            "required": ["CancerType"],
-                        },
-                    },
-                    {
-                        "if": {"properties": {"Diagnosis2": {"enum": ["Cancer2"]}}},
-                        "then": {
-                            "properties": {"CancerType": {"not": {"type": "null"}}},
-                            "required": ["CancerType"],
-                        },
-                    },
-                ]
-            ),
+            {
+                ("Diagnosis1", "Cancer1"): ["CancerType"],
+                ("Diagnosis2", "Cancer2"): ["CancerType"],
+            },
         ),
     ],
     ids=["one rev dep, one enum", "two rev deps, one enum", "two rev deps, two enums"],
@@ -1234,7 +1264,7 @@ def test_set_conditional_dependencies_nothing_added(
 def test_set_conditional_dependencies(
     reverse_dependencies: dict[str, list[str]],
     valid_values_map: dict[str, list[str]],
-    expected_schema: JSONSchema,
+    expected_conditional_dependencies: dict[tuple[str, str], list[str]],
     dmge: DataModelGraphExplorer,
 ) -> None:
     """Tests for _set_conditional_dependencies"""
@@ -1243,11 +1273,10 @@ def test_set_conditional_dependencies(
     gts._reverse_dependencies = reverse_dependencies
     gts._valid_values_map = valid_values_map
     gts.current_node.name = "CancerType"
-    gts.current_node.display_name = "Cancer Type"
     _set_conditional_dependencies(
-        json_schema=json_schema, graph_state=gts, use_property_display_names=False
+        json_schema=json_schema, graph_state=gts, use_display_labels=False
     )
-    assert json_schema == expected_schema
+    assert json_schema._conditional_dependencies == expected_conditional_dependencies
 
 
 @pytest.mark.parametrize(
@@ -1262,7 +1291,7 @@ def test_set_conditional_dependencies(
                         "description": "TBD",
                         "title": "List Enum",
                         "type": "array",
-                        "items": {"enum": ["ab", "cd", "ef", "gh"], "type": "string"},
+                        "items": {"enum": ["Ab", "Cd", "Ef", "Gh"], "type": "string"},
                     }
                 },
                 required=["ListEnum"],
@@ -1277,7 +1306,7 @@ def test_set_conditional_dependencies(
                         "description": "TBD",
                         "title": "List Enum Not Required",
                         "type": "array",
-                        "items": {"enum": ["ab", "cd", "ef", "gh"], "type": "string"},
+                        "items": {"enum": ["Ab", "Cd", "Ef", "Gh"], "type": "string"},
                     }
                 },
                 required=[],
@@ -1291,7 +1320,7 @@ def test_set_conditional_dependencies(
                     "Enum": {
                         "description": "TBD",
                         "title": "Enum",
-                        "enum": ["ab", "cd", "ef", "gh"],
+                        "enum": ["Ab", "Cd", "Ef", "Gh"],
                     }
                 },
                 required=["Enum"],
@@ -1338,7 +1367,7 @@ def test_set_property(
 ) -> None:
     """Tests for set_property"""
     schema = JSONSchema()
-    _set_property(schema, test_nodes[node_name], use_property_display_names=False)
+    _set_property(schema, test_nodes[node_name], use_display_labels=False)
     assert schema == expected_schema
 
 

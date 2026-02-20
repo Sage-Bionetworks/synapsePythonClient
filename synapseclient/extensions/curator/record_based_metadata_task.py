@@ -6,7 +6,7 @@ This module provides library functions for creating record-based metadata curati
 in Synapse, including RecordSet creation, CurationTask setup, and Grid view initialization.
 """
 import tempfile
-from typing import Any, Dict, List, Optional, Tuple
+from typing import Any, Dict, List, Optional, Tuple, Union
 
 from synapseclient import Synapse
 from synapseclient.core.typing_utils import DataFrame as DATA_FRAME_TYPE
@@ -109,6 +109,7 @@ def create_record_based_metadata_task(
     schema_uri: str,
     bind_schema_to_record_set: bool = True,
     enable_derived_annotations: bool = False,
+    assignee_principal_id: Optional[Union[str, int]] = None,
     *,
     synapse_client: Optional[Synapse] = None,
 ) -> Tuple[RecordSet, CurationTask, Grid]:
@@ -148,7 +149,8 @@ def create_record_based_metadata_task(
             curation_task_name="BiospecimenMetadataTemplate",
             upsert_keys=["specimenID"],
             instructions="Please curate this metadata according to the schema requirements",
-            schema_uri="schema-org-schema.name.schema-v1.0.0"
+            schema_uri="schema-org-schema.name.schema-v1.0.0",
+            assignee_principal_id=123456  # Optional: Assign to a user or team (can be str or int)
         )
         ```
 
@@ -167,6 +169,11 @@ def create_record_based_metadata_task(
         bind_schema_to_record_set: Whether to bind the given schema to the RecordSet
             (default: True).
         enable_derived_annotations: If true, enable derived annotations. Defaults to False.
+        assignee_principal_id: The principal ID of the user or team to assign to this
+            curation task. Can be provided as either a string or an integer. If None
+            (default), the task will be unassigned. For metadata tasks, this determines
+            the owner of the grid session. Team members can all join grid sessions owned
+            by their team, while user-owned grid sessions are restricted to that user only.
         synapse_client: If not passed in and caching was not disabled by
                 `Synapse.allow_client_caching(False)` this will use the last created
                 instance from the Synapse class constructor.
@@ -244,6 +251,11 @@ def create_record_based_metadata_task(
             data_type=curation_task_name,
             project_id=project_id,
             instructions=instructions,
+            assignee_principal_id=(
+                str(assignee_principal_id)
+                if assignee_principal_id is not None
+                else None
+            ),
             task_properties=RecordBasedMetadataTaskProperties(
                 record_set_id=record_set_id,
             ),

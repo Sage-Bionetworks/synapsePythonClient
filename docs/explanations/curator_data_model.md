@@ -195,7 +195,15 @@ JSON Schema output:
 
 ### Format
 
-The format of this attribute. See [format](https://json-schema.org/understanding-json-schema/reference/type#format) The type of this attribute must be "string" or "string_list". The value of this column will appear as the `format` of this attribute in the JSON Schema. Must be one of:
+The format of this attribute. See [format](https://json-schema.org/understanding-json-schema/reference/type#format) The type of this attribute must be "string" or "string_list". The value of this column will appear as the `format` of this attribute in the JSON Schema.
+
+Note: The Format and Pattern columns serve different purposes:
+
+  `Pattern`: Use to validate that data matches a specific regex pattern (e.g., enforce that email addresses follow a certain format)
+
+  `Format`: Use with the regex value to indicate that the data itself is a regex pattern being stored (not validated against one)
+
+Must be one of:
 
 - `date-time`
 - `email`
@@ -243,6 +251,12 @@ JSON Schema output:
 ### Pattern
 
 The regex pattern this attribute must match. The type of this attribute must be `string` or `string_list`. See [pattern](https://json-schema.org/understanding-json-schema/reference/regular_expressions#regular-expressions) The value of this column will appear as the `pattern` of this attribute in the JSON Schema. Must be a legal regex pattern as determined by the python `re` library.
+
+Note: The Format and Pattern columns serve different purposes:
+
+  `Pattern`: Use to validate that data matches a specific regex pattern (e.g., enforce that email addresses follow a certain format)
+
+  `Format`: Use with the regex value to indicate that the data itself is a regex pattern being stored (not validated against one)
 
 Data Model:
 
