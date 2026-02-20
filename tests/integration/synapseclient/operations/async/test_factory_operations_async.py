@@ -847,7 +847,9 @@ class TestFactoryOperationsGetAsync:
         ):
             await get_async(synapse_client=self.syn)
 
-    async def test_get_docker_repo_by_id(self, project_model: Project) -> None:
+    async def test_get_docker_repo_by_id(
+        self, project_model: Project, schedule_for_cleanup: Callable[..., None]
+    ) -> None:
         """Test retrieving a Docker repository using get factory function."""
         # GIVEN a Docker repository exists
         docker_repo = await DockerRepository(
@@ -857,7 +859,7 @@ class TestFactoryOperationsGetAsync:
             description="Testing get factory",
         ).store_async(synapse_client=self.syn)
 
-        self.schedule_for_cleanup(docker_repo.id)
+        schedule_for_cleanup(docker_repo.id)
 
         # WHEN I retrieve it using the get factory function
         retrieved = await get_async(synapse_id=docker_repo.id, synapse_client=self.syn)
