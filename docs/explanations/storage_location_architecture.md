@@ -40,16 +40,17 @@ relationships, and data flows that enable flexible storage configuration.
 
 ## Overview
 
-The StorageLocation system enables Synapse users to configure where uploaded files
-are stored. By default, Synapse stores files in its internal S3 storage, but
+The StorageLocation setting enables Synapse users to configure a location where files are uploaded to and downloaded from via Synapse.
+By default, Synapse stores files in its internal S3 storage, but
 users can configure projects and folders to use external storage backends such as
-AWS S3 buckets, Google Cloud Storage, SFTP servers, or proxy servers.
+AWS S3 buckets, Google Cloud Storage, SFTP servers, or a local file server using a proxy server.
 
-!!! info "Key Concepts"
-    - **StorageLocation**: A configuration describing where files are stored
-    - **Project Setting**: Links a storage location to a Project or Folder
-    - **STS Credentials**: Temporary AWS credentials for direct S3 access
-    - **Storage Migration**: Moving files between storage locations
+### Key Concepts
+- [**StorageLocationSetting**](https://rest-docs.synapse.org/rest/org/sagebionetworks/repo/model/project/StorageLocationSetting.html): A configuration specifying file storage and download locations.
+- [**ProjectSetting**](https://rest-docs.synapse.org/rest/org/sagebionetworks/repo/model/project/ProjectSetting.html): A configuration applied to projects that allows customization of file storage locations.
+- [**UploadType**](https://rest-docs.synapse.org/rest/org/sagebionetworks/repo/model/file/UploadType.html): An enumeration that defines the types of file upload destinations that Synapse supports.
+- **STS Credentials**: Temporary AWS credentials for direct S3 access.
+- **StorageLocation Migration**: The process of transferring the files associated with Synapse entities between storage locations while preserving the entities’ structure and identifiers.
 
 ---
 
@@ -113,7 +114,7 @@ classDiagram
         NONE
     }
 
-    class StorageLocationConfigurable {
+    class StorageLocation {
         <<mixin>>
         +set_storage_location(storage_location_id)
         +get_project_setting(setting_type)
@@ -137,20 +138,17 @@ classDiagram
 
     StorageLocation --> StorageLocationType : storage_type
     StorageLocation --> UploadType : upload_type
-    StorageLocationConfigurable <|-- Project : implements
-    StorageLocationConfigurable <|-- Folder : implements
+    StorageLocation <|-- Project : implements
+    StorageLocation <|-- Folder : implements
 ```
 
 <br>
 
 ### Key Components
-
-| Component | Purpose |
-|-----------|---------|
-| [StorageLocation][synapseclient.models.StorageLocation] | Data model representing a storage location setting in Synapse |
-| [StorageLocationType][synapseclient.models.StorageLocationType] | Enumeration defining the supported storage backend types |
-| [UploadType][synapseclient.models.UploadType] | Enumeration defining the upload protocol for each storage type |
-| [StorageLocationConfigurable][synapseclient.models.mixins.StorageLocationConfigurable] | Mixin providing storage management methods to entities |
+[synapseclient.models.StorageLocation] | The model representing a storage location setting in Synapse |
+[synapseclient.models.StorageLocationType] | Enumeration defining the supported storage backend types |
+[synapseclient.models.UploadType] | Enumeration defining the upload protocol for each storage type |
+[synapseclient.models.mixins.StorageLocation] | Mixin providing storage management methods to entities |
 
 ---
 
@@ -159,7 +157,7 @@ classDiagram
 ## Storage Type Mapping
 
 Each `StorageLocationType` maps to a specific REST API `concreteType` and has a
-default `UploadType`. This mapping is bidirectional, allowing the system to parse
+default `UploadType`. This mapping allows the system to parse
 responses from the API and construct requests.
 
 ```mermaid
@@ -199,23 +197,43 @@ flowchart LR
 
 <br>
 
-### Type-Specific Attributes
+### Storage Type Attributes
 
 Different storage types support different configuration attributes:
 
-| Attribute | SYNAPSE | EXT_S3 | EXT_GCS | EXT_SFTP | EXT_OBJ | PROXY |
-|-----------|:-------:|:------:|:-------:|:--------:|:-------:|:-----:|
-| `bucket` | ✓ | ✓ | ✓ | | ✓ | |
-| `base_key` | ✓ | ✓ | ✓ | | | |
-| `sts_enabled` | ✓ | ✓ | | | | |
-| `endpoint_url` | | ✓ | | | ✓ | |
-| `url` | | | | ✓ | | |
-| `supports_subfolders` | | | | ✓ | | |
-| `proxy_url` | | | | | | ✓ |
-| `secret_key` | | | | | | ✓ |
-| `benefactor_id` | | | | | | ✓ |
+| Attribute | Type | S3StorageLocationSetting | ExternalS3StorageLocationSetting | ExternalObjectStorageLocationSetting | ExternalStorageLocationSetting | ExternalGoogleCloudStorageLocationSetting | ProxyStorageLocationSettings |
+|-----------|------|--------------------------|----------------------------------|--------------------------------------|--------------------------------|-------------------------------------------|------------------------------|
+| **Common (all types)** |
+| `concreteType` | string (enum) | ✓ (required) | ✓ (required) | ✓ (required) | ✓ (required) | ✓ (required) | ✓ (required) |
+| `storageLocationId` | integer (int32) | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ |
+| `uploadType` | string | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ |
+| `banner` | string | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ |
+| `description` | string | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ |
+| `etag` | string | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ |
+| `createdOn` | string | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ |
+| `createdBy` | integer (int32) | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ |
+| **Type-specific** |
+| `baseKey` | string | ✓ | ✓ | — | — | ✓ | — |
+| `stsEnabled` | boolean | ✓ | ✓ | — | — | — | — |
+| `bucket` | string | — | ✓ (required) | ✓ (required) | — | ✓ (required) | — |
+| `endpointUrl` | string | — | ✓ | ✓ (required) | — | — | — |
+| `url` | string | — | — | — | ✓ | — | — |
+| `supportsSubfolders` | boolean | — | — | — | ✓ | — | — |
+| `proxyUrl` | string | — | — | — | — | — | ✓ |
+| `secretKey` | string | — | — | — | — | — | ✓ |
+| `benefactorId` | string | — | — | — | — | — | ✓ |
 
-<small>**Legend:** SYNAPSE = SYNAPSE_S3, EXT_S3 = EXTERNAL_S3, EXT_GCS = EXTERNAL_GOOGLE_CLOUD, EXT_SFTP = EXTERNAL_SFTP, EXT_OBJ = EXTERNAL_OBJECT_STORE</small>
+## Summary by type
+
+| Setting type | Description | Type-specific attributes |
+|--------------|-------------|---------------------------|
+| **S3StorageLocationSetting** | Default Synapse storage on Amazon S3. | `baseKey`, `stsEnabled` |
+| **ExternalS3StorageLocationSetting** | External S3 bucket connected with Synapse (Synapse-accessed). | `bucket` (required), `baseKey`, `stsEnabled`, `endpointUrl` |
+| **ExternalObjectStorageLocationSetting** | S3-compatible object storage **not** accessed by Synapse. | `bucket` (required), `endpointUrl` (required) |
+| **ExternalStorageLocationSetting** | SFTP or HTTPS upload destination. | `url`, `supportsSubfolders` |
+| **ExternalGoogleCloudStorageLocationSetting** | External Google Cloud Storage bucket connected with Synapse. | `bucket` (required), `baseKey` |
+| **ProxyStorageLocationSettings** | HTTPS proxy for all upload/download operations. | `proxyUrl`, `secretKey`, `benefactorId` |
+
 
 <br>
 
@@ -225,7 +243,9 @@ Use this decision tree to select the appropriate storage type for your use case:
 
 ```mermaid
 flowchart TB
-    Start([Need custom storage?]) --> Q1{Want Synapse to<br/>manage storage?}
+    Start{Need custom storage?}
+    Start -->|No| DEFAULT[Use default Synapse storage]
+    Start -->|Yes| Q1{Want Synapse to<br/>manage storage?}
 
     Q1 -->|Yes| SYNAPSE_S3[Use SYNAPSE_S3]
     Q1 -->|No| Q2{What storage<br/>backend?}
@@ -234,7 +254,7 @@ flowchart TB
     Q2 -->|Google Cloud| EXTERNAL_GOOGLE_CLOUD[Use EXTERNAL_GOOGLE_CLOUD]
     Q2 -->|SFTP Server| EXTERNAL_SFTP[Use EXTERNAL_SFTP]
     Q2 -->|Proxy Server| PROXY[Use PROXY]
-    Q2 -->|S3-compatible<br/>non-AWS| EXTERNAL_OBJECT_STORE[Use EXTERNAL_OBJECT_STORE]
+    Q2 -->|AWS S3 | EXTERNAL_OBJECT_STORE[Use EXTERNAL_OBJECT_STORE]
 
     Q3 -->|Yes| Q4{Need STS<br/>credentials?}
     Q3 -->|No| EXTERNAL_OBJECT_STORE
@@ -249,6 +269,7 @@ flowchart TB
     EXTERNAL_SFTP --> Benefits4[Benefits:<br/>- Legacy systems<br/>- Synapse never touches data]
     EXTERNAL_OBJECT_STORE --> Benefits5[Benefits:<br/>- OpenStack, MinIO, etc<br/>- Synapse never touches data]
     PROXY --> Benefits6[Benefits:<br/>- Custom access control<br/>- Data transformation]
+    DEFAULT --> Benefits0[Benefits:<br/>- No configuration needed<br/>- Synapse-managed S3]
 ```
 
 ---
@@ -258,27 +279,14 @@ flowchart TB
 ## Entity Inheritance Hierarchy
 
 Projects and Folders inherit storage configuration capabilities through the
-`StorageLocationConfigurable` mixin. This pattern allows consistent storage
+`StorageLocation` mixin. This pattern allows consistent storage
 management across container entities.
 
 ```mermaid
 classDiagram
     direction TB
 
-    class AccessControllable {
-        <<mixin>>
-        +get_permissions()
-        +set_permissions()
-        +delete_permissions()
-    }
-
-    class StorableContainer {
-        <<mixin>>
-        +sync()
-        +get_children()
-    }
-
-    class StorageLocationConfigurable {
+    class StorageLocation {
         <<mixin>>
         +set_storage_location()
         +get_project_setting()
@@ -302,18 +310,13 @@ classDiagram
         +str etag
     }
 
-    AccessControllable <|-- Project
-    AccessControllable <|-- Folder
-    StorableContainer <|-- Project
-    StorableContainer <|-- Folder
-    StorageLocationConfigurable <|-- Project
-    StorageLocationConfigurable <|-- Folder
+    StorageLocation <|-- Project
+    StorageLocation <|-- Folder
 ```
 
-!!! tip "Mixin Pattern"
-    The mixin pattern allows `Project` and `Folder` to share storage location
-    functionality without code duplication. Both classes inherit the same
-    methods from `StorageLocationConfigurable`.
+The mixin pattern allows `Project` and `Folder` to share storage location
+functionality without code duplication. Both classes inherit the same
+methods from `StorageLocation`.
 
 ---
 
@@ -330,7 +333,7 @@ This section contains sequence diagrams for key operations.
 
 ### Store Operation
 
-The `store()` method creates a new storage location in Synapse.
+The `store()` method creates a new storage location in Synapse. Creating a storage location is idempotent per user. Repeating a creation request with the same properties will return the previously created storage location rather than creating a new one.
 
 ```mermaid
 sequenceDiagram
@@ -376,85 +379,78 @@ sequenceDiagram
     deactivate StorageLocation
 ```
 
-!!! note "Idempotent Behavior"
-    Storage locations are immutable once created. If you call `store()` with
-    identical parameters, Synapse returns the existing storage location rather
-    than creating a duplicate.
-
 <br>
 
 ### Setup S3 Convenience Flow
 
 The `setup_s3()` class method creates a folder with S3 storage in a single call.
+```mermaid
+sequenceDiagram
+    participant User
+    participant setup_s3 as StorageLocation.setup_s3()
+    participant StorageLocation
+    participant Folder
+    participant Mixin as StorageLocation
+    participant API as storage_location_services
+    participant Synapse as Synapse REST API
 
-??? example "Click to expand sequence diagram"
-    ```mermaid
-    sequenceDiagram
-        participant User
-        participant setup_s3 as StorageLocation.setup_s3()
-        participant StorageLocation
-        participant Folder
-        participant Mixin as StorageLocationConfigurable
-        participant API as storage_location_services
-        participant Synapse as Synapse REST API
+    User->>setup_s3: setup_s3(parent, folder_name, bucket_name)
+    activate setup_s3
 
-        User->>setup_s3: setup_s3(parent, folder_name, bucket_name)
-        activate setup_s3
+    Note over setup_s3: Validate: folder_name XOR folder
 
-        Note over setup_s3: Validate: folder_name XOR folder
+    alt folder_name provided
+        setup_s3->>Folder: Folder(name, parent_id).store()
+        activate Folder
+        Folder->>Synapse: POST /entity
+        Synapse-->>Folder: Folder response
+        Folder-->>setup_s3: New Folder
+        deactivate Folder
+    else folder ID provided
+        setup_s3->>Folder: Folder(id).get()
+        activate Folder
+        Folder->>Synapse: GET /entity/{id}
+        Synapse-->>Folder: Folder response
+        Folder-->>setup_s3: Existing Folder
+        deactivate Folder
+    end
 
-        alt folder_name provided
-            setup_s3->>Folder: Folder(name, parent_id).store()
-            activate Folder
-            Folder->>Synapse: POST /entity
-            Synapse-->>Folder: Folder response
-            Folder-->>setup_s3: New Folder
-            deactivate Folder
-        else folder ID provided
-            setup_s3->>Folder: Folder(id).get()
-            activate Folder
-            Folder->>Synapse: GET /entity/{id}
-            Synapse-->>Folder: Folder response
-            Folder-->>setup_s3: Existing Folder
-            deactivate Folder
-        end
+    alt bucket_name provided
+        Note over setup_s3: storage_type = EXTERNAL_S3
+    else bucket_name is None
+        Note over setup_s3: storage_type = SYNAPSE_S3
+    end
 
-        alt bucket_name provided
-            Note over setup_s3: storage_type = EXTERNAL_S3
-        else bucket_name is None
-            Note over setup_s3: storage_type = SYNAPSE_S3
-        end
+    setup_s3->>StorageLocation: StorageLocation(...).store()
+    activate StorageLocation
+    StorageLocation->>Synapse: POST /storageLocation
+    Synapse-->>StorageLocation: StorageLocation response
+    StorageLocation-->>setup_s3: StorageLocation
+    deactivate StorageLocation
 
-        setup_s3->>StorageLocation: StorageLocation(...).store()
-        activate StorageLocation
-        StorageLocation->>Synapse: POST /storageLocation
-        Synapse-->>StorageLocation: StorageLocation response
-        StorageLocation-->>setup_s3: StorageLocation
-        deactivate StorageLocation
+    setup_s3->>Mixin: folder.set_storage_location(storage_location_id)
+    activate Mixin
 
-        setup_s3->>Mixin: folder.set_storage_location(storage_location_id)
-        activate Mixin
+    Mixin->>API: get_project_setting(project_id, "upload")
+    API->>Synapse: GET /projectSettings/{id}/type/upload
+    Synapse-->>API: Setting or empty
 
-        Mixin->>API: get_project_setting(project_id, "upload")
-        API->>Synapse: GET /projectSettings/{id}/type/upload
-        Synapse-->>API: Setting or empty
+    alt Setting exists
+        API-->>Mixin: Existing setting
+        Mixin->>API: update_project_setting(body)
+        API->>Synapse: PUT /projectSettings
+    else No setting
+        Mixin->>API: create_project_setting(body)
+        API->>Synapse: POST /projectSettings
+    end
 
-        alt Setting exists
-            API-->>Mixin: Existing setting
-            Mixin->>API: update_project_setting(body)
-            API->>Synapse: PUT /projectSettings
-        else No setting
-            Mixin->>API: create_project_setting(body)
-            API->>Synapse: POST /projectSettings
-        end
+    Synapse-->>API: Project setting response
+    API-->>Mixin: Updated setting
+    deactivate Mixin
 
-        Synapse-->>API: Project setting response
-        API-->>Mixin: Updated setting
-        deactivate Mixin
-
-        setup_s3-->>User: (Folder, StorageLocation)
-        deactivate setup_s3
-    ```
+    setup_s3-->>User: (Folder, StorageLocation)
+    deactivate setup_s3
+```
 
 <br>
 
@@ -462,14 +458,23 @@ The `setup_s3()` class method creates a folder with S3 storage in a single call.
 
 STS (AWS Security Token Service) enables direct S3 access using temporary credentials.
 
+When a Synapse client is constructed (`Synapse.__init__`), it creates an in-memory token cache:
+
+- `self._sts_token_store = sts_transfer.StsTokenStore()` (see `synapseclient/client.py`)
+
+The store caches STS tokens per entity and permission so repeated access to the same storage location can reuse credentials without a round-trip to the REST API.
+
 ```mermaid
 sequenceDiagram
     participant User
     participant Entity as Folder/Project
-    participant Mixin as StorageLocationConfigurable
+    participant Mixin as StorageLocation
     participant STS as sts_transfer module
     participant Client as Synapse Client
+    participant TokenStore as _sts_token_store (StsTokenStore)
     participant Synapse as Synapse REST API
+
+    Note over Client,TokenStore: Client.__init__ creates self._sts_token_store = sts_transfer.StsTokenStore()
 
     User->>Entity: get_sts_storage_token(permission, output_format)
     activate Entity
@@ -483,11 +488,23 @@ sequenceDiagram
     Mixin->>STS: sts_transfer.get_sts_credentials()
     activate STS
 
-    STS->>Synapse: GET /entity/{id}/sts?permission={permission}
-    activate Synapse
+    STS->>Client: syn._sts_token_store.get_token(...)
+    activate Client
+    Client->>TokenStore: get_token(entity_id, permission, min_remaining_life)
+    activate TokenStore
 
-    Synapse-->>STS: STS credentials response
-    deactivate Synapse
+    alt token cached and not expired
+        TokenStore-->>Client: Cached token
+    else cache miss or token expired
+        TokenStore->>Synapse: GET /entity/{id}/sts?permission={permission}
+        activate Synapse
+        Synapse-->>TokenStore: STS credentials response
+        deactivate Synapse
+        TokenStore-->>Client: New token (cached)
+    end
+    deactivate TokenStore
+    Client-->>STS: Token
+    deactivate Client
 
     Note over STS: Parse credentials
 
@@ -500,9 +517,6 @@ sequenceDiagram
     else output_format == "shell" / "bash"
         Note over STS: Format as export commands
         STS-->>Mixin: Shell export commands
-    else output_format == "dictionary"
-        Note over STS: Return raw dict
-        STS-->>Mixin: Dictionary
     end
     deactivate STS
 
@@ -524,7 +538,6 @@ sequenceDiagram
 | `shell` / `bash` | `export AWS_ACCESS_KEY_ID=...` format | Execute in shell |
 | `cmd` | Windows SET commands | Windows command prompt |
 | `powershell` | PowerShell variable assignments | PowerShell scripts |
-| `dictionary` | Raw Python dict | Custom processing |
 
 ---
 
@@ -574,11 +587,11 @@ stateDiagram-v2
 
 ### Setting Types
 
-| Type | Purpose |
-|------|---------|
-| `upload` | Configures upload destination storage location(s) |
-| `external_sync` | Configures external sync settings |
-| `requester_pays` | Configures requester-pays bucket access |
+| Type | Purpose | Status |
+|------|---------|--------|
+| `upload` | Configures upload destination storage location(s) | **Supported** |
+
+Other setting types may be added in the future.
 
 ---
 
@@ -593,7 +606,7 @@ Synapse REST API endpoints. This layer handles serialization and error handling.
 flowchart TB
     subgraph "Model Layer"
         SL[StorageLocation]
-        SLCM[StorageLocationConfigurable Mixin]
+        SLCM[StorageLocation Mixin]
     end
 
     subgraph "API Layer (storage_location_services.py)"
@@ -781,5 +794,5 @@ sequenceDiagram
 |----------|-------------|
 | [Storage Location Tutorial](../tutorials/python/storage_location.md) | Step-by-step guide to using storage locations |
 | [StorageLocation API Reference][synapseclient.models.StorageLocation] | Complete API documentation |
-| [StorageLocationConfigurable Mixin][synapseclient.models.mixins.StorageLocationConfigurable] | Mixin methods for Projects and Folders |
+| [StorageLocation Mixin][synapseclient.models.mixins.StorageLocation] | Mixin methods for Projects and Folders |
 | [Custom Storage Locations (Synapse Docs)](https://help.synapse.org/docs/Custom-Storage-Locations.2048327803.html) | Official Synapse documentation |
