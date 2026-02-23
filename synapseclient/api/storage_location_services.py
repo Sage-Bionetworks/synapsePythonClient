@@ -76,8 +76,7 @@ async def get_project_setting(
 
     Arguments:
         project_id: The Synapse ID of the project or folder.
-        setting_type: The type of setting to retrieve. One of:
-            'upload', 'external_sync', 'requester_pays'.
+        setting_type: The type of setting to retrieve. Currently supports 'upload' only.
         synapse_client: If not passed in and caching was not disabled by
             `Synapse.allow_client_caching(False)` this will use the last created
             instance from the Synapse class constructor.
