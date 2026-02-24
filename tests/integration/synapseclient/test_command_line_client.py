@@ -1333,7 +1333,6 @@ class TestSchemaManagementCommands:
         assert "Successfully registered schema" in output
         assert schema_name in output
         assert schema_organization.name in output
-        assert False
 
     def test_register_json_schema_fix_schema_name(
         self, test_state, schema_organization, schema_file
