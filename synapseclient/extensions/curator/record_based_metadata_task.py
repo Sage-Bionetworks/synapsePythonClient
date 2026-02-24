@@ -15,9 +15,11 @@ from synapseclient.models import (
     CurationTask,
     Grid,
     JSONSchema,
+    Project,
     RecordBasedMetadataTaskProperties,
     RecordSet,
 )
+from synapseclient.operations import get
 
 
 def extract_property_titles(schema_data: Dict[str, Any]) -> List[str]:
@@ -99,7 +101,6 @@ def extract_schema_properties_from_web(
 
 
 def create_record_based_metadata_task(
-    project_id: str,
     folder_id: str,
     record_set_name: str,
     record_set_description: str,
@@ -112,6 +113,7 @@ def create_record_based_metadata_task(
     assignee_principal_id: Optional[Union[str, int]] = None,
     *,
     synapse_client: Optional[Synapse] = None,
+    project_id: Optional[str] = None,  # Deprecated, will be removed in v5.0.0
 ) -> Tuple[RecordSet, CurationTask, Grid]:
     """
     Generate and upload CSV templates as a RecordSet for record-based metadata,
@@ -142,7 +144,6 @@ def create_record_based_metadata_task(
 
         record_set, task, grid = create_record_based_metadata_task(
             synapse_client=syn,
-            project_id="syn12345678",
             folder_id="syn87654321",
             record_set_name="BiospecimenMetadata_RecordSet",
             record_set_description="RecordSet for biospecimen metadata curation",
@@ -155,9 +156,10 @@ def create_record_based_metadata_task(
         ```
 
     Arguments:
-        project_id: The Synapse ID of the project where the folder exists.
         folder_id: The Synapse ID of the folder to upload RecordSet to.
-        record_set_name: Name for the RecordSet.
+        record_set_name: Name for the RecordSet entity that will be created.
+            A RecordSet entity captures record-based metadata as a special type of CSV and stores contributor
+              provided metadata collected via Curator enabling sharing and download of validated metadata in Synapse.
         record_set_description: Description for the RecordSet.
         curation_task_name: Name for the CurationTask (used as data_type field).
             Must be unique within the project, otherwise if it matches an existing
@@ -177,6 +179,7 @@ def create_record_based_metadata_task(
         synapse_client: If not passed in and caching was not disabled by
                 `Synapse.allow_client_caching(False)` this will use the last created
                 instance from the Synapse class constructor.
+        project_id: Deprecated, will be removed in  v5.0.0
 
     Returns:
         Tuple containing the created RecordSet, CurationTask, and Grid objects
@@ -186,8 +189,6 @@ def create_record_based_metadata_task(
         SynapseError: If there are issues with Synapse operations.
     """
     # Validate required parameters
-    if not project_id:
-        raise ValueError("project_id is required")
     if not folder_id:
         raise ValueError("folder_id is required")
     if not record_set_name:
@@ -203,7 +204,17 @@ def create_record_based_metadata_task(
     if not schema_uri:
         raise ValueError("schema_uri is required")
 
+    if project_id:
+        synapse_client.logger.warning(
+            "The 'project_id' parameter is deprecated and will be removed in v5.0.0. "
+            "The project ID will be inferred from the folder ID provided."
+        )
+
     synapse_client = Synapse.get_client(synapse_client=synapse_client)
+
+    project_id = project_id_from_entity_id(
+        entity_id=folder_id, synapse_client=synapse_client
+    )
 
     template_df = extract_schema_properties_from_web(
         syn=synapse_client, schema_uri=schema_uri
@@ -283,3 +294,23 @@ def create_record_based_metadata_task(
         raise e
 
     return record_set_with_data, curation_task, curation_grid
+
+
+def project_id_from_entity_id(entity_id: str, synapse_client: Synapse) -> str:
+    """
+    Helper function to retrieve the project ID from a given entity ID by traversing up the hierarchy.
+
+    Args:
+        entity_id: The Synapse ID of the entity (e.g., folder, file) to start from.
+        synapse_client: Authenticated Synapse client instance
+    """
+
+    # Get the project ID from the folder ID
+    current_obj = get(entity_id, synapse_client=synapse_client)
+    iter = 0
+    while not isinstance(current_obj, Project):
+        current_obj = get(current_obj.parent_id, synapse_client=synapse_client)
+        iter += 1
+        if iter > 1000:
+            raise ValueError("Could not find project ID in folder hierarchy")
+    return current_obj.id
