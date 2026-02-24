@@ -141,7 +141,6 @@ def row_labels_from_rows(rows: List[Row]) -> List[Row]:
 def convert_dtypes_to_json_serializable(df):
     """
     Convert the dtypes of the int64 and float64 columns to object columns which are JSON serializable types.
-    Convert the list and dict columns to JSON strings which are JSON serializable types.
     Replace both Ellipsis and pandas NA within nested structures which are not JSON serializable types.
     Also, convert the ROW_ID, ROW_VERSION, and ROW_ID.1 columns to int columns which are JSON serializable types.
     Arguments:
@@ -195,43 +194,37 @@ def convert_dtypes_to_json_serializable(df):
     import pandas as pd
 
     for col in df.columns:
-        if df[col].notna().any():
-            sample_values = df[col].dropna()
-            if len(sample_values):
+        sample_values = df[col].dropna()
+        if len(sample_values):
 
-                def _serialize_json_value(x):
-                    if x is None:
-                        return None
-                    if isinstance(x, (list, dict)):
+            def _serialize_json_value(x):
+                if isinstance(x, (list, dict)):
 
-                        def _reformat_special_values(obj):
-                            if obj is ...:
-                                return "..."
-                            # Handle pandas NA - check type name to avoid array ambiguity
-                            if obj is pd.NA:
-                                return None
-                            if isinstance(obj, dict):
-                                return {
-                                    k: _reformat_special_values(v)
-                                    for k, v in obj.items()
-                                }
-                            if isinstance(obj, list):
-                                return [_reformat_special_values(item) for item in obj]
-                            return obj
+                    def _reformat_special_values(obj):
+                        if obj is ...:
+                            return "..."
+                        if obj is pd.NA:
+                            return None
+                        if isinstance(obj, dict):
+                            return {
+                                k: _reformat_special_values(v) for k, v in obj.items()
+                            }
+                        if isinstance(obj, list):
+                            return [_reformat_special_values(item) for item in obj]
+                        return obj
 
-                        cleaned_x = _reformat_special_values(x)
-                        # return json.dumps(cleaned_x, ensure_ascii=False)
-                        return cleaned_x
-                    # Handle standalone ellipsis
-                    if x is ...:
-                        return "..."
-                    return x
+                    cleaned_x = _reformat_special_values(x)
+                    return cleaned_x
+                # Handle standalone ellipsis
+                if x is ...:
+                    return "..."
+                return x
 
-                df[col] = df[col].apply(lambda x: _serialize_json_value(x))
+            df[col] = df[col].apply(lambda x: _serialize_json_value(x))
 
-                # restore the original values of the column especially for the int64 and float64 columns since apply function changes the dtype
-                df[col] = df[col].convert_dtypes()
-                df[col] = df[col].replace({pd.NA: None}).astype(object)
+            # restore the original values of the column especially for the int64 and float64 columns since apply function changes the dtype
+            df[col] = df[col].convert_dtypes()
+            df[col] = df[col].replace({pd.NA: None}).astype(object)
 
         # Convert ROW_ prefixed columns back to int (like ROW_ID, ROW_VERSION)
         if col in [
@@ -2869,7 +2862,6 @@ class QueryMixin(QueryMixinSynchronousProtocol):
             timeout=timeout,
             synapse_client=synapse_client,
         )
-
         if download_location:
             return csv_path
 
