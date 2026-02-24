@@ -932,10 +932,10 @@ class TestRowStorage:
         # AND The spy should have been called in multiple batches
         assert spy_send_job.call_count == 1
 
-    def test_store_rows_with_json_dict_columns_and_quotes(
+    def test_store_rows_with_quotes_and_apostrophes_ellipses(
         self, project_model: Project
     ) -> None:
-        """Test that dict columns with quotes in values are properly stored and retrieved"""
+        """Test columns with quotes, apostrophes, and ellipses (in lists, dicts, and standalone) in values are properly stored and retrieved in the tables"""
         # GIVEN a table with a JSON column
         table_name = str(uuid.uuid4())
         table = Table(
@@ -944,6 +944,13 @@ class TestRowStorage:
             columns=[
                 Column(name="id", column_type=ColumnType.INTEGER),
                 Column(name="json_data", column_type=ColumnType.JSON),
+                Column(
+                    name="string_list_with_ellipses", column_type=ColumnType.STRING_LIST
+                ),
+                Column(name="string_col_with_ellipses", column_type=ColumnType.STRING),
+                Column(name="int_list_with_pa_na", column_type=ColumnType.INTEGER_LIST),
+                Column(name="nullable_int", column_type=ColumnType.INTEGER),
+                Column(name="nullable_float", column_type=ColumnType.DOUBLE),
             ],
         )
         table = table.store(synapse_client=self.syn)
@@ -952,305 +959,143 @@ class TestRowStorage:
         # AND data with quotes in JSON values
         data_for_table = pd.DataFrame(
             {
-                "id": [1, 2, 3],
+                "id": [1, 2, 3, 4, 5, 6, 7],
                 "json_data": [
                     {"description": 'Text with "quotes" here', "value": 100},
-                    {"description": 'Another "quoted" text', "value": 200},
                     {
                         "description": 'Multiple "quoted" "words" here',
                         "value": 300,
                     },
+                    {
+                        "description": ...,
+                        "value": 200,
+                    },  # standalone ellipses in the json value
+                    {
+                        "description": [1, 2, ...],
+                        "value": 400,
+                    },  # list with ellipses in the json value
+                    {
+                        "description": {"inner": ...},
+                        "value": 500,
+                    },  # dict with ellipses in the json value
+                    {
+                        "description": "single apostrophe's",
+                        "author": "D'Angelo",
+                    },  # single apostrophe in the json value
+                    {
+                        "description": "Multiple's apostrophe's",
+                        "author": "McDonald's",
+                    },  # multiple apostrophe's in the json value
                 ],
+                "string_list_with_ellipses": [
+                    ["a", "b", ...],
+                    ["d", ..., "f"],
+                    ["g", "h", "i"],
+                    [...],
+                    ["m", "n", "..."],
+                    ["p", "q", "r"],
+                    ["s", "t", "u"],
+                ],
+                "string_col_with_ellipses": [
+                    "value1",
+                    ...,
+                    "value3",
+                    ...,
+                    "value6",
+                    ...,
+                    "value8",
+                ],
+                "int_list_with_pa_na": [
+                    [1, 2, 3],
+                    pd.NA,
+                    [7, 8, 9],
+                    pd.NA,
+                    [11, 12, 13],
+                    pd.NA,
+                    [15, 16, 17],
+                ],
+                "nullable_int": pd.array([10, pd.NA, 30, pd.NA, 31, pd.NA, 32]),
+                "nullable_float": pd.array([1.1, pd.NA, 3.3, pd.NA, 3.4, pd.NA, 3.5]),
             }
         )
-
         # WHEN I store the rows
         table.store_rows(
             values=data_for_table,
             synapse_client=self.syn,
         )
-
         # THEN I can query the table and retrieve the data correctly
         results = query(
             f"SELECT * FROM {table.id}",
             synapse_client=self.syn,
         )
-
         # AND the JSON data should be properly preserved with quotes
-        assert len(results) == 3
+        assert len(results) == 7
         expected_result = pd.DataFrame(
             {
-                "id": [1, 2, 3],
+                "id": [1, 2, 3, 4, 5, 6, 7],
                 "json_data": [
                     {"description": 'Text with "quotes" here', "value": 100},
-                    {"description": 'Another "quoted" text', "value": 200},
-                    {"description": 'Multiple "quoted" "words" here', "value": 300},
+                    {
+                        "description": 'Multiple "quoted" "words" here',
+                        "value": 300,
+                    },
+                    {
+                        "description": "...",
+                        "value": 200,
+                    },  # standalone ellipses in the json value
+                    {
+                        "description": [1, 2, "..."],
+                        "value": 400,
+                    },  # list with ellipses in the json value
+                    {
+                        "description": {"inner": "..."},
+                        "value": 500,
+                    },  # dict with ellipses in the json value
+                    {
+                        "description": "single apostrophe's",
+                        "author": "D'Angelo",
+                    },  # single apostrophe in the json value
+                    {
+                        "description": "Multiple's apostrophe's",
+                        "author": "McDonald's",
+                    },  # multiple apostrophe's in the json value
                 ],
+                "string_list_with_ellipses": [
+                    ["a", "b", "..."],
+                    ["d", "...", "f"],
+                    ["g", "h", "i"],
+                    ["..."],
+                    ["m", "n", "..."],
+                    ["p", "q", "r"],
+                    ["s", "t", "u"],
+                ],
+                "string_col_with_ellipses": [
+                    "value1",
+                    "...",
+                    "value3",
+                    "...",
+                    "value6",
+                    "...",
+                    "value8",
+                ],
+                "int_list_with_pa_na": [
+                    [1, 2, 3],
+                    [],
+                    [7, 8, 9],
+                    [],
+                    [11, 12, 13],
+                    [],
+                    [15, 16, 17],
+                ],
+                "nullable_int": pd.array([10, None, 30, None, 31, None, 32]),
+                "nullable_float": pd.array([1.1, None, 3.3, None, 3.4, None, 3.5]),
             }
         )
         assert is_object_dtype(results.json_data)
-        pd.testing.assert_frame_equal(
-            results.drop(columns=["ROW_ID", "ROW_VERSION"]),
-            expected_result,
-            check_dtype=False,
-        )
+        assert is_object_dtype(results.int_list_with_pa_na)
+        assert is_object_dtype(results.nullable_int)
+        assert is_object_dtype(results.nullable_float)
 
-    def test_store_rows_with_ellipsis_in_list_columns(
-        self, project_model: Project
-    ) -> None:
-        """Test that Ellipsis (...) in list columns are properly converted to '...' strings"""
-        # GIVEN a table with list columns
-        table_name = str(uuid.uuid4())
-        table = Table(
-            name=table_name,
-            parent_id=project_model.id,
-            columns=[
-                Column(name="id", column_type=ColumnType.INTEGER),
-                Column(name="string_list", column_type=ColumnType.STRING_LIST),
-            ],
-        )
-        table = table.store(synapse_client=self.syn)
-        self.schedule_for_cleanup(table.id)
-
-        # AND data with Ellipsis in lists
-        data_for_table = pd.DataFrame(
-            {
-                "id": [1, 2, 3],
-                "string_list": [["a", "b", ...], ["d", ..., "f"], ["g", "h", "i"]],
-            }
-        )
-
-        # WHEN I store the rows
-        table.store_rows(
-            values=data_for_table,
-            synapse_client=self.syn,
-        )
-
-        # THEN I can query the table and retrieve the data with Ellipsis converted
-        results = query(
-            f"SELECT * FROM {table.id}",
-            synapse_client=self.syn,
-        )
-
-        # AND Ellipsis should be converted to "..." string in lists
-        assert len(results) == 3
-        # Note: Synapse returns list columns as JSON strings, need to parse them
-        expected_result = pd.DataFrame(
-            {
-                "id": [1, 2, 3],
-                "string_list": [["a", "b", "..."], ["d", "...", "f"], ["g", "h", "i"]],
-            }
-        )
-        pd.testing.assert_frame_equal(
-            results.drop(columns=["ROW_ID", "ROW_VERSION"]),
-            expected_result,
-            check_dtype=False,
-        )
-
-    def test_store_rows_with_ellipsis_in_json_columns(
-        self, project_model: Project
-    ) -> None:
-        """Test that Ellipsis (...) in JSON dict columns are properly converted"""
-        # GIVEN a table with JSON columns
-        table_name = str(uuid.uuid4())
-        table = Table(
-            name=table_name,
-            parent_id=project_model.id,
-            columns=[
-                Column(name="id", column_type=ColumnType.INTEGER),
-                Column(name="json_data", column_type=ColumnType.JSON),
-            ],
-        )
-        table = table.store(synapse_client=self.syn)
-        self.schedule_for_cleanup(table.id)
-
-        # AND data with Ellipsis in dicts
-        data_for_table = pd.DataFrame(
-            {
-                "id": [1, 2, 3],
-                "json_data": [
-                    {"id": 1, "data": ...},
-                    {"id": 2, "items": [1, 2, ...]},
-                    {"id": 3, "nested": {"inner": ...}},
-                ],
-            }
-        )
-
-        # WHEN I store the rows
-        table.store_rows(
-            values=data_for_table,
-            synapse_client=self.syn,
-        )
-
-        # THEN I can query the table and Ellipsis should be converted to "..."
-        results = query(
-            f"SELECT * FROM {table.id}",
-            synapse_client=self.syn,
-        )
-
-        # AND Ellipsis should be converted to "..." string in JSON
-        assert len(results) == 3
-        expected_result = pd.DataFrame(
-            {
-                "id": [1, 2, 3],
-                "json_data": [
-                    {"id": 1, "data": "..."},
-                    {"id": 2, "items": [1, 2, "..."]},
-                    {"id": 3, "nested": {"inner": "..."}},
-                ],
-            }
-        )
-        pd.testing.assert_frame_equal(
-            results.drop(columns=["ROW_ID", "ROW_VERSION"]),
-            expected_result,
-            check_dtype=False,
-        )
-        assert is_object_dtype(results.json_data)
-
-    def test_store_rows_with_standalone_ellipsis(self, project_model: Project) -> None:
-        """Test that standalone Ellipsis values are converted to '...' strings"""
-        # GIVEN a table with mixed column types
-        table_name = str(uuid.uuid4())
-        table = Table(
-            name=table_name,
-            parent_id=project_model.id,
-            columns=[
-                Column(name="id", column_type=ColumnType.INTEGER),
-                Column(name="string_col", column_type=ColumnType.STRING),
-            ],
-        )
-        table = table.store(synapse_client=self.syn)
-        self.schedule_for_cleanup(table.id)
-
-        # AND data with standalone Ellipsis
-        data_for_table = pd.DataFrame(
-            {
-                "id": [1, 2, 3],
-                "string_col": ["value1", ..., "value3"],
-            }
-        )
-
-        # WHEN I store the rows
-        table.store_rows(
-            values=data_for_table,
-            synapse_client=self.syn,
-        )
-
-        # THEN I can query the table and Ellipsis should be converted to "..."
-        results = query(
-            f"SELECT * FROM {table.id}",
-            synapse_client=self.syn,
-        )
-
-        # AND standalone Ellipsis should be converted to "..." string
-        assert len(results) == 3
-        expected_result = pd.DataFrame(
-            {
-                "id": [1, 2, 3],
-                "string_col": ["value1", "...", "value3"],
-            }
-        )
-        for idx, row in results.iterrows():
-            assert row["string_col"] == expected_result.loc[idx, "string_col"]
-        assert is_object_dtype(results.string_col)
-
-    def test_store_rows_with_pd_na_in_lists(self, project_model: Project) -> None:
-        """Test that pd.NA values in list columns are properly handled"""
-        # GIVEN a table with list columns
-        table_name = str(uuid.uuid4())
-        table = Table(
-            name=table_name,
-            parent_id=project_model.id,
-            columns=[
-                Column(name="id", column_type=ColumnType.INTEGER),
-                Column(name="int_list", column_type=ColumnType.INTEGER_LIST),
-            ],
-        )
-        table = table.store(synapse_client=self.syn)
-        self.schedule_for_cleanup(table.id)
-
-        # AND data with pd.NA in lists
-        data_for_table = pd.DataFrame(
-            {
-                "id": [1, 2, 3, 4],
-                "int_list": [[1, 2, 3], pd.NA, [7, 8, 9], None],
-            }
-        )
-
-        # WHEN I store the rows
-        table.store_rows(
-            values=data_for_table,
-            synapse_client=self.syn,
-        )
-
-        results = query(
-            f"SELECT * FROM {table.id}",
-            synapse_client=self.syn,
-        )
-
-        assert len(results) == 4
-        expected_result = pd.DataFrame(
-            {
-                "id": [1, 2, 3, 4],
-                "int_list": [[1, 2, 3], [], [7, 8, 9], []],
-            }
-        )
-        pd.testing.assert_frame_equal(
-            results.drop(columns=["ROW_ID", "ROW_VERSION"]),
-            expected_result,
-            check_dtype=False,
-        )
-        assert is_object_dtype(results.int_list)
-
-    def test_store_rows_with_nullable_integer_columns(
-        self, project_model: Project
-    ) -> None:
-        """Test that nullable integer columns with pd.NA are properly stored"""
-        # GIVEN a table with integer columns
-        table_name = str(uuid.uuid4())
-        table = Table(
-            name=table_name,
-            parent_id=project_model.id,
-            columns=[
-                Column(name="id", column_type=ColumnType.INTEGER),
-                Column(name="nullable_int", column_type=ColumnType.INTEGER),
-                Column(name="nullable_float", column_type=ColumnType.DOUBLE),
-            ],
-        )
-        table = table.store(synapse_client=self.syn)
-        self.schedule_for_cleanup(table.id)
-
-        # AND data with pd.NA in nullable integer columns
-        data_for_table = pd.DataFrame(
-            {
-                "id": [1, 2, 3, 4],
-                "nullable_int": pd.array([10, pd.NA, 30, pd.NA]),
-                "nullable_float": pd.array([1.1, pd.NA, 3.3, pd.NA]),
-            }
-        )
-        data_for_table = data_for_table.convert_dtypes()
-        data_for_table = data_for_table.replace({pd.NA: None})
-        # WHEN I store the rows
-        table.store_rows(
-            values=data_for_table,
-            synapse_client=self.syn,
-        )
-
-        # THEN I can query the table and pd.NA should be converted to None
-        results = query(
-            f"SELECT * FROM {table.id}",
-            synapse_client=self.syn,
-        )
-
-        # AND pd.NA should be represented as None/NaN
-        assert len(results) == 4
-        expected_result = pd.DataFrame(
-            {
-                "id": [1, 2, 3, 4],
-                "nullable_int": pd.array([10, None, 30, None]),
-                "nullable_float": pd.array([1.1, None, 3.3, None]),
-            }
-        )
         expected_result = expected_result.convert_dtypes()
         expected_result = expected_result.replace({pd.NA: None})
         pd.testing.assert_frame_equal(
@@ -1258,71 +1103,6 @@ class TestRowStorage:
             expected_result,
             check_dtype=False,
         )
-        assert is_object_dtype(results.nullable_int)
-        assert is_object_dtype(results.nullable_float)
-
-    def test_store_rows_with_json_containing_apostrophes(
-        self, project_model: Project
-    ) -> None:
-        """Test that JSON data with apostrophes is properly stored and retrieved"""
-        # GIVEN a table with a JSON column
-        table_name = str(uuid.uuid4())
-        table = Table(
-            name=table_name,
-            parent_id=project_model.id,
-            columns=[
-                Column(name="id", column_type=ColumnType.INTEGER),
-                Column(name="json_data", column_type=ColumnType.JSON),
-            ],
-        )
-        table = table.store(synapse_client=self.syn)
-        self.schedule_for_cleanup(table.id)
-
-        # AND data with apostrophes in JSON values
-        data_for_table = pd.DataFrame(
-            {
-                "id": [1, 2, 3],
-                "json_data": [
-                    {"description": "Sage's work", "author": "O'Brien"},
-                    {"description": "It's a test", "author": "D'Angelo"},
-                    {
-                        "description": "Multiple's apostrophe's",
-                        "author": "McDonald's",
-                    },
-                ],
-            }
-        )
-
-        # WHEN I store the rows
-        table.store_rows(
-            values=data_for_table,
-            synapse_client=self.syn,
-        )
-
-        # THEN I can query the table and retrieve the data with apostrophes correctly
-        results = query(
-            f"SELECT * FROM {table.id}",
-            synapse_client=self.syn,
-        )
-
-        # AND the JSON data should preserve apostrophes
-        assert len(results) == 3
-        expected_result = pd.DataFrame(
-            {
-                "id": [1, 2, 3],
-                "json_data": [
-                    {"description": "Sage's work", "author": "O'Brien"},
-                    {"description": "It's a test", "author": "D'Angelo"},
-                    {"description": "Multiple's apostrophe's", "author": "McDonald's"},
-                ],
-            }
-        )
-        pd.testing.assert_frame_equal(
-            results.drop(columns=["ROW_ID", "ROW_VERSION"]),
-            expected_result,
-            check_dtype=False,
-        )
-        assert is_object_dtype(results.json_data)
 
 
 class TestUpsertRows:
