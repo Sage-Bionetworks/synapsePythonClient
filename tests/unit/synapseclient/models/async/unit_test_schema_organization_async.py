@@ -4,7 +4,6 @@ from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
 
-from build.lib.synapseclient.models.schema_organization import _check_name
 from synapseclient import Synapse
 from synapseclient.models.mixins.json_schema import JSONSchemaVersionInfo
 from synapseclient.models.schema_organization import (
