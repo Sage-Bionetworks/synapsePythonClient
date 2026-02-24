@@ -298,11 +298,17 @@ def create_record_based_metadata_task(
 
 def project_id_from_entity_id(entity_id: str, synapse_client: Synapse) -> str:
     """
-    Helper function to retrieve the project ID from a given entity ID by traversing up the hierarchy.
+    Retrieves the project ID from a given entity ID by traversing up the the folder hierarchy
 
     Args:
         entity_id: The Synapse ID of the entity (e.g., folder, file) to start from.
         synapse_client: Authenticated Synapse client instance
+
+    Returns:
+        The Synapse ID of the project that the entity belongs to.
+
+    Raises:
+        ValueError: If the project ID cannot be found within 1000 iterations.
     """
 
     # Get the project ID from the folder ID
