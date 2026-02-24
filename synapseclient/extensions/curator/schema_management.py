@@ -20,6 +20,7 @@ def register_jsonschema(
     schema_path: str,
     organization_name: str,
     schema_name: str,
+    fix_schema_name: bool = False,
     schema_version: Optional[str] = None,
     synapse_client: Optional["Synapse"] = None,
 ) -> "JSONSchema":
@@ -33,6 +34,8 @@ def register_jsonschema(
         schema_path: Path to the JSON schema file to register
         organization_name: Name of the organization to register the schema under
         schema_name: Name of the JSON schema
+        fix_schema_name: Whether to fix the schema name to meet Synapse requirements by replacing
+            dashes and underscores with periods. Defaults to False.
         schema_version: Optional version of the schema (e.g., '0.0.1').
                        If not specified, a version will be auto-generated.
         synapse_client: If not passed in and caching was not disabled by
@@ -54,6 +57,7 @@ def register_jsonschema(
             schema_path="/path/to/schema.json",
             organization_name="my.org",
             schema_name="my.schema",
+            fix_schema_name=True,
             schema_version="0.0.1",
             synapse_client=syn
         )
@@ -65,6 +69,7 @@ def register_jsonschema(
         coroutine=register_jsonschema_async(
             schema_path=schema_path,
             organization_name=organization_name,
+            fix_schema_name=fix_schema_name,
             schema_name=schema_name,
             schema_version=schema_version,
             synapse_client=synapse_client,
@@ -76,6 +81,7 @@ async def register_jsonschema_async(
     schema_path: str,
     organization_name: str,
     schema_name: str,
+    fix_schema_name: bool = False,
     schema_version: Optional[str] = None,
     synapse_client: Optional["Synapse"] = None,
 ) -> "JSONSchema":
@@ -89,6 +95,8 @@ async def register_jsonschema_async(
         schema_path: Path to the JSON schema file to register
         organization_name: Name of the organization to register the schema under
         schema_name: The name of the JSON schema
+        fix_schema_name: Whether to fix the schema name to meet Synapse requirements by replacing
+            dashes and underscores with periods. Defaults to False.
         schema_version: Optional version of the schema (e.g., '0.0.1').
                        If not specified, a version will be auto-generated.
         synapse_client: If not passed in and caching was not disabled by
@@ -111,6 +119,7 @@ async def register_jsonschema_async(
             schema_path="/path/to/schema.json",
             organization_name="my.org",
             schema_name="my.schema",
+            fix_schema_name=True,
             schema_version="0.0.1",
             synapse_client=syn
         ))
@@ -120,6 +129,9 @@ async def register_jsonschema_async(
     """
     from synapseclient import Synapse
     from synapseclient.models.schema_organization import JSONSchema
+
+    if fix_schema_name:
+        schema_name = schema_name.replace("-", ".").replace("_", ".")
 
     syn = Synapse.get_client(synapse_client=synapse_client)
 

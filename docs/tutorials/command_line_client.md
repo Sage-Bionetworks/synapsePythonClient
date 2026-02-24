@@ -575,6 +575,7 @@ synapse register-json-schema [-h] [--schema-version VERSION] schema_path organiz
 | `organization_name`   | Positional | Name of the organization to register the schema under                               |         |
 | `schema_name`         | Positional | The name of the JSON schema                                                         |         |
 | `--schema-version`    | Named      | Version of the schema to register (e.g., '0.0.1'). If not specified, auto-generated | None    |
+| `--fix-schema-name`   | Named      | Replace dashes and underscores in the schema name with periods.                     | False   |
 
 ### `bind-json-schema`
 
