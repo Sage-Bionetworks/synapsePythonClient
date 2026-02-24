@@ -254,7 +254,7 @@ class SchemaOrganization(SchemaOrganizationProtocol):
 
     def __post_init__(self) -> None:
         if self.name:
-            _check_name(self.name)
+            _check_org_name(self.name)
 
     async def get_async(
         self, *, synapse_client: Optional["Synapse"] = None
@@ -826,9 +826,9 @@ class JSONSchema(JSONSchemaProtocol):
 
     def __post_init__(self) -> None:
         if self.name:
-            _check_name(self.name)
+            _check_schema_name(self.name)
         if self.organization_name:
-            _check_name(self.organization_name)
+            _check_org_name(self.organization_name)
         if self.name and self.organization_name:
             self.uri = f"{self.organization_name}-{self.name}"
         else:
@@ -1313,8 +1313,8 @@ class CreateSchemaRequest(AsynchronousCommunicator):
 
     def __post_init__(self) -> None:
         self.concrete_type = CREATE_SCHEMA_REQUEST
-        _check_name(self.name)
-        _check_name(self.organization_name)
+        _check_schema_name(self.name)
+        _check_org_name(self.organization_name)
         uri = f"{self.organization_name}-{self.name}"
         if self.version:
             self._check_semantic_version(self.version)
@@ -1428,9 +1428,9 @@ def list_json_schema_organizations(
     return all_orgs
 
 
-def _check_name(name: str) -> None:
+def _check_org_name(name: str) -> None:
     """
-    Checks that the input name is a valid Synapse Organization or JSONSchema name
+    Checks that the input name is a valid Synapse Organization
     - Length requirement of 6 ≤ x ≤ 250
     - Names do not contain the string sagebionetworks (case insensitive)
     - May contain periods (each part is separated by periods)
@@ -1452,7 +1452,32 @@ def _check_name(name: str) -> None:
         if not re.match(r"^([A-Za-z])([A-Za-z]|\d|)*$", part):
             raise ValueError(
                 (
-                    "Name may be separated by periods, "
+                    "Organization name may be separated by periods, "
+                    "but each part must start with a letter and contain "
+                    f"only letters and numbers: {name}"
+                )
+            )
+
+
+def _check_schema_name(name: str) -> None:
+    """
+    Checks that the input name is a valid Synapse JSONSchema name
+    - May contain periods (each part is separated by periods)
+    - Each part must start with a letter
+    - Each part contains only letters and numbers
+
+    Arguments:
+        name: The name of the schema to be checked
+
+    Raises:
+        ValueError: When the name isn't valid
+    """
+    parts = name.split(".")
+    for part in parts:
+        if not re.match(r"^([A-Za-z])([A-Za-z]|\d|)*$", part):
+            raise ValueError(
+                (
+                    "Schema name may be separated by periods, "
                     "but each part must start with a letter and contain "
                     f"only letters and numbers: {name}"
                 )

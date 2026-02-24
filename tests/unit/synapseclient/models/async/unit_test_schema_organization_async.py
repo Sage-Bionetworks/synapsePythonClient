@@ -4,13 +4,15 @@ from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
 
+from build.lib.synapseclient.models.schema_organization import _check_name
 from synapseclient import Synapse
 from synapseclient.models.mixins.json_schema import JSONSchemaVersionInfo
 from synapseclient.models.schema_organization import (
     CreateSchemaRequest,
     JSONSchema,
     SchemaOrganization,
-    _check_name,
+    _check_org_name,
+    _check_schema_name,
 )
 
 ORG_NAME = "mytest.organization"
@@ -97,42 +99,59 @@ def _get_acl_response():
     }
 
 
-class TestCheckName:
-    """Tests for the _check_name validation function."""
+class TestCheckOrgName:
+    """Tests for the _check_org_name validation function."""
 
     def test_valid_name(self) -> None:
         # GIVEN a valid name
         # WHEN I check the name
         # THEN no exception should be raised
-        _check_name("mytest.organization")
+        _check_org_name("mytest.organization")
 
     def test_name_too_short(self) -> None:
         # GIVEN a name that is too short
         # WHEN I check the name
         # THEN it should raise ValueError
         with pytest.raises(ValueError, match="length 6 to 250"):
-            _check_name("abc")
+            _check_org_name("abc")
 
     def test_name_too_long(self) -> None:
         # GIVEN a name that is too long
         # WHEN I check the name
         # THEN it should raise ValueError
         with pytest.raises(ValueError, match="length 6 to 250"):
-            _check_name("a" * 251)
+            _check_org_name("a" * 251)
 
     def test_name_contains_sagebionetworks(self) -> None:
         # GIVEN a name containing 'sagebionetworks'
         # WHEN I check the name
         # THEN it should raise ValueError
         with pytest.raises(ValueError, match="sagebionetworks"):
-            _check_name("my.sagebionetworks.test")
+            _check_org_name("my.sagebionetworks.test")
 
     def test_name_part_starts_with_number(self) -> None:
         # GIVEN a name where a part starts with a number
         # WHEN I check the name
         # THEN it should raise ValueError
         with pytest.raises(ValueError, match="must start with a letter"):
-            _check_name("mytest.1invalid")
+            _check_org_name("mytest.1invalid")
+
+
+class TestCheckSchemaName:
+    """Tests for the _check_schema_name validation function."""
+
+    def test_valid_name(self) -> None:
+        # GIVEN a valid name
+        # WHEN I check the name
+        # THEN no exception should be raised
+        _check_schema_name("mytest.schema")
+
+    def test_name_part_starts_with_number(self) -> None:
+        # GIVEN a name where a part starts with a number
+        # WHEN I check the name
+        # THEN it should raise ValueError
+        with pytest.raises(ValueError, match="must start with a letter"):
+            _check_schema_name("mytest.1invalid")
 
 
 class TestSchemaOrganization:
