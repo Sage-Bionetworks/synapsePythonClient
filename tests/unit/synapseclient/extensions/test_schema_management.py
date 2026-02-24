@@ -24,14 +24,12 @@ def mock_jsonschema():
 
 @pytest.mark.asyncio
 async def test_register_jsonschema_async(mock_synapse_client, mock_jsonschema):
-    # Setup
     schema_path = "mock_path.json"
     schema_content = {"$id": "test_schema", "type": "object"}
     org_name = "test.org"
     schema_name = "my-schema_name"
     version = "1.0.0"
 
-    # Mock file reading and the Synapse client retrieval
     m_open = mock_open(read_data=json.dumps(schema_content))
 
     with patch("builtins.open", m_open), patch(
@@ -50,7 +48,6 @@ async def test_register_jsonschema_async(mock_synapse_client, mock_jsonschema):
             name=schema_name, organization_name=org_name
         )
 
-        # Verify the async store was called with the right data
         result.store_async.assert_awaited_once_with(
             schema_body=schema_content,
             version=version,
@@ -64,7 +61,6 @@ async def test_register_jsonschema_async(mock_synapse_client, mock_jsonschema):
 async def test_register_jsonschema_async_fix_schema_name(
     mock_synapse_client, mock_jsonschema
 ):
-    # Setup
     schema_path = "mock_path.json"
     schema_content = {"$id": "test_schema", "type": "object"}
     org_name = "test.org"
@@ -72,7 +68,6 @@ async def test_register_jsonschema_async_fix_schema_name(
     fixed_schema_name = "my.schema.name"
     version = "1.0.0"
 
-    # Mock file reading and the Synapse client retrieval
     m_open = mock_open(read_data=json.dumps(schema_content))
 
     with patch("builtins.open", m_open), patch(
@@ -92,7 +87,6 @@ async def test_register_jsonschema_async_fix_schema_name(
             name=fixed_schema_name, organization_name=org_name
         )
 
-        # Verify the async store was called with the right data
         result.store_async.assert_awaited_once_with(
             schema_body=schema_content,
             version=version,
