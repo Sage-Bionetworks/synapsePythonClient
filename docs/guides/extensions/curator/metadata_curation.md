@@ -18,6 +18,7 @@ By following this guide, you will:
 - Python environment with synapseclient and the `curator` extension installed (ie. `pip install --upgrade "synapseclient[curator]"`)
 - An existing Synapse project and folder where you want to manage metadata
 - A JSON Schema registered in Synapse (many schemas are already available for Sage-affiliated projects, or you can register your own by following the [JSON Schema tutorial](../../../tutorials/python/json_schema.md))
+    - If you are leveraging the [Curator CSV data model](../../../explanations/curator_data_model.md), you can create JSON schemas by following this [tutorial](../../extensions/curator/schema_operations.md)
 - (Optional) An existing Synapse team if you want multiple users to collaborate on the same Grid session. Pass the team's ID as `assignee_principal_id` when creating the curation task.
 
 ## Step 1: Authenticate and import required functions
