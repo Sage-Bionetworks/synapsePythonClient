@@ -12,31 +12,31 @@ if TYPE_CHECKING:
 
 
 async def create_storage_location_setting(
-    body: Dict[str, Any],
+    request: Dict[str, Any],
     *,
     synapse_client: Optional["Synapse"] = None,
 ) -> Dict[str, Any]:
-    """Create a new storage location setting in Synapse.
+    """Create a new storage location in Synapse that can be linked to a project,
+    allowing users to upload their data to a storage location they own.
 
     Storage location creation is idempotent per user - if the same user creates
     a storage location with identical properties, the existing one is returned.
 
     Arguments:
-        body: The storage location setting request body containing concreteType
-            and other type-specific fields.
+        request: The storage location setting matching <https://rest-docs.synapse.org/rest/org/sagebionetworks/repo/model/project/StorageLocationSetting.html>.
         synapse_client: If not passed in and caching was not disabled by
             `Synapse.allow_client_caching(False)` this will use the last created
             instance from the Synapse class constructor.
 
     Returns:
-        The created or existing storage location setting as a dictionary.
+        The created storage location setting matching <https://rest-docs.synapse.org/rest/org/sagebionetworks/repo/model/project/StorageLocationSetting.html>.
     """
     from synapseclient import Synapse
 
     client = Synapse.get_client(synapse_client=synapse_client)
     return await client.rest_post_async(
         uri="/storageLocation",
-        body=json.dumps(body),
+        body=json.dumps(request),
     )
 
 
@@ -56,7 +56,7 @@ async def get_storage_location_setting(
             instance from the Synapse class constructor.
 
     Returns:
-        The storage location setting as a dictionary.
+        The created storage location setting matching <https://rest-docs.synapse.org/rest/org/sagebionetworks/repo/model/project/StorageLocationSetting.html>.
     """
     from synapseclient import Synapse
 
@@ -68,91 +68,99 @@ async def get_storage_location_setting(
 
 async def get_project_setting(
     project_id: str,
-    setting_type: str,
+    project_setting_type: str,
     *,
     synapse_client: Optional["Synapse"] = None,
 ) -> Optional[Dict[str, Any]]:
-    """Get the project setting for an entity.
+    """Retrieve the project setting of a particular setting type for the project or folder.
+    Only users with READ access on a project can retrieve its project settings.
 
     Arguments:
         project_id: The Synapse ID of the project or folder.
-        setting_type: The type of setting to retrieve. Currently supports 'upload' only.
+        project_setting_type: The type of project setting to retrieve. Currently supports 'upload' only.
         synapse_client: If not passed in and caching was not disabled by
             `Synapse.allow_client_caching(False)` this will use the last created
             instance from the Synapse class constructor.
 
     Returns:
-        The project setting as a dictionary, or None if no setting exists.
+        The upload destination list setting matching <https://rest-docs.synapse.org/rest/org/sagebionetworks/repo/model/project/UploadDestinationListSetting.html>.
+        If the storage location is Synapse S3, the response will be an empty string.
     """
     from synapseclient import Synapse
 
     client = Synapse.get_client(synapse_client=synapse_client)
     response = await client.rest_get_async(
-        uri=f"/projectSettings/{project_id}/type/{setting_type}",
+        uri=f"/projectSettings/{project_id}/type/{project_setting_type}",
     )
-    # If no project setting, an empty string is returned as the response
-    return response if response else None
+    return response
 
 
 async def create_project_setting(
-    body: Dict[str, Any],
+    request: Dict[str, Any],
     *,
     synapse_client: Optional["Synapse"] = None,
 ) -> Dict[str, Any]:
-    """Create a new project setting.
+    """Create a project setting for a project or folder.
+    Only the users with CREATE access to the project or folder can add a project setting.
+    Currently, only the "upload" project setting is supported. This is implemented using UploadDestinationListSetting matching <https://rest-docs.synapse.org/rest/org/sagebionetworks/repo/model/project/UploadDestinationListSetting.html>.
+    A project can have a maximum of 10 storage locations.
 
     Arguments:
-        body: The project setting request body.
+        request: The project setting request body matching <https://rest-docs.synapse.org/rest/org/sagebionetworks/repo/model/project/ProjectSetting.html>.
         synapse_client: If not passed in and caching was not disabled by
             `Synapse.allow_client_caching(False)` this will use the last created
             instance from the Synapse class constructor.
 
     Returns:
-        The created project setting as a dictionary.
+        The created project setting matching <https://rest-docs.synapse.org/rest/org/sagebionetworks/repo/model/project/ProjectSetting.html>.
     """
     from synapseclient import Synapse
 
     client = Synapse.get_client(synapse_client=synapse_client)
     return await client.rest_post_async(
         uri="/projectSettings",
-        body=json.dumps(body),
+        body=json.dumps(request),
     )
 
 
 async def update_project_setting(
-    body: Dict[str, Any],
+    request: Dict[str, Any],
     *,
     synapse_client: Optional["Synapse"] = None,
-) -> Dict[str, Any]:
-    """Update an existing project setting.
+) -> None:
+    """Update an existing project setting for a project or folder.
+    Only the users with UPDATE access to the project or folder can update a project setting.
+    Currently, only the "upload" project setting is supported. This is implemented using UploadDestinationListSetting matching <https://rest-docs.synapse.org/rest/org/sagebionetworks/repo/model/project/UploadDestinationListSetting.html>.
+    A project can have a maximum of 10 storage locations.
 
     Arguments:
-        body: The project setting request body including the id field.
+        request: The project setting request body including the id field matching <https://rest-docs.synapse.org/rest/org/sagebionetworks/repo/model/project/ProjectSetting.html>.
         synapse_client: If not passed in and caching was not disabled by
             `Synapse.allow_client_caching(False)` this will use the last created
             instance from the Synapse class constructor.
 
     Returns:
-        The updated project setting as a dictionary.
+        None
     """
     from synapseclient import Synapse
 
     client = Synapse.get_client(synapse_client=synapse_client)
     return await client.rest_put_async(
         uri="/projectSettings",
-        body=json.dumps(body),
+        body=json.dumps(request),
     )
 
 
 async def delete_project_setting(
-    setting_id: str,
+    project_setting_id: str,
     *,
     synapse_client: Optional["Synapse"] = None,
 ) -> None:
-    """Delete a project setting.
+    """Delete a project setting for a project or folder.
+    Only the users with DELETE access to the project or folder can delete a project setting.
 
     Arguments:
-        setting_id: The ID of the project setting to delete.
+        project_setting_id: The ID of the project setting to delete.
         synapse_client: If not passed in and caching was not disabled by
             `Synapse.allow_client_caching(False)` this will use the last created
             instance from the Synapse class constructor.
@@ -164,5 +172,5 @@ async def delete_project_setting(
 
     client = Synapse.get_client(synapse_client=synapse_client)
     await client.rest_delete_async(
-        uri=f"/projectSettings/{setting_id}",
+        uri=f"/projectSettings/{project_setting_id}",
     )
