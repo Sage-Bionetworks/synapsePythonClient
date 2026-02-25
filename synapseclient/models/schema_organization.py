@@ -1449,12 +1449,15 @@ def _check_org_name(name: str) -> None:
         raise ValueError(f"The name must not contain 'sagebionetworks' : {name}")
     parts = name.split(".")
     for part in parts:
-        if not re.match(r"^([A-Za-z])([A-Za-z]|\d|)*$", part):
+        if len(part) == 0:
+            raise ValueError(f"Organization name sections must not be empty: {name}")
+        if not re.match(r"^([A-Za-z])([A-Za-z0-9])*$", part):
             raise ValueError(
                 (
-                    "Organization name may be separated by periods, "
-                    "but each part must start with a letter and contain "
-                    f"only letters and numbers: {name}"
+                    f"Un-allowed characters in organization name: {name}"
+                    "Organization name may separated into sections by periods. "
+                    "For example 'my.organization.name'. "
+                    "Each section must start with a letter and contain only letters and numbers."
                 )
             )
 
@@ -1474,11 +1477,14 @@ def _check_schema_name(name: str) -> None:
     """
     parts = name.split(".")
     for part in parts:
-        if not re.match(r"^([A-Za-z])([A-Za-z]|\d|)*$", part):
+        if len(part) == 0:
+            raise ValueError(f"Schema name sections must not be empty: {name}")
+        if not re.match(r"^([A-Za-z])([A-Za-z0-9])*$", part):
             raise ValueError(
                 (
-                    "Schema name may be separated by periods, "
-                    "but each part must start with a letter and contain "
-                    f"only letters and numbers: {name}"
+                    f"Un-allowed characters in schema name: {name}"
+                    "Schema name may separated into sections by periods. "
+                    "For example 'my.schema.name'. "
+                    "Each section must start with a letter and contain only letters and numbers."
                 )
             )
