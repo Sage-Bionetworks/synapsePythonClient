@@ -4,6 +4,7 @@ from unittest.mock import AsyncMock, MagicMock, mock_open, patch
 import pytest
 
 from synapseclient.extensions.curator import register_jsonschema_async
+from synapseclient.extensions.curator.schema_management import fix_name
 
 
 @pytest.fixture
@@ -94,3 +95,28 @@ async def test_register_jsonschema_async_fix_schema_name(
         )
 
         assert result.uri == "syn123.456"
+
+
+@pytest.mark.parametrize(
+    "name, expected_fixed_name",
+    [
+        ("name", "name"),
+        ("name.name", "name.name"),
+        ("name..name", "name.name"),
+        ("name-name", "name.name"),
+        ("name--name", "name.name"),
+        ("name_name", "name.name"),
+        ("name-_name", "name.name"),
+    ],
+    ids=[
+        "No special characters",
+        "One period",
+        "Multiple periods",
+        "One dash",
+        "Multiple dashes",
+        "Underscore",
+        "Mixed special characters",
+    ],
+)
+def test_fix_name(name, expected_fixed_name):
+    assert fix_name(name) == expected_fixed_name

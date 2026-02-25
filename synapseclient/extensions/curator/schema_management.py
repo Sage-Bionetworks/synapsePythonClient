@@ -6,6 +6,7 @@ the Synapse JSON Schema OOP models.
 """
 
 import json
+import re
 from typing import TYPE_CHECKING, Optional
 
 from synapseclient.core.async_utils import wrap_async_to_sync
@@ -130,10 +131,12 @@ async def register_jsonschema_async(
     from synapseclient import Synapse
     from synapseclient.models.schema_organization import JSONSchema
 
-    if fix_schema_name:
-        schema_name = schema_name.replace("-", ".").replace("_", ".")
-
     syn = Synapse.get_client(synapse_client=synapse_client)
+
+    if fix_schema_name:
+        old_name = schema_name
+        schema_name = fix_name(schema_name)
+        syn.logger.info(f"Changed schema name from '{old_name}' to '{schema_name}' ")
 
     with open(schema_path, "r") as f:
         schema_body = json.load(f)
@@ -152,6 +155,24 @@ async def register_jsonschema_async(
     syn.logger.info(f"Schema URI: {json_schema.uri}")
 
     return json_schema
+
+
+def fix_name(name: str) -> str:
+    """
+    Fixes a schema name to meet Synapse requirements by:
+      - replacing dashes and underscores with periods.
+      - collapsing multiple consecutive periods into a single period.
+
+    Arguments:
+        name: The original schema name
+
+    Returns:
+        The fixed schema name
+
+    """
+    name = name.replace("-", ".").replace("_", ".")
+    name = re.sub(r"\.+", ".", name)
+    return name
 
 
 def bind_jsonschema(

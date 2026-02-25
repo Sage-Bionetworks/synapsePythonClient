@@ -1897,7 +1897,7 @@ https://rest-docs.synapse.org/rest/org/sagebionetworks/repo/web/controller/Table
         "--fix-schema-name",
         action="store_true",
         default=False,
-        help="Fixes the schema name to meet Synapse requirements by replacing dashes and underscores with periods.",
+        help="Replaces dashes and underscores with periods in the schema name (e.g., 'my-schema_name' becomes 'my.schema.name')",
     )
     parser_register_json_schema.add_argument(
         "--schema-version",
