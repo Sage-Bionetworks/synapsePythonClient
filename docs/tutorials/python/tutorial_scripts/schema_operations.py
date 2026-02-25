@@ -82,6 +82,7 @@ json_schema = register_jsonschema(
     schema_name=SCHEMA_NAME,
     schema_version=SCHEMA_VERSION,
     synapse_client=syn,
+    fix_schema_name=True,
 )
 print(f"Registered schema URI: {json_schema.uri}")
 

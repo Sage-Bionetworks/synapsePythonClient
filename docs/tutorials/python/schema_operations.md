@@ -21,7 +21,7 @@ This tutorial uses the Python client as a library. To use the CLI tool, see the 
 ## 1. Initial set up
 
 ```python
-{!docs/tutorials/python/tutorial_scripts/schema_operations.py!lines=1-18}
+{!docs/tutorials/python/tutorial_scripts/schema_operations.py!lines=1-28}
 ```
 
 To create a JSON Schema you need a data model, and the data types you want to create.
@@ -35,7 +35,7 @@ The data types must exist in your data model. This can be a list of data types, 
 Create a JSON Schema
 
 ```python
-{!docs/tutorials/python/tutorial_scripts/schema_operations.py!lines=20-27}
+{!docs/tutorials/python/tutorial_scripts/schema_operations.py!lines=30-37}
 ```
 
 You should see the first JSON Schema for the datatype you selected printed.
@@ -47,7 +47,7 @@ By setting the `output` parameter as path to a "temp" directory, the file will b
 Create multiple JSON Schema
 
 ```python
-{!docs/tutorials/python/tutorial_scripts/schema_operations.py!lines=30-36}
+{!docs/tutorials/python/tutorial_scripts/schema_operations.py!lines=40-46}
 ```
 
 The `data_types` parameter is a list and can have multiple data types.
@@ -57,7 +57,7 @@ The `data_types` parameter is a list and can have multiple data types.
 Create every JSON Schema
 
 ```python
-{!docs/tutorials/python/tutorial_scripts/schema_operations.py!lines=38-43}
+{!docs/tutorials/python/tutorial_scripts/schema_operations.py!lines=48-53}
 ```
 
 If you don't set a `data_types` parameter a JSON Schema will be created for every data type in the data model.
@@ -67,7 +67,7 @@ If you don't set a `data_types` parameter a JSON Schema will be created for ever
 Create a JSON Schema
 
 ```python
-{!docs/tutorials/python/tutorial_scripts/schema_operations.py!lines=45-51}
+{!docs/tutorials/python/tutorial_scripts/schema_operations.py!lines=55-61}
 ```
 
 If you have only one data type and set the `output` parameter to a file path(ending in.json), the JSON Schema file will have that path.
@@ -77,7 +77,7 @@ If you have only one data type and set the `output` parameter to a file path(end
 Create a JSON Schema
 
 ```python
-{!docs/tutorials/python/tutorial_scripts/schema_operations.py!lines=53-58}
+{!docs/tutorials/python/tutorial_scripts/schema_operations.py!lines=63-68}
 ```
 
 If you don't set `output` parameter the JSON Schema file will be created in the current working directory.
@@ -87,7 +87,7 @@ If you don't set `output` parameter the JSON Schema file will be created in the 
 Create a JSON Schema
 
 ```python
-{!docs/tutorials/python/tutorial_scripts/schema_operations.py!lines=60-66}
+{!docs/tutorials/python/tutorial_scripts/schema_operations.py!lines=70-76}
 ```
 
 You can have Curator format the property names and valid values in the JSON Schema. This will remove whitespace and special characters.
@@ -97,7 +97,7 @@ You can have Curator format the property names and valid values in the JSON Sche
 Once you've created a JSON Schema file, you can register it to a Synapse organization.
 
 ```python
-{!docs/tutorials/python/tutorial_scripts/schema_operations.py!lines=68-76}
+{!docs/tutorials/python/tutorial_scripts/schema_operations.py!lines=78-87}
 ```
 
 The `register_jsonschema` function:
@@ -105,13 +105,16 @@ The `register_jsonschema` function:
 - Registers it with the specified organization in Synapse
 - Returns the schema URI and a success message
 - You can optionally specify a version (e.g., "0.0.1") or let it auto-generate
+- The fix_schema_name argument replaces dashes and underscores with periods in the schema name
+  - 'my-schema_name' -> 'my.schema.name'
+  - defaults to False
 
 ## 9. Bind a JSON Schema to a Synapse Entity
 
 After registering a schema, you can bind it to Synapse entities (files, folders, etc.) for metadata validation.
 
 ```python
-{!docs/tutorials/python/tutorial_scripts/schema_operations.py!lines=78-85}
+{!docs/tutorials/python/tutorial_scripts/schema_operations.py!lines=89-96}
 ```
 
 The `bind_jsonschema` function:
