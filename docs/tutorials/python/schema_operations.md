@@ -101,13 +101,12 @@ Once you've created a JSON Schema file, you can register it to a Synapse organiz
 ```
 
 The `register_jsonschema` function:
-- Takes a path to your generated JSON Schema file
-- Registers it with the specified organization in Synapse
-- Returns the schema URI and a success message
-- You can optionally specify a version (e.g., "0.0.1") or let it auto-generate
-- The fix_schema_name argument replaces dashes and underscores with periods in the schema name
-  - 'my-schema_name' -> 'my.schema.name'
-  - defaults to False
+
+* Takes a path to your generated JSON Schema file
+* Registers it with the specified organization in Synapse
+* Returns the schema URI and a success message
+* Optionally takes a version (e.g., "0.0.1"), otherwise it will increment to the next available version
+* Optionally Fixes the schema name by replacing dashes and underscores with periods in the schema name (e.g.'my-schema_name' -> 'my.schema.name')
 
 ## 9. Bind a JSON Schema to a Synapse Entity
 
