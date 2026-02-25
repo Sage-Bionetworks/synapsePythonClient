@@ -824,6 +824,7 @@ def register_json_schema(args, syn):
         schema_path=args.schema_path,
         organization_name=args.organization_name,
         schema_name=args.schema_name,
+        fix_schema_name=args.fix_schema_name,
         schema_version=args.schema_version,
         synapse_client=syn,
     )
@@ -1891,6 +1892,12 @@ https://rest-docs.synapse.org/rest/org/sagebionetworks/repo/web/controller/Table
         "schema_name",
         type=str,
         help="The name of the JSON schema",
+    )
+    parser_register_json_schema.add_argument(
+        "--fix-schema-name",
+        action="store_true",
+        default=False,
+        help="Replaces dashes and underscores with periods in the schema name (e.g., 'my-schema_name' becomes 'my.schema.name')",
     )
     parser_register_json_schema.add_argument(
         "--schema-version",

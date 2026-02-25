@@ -1334,6 +1334,30 @@ class TestSchemaManagementCommands:
         assert schema_name in output
         assert schema_organization.name in output
 
+    def test_register_json_schema_fix_schema_name(
+        self, test_state, schema_organization, schema_file
+    ):
+        """Test register-json-schema CLI command"""
+        schema_name = f"test-schema_id{str(uuid.uuid4())[:8]}"
+        fixed_schema_name = schema_name.replace("-", ".").replace("_", ".")
+
+        output = run(
+            test_state,
+            "synapse",
+            "--skip-checks",
+            "register-json-schema",
+            schema_file,
+            schema_organization.name,
+            schema_name,
+            "--schema-version",
+            "1.0.0",
+            "--fix-schema-name",
+        )
+
+        assert "Successfully registered schema" in output
+        assert fixed_schema_name in output
+        assert schema_organization.name in output
+
     def test_bind_json_schema(self, test_state, schema_organization, schema_file):
         """Test bind-json-schema CLI command"""
         from synapseclient.models import Folder

@@ -569,12 +569,13 @@ Register a JSON Schema to a Synapse organization for later binding to entities.
 synapse register-json-schema [-h] [--schema-version VERSION] schema_path organization_name schema_name
 ```
 
-| Name                  | Type       | Description                                                                         | Default |
-|-----------------------|------------|-------------------------------------------------------------------------------------|---------|
-| `schema_path`         | Positional | Path to the JSON schema file to register                                            |         |
-| `organization_name`   | Positional | Name of the organization to register the schema under                               |         |
-| `schema_name`         | Positional | The name of the JSON schema                                                         |         |
-| `--schema-version`    | Named      | Version of the schema to register (e.g., '0.0.1'). If not specified, auto-generated | None    |
+| Name                  | Type       | Description                                                                                            | Default |
+|-----------------------|------------|--------------------------------------------------------------------------------------------------------|---------|
+| `schema_path`         | Positional | Path to the JSON schema file to register                                                               |         |
+| `organization_name`   | Positional | Name of the organization to register the schema under                                                  |         |
+| `schema_name`         | Positional | The name of the JSON schema                                                                            |         |
+| `--schema-version`    | Named      | Version of the schema to register (e.g., '0.0.1'). If not specified, auto-generated                    | None    |
+| `--fix-schema-name`   | Named      | Replaces dashes and underscores with periods in the schema name ('my-schema_name' -> 'my.schema.name') | False   |
 
 ### `bind-json-schema`
 
