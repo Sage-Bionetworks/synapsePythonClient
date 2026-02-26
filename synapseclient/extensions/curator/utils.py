@@ -2,6 +2,9 @@ from synapseclient import Synapse
 from synapseclient.models import Project
 from synapseclient.operations import get
 
+"""This number represents a safeguard against infinite loops when traversing the folder hierarchy to find the project ID."""
+MAX_HIERARCHY_DEPTH = 1000
+
 
 def project_id_from_entity_id(entity_id: str, synapse_client: Synapse) -> str:
     """
@@ -24,6 +27,6 @@ def project_id_from_entity_id(entity_id: str, synapse_client: Synapse) -> str:
     while not isinstance(current_obj, Project):
         current_obj = get(current_obj.parent_id, synapse_client=synapse_client)
         iterations += 1
-        if iterations > 1000:
+        if iterations > MAX_HIERARCHY_DEPTH:
             raise ValueError("Could not find project ID in folder hierarchy")
     return current_obj.id
