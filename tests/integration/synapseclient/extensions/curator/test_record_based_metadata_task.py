@@ -1,3 +1,5 @@
+import uuid
+
 import pytest
 
 from synapseclient import Synapse
@@ -11,7 +13,8 @@ class TestProjectIDFromEntityID:
     @pytest.fixture(scope="module")
     def temp_hierarchy(self, syn: Synapse, request) -> tuple[str, str, str]:
         """Creates a Project -> Folder -> Folder hierarchy for testing."""
-        project = Project(name="IntegrationTest_Root_Project").store(synapse_client=syn)
+        project_name = str(uuid.uuid4())
+        project = Project(name=project_name).store(synapse_client=syn)
         folder1 = Folder(name="TestFolder1", parent_id=project.id).store(
             synapse_client=syn
         )
@@ -26,7 +29,7 @@ class TestProjectIDFromEntityID:
         return project.id, folder1.id, folder2.id
 
     def test_project_id_from_folder(self, syn, temp_hierarchy):
-        # Test finding project from a nested file
+        """Test finding project id when input id is from a nested folder."""
         folder_id = temp_hierarchy[2]
         expected_project_id = temp_hierarchy[0]
 
@@ -34,7 +37,7 @@ class TestProjectIDFromEntityID:
         assert result == expected_project_id
 
     def test_project_id_from_project(self, syn, temp_hierarchy):
-        # Test finding project from a nested file
+        """Test finding project id when input id is for a project"""
         project_id = temp_hierarchy[0]
 
         result = project_id_from_entity_id(project_id, syn)
