@@ -8,7 +8,10 @@ import pytest
 
 from synapseclient import Synapse
 from synapseclient.extensions.curator import bind_jsonschema, register_jsonschema
-from synapseclient.models import File, Folder, Project, SchemaOrganization
+from synapseclient.extensions.curator.record_based_metadata_task import (
+    project_id_from_entity_id,
+)
+from synapseclient.models import Folder, Project, SchemaOrganization
 
 
 def create_test_name():
@@ -259,3 +262,37 @@ class TestRegisterAndBindWorkflow:
             # Cleanup: unbind schema before deleting folder
             folder.unbind_schema(synapse_client=syn)
             syn.delete(folder.id)
+
+
+class TestProjectIDFromEntityID:
+    @pytest.fixture(scope="module")
+    def temp_hierarchy(self, syn: Synapse, request) -> tuple[str, str, str]:
+        """Creates a Project -> Folder -> Folder hierarchy for testing."""
+        project = Project(name=create_test_name()).store(synapse_client=syn)
+        folder1 = Folder(name=create_test_name(), parent_id=project.id).store(
+            synapse_client=syn
+        )
+        folder2 = Folder(name=create_test_name(), parent_id=folder1.id).store(
+            synapse_client=syn
+        )
+
+        def delete_project():
+            project.delete(synapse_client=syn)
+
+        request.addfinalizer(delete_project)
+        return project.id, folder1.id, folder2.id
+
+    def test_project_id_from_folder(self, syn, temp_hierarchy):
+        """Test finding project id when input id is from a nested folder."""
+        folder_id = temp_hierarchy[2]
+        expected_project_id = temp_hierarchy[0]
+
+        result = project_id_from_entity_id(folder_id, syn)
+        assert result == expected_project_id
+
+    def test_project_id_from_project(self, syn, temp_hierarchy):
+        """Test finding project id when input id is for a project"""
+        project_id = temp_hierarchy[0]
+
+        result = project_id_from_entity_id(project_id, syn)
+        assert result == project_id

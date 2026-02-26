@@ -11,15 +11,14 @@ from typing import Any, Dict, List, Optional, Tuple, Union
 from synapseclient import Synapse
 from synapseclient.core.typing_utils import DataFrame as DATA_FRAME_TYPE
 from synapseclient.core.utils import test_import_pandas
+from synapseclient.extensions.curator.utils import project_id_from_entity_id
 from synapseclient.models import (
     CurationTask,
     Grid,
     JSONSchema,
-    Project,
     RecordBasedMetadataTaskProperties,
     RecordSet,
 )
-from synapseclient.operations import get
 
 
 def extract_property_titles(schema_data: Dict[str, Any]) -> List[str]:
@@ -294,29 +293,3 @@ def create_record_based_metadata_task(
         raise e
 
     return record_set_with_data, curation_task, curation_grid
-
-
-def project_id_from_entity_id(entity_id: str, synapse_client: Synapse) -> str:
-    """
-    Retrieves the project ID from a given entity ID by traversing up the folder hierarchy
-
-    Args:
-        entity_id: The Synapse ID of the entity (e.g., folder, file) to start from.
-        synapse_client: Authenticated Synapse client instance
-
-    Returns:
-        The Synapse ID of the project that the entity belongs to.
-
-    Raises:
-        ValueError: If the project ID cannot be found within 1000 iterations.
-    """
-
-    # Get the project ID from the folder ID
-    current_obj = get(entity_id, synapse_client=synapse_client)
-    iterations = 0
-    while not isinstance(current_obj, Project):
-        current_obj = get(current_obj.parent_id, synapse_client=synapse_client)
-        iterations += 1
-        if iterations > 1000:
-            raise ValueError("Could not find project ID in folder hierarchy")
-    return current_obj.id

@@ -10,6 +10,7 @@ from typing import Any, Optional, Tuple, Union
 from synapseclient import Synapse  # type: ignore
 from synapseclient import Wiki  # type: ignore
 from synapseclient.core.exceptions import SynapseHTTPError  # type: ignore
+from synapseclient.extensions.curator.utils import project_id_from_entity_id
 from synapseclient.models import (  # type: ignore
     Column,
     ColumnType,
@@ -429,9 +430,6 @@ def create_file_based_metadata_task(
 
     synapse_client.logger.info(
         "Attempting to get the Synapse ID of the provided folders project."
-    )
-    from synapseclient.extensions.curator.record_based_metadata_task import (
-        project_id_from_entity_id,
     )
 
     project_id = project_id_from_entity_id(folder_id, synapse_client=synapse_client)
