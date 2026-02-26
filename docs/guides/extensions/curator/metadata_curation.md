@@ -1,6 +1,6 @@
 # How to Create Metadata Curation Workflows
 
-This guide shows you how to set up a metadata curation workflows in Synapse using the curator extension. You'll learn to find appropriate schemas, create curation tasks for your research data.
+This guide shows you how to set up a metadata curation workflow in Synapse using the curator extension. You'll learn to find appropriate schemas, create curation tasks for your research data.
 
 ## What you'll accomplish
 
