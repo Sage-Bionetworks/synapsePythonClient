@@ -360,7 +360,12 @@ class RecordSetSynchronousProtocol(Protocol):
 @dataclass()
 @async_to_sync
 class RecordSet(RecordSetSynchronousProtocol, AccessControllable, BaseJSONSchema):
-    """A RecordSet within Synapse.
+    """
+    A RecordSet entity captures record-based metadata as a special type of CSV.
+    The record set content can be curated using the grid services.
+    When a grid is created from a record set, its data can be exported back to a new version of the record set.
+    The export will include the validation summary as well as a validation file handle that
+      contains detailed validation results for each row in the record set.
 
     Attributes:
         id: The unique immutable ID for this file. A new ID will be generated for new

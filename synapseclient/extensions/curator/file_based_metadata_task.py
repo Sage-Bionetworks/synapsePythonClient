@@ -10,6 +10,7 @@ from typing import Any, Optional, Tuple, Union
 from synapseclient import Synapse  # type: ignore
 from synapseclient import Wiki  # type: ignore
 from synapseclient.core.exceptions import SynapseHTTPError  # type: ignore
+from synapseclient.extensions.curator.utils import project_id_from_entity_id
 from synapseclient.models import (  # type: ignore
     Column,
     ColumnType,
@@ -430,27 +431,15 @@ def create_file_based_metadata_task(
     synapse_client.logger.info(
         "Attempting to get the Synapse ID of the provided folders project."
     )
-    try:
-        entity = Folder(folder_id).get(synapse_client=synapse_client)
-        parent = synapse_client.get(entity.parent_id)
-        project = None
-        while not project:
-            if parent.concreteType == "org.sagebionetworks.repo.model.Project":
-                project = parent
-                break
-            parent = synapse_client.get(parent.parentId)
-    except Exception as e:
-        synapse_client.logger.exception(
-            "Error getting the Synapse ID of the provided folders project"
-        )
-        raise e
+
+    project_id = project_id_from_entity_id(folder_id, synapse_client=synapse_client)
     synapse_client.logger.info("Got the Synapse ID of the provided folders project.")
 
     synapse_client.logger.info("Attempting to create the CurationTask.")
     try:
         task = CurationTask(
             data_type=task_datatype,
-            project_id=project.id,
+            project_id=project_id,
             instructions=instructions,
             assignee_principal_id=(
                 str(assignee_principal_id)
