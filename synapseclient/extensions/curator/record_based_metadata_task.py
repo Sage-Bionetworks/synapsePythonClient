@@ -313,10 +313,10 @@ def project_id_from_entity_id(entity_id: str, synapse_client: Synapse) -> str:
 
     # Get the project ID from the folder ID
     current_obj = get(entity_id, synapse_client=synapse_client)
-    iter = 0
+    iterations = 0
     while not isinstance(current_obj, Project):
         current_obj = get(current_obj.parent_id, synapse_client=synapse_client)
-        iter += 1
-        if iter > 1000:
+        iterations += 1
+        if iterations > 1000:
             raise ValueError("Could not find project ID in folder hierarchy")
     return current_obj.id
