@@ -79,7 +79,7 @@ class TestCreateFileBasedMetadataTask(unittest.TestCase):
         self.schema_uri = "sage.schemas.v2571-amp.Biospecimen.schema-0.0.1"
 
     @patch(
-        "synapseclient.extensions.curator.record_based_metadata_task.project_id_from_entity_id"
+        "synapseclient.extensions.curator.file_based_metadata_task.project_id_from_entity_id"
     )
     @patch(
         "synapseclient.extensions.curator.file_based_metadata_task.Synapse.get_client"
@@ -155,7 +155,7 @@ class TestCreateFileBasedMetadataTask(unittest.TestCase):
         mock_get.assert_called_once_with(self.folder_id, synapse_client=self.mock_syn)
 
     @patch(
-        "synapseclient.extensions.curator.record_based_metadata_task.project_id_from_entity_id"
+        "synapseclient.extensions.curator.file_based_metadata_task.project_id_from_entity_id"
     )
     @patch(
         "synapseclient.extensions.curator.file_based_metadata_task.Synapse.get_client"
@@ -393,7 +393,7 @@ class TestCreateFileBasedMetadataTask(unittest.TestCase):
             )
 
     @patch(
-        "synapseclient.extensions.curator.record_based_metadata_task.project_id_from_entity_id"
+        "synapseclient.extensions.curator.file_based_metadata_task.project_id_from_entity_id"
     )
     @patch(
         "synapseclient.extensions.curator.file_based_metadata_task.Synapse.get_client"
@@ -501,7 +501,7 @@ class TestCreateRecordBasedMetadataTask(unittest.TestCase):
         self.instructions = "Test instructions"
         self.schema_uri = "sage.schemas.v2571-amp.Biospecimen.schema-0.0.1"
 
-    @patch("synapseclient.extensions.curator.record_based_metadata_task.get")
+    @patch("synapseclient.extensions.curator.utils.get")
     def test_project_id_from_entity_id_hierarchy_limit_exceeded(self, mock_get):
         """Tests the 'iter > 1000' safety break."""
         mock_folder = Folder(id="syn123", parent_id="syn456")
