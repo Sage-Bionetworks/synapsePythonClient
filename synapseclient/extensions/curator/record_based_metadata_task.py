@@ -179,7 +179,7 @@ def create_record_based_metadata_task(
         synapse_client: If not passed in and caching was not disabled by
                 `Synapse.allow_client_caching(False)` this will use the last created
                 instance from the Synapse class constructor.
-        project_id: Deprecated, will be removed in  v5.0.0
+        project_id: Deprecated, will be removed in v5.0.0
 
     Returns:
         Tuple containing the created RecordSet, CurationTask, and Grid objects
