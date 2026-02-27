@@ -136,7 +136,10 @@ async def register_jsonschema_async(
     if fix_schema_name:
         old_name = schema_name
         schema_name = fix_name(schema_name)
-        syn.logger.info(f"Changed schema name from '{old_name}' to '{schema_name}' ")
+        if old_name != schema_name:
+            syn.logger.info(
+                f"Changed schema name from '{old_name}' to '{schema_name}' "
+            )
 
     with open(schema_path, "r") as f:
         schema_body = json.load(f)
