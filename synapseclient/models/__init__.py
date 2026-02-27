@@ -10,7 +10,6 @@ from synapseclient.models.annotations import Annotations
 from synapseclient.models.curation import (
     CurationTask,
     FileBasedMetadataTaskProperties,
-    Grid,
     RecordBasedMetadataTaskProperties,
 )
 from synapseclient.models.dataset import Dataset, DatasetCollection, EntityRef
@@ -20,6 +19,8 @@ from synapseclient.models.evaluation import Evaluation
 from synapseclient.models.file import File, FileHandle
 from synapseclient.models.folder import Folder
 from synapseclient.models.form import FormData, FormGroup
+from synapseclient.models.grid import Grid
+from synapseclient.models.grid_query import GridRow, GridRowValidation, GridSnapshot
 from synapseclient.models.link import Link
 from synapseclient.models.materializedview import MaterializedView
 from synapseclient.models.mixins.table_components import QueryMixin
@@ -91,6 +92,9 @@ __all__ = [
     "FileBasedMetadataTaskProperties",
     "RecordBasedMetadataTaskProperties",
     "Grid",
+    "GridSnapshot",
+    "GridRow",
+    "GridRowValidation",
     "UserProfile",
     "UserPreference",
     "UserGroupHeader",

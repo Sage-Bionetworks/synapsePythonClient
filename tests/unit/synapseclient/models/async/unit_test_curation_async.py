@@ -10,13 +10,15 @@ from synapseclient.core.constants.concrete_types import (
     RECORD_BASED_METADATA_TASK_PROPERTIES,
 )
 from synapseclient.models.curation import (
-    CreateGridRequest,
     CurationTask,
     FileBasedMetadataTaskProperties,
-    Grid,
-    GridRecordSetExportRequest,
     RecordBasedMetadataTaskProperties,
     _create_task_properties_from_dict,
+)
+from synapseclient.models.grid import (
+    CreateGridRequest,
+    Grid,
+    GridRecordSetExportRequest,
 )
 from synapseclient.models.recordset import ValidationSummary
 
@@ -725,7 +727,7 @@ class TestGrid:
 
         # WHEN I call delete_async
         with patch(
-            "synapseclient.models.curation.delete_grid_session",
+            "synapseclient.models.grid.delete_grid_session",
             new_callable=AsyncMock,
             return_value=None,
         ) as mock_delete:
@@ -766,7 +768,7 @@ class TestGrid:
 
         # WHEN I call list_async
         with patch(
-            "synapseclient.models.curation.list_grid_sessions",
+            "synapseclient.models.grid.list_grid_sessions",
             return_value=mock_list(),
         ):
             results = []
@@ -789,7 +791,7 @@ class TestGrid:
 
         # WHEN I call list_async with a source_id
         with patch(
-            "synapseclient.models.curation.list_grid_sessions",
+            "synapseclient.models.grid.list_grid_sessions",
             return_value=mock_list(),
         ):
             results = []
