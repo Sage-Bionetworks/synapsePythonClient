@@ -56,6 +56,31 @@ at your own risk.
         members:
             - create
             - export_to_record_set
+            - import_csv
+            - download_csv
+            - synchronize
+            - get_snapshot
+            - get_validation
+            - delete
+            - list
+---
+[](){ #grid-snapshot-reference }
+::: synapseclient.models.GridSnapshot
+    options:
+        inherited_members: true
+        members:
+---
+[](){ #grid-row-reference }
+::: synapseclient.models.GridRow
+    options:
+        inherited_members: true
+        members:
+---
+[](){ #grid-row-validation-reference }
+::: synapseclient.models.GridRowValidation
+    options:
+        inherited_members: true
+        members:
 ---
 [](){ #query-reference }
 ::: synapseclient.models.Query

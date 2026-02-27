@@ -10,9 +10,10 @@ from synapseclient.models.annotations import Annotations
 from synapseclient.models.curation import (
     CurationTask,
     FileBasedMetadataTaskProperties,
-    Grid,
     RecordBasedMetadataTaskProperties,
 )
+from synapseclient.models.grid import Grid
+from synapseclient.models.grid_query import GridRow, GridRowValidation, GridSnapshot
 from synapseclient.models.dataset import Dataset, DatasetCollection, EntityRef
 from synapseclient.models.docker import DockerRepository
 from synapseclient.models.entityview import EntityView, ViewTypeMask
@@ -91,6 +92,9 @@ __all__ = [
     "FileBasedMetadataTaskProperties",
     "RecordBasedMetadataTaskProperties",
     "Grid",
+    "GridSnapshot",
+    "GridRow",
+    "GridRowValidation",
     "UserProfile",
     "UserPreference",
     "UserGroupHeader",

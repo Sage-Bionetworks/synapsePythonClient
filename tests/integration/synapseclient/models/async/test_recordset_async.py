@@ -20,7 +20,7 @@ from synapseclient.models import (
     UsedEntity,
     UsedURL,
 )
-from synapseclient.models.curation import Grid
+from synapseclient.models.grid import Grid
 from synapseclient.services.json_schema import JsonSchemaOrganization
 
 

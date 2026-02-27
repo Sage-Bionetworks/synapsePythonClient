@@ -103,6 +103,11 @@ from .file_services import (
     put_file_multipart_add,
     put_file_multipart_complete,
 )
+from .grid_services import (
+    create_grid_replica,
+    get_grid_presigned_url,
+    get_grid_session,
+)
 from .form_services import (
     create_form_data,
     create_form_group,
@@ -318,6 +323,10 @@ __all__ = [
     "list_curation_tasks",
     "list_grid_sessions",
     "update_curation_task",
+    # grid_services
+    "create_grid_replica",
+    "get_grid_presigned_url",
+    "get_grid_session",
     # docker_commit_services
     "get_docker_tag",
     # docker_services

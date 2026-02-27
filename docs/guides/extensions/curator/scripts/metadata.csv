@@ -1,0 +1,9 @@
+individualID,species,sex,genotype,modelSystemName,ageDeath,ageDeathUnit,brainWeight,tissueWeight,bedding,waterpH,lightCycle,roomTemperature,roomHumidity
+IND-001,Mus musculus,male,5XFAD/WT,5XFAD,6,months,0.42,0.38,corn cob,7.0,12/12,22,50
+IND-002,Mus musculus,female,5XFAD/WT,5XFAD,6,months,0.41,0.37,corn cob,7.0,12/12,22,50
+IND-003,Mus musculus,male,WT/WT,wildtype,6,months,0.44,0.40,corn cob,7.0,12/12,22,50
+IND-004,Mus musculus,female,WT/WT,wildtype,6,months,0.43,0.39,corn cob,7.0,12/12,22,50
+IND-005,Mus musculus,male,5XFAD/WT,5XFAD,12,months,0.40,0.36,corn cob,7.0,12/12,22,52
+IND-006,Mus musculus,female,5XFAD/WT,5XFAD,12,months,0.39,0.35,corn cob,7.0,12/12,22,52
+IND-007,Mus musculus,male,WT/WT,wildtype,12,months,0.45,0.41,corn cob,7.0,12/12,22,52
+IND-008,Mus musculus,female,WT/WT,wildtype,12,months,0.44,0.40,corn cob,7.0,12/12,22,52
