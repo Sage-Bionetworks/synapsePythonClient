@@ -83,9 +83,7 @@ class GridSnapshot:
     def valid_rows(self) -> int:
         """Number of rows that pass validation."""
         return sum(
-            1
-            for row in self.rows
-            if row.validation and row.validation.is_valid is True
+            1 for row in self.rows if row.validation and row.validation.is_valid is True
         )
 
     @property

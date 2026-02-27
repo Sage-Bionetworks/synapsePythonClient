@@ -12,8 +12,6 @@ from synapseclient.models.curation import (
     FileBasedMetadataTaskProperties,
     RecordBasedMetadataTaskProperties,
 )
-from synapseclient.models.grid import Grid
-from synapseclient.models.grid_query import GridRow, GridRowValidation, GridSnapshot
 from synapseclient.models.dataset import Dataset, DatasetCollection, EntityRef
 from synapseclient.models.docker import DockerRepository
 from synapseclient.models.entityview import EntityView, ViewTypeMask
@@ -21,6 +19,8 @@ from synapseclient.models.evaluation import Evaluation
 from synapseclient.models.file import File, FileHandle
 from synapseclient.models.folder import Folder
 from synapseclient.models.form import FormData, FormGroup
+from synapseclient.models.grid import Grid
+from synapseclient.models.grid_query import GridRow, GridRowValidation, GridSnapshot
 from synapseclient.models.link import Link
 from synapseclient.models.materializedview import MaterializedView
 from synapseclient.models.mixins.table_components import QueryMixin

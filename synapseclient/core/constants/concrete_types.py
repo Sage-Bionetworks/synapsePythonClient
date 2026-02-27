@@ -128,12 +128,8 @@ LIST_GRID_SESSIONS_REQUEST = (
 LIST_GRID_SESSIONS_RESPONSE = (
     "org.sagebionetworks.repo.model.grid.ListGridSessionsResponse"
 )
-GRID_CSV_IMPORT_REQUEST = (
-    "org.sagebionetworks.repo.model.grid.GridCsvImportRequest"
-)
+GRID_CSV_IMPORT_REQUEST = "org.sagebionetworks.repo.model.grid.GridCsvImportRequest"
 DOWNLOAD_FROM_GRID_REQUEST = (
     "org.sagebionetworks.repo.model.grid.DownloadFromGridRequest"
 )
-SYNCHRONIZE_GRID_REQUEST = (
-    "org.sagebionetworks.repo.model.grid.SynchronizeGridRequest"
-)
+SYNCHRONIZE_GRID_REQUEST = "org.sagebionetworks.repo.model.grid.SynchronizeGridRequest"

@@ -48,10 +48,7 @@ if summary["invalid"] > 0:
     print("Validation errors found:")
     for row in snapshot.rows:
         if row.validation and not row.validation.is_valid:
-            print(
-                f"  Row {row.row_id}: "
-                f"{row.validation.validation_error_message}"
-            )
+            print(f"  Row {row.row_id}: " f"{row.validation.validation_error_message}")
     # Fix errors and re-import if needed...
 
 # 4. Commit when ready

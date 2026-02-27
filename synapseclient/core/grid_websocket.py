@@ -70,7 +70,6 @@ class GridWebSocketClient:
         """
         snapshot_url: Optional[str] = None
         patches: List[Any] = []
-        sync_complete = False
 
         async with websockets.connect(
             presigned_url,
@@ -93,7 +92,12 @@ class GridWebSocketClient:
                                 logger.debug("Grid WebSocket connected")
                                 # Send clock sync with empty clock
                                 sync_msg = json.dumps(
-                                    [JSONRX_REQUEST_COMPLETE, 1, "synchronize-clock", []]
+                                    [
+                                        JSONRX_REQUEST_COMPLETE,
+                                        1,
+                                        "synchronize-clock",
+                                        [],
+                                    ]
                                 )
                                 await ws.send(sync_msg)
                             elif method == "ping":
@@ -105,9 +109,7 @@ class GridWebSocketClient:
                                 payload_type = payload.get("type")
                                 if payload_type == "snapshot":
                                     snapshot_url = payload.get("body")
-                                    logger.debug(
-                                        "Received snapshot URL"
-                                    )
+                                    logger.debug("Received snapshot URL")
                                 elif payload_type == "patch":
                                     patches.append(payload.get("body"))
                             elif payload is not None:
@@ -116,7 +118,6 @@ class GridWebSocketClient:
 
                         elif msg_type == JSONRX_RESPONSE_COMPLETE:
                             logger.debug("Grid sync complete")
-                            sync_complete = True
                             break
 
                         # Safety: don't loop forever
@@ -147,9 +148,7 @@ class GridWebSocketClient:
             )
             return GridSnapshot()
         else:
-            logger.warning(
-                "No snapshot or patches received from grid session"
-            )
+            logger.warning("No snapshot or patches received from grid session")
             return GridSnapshot()
 
     async def _process_snapshot(self, snapshot_url: str) -> GridSnapshot:
@@ -166,9 +165,7 @@ class GridWebSocketClient:
             response.raise_for_status()
             cbor_data = response.content
 
-        logger.debug(
-            "Fetched snapshot: %d bytes", len(cbor_data)
-        )
+        logger.debug("Fetched snapshot: %d bytes", len(cbor_data))
 
         decoder = GridSnapshotDecoder()
         return decoder.decode(cbor_data)

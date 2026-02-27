@@ -31,12 +31,14 @@ print(f"  Updated: {grid.csv_import_updated_count}")
 # Or import directly from a pandas DataFrame
 import pandas as pd
 
-df = pd.DataFrame({
-    "individualID": ["ANIMAL001", "ANIMAL002"],
-    "species": ["Mouse", "Mouse"],
-    "sex": ["female", "male"],
-    "genotype": ["5XFAD", "APOE4KI"],
-})
+df = pd.DataFrame(
+    {
+        "individualID": ["ANIMAL001", "ANIMAL002"],
+        "species": ["Mouse", "Mouse"],
+        "sex": ["female", "male"],
+        "genotype": ["5XFAD", "APOE4KI"],
+    }
+)
 
 grid = grid.import_csv(dataframe=df)
 

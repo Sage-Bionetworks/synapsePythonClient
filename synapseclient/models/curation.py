@@ -371,9 +371,7 @@ class CurationTask(CurationTaskSynchronousProtocol):
         if not self.task_id:
             raise ValueError("task_id is required to get a CurationTask")
 
-        trace.get_current_span().set_attributes(
-            {"synapse.task_id": str(self.task_id)}
-        )
+        trace.get_current_span().set_attributes({"synapse.task_id": str(self.task_id)})
 
         task_result = await get_curation_task(
             task_id=self.task_id, synapse_client=synapse_client
@@ -404,9 +402,7 @@ class CurationTask(CurationTaskSynchronousProtocol):
         if not self.task_id:
             raise ValueError("task_id is required to delete a CurationTask")
 
-        trace.get_current_span().set_attributes(
-            {"synapse.task_id": str(self.task_id)}
-        )
+        trace.get_current_span().set_attributes({"synapse.task_id": str(self.task_id)})
 
         file_view_id = None
         if delete_file_view:
@@ -421,9 +417,7 @@ class CurationTask(CurationTaskSynchronousProtocol):
             from synapseclient.api.entity_services import delete_entity
 
             client = Synapse.get_client(synapse_client=synapse_client)
-            await delete_entity(
-                entity_id=file_view_id, synapse_client=client
-            )
+            await delete_entity(entity_id=file_view_id, synapse_client=client)
 
     async def store_async(
         self, *, synapse_client: Optional[Synapse] = None
@@ -468,9 +462,9 @@ class CurationTask(CurationTaskSynchronousProtocol):
                 )
             )
             and (
-                existing_task := await CurationTask(
-                    task_id=existing_task_id
-                ).get_async(synapse_client=synapse_client)
+                existing_task := await CurationTask(task_id=existing_task_id).get_async(
+                    synapse_client=synapse_client
+                )
             )
         ):
             merge_dataclass_entities(source=existing_task, destination=self)
@@ -486,21 +480,13 @@ class CurationTask(CurationTaskSynchronousProtocol):
             return self
         else:
             if not self.project_id:
-                raise ValueError(
-                    "project_id is required to create a CurationTask"
-                )
+                raise ValueError("project_id is required to create a CurationTask")
             if not self.data_type:
-                raise ValueError(
-                    "data_type is required to create a CurationTask"
-                )
+                raise ValueError("data_type is required to create a CurationTask")
             if not self.instructions:
-                raise ValueError(
-                    "instructions is required to create a CurationTask"
-                )
+                raise ValueError("instructions is required to create a CurationTask")
             if not self.task_properties:
-                raise ValueError(
-                    "task_properties is required to create a CurationTask"
-                )
+                raise ValueError("task_properties is required to create a CurationTask")
 
             task_result = await create_curation_task(
                 curation_task=self.to_synapse_request(),

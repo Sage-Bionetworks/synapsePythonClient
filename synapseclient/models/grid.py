@@ -26,10 +26,7 @@ if TYPE_CHECKING:
 from opentelemetry import trace
 
 from synapseclient import Synapse
-from synapseclient.api import (
-    delete_grid_session,
-    list_grid_sessions,
-)
+from synapseclient.api import delete_grid_session, list_grid_sessions
 from synapseclient.core.async_utils import (
     async_to_sync,
     skip_async_to_sync,
@@ -82,9 +79,7 @@ class CreateGridRequest(AsynchronousCommunicator):
     session_id: Optional[str] = None
     """The session ID of the created grid (populated from response)"""
 
-    _grid_session_data: Optional[Dict[str, Any]] = field(
-        default=None, compare=False
-    )
+    _grid_session_data: Optional[Dict[str, Any]] = field(default=None, compare=False)
     """Internal storage of the full grid session data from the response."""
 
     def fill_from_dict(
@@ -124,15 +119,9 @@ class CreateGridRequest(AsynchronousCommunicator):
         grid_session.started_on = data.get("startedOn", None)
         grid_session.etag = data.get("etag", None)
         grid_session.modified_on = data.get("modifiedOn", None)
-        grid_session.last_replica_id_client = data.get(
-            "lastReplicaIdClient", None
-        )
-        grid_session.last_replica_id_service = data.get(
-            "lastReplicaIdService", None
-        )
-        grid_session.grid_json_schema_id = data.get(
-            "gridJsonSchema$Id", None
-        )
+        grid_session.last_replica_id_client = data.get("lastReplicaIdClient", None)
+        grid_session.last_replica_id_service = data.get("lastReplicaIdService", None)
+        grid_session.grid_json_schema_id = data.get("gridJsonSchema$Id", None)
         grid_session.source_entity_id = data.get("sourceEntityId", None)
 
         return grid_session
@@ -148,9 +137,7 @@ class CreateGridRequest(AsynchronousCommunicator):
         request_dict = {"concreteType": self.concrete_type}
         request_dict["recordSetId"] = self.record_set_id
         request_dict["initialQuery"] = (
-            self.initial_query.to_synapse_request()
-            if self.initial_query
-            else None
+            self.initial_query.to_synapse_request() if self.initial_query else None
         )
         delete_none_keys(request_dict)
         return request_dict
@@ -207,9 +194,7 @@ class GridRecordSetExportRequest(AsynchronousCommunicator):
             The GridRecordSetExportRequest object.
         """
         self.response_session_id = synapse_response.get("sessionId", None)
-        self.response_record_set_id = synapse_response.get(
-            "recordSetId", None
-        )
+        self.response_record_set_id = synapse_response.get("recordSetId", None)
         self.record_set_version_number = synapse_response.get(
             "recordSetVersionNumber", None
         )
@@ -337,9 +322,7 @@ class GridCsvImportRequest(AsynchronousCommunicator):
         )
         request_dict["csvDescriptor"] = csv_desc.to_synapse_request()
         if self.schema is not None:
-            request_dict["schema"] = [
-                col.to_synapse_request() for col in self.schema
-            ]
+            request_dict["schema"] = [col.to_synapse_request() for col in self.schema]
         return request_dict
 
 
@@ -403,9 +386,7 @@ class DownloadFromGridRequest(AsynchronousCommunicator):
             The DownloadFromGridRequest object.
         """
         self.response_session_id = synapse_response.get("sessionId", None)
-        self.results_file_handle_id = synapse_response.get(
-            "resultsFileHandleId", None
-        )
+        self.results_file_handle_id = synapse_response.get("resultsFileHandleId", None)
         return self
 
     def to_synapse_request(self) -> Dict[str, Any]:
@@ -422,15 +403,15 @@ class DownloadFromGridRequest(AsynchronousCommunicator):
         if self.write_header is not None:
             request_dict["writeHeader"] = self.write_header
         if self.include_row_id_and_row_version is not None:
-            request_dict["includeRowIdAndRowVersion"] = (
-                self.include_row_id_and_row_version
-            )
+            request_dict[
+                "includeRowIdAndRowVersion"
+            ] = self.include_row_id_and_row_version
         if self.include_etag is not None:
             request_dict["includeEtag"] = self.include_etag
         if self.csv_table_descriptor is not None:
-            request_dict["csvTableDescriptor"] = (
-                self.csv_table_descriptor.to_synapse_request()
-            )
+            request_dict[
+                "csvTableDescriptor"
+            ] = self.csv_table_descriptor.to_synapse_request()
         if self.file_name is not None:
             request_dict["fileName"] = self.file_name
         return request_dict
@@ -475,9 +456,7 @@ class SynchronizeGridRequest(AsynchronousCommunicator):
         Returns:
             The SynchronizeGridRequest object.
         """
-        self.response_grid_session_id = synapse_response.get(
-            "gridSessionId", None
-        )
+        self.response_grid_session_id = synapse_response.get("gridSessionId", None)
         self.error_messages = synapse_response.get("errorMessages", None)
         return self
 
@@ -557,15 +536,11 @@ class GridSession:
         self.started_on = synapse_response.get("startedOn", None)
         self.etag = synapse_response.get("etag", None)
         self.modified_on = synapse_response.get("modifiedOn", None)
-        self.last_replica_id_client = synapse_response.get(
-            "lastReplicaIdClient", None
-        )
+        self.last_replica_id_client = synapse_response.get("lastReplicaIdClient", None)
         self.last_replica_id_service = synapse_response.get(
             "lastReplicaIdService", None
         )
-        self.grid_json_schema_id = synapse_response.get(
-            "gridJsonSchema$Id", None
-        )
+        self.grid_json_schema_id = synapse_response.get("gridJsonSchema$Id", None)
         self.source_entity_id = synapse_response.get("sourceEntityId", None)
         return self
 
@@ -850,8 +825,7 @@ class Grid(GridSynchronousProtocol):
         """
         if not self.record_set_id and not self.initial_query:
             raise ValueError(
-                "record_set_id or initial_query is required to create a "
-                "GridSession"
+                "record_set_id or initial_query is required to create a " "GridSession"
             )
 
         trace.get_current_span().set_attributes(
@@ -870,15 +844,9 @@ class Grid(GridSynchronousProtocol):
                 self.started_on = existing_session.started_on
                 self.etag = existing_session.etag
                 self.modified_on = existing_session.modified_on
-                self.last_replica_id_client = (
-                    existing_session.last_replica_id_client
-                )
-                self.last_replica_id_service = (
-                    existing_session.last_replica_id_service
-                )
-                self.grid_json_schema_id = (
-                    existing_session.grid_json_schema_id
-                )
+                self.last_replica_id_client = existing_session.last_replica_id_client
+                self.last_replica_id_service = existing_session.last_replica_id_service
+                self.grid_json_schema_id = existing_session.grid_json_schema_id
                 self.source_entity_id = existing_session.source_entity_id
                 return self
 
@@ -919,18 +887,14 @@ class Grid(GridSynchronousProtocol):
             {"synapse.session_id": self.session_id or ""}
         )
 
-        export_request = GridRecordSetExportRequest(
-            session_id=self.session_id
-        )
+        export_request = GridRecordSetExportRequest(session_id=self.session_id)
         result = await export_request.send_job_and_wait_async(
             timeout=timeout, synapse_client=synapse_client
         )
 
         self.record_set_id = result.response_record_set_id
         self.record_set_version_number = result.record_set_version_number
-        self.validation_summary_statistics = (
-            result.validation_summary_statistics
-        )
+        self.validation_summary_statistics = result.validation_summary_statistics
 
         return self
 
@@ -949,9 +913,7 @@ class Grid(GridSynchronousProtocol):
         """
         import csv as csv_module
 
-        from synapseclient.api.json_schema_services import (
-            get_json_schema_body,
-        )
+        from synapseclient.api.json_schema_services import get_json_schema_body
         from synapseclient.extensions.curator.file_based_metadata_task import (
             _get_column_type_from_js_property,
         )
@@ -966,8 +928,7 @@ class Grid(GridSynchronousProtocol):
             column_names = list(dataframe.columns)
         else:
             raise ValueError(
-                "Either path or dataframe must be provided to "
-                "derive the schema"
+                "Either path or dataframe must be provided to " "derive the schema"
             )
 
         # 2. Get column types from the bound JSON schema
@@ -981,9 +942,7 @@ class Grid(GridSynchronousProtocol):
                 session_id=self.session_id,
                 synapse_client=synapse_client,
             )
-            self.grid_json_schema_id = session_info.get(
-                "gridJsonSchema$Id", None
-            )
+            self.grid_json_schema_id = session_info.get("gridJsonSchema$Id", None)
 
         if self.grid_json_schema_id:
             try:
@@ -993,9 +952,7 @@ class Grid(GridSynchronousProtocol):
                 )
                 properties = schema_body.get("properties", {})
                 for prop_name, prop_def in properties.items():
-                    type_map[prop_name] = (
-                        _get_column_type_from_js_property(prop_def)
-                    )
+                    type_map[prop_name] = _get_column_type_from_js_property(prop_def)
             except Exception:
                 pass  # Fall back to STRING for all columns
 
@@ -1065,18 +1022,12 @@ class Grid(GridSynchronousProtocol):
         )
 
         if not self.session_id:
-            raise ValueError(
-                "session_id is required to import CSV into a GridSession"
-            )
+            raise ValueError("session_id is required to import CSV into a GridSession")
 
-        sources = sum(
-            x is not None
-            for x in (file_handle_id, path, dataframe)
-        )
+        sources = sum(x is not None for x in (file_handle_id, path, dataframe))
         if sources != 1:
             raise ValueError(
-                "Provide exactly one of file_handle_id, path, "
-                "or dataframe"
+                "Provide exactly one of file_handle_id, path, " "or dataframe"
             )
 
         if file_handle_id is not None and schema is None:
@@ -1169,9 +1120,7 @@ class Grid(GridSynchronousProtocol):
         """
         import os
 
-        from synapseclient.core.download.download_async import (
-            download_by_file_handle,
-        )
+        from synapseclient.core.download.download_async import download_by_file_handle
 
         if not self.session_id:
             raise ValueError(
@@ -1232,17 +1181,13 @@ class Grid(GridSynchronousProtocol):
             ValueError: If session_id is not provided.
         """
         if not self.session_id:
-            raise ValueError(
-                "session_id is required to synchronize a GridSession"
-            )
+            raise ValueError("session_id is required to synchronize a GridSession")
 
         trace.get_current_span().set_attributes(
             {"synapse.session_id": self.session_id or ""}
         )
 
-        sync_request = SynchronizeGridRequest(
-            grid_session_id=self.session_id
-        )
+        sync_request = SynchronizeGridRequest(grid_session_id=self.session_id)
         result = await sync_request.send_job_and_wait_async(
             timeout=timeout, synapse_client=synapse_client
         )
@@ -1258,15 +1203,11 @@ class Grid(GridSynchronousProtocol):
         self.started_on = synapse_response.get("startedOn", None)
         self.etag = synapse_response.get("etag", None)
         self.modified_on = synapse_response.get("modifiedOn", None)
-        self.last_replica_id_client = synapse_response.get(
-            "lastReplicaIdClient", None
-        )
+        self.last_replica_id_client = synapse_response.get("lastReplicaIdClient", None)
         self.last_replica_id_service = synapse_response.get(
             "lastReplicaIdService", None
         )
-        self.grid_json_schema_id = synapse_response.get(
-            "gridJsonSchema$Id", None
-        )
+        self.grid_json_schema_id = synapse_response.get("gridJsonSchema$Id", None)
         self.source_entity_id = synapse_response.get("sourceEntityId", None)
         return self
 
@@ -1353,9 +1294,7 @@ class Grid(GridSynchronousProtocol):
         from synapseclient.core.grid_websocket import GridWebSocketClient
 
         if not self.session_id:
-            raise ValueError(
-                "session_id is required to get a grid snapshot"
-            )
+            raise ValueError("session_id is required to get a grid snapshot")
 
         trace.get_current_span().set_attributes(
             {"synapse.session_id": self.session_id or ""}
@@ -1370,9 +1309,7 @@ class Grid(GridSynchronousProtocol):
         replica_id = replica.get("replicaId")
 
         if replica_id is None:
-            raise ValueError(
-                "Failed to create grid replica - no replicaId returned"
-            )
+            raise ValueError("Failed to create grid replica - no replicaId returned")
 
         # 2. Get a presigned WebSocket URL
         presigned_url = await get_grid_presigned_url(
@@ -1382,14 +1319,10 @@ class Grid(GridSynchronousProtocol):
         )
 
         if not presigned_url:
-            raise ValueError(
-                "Failed to get presigned WebSocket URL for grid session"
-            )
+            raise ValueError("Failed to get presigned WebSocket URL for grid session")
 
         # 3. Connect, receive snapshot, extract data
-        ws_client = GridWebSocketClient(
-            connect_timeout=connect_timeout
-        )
+        ws_client = GridWebSocketClient(connect_timeout=connect_timeout)
         snapshot = await ws_client.get_snapshot(
             presigned_url=presigned_url,
             replica_id=replica_id,
@@ -1421,9 +1354,7 @@ class Grid(GridSynchronousProtocol):
             synapse_client=synapse_client,
         )
 
-    async def delete_async(
-        self, *, synapse_client: Optional[Synapse] = None
-    ) -> None:
+    async def delete_async(self, *, synapse_client: Optional[Synapse] = None) -> None:
         """
         Delete the grid session.
 
@@ -1438,9 +1369,7 @@ class Grid(GridSynchronousProtocol):
             ValueError: If session_id is not provided.
         """
         if not self.session_id:
-            raise ValueError(
-                "session_id is required to delete a GridSession"
-            )
+            raise ValueError("session_id is required to delete a GridSession")
 
         trace.get_current_span().set_attributes(
             {"synapse.session_id": self.session_id or ""}

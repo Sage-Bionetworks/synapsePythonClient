@@ -18,16 +18,13 @@ This does NOT implement full CRDT semantics (no patch application, no
 conflict resolution). It is a read-only snapshot decoder.
 """
 
-from dataclasses import dataclass, field
+from dataclasses import dataclass
 from typing import Any, Dict, List, Optional, Tuple
 
 import cbor2
 
-from synapseclient.models.grid_query import (
-    GridRow,
-    GridRowValidation,
-    GridSnapshot,
-)
+from synapseclient.models.grid_query import GridRow, GridRowValidation, GridSnapshot
+
 
 def _cbor_item_byte_length(data: bytes, offset: int = 0) -> int:
     """Compute the exact byte length of one CBOR item starting at offset.
@@ -388,9 +385,7 @@ class GridSnapshotDecoder:
     def _decode_val(self, node_id: Timestamp) -> CrdtNode:
         """Decode a VAL (value/register) node - pointer to another node."""
         child_ts = self._read_ts()
-        return CrdtNode(
-            id=node_id, node_type=CRDT_VAL, value=child_ts
-        )
+        return CrdtNode(id=node_id, node_type=CRDT_VAL, value=child_ts)
 
     def _decode_obj(self, node_id: Timestamp, length: int) -> CrdtNode:
         """Decode an OBJ (object/map) node."""
@@ -403,9 +398,7 @@ class GridSnapshotDecoder:
             # Read value timestamp
             val_ts = self._read_ts()
             children[str(key)] = val_ts
-        return CrdtNode(
-            id=node_id, node_type=CRDT_OBJ, children=children
-        )
+        return CrdtNode(id=node_id, node_type=CRDT_OBJ, children=children)
 
     def _decode_vec(self, node_id: Timestamp, length: int) -> CrdtNode:
         """Decode a VEC (vector/fixed-array) node."""
@@ -417,9 +410,7 @@ class GridSnapshotDecoder:
                 elements.append(el_ts)
             else:
                 elements.append(None)
-        return CrdtNode(
-            id=node_id, node_type=CRDT_VEC, elements=elements
-        )
+        return CrdtNode(id=node_id, node_type=CRDT_VEC, elements=elements)
 
     def _decode_arr(self, node_id: Timestamp, length: int) -> CrdtNode:
         """Decode an ARR (RGA array) node."""
@@ -427,18 +418,14 @@ class GridSnapshotDecoder:
         for _ in range(length):
             chunk = self._decode_arr_chunk()
             chunks.append(chunk)
-        return CrdtNode(
-            id=node_id, node_type=CRDT_ARR, chunks=chunks
-        )
+        return CrdtNode(id=node_id, node_type=CRDT_ARR, chunks=chunks)
 
     def _decode_arr_chunk(self) -> ArrChunk:
         """Decode a single ARR chunk (may be a tombstone)."""
         chunk_id = self._read_ts()
         deleted_flag, chunk_length = self.reader.b1vu56()
         if deleted_flag:
-            return ArrChunk(
-                id=chunk_id, length=chunk_length, deleted=True
-            )
+            return ArrChunk(id=chunk_id, length=chunk_length, deleted=True)
         else:
             data = []
             for _ in range(chunk_length):
@@ -566,9 +553,7 @@ class GridSnapshotDecoder:
             return None
 
         # Row is a VAL pointing to an OBJ
-        if row_node.node_type == CRDT_VAL and isinstance(
-            row_node.value, Timestamp
-        ):
+        if row_node.node_type == CRDT_VAL and isinstance(row_node.value, Timestamp):
             row_node = self._resolve_node(row_node.value)
             if row_node is None:
                 return None
@@ -581,17 +566,9 @@ class GridSnapshotDecoder:
         data_ts = row_node.children.get("data")
         if data_ts:
             data_node = self._resolve_node(data_ts)
-            if (
-                data_node
-                and data_node.node_type == CRDT_VEC
-                and data_node.elements
-            ):
+            if data_node and data_node.node_type == CRDT_VEC and data_node.elements:
                 for i, el_ts in enumerate(data_node.elements):
-                    col_name = (
-                        column_names[i]
-                        if i < len(column_names)
-                        else f"col_{i}"
-                    )
+                    col_name = column_names[i] if i < len(column_names) else f"col_{i}"
                     if el_ts is not None:
                         row_data[col_name] = self._resolve_value(el_ts)
                     else:
@@ -639,12 +616,8 @@ class GridSnapshotDecoder:
         if isinstance(validation_value, dict):
             return GridRowValidation(
                 is_valid=validation_value.get("isValid"),
-                validation_error_message=validation_value.get(
-                    "validationErrorMessage"
-                ),
-                all_validation_messages=validation_value.get(
-                    "allValidationMessages"
-                ),
+                validation_error_message=validation_value.get("validationErrorMessage"),
+                all_validation_messages=validation_value.get("allValidationMessages"),
             )
 
         return None

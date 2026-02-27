@@ -109,6 +109,4 @@ async def get_grid_session(
 
     client = Synapse.get_client(synapse_client=synapse_client)
 
-    return await client.rest_get_async(
-        uri=f"/grid/session/{session_id}"
-    )
+    return await client.rest_get_async(uri=f"/grid/session/{session_id}")
