@@ -641,7 +641,8 @@ class CurationTask(CurationTaskSynchronousProtocol):
 
         Raises:
             ValueError: If the CurationTask object does not have a task_id.
-
+            ValueError: If delete_source is True but the task properties are not properly set
+              to identify the source to delete.
 
         Example: Delete a curation task asynchronously
             &nbsp;
