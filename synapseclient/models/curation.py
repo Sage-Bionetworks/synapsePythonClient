@@ -215,8 +215,7 @@ class CurationTaskSynchronousProtocol(Protocol):
 
     def delete(
         self,
-        delete_file_view: bool = False,
-        delete_record_set: bool = False,
+        delete_source: bool = False,
         *,
         synapse_client: Optional[Synapse] = None,
     ) -> None:
@@ -224,10 +223,8 @@ class CurationTaskSynchronousProtocol(Protocol):
         Deletes a CurationTask from Synapse.
 
         Arguments:
-            delete_file_view: If True, the associated EntityView will also be deleted
-                if the task is a FileBasedMetadataTask. Defaults to False.
-            delete_record_set: If True, the associated RecordSet will also be deleted
-                if the task is a RecordBasedMetadataTask. Defaults to False.
+            delete_source: If True, the associated source data (EntityView or RecordSet) will also be deleted
+                if the task is a FileBasedMetadataTask or RecordBasedMetadataTask respectively. Defaults to False.
             synapse_client: If not passed in and caching was not disabled by
                 `Synapse.allow_client_caching(False)` this will use the last created
                 instance from the Synapse class constructor.
@@ -249,7 +246,7 @@ class CurationTaskSynchronousProtocol(Protocol):
             task.delete()
             ```
 
-        Example: Delete a curation task and its associated file view
+        Example: Delete a curation task and its associated data source
             &nbsp;
 
             ```python
@@ -260,21 +257,7 @@ class CurationTaskSynchronousProtocol(Protocol):
             syn.login()
 
             task = CurationTask(task_id=123)
-            task.delete(delete_file_view=True)
-            ```
-
-        Example: Delete a curation task and its associated record set
-            &nbsp;
-
-            ```python
-            from synapseclient import Synapse
-            from synapseclient.models import CurationTask
-
-            syn = Synapse()
-            syn.login()
-
-            task = CurationTask(task_id=123)
-            task.delete(delete_record_set=True)
+            task.delete(delete_source=True)
             ```
         """
         return None
@@ -642,8 +625,7 @@ class CurationTask(CurationTaskSynchronousProtocol):
 
     async def delete_async(
         self,
-        delete_file_view: bool = False,
-        delete_record_set: bool = False,
+        delete_source: bool = False,
         *,
         synapse_client: Optional[Synapse] = None,
     ) -> None:
@@ -651,20 +633,14 @@ class CurationTask(CurationTaskSynchronousProtocol):
         Deletes a CurationTask from Synapse.
 
         Arguments:
-            delete_file_view: If True, the associated EntityView will also be deleted
-                if the task is a FileBasedMetadataTask. Defaults to False.
-            delete_record_set: If True, the associated RecordSet will also be deleted
-                if the task is a RecordBasedMetadataTask. Defaults to False.
+            delete_source: If True, the associated source data (EntityView or RecordSet) will also be deleted
+                if the task is a FileBasedMetadataTask or RecordBasedMetadataTask respectively. Defaults to False.
             synapse_client: If not passed in and caching was not disabled by
                 `Synapse.allow_client_caching(False)` this will use the last created
                 instance from the Synapse class constructor.
 
         Raises:
             ValueError: If the CurationTask object does not have a task_id.
-            ValueError: If delete_file_view=True but the task is not a FileBasedMetadataTask or does not have a
-                file_view_id.
-            ValueError: If delete_record_set=True but the task is not a RecordBasedMetadataTask or does not have a
-                record_set_id.
 
 
         Example: Delete a curation task asynchronously
@@ -686,7 +662,7 @@ class CurationTask(CurationTaskSynchronousProtocol):
             asyncio.run(main())
             ```
 
-        Example: Delete a curation task and its associated file view asynchronously
+        Example: Delete a curation task and its associated data source asynchronously
             &nbsp;
 
             ```python
@@ -699,26 +675,7 @@ class CurationTask(CurationTaskSynchronousProtocol):
 
             async def main():
                 task = CurationTask(task_id=123)
-                await task.delete_async(delete_file_view=True)
-                print("Task and file view deleted successfully")
-
-            asyncio.run(main())
-            ```
-
-        Example: Delete a curation task and its associated record set asynchronously
-            &nbsp;
-
-            ```python
-            import asyncio
-            from synapseclient import Synapse
-            from synapseclient.models import CurationTask
-
-            syn = Synapse()
-            syn.login()
-
-            async def main():
-                task = CurationTask(task_id=123)
-                await task.delete_async(delete_record_set=True)
+                await task.delete_async(delete_source=True)
                 print("Task and record set deleted successfully")
 
             asyncio.run(main())
@@ -733,62 +690,32 @@ class CurationTask(CurationTaskSynchronousProtocol):
             }
         )
 
-        if delete_file_view or delete_record_set:
+        if delete_source:
             if not self.task_properties:
                 await self.get_async(synapse_client=synapse_client)
-
-        if delete_file_view:
-            if (
-                isinstance(self.task_properties, FileBasedMetadataTaskProperties)
-                and self.task_properties.file_view_id
-            ):
-                from synapseclient.models.entityview import EntityView
+            if isinstance(self.task_properties, FileBasedMetadataTaskProperties):
+                if not self.task_properties.file_view_id:
+                    raise ValueError(
+                        "file_view_id is required to delete the associated file view"
+                    )
+                from synapseclient.models import EntityView
 
                 await EntityView(id=self.task_properties.file_view_id).delete_async(
                     synapse_client=synapse_client
                 )
-
-            elif not isinstance(self.task_properties, FileBasedMetadataTaskProperties):
-                raise ValueError(
-                    (
-                        "The `delete_file_view` parameter was set to True, "
-                        "but the task is not configured as a FileBasedMetadataTask."
+            elif isinstance(self.task_properties, RecordBasedMetadataTaskProperties):
+                if not self.task_properties.record_set_id:
+                    raise ValueError(
+                        "record_set_id is required to delete the associated record set"
                     )
-                )
-            else:
-                raise ValueError(
-                    (
-                        "The `delete_file_view` parameter was set to True, "
-                        "but the task does not have an associated file view ID."
-                    )
-                )
-
-        if delete_record_set:
-            if (
-                isinstance(self.task_properties, RecordBasedMetadataTaskProperties)
-                and self.task_properties.record_set_id
-            ):
-                from synapseclient.models.recordset import RecordSet
+                from synapseclient.models import RecordSet
 
                 await RecordSet(id=self.task_properties.record_set_id).delete_async(
                     synapse_client=synapse_client
                 )
-
-            elif not isinstance(
-                self.task_properties, RecordBasedMetadataTaskProperties
-            ):
-                raise ValueError(
-                    (
-                        "The `delete_record_set` parameter was set to True, "
-                        "but the task is not configured as a RecordBasedMetadataTask."
-                    )
-                )
             else:
                 raise ValueError(
-                    (
-                        "The `delete_record_set` parameter was set to True, "
-                        "but the task does not have an associated record set ID."
-                    )
+                    "Failed to retrieve task properties for deletion. Cannot delete source."
                 )
 
         await delete_curation_task(task_id=self.task_id, synapse_client=synapse_client)

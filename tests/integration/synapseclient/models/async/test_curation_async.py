@@ -464,9 +464,7 @@ class TestCurationTaskDeleteAsync:
         assert task_id is not None
 
         # WHEN I delete the task asynchronously, without deleting the file view
-        await curation_task.delete_async(
-            synapse_client=self.syn, delete_file_view=False
-        )
+        await curation_task.delete_async(synapse_client=self.syn, delete_source=False)
 
         # THEN the task should be deleted and no longer retrievable
         with pytest.raises(SynapseHTTPError):
@@ -498,12 +496,15 @@ class TestCurationTaskDeleteAsync:
         assert task_id is not None
 
         # WHEN I delete the task and fileview asynchronously
-        await curation_task.delete_async(synapse_client=self.syn, delete_file_view=True)
+        await curation_task.delete_async(synapse_client=self.syn, delete_source=True)
 
         # THEN the task should be deleted and no longer retrievable
         with pytest.raises(SynapseHTTPError):
             await CurationTask(task_id=task_id).get_async(synapse_client=self.syn)
 
+        print("##########")
+        print(entity_view.id)
+        print("##########")
         # AND the file view should be deleted and no longer retrievable
         with pytest.raises(SynapseHTTPError):
             await EntityView(entity_view.id).get_async(synapse_client=self.syn)
@@ -530,9 +531,7 @@ class TestCurationTaskDeleteAsync:
         assert task_id is not None
 
         # WHEN I delete the task asynchronously, without deleting the record set
-        await curation_task.delete_async(
-            synapse_client=self.syn, delete_record_set=False
-        )
+        await curation_task.delete_async(synapse_client=self.syn, delete_source=False)
 
         # THEN the task should be deleted and no longer retrievable
         with pytest.raises(SynapseHTTPError):
@@ -563,9 +562,7 @@ class TestCurationTaskDeleteAsync:
         assert task_id is not None
 
         # WHEN I delete the task asynchronously, without deleting the record set
-        await curation_task.delete_async(
-            synapse_client=self.syn, delete_record_set=True
-        )
+        await curation_task.delete_async(synapse_client=self.syn, delete_source=True)
 
         # THEN the task should be deleted and no longer retrievable
         with pytest.raises(SynapseHTTPError):
