@@ -694,29 +694,36 @@ class CurationTask(CurationTaskSynchronousProtocol):
         if delete_source:
             if not self.task_properties:
                 await self.get_async(synapse_client=synapse_client)
+
             if isinstance(self.task_properties, FileBasedMetadataTaskProperties):
                 if not self.task_properties.file_view_id:
                     raise ValueError(
-                        "file_view_id is required to delete the associated file view"
+                        "Cannot delete Fileview: "
+                        "'file_view_id' attribute is missing."
                     )
                 from synapseclient.models import EntityView
 
                 await EntityView(id=self.task_properties.file_view_id).delete_async(
                     synapse_client=synapse_client
                 )
+
             elif isinstance(self.task_properties, RecordBasedMetadataTaskProperties):
                 if not self.task_properties.record_set_id:
                     raise ValueError(
-                        "record_set_id is required to delete the associated record set"
+                        "Cannot delete RecordSet: "
+                        "'record_set_id' attribute is missing."
                     )
                 from synapseclient.models import RecordSet
 
                 await RecordSet(id=self.task_properties.record_set_id).delete_async(
                     synapse_client=synapse_client
                 )
+
             else:
                 raise ValueError(
-                    "Failed to retrieve task properties for deletion. Cannot delete source."
+                    "'task_property' attribute is None. "
+                    "Deletion only supports FileBasedMetadataTaskProperties or "
+                    "RecordBasedMetadataTaskProperties."
                 )
 
         await delete_curation_task(task_id=self.task_id, synapse_client=synapse_client)

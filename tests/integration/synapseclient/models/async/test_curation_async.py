@@ -502,9 +502,6 @@ class TestCurationTaskDeleteAsync:
         with pytest.raises(SynapseHTTPError):
             await CurationTask(task_id=task_id).get_async(synapse_client=self.syn)
 
-        print("##########")
-        print(entity_view.id)
-        print("##########")
         # AND the file view should be deleted and no longer retrievable
         with pytest.raises(SynapseHTTPError):
             await EntityView(entity_view.id).get_async(synapse_client=self.syn)
