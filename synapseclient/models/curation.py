@@ -45,7 +45,7 @@ class FileBasedMetadataTaskProperties:
     A CurationTaskProperties for file-based data, describing where data is uploaded
     and a view which contains the annotations.
 
-    Represents a [Synapse FileBasedMetadataTaskProperties](https://rest-docs.synapse.org/org/sagebionetworks/repo/model/curation/metadata/FileBasedMetadataTaskProperties.html).
+    Represents a [Synapse FileBasedMetadataTaskProperties](https://rest-docs.synapse.org/rest/org/sagebionetworks/repo/model/curation/metadata/FileBasedMetadataTaskProperties.html).
 
     Attributes:
         upload_folder_id: The synId of the folder where data files of this type are to be uploaded
@@ -94,7 +94,7 @@ class RecordBasedMetadataTaskProperties:
     """
     A CurationTaskProperties for record-based metadata.
 
-    Represents a [Synapse RecordBasedMetadataTaskProperties](https://rest-docs.synapse.org/org/sagebionetworks/repo/model/curation/metadata/RecordBasedMetadataTaskProperties.html).
+    Represents a [Synapse RecordBasedMetadataTaskProperties](https://rest-docs.synapse.org/rest/org/sagebionetworks/repo/model/curation/metadata/RecordBasedMetadataTaskProperties.html).
 
     Attributes:
         record_set_id: The synId of the RecordSet that will contain all record-based metadata
@@ -213,11 +213,21 @@ class CurationTaskSynchronousProtocol(Protocol):
         """
         return self
 
-    def delete(self, *, synapse_client: Optional[Synapse] = None) -> None:
+    def delete(
+        self,
+        delete_file_view: bool = False,
+        delete_record_set: bool = False,
+        *,
+        synapse_client: Optional[Synapse] = None,
+    ) -> None:
         """
         Deletes a CurationTask from Synapse.
 
         Arguments:
+            delete_file_view: If True, the associated EntityView will also be deleted
+                if the task is a FileBasedMetadataTask. Defaults to False.
+            delete_record_set: If True, the associated RecordSet will also be deleted
+                if the task is a RecordBasedMetadataTask. Defaults to False.
             synapse_client: If not passed in and caching was not disabled by
                 `Synapse.allow_client_caching(False)` this will use the last created
                 instance from the Synapse class constructor.
@@ -237,6 +247,34 @@ class CurationTaskSynchronousProtocol(Protocol):
 
             task = CurationTask(task_id=123)
             task.delete()
+            ```
+
+        Example: Delete a curation task and its associated file view
+            &nbsp;
+
+            ```python
+            from synapseclient import Synapse
+            from synapseclient.models import CurationTask
+
+            syn = Synapse()
+            syn.login()
+
+            task = CurationTask(task_id=123)
+            task.delete(delete_file_view=True)
+            ```
+
+        Example: Delete a curation task and its associated record set
+            &nbsp;
+
+            ```python
+            from synapseclient import Synapse
+            from synapseclient.models import CurationTask
+
+            syn = Synapse()
+            syn.login()
+
+            task = CurationTask(task_id=123)
+            task.delete(delete_record_set=True)
             ```
         """
         return None
@@ -602,17 +640,32 @@ class CurationTask(CurationTaskSynchronousProtocol):
         self._set_last_persistent_instance()
         return self
 
-    async def delete_async(self, *, synapse_client: Optional[Synapse] = None) -> None:
+    async def delete_async(
+        self,
+        delete_file_view: bool = False,
+        delete_record_set: bool = False,
+        *,
+        synapse_client: Optional[Synapse] = None,
+    ) -> None:
         """
         Deletes a CurationTask from Synapse.
 
         Arguments:
+            delete_file_view: If True, the associated EntityView will also be deleted
+                if the task is a FileBasedMetadataTask. Defaults to False.
+            delete_record_set: If True, the associated RecordSet will also be deleted
+                if the task is a RecordBasedMetadataTask. Defaults to False.
             synapse_client: If not passed in and caching was not disabled by
                 `Synapse.allow_client_caching(False)` this will use the last created
                 instance from the Synapse class constructor.
 
         Raises:
             ValueError: If the CurationTask object does not have a task_id.
+            ValueError: If delete_file_view=True but the task is not a FileBasedMetadataTask or does not have a
+                file_view_id.
+            ValueError: If delete_record_set=True but the task is not a RecordBasedMetadataTask or does not have a
+                record_set_id.
+
 
         Example: Delete a curation task asynchronously
             &nbsp;
@@ -632,6 +685,44 @@ class CurationTask(CurationTaskSynchronousProtocol):
 
             asyncio.run(main())
             ```
+
+        Example: Delete a curation task and its associated file view asynchronously
+            &nbsp;
+
+            ```python
+            import asyncio
+            from synapseclient import Synapse
+            from synapseclient.models import CurationTask
+
+            syn = Synapse()
+            syn.login()
+
+            async def main():
+                task = CurationTask(task_id=123)
+                await task.delete_async(delete_file_view=True)
+                print("Task and file view deleted successfully")
+
+            asyncio.run(main())
+            ```
+
+        Example: Delete a curation task and its associated record set asynchronously
+            &nbsp;
+
+            ```python
+            import asyncio
+            from synapseclient import Synapse
+            from synapseclient.models import CurationTask
+
+            syn = Synapse()
+            syn.login()
+
+            async def main():
+                task = CurationTask(task_id=123)
+                await task.delete_async(delete_record_set=True)
+                print("Task and record set deleted successfully")
+
+            asyncio.run(main())
+            ```
         """
         if not self.task_id:
             raise ValueError("task_id is required to delete a CurationTask")
@@ -641,6 +732,64 @@ class CurationTask(CurationTaskSynchronousProtocol):
                 "synapse.task_id": str(self.task_id),
             }
         )
+
+        if delete_file_view or delete_record_set:
+            if not self.task_properties:
+                await self.get_async(synapse_client=synapse_client)
+
+        if delete_file_view:
+            if (
+                isinstance(self.task_properties, FileBasedMetadataTaskProperties)
+                and self.task_properties.file_view_id
+            ):
+                from synapseclient.models.entityview import EntityView
+
+                await EntityView(id=self.task_properties.file_view_id).delete_async(
+                    synapse_client=synapse_client
+                )
+
+            elif not isinstance(self.task_properties, FileBasedMetadataTaskProperties):
+                raise ValueError(
+                    (
+                        "The `delete_file_view` parameter was set to True, "
+                        "but the task is not configured as a FileBasedMetadataTask."
+                    )
+                )
+            else:
+                raise ValueError(
+                    (
+                        "The `delete_file_view` parameter was set to True, "
+                        "but the task does not have an associated file view ID."
+                    )
+                )
+
+        if delete_record_set:
+            if (
+                isinstance(self.task_properties, RecordBasedMetadataTaskProperties)
+                and self.task_properties.record_set_id
+            ):
+                from synapseclient.models.recordset import RecordSet
+
+                await RecordSet(id=self.task_properties.record_set_id).delete_async(
+                    synapse_client=synapse_client
+                )
+
+            elif not isinstance(
+                self.task_properties, RecordBasedMetadataTaskProperties
+            ):
+                raise ValueError(
+                    (
+                        "The `delete_record_set` parameter was set to True, "
+                        "but the task is not configured as a RecordBasedMetadataTask."
+                    )
+                )
+            else:
+                raise ValueError(
+                    (
+                        "The `delete_record_set` parameter was set to True, "
+                        "but the task does not have an associated record set ID."
+                    )
+                )
 
         await delete_curation_task(task_id=self.task_id, synapse_client=synapse_client)
 
