@@ -371,7 +371,7 @@ class TestCurationTaskDeleteAsync:
         self.syn = syn
         self.schedule_for_cleanup = schedule_for_cleanup
 
-    @pytest.fixture(scope="class")
+    @pytest.fixture(scope="function")
     async def folder_with_view(
         self,
         project_model: Project,
@@ -413,7 +413,7 @@ class TestCurationTaskDeleteAsync:
 
         return folder, entity_view
 
-    @pytest.fixture(scope="class")
+    @pytest.fixture(scope="function")
     async def folder_with_record_set(
         self,
         project_model: Project,
