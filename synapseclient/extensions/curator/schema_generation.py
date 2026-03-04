@@ -5198,7 +5198,10 @@ class JSONSchema:
                             "Cancer"
                         ]
                     }
-                }
+                },
+                "required":[
+                    "Diagnosis"
+                ]
             },
             "then":{
                 "properties":{
@@ -5217,7 +5220,10 @@ class JSONSchema:
             enum_value,
         ), dependent_properties in conditional_dependencies.items():
             conditional_dep = {
-                "if": {"properties": {watched_property: {"enum": [enum_value]}}},
+                "if": {
+                    "properties": {watched_property: {"enum": [enum_value]}},
+                    "required": [watched_property],
+                },
                 "then": {
                     "properties": {
                         prop: {"not": {"type": "null"}} for prop in dependent_properties
