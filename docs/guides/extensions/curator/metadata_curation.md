@@ -395,6 +395,9 @@ if validation_df is not None:
 # Clean up temporary file
 if os.path.exists(temp_csv):
     os.unlink(temp_csv)
+
+# Clean up RecordSet and CurationTask
+curation_task.delete(delete_source=True)
 ```
 
 In this example you would expect to get results like:
