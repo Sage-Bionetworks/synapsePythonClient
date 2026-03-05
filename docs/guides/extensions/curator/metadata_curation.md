@@ -367,8 +367,8 @@ record_set, task, grid = create_record_based_metadata_task(
 )
 
 # 5. Store the record set with the path to the CSV file as an annotation.
-# TODO: Add functionality to store data in a RecordSet programmatically
-# This doesn't  store the data in the RecordSet
+# TODO: https://sagebionetworks.jira.com/browse/SYNPY-1781
+# Once SYNPY-1781 is finished add code here for uploading data from a CSV file into a grid session.
 record_set.get(synapse_client=syn)
 record_set.path = CSV_PATH
 record_set = record_set.store(synapse_client=syn)
