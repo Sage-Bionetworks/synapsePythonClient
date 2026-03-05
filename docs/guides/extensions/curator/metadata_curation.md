@@ -297,15 +297,18 @@ syn = Synapse()
 syn.login()
 
 # 3. Get annotations from CSV file
-annotations = pd.read_csv(CSV_PATH).to_dict(orient="records")[0]
+annotations = pd.read_csv(CSV_PATH).to_dict(orient="records")
 
 # 4. Create a folder store the file that will be used for curation
 folder = Folder(name=FOLDER_NAME, parent_id=PROJECT_ID)
 folder = folder.store(synapse_client=syn)
 
-# 5. Create a file, annotate it, and store it in Synapse folder
-path_to_file = make_bogus_data_file(n=5)
-file = File(path=path_to_file, parent_id=folder.id, annotations=annotations)
+# 5. Create a files, annotate them, and store them in the Synapse folder
+path_to_file1 = make_bogus_data_file(n=5)
+file = File(path=path_to_file1, parent_id=folder.id, annotations=annotations[0])
+file = file.store(synapse_client=syn)
+path_to_file2 = make_bogus_data_file(n=5)
+file = File(path=path_to_file2, parent_id=folder.id, annotations=annotations[1])
 file = file.store(synapse_client=syn)
 
 # 6. Create EntityView and CurationTask
