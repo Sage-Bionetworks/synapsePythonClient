@@ -312,7 +312,7 @@ annotations = pd.read_csv(CSV_PATH).to_dict(orient="records")
 folder = Folder(name=FOLDER_NAME, parent_id=PROJECT_ID)
 folder = folder.store(synapse_client=syn)
 
-# 5. Create a files, annotate them, and store them in the Synapse folder
+# 5. Create files, annotate them, and store them in the Synapse folder
 path_to_file1 = make_bogus_data_file(n=5)
 file = File(path=path_to_file1, parent_id=folder.id, annotations=annotations[0])
 file = file.store(synapse_client=syn)
