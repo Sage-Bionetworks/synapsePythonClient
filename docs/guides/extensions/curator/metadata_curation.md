@@ -298,7 +298,7 @@ PROJECT_ID = "syn68175188"
 FOLDER_NAME = f"Biospecimen Curation Folder {uuid.uuid4().hex[:8]}"
 CSV_PATH = "biospecimen.csv"
 JSON_SCHEMA_URI = "dpetest-test.schematic.Biospecimen"
-CURATION_TASK_NAME = "File-based curation task for biospecimens"
+CURATION_TASK_NAME = f"File-based curation task for biospecimens {uuid.uuid4().hex[:8]}"
 INSTRUCTIONS = "Please curate the biospecimen information."
 
 # 2. Login to Synapse
@@ -339,20 +339,26 @@ CurationTask(task_id=task_id).delete(synapse_client=syn, delete_source=True)
 The following example is for record-based curation.
 It assumes your data is in a CSV file where each column is a property.
 
-```python
-import pandas as pd
+Here is the csv used in the example:
 
+```csv
+Sex,Component,Diagnosis,PatientID,CancerType,YearofBirth,FamilyHistory
+Male,Patient,Healthy,id1,,1970,
+Female,Patient,Healthy,id2,,1980,
+```
+
+```python
+import uuid
 from synapseclient import Synapse
 from synapseclient.models import Folder
 from synapseclient.extensions.curator import create_record_based_metadata_task
 
-
 # 1. Replace all these values with your own information
 PROJECT_ID = "syn68175188"
-FOLDER_NAME = "Patient Curation Folder"
+FOLDER_NAME = f"Patient Curation Folder {uuid.uuid4().hex[:8]}"
 CSV_PATH = "patient.csv"
 JSON_SCHEMA_URI = "dpetest-test.schematic.Patient"
-CURATION_TASK_NAME = "Record-based curation task for patients"
+CURATION_TASK_NAME = f"Record-based curation task for patients {uuid.uuid4().hex[:8]}"
 INSTRUCTIONS = "Please curate the patient information."
 RECORD_SET_NAME = "Patient Record Set"
 RECORD_SET_DESCRIPTION = "A record set for patients created for a record-based curation task example."
@@ -387,8 +393,7 @@ record_set = record_set.store(synapse_client=syn)
 
 # 6. Cleanup all Synapse entities created
 folder.delete(synapse_client=syn)
-record_set.delete(synapse_client=syn, delete_source=True)
-grid.delete(synapse_client=syn)
+task.delete(synapse_client=syn, delete_source=True)
 ```
 
 ### Example: Complete validation workflow for animal study metadata
