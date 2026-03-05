@@ -272,7 +272,114 @@ else:
     print("No validation results available. The Grid session must be exported to generate validation results.")
 ```
 
-### Example: Complete validation workflow for animal study metadata
+### Example2: Getting data into a Grid for a file-based workflow
+
+The following example is for file-based curation. It assumes your data is in a CSV file.
+It assumes your data is in a CSV file where each column is a property.
+
+```python
+import pandas as pd
+from synapseclient import Synapse
+from synapseclient.models import CurationTask, Folder, File
+from synapseclient.core.utils import make_bogus_data_file
+from synapseclient.extensions.curator import create_file_based_metadata_task
+
+# 1. Replace all these values with your own information
+PROJECT_ID = "syn68175188"
+FOLDER_NAME = "Patient Curation Folder"
+CSV_PATH = "patient.csv"
+JSON_SCHEMA_URI = "dpetest-test.schematic.Patient"
+CURATION_TASK_NAME = "File-based curation task for patients"
+INSTRUCTIONS = "Please curate the patient information."
+
+# 2. Login to Synapse
+syn = Synapse()
+syn.login()
+
+# 3. Get annotations from CSV file
+annotations = pd.read_csv(CSV_PATH).to_dict(orient="records")[0]
+
+# 4. Create a folder store the file that will be used for curation
+folder = Folder(name=FOLDER_NAME, parent_id=PROJECT_ID)
+folder = folder.store(synapse_client=syn)
+
+# 5. Create a file, annotate it, and store it in Synapse folder
+path_to_file = make_bogus_data_file(n=5)
+file = File(path=path_to_file, parent_id=folder.id, annotations=annotations)
+file = file.store(synapse_client=syn)
+
+# 6. Create EntityView and CurationTask
+view_id, task_id = create_file_based_metadata_task(
+    folder_id=folder.id,
+    curation_task_name=CURATION_TASK_NAME,
+    instructions=INSTRUCTIONS,
+    schema_uri=JSON_SCHEMA_URI,
+    synapse_client=syn,
+)
+
+# 7. Cleanup all Synapse entities created
+folder.delete(synapse_client=syn)
+CurationTask(task_id=task_id).delete(synapse_client=syn, delete_source=True)
+```
+
+### Example2: Getting data into a Grid for a record-based workflow
+
+The following example is for record-based curation.
+It assumes your data is in a CSV file where each column is a property.
+
+```python
+import pandas as pd
+
+from synapseclient import Synapse
+from synapseclient.models import Folder
+from synapseclient.extensions.curator import create_record_based_metadata_task
+
+
+# 1. Replace all these values with your own information
+PROJECT_ID = "syn68175188"
+FOLDER_NAME = "Patient Curation Folder"
+CSV_PATH = "patient.csv"
+JSON_SCHEMA_URI = "dpetest-test.schematic.Patient"
+CURATION_TASK_NAME = "Record-based curation task for patients"
+INSTRUCTIONS = "Please curate the patient information."
+RECORD_SET_NAME = "Patient Record Set"
+RECORD_SET_DESCRIPTION = "A record set for patients created for a file-based curation task example."
+UPSERT_KEYS = ["PatientID"]
+
+# 2. Login to Synapse
+syn = Synapse()
+syn.login()
+
+# 3. Create a folder to store the RecordSet in
+folder = Folder(name=FOLDER_NAME, parent_id=PROJECT_ID)
+folder = folder.store(synapse_client=syn)
+
+# 4. Create RecordSet, CurationTask, and Grid
+record_set, task, grid = create_record_based_metadata_task(
+    folder_id=folder.id,
+    record_set_name=RECORD_SET_NAME,
+    record_set_description=RECORD_SET_DESCRIPTION,
+    curation_task_name=CURATION_TASK_NAME,
+    upsert_keys=UPSERT_KEYS,
+    instructions=INSTRUCTIONS,
+    schema_uri=JSON_SCHEMA_URI,
+    synapse_client=syn,
+)
+
+# 5. Store the record set with the path to the CSV file as an annotation.
+# TODO: Add functionality to store data in a RecordSet programmatically
+# This doesn't  store the data in the RecordSet
+record_set.get(synapse_client=syn)
+record_set.path = CSV_PATH
+record_set = record_set.store(synapse_client=syn)
+
+# 6. Cleanup all Synapse entities created
+folder.delete(synapse_client=syn)
+record_set.delete(synapse_client=syn, delete_source=True)
+grid.delete(synapse_client=syn)
+```
+
+### Example3: Complete validation workflow for animal study metadata
 
 This example demonstrates the full workflow from creating a curation task through validating the submitted metadata:
 
