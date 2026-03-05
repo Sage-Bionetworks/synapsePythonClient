@@ -277,8 +277,17 @@ else:
 The following example is for file-based curation.
 It assumes your data is in a CSV file where each column is a property.
 
+Here is the csv used in the example:
+
+```csv
+SampleID,Component,PatientID,TissueStatus
+id1,biospecimen,pid1,Healthy
+id1,biospecimen,pid2,Malignent
+```
+
 ```python
 import pandas as pd
+import uuid
 from synapseclient import Synapse
 from synapseclient.models import CurationTask, Folder, File
 from synapseclient.core.utils import make_bogus_data_file
@@ -286,11 +295,11 @@ from synapseclient.extensions.curator import create_file_based_metadata_task
 
 # 1. Replace all these values with your own information
 PROJECT_ID = "syn68175188"
-FOLDER_NAME = "Patient Curation Folder"
-CSV_PATH = "patient.csv"
-JSON_SCHEMA_URI = "dpetest-test.schematic.Patient"
-CURATION_TASK_NAME = "File-based curation task for patients"
-INSTRUCTIONS = "Please curate the patient information."
+FOLDER_NAME = f"Biospecimen Curation Folder {uuid.uuid4().hex[:8]}"
+CSV_PATH = "biospecimen.csv"
+JSON_SCHEMA_URI = "dpetest-test.schematic.Biospecimen"
+CURATION_TASK_NAME = "File-based curation task for biospecimens"
+INSTRUCTIONS = "Please curate the biospecimen information."
 
 # 2. Login to Synapse
 syn = Synapse()
