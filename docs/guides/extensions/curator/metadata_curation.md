@@ -360,7 +360,7 @@ CSV_PATH = "patient.csv"
 JSON_SCHEMA_URI = "dpetest-test.schematic.Patient"
 CURATION_TASK_NAME = f"Record-based curation task for patients {uuid.uuid4().hex[:8]}"
 INSTRUCTIONS = "Please curate the patient information."
-RECORD_SET_NAME = "Patient Record Set"
+RECORD_SET_NAME = f"Patient Record Set {uuid.uuid4().hex[:8]}"
 RECORD_SET_DESCRIPTION = "A record set for patients created for a record-based curation task example."
 UPSERT_KEYS = ["PatientID"]
 
