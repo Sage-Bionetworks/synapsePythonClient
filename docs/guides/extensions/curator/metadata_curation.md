@@ -274,7 +274,7 @@ else:
 
 ### Example: Getting data into a Grid for a file-based workflow
 
-The following example is for file-based curation. It assumes your data is in a CSV file.
+The following example is for file-based curation.
 It assumes your data is in a CSV file where each column is a property.
 
 ```python
