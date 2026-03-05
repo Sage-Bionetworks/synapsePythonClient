@@ -299,7 +299,7 @@ syn.login()
 # 3. Get annotations from CSV file
 annotations = pd.read_csv(CSV_PATH).to_dict(orient="records")
 
-# 4. Create a folder store the file that will be used for curation
+# 4. Create a folder to store the file that will be used for curation
 folder = Folder(name=FOLDER_NAME, parent_id=PROJECT_ID)
 folder = folder.store(synapse_client=syn)
 
