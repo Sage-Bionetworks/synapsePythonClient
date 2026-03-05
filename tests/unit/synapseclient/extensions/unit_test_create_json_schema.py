@@ -327,7 +327,10 @@ class TestJSONSchema:
 
         # THEN the result should match the expected structure
         expected_cancer = {
-            "if": {"properties": {"Diagnosis": {"enum": ["Cancer"]}}},
+            "if": {
+                "properties": {"Diagnosis": {"enum": ["Cancer"]}},
+                "required": ["Diagnosis"],
+            },
             "then": {
                 "properties": {
                     "CancerType": {"not": {"type": "null"}},
@@ -338,7 +341,10 @@ class TestJSONSchema:
         }
 
         expected_healthy = {
-            "if": {"properties": {"Diagnosis": {"enum": ["Healthy"]}}},
+            "if": {
+                "properties": {"Diagnosis": {"enum": ["Healthy"]}},
+                "required": ["Diagnosis"],
+            },
             "then": {
                 "properties": {"CheckupDate": {"not": {"type": "null"}}},
                 "required": ["CheckupDate"],
