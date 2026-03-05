@@ -346,7 +346,7 @@ JSON_SCHEMA_URI = "dpetest-test.schematic.Patient"
 CURATION_TASK_NAME = "Record-based curation task for patients"
 INSTRUCTIONS = "Please curate the patient information."
 RECORD_SET_NAME = "Patient Record Set"
-RECORD_SET_DESCRIPTION = "A record set for patients created for a file-based curation task example."
+RECORD_SET_DESCRIPTION = "A record set for patients created for a record-based curation task example."
 UPSERT_KEYS = ["PatientID"]
 
 # 2. Login to Synapse
