@@ -272,7 +272,7 @@ else:
     print("No validation results available. The Grid session must be exported to generate validation results.")
 ```
 
-### Example2: Getting data into a Grid for a file-based workflow
+### Example: Getting data into a Grid for a file-based workflow
 
 The following example is for file-based curation. It assumes your data is in a CSV file.
 It assumes your data is in a CSV file where each column is a property.
@@ -322,7 +322,7 @@ folder.delete(synapse_client=syn)
 CurationTask(task_id=task_id).delete(synapse_client=syn, delete_source=True)
 ```
 
-### Example2: Getting data into a Grid for a record-based workflow
+### Example: Getting data into a Grid for a record-based workflow
 
 The following example is for record-based curation.
 It assumes your data is in a CSV file where each column is a property.
@@ -379,7 +379,7 @@ record_set.delete(synapse_client=syn, delete_source=True)
 grid.delete(synapse_client=syn)
 ```
 
-### Example3: Complete validation workflow for animal study metadata
+### Example: Complete validation workflow for animal study metadata
 
 This example demonstrates the full workflow from creating a curation task through validating the submitted metadata:
 
