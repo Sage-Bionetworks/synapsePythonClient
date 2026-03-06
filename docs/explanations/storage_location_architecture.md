@@ -91,7 +91,6 @@ classDiagram
         +str benefactor_id
         +store() StorageLocation
         +get() StorageLocation
-        +setup_s3() Tuple~Folder, StorageLocation~
         +fill_from_dict(dict) StorageLocation
     }
 
@@ -114,7 +113,7 @@ classDiagram
         NONE
     }
 
-    class StorageLocation {
+    class StorageLocationConfigurable {
         <<mixin>>
         +set_storage_location(storage_location_id)
         +get_project_setting(setting_type)
@@ -136,25 +135,47 @@ classDiagram
         +str parent_id
     }
 
+    class UploadDestinationListSetting {
+        <<enumeration>>
+        concreteType
+        id
+        projectId
+        settingsType
+        etag
+        locations
+    }
+
+    class ProjectSetting {
+        <<enumeration>>
+        concreteType
+        id
+        projectId
+        settingsType
+        etag
+
+    }
     StorageLocation --> StorageLocationType : storage_type
     StorageLocation --> UploadType : upload_type
-    StorageLocation <|-- Project : implements
-    StorageLocation <|-- Folder : implements
+    StorageLocationConfigurable <|-- Project : implements
+    StorageLocationConfigurable <|-- Folder : implements
 ```
 
 <br>
+
 
 ### Key Components
 [synapseclient.models.StorageLocation] | The model representing a storage location setting in Synapse |
 [synapseclient.models.StorageLocationType] | Enumeration defining the supported storage backend types |
 [synapseclient.models.UploadType] | Enumeration defining the upload protocol for each storage type |
-[synapseclient.models.mixins.StorageLocation] | Mixin providing storage management methods to entities |
+[synapseclient.models.mixins.StorageLocationConfigurable] | Mixin providing storage management methods to entities |
+[synapseclient.models.mixins.UploadDestinationListSetting] | Enumeration defining the setting type contains the list of upload locations for files in entities |
+[synapseclient.models.mixins.ProjectSetting] | Enumeration defining the project based setting |
 
 ---
 
 <br>
 
-## Storage Type Mapping
+## Storage Type Mapping (TODO: double checking if EXTERNAL_HTTP works as expected)
 
 Each `StorageLocationType` maps to a specific REST API `concreteType` and has a
 default `UploadType`. This mapping allows the system to parse
@@ -748,7 +769,7 @@ sequenceDiagram
         deactivate Entity
     end
 
-    rect rgb(255, 248, 240)
+    rect rgb(240, 248, 255)
         Note over User,Synapse: Phase 2: Migrate Files
         User->>Entity: migrate_indexed_files(db_path)
         activate Entity
