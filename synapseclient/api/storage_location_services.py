@@ -68,7 +68,7 @@ async def get_storage_location_setting(
 
 async def get_project_setting(
     project_id: str,
-    project_setting_type: str,
+    setting_type: str = "upload",
     *,
     synapse_client: Optional["Synapse"] = None,
 ) -> Optional[Dict[str, Any]]:
@@ -77,22 +77,24 @@ async def get_project_setting(
 
     Arguments:
         project_id: The Synapse ID of the project or folder.
-        project_setting_type: The type of project setting to retrieve. Currently supports 'upload' only.
+        setting_type: The type of project setting to retrieve. Currently supports 'upload' only.
         synapse_client: If not passed in and caching was not disabled by
             `Synapse.allow_client_caching(False)` this will use the last created
             instance from the Synapse class constructor.
 
     Returns:
         The upload destination list setting matching <https://rest-docs.synapse.org/rest/org/sagebionetworks/repo/model/project/UploadDestinationListSetting.html>.
-        If the storage location is Synapse S3, the response will be an empty string.
+        If the storage location is Synapse S3, the response will be None.
     """
     from synapseclient import Synapse
 
     client = Synapse.get_client(synapse_client=synapse_client)
     response = await client.rest_get_async(
-        uri=f"/projectSettings/{project_id}/type/{project_setting_type}",
+        uri=f"/projectSettings/{project_id}/type/{setting_type}",
     )
-    return response
+    return (
+        response if response else None
+    )  # if no project setting, a empty string is returned as the response
 
 
 async def create_project_setting(
