@@ -311,14 +311,17 @@ annotations = pd.read_csv(CSV_PATH).to_dict(orient="records")
 # 4. Create a folder to store the file that will be used for curation
 folder = Folder(name=FOLDER_NAME, parent_id=PROJECT_ID)
 folder = folder.store(synapse_client=syn)
+print(f"Created folder with ID: {folder.id}")
 
 # 5. Create files, annotate them, and store them in the Synapse folder
 path_to_file1 = make_bogus_data_file(n=5)
-file = File(path=path_to_file1, parent_id=folder.id, annotations=annotations[0])
-file = file.store(synapse_client=syn)
+file1 = File(path=path_to_file1, parent_id=folder.id, annotations=annotations[0])
+file1 = file1.store(synapse_client=syn)
+print(f"Created file with ID: {file1.id}")
 path_to_file2 = make_bogus_data_file(n=5)
-file = File(path=path_to_file2, parent_id=folder.id, annotations=annotations[1])
-file = file.store(synapse_client=syn)
+file2 = File(path=path_to_file2, parent_id=folder.id, annotations=annotations[1])
+file2 = file2.store(synapse_client=syn)
+print(f"Created file with ID: {file2.id}")
 
 # 6. Create EntityView and CurationTask
 view_id, task_id = create_file_based_metadata_task(
@@ -328,6 +331,8 @@ view_id, task_id = create_file_based_metadata_task(
     schema_uri=JSON_SCHEMA_URI,
     synapse_client=syn,
 )
+print(f"Created EntityView with ID: {view_id}")
+print(f"Created CurationTask with ID: {task_id}")
 
 # 7. Cleanup all Synapse entities created
 folder.delete(synapse_client=syn)
@@ -371,6 +376,7 @@ syn.login()
 # 3. Create a folder to store the RecordSet in
 folder = Folder(name=FOLDER_NAME, parent_id=PROJECT_ID)
 folder = folder.store(synapse_client=syn)
+print(f"Created folder with ID: {folder.id}")
 
 # 4. Create RecordSet, CurationTask, and Grid
 record_set, task, grid = create_record_based_metadata_task(
@@ -383,6 +389,9 @@ record_set, task, grid = create_record_based_metadata_task(
     schema_uri=JSON_SCHEMA_URI,
     synapse_client=syn,
 )
+print(f"Created RecordSet with ID: {record_set.id}")
+print(f"Created CurationTask with ID: {task.task_id}")
+print(f"Created Grid with ID: {grid.session_id}")
 
 # 5. Store the record set with the path to the CSV file as an annotation.
 # TODO: https://sagebionetworks.jira.com/browse/SYNPY-1781
