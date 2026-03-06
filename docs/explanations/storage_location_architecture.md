@@ -689,7 +689,7 @@ sequenceDiagram
     participant MigrateFn as migrate_indexed_files
     participant Synapse as Synapse REST API
 
-    rect rgb(240, 248, 255)
+    rect
         Note over User,Synapse: Phase 1: Index Files
         User->>Entity: index_files_for_migration(dest_id, db_path)
         activate Entity
@@ -713,7 +713,7 @@ sequenceDiagram
         deactivate Entity
     end
 
-    rect rgb(240, 248, 255)
+    rect
         Note over User,Synapse: Phase 2: Migrate Files
         User->>Entity: migrate_indexed_files(db_path)
         activate Entity
