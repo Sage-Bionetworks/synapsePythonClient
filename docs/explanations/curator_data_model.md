@@ -412,7 +412,8 @@ As a result of the above data model, in the JSON Schema:
               "Cancer"
             ]
           }
-        }
+        },
+        "required": ["Diagnosis"]
       },
       "then": {
         "required": ["Cancer Type", "Family History"]
