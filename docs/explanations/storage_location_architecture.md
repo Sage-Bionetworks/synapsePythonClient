@@ -513,16 +513,16 @@ entity. The following state diagram shows the lifecycle of a project setting.
 stateDiagram-v2
     [*] --> NoSetting: Entity created
 
-    NoSetting --> Created: set_storage_location()\ncreates new setting
-    Note right of NoSetting: Inherits from parent\nor uses Synapse default
+    NoSetting --> Created: set_storage_location()
+    Note right of NoSetting: Inherits from parent or uses Synapse default
 
-    Created --> Updated: set_storage_location()\nupdates existing setting
-    Updated --> Updated: set_storage_location()\nupdates existing setting
+    Created --> Updated: set_storage_location() updates existing setting
+    Updated --> Updated: set_storage_location() nupdates existing setting
 
     Created --> Deleted: delete_project_setting(project_setting_id)
     Updated --> Deleted: delete_project_setting(project_setting_id)
 
-    Deleted --> NoSetting: Returns to default\n(inherits from parent)
+    Deleted --> NoSetting: Returns to default (inherits from parent)
 
     state NoSetting {
         [*] --> Inherited
@@ -574,7 +574,7 @@ flowchart TB
         SLCM[StorageLocation Mixin]
     end
 
-    subgraph "API Layer (storage_location_services.py)"
+    subgraph "API Layer"
         create_sls[create_storage_location_setting]
         get_sls[get_storage_location_setting]
         get_ps[get_project_setting]
@@ -689,52 +689,48 @@ sequenceDiagram
     participant MigrateFn as migrate_indexed_files
     participant Synapse as Synapse REST API
 
-    rect
-        Note over User,Synapse: Phase 1: Index Files
-        User->>Entity: index_files_for_migration(dest_id, db_path)
-        activate Entity
+    Note over User,Synapse: === Phase 1: Index Files ===
+    User->>Entity: index_files_for_migration(dest_id, db_path)
+    activate Entity
 
-        Entity->>IndexFn: Start indexing
-        activate IndexFn
+    Entity->>IndexFn: Start indexing
+    activate IndexFn
 
-        IndexFn->>Synapse: Query entity tree
-        Synapse-->>IndexFn: File list
+    IndexFn->>Synapse: Query entity tree
+    Synapse-->>IndexFn: File list
 
-        loop For each file
-            IndexFn->>Synapse: Get file metadata
-            Synapse-->>IndexFn: File info
-            IndexFn->>DB: Record file for migration
-        end
-
-        IndexFn-->>Entity: MigrationResult (indexed counts)
-        deactivate IndexFn
-
-        Entity-->>User: MigrationResult
-        deactivate Entity
+    loop For each file
+        IndexFn->>Synapse: Get file metadata
+        Synapse-->>IndexFn: File info
+        IndexFn->>DB: Record file for migration
     end
 
-    rect
-        Note over User,Synapse: Phase 2: Migrate Files
-        User->>Entity: migrate_indexed_files(db_path)
-        activate Entity
+    IndexFn-->>Entity: MigrationResult (indexed counts)
+    deactivate IndexFn
 
-        Entity->>MigrateFn: Start migration
-        activate MigrateFn
+    Entity-->>User: MigrationResult
+    deactivate Entity
 
-        MigrateFn->>DB: Read indexed files
+    Note over User,Synapse: === Phase 2: Migrate Files ===
+    User->>Entity: migrate_indexed_files(db_path)
+    activate Entity
 
-        loop For each indexed file
-            MigrateFn->>Synapse: Copy file to new storage
-            Synapse-->>MigrateFn: Success/Failure
-            MigrateFn->>DB: Update status
-        end
+    Entity->>MigrateFn: Start migration
+    activate MigrateFn
 
-        MigrateFn-->>Entity: MigrationResult (migrated counts)
-        deactivate MigrateFn
+    MigrateFn->>DB: Read indexed files
 
-        Entity-->>User: MigrationResult
-        deactivate Entity
+    loop For each indexed file
+        MigrateFn->>Synapse: Copy file to new storage
+        Synapse-->>MigrateFn: Success/Failure
+        MigrateFn->>DB: Update status
     end
+
+    MigrateFn-->>Entity: MigrationResult (migrated counts)
+    deactivate MigrateFn
+
+    Entity-->>User: MigrationResult
+    deactivate Entity
 ```
 
 <br>
