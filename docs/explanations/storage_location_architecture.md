@@ -115,12 +115,12 @@ classDiagram
 
     class StorageLocationConfigurable {
         <<mixin>>
-        +set_storage_location(storage_location_id)
-        +get_project_setting(setting_type)
+        +set_storage_location(storage_location_id) ProjectSetting
+        +get_project_setting(setting_type) ProjectSetting
         +delete_project_setting(setting_id)
-        +get_sts_storage_token(permission, output_format)
-        +index_files_for_migration(dest_storage_location_id, db_path)
-        +migrate_indexed_files(db_path)
+        +get_sts_storage_token(permission, output_format) dict
+        +index_files_for_migration(dest_storage_location_id, db_path) MigrationResult
+        +migrate_indexed_files(db_path) MigrationResult
     }
 
     class Project {
@@ -158,6 +158,9 @@ classDiagram
     StorageLocation --> UploadType : upload_type
     StorageLocationConfigurable <|-- Project : implements
     StorageLocationConfigurable <|-- Folder : implements
+    StorageLocationConfigurable ..> ProjectSetting : returns
+    StorageLocationConfigurable ..> UploadDestinationListSetting : uses
+
 ```
 
 <br>
