@@ -172,7 +172,7 @@ classDiagram
 [synapseclient.models.UploadType] | Enumeration defining the upload protocol for each storage type |
 [synapseclient.models.mixins.StorageLocationConfigurable] | Mixin providing storage management methods to entities |
 [synapseclient.models.mixins.UploadDestinationListSetting] | Enumeration defining the setting type contains the list of upload locations for files in entities |
-[synapseclient.models.mixins.ProjectSetting] | Enumeration defining the project based setting |
+[synapseclient.models.mixins.ProjectSetting] | Enumeration defining the project based setting
 
 ---
 
