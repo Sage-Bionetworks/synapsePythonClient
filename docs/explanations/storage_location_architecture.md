@@ -167,12 +167,15 @@ classDiagram
 
 
 ### Key Components
-[synapseclient.models.StorageLocation] | The model representing a storage location setting in Synapse |
-[synapseclient.models.StorageLocationType] | Enumeration defining the supported storage backend types |
-[synapseclient.models.UploadType] | Enumeration defining the upload protocol for each storage type |
-[synapseclient.models.mixins.StorageLocationConfigurable] | Mixin providing storage management methods to entities |
-[synapseclient.models.mixins.UploadDestinationListSetting] | Enumeration defining the setting type contains the list of upload locations for files in entities |
-[synapseclient.models.mixins.ProjectSetting] | Enumeration defining the project based setting
+
+| Component | Description |
+|-----------|-------------|
+| [synapseclient.models.StorageLocation] | The model representing a storage location setting in Synapse |
+| [synapseclient.models.StorageLocationType] | Enumeration defining the supported storage backend types |
+| [synapseclient.models.UploadType] | Enumeration defining the upload protocol for each storage type |
+| [synapseclient.models.mixins.StorageLocationConfigurable] | Mixin providing storage management methods to entities |
+| [synapseclient.models.mixins.UploadDestinationListSetting] | Dataclass defining the upload destination list setting containing storage location IDs |
+| [synapseclient.models.mixins.ProjectSetting] | Dataclass defining the base project setting structure |
 
 ---
 
@@ -405,79 +408,6 @@ sequenceDiagram
 
 <br>
 
-### Setup S3 Convenience Flow
-
-The `setup_s3()` class method creates a folder with S3 storage in a single call.
-```mermaid
-sequenceDiagram
-    participant User
-    participant setup_s3 as StorageLocation.setup_s3()
-    participant StorageLocation
-    participant Folder
-    participant Mixin as StorageLocation
-    participant API as storage_location_services
-    participant Synapse as Synapse REST API
-
-    User->>setup_s3: setup_s3(parent, folder_name, bucket_name)
-    activate setup_s3
-
-    Note over setup_s3: Validate: folder_name XOR folder
-
-    alt folder_name provided
-        setup_s3->>Folder: Folder(name, parent_id).store()
-        activate Folder
-        Folder->>Synapse: POST /entity
-        Synapse-->>Folder: Folder response
-        Folder-->>setup_s3: New Folder
-        deactivate Folder
-    else folder ID provided
-        setup_s3->>Folder: Folder(id).get()
-        activate Folder
-        Folder->>Synapse: GET /entity/{id}
-        Synapse-->>Folder: Folder response
-        Folder-->>setup_s3: Existing Folder
-        deactivate Folder
-    end
-
-    alt bucket_name provided
-        Note over setup_s3: storage_type = EXTERNAL_S3
-    else bucket_name is None
-        Note over setup_s3: storage_type = SYNAPSE_S3
-    end
-
-    setup_s3->>StorageLocation: StorageLocation(...).store()
-    activate StorageLocation
-    StorageLocation->>Synapse: POST /storageLocation
-    Synapse-->>StorageLocation: StorageLocation response
-    StorageLocation-->>setup_s3: StorageLocation
-    deactivate StorageLocation
-
-    setup_s3->>Mixin: folder.set_storage_location(storage_location_id)
-    activate Mixin
-
-    Mixin->>API: get_project_setting(project_id, "upload")
-    API->>Synapse: GET /projectSettings/{id}/type/upload
-    Synapse-->>API: Setting or empty
-
-    alt Setting exists
-        API-->>Mixin: Existing setting
-        Mixin->>API: update_project_setting(body)
-        API->>Synapse: PUT /projectSettings
-    else No setting
-        Mixin->>API: create_project_setting(body)
-        API->>Synapse: POST /projectSettings
-    end
-
-    Synapse-->>API: Project setting response
-    API-->>Mixin: Updated setting
-    deactivate Mixin
-
-    setup_s3-->>User: (Folder, StorageLocation)
-    deactivate setup_s3
-```
-
-<br>
-
 ### STS Token Retrieval
 
 STS (AWS Security Token Service) enables direct S3 access using temporary credentials.
@@ -583,27 +513,38 @@ entity. The following state diagram shows the lifecycle of a project setting.
 stateDiagram-v2
     [*] --> NoSetting: Entity created
 
-    NoSetting --> Created: set_storage_location()
+    NoSetting --> Created: set_storage_location()\ncreates new setting
     Note right of NoSetting: Inherits from parent\nor uses Synapse default
 
-    Created --> Updated: set_storage_location()\nwith different locations
-    Updated --> Updated: set_storage_location()\nwith different locations
+    Created --> Updated: set_storage_location()\nupdates existing setting
+    Updated --> Updated: set_storage_location()\nupdates existing setting
 
-    Created --> Deleted: delete_project_setting()
-    Updated --> Deleted: delete_project_setting()
+    Created --> Deleted: delete_project_setting(project_setting_id)
+    Updated --> Deleted: delete_project_setting(project_setting_id)
 
-    Deleted --> NoSetting: Returns to default
+    Deleted --> NoSetting: Returns to default\n(inherits from parent)
+
+    state NoSetting {
+        [*] --> Inherited
+        Inherited: No project setting exists
+        Inherited: Uses parent or Synapse default (ID=1)
+    }
 
     state Created {
         [*] --> Active
+        Active: concreteType = UploadDestinationListSetting
         Active: locations = [storage_location_id]
         Active: settingsType = "upload"
+        Active: projectId = entity.id
+        Active: Has id and etag
     }
 
     state Updated {
         [*] --> Modified
-        Modified: locations = [new_id, ...]
+        Modified: concreteType = UploadDestinationListSetting
+        Modified: locations = [new_id, ...] (max 10)
         Modified: settingsType = "upload"
+        Modified: etag updated (OCC)
     }
 ```
 
