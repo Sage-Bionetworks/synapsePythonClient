@@ -1,4 +1,3 @@
-import json
 import os
 import re
 from collections import OrderedDict
@@ -10,7 +9,7 @@ from unittest.mock import MagicMock, patch
 import numpy as np
 import pandas as pd
 import pytest
-from pandas.api.types import is_float_dtype, is_integer_dtype, is_object_dtype
+from pandas.api.types import is_integer_dtype, is_object_dtype
 
 from synapseclient import Synapse
 from synapseclient.api import ViewEntityType, ViewTypeMask

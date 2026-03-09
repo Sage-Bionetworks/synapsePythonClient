@@ -13,6 +13,7 @@ from datetime import datetime
 from io import BytesIO
 from typing import Any, Dict, List, Optional, Protocol, Tuple, Union
 
+import pandas as pd
 from tqdm import tqdm
 from tqdm.contrib.logging import logging_redirect_tqdm
 from typing_extensions import Self
@@ -138,7 +139,7 @@ def row_labels_from_rows(rows: List[Row]) -> List[Row]:
     )
 
 
-def convert_dtypes_to_json_serializable(df):
+def convert_dtypes_to_json_serializable(df) -> pd.DataFrame:
     """
     Convert the dtypes of the int64 and float64 columns to object columns which are JSON serializable types.
     Replace both Ellipsis and pandas NA within nested structures which are not JSON serializable types.
@@ -172,14 +173,14 @@ def convert_dtypes_to_json_serializable(df):
                 },
                 {
                     "id": 2,
-                    "description": 'Another description with "quoted text" here',`
+                    "description": 'Another description with "quoted text" here',
                     "references": ["ref1", "ref2"]
                 },
                 {
                     "id": 3,
                     "description": 'Description containing "multiple" quoted "words"',
                     "references": [...]
-                }
+                },
                 {
                     "id": 4,
                     "description": 'Description containing apostrophes sage\'s',
@@ -191,37 +192,32 @@ def convert_dtypes_to_json_serializable(df):
         df = convert_dtypes_to_json_serializable(df)
         print(df)
     """
-    import pandas as pd
+
+    def _serialize_json_value(x):
+        if isinstance(x, (list, dict)):
+
+            def _reformat_special_values(obj):
+                if obj is ...:
+                    return "..."
+                if obj is pd.NA:
+                    return None
+                if isinstance(obj, dict):
+                    return {k: _reformat_special_values(v) for k, v in obj.items()}
+                if isinstance(obj, list):
+                    return [_reformat_special_values(item) for item in obj]
+                return obj
+
+            cleaned_x = _reformat_special_values(x)
+            return cleaned_x
+        # Handle standalone ellipsis
+        if x is ...:
+            return "..."
+        return x
 
     for col in df.columns:
         sample_values = df[col].dropna()
         if len(sample_values):
-
-            def _serialize_json_value(x):
-                if isinstance(x, (list, dict)):
-
-                    def _reformat_special_values(obj):
-                        if obj is ...:
-                            return "..."
-                        if obj is pd.NA:
-                            return None
-                        if isinstance(obj, dict):
-                            return {
-                                k: _reformat_special_values(v) for k, v in obj.items()
-                            }
-                        if isinstance(obj, list):
-                            return [_reformat_special_values(item) for item in obj]
-                        return obj
-
-                    cleaned_x = _reformat_special_values(x)
-                    return cleaned_x
-                # Handle standalone ellipsis
-                if x is ...:
-                    return "..."
-                return x
-
-            df[col] = df[col].apply(lambda x: _serialize_json_value(x))
-
+            df[col] = df[col].apply(_serialize_json_value)
             # restore the original values of the column especially for the int64 and float64 columns since apply function changes the dtype
             df[col] = df[col].convert_dtypes()
             df[col] = df[col].replace({pd.NA: None}).astype(object)
@@ -3838,6 +3834,11 @@ class TableStoreRowMixin:
                 "AppendableRowSetRequest",
             ]
         ] = None,
+        to_csv_kwargs: Optional[Dict[str, Any]] = {
+            "doublequote": False,
+            "escapechar": "\\",
+            "quoting": 0,
+        },
     ) -> None:
         """
         Organize the process of reading in and uploading parts of the DataFrame we are
@@ -3868,6 +3869,8 @@ class TableStoreRowMixin:
                 being uploaded.
             changes: Additional changes to the table that should
                 execute within this transaction.
+            to_csv_kwargs: Additional arguments to pass to the `pd.DataFrame.to_csv`
+                function when writing the data to a CSV file.
         """
         file_handle_id = await multipart_upload_dataframe_async(
             syn=client,
@@ -3880,6 +3883,7 @@ class TableStoreRowMixin:
             line_start=line_start,
             line_end=line_end,
             bytes_to_prepend=header,
+            to_csv_kwargs=to_csv_kwargs,
         )
         # We are using a semaphore here because large tables can take a very long time
         # for the update to complete. This will allow us to wait for the update to
@@ -4058,7 +4062,11 @@ class TableStoreRowMixin:
                 "AppendableRowSetRequest",
             ]
         ] = None,
-        to_csv_kwargs: Optional[Dict[str, Any]] = None,
+        to_csv_kwargs: Optional[Dict[str, Any]] = {
+            "doublequote": False,
+            "escapechar": "\\",
+            "quoting": 0,
+        },
     ) -> None:
         """
         Determines the chunks that need to be used to upload the DataFrame to Synapse.
@@ -4083,7 +4091,6 @@ class TableStoreRowMixin:
             to_csv_kwargs: Additional arguments to pass to the `pd.DataFrame.to_csv`
                 function when writing the data to a CSV file.
         """
-        # Serializes dict/list values to JSON strings
         df = convert_dtypes_to_json_serializable(df)
         # Loop over the rows of the DF to determine the size/boundries we'll be uploading
         chunks_to_upload = []
@@ -4195,6 +4202,7 @@ class TableStoreRowMixin:
                         header=header_line,
                         changes=changes,
                         file_suffix=f"{part}",
+                        to_csv_kwargs=to_csv_kwargs,
                     )
                 )
             )

@@ -669,7 +669,11 @@ async def multipart_upload_dataframe_async(
     preview: bool = True,
     force_restart: bool = False,
     storage_str: str = None,
-    to_csv_kwargs: Optional[Dict[str, Any]] = None,
+    to_csv_kwargs: Optional[Dict[str, Any]] = {
+        "doublequote": False,
+        "escapechar": "\\",
+        "quoting": 0,
+    },
 ) -> str:
     """
     Upload a portion of a file that exists on disk. The usage of this function allows us
@@ -698,6 +702,8 @@ async def multipart_upload_dataframe_async(
         force_restart: True to restart a previously initiated upload from scratch, False
             to try to resume.
         storage_str: Optional string to append to the upload message.
+        to_csv_kwargs: Additional arguments to pass to the `pd.DataFrame.to_csv`
+            function when writing the data to a CSV file.
     """
     trace.get_current_span().set_attributes(
         {

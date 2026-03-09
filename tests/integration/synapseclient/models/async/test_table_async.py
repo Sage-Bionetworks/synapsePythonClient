@@ -1730,7 +1730,6 @@ class TestUpsertRows:
 
             expected_results = expected_results.convert_dtypes()
             expected_results = expected_results.replace({pd.NA: None})
-            # import pdb; pdb.set_trace()
             pd.testing.assert_frame_equal(
                 results_after_insert, expected_results, check_dtype=False
             )
