@@ -3217,9 +3217,7 @@ class TableStoreRowMixin:
         csv_table_descriptor: Optional[CsvTableDescriptor] = None,
         read_csv_kwargs: Optional[Dict[str, Any]] = None,
         to_csv_kwargs: Optional[Dict[str, Any]] = {
-            "doublequote": False,
             "escapechar": "\\",
-            "quoting": 0,
         },
         job_timeout: int = 600,
         synapse_client: Optional[Synapse] = None,
@@ -3838,11 +3836,7 @@ class TableStoreRowMixin:
                 "AppendableRowSetRequest",
             ]
         ] = None,
-        to_csv_kwargs: Optional[Dict[str, Any]] = {
-            "doublequote": False,
-            "escapechar": "\\",
-            "quoting": 0,
-        },
+        to_csv_kwargs: Optional[Dict[str, Any]] = None,
     ) -> None:
         """
         Organize the process of reading in and uploading parts of the DataFrame we are
@@ -4066,11 +4060,7 @@ class TableStoreRowMixin:
                 "AppendableRowSetRequest",
             ]
         ] = None,
-        to_csv_kwargs: Optional[Dict[str, Any]] = {
-            "doublequote": False,
-            "escapechar": "\\",
-            "quoting": 0,
-        },
+        to_csv_kwargs: Optional[Dict[str, Any]] = None,
     ) -> None:
         """
         Determines the chunks that need to be used to upload the DataFrame to Synapse.

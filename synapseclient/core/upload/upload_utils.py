@@ -17,11 +17,7 @@ def get_partial_dataframe_chunk(
     line_start: int,
     line_end: int,
     bytes_to_prepend: Optional[bytes] = None,
-    to_csv_kwargs: Optional[Dict[str, Any]] = {
-        "doublequote": False,
-        "escapechar": "\\",
-        "quoting": 0,
-    },
+    to_csv_kwargs: Optional[Dict[str, Any]] = None,
 ) -> bytes:
     """Read the nth chunk from the file assuming that we are not going to be reading
     or uploading the entire file. This function allows us to read a portion of the file

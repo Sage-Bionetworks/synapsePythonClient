@@ -669,11 +669,7 @@ async def multipart_upload_dataframe_async(
     preview: bool = True,
     force_restart: bool = False,
     storage_str: str = None,
-    to_csv_kwargs: Optional[Dict[str, Any]] = {
-        "doublequote": False,
-        "escapechar": "\\",
-        "quoting": 0,
-    },
+    to_csv_kwargs: Optional[Dict[str, Any]] = None,
 ) -> str:
     """
     Upload a portion of a file that exists on disk. The usage of this function allows us
