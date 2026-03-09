@@ -3216,7 +3216,11 @@ class TableStoreRowMixin:
         insert_size_bytes: int = 900 * MB,
         csv_table_descriptor: Optional[CsvTableDescriptor] = None,
         read_csv_kwargs: Optional[Dict[str, Any]] = None,
-        to_csv_kwargs: Optional[Dict[str, Any]] = None,
+        to_csv_kwargs: Optional[Dict[str, Any]] = {
+            "doublequote": False,
+            "escapechar": "\\",
+            "quoting": 0,
+        },
         job_timeout: int = 600,
         synapse_client: Optional[Synapse] = None,
     ) -> None:
