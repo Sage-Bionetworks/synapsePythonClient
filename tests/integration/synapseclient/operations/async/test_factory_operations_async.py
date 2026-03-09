@@ -15,6 +15,7 @@ from synapseclient.models import (
     ColumnType,
     Dataset,
     DatasetCollection,
+    DockerRepository,
     EntityView,
     File,
     Folder,
@@ -845,3 +846,31 @@ class TestFactoryOperationsGetAsync:
             ValueError, match="Must specify either synapse_id or entity_name"
         ):
             await get_async(synapse_client=self.syn)
+
+    async def test_get_docker_repo_by_id(
+        self, project_model: Project, schedule_for_cleanup: Callable[..., None]
+    ) -> None:
+        """Test retrieving a Docker repository using get factory function."""
+        # GIVEN a Docker repository exists
+        docker_repo = await DockerRepository(
+            parent_id=project_model.id,
+            repository_name="username/test-get-factory",
+            name="Test Factory Repo",
+            description="Testing get factory",
+        ).store_async(synapse_client=self.syn)
+
+        schedule_for_cleanup(docker_repo.id)
+
+        # WHEN I retrieve it using the get factory function
+        retrieved = await get_async(synapse_id=docker_repo.id, synapse_client=self.syn)
+
+        # THEN the correct DockerRepository is returned
+        assert isinstance(retrieved, DockerRepository)
+        assert retrieved.id == docker_repo.id
+        assert retrieved.repository_name == "username/test-get-factory"
+        assert retrieved.name == "Test Factory Repo"
+        assert retrieved.description == "Testing get factory"
+        assert retrieved.parent_id == project_model.id
+        assert retrieved.etag is not None
+        assert retrieved.created_on is not None
+        assert retrieved.is_managed == False

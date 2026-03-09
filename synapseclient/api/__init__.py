@@ -26,6 +26,7 @@ from .curation_services import (
     update_curation_task,
 )
 from .docker_commit_services import get_docker_tag
+from .docker_services import get_entity_id_by_repository_name
 from .entity_bundle_services_v2 import (
     get_entity_id_bundle2,
     get_entity_id_version_bundle2,
@@ -319,6 +320,8 @@ __all__ = [
     "update_curation_task",
     # docker_commit_services
     "get_docker_tag",
+    # docker_services
+    "get_entity_id_by_repository_name",
     # user_services
     "get_user_bundle",
     "get_user_by_principal_id_or_name",

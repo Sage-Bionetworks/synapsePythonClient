@@ -39,6 +39,7 @@ from synapseclient.extensions.curator.record_based_metadata_task import (
     extract_property_titles,
     extract_schema_properties_from_dict,
     extract_schema_properties_from_web,
+    project_id_from_entity_id,
 )
 from synapseclient.extensions.curator.schema_generation import (
     generate_jsonld,
@@ -50,6 +51,11 @@ from synapseclient.extensions.curator.schema_registry import (
     get_latest_schema_uri,
 )
 from synapseclient.models import ColumnType
+from synapseclient.models.curation import (
+    FileBasedMetadataTaskProperties,
+    RecordBasedMetadataTaskProperties,
+)
+from synapseclient.models.folder import Folder
 from synapseclient.models.mixins import JSONSchemaBinding
 from synapseclient.models.mixins.json_schema import JSONSchemaVersionInfo
 
@@ -66,11 +72,15 @@ class TestCreateFileBasedMetadataTask(unittest.TestCase):
         self.mock_syn = Mock(spec=Synapse)
         self.mock_syn.logger = Mock()
         self.folder_id = "syn12345678"
+        self.project_id = "syn11111111"
         self.curation_task_name = "TestCurationTask"
         self.instructions = "Test instructions"
         self.entity_view_name = "Test Entity View"
         self.schema_uri = "sage.schemas.v2571-amp.Biospecimen.schema-0.0.1"
 
+    @patch(
+        "synapseclient.extensions.curator.file_based_metadata_task.project_id_from_entity_id"
+    )
     @patch(
         "synapseclient.extensions.curator.file_based_metadata_task.Synapse.get_client"
     )
@@ -91,11 +101,13 @@ class TestCreateFileBasedMetadataTask(unittest.TestCase):
         mock_create_wiki,
         mock_create_entity_view,
         mock_get_client,
+        mock_get_project_id_from_entity_id,
     ):
         """Test successful creation with schema binding."""
         # GIVEN a file-based metadata task with schema binding
         mock_get_client.return_value = self.mock_syn
         mock_create_entity_view.return_value = "syn87654321"
+        mock_get_project_id_from_entity_id.return_value = self.project_id
 
         mock_folder = Mock()
         mock_folder_cls.return_value = mock_folder
@@ -143,6 +155,9 @@ class TestCreateFileBasedMetadataTask(unittest.TestCase):
         mock_get.assert_called_once_with(self.folder_id, synapse_client=self.mock_syn)
 
     @patch(
+        "synapseclient.extensions.curator.file_based_metadata_task.project_id_from_entity_id"
+    )
+    @patch(
         "synapseclient.extensions.curator.file_based_metadata_task.Synapse.get_client"
     )
     @patch(
@@ -156,11 +171,13 @@ class TestCreateFileBasedMetadataTask(unittest.TestCase):
         mock_folder_cls,
         mock_create_entity_view,
         mock_get_client,
+        mock_get_project_id_from_entity_id,
     ):
         """Test successful creation without schema binding and without wiki."""
         # GIVEN a file-based metadata task without schema binding or wiki
         mock_get_client.return_value = self.mock_syn
         mock_create_entity_view.return_value = "syn87654321"
+        mock_get_project_id_from_entity_id.return_value = self.project_id
 
         mock_folder = Mock()
         mock_folder_cls.return_value = mock_folder
@@ -376,57 +393,92 @@ class TestCreateFileBasedMetadataTask(unittest.TestCase):
             )
 
     @patch(
+        "synapseclient.extensions.curator.file_based_metadata_task.project_id_from_entity_id"
+    )
+    @patch(
         "synapseclient.extensions.curator.file_based_metadata_task.Synapse.get_client"
     )
     @patch(
         "synapseclient.extensions.curator.file_based_metadata_task.create_json_schema_entity_view"
     )
     @patch("synapseclient.extensions.curator.file_based_metadata_task.Folder")
-    def test_create_file_based_metadata_task_project_traversal(
-        self, mock_folder_cls, mock_create_entity_view, mock_get_client
+    @patch("synapseclient.extensions.curator.file_based_metadata_task.CurationTask")
+    def test_create_file_based_metadata_task_with_assignee(
+        self,
+        mock_curation_task_cls,
+        mock_folder_cls,
+        mock_create_entity_view,
+        mock_get_client,
+        mock_get_project_id_from_entity_id,
     ):
-        """Test project traversal to find parent project."""
-        mock_get_client.return_value = self.mock_syn
-        mock_create_entity_view.return_value = "syn87654321"
+        """Test successful creation of file-based metadata task with assignee_principal_id."""
+        # Test both string and int inputs - int should be converted to string
+        test_cases = [
+            ("1234", "1234"),
+            (1234, "1234"),
+        ]
 
-        mock_folder = Mock()
-        mock_folder_cls.return_value = mock_folder
-        mock_folder.get.return_value = mock_folder
-        mock_folder.parent_id = "syn11111111"
+        for input_assignee, expected_assignee in test_cases:
+            with self.subTest(input_assignee=input_assignee):
+                # Reset mocks for each subtest
+                mock_curation_task_cls.reset_mock()
+                mock_folder_cls.reset_mock()
+                mock_create_entity_view.reset_mock()
+                mock_get_client.reset_mock()
+                mock_get_project_id_from_entity_id.reset_mock()
 
-        # Mock parent folder
-        mock_parent_folder = Mock()
-        mock_parent_folder.concreteType = "org.sagebionetworks.repo.model.Folder"
-        mock_parent_folder.parentId = "syn22222222"
+                # GIVEN a file-based metadata task with assignee_principal_id
+                mock_get_client.return_value = self.mock_syn
+                mock_create_entity_view.return_value = "test_entity_view_id"
+                mock_get_project_id_from_entity_id.return_value = self.project_id
 
-        # Mock project
-        mock_project = Mock()
-        mock_project.concreteType = "org.sagebionetworks.repo.model.Project"
-        mock_project.id = "syn22222222"
+                mock_folder = Mock()
+                mock_folder_cls.return_value = mock_folder
+                mock_folder.get.return_value = mock_folder
+                mock_folder.parent_id = "syn11111111"
 
-        self.mock_syn.get.side_effect = [mock_parent_folder, mock_project]
+                mock_project = Mock()
+                mock_project.concreteType = "org.sagebionetworks.repo.model.Project"
+                mock_project.id = "syn22222222"
+                self.mock_syn.get.return_value = mock_project
 
-        mock_task = Mock()
-        mock_task.task_id = "task123"
+                mock_task = Mock()
+                mock_task.task_id = "task123"
+                mock_curation_task = Mock()
+                mock_curation_task.store.return_value = mock_task
+                mock_curation_task_cls.return_value = mock_curation_task
 
-        with patch(
-            "synapseclient.extensions.curator.file_based_metadata_task.CurationTask"
-        ) as mock_curation_task_cls:
-            mock_curation_task = Mock()
-            mock_curation_task.store.return_value = mock_task
-            mock_curation_task_cls.return_value = mock_curation_task
+                # WHEN I create the file-based metadata task with assignee_principal_id
+                result = create_file_based_metadata_task(
+                    folder_id=self.folder_id,
+                    curation_task_name=self.curation_task_name,
+                    instructions=self.instructions,
+                    attach_wiki=False,
+                    entity_view_name=self.entity_view_name,
+                    schema_uri=self.schema_uri,
+                    enable_derived_annotations=True,
+                    assignee_principal_id=input_assignee,
+                    synapse_client=self.mock_syn,
+                )
 
-            result = create_file_based_metadata_task(
-                folder_id=self.folder_id,
-                curation_task_name=self.curation_task_name,
-                instructions=self.instructions,
-                attach_wiki=False,
-                synapse_client=self.mock_syn,
-            )
-
-        self.assertEqual(result, ("syn87654321", "task123"))
-        # Verify that syn.get was called twice (for parent folder and project)
-        self.assertEqual(self.mock_syn.get.call_count, 2)
+                # THEN the CurationTask should be called with assignee_principal_id as string
+                mock_curation_task_cls.assert_called_once_with(
+                    data_type=self.curation_task_name,
+                    project_id=self.project_id,
+                    instructions=self.instructions,
+                    assignee_principal_id=expected_assignee,
+                    task_properties=FileBasedMetadataTaskProperties(
+                        upload_folder_id=self.folder_id,
+                        file_view_id=mock_create_entity_view.return_value,
+                    ),
+                )
+                # AND the task should be created successfully
+                assert result == ("test_entity_view_id", "task123")
+                mock_create_entity_view.assert_called_once_with(
+                    syn=self.mock_syn,
+                    synapse_entity_id=self.folder_id,
+                    entity_view_name=self.entity_view_name,
+                )
 
 
 class TestCreateRecordBasedMetadataTask(unittest.TestCase):
@@ -449,6 +501,19 @@ class TestCreateRecordBasedMetadataTask(unittest.TestCase):
         self.instructions = "Test instructions"
         self.schema_uri = "sage.schemas.v2571-amp.Biospecimen.schema-0.0.1"
 
+    @patch("synapseclient.extensions.curator.utils.get")
+    def test_project_id_from_entity_id_hierarchy_limit_exceeded(self, mock_get):
+        """Tests the 'iter > 1000' safety break."""
+        mock_folder = Folder(id="syn123", parent_id="syn456")
+        mock_get.return_value = mock_folder
+        with pytest.raises(
+            ValueError, match="Could not find project ID in folder hierarchy"
+        ):
+            project_id_from_entity_id(entity_id="syn123", synapse_client=self.mock_syn)
+
+    @patch(
+        "synapseclient.extensions.curator.record_based_metadata_task.project_id_from_entity_id"
+    )
     @patch(
         "synapseclient.extensions.curator.record_based_metadata_task.Synapse.get_client"
     )
@@ -471,10 +536,13 @@ class TestCreateRecordBasedMetadataTask(unittest.TestCase):
         mock_temp_file,
         mock_extract_schema,
         mock_get_client,
+        mock_get_project_id_from_entity_id,
     ):
         """Test successful creation of record-based metadata task."""
         # GIVEN a record-based metadata task with all required components
         mock_get_client.return_value = self.mock_syn
+
+        mock_get_project_id_from_entity_id.return_value = self.project_id
 
         mock_df = pd.DataFrame(columns=["specimenID", "age", "diagnosis"])
         mock_extract_schema.return_value = mock_df
@@ -502,7 +570,6 @@ class TestCreateRecordBasedMetadataTask(unittest.TestCase):
 
         # WHEN I create the record-based metadata task
         result = create_record_based_metadata_task(
-            project_id=self.project_id,
             folder_id=self.folder_id,
             record_set_name=self.record_set_name,
             record_set_description=self.record_set_description,
@@ -533,6 +600,9 @@ class TestCreateRecordBasedMetadataTask(unittest.TestCase):
         )
 
     @patch(
+        "synapseclient.extensions.curator.record_based_metadata_task.project_id_from_entity_id"
+    )
+    @patch(
         "synapseclient.extensions.curator.record_based_metadata_task.Synapse.get_client"
     )
     @patch(
@@ -554,10 +624,12 @@ class TestCreateRecordBasedMetadataTask(unittest.TestCase):
         mock_temp_file,
         mock_extract_schema,
         mock_get_client,
+        mock_get_project_id_from_entity_id,
     ):
         """Test creation without schema binding."""
         # Setup mocks
         mock_get_client.return_value = self.mock_syn
+        mock_get_project_id_from_entity_id.return_value = self.project_id
 
         mock_df = pd.DataFrame(columns=["specimenID", "age", "diagnosis"])
         mock_extract_schema.return_value = mock_df
@@ -585,7 +657,6 @@ class TestCreateRecordBasedMetadataTask(unittest.TestCase):
 
         # Call function
         result = create_record_based_metadata_task(
-            project_id=self.project_id,
             folder_id=self.folder_id,
             record_set_name=self.record_set_name,
             record_set_description=self.record_set_description,
@@ -603,28 +674,6 @@ class TestCreateRecordBasedMetadataTask(unittest.TestCase):
     @patch(
         "synapseclient.extensions.curator.record_based_metadata_task.Synapse.get_client"
     )
-    def test_create_record_based_metadata_task_missing_project_id(
-        self, mock_get_client
-    ):
-        """Test ValueError when project_id is missing."""
-        mock_get_client.return_value = self.mock_syn
-
-        with pytest.raises(ValueError, match="project_id is required"):
-            create_record_based_metadata_task(
-                project_id="",
-                folder_id=self.folder_id,
-                record_set_name=self.record_set_name,
-                record_set_description=self.record_set_description,
-                curation_task_name=self.curation_task_name,
-                upsert_keys=self.upsert_keys,
-                instructions=self.instructions,
-                schema_uri=self.schema_uri,
-                synapse_client=self.mock_syn,
-            )
-
-    @patch(
-        "synapseclient.extensions.curator.record_based_metadata_task.Synapse.get_client"
-    )
     def test_create_record_based_metadata_task_missing_upsert_keys(
         self, mock_get_client
     ):
@@ -635,7 +684,6 @@ class TestCreateRecordBasedMetadataTask(unittest.TestCase):
             ValueError, match="upsert_keys is required and must be a non-empty list"
         ):
             create_record_based_metadata_task(
-                project_id=self.project_id,
                 folder_id=self.folder_id,
                 record_set_name=self.record_set_name,
                 record_set_description=self.record_set_description,
@@ -657,7 +705,6 @@ class TestCreateRecordBasedMetadataTask(unittest.TestCase):
 
         with pytest.raises(ValueError, match="schema_uri is required"):
             create_record_based_metadata_task(
-                project_id=self.project_id,
                 folder_id=self.folder_id,
                 record_set_name=self.record_set_name,
                 record_set_description=self.record_set_description,
@@ -669,6 +716,9 @@ class TestCreateRecordBasedMetadataTask(unittest.TestCase):
             )
 
     @patch(
+        "synapseclient.extensions.curator.record_based_metadata_task.project_id_from_entity_id"
+    )
+    @patch(
         "synapseclient.extensions.curator.record_based_metadata_task.Synapse.get_client"
     )
     @patch(
@@ -679,10 +729,16 @@ class TestCreateRecordBasedMetadataTask(unittest.TestCase):
     )
     @patch("builtins.open")
     def test_create_record_based_metadata_task_csv_write_error(
-        self, mock_open, mock_temp_file, mock_extract_schema, mock_get_client
+        self,
+        mock_open,
+        mock_temp_file,
+        mock_extract_schema,
+        mock_get_client,
+        mock_get_project_id_from_entity_id,
     ):
         """Test error handling during CSV file writing."""
         mock_get_client.return_value = self.mock_syn
+        mock_get_project_id_from_entity_id.return_value = self.project_id
 
         mock_df = pd.DataFrame(columns=["specimenID", "age", "diagnosis"])
         mock_extract_schema.return_value = mock_df
@@ -695,7 +751,6 @@ class TestCreateRecordBasedMetadataTask(unittest.TestCase):
 
         with pytest.raises(Exception, match="File write error"):
             create_record_based_metadata_task(
-                project_id=self.project_id,
                 folder_id=self.folder_id,
                 record_set_name=self.record_set_name,
                 record_set_description=self.record_set_description,
@@ -706,6 +761,9 @@ class TestCreateRecordBasedMetadataTask(unittest.TestCase):
                 synapse_client=self.mock_syn,
             )
 
+    @patch(
+        "synapseclient.extensions.curator.record_based_metadata_task.project_id_from_entity_id"
+    )
     @patch(
         "synapseclient.extensions.curator.record_based_metadata_task.Synapse.get_client"
     )
@@ -724,9 +782,11 @@ class TestCreateRecordBasedMetadataTask(unittest.TestCase):
         mock_temp_file,
         mock_extract_schema,
         mock_get_client,
+        mock_get_project_id_from_entity_id,
     ):
         """Test error handling during RecordSet creation."""
         mock_get_client.return_value = self.mock_syn
+        mock_get_project_id_from_entity_id.return_value = self.project_id
 
         mock_df = pd.DataFrame(columns=["specimenID", "age", "diagnosis"])
         mock_extract_schema.return_value = mock_df
@@ -743,7 +803,6 @@ class TestCreateRecordBasedMetadataTask(unittest.TestCase):
 
         with pytest.raises(Exception, match="RecordSet creation failed"):
             create_record_based_metadata_task(
-                project_id=self.project_id,
                 folder_id=self.folder_id,
                 record_set_name=self.record_set_name,
                 record_set_description=self.record_set_description,
@@ -754,6 +813,9 @@ class TestCreateRecordBasedMetadataTask(unittest.TestCase):
                 synapse_client=self.mock_syn,
             )
 
+    @patch(
+        "synapseclient.extensions.curator.record_based_metadata_task.project_id_from_entity_id"
+    )
     @patch(
         "synapseclient.extensions.curator.record_based_metadata_task.Synapse.get_client"
     )
@@ -774,9 +836,11 @@ class TestCreateRecordBasedMetadataTask(unittest.TestCase):
         mock_temp_file,
         mock_extract_schema,
         mock_get_client,
+        mock_get_project_id_from_entity_id,
     ):
         """Test error handling during CurationTask creation."""
         mock_get_client.return_value = self.mock_syn
+        mock_get_project_id_from_entity_id.return_value = self.project_id
 
         mock_df = pd.DataFrame(columns=["specimenID", "age", "diagnosis"])
         mock_extract_schema.return_value = mock_df
@@ -797,7 +861,6 @@ class TestCreateRecordBasedMetadataTask(unittest.TestCase):
 
         with pytest.raises(Exception, match="CurationTask creation failed"):
             create_record_based_metadata_task(
-                project_id=self.project_id,
                 folder_id=self.folder_id,
                 record_set_name=self.record_set_name,
                 record_set_description=self.record_set_description,
@@ -809,6 +872,9 @@ class TestCreateRecordBasedMetadataTask(unittest.TestCase):
                 synapse_client=self.mock_syn,
             )
 
+    @patch(
+        "synapseclient.extensions.curator.record_based_metadata_task.project_id_from_entity_id"
+    )
     @patch(
         "synapseclient.extensions.curator.record_based_metadata_task.Synapse.get_client"
     )
@@ -831,9 +897,11 @@ class TestCreateRecordBasedMetadataTask(unittest.TestCase):
         mock_temp_file,
         mock_extract_schema,
         mock_get_client,
+        mock_get_project_id_from_entity_id,
     ):
         """Test error handling during Grid creation."""
         mock_get_client.return_value = self.mock_syn
+        mock_get_project_id_from_entity_id.return_value = self.project_id
 
         mock_df = pd.DataFrame(columns=["specimenID", "age", "diagnosis"])
         mock_extract_schema.return_value = mock_df
@@ -860,7 +928,6 @@ class TestCreateRecordBasedMetadataTask(unittest.TestCase):
 
         with pytest.raises(Exception, match="Grid creation failed"):
             create_record_based_metadata_task(
-                project_id=self.project_id,
                 folder_id=self.folder_id,
                 record_set_name=self.record_set_name,
                 record_set_description=self.record_set_description,
@@ -871,6 +938,113 @@ class TestCreateRecordBasedMetadataTask(unittest.TestCase):
                 bind_schema_to_record_set=False,
                 synapse_client=self.mock_syn,
             )
+
+    @patch(
+        "synapseclient.extensions.curator.record_based_metadata_task.project_id_from_entity_id"
+    )
+    @patch(
+        "synapseclient.extensions.curator.record_based_metadata_task.Synapse.get_client"
+    )
+    @patch(
+        "synapseclient.extensions.curator.record_based_metadata_task.extract_schema_properties_from_web"
+    )
+    @patch(
+        "synapseclient.extensions.curator.record_based_metadata_task.tempfile.NamedTemporaryFile"
+    )
+    @patch("synapseclient.extensions.curator.record_based_metadata_task.RecordSet")
+    @patch("synapseclient.extensions.curator.record_based_metadata_task.CurationTask")
+    @patch("synapseclient.extensions.curator.record_based_metadata_task.Grid")
+    @patch("builtins.open")
+    def test_create_record_based_metadata_task_with_assignee(
+        self,
+        mock_open,
+        mock_grid_cls,
+        mock_curation_task_cls,
+        mock_record_set_cls,
+        mock_temp_file,
+        mock_extract_schema,
+        mock_get_client,
+        mock_get_project_id_from_entity_id,
+    ):
+        """Test successful creation of record-based metadata task with assignee_principal_id."""
+        # Test both string and int inputs - int should be converted to string
+        test_cases = [
+            ("1234", "1234"),
+            (1234, "1234"),
+        ]
+
+        for input_assignee, expected_assignee in test_cases:
+            with self.subTest(input_assignee=input_assignee):
+                # Reset mocks for each subtest
+                mock_get_project_id_from_entity_id.reset_mock()
+                mock_open.reset_mock()
+                mock_grid_cls.reset_mock()
+                mock_curation_task_cls.reset_mock()
+                mock_record_set_cls.reset_mock()
+                mock_temp_file.reset_mock()
+                mock_extract_schema.reset_mock()
+                mock_get_client.reset_mock()
+
+                # GIVEN a record-based metadata task with assignee_principal_id
+                mock_get_project_id_from_entity_id.return_value = self.project_id
+                mock_get_client.return_value = self.mock_syn
+
+                mock_df = pd.DataFrame(columns=["specimenID", "age", "diagnosis"])
+                mock_extract_schema.return_value = mock_df
+
+                mock_temp = Mock()
+                mock_temp.name = "/tmp/test.csv"
+                mock_temp_file.return_value = mock_temp
+
+                mock_record_set = Mock()
+                mock_record_set.id = "syn87654321"
+                mock_record_set_instance = Mock()
+                mock_record_set_instance.store.return_value = mock_record_set
+                mock_record_set_cls.return_value = mock_record_set_instance
+
+                mock_task = Mock()
+                mock_task.task_id = "task123"
+                mock_curation_task = Mock()
+                mock_curation_task.store.return_value = mock_task
+                mock_curation_task_cls.return_value = mock_curation_task
+
+                mock_grid = Mock()
+                mock_grid_instance = Mock()
+                mock_grid_instance.export_to_record_set.return_value = mock_grid
+                mock_grid_cls.return_value = mock_grid_instance
+
+                # WHEN I create the record-based metadata task with assignee_principal_id
+                result = create_record_based_metadata_task(
+                    folder_id=self.folder_id,
+                    record_set_name=self.record_set_name,
+                    record_set_description=self.record_set_description,
+                    curation_task_name=self.curation_task_name,
+                    upsert_keys=self.upsert_keys,
+                    instructions=self.instructions,
+                    schema_uri=self.schema_uri,
+                    bind_schema_to_record_set=True,
+                    assignee_principal_id=input_assignee,
+                    synapse_client=self.mock_syn,
+                )
+
+                # THEN the task should be created successfully
+                assert isinstance(result, tuple)
+                assert len(result) == 3
+                record_set, task, grid = result
+                assert record_set == mock_record_set
+                assert task == mock_task
+                assert grid == mock_grid
+
+                # AND the CurationTask should be called with assignee_principal_id as string
+                mock_curation_task_cls.assert_called_once_with(
+                    data_type=self.curation_task_name,
+                    project_id=self.project_id,
+                    instructions=self.instructions,
+                    assignee_principal_id=expected_assignee,
+                    task_properties=RecordBasedMetadataTaskProperties(
+                        record_set_id=mock_record_set.id
+                    ),
+                )
 
 
 class TestQuerySchemaRegistry(unittest.TestCase):

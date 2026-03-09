@@ -5,11 +5,12 @@ This module provides library functions for creating file-based metadata curation
 in Synapse, including EntityView creation, CurationTask setup, and Wiki attachment.
 """
 
-from typing import Any, Optional, Tuple
+from typing import Any, Optional, Tuple, Union
 
 from synapseclient import Synapse  # type: ignore
 from synapseclient import Wiki  # type: ignore
 from synapseclient.core.exceptions import SynapseHTTPError  # type: ignore
+from synapseclient.extensions.curator.utils import project_id_from_entity_id
 from synapseclient.models import (  # type: ignore
     Column,
     ColumnType,
@@ -298,6 +299,7 @@ def create_file_based_metadata_task(
     entity_view_name: str = "JSON Schema view",
     schema_uri: Optional[str] = None,
     enable_derived_annotations: bool = False,
+    assignee_principal_id: Optional[Union[str, int]] = None,
     *,
     synapse_client: Optional[Synapse] = None,
 ) -> Tuple[str, str]:
@@ -322,7 +324,8 @@ def create_file_based_metadata_task(
             instructions="Please curate this metadata according to the schema requirements",
             attach_wiki=False,
             entity_view_name="Biospecimen Metadata View",
-            schema_uri="sage.schemas.v2571-amp.Biospecimen.schema-0.0.1"
+            schema_uri="sage.schemas.v2571-amp.Biospecimen.schema-0.0.1",
+            assignee_principal_id=123456  # Optional: Assign to a user or team (can be str or int)
         )
         ```
 
@@ -338,6 +341,11 @@ def create_file_based_metadata_task(
             the schema will be bound to the folder before creating the entity view.
             (e.g., 'sage.schemas.v2571-amp.Biospecimen.schema-0.0.1')
         enable_derived_annotations: If true, enable derived annotations. Defaults to False.
+        assignee_principal_id: The principal ID of the user or team to assign to this
+            curation task. Can be provided as either a string or an integer. If None
+            (default), the task will be unassigned. For metadata tasks, this determines
+            the owner of the grid session. Team members can all join grid sessions owned
+            by their team, while user-owned grid sessions are restricted to that user only.
         synapse_client: If not passed in and caching was not disabled by
                 `Synapse.allow_client_caching(False)` this will use the last created
                 instance from the Synapse class constructor.
@@ -423,28 +431,21 @@ def create_file_based_metadata_task(
     synapse_client.logger.info(
         "Attempting to get the Synapse ID of the provided folders project."
     )
-    try:
-        entity = Folder(folder_id).get(synapse_client=synapse_client)
-        parent = synapse_client.get(entity.parent_id)
-        project = None
-        while not project:
-            if parent.concreteType == "org.sagebionetworks.repo.model.Project":
-                project = parent
-                break
-            parent = synapse_client.get(parent.parentId)
-    except Exception as e:
-        synapse_client.logger.exception(
-            "Error getting the Synapse ID of the provided folders project"
-        )
-        raise e
+
+    project_id = project_id_from_entity_id(folder_id, synapse_client=synapse_client)
     synapse_client.logger.info("Got the Synapse ID of the provided folders project.")
 
     synapse_client.logger.info("Attempting to create the CurationTask.")
     try:
         task = CurationTask(
             data_type=task_datatype,
-            project_id=project.id,
+            project_id=project_id,
             instructions=instructions,
+            assignee_principal_id=(
+                str(assignee_principal_id)
+                if assignee_principal_id is not None
+                else None
+            ),
             task_properties=FileBasedMetadataTaskProperties(
                 upload_folder_id=folder_id,
                 file_view_id=entity_view_id,
