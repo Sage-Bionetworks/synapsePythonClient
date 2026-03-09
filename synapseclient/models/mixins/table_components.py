@@ -3437,7 +3437,8 @@ class TableStoreRowMixin:
                 function when writing the data to a CSV file. This is only used when
                 the `values` argument is a Pandas DataFrame. See
                 <https://pandas.pydata.org/docs/reference/api/pandas.DataFrame.to_csv.html>
-                for complete list of supported arguments.
+                for complete list of supported arguments. The default is {"escapechar": "\\"}.
+                Ensure escapechar="\\" is set, along with other relevant kwargs, if your data contains double quotes.
 
             job_timeout: The maximum amount of time to wait for a job to complete.
                 This is used when inserting, and updating rows of data. Each individual
