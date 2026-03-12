@@ -690,22 +690,56 @@ sequenceDiagram
     participant Synapse as Synapse REST API
 
     Note over User,Synapse: === Phase 1: Index Files ===
-    User->>Entity: index_files_for_migration(dest_id, db_path)
+    User->>Entity: index_files_for_migration
     activate Entity
 
-    Entity->>IndexFn: Start indexing
+    Entity->>IndexFn: index_files_for_migration_async(dest_id, source_ids, file_version_strategy, include_table_files)
     activate IndexFn
 
-    IndexFn->>Synapse: Query entity tree
-    Synapse-->>IndexFn: File list
+    IndexFn->>Synapse: Verify user owns destination storage location
+    Synapse-->>IndexFn: OK / error
 
-    loop For each file
-        IndexFn->>Synapse: Get file metadata
-        Synapse-->>IndexFn: File info
-        IndexFn->>DB: Record file for migration
+    IndexFn->>DB: Create/open DB + ensure schema
+    IndexFn->>DB: Store migration settings (root_id, dest_id, source_ids, file_version_strategy, include_table_files)
+
+    alt Entity is Project/Folder (container)
+        IndexFn->>Synapse: get_children(parent, include_types)
+        Synapse-->>IndexFn: Child references (folders/files/tables)
+
+        loop For each child (bounded concurrency)
+            IndexFn->>Synapse: get_async(child, downloadFile=false)
+            Synapse-->>IndexFn: Child entity
+            IndexFn->>IndexFn: _index_entity_async(child)
+        end
+
+        IndexFn->>DB: Mark container as indexed (PROJECT/FOLDER)
+
+    else Entity is File
+        alt file_version_strategy = new / latest / all
+            IndexFn->>Synapse: Get file handle metadata (and versions if needed)
+            Synapse-->>IndexFn: File handle(s)
+            IndexFn->>DB: Insert FILE migration rows (or ALREADY_MIGRATED)
+        else file_version_strategy = skip
+            Note over IndexFn: Skip file entities
+        end
+
+    else Entity is Table (include_table_files=true)
+        IndexFn->>Synapse: get_columns(table_id)
+        Synapse-->>IndexFn: Column list
+        IndexFn->>Synapse: Query rows for FILEHANDLEID columns (+ rowId,rowVersion)
+        Synapse-->>IndexFn: Row results (fileHandleId values)
+        loop For each row + file-handle cell
+            IndexFn->>Synapse: get_file_handle_for_download(fileHandleId, objectType=TableEntity)
+            Synapse-->>IndexFn: File handle
+            IndexFn->>DB: Insert TABLE_ATTACHED_FILE migration row (or ALREADY_MIGRATED)
+        end
     end
 
-    IndexFn-->>Entity: MigrationResult (indexed counts)
+    opt continue_on_error=true
+        Note over IndexFn,DB: Indexing errors are recorded in DB instead of aborting
+    end
+
+    IndexFn-->>Entity: MigrationResult (db_path)
     deactivate IndexFn
 
     Entity-->>User: MigrationResult
