@@ -2,7 +2,7 @@
 
 from dataclasses import dataclass, field
 from enum import Enum
-from typing import TYPE_CHECKING, Any, Dict, Optional, Tuple, Union
+from typing import Any, Dict, Optional
 
 from synapseclient import Synapse
 from synapseclient.api.storage_location_services import (
@@ -13,9 +13,6 @@ from synapseclient.core.async_utils import async_to_sync, otel_trace_method
 from synapseclient.models.protocols.storage_location_protocol import (
     StorageLocationSynchronousProtocol,
 )
-
-if TYPE_CHECKING:
-    from synapseclient.models import Folder
 
 
 class StorageLocationType(str, Enum):
@@ -474,127 +471,3 @@ class StorageLocation(StorageLocationSynchronousProtocol):
         )
         self.fill_from_dict(response)
         return self
-
-    @classmethod
-    async def setup_s3_async(
-        cls,
-        *,
-        parent: str,
-        folder_name: Optional[str] = None,
-        folder: Optional[Union["Folder", str]] = None,
-        bucket_name: Optional[str] = None,
-        base_key: Optional[str] = None,
-        sts_enabled: bool = False,
-        synapse_client: Optional[Synapse] = None,
-    ) -> Tuple["Folder", "StorageLocation"]:
-        """Convenience method to create a folder backed by S3 storage. This will:
-
-        1. Create or retrieve the folder
-        2. Create the storage location setting
-        3. Apply the storage location to the folder via project settings
-
-        Arguments:
-            parent: The parent project or folder ID (e.g., "syn123").
-            folder_name: Name for a new folder. Either `folder_name` or `folder`
-                must be provided.
-            folder: An existing Folder object or Synapse ID. Either `folder_name`
-                or `folder` must be provided.
-            bucket_name: The S3 bucket name. If None, uses Synapse default storage.
-            base_key: The base key (prefix) within the bucket. Optional.
-            sts_enabled: Whether to enable STS credentials for this storage location.
-                Default: False.
-            synapse_client: If not passed in and caching was not disabled by
-                `Synapse.allow_client_caching(False)` this will use the last created
-                instance from the Synapse class constructor.
-
-        Returns:
-            A tuple of (Folder, StorageLocation).
-
-        Raises:
-            ValueError: If neither `folder_name` nor `folder` is provided, or if both
-                are provided.
-
-        Example: Using this function
-            Create an STS-enabled folder with external S3 storage:
-
-                import asyncio
-                from synapseclient import Synapse
-                from synapseclient.models import StorageLocation
-
-                syn = Synapse()
-                syn.login()
-
-                async def main():
-                    folder, storage = await StorageLocation.setup_s3_async(
-                        folder_name="my-sts-folder",
-                        parent="syn123",
-                        bucket_name="my-external-synapse-bucket",
-                        base_key="path/within/bucket",
-                        sts_enabled=True,
-                    )
-                    print(f"Folder: {folder.id}, Storage: {storage.storage_location_id}")
-
-                asyncio.run(main())
-
-        Example: Using existing folder
-            Apply S3 storage to an existing folder:
-
-                import asyncio
-                from synapseclient import Synapse
-                from synapseclient.models import StorageLocation
-
-                syn = Synapse()
-                syn.login()
-
-                async def main():
-                    folder, storage = await StorageLocation.setup_s3_async(
-                        folder="syn456",
-                        bucket_name="my-bucket",
-                    )
-
-                asyncio.run(main())
-        """
-        # Import here to avoid circular imports
-        from synapseclient.models import Folder as FolderModel
-
-        # Validate parameters
-        if folder_name and folder:
-            raise ValueError(
-                "folder and folder_name are mutually exclusive, only one should be passed"
-            )
-        if not folder_name and not folder:
-            raise ValueError("Either folder or folder_name is required")
-
-        # Create or get the folder
-        if folder_name:
-            target_folder = await FolderModel(
-                name=folder_name, parent_id=parent
-            ).store_async(synapse_client=synapse_client)
-        elif isinstance(folder, str):
-            target_folder = await FolderModel(id=folder).get_async(
-                synapse_client=synapse_client
-            )
-        else:
-            target_folder = folder
-
-        # Determine storage type
-        if bucket_name:
-            storage_type = StorageLocationType.EXTERNAL_S3
-        else:
-            storage_type = StorageLocationType.SYNAPSE_S3
-
-        # Create the storage location
-        storage_location = await cls(
-            storage_type=storage_type,
-            bucket=bucket_name,
-            base_key=base_key,
-            sts_enabled=sts_enabled,
-        ).store_async(synapse_client=synapse_client)
-
-        # Apply the storage location to the folder
-        await target_folder.set_storage_location_async(
-            storage_location_id=storage_location.storage_location_id,
-            synapse_client=synapse_client,
-        )
-
-        return target_folder, storage_location
