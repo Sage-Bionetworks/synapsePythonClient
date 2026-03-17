@@ -209,6 +209,7 @@ jobs:
 
             # Run only the failed tests
             pytest -sv --reruns 3 --cov-append --cov=. --cov-report xml \
+              --html=integration-test-report.html --self-contained-html \
               --junit-xml=test-results.xml \
               -n 8 --dist loadscope \
               $(cat failed_tests.txt | tr '\n' ' ')
@@ -217,12 +218,13 @@ jobs:
 
             # use loadscope to avoid issues running tests concurrently that share scoped fixtures
             pytest -sv --reruns 3 --cov-append --cov=. --cov-report xml \
+              --html=integration-test-report.html --self-contained-html \
               --junit-xml=test-results.xml \
               tests/integration -n 8 $IGNORE_FLAGS --dist loadscope
           fi
 
           # Execute the CLI tests in a non-dist way because they were causing some test instability when being run concurrently
-          pytest -sv --reruns 3 --cov-append --cov=. --cov-report xml tests/integration/synapseclient/test_command_line_client.py
+          pytest -sv --reruns 3 --cov-append --cov=. --cov-report xml --html=cli-test-report.html --self-contained-html tests/integration/synapseclient/test_command_line_client.py
 
       - name: Extract Failed Tests
         if: always() && steps.integration_tests.outcome == 'failure'
@@ -291,6 +293,28 @@ jobs:
         run: |
           echo "::error::Integration tests failed after ${{ github.run_attempt }} attempt(s)"
           exit 1
+
+      - name: Upload integration test HTML report
+      # make sure report always gets uploaded if the integration tests ran, even if they failed, but skip if the integration tests were skipped
+        if: always() && steps.integration_tests.outcome != 'skipped'
+        uses: actions/upload-artifact@v4
+        with:
+          name: integration-test-report-${{ matrix.os }}-${{ matrix.python }}
+          path: |
+            integration-test-report.html
+            cli-test-report.html
+          retention-days: 14
+
+      - name: Add test report to summary
+      # make sure report always gets uploaded if the integration tests ran, even if they failed, but skip if the integration tests were skipped
+        if: always() && steps.integration_tests.outcome != 'skipped'
+        shell: bash
+        run: |
+          echo "## Test Reports for ${{ matrix.os }} - Python ${{ matrix.python }}" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "Integration test reports uploaded as artifact: \`integration-test-report-${{ matrix.os }}-${{ matrix.python }}\`" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "Download from the **Artifacts** section at the bottom of this workflow run." >> $GITHUB_STEP_SUMMARY
 
       - name: Upload coverage report
         id: upload_coverage_report
