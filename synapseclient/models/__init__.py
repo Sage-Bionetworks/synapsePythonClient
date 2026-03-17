@@ -68,7 +68,11 @@ from synapseclient.models.wiki import (
     WikiOrderHint,
     WikiPage,
 )
-
+from synapseclient.models.download_list import DownloadListManifestRequest
+from synapseclient.models.mixins.manifest import (
+    DEFAULT_GENERATED_MANIFEST_KEYS,
+    MANIFEST_FILENAME,
+)
 __all__ = [
     "Activity",
     "UsedURL",
@@ -153,6 +157,11 @@ __all__ = [
     # Form models
     "FormGroup",
     "FormData",
+    # Manifest constants
+    "MANIFEST_FILENAME",
+    "DEFAULT_GENERATED_MANIFEST_KEYS",
+    # Download List models
+    "DownloadListManifestRequest",
 ]
 
 # Static methods to expose as functions

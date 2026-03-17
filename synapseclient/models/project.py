@@ -37,7 +37,7 @@ if TYPE_CHECKING:
         Table,
         VirtualTable,
     )
-
+from synapseclient.models.mixins.manifest import ManifestGeneratable
 
 @dataclass()
 @async_to_sync
@@ -46,6 +46,7 @@ class Project(
     AccessControllable,
     StorableContainer,
     ContainerEntityJSONSchema,
+    ManifestGeneratable,
 ):
     """A Project is a top-level container for organizing data in Synapse.
 

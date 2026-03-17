@@ -39,7 +39,7 @@ if TYPE_CHECKING:
         VirtualTable,
     )
 
-
+from synapseclient.models.mixins.manifest import ManifestGeneratable
 @dataclass()
 @async_to_sync
 class Folder(
@@ -47,6 +47,7 @@ class Folder(
     AccessControllable,
     StorableContainer,
     ContainerEntityJSONSchema,
+    ManifestGeneratable,
 ):
     """Folder is a hierarchical container for organizing data in Synapse.
 
