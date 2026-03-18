@@ -305,17 +305,6 @@ jobs:
             cli-test-report.html
           retention-days: 14
 
-      - name: Add test report to summary
-      # make sure report always gets uploaded if the integration tests ran, even if they failed, but skip if the integration tests were skipped
-        if: always() && steps.integration_tests.outcome != 'skipped'
-        shell: bash
-        run: |
-          echo "## Test Reports for ${{ matrix.os }} - Python ${{ matrix.python }}" >> $GITHUB_STEP_SUMMARY
-          echo "" >> $GITHUB_STEP_SUMMARY
-          echo "Integration test reports uploaded as artifact: \`integration-test-report-${{ matrix.os }}-${{ matrix.python }}\`" >> $GITHUB_STEP_SUMMARY
-          echo "" >> $GITHUB_STEP_SUMMARY
-          echo "Download from the **Artifacts** section at the bottom of this workflow run." >> $GITHUB_STEP_SUMMARY
-
       - name: Upload coverage report
         id: upload_coverage_report
         uses: actions/upload-artifact@v4
