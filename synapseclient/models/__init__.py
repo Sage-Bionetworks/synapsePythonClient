@@ -14,7 +14,6 @@ from synapseclient.models.curation import (
     RecordBasedMetadataTaskProperties,
 )
 from synapseclient.models.dataset import Dataset, DatasetCollection, EntityRef
-from synapseclient.models.download_list import DownloadListManifestRequest
 from synapseclient.models.entityview import EntityView, ViewTypeMask
 from synapseclient.models.evaluation import Evaluation
 from synapseclient.models.file import File, FileHandle
@@ -22,10 +21,6 @@ from synapseclient.models.folder import Folder
 from synapseclient.models.form import FormData, FormGroup
 from synapseclient.models.link import Link
 from synapseclient.models.materializedview import MaterializedView
-from synapseclient.models.mixins.manifest import (
-    DEFAULT_GENERATED_MANIFEST_KEYS,
-    MANIFEST_FILENAME,
-)
 from synapseclient.models.mixins.table_components import QueryMixin
 from synapseclient.models.project import Project
 from synapseclient.models.recordset import RecordSet
@@ -167,11 +162,6 @@ __all__ = [
     "StorageLocation",
     "StorageLocationType",
     "UploadType",
-    # Manifest constants
-    "MANIFEST_FILENAME",
-    "DEFAULT_GENERATED_MANIFEST_KEYS",
-    # Download List models
-    "DownloadListManifestRequest",
 ]
 
 # Static methods to expose as functions
