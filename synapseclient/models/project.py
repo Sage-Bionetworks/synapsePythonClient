@@ -18,7 +18,6 @@ from synapseclient.models.mixins import (
     ContainerEntityJSONSchema,
     StorableContainer,
 )
-from synapseclient.models.mixins.manifest import ManifestGeneratable
 from synapseclient.models.mixins.storage_location_mixin import (
     StorageLocationConfigurable,
 )
@@ -51,7 +50,6 @@ class Project(
     StorableContainer,
     ContainerEntityJSONSchema,
     StorageLocationConfigurable,
-    ManifestGeneratable,
 ):
     """A Project is a top-level container for organizing data in Synapse.
 
