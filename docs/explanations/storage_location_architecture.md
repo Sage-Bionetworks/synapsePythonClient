@@ -517,7 +517,7 @@ stateDiagram-v2
     Note right of NoSetting: Inherits from parent or uses Synapse default
 
     Created --> Updated: set_storage_location() updates existing setting
-    Updated --> Updated: set_storage_location() nupdates existing setting
+    Updated --> Updated: set_storage_location() updates existing setting
 
     Created --> Deleted: delete_project_setting(project_setting_id)
     Updated --> Deleted: delete_project_setting(project_setting_id)
@@ -677,8 +677,7 @@ This section covers the file migration system.
 
 ## Migration Flow
 
-File migration is a two-phase process that moves files from one storage location
-to another while preserving Synapse metadata.
+File migration is a two-phase process that first indexes all candidate files and then performs an asynchronous, batched migration that reuses copied file handles where possible, respects concurrency limits, snapshots affected tables when needed, and updates entities and table cells via transactional table operations while recording per-item status in a SQLite database.
 
 ```mermaid
 sequenceDiagram
@@ -690,7 +689,7 @@ sequenceDiagram
     participant Synapse as Synapse REST API
 
     Note over User,Synapse: === Phase 1: Index Files ===
-    User->>Entity: index_files_for_migration
+    User->>Entity: index_files_for_migration_async
     activate Entity
 
     Entity->>IndexFn: index_files_for_migration_async(dest_id, source_ids, file_version_strategy, include_table_files)
@@ -718,7 +717,7 @@ sequenceDiagram
         alt file_version_strategy = new / latest / all
             IndexFn->>Synapse: Get file handle metadata (and versions if needed)
             Synapse-->>IndexFn: File handle(s)
-            IndexFn->>DB: Insert FILE migration rows (or ALREADY_MIGRATED)
+            IndexFn->>DB: Insert/append FILE migration rows (INDEXED and ALREADY_MIGRATED)
         else file_version_strategy = skip
             Note over IndexFn: Skip file entities
         end
@@ -728,7 +727,7 @@ sequenceDiagram
         Synapse-->>IndexFn: Column list
         IndexFn->>Synapse: Query rows for FILEHANDLEID columns (+ rowId,rowVersion)
         Synapse-->>IndexFn: Row results (fileHandleId values)
-        loop For each row + file-handle cell
+        loop For each row + file-handle cell (bounded concurrency)
             IndexFn->>Synapse: get_file_handle_for_download(fileHandleId, objectType=TableEntity)
             Synapse-->>IndexFn: File handle
             IndexFn->>DB: Insert TABLE_ATTACHED_FILE migration row (or ALREADY_MIGRATED)
@@ -746,19 +745,46 @@ sequenceDiagram
     deactivate Entity
 
     Note over User,Synapse: === Phase 2: Migrate Files ===
-    User->>Entity: migrate_indexed_files(db_path)
+    User->>Entity: migrate_indexed_files / migrate_indexed_files_async (db_path)
     activate Entity
 
     Entity->>MigrateFn: Start migration
     activate MigrateFn
 
-    MigrateFn->>DB: Read indexed files
+    MigrateFn->>DB: Open DB, ensure schema, load settings
+    MigrateFn->>User: Confirm migration (unless force=True)
+    Note over MigrateFn,DB: If not confirmed, abort and return
 
-    loop For each indexed file
-        MigrateFn->>Synapse: Copy file to new storage
-        Synapse-->>MigrateFn: Success/Failure
-        MigrateFn->>DB: Update status
-    end
+    loop While there are indexed items
+        MigrateFn->>DB: Query next batch (respecting pending/completed handles & concurrency)
+
+        loop For each item in batch
+            MigrateFn->>MigrateFn: Skip if key or file handle already pending
+
+            MigrateFn->>DB: Check if destination file handle already exists
+            alt Existing copy found
+                Note over MigrateFn,DB: Reuse existing to_file_handle_id
+            else No existing copy
+                MigrateFn->>Synapse: Copy file to new storage (bounded concurrency)
+                Synapse-->>MigrateFn: New to_file_handle_id
+            end
+
+            alt Item is FILE (entity)
+                alt file_version_strategy = new (version is None)
+                    MigrateFn->>Synapse: Create new file version with new file handle
+                else specific version
+                    MigrateFn->>Synapse: Update existing version's file handle
+                end
+            else Item is TABLE_ATTACHED_FILE
+                alt create_table_snapshots=True
+                    MigrateFn->>Synapse: Create table snapshot
+                end
+                MigrateFn->>Synapse: Update table cell via transactional table update (PartialRowSet/TableUpdateTransaction)
+            end
+
+            MigrateFn->>DB: Update row status to MIGRATED/ERRORED
+        end
+
 
     MigrateFn-->>Entity: MigrationResult (migrated counts)
     deactivate MigrateFn
