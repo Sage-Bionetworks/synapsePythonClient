@@ -2,6 +2,7 @@
 
 from synapseclient.models.mixins.access_control import AccessControllable
 from synapseclient.models.mixins.asynchronous_job import AsynchronousCommunicator
+from synapseclient.models.mixins.enum_coercion import EnumCoercionMixin
 from synapseclient.models.mixins.form import (
     FormChangeRequest,
     FormData,
@@ -20,11 +21,6 @@ from synapseclient.models.mixins.json_schema import (
     JSONSchemaValidationStatistics,
     ValidationException,
 )
-from synapseclient.models.mixins.manifest import (
-    DEFAULT_GENERATED_MANIFEST_KEYS,
-    MANIFEST_FILENAME,
-    ManifestGeneratable,
-)
 from synapseclient.models.mixins.storable_container import StorableContainer
 from synapseclient.models.mixins.storage_location_mixin import (
     StorageLocationConfigurable,
@@ -32,6 +28,7 @@ from synapseclient.models.mixins.storage_location_mixin import (
 
 __all__ = [
     "AccessControllable",
+    "EnumCoercionMixin",
     "StorableContainer",
     "StorageLocationConfigurable",
     "AsynchronousCommunicator",
@@ -49,7 +46,4 @@ __all__ = [
     "FormChangeRequest",
     "FormSubmissionStatus",
     "StateEnum",
-    "ManifestGeneratable",
-    "MANIFEST_FILENAME",
-    "DEFAULT_GENERATED_MANIFEST_KEYS",
 ]
