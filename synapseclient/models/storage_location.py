@@ -10,6 +10,7 @@ from synapseclient.api.storage_location_services import (
     get_storage_location_setting,
 )
 from synapseclient.core.async_utils import async_to_sync, otel_trace_method
+from synapseclient.models.mixins.enum_coercion import EnumCoercionMixin
 from synapseclient.models.protocols.storage_location_protocol import (
     StorageLocationSynchronousProtocol,
 )
@@ -34,6 +35,7 @@ class StorageLocationType(str, Enum):
     EXTERNAL_S3 = "ExternalS3StorageLocationSetting"
     EXTERNAL_GOOGLE_CLOUD = "ExternalGoogleCloudStorageLocationSetting"
     EXTERNAL_SFTP = "ExternalStorageLocationSetting"
+    EXTERNAL_HTTPS = "ExternalStorageLocationSetting"
     EXTERNAL_OBJECT_STORE = "ExternalObjectStorageLocationSetting"
     PROXY = "ProxyStorageLocationSettings"
 
@@ -62,6 +64,7 @@ _STORAGE_TYPE_TO_UPLOAD_TYPE: Dict[StorageLocationType, UploadType] = {
     StorageLocationType.EXTERNAL_S3: UploadType.S3,
     StorageLocationType.EXTERNAL_GOOGLE_CLOUD: UploadType.GOOGLE_CLOUD_STORAGE,
     StorageLocationType.EXTERNAL_SFTP: UploadType.SFTP,
+    StorageLocationType.EXTERNAL_HTTPS: UploadType.HTTPS,
     StorageLocationType.EXTERNAL_OBJECT_STORE: UploadType.S3,
     StorageLocationType.PROXY: UploadType.HTTPS,
 }
@@ -71,10 +74,47 @@ _CONCRETE_TYPE_TO_STORAGE_TYPE: Dict[str, StorageLocationType] = {
     storage_type.value: storage_type for storage_type in StorageLocationType
 }
 
+# Mapping from StorageLocationType to its type-specific (field_name, api_key) pairs.
+# Only fields listed here are populated by fill_from_dict for a given type.
+_STORAGE_TYPE_SPECIFIC_FIELDS: Dict[StorageLocationType, Dict[str, str]] = {
+    StorageLocationType.SYNAPSE_S3: {
+        "bucket": "bucket",
+        "base_key": "baseKey",
+        "sts_enabled": "stsEnabled",
+    },
+    StorageLocationType.EXTERNAL_S3: {
+        "bucket": "bucket",
+        "base_key": "baseKey",
+        "sts_enabled": "stsEnabled",
+        "endpoint_url": "endpointUrl",
+    },
+    StorageLocationType.EXTERNAL_GOOGLE_CLOUD: {
+        "bucket": "bucket",
+        "base_key": "baseKey",
+    },
+    StorageLocationType.EXTERNAL_OBJECT_STORE: {
+        "bucket": "bucket",
+        "endpoint_url": "endpointUrl",
+    },
+    StorageLocationType.EXTERNAL_SFTP: {
+        "url": "url",
+        "supports_subfolders": "supportsSubfolders",
+    },
+    StorageLocationType.EXTERNAL_HTTPS: {
+        "url": "url",
+        "supports_subfolders": "supportsSubfolders",
+    },
+    StorageLocationType.PROXY: {
+        "proxy_url": "proxyUrl",
+        "secret_key": "secretKey",
+        "benefactor_id": "benefactorId",
+    },
+}
+
 
 @dataclass()
 @async_to_sync
-class StorageLocation(StorageLocationSynchronousProtocol):
+class StorageLocation(EnumCoercionMixin, StorageLocationSynchronousProtocol):
     """A storage location setting describes where files are uploaded to and
     downloaded from via Synapse. Storage location settings may be created for
     external locations, such as user-owned Amazon S3 buckets, Google Cloud
@@ -177,6 +217,11 @@ class StorageLocation(StorageLocationSynchronousProtocol):
             ).store()
     """
 
+    _ENUM_FIELDS = {
+        "storage_type": StorageLocationType,
+        "upload_type": UploadType,
+    }
+
     # Core fields - present on all storage locations
     storage_location_id: Optional[int] = None
     """(Read Only) The unique ID for this storage location, assigned by the server
@@ -248,6 +293,28 @@ class StorageLocation(StorageLocationSynchronousProtocol):
     created_by: Optional[int] = field(default=None, compare=False)
     """(Read Only) The ID of the user that created this storage location setting."""
 
+    def __repr__(self) -> str:
+        common = {
+            "storage_location_id": self.storage_location_id,
+            "storage_type": self.storage_type,
+            "upload_type": self.upload_type,
+            "banner": self.banner,
+            "description": self.description,
+            "etag": self.etag,
+            "created_on": self.created_on,
+            "created_by": self.created_by,
+        }
+        type_specific = {
+            field_name: getattr(self, field_name)
+            for field_name in _STORAGE_TYPE_SPECIFIC_FIELDS.get(self.storage_type, {})
+        }
+        parts = [
+            f"{k}={v!r}"
+            for k, v in {**common, **type_specific}.items()
+            if v is not None
+        ]
+        return f"StorageLocation({', '.join(parts)})"
+
     def fill_from_dict(self, synapse_response: Dict[str, Any]) -> "StorageLocation":
         """Converts a response from the REST API into this dataclass.
 
@@ -264,13 +331,7 @@ class StorageLocation(StorageLocationSynchronousProtocol):
         self.created_on = synapse_response.get("createdOn", None)
         self.created_by = synapse_response.get("createdBy", None)
 
-        # Parse upload type
-        upload_type_str = synapse_response.get("uploadType", None)
-        if upload_type_str:
-            try:
-                self.upload_type = UploadType(upload_type_str)
-            except ValueError:
-                self.upload_type = None
+        self.upload_type = synapse_response.get("uploadType", None)
 
         # Parse storage type from concreteType
         concrete_type = synapse_response.get("concreteType", "")
@@ -280,21 +341,12 @@ class StorageLocation(StorageLocationSynchronousProtocol):
             if type_suffix in _CONCRETE_TYPE_TO_STORAGE_TYPE:
                 self.storage_type = _CONCRETE_TYPE_TO_STORAGE_TYPE[type_suffix]
 
-        # S3/GCS fields
-        self.bucket = synapse_response.get("bucket", None)
-        self.base_key = synapse_response.get("baseKey", None)
-        self.sts_enabled = synapse_response.get("stsEnabled", None)
-        self.endpoint_url = synapse_response.get("endpointUrl", None)
-
-        # SFTP fields
-        self.url = synapse_response.get("url", None)
-        self.supports_subfolders = synapse_response.get("supportsSubfolders", None)
-
-        # Proxy fields
-        self.proxy_url = synapse_response.get("proxyUrl", None)
-        self.secret_key = synapse_response.get("secretKey", None)
-        self.benefactor_id = synapse_response.get("benefactorId", None)
-
+        # Type-specific fields — only populate attributes relevant to this storage type
+        if self.storage_type:
+            for field_name, api_key in _STORAGE_TYPE_SPECIFIC_FIELDS.get(
+                self.storage_type, {}
+            ).items():
+                setattr(self, field_name, synapse_response.get(api_key, None))
         return self
 
     def _to_synapse_request(self) -> Dict[str, Any]:
@@ -414,9 +466,9 @@ class StorageLocation(StorageLocationSynchronousProtocol):
 
                 asyncio.run(main())
         """
-        body = self._to_synapse_request()
+        request = self._to_synapse_request()
         response = await create_storage_location_setting(
-            body=body,
+            request=request,
             synapse_client=synapse_client,
         )
         self.fill_from_dict(response)
