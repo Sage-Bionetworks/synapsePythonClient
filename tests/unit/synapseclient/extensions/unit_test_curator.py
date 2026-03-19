@@ -1786,7 +1786,19 @@ class TestFileBasedHelperFunctions(unittest.TestCase):
 def test_create_columns_from_json_schema(
     schema: dict[str, Any], expected: list[Column]
 ):
+    """Test successful column creation from JSON schema."""
     assert _create_columns_from_json_schema(schema) == expected
+
+
+@pytest.mark.parametrize(
+    "schema",
+    [{}, {"properties": []}],
+    ids=["empty schema", "properties is not a dict"],
+)
+def test_create_columns_from_json_schema_exceptions(schema: dict[str, Any]):
+    """Test exceptions when creating columns from invalid JSON schema."""
+    with pytest.raises(ValueError):
+        _create_columns_from_json_schema(schema)
 
 
 @pytest.mark.parametrize(
@@ -1818,20 +1830,11 @@ def test_create_columns_from_json_schema(
 def test_create_synapse_column_from_js_property(
     prop: dict[str, Any], name: str, expected_type: ColumnType
 ):
+    """Test successful column creation from JSON schema property."""
     result = _create_synapse_column_from_js_property(prop, name)
     assert isinstance(result, Column)
     assert result.name == name
     assert result.column_type == expected_type
-
-
-@pytest.mark.parametrize(
-    "schema",
-    [{}, {"properties": []}],
-    ids=["empty schema", "properties is not a d ict"],
-)
-def test_create_columns_from_json_schema_exceptions(schema: dict[str, Any]):
-    with pytest.raises(ValueError):
-        _create_columns_from_json_schema(schema)
 
 
 @pytest.mark.parametrize(
@@ -1864,6 +1867,7 @@ def test_create_columns_from_json_schema_exceptions(schema: dict[str, Any]):
     ],
 )
 def test_get_column_type_from_js_property(prop: dict[str, Any], expected: ColumnType):
+    """Test getting column type from JSON schema property."""
     assert _get_column_type_from_js_property(prop) == expected
 
 
