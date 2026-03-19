@@ -3,7 +3,6 @@ from synapseclient.models.services.migration import (
     migrate_indexed_files_async,
 )
 from synapseclient.models.services.migration_types import (
-    MigrationEntry,
     MigrationError,
     MigrationKey,
     MigrationResult,
@@ -29,7 +28,6 @@ __all__ = [
     "MigrationStatus",
     "MigrationType",
     "MigrationKey",
-    "MigrationEntry",
     "MigrationSettings",
     "MigrationError",
 ]
