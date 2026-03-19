@@ -6,7 +6,7 @@ These types are used to track the state of file migrations between storage locat
 
 import asyncio
 import csv
-from dataclasses import dataclass, field
+from dataclasses import dataclass, fields
 from enum import Enum
 from typing import TYPE_CHECKING, Any, Dict, Iterator, List, Optional
 
@@ -17,7 +17,7 @@ if TYPE_CHECKING:
 
 
 class MigrationStatus(Enum):
-    """Status of a migration entry in the tracking database."""
+    """Internal enum used by the SQLite database to track the state of entities during indexing and migration."""
 
     INDEXED = 1
     """The file has been indexed and is ready to be migrated."""
@@ -26,33 +26,36 @@ class MigrationStatus(Enum):
     """The file has been successfully migrated to the new storage location."""
 
     ALREADY_MIGRATED = 3
-    """The file was already at the destination storage location."""
+    """The file was already at the destination storage location and no migration is needed."""
 
     ERRORED = 4
-    """An error occurred during indexing or migration."""
+    """An error occurred during indexing or migration for this entity."""
 
 
 class MigrationType(Enum):
-    """Type of entity being tracked in the migration database."""
+    """Type of entity being tracked in the migration database.
+    Container types (projects and folders) are only used during the indexing phase.
+    we record the containers we've indexed so we don't reindex them on a subsequent
+    run using the same db file (or reindex them after an indexing dry run)"""
 
     PROJECT = 1
-    """A project container (used for tracking indexed containers)."""
+    """A project entity."""
 
     FOLDER = 2
-    """A folder container (used for tracking indexed containers)."""
+    """A folder entity."""
 
     FILE = 3
     """A file entity."""
 
     TABLE_ATTACHED_FILE = 4
-    """A file attached to a table column."""
+    """A file handle that is attached to a table column."""
 
     @classmethod
     def from_concrete_type(cls, concrete_type: str) -> "MigrationType":
         """Convert a Synapse concrete type string to a MigrationType.
 
         Arguments:
-            concrete_type: The concrete type string from Synapse API.
+            concrete_type: The concrete type of the entity.
 
         Returns:
             The corresponding MigrationType enum value.
@@ -74,12 +77,12 @@ class MigrationType(Enum):
 
 @dataclass
 class MigrationKey:
-    """Unique identifier for a migration entry in the tracking database.
+    """Unique identifier for a entry in the migrations database.
 
     Attributes:
         id: The Synapse entity ID.
-        type: The type of entity being migrated.
-        version: The file version number (None for new versions or containers).
+        type: The migration type of entity being migrated.
+        version: The file version number (None for new versions or containers). #TODO double check if versions are NONE for containers
         row_id: The table row ID (for table attached files).
         col_id: The table column ID (for table attached files).
     """
@@ -106,47 +109,74 @@ class MigrationKey:
 
 
 @dataclass
-class MigrationEntry:
-    """A single migration entry with full details.
-
-    Attributes:
-        key: The unique identifier for this migration entry.
-        parent_id: The parent entity ID.
-        from_storage_location_id: The original storage location ID.
-        from_file_handle_id: The original file handle ID.
-        to_file_handle_id: The new file handle ID after migration.
-        file_size: The file size in bytes.
-        status: The current migration status.
-        exception: Stack trace if an error occurred.
-    """
-
-    key: MigrationKey
-    parent_id: Optional[str] = None
-    from_storage_location_id: Optional[int] = None
-    from_file_handle_id: Optional[str] = None
-    to_file_handle_id: Optional[str] = None
-    file_size: Optional[int] = None
-    status: MigrationStatus = MigrationStatus.INDEXED
-    exception: Optional[str] = None
-
-
-@dataclass
 class MigrationSettings:
     """Settings for a migration index stored in the database.
+    TODO: check if this is used anywhere
 
     Attributes:
         root_id: The root entity ID being migrated.
         dest_storage_location_id: The destination storage location ID.
-        source_storage_location_ids: List of source storage location IDs to filter.
+        source_storage_location_ids: List of of storage location ids that will be migrated.
         file_version_strategy: Strategy for handling file versions.
         include_table_files: Whether to include files attached to tables.
     """
 
     root_id: str
     dest_storage_location_id: str
-    source_storage_location_ids: List[str] = field(default_factory=list)
+    source_storage_location_ids: List[str] = None
     file_version_strategy: str = "new"
     include_table_files: bool = False
+
+    def to_dict(self) -> Dict[str, Any]:
+        """Return a dict suitable for JSON serialization in the database."""
+        return {
+            "root_id": self.root_id,
+            "dest_storage_location_id": self.dest_storage_location_id,
+            "source_storage_location_ids": self.source_storage_location_ids,
+            "file_version_strategy": self.file_version_strategy,
+            "include_table_files": 1 if self.include_table_files else 0,
+        }
+
+    @classmethod
+    def from_dict(cls, d: Dict[str, Any]) -> "MigrationSettings":
+        """Build MigrationSettings from a dict (e.g. from JSON in the database)."""
+        include = d.get("include_table_files", False)
+        if isinstance(include, int):
+            include = bool(include)
+        return cls(
+            root_id=d["root_id"],
+            dest_storage_location_id=d["dest_storage_location_id"],
+            source_storage_location_ids=d.get("source_storage_location_ids") or [],
+            file_version_strategy=d.get("file_version_strategy", "new"),
+            include_table_files=include,
+        )
+
+    def verify_migration_settings(
+        self, existing_settings: "MigrationSettings", db_path: str
+    ) -> None:
+        """Raise ValueError if the migration settings do not match the existing settings"""
+        # compare all fields
+        for field in fields(self):
+            if getattr(self, field.name) != getattr(existing_settings, field.name):
+                # we can't resume indexing with an existing index file using a different setting.
+                raise ValueError(
+                    "Index parameter does not match the setting recorded in the existing index file. "
+                    "To change the index settings start over by deleting the file or using a different path. "
+                    f"Expected {field.name} {getattr(existing_settings, field.name)}, found {getattr(self, field.name)} in index file {db_path}"
+                )
+
+
+class IndexingError(Exception):
+    """Error during an indexing operation.
+
+    Attributes:
+        entity_id: The entity ID that failed to index.
+        concrete_type: The concrete type of the entity.
+    """
+
+    def __init__(self, entity_id: str, concrete_type: str):
+        self.entity_id = entity_id
+        self.concrete_type = concrete_type
 
 
 @dataclass
@@ -350,22 +380,12 @@ class MigrationError(Exception):
         key: MigrationKey,
         from_file_handle_id: str,
         to_file_handle_id: Optional[str] = None,
+        cause: Optional[Exception] = None,
     ):
         self.key = key
         self.from_file_handle_id = from_file_handle_id
         self.to_file_handle_id = to_file_handle_id
-        super().__init__(f"Migration failed for {key.id}")
-
-
-class IndexingError(Exception):
-    """Error during an indexing operation.
-
-    Attributes:
-        entity_id: The entity ID that failed to index.
-        concrete_type: The concrete type of the entity.
-    """
-
-    def __init__(self, entity_id: str, concrete_type: str):
-        self.entity_id = entity_id
-        self.concrete_type = concrete_type
-        super().__init__(f"Indexing failed for {entity_id} ({concrete_type})")
+        message = f"Migration failed for {key.id}"
+        if cause is not None:
+            message += f": {cause}"
+        super().__init__(message)
