@@ -1754,7 +1754,7 @@ class TestFileBasedHelperFunctions(unittest.TestCase):
 
 
 @pytest.mark.parametrize(
-    "schema, expected",
+    "json_schema, expected_columns",
     [
         (
             {
@@ -1784,25 +1784,25 @@ class TestFileBasedHelperFunctions(unittest.TestCase):
     ids=["one column", "three columns"],
 )
 def test_create_columns_from_json_schema(
-    schema: dict[str, Any], expected: list[Column]
+    json_schema: dict[str, Any], expected_columns: list[Column]
 ):
     """Test successful column creation from JSON schema."""
-    assert _create_columns_from_json_schema(schema) == expected
+    assert _create_columns_from_json_schema(json_schema) == expected_columns
 
 
 @pytest.mark.parametrize(
-    "schema",
+    "json_schema",
     [{}, {"properties": []}],
     ids=["empty schema", "properties is not a dict"],
 )
-def test_create_columns_from_json_schema_exceptions(schema: dict[str, Any]):
+def test_create_columns_from_json_schema_exceptions(json_schema: dict[str, Any]):
     """Test exceptions when creating columns from invalid JSON schema."""
     with pytest.raises(ValueError):
-        _create_columns_from_json_schema(schema)
+        _create_columns_from_json_schema(json_schema)
 
 
 @pytest.mark.parametrize(
-    "prop, name, expected_type",
+    "json_schema_property, property_name, expected_column_type",
     [
         (
             {"type": "array", "items": {"type": "string"}},
@@ -1828,17 +1828,21 @@ def test_create_columns_from_json_schema_exceptions(schema: dict[str, Any]):
     ids=["string_list", "integer_list", "boolean_list", "string"],
 )
 def test_create_synapse_column_from_js_property(
-    prop: dict[str, Any], name: str, expected_type: ColumnType
+    json_schema_property: dict[str, Any],
+    property_name: str,
+    expected_column_type: ColumnType,
 ):
     """Test successful column creation from JSON schema property."""
-    result = _create_synapse_column_from_js_property(prop, name)
+    result = _create_synapse_column_from_js_property(
+        json_schema_property, property_name
+    )
     assert isinstance(result, Column)
-    assert result.name == name
-    assert result.column_type == expected_type
+    assert result.name == property_name
+    assert result.column_type == expected_column_type
 
 
 @pytest.mark.parametrize(
-    "prop, expected",
+    "json_schema_property, expected_column_type",
     [
         ({"enum": ["a", "b", "c"]}, ColumnType.MEDIUMTEXT),
         ({"type": "string"}, ColumnType.MEDIUMTEXT),
@@ -1866,9 +1870,13 @@ def test_create_synapse_column_from_js_property(
         "empty_property",
     ],
 )
-def test_get_column_type_from_js_property(prop: dict[str, Any], expected: ColumnType):
+def test_get_column_type_from_js_property(
+    json_schema_property: dict[str, Any], expected_column_type: ColumnType
+):
     """Test getting column type from JSON schema property."""
-    assert _get_column_type_from_js_property(prop) == expected
+    assert (
+        _get_column_type_from_js_property(json_schema_property) == expected_column_type
+    )
 
 
 class TestGetLatestSchemaUri(unittest.TestCase):
