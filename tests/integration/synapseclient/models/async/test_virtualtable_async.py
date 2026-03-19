@@ -4,6 +4,7 @@ from typing import Callable
 
 import pandas as pd
 import pytest
+import pytest_asyncio
 
 from synapseclient import Synapse
 from synapseclient.core.exceptions import SynapseHTTPError
@@ -149,12 +150,12 @@ class TestVirtualTableBasicOperations:
 
 
 class TestVirtualTableWithDataOperations:
-    @pytest.fixture(autouse=True, scope="function")
+    @pytest_asyncio.fixture(autouse=True, scope="function")
     def init(self, syn: Synapse, schedule_for_cleanup: Callable[..., None]) -> None:
         self.syn = syn
         self.schedule_for_cleanup = schedule_for_cleanup
 
-    @pytest.fixture(scope="class")
+    @pytest_asyncio.fixture(scope="class")
     async def base_table_with_data(
         self,
         project_model: Project,
