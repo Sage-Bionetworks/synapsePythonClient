@@ -261,6 +261,7 @@ def _get_column_type_from_js_property(js_property: dict[str, Any]) -> ColumnType
             types = [t for t in js_type if t != "null"]
             if len(types) == 1:
                 js_type = types[0]
+            # If there are multiple non-null types, we cannot determine a single column type, so default to MediumText
             else:
                 return ColumnType.MEDIUMTEXT
         if js_type == "array":
