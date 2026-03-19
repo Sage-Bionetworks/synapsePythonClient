@@ -36,9 +36,6 @@ LIST_TYPE_DICT = {
     "boolean": ColumnType.BOOLEAN_LIST,
 }
 
-MAX_LIST_STRING_ITEM_SIZE = 100
-MAX_LIST_LENGTH = 50
-
 
 def create_json_schema_entity_view(
     syn: Synapse,
@@ -223,19 +220,7 @@ def _create_synapse_column_from_js_property(
         A Synapse Column based on the JSON Schema property.
     """
     column_type = _get_column_type_from_js_property(js_property)
-    maximum_size = None
-    maximum_list_length = None
-    if column_type in LIST_TYPE_DICT.values():
-        maximum_list_length = MAX_LIST_LENGTH
-        if column_type == ColumnType.STRING_LIST:
-            maximum_size = MAX_LIST_STRING_ITEM_SIZE
-
-    return Column(
-        name=name,
-        column_type=column_type,
-        maximum_size=maximum_size,
-        maximum_list_length=maximum_list_length,
-    )
+    return Column(name=name, column_type=column_type)
 
 
 def _get_column_type_from_js_property(js_property: dict[str, Any]) -> ColumnType:
