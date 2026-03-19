@@ -108,7 +108,7 @@ class StorageLocationConfigurable(StorageLocationConfigurableSynchronousProtocol
         if existing_setting is not None:
             existing_setting["locations"] = locations
             await update_project_setting(
-                body=existing_setting,
+                request=existing_setting,
                 synapse_client=synapse_client,
             )
             return await get_project_setting(
@@ -124,7 +124,7 @@ class StorageLocationConfigurable(StorageLocationConfigurableSynchronousProtocol
                 "projectId": self.id,
             }
             return await create_project_setting(
-                body=project_destination,
+                request=project_destination,
                 synapse_client=synapse_client,
             )
 
@@ -363,7 +363,7 @@ class StorageLocationConfigurable(StorageLocationConfigurableSynchronousProtocol
             raise ValueError("The entity must have an id set.")
 
         return await _index_files_for_migration_async(
-            entity_id=self.id,
+            self,
             dest_storage_location_id=str(dest_storage_location_id),
             db_path=db_path,
             source_storage_location_ids=(
