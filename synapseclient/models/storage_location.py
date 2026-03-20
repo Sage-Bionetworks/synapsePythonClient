@@ -16,28 +16,48 @@ from synapseclient.models.protocols.storage_location_protocol import (
 )
 
 
-class StorageLocationType(str, Enum):
-    """Enumeration of storage location types supported by Synapse.
+@dataclass(frozen=True)
+class StorageLocationType:
+    """Describes a Synapse storage location type.
 
-    Each type maps to a specific concreteType suffix in the REST API.
+    Each instance is a distinct object identified by its ``name``, so SFTP and
+    HTTPS remain separate even though they share the same backend
+    ``concreteType`` (``ExternalStorageLocationSetting``).
 
     Attributes:
-        SYNAPSE_S3: Synapse-managed S3 storage (default).
-        EXTERNAL_S3: User-owned Amazon S3 bucket accessed by Synapse.
-        EXTERNAL_GOOGLE_CLOUD: User-owned Google Cloud Storage bucket.
-        EXTERNAL_SFTP: External SFTP server not accessed by Synapse.
-        EXTERNAL_OBJECT_STORE: S3-like bucket (e.g., AWS S3 or OpenStack) not
-            accessed by Synapse.
-        PROXY: A proxy server that controls access to storage.
+        name: Human-readable identifier (e.g. ``"EXTERNAL_SFTP"``).
+        concrete_type: The ``concreteType`` suffix sent to the Synapse REST API.
     """
 
-    SYNAPSE_S3 = "S3StorageLocationSetting"
-    EXTERNAL_S3 = "ExternalS3StorageLocationSetting"
-    EXTERNAL_GOOGLE_CLOUD = "ExternalGoogleCloudStorageLocationSetting"
-    EXTERNAL_SFTP = "ExternalStorageLocationSetting"
-    EXTERNAL_HTTPS = "ExternalStorageLocationSetting"
-    EXTERNAL_OBJECT_STORE = "ExternalObjectStorageLocationSetting"
-    PROXY = "ProxyStorageLocationSettings"
+    name: str
+    concrete_type: str
+
+    def __str__(self) -> str:
+        return self.name
+
+    def __repr__(self) -> str:
+        return f"StorageLocationType.{self.name}"
+
+
+StorageLocationType.SYNAPSE_S3 = StorageLocationType(
+    "SYNAPSE_S3", "S3StorageLocationSetting"
+)
+StorageLocationType.EXTERNAL_S3 = StorageLocationType(
+    "EXTERNAL_S3", "ExternalS3StorageLocationSetting"
+)
+StorageLocationType.EXTERNAL_GOOGLE_CLOUD = StorageLocationType(
+    "EXTERNAL_GOOGLE_CLOUD", "ExternalGoogleCloudStorageLocationSetting"
+)
+StorageLocationType.EXTERNAL_SFTP = StorageLocationType(
+    "EXTERNAL_SFTP", "ExternalStorageLocationSetting"
+)
+StorageLocationType.EXTERNAL_HTTPS = StorageLocationType(
+    "EXTERNAL_HTTPS", "ExternalStorageLocationSetting"
+)
+StorageLocationType.EXTERNAL_OBJECT_STORE = StorageLocationType(
+    "EXTERNAL_OBJECT_STORE", "ExternalObjectStorageLocationSetting"
+)
+StorageLocationType.PROXY = StorageLocationType("PROXY", "ProxyStorageLocationSettings")
 
 
 class UploadType(str, Enum):
@@ -55,6 +75,7 @@ class UploadType(str, Enum):
     GOOGLE_CLOUD_STORAGE = "GOOGLECLOUDSTORAGE"
     SFTP = "SFTP"
     HTTPS = "HTTPS"
+    PROXYLOCAL = "PROXYLOCAL"
     NONE = "NONE"
 
 
@@ -66,19 +87,21 @@ _STORAGE_TYPE_TO_UPLOAD_TYPE: Dict[StorageLocationType, UploadType] = {
     StorageLocationType.EXTERNAL_SFTP: UploadType.SFTP,
     StorageLocationType.EXTERNAL_HTTPS: UploadType.HTTPS,
     StorageLocationType.EXTERNAL_OBJECT_STORE: UploadType.S3,
-    StorageLocationType.PROXY: UploadType.HTTPS,
+    StorageLocationType.PROXY: UploadType.PROXYLOCAL,
 }
 
-# Mapping from concreteType suffix to StorageLocationType
-_CONCRETE_TYPE_TO_STORAGE_TYPE: Dict[str, StorageLocationType] = {
-    storage_type.value: storage_type for storage_type in StorageLocationType
+# Mapping from (concreteType suffix, uploadType value) -> StorageLocationType.
+# The tuple key is required because EXTERNAL_SFTP and EXTERNAL_HTTPS share the
+# same concreteType and are disambiguated by uploadType.
+_CONCRETE_UPLOAD_TO_STORAGE_TYPE: Dict[tuple, StorageLocationType] = {
+    (storage_type.concrete_type, upload_type.value): storage_type
+    for storage_type, upload_type in _STORAGE_TYPE_TO_UPLOAD_TYPE.items()
 }
 
 # Mapping from StorageLocationType to its type-specific (field_name, api_key) pairs.
 # Only fields listed here are populated by fill_from_dict for a given type.
 _STORAGE_TYPE_SPECIFIC_FIELDS: Dict[StorageLocationType, Dict[str, str]] = {
     StorageLocationType.SYNAPSE_S3: {
-        "bucket": "bucket",
         "base_key": "baseKey",
         "sts_enabled": "stsEnabled",
     },
@@ -218,7 +241,6 @@ class StorageLocation(EnumCoercionMixin, StorageLocationSynchronousProtocol):
     """
 
     _ENUM_FIELDS = {
-        "storage_type": StorageLocationType,
         "upload_type": UploadType,
     }
 
@@ -295,6 +317,7 @@ class StorageLocation(EnumCoercionMixin, StorageLocationSynchronousProtocol):
 
     def __repr__(self) -> str:
         common = {
+            "concrete_type": self.concrete_type,
             "storage_location_id": self.storage_location_id,
             "storage_type": self.storage_type,
             "upload_type": self.upload_type,
@@ -308,11 +331,7 @@ class StorageLocation(EnumCoercionMixin, StorageLocationSynchronousProtocol):
             field_name: getattr(self, field_name)
             for field_name in _STORAGE_TYPE_SPECIFIC_FIELDS.get(self.storage_type, {})
         }
-        parts = [
-            f"{k}={v!r}"
-            for k, v in {**common, **type_specific}.items()
-            if v is not None
-        ]
+        parts = [f"{k}={v!r}" for k, v in {**common, **type_specific}.items()]
         return f"StorageLocation({', '.join(parts)})"
 
     def fill_from_dict(self, synapse_response: Dict[str, Any]) -> "StorageLocation":
@@ -325,22 +344,33 @@ class StorageLocation(EnumCoercionMixin, StorageLocationSynchronousProtocol):
             The StorageLocation object.
         """
         self.storage_location_id = synapse_response.get("storageLocationId", None)
-        self.banner = synapse_response.get("banner", None)
-        self.description = synapse_response.get("description", None)
+        self.banner = (
+            synapse_response.get("banner", None)
+            if synapse_response.get("banner", None) is not None
+            else None
+        )
+        self.description = (
+            synapse_response.get("description", None)
+            if synapse_response.get("description", None) is not None
+            else None
+        )
         self.etag = synapse_response.get("etag", None)
         self.created_on = synapse_response.get("createdOn", None)
         self.created_by = synapse_response.get("createdBy", None)
 
         self.upload_type = synapse_response.get("uploadType", None)
 
-        # Parse storage type from concreteType
-        concrete_type = synapse_response.get("concreteType", "")
-        if concrete_type:
-            # Extract the suffix after the last dot
-            type_suffix = concrete_type.split(".")[-1] if "." in concrete_type else ""
-            if type_suffix in _CONCRETE_TYPE_TO_STORAGE_TYPE:
-                self.storage_type = _CONCRETE_TYPE_TO_STORAGE_TYPE[type_suffix]
-
+        # Parse storage type from concreteType + uploadType.
+        # Both are needed to distinguish EXTERNAL_SFTP from EXTERNAL_HTTPS.
+        self.concrete_type = synapse_response.get("concreteType", "")
+        if self.concrete_type:
+            type_suffix = (
+                self.concrete_type.split(".")[-1] if "." in self.concrete_type else ""
+            )
+            self.upload_type = synapse_response.get("uploadType", "")
+            key = (type_suffix, self.upload_type)
+            if key in _CONCRETE_UPLOAD_TO_STORAGE_TYPE:
+                self.storage_type = _CONCRETE_UPLOAD_TO_STORAGE_TYPE[key]
         # Type-specific fields — only populate attributes relevant to this storage type
         if self.storage_type:
             for field_name, api_key in _STORAGE_TYPE_SPECIFIC_FIELDS.get(
@@ -362,12 +392,11 @@ class StorageLocation(EnumCoercionMixin, StorageLocationSynchronousProtocol):
 
         # Build the concrete type
         concrete_type = (
-            f"org.sagebionetworks.repo.model.project.{self.storage_type.value}"
+            f"org.sagebionetworks.repo.model.project.{self.storage_type.concrete_type}"
         )
-
         # Determine upload type
         upload_type = self.upload_type or _STORAGE_TYPE_TO_UPLOAD_TYPE.get(
-            self.storage_type, UploadType.S3
+            self.storage_type
         )
 
         body: Dict[str, Any] = {
@@ -376,51 +405,15 @@ class StorageLocation(EnumCoercionMixin, StorageLocationSynchronousProtocol):
         }
 
         # Add optional common fields
-        if self.banner is not None:
-            body["banner"] = self.banner
-        if self.description is not None:
-            body["description"] = self.description
-
-        # Add type-specific fields
-        if self.storage_type in (
-            StorageLocationType.SYNAPSE_S3,
-            StorageLocationType.EXTERNAL_S3,
-            StorageLocationType.EXTERNAL_GOOGLE_CLOUD,
-            StorageLocationType.EXTERNAL_OBJECT_STORE,
-        ):
-            if self.bucket is not None:
-                body["bucket"] = self.bucket
-            if self.base_key is not None:
-                body["baseKey"] = self.base_key
-
-        if self.storage_type in (
-            StorageLocationType.SYNAPSE_S3,
-            StorageLocationType.EXTERNAL_S3,
-        ):
-            if self.sts_enabled is not None:
-                body["stsEnabled"] = self.sts_enabled
-
-        if self.storage_type in (
-            StorageLocationType.EXTERNAL_S3,
-            StorageLocationType.EXTERNAL_OBJECT_STORE,
-        ):
-            if self.endpoint_url is not None:
-                body["endpointUrl"] = self.endpoint_url
-
-        if self.storage_type == StorageLocationType.EXTERNAL_SFTP:
-            if self.url is not None:
-                body["url"] = self.url
-            if self.supports_subfolders is not None:
-                body["supportsSubfolders"] = self.supports_subfolders
-
-        if self.storage_type == StorageLocationType.PROXY:
-            if self.proxy_url is not None:
-                body["proxyUrl"] = self.proxy_url
-            if self.secret_key is not None:
-                body["secretKey"] = self.secret_key
-            if self.benefactor_id is not None:
-                body["benefactorId"] = self.benefactor_id
-
+        body["banner"] = self.banner if self.banner is not None else None
+        body["description"] = self.description if self.description is not None else None
+        # Add type-specific fields using the same mapping used by fill_from_dict
+        for field_name, api_key in _STORAGE_TYPE_SPECIFIC_FIELDS.get(
+            self.storage_type, {}
+        ).items():
+            value = getattr(self, field_name, None)
+            if value is not None:
+                body[api_key] = value
         return body
 
     @otel_trace_method(
