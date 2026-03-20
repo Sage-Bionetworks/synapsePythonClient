@@ -238,4 +238,3 @@ def wrap_with_otel(request):
         finally:
             for processor in active_span_processors:
                 processor.force_flush()
-            span.end()
