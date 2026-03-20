@@ -12,7 +12,6 @@ at your own risk.
         members:
         - store_async
         - get_async
-        - setup_s3_async
 
 ---
 
