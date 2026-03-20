@@ -1772,12 +1772,14 @@ class TestFileBasedHelperFunctions(unittest.TestCase):
                     "string_col": {"type": "string"},
                     "int_col": {"type": "integer"},
                     "bool_col": {"type": "boolean"},
+                    "number_col": {"type": "number"},
                 }
             },
             [
                 Column(name="string_col", column_type=ColumnType.MEDIUMTEXT),
                 Column(name="int_col", column_type=ColumnType.INTEGER),
                 Column(name="bool_col", column_type=ColumnType.BOOLEAN),
+                Column(name="number_col", column_type=ColumnType.DOUBLE),
             ],
         ),
     ],
