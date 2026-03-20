@@ -12,6 +12,7 @@ This script shows how to:
 7. Delete wiki pages
 
 """
+
 import os
 
 from synapseclient import Synapse
