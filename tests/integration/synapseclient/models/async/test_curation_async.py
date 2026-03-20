@@ -10,6 +10,7 @@ import pytest
 
 from synapseclient import Synapse
 from synapseclient.core.exceptions import SynapseHTTPError
+from synapseclient.core.utils import make_bogus_uuid_file
 from synapseclient.models import (
     Column,
     ColumnType,
@@ -32,17 +33,20 @@ class TestCurationTaskStoreAsync:
         self.syn = syn
         self.schedule_for_cleanup = schedule_for_cleanup
 
-    @pytest.fixture(scope="function")
+    @pytest.fixture(scope="class")
     async def folder_with_view(
-        self, project_model: Project
+        self,
+        project_model: Project,
+        syn: Synapse,
+        schedule_for_cleanup: Callable[..., None],
     ) -> tuple[Folder, EntityView]:
         """Create a folder with an associated EntityView for file-based testing."""
         # Create a folder
         folder = await Folder(
             name=str(uuid.uuid4()),
             parent_id=project_model.id,
-        ).store_async(synapse_client=self.syn)
-        self.schedule_for_cleanup(folder.id)
+        ).store_async(synapse_client=syn)
+        schedule_for_cleanup(folder.id)
 
         # Create an EntityView for the folder
         columns = [
@@ -66,19 +70,24 @@ class TestCurationTaskStoreAsync:
             scope_ids=[folder.id],
             view_type_mask=ViewTypeMask.FILE.value,
             columns=columns,
-        ).store_async(synapse_client=self.syn)
-        self.schedule_for_cleanup(entity_view.id)
+        ).store_async(synapse_client=syn)
+        schedule_for_cleanup(entity_view.id)
 
         return folder, entity_view
 
-    @pytest.fixture(scope="function")
-    async def record_set(self, project_model: Project) -> RecordSet:
+    @pytest.fixture(scope="class")
+    async def record_set(
+        self,
+        project_model: Project,
+        syn: Synapse,
+        schedule_for_cleanup: Callable[..., None],
+    ) -> RecordSet:
         """Create a RecordSet for record-based testing."""
         folder = await Folder(
             name=str(uuid.uuid4()),
             parent_id=project_model.id,
-        ).store_async(synapse_client=self.syn)
-        self.schedule_for_cleanup(folder.id)
+        ).store_async(synapse_client=syn)
+        schedule_for_cleanup(folder.id)
 
         # Create test data as a pandas DataFrame
         test_data = pd.DataFrame(
@@ -108,15 +117,15 @@ class TestCurationTaskStoreAsync:
         try:
             os.close(temp_fd)  # Close the file descriptor
             test_data.to_csv(filename, index=False)
-            self.schedule_for_cleanup(filename)
+            schedule_for_cleanup(filename)
 
             record_set = await RecordSet(
                 name=str(uuid.uuid4()),
                 parent_id=folder.id,
                 path=filename,
                 upsert_keys=["title", "regional_cuisine"],
-            ).store_async(synapse_client=self.syn)
-            self.schedule_for_cleanup(record_set.id)
+            ).store_async(synapse_client=syn)
+            schedule_for_cleanup(record_set.id)
 
             return record_set
         except Exception:
@@ -253,17 +262,20 @@ class TestCurationTaskGetAsync:
         self.syn = syn
         self.schedule_for_cleanup = schedule_for_cleanup
 
-    @pytest.fixture(scope="function")
+    @pytest.fixture(scope="class")
     async def folder_with_view(
-        self, project_model: Project
+        self,
+        project_model: Project,
+        syn: Synapse,
+        schedule_for_cleanup: Callable[..., None],
     ) -> tuple[Folder, EntityView]:
         """Create a folder with an associated EntityView for file-based testing."""
         # Create a folder
         folder = await Folder(
             name=str(uuid.uuid4()),
             parent_id=project_model.id,
-        ).store_async(synapse_client=self.syn)
-        self.schedule_for_cleanup(folder.id)
+        ).store_async(synapse_client=syn)
+        schedule_for_cleanup(folder.id)
 
         # Create required columns for the EntityView
         columns = [
@@ -287,8 +299,8 @@ class TestCurationTaskGetAsync:
             scope_ids=[folder.id],
             view_type_mask=ViewTypeMask.FILE.value,
             columns=columns,
-        ).store_async(synapse_client=self.syn)
-        self.schedule_for_cleanup(entity_view.id)
+        ).store_async(synapse_client=syn)
+        schedule_for_cleanup(entity_view.id)
 
         return folder, entity_view
 
@@ -361,15 +373,18 @@ class TestCurationTaskDeleteAsync:
 
     @pytest.fixture(scope="function")
     async def folder_with_view(
-        self, project_model: Project
+        self,
+        project_model: Project,
+        syn: Synapse,
+        schedule_for_cleanup: Callable[..., None],
     ) -> tuple[Folder, EntityView]:
         """Create a folder with an associated EntityView for file-based testing."""
         # Create a folder
         folder = await Folder(
             name=str(uuid.uuid4()),
             parent_id=project_model.id,
-        ).store_async(synapse_client=self.syn)
-        self.schedule_for_cleanup(folder.id)
+        ).store_async(synapse_client=syn)
+        schedule_for_cleanup(folder.id)
 
         # Create required columns for the EntityView
         columns = [
@@ -393,12 +408,40 @@ class TestCurationTaskDeleteAsync:
             scope_ids=[folder.id],
             view_type_mask=ViewTypeMask.FILE.value,
             columns=columns,
-        ).store_async(synapse_client=self.syn)
-        self.schedule_for_cleanup(entity_view.id)
+        ).store_async(synapse_client=syn)
+        schedule_for_cleanup(entity_view.id)
 
         return folder, entity_view
 
-    async def test_delete_curation_task_async(
+    @pytest.fixture(scope="function")
+    async def folder_with_record_set(
+        self,
+        project_model: Project,
+        syn: Synapse,
+        schedule_for_cleanup: Callable[..., None],
+    ) -> tuple[Folder, EntityView]:
+        """Create a folder with a a record set for record-based testing."""
+        # Create a folder
+        folder = await Folder(
+            name=str(uuid.uuid4()),
+            parent_id=project_model.id,
+        ).store_async(synapse_client=syn)
+        schedule_for_cleanup(folder.id)
+
+        filename = make_bogus_uuid_file()
+        schedule_for_cleanup(filename)
+
+        record_set = await RecordSet(
+            name=str(uuid.uuid4()),
+            parent_id=folder.id,
+            path=filename,
+            upsert_keys=["xxx"],
+        ).store_async(synapse_client=syn)
+        schedule_for_cleanup(record_set.id)
+
+        return folder, record_set
+
+    async def test_delete_file_based_curation_task_async(
         self, project_model: Project, folder_with_view: tuple[Folder, EntityView]
     ) -> None:
         # GIVEN a project, folder, and entity view
@@ -420,12 +463,111 @@ class TestCurationTaskDeleteAsync:
         task_id = curation_task.task_id
         assert task_id is not None
 
-        # WHEN I delete the task asynchronously
-        await curation_task.delete_async(synapse_client=self.syn)
+        # WHEN I delete the task asynchronously, without deleting the file view
+        await curation_task.delete_async(synapse_client=self.syn, delete_source=False)
 
         # THEN the task should be deleted and no longer retrievable
         with pytest.raises(SynapseHTTPError):
             await CurationTask(task_id=task_id).get_async(synapse_client=self.syn)
+
+        # AND the file view should not be deleted
+        await EntityView(entity_view.id).get_async(synapse_client=self.syn)
+
+    async def test_delete_file_based_curation_task_and_fileview_async(
+        self, project_model: Project, folder_with_view: tuple[Folder, EntityView]
+    ) -> None:
+        # GIVEN a project, folder, and entity view
+        folder, entity_view = folder_with_view
+
+        # GIVEN an existing curation task
+        data_type = f"test_data_type_{str(uuid.uuid4()).replace('-', '_')}"
+        task_properties = FileBasedMetadataTaskProperties(
+            upload_folder_id=folder.id,
+            file_view_id=entity_view.id,
+        )
+        curation_task = await CurationTask(
+            data_type=data_type,
+            project_id=project_model.id,
+            instructions="Task to be deleted",
+            task_properties=task_properties,
+        ).store_async(synapse_client=self.syn)
+
+        task_id = curation_task.task_id
+        assert task_id is not None
+
+        # WHEN I delete the task and fileview asynchronously
+        await curation_task.delete_async(synapse_client=self.syn, delete_source=True)
+
+        # THEN the task should be deleted and no longer retrievable
+        with pytest.raises(SynapseHTTPError):
+            await CurationTask(task_id=task_id).get_async(synapse_client=self.syn)
+
+        # AND the file view should be deleted and no longer retrievable
+        with pytest.raises(SynapseHTTPError):
+            await EntityView(entity_view.id).get_async(synapse_client=self.syn)
+
+    async def test_delete_record_based_curation_task_async(
+        self, project_model: Project, folder_with_record_set: tuple[Folder, EntityView]
+    ) -> None:
+        # GIVEN a folder, and record set
+        _, record_set = folder_with_record_set
+
+        # GIVEN an existing curation task
+        data_type = f"test_data_type_{str(uuid.uuid4()).replace('-', '_')}"
+        task_properties = RecordBasedMetadataTaskProperties(
+            record_set_id=record_set.id,
+        )
+        curation_task = await CurationTask(
+            data_type=data_type,
+            project_id=project_model.id,
+            instructions="Task to be deleted",
+            task_properties=task_properties,
+        ).store_async(synapse_client=self.syn)
+
+        task_id = curation_task.task_id
+        assert task_id is not None
+
+        # WHEN I delete the task asynchronously, without deleting the record set
+        await curation_task.delete_async(synapse_client=self.syn, delete_source=False)
+
+        # THEN the task should be deleted and no longer retrievable
+        with pytest.raises(SynapseHTTPError):
+            await CurationTask(task_id=task_id).get_async(synapse_client=self.syn)
+
+        # AND the record set should not be deleted
+        await RecordSet(record_set.id).get_async(synapse_client=self.syn)
+
+    async def test_delete_record_based_curation_task_and_record_set_async(
+        self, project_model: Project, folder_with_record_set: tuple[Folder, EntityView]
+    ) -> None:
+        # GIVEN a folder, and record set
+        _, record_set = folder_with_record_set
+
+        # GIVEN an existing curation task
+        data_type = f"test_data_type_{str(uuid.uuid4()).replace('-', '_')}"
+        task_properties = RecordBasedMetadataTaskProperties(
+            record_set_id=record_set.id,
+        )
+        curation_task = await CurationTask(
+            data_type=data_type,
+            project_id=project_model.id,
+            instructions="Task to be deleted",
+            task_properties=task_properties,
+        ).store_async(synapse_client=self.syn)
+
+        task_id = curation_task.task_id
+        assert task_id is not None
+
+        # WHEN I delete the task asynchronously, without deleting the record set
+        await curation_task.delete_async(synapse_client=self.syn, delete_source=True)
+
+        # THEN the task should be deleted and no longer retrievable
+        with pytest.raises(SynapseHTTPError):
+            await CurationTask(task_id=task_id).get_async(synapse_client=self.syn)
+
+        # AND the record set should be deleted and not retrievable
+        with pytest.raises(SynapseHTTPError):
+            await RecordSet(record_set.id).get_async(synapse_client=self.syn)
 
     async def test_delete_validation_error_async(self) -> None:
         # GIVEN a CurationTask without a task_id
@@ -447,17 +589,20 @@ class TestCurationTaskListAsync:
         self.syn = syn
         self.schedule_for_cleanup = schedule_for_cleanup
 
-    @pytest.fixture(scope="function")
+    @pytest.fixture(scope="class")
     async def folder_with_view(
-        self, project_model: Project
+        self,
+        project_model: Project,
+        syn: Synapse,
+        schedule_for_cleanup: Callable[..., None],
     ) -> tuple[Folder, EntityView]:
         """Create a folder with an associated EntityView for file-based testing."""
         # Create a folder
         folder = await Folder(
             name=str(uuid.uuid4()),
             parent_id=project_model.id,
-        ).store_async(synapse_client=self.syn)
-        self.schedule_for_cleanup(folder.id)
+        ).store_async(synapse_client=syn)
+        schedule_for_cleanup(folder.id)
 
         # Create required columns for the EntityView
         columns = [
@@ -481,8 +626,8 @@ class TestCurationTaskListAsync:
             scope_ids=[folder.id],
             view_type_mask=ViewTypeMask.FILE.value,
             columns=columns,
-        ).store_async(synapse_client=self.syn)
-        self.schedule_for_cleanup(entity_view.id)
+        ).store_async(synapse_client=syn)
+        schedule_for_cleanup(entity_view.id)
 
         return folder, entity_view
 
