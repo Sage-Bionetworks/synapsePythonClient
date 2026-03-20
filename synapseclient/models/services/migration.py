@@ -50,9 +50,7 @@ from .migration_types import (
 )
 
 if TYPE_CHECKING:
-    from synapseclient.models import Table
-    from synapseclient.models.services import query_async
-
+    from synapseclient.models import Table, query_async
 import sqlite3
 
 from synapseclient import Synapse
@@ -968,9 +966,10 @@ async def _get_table_file_handle_rows_async(
             for i, file_handle_id in enumerate(file_handle_ids):
                 if file_handle_id:
                     col_id = file_handle_columns[i]["id"]
-                    file_handle = await get_file_handle_for_download_async(
+                    response = await get_file_handle_for_download_async(
                         file_handle_id, entity_id, objectType="TableEntity"
-                    )["fileHandle"]
+                    )
+                    file_handle = response["fileHandle"]
                     file_handles[col_id] = file_handle
 
             yield row_id, row_version, file_handles
@@ -997,7 +996,7 @@ async def _index_table_entity_async(
     """
     logger.info("Indexing table entity %s", entity_id)
     insert_values = []
-    for row_id, row_version, file_handles in await _get_table_file_handle_rows_async(
+    async for row_id, row_version, file_handles in _get_table_file_handle_rows_async(
         entity_id=entity_id, synapse_client=synapse_client
     ):
         for col_id, file_handle in file_handles.items():
@@ -1009,10 +1008,10 @@ async def _index_table_entity_async(
                     (
                         entity_id,
                         MigrationType.TABLE_ATTACHED_FILE.value,
-                        parent_id,
                         row_id,
                         col_id,
                         row_version,
+                        parent_id,
                         file_handle.storage_location_id,
                         file_handle.id,
                         file_handle.content_size,
@@ -1348,7 +1347,7 @@ async def migrate_indexed_files_async(
     continue_on_error: bool = False,
     force: bool = False,
     synapse_client: Optional["Synapse"] = None,
-) -> Optional[MigrationResult]:
+) -> MigrationResult:
     """Migrate files that have been indexed.
 
     This is the second step in migrating files to a new storage location.
