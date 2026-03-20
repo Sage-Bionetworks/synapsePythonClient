@@ -1820,12 +1820,35 @@ def test_create_columns_from_json_schema_exceptions(json_schema: dict[str, Any])
             ColumnType.BOOLEAN_LIST,
         ),
         (
+            {"type": "number"},
+            "number_col",
+            ColumnType.DOUBLE,
+        ),
+        (
+            {"type": "integer"},
+            "integer_col",
+            ColumnType.INTEGER,
+        ),
+        (
+            {"type": "boolean"},
+            "boolean_col",
+            ColumnType.BOOLEAN,
+        ),
+        (
             {"type": "string"},
             "string_col",
             ColumnType.MEDIUMTEXT,
         ),
     ],
-    ids=["string_list", "integer_list", "boolean_list", "string"],
+    ids=[
+        "string_list",
+        "integer_list",
+        "boolean_list",
+        "number",
+        "integer",
+        "boolean",
+        "string",
+    ],
 )
 def test_create_synapse_column_from_js_property(
     json_schema_property: dict[str, Any],
