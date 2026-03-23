@@ -1,0 +1,95 @@
+<!-- Last reviewed: 2026-03 -->
+
+## Project
+
+Synapse Python Client — official Python SDK and CLI for Synapse (synapse.org), a collaborative science platform by Sage Bionetworks. Provides programmatic access to entities (projects, files, folders, tables, views), metadata, permissions, evaluations, and data curation workflows. Published to PyPI as `synapseclient`.
+
+## Stack
+
+- Python 3.10–3.14 (`setup.cfg`: `python_requires = >=3.10, <3.15`)
+- HTTP: httpx (async), requests (sync/legacy)
+- Models: stdlib dataclasses (NOT Pydantic)
+- Tests: pytest 8.2, pytest-asyncio, pytest-socket, pytest-xdist
+- Docs: MkDocs with Material theme, mkdocstrings
+- Linting: ruff, black (line-length 88), isort (profile=black), bandit, flake8
+- CI: GitHub Actions → SonarCloud, PyPI deploy on release
+
+## Commands
+
+```bash
+# Install for development
+pip install -e ".[boto3,pandas,pysftp,tests,curator,dev]"
+
+# Unit tests
+pytest -sv tests/unit
+
+# Integration tests (requires Synapse credentials, runs in parallel)
+pytest -sv --reruns 3 tests/integration -n 8 --dist loadscope
+
+# Pre-commit checks (ruff, black, isort, bandit)
+pre-commit run --all-files
+
+# Build docs locally
+pip install -e ".[docs]" && mkdocs serve
+```
+
+## Conventions
+
+### Async-first with generated sync wrappers
+All new methods must be async with `_async` suffix. The `@async_to_sync` class decorator (`core/async_utils.py`) auto-generates sync counterparts at class definition time. Never write sync methods manually on model classes — the decorator handles it.
+
+### Protocol classes for sync type hints
+Each model in `models/` has a corresponding protocol in `models/protocols/` defining the sync method signatures. When adding a new async method to a model, add its sync signature to the protocol class so IDE type hints work.
+
+### Dataclass models with `fill_from_dict()`
+Models are `@dataclass` classes, NOT Pydantic. REST responses are deserialized via `fill_from_dict()` methods on each model. New models must follow this pattern.
+
+### Concrete types are Java class names
+`core/constants/concrete_types.py` maps Java class names (e.g., `org.sagebionetworks.repo.model.FileEntity`) for polymorphic entity deserialization. When adding new entity types, register the concrete type string here.
+
+### Mixin composition for shared behavior
+Shared functionality lives in `models/mixins/` (AccessControllable, StorableContainer, AsynchronousJob, etc.). Prefer adding to existing mixins over duplicating logic across models.
+
+### `synapse_client` parameter pattern
+Most functions accept an optional `synapse_client` parameter. If omitted, `Synapse.get_client()` returns the cached singleton. Never pass `None` explicitly — omit the argument instead.
+
+### Branch naming
+Use `SYNPY-{issue_number}` or `synpy-{issue_number}` prefix for feature branches. PR titles follow `[SYNPY-XXXX] Description` format.
+
+## Architecture
+
+```
+synapseclient/
+├── client.py          # Synapse class — public entry point, REST methods, auth
+├── api/               # REST API layer — one file per resource type
+├── models/            # Dataclass entities (Project, File, Table, etc.)
+│   ├── protocols/     # Sync method type signatures for IDE hints
+│   ├── mixins/        # Shared behavior (ACL, containers, async jobs)
+│   └── services/      # Model-level business logic
+├── operations/        # High-level CRUD: get(), store(), delete()
+├── core/              # Infrastructure: upload/download, retry, cache, creds, OTel
+│   ├── upload/        # Multipart upload (sync + async)
+│   ├── download/      # File download (sync + async)
+│   ├── credentials/   # Auth chain (PAT, OAuth, env vars, config file)
+│   └── constants/     # Concrete types, config keys, limits
+├── extensions/        # Optional modules (curator)
+└── entity.py, table.py, ...  # Legacy classes (pre-OOP rewrite)
+```
+
+Data flows: Client REST methods → API service functions → Models with `fill_from_dict()` → returned to caller. The `operations/` layer provides a simpler interface over this chain.
+
+## Constraints
+
+- Do not use Pydantic for models — the codebase uses stdlib dataclasses with custom serialization. Mixing would break the `@async_to_sync` decorator and `fill_from_dict()` pattern.
+- Do not write synchronous test files — write async tests only. The `@async_to_sync` decorator is validated by a dedicated smoke test. Duplicate sync tests were removed to cut CI cost.
+- Unit tests must not make network calls — `pytest-socket` blocks all sockets. Use `pytest-mock` for HTTP mocking.
+- `develop` is the default/main branch, not `main` or `master`. PRs target `develop`.
+- Legacy classes in root `synapseclient/` (entity.py, table.py, etc.) are kept for backwards compatibility. New features go in `models/` using the dataclass pattern.
+
+## Testing
+
+- `asyncio_mode = auto` in pytest.ini — no need for `@pytest.mark.asyncio`
+- `asyncio_default_fixture_loop_scope = session` — all async tests share one event loop
+- Unit test client fixture: session-scoped, `skip_checks=True`, `cache_client=False`
+- Integration tests use `--reruns 3` for flaky retries and `-n 8 --dist loadscope` for parallelism
+- Integration fixtures create per-worker Synapse projects; use `schedule_for_cleanup()` for teardown
