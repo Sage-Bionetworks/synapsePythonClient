@@ -1,0 +1,103 @@
+---
+#
+# Reusable workflow to build, scan, and push a Docker image.
+# Called by the periodic scan workflow to rebuild images
+# when new vulnerabilities are found.
+#
+name: Build and publish a Docker image
+
+on:
+  workflow_call:
+    inputs:
+      REF_TO_CHECKOUT:
+        required: false
+        type: string
+        description: "Reference to checkout, e.g. a tag like v1.0.1. Defaults to the branch/tag of the current event."
+      IMAGE_REFERENCES:
+        required: true
+        type: string
+        description: "Comma-separated image references, e.g., ghcr.io/sage-bionetworks/synapsepythonclient:1.0.1"
+
+env:
+  TARFILE_NAME: image.tar
+  LOCAL_IMAGE_TAG: rebuild-image:local
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ inputs.REF_TO_CHECKOUT }}
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v2
+
+      - name: Build Docker image
+        uses: docker/build-push-action@v5
+        with:
+          context: .
+          push: false
+          load: true
+          tags: rebuild-image:local
+          file: ./Dockerfile
+          platforms: linux/amd64
+
+      - name: Save Docker image to tar
+        run: docker save rebuild-image:local -o ${{ env.TARFILE_NAME }}
+
+      - name: Upload tarball for use by Trivy job
+        uses: actions/upload-artifact@v4
+        with:
+          name: ${{ env.TARFILE_NAME }}
+          path: ${{ env.TARFILE_NAME }}
+          retention-days: 1
+
+    outputs:
+      tarfile_artifact: ${{ env.TARFILE_NAME }}
+
+  trivy-scan:
+    needs: build
+    uses: "./.github/workflows/trivy.yml"
+    with:
+      SOURCE_TYPE: tar
+      IMAGE_NAME: rebuild-image:local
+      TARFILE_NAME: ${{ needs.build.outputs.tarfile_artifact }}
+      EXIT_CODE: 1
+    permissions:
+      contents: read
+      security-events: write
+      actions: read
+
+  push-image:
+    needs: [build, trivy-scan]
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      packages: write
+    steps:
+      - name: Download tar artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: ${{ needs.build.outputs.tarfile_artifact }}
+          path: /tmp
+
+      - name: Load Docker image from tar
+        run: docker load -i /tmp/${{ needs.build.outputs.tarfile_artifact }}
+
+      - name: Login to GitHub Container Registry
+        uses: docker/login-action@v2
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Tag and push Docker image
+        shell: bash
+        run: |
+          IFS=',' read -ra TAGS <<< "${{ inputs.IMAGE_REFERENCES }}"
+          for TAG in "${TAGS[@]}"; do
+            docker tag rebuild-image:local "$TAG"
+            docker push "$TAG"
+          done

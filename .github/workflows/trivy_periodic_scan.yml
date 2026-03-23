@@ -1,0 +1,89 @@
+---
+#
+# This workflow scans the latest published container image
+# for new vulnerabilities daily, publishing findings to
+# the GitHub Security tab. If vulnerabilities are found,
+# it bumps the patch version and triggers a rebuild.
+#
+name: Trivy Periodic Image Scan
+
+on:
+  schedule:
+    - cron: "0 0 * * *" # run daily
+  workflow_dispatch: {}
+
+jobs:
+  get-image-reference:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Convert repo name to lower case
+        id: to_lower_case
+        run: |
+          # While GitHub repos can be mixed case,
+          # Docker images can only be lower case
+          repo_name=$(echo ${{ github.repository }} | tr '[:upper:]' '[:lower:]')
+          echo "repo_name=$repo_name" >> $GITHUB_ENV
+      - name: Find current version
+        id: find_version
+        uses: mathieudutour/github-tag-action@v6.2
+        with:
+          github_token: ${{ secrets.GITHUB_TOKEN }}
+          dry_run: true # setting to 'true' means no new version is created
+    outputs:
+      image_repo: ghcr.io/${{ env.repo_name }}
+      image_tag: ${{ steps.find_version.outputs.previous_version }}
+    permissions:
+      contents: read
+      deployments: write
+      security-events: write
+
+  periodic-scan:
+    needs: get-image-reference
+    uses: "./.github/workflows/trivy.yml"
+    with:
+      SOURCE_TYPE: image
+      IMAGE_NAME: ${{ needs.get-image-reference.outputs.image_repo }}:${{ needs.get-image-reference.outputs.image_tag }}
+      EXIT_CODE: 1
+    permissions:
+      contents: read
+      deployments: write
+      security-events: write
+
+  # If scan failed, bump tag and rebuild the image
+  bump-tag:
+    needs: periodic-scan
+    runs-on: ubuntu-latest
+    if: ${{ !cancelled() && needs.periodic-scan.outputs.trivy_conclusion == 'failure' }}
+    steps:
+      - name: Bump version and push tag
+        id: tag_version
+        uses: mathieudutour/github-tag-action@v6.2
+        with:
+          github_token: ${{ secrets.GITHUB_TOKEN }}
+      - name: Parse new version
+        id: parsed
+        uses: booxmedialtd/ws-action-parse-semver@v1
+        with:
+          input_string: ${{ steps.tag_version.outputs.new_version }}
+    outputs:
+      new_tag: ${{ steps.tag_version.outputs.new_tag }}
+      new_version: ${{ steps.tag_version.outputs.new_version }}
+      new_major_minor: ${{ steps.parsed.outputs.major }}.${{ steps.parsed.outputs.minor }}
+    permissions:
+      contents: write
+      deployments: write
+      security-events: write
+
+  update-image:
+    needs: [get-image-reference, periodic-scan, bump-tag]
+    if: ${{ !cancelled() && needs.periodic-scan.outputs.trivy_conclusion == 'failure' }}
+    uses: "./.github/workflows/docker_build.yml"
+    with:
+      REF_TO_CHECKOUT: ${{ needs.bump-tag.outputs.new_tag }}
+      IMAGE_REFERENCES: "${{ needs.get-image-reference.outputs.image_repo }}:${{ needs.bump-tag.outputs.new_version }},\
+        ${{ needs.get-image-reference.outputs.image_repo }}:${{ needs.bump-tag.outputs.new_major_minor }}"
+    permissions:
+      contents: read
+      deployments: write
+      security-events: write
+      packages: write

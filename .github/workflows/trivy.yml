@@ -1,0 +1,91 @@
+---
+#
+# This workflow runs Trivy on a Docker image
+# It can pull the image from a container registry
+# or download a tar file. The latter is used
+# to check a container image prior to publishing
+# to the registry.
+
+name: Run Trivy on a Docker image and push results to GitHub
+
+on:
+  workflow_call:
+    inputs:
+      SOURCE_TYPE: # 'tar' or 'image'
+        required: true
+        type: string
+      TARFILE_NAME: # only used if SOURCE_TYPE=='tar'
+        required: false
+        type: string
+      IMAGE_NAME:
+        required: true
+        type: string
+      EXIT_CODE: # return code for failed scan. 0 means OK. Non-zero will fail the build when there are findings.
+        required: false
+        type: number
+        default: 0
+    outputs:
+      trivy_conclusion:
+        description: "The pass/fail status from Trivy"
+        value: ${{ jobs.trivy.outputs.trivy_conclusion }}
+
+env:
+  sarif_file_name: trivy-results.sarif
+  # downloading the trivy-db from its default GitHub location fails because
+  # the site experiences too many downloads. The fix is to pull from this
+  # alternate location.
+  TRIVY_DB_REPOSITORY: public.ecr.aws/aquasecurity/trivy-db:2
+  TRIVY_JAVA_DB_REPOSITORY: public.ecr.aws/aquasecurity/trivy-java-db:1
+
+jobs:
+  trivy:
+    name: Trivy
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      security-events: write
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Download tar file
+        id: tar-download
+        uses: actions/download-artifact@v4
+        if: ${{ inputs.SOURCE_TYPE == 'tar' }}
+        with:
+          name: ${{ inputs.TARFILE_NAME }}
+          path: /tmp
+
+      - name: Load docker image from tar file
+        if: ${{ inputs.SOURCE_TYPE == 'tar' }}
+        run: docker load -i ${{ steps.tar-download.outputs.download-path }}/${{ inputs.TARFILE_NAME }}
+
+      - name: Run Trivy vulnerability scanner for any major issues
+        uses: aquasecurity/trivy-action@0.32.0
+        id: trivy
+        with:
+          image-ref: ${{ inputs.IMAGE_NAME }}
+          ignore-unfixed: true # skip vulnerabilities for which there is no fix
+          severity: 'CRITICAL,HIGH'
+          format: 'sarif'
+          limit-severities-for-sarif: true
+          output: ${{ env.sarif_file_name }}
+          exit-code: ${{ inputs.EXIT_CODE }}
+
+      - name: Upload Trivy scan results to GitHub Security tab
+        uses: github/codeql-action/upload-sarif@v3.25.12
+        if: ${{ success() || steps.trivy.conclusion == 'failure' }}
+        with:
+          sarif_file: ${{ env.sarif_file_name }}
+          wait-for-processing: true
+
+      - name: Upload Trivy output
+        uses: actions/upload-artifact@v4
+        if: ${{ success() || steps.trivy.conclusion == 'failure' }}
+        with:
+          name: ${{ env.sarif_file_name }}
+          path: ${{ env.sarif_file_name }}
+
+    outputs:
+      trivy_conclusion: ${{ steps.trivy.conclusion }}

@@ -552,8 +552,73 @@ jobs:
           exit 1
 
   # containerize the package and upload to the GHCR upon new release (whether pre-release or not)
-  ghcr-build-and-push-on-release:
+  # Step 1: Build the Docker image and save as tar for scanning
+  ghcr-build-on-release:
     needs: deploy
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      packages: write
+    outputs:
+      image-tags: ${{ steps.set-tags.outputs.tags }}
+      image-name: synapsepythonclient-release
+    env:
+      TARFILE_NAME: synapsepythonclient-release.tar
+
+    steps:
+      - name: Check out the repo
+        uses: actions/checkout@v4
+      - name: Extract Release Version
+        run: echo "RELEASE_VERSION=${GITHUB_REF#refs/tags/}" >> $GITHUB_ENV
+        shell: bash
+      - name: Set image tags
+        id: set-tags
+        shell: bash
+        run: |
+          if [[ "${{ github.event.release.prerelease }}" == "true" ]]; then
+            echo "tags=ghcr.io/sage-bionetworks/synapsepythonclient:${{ env.RELEASE_VERSION }}-prerelease" >> $GITHUB_OUTPUT
+          else
+            echo "tags=ghcr.io/sage-bionetworks/synapsepythonclient:latest,ghcr.io/sage-bionetworks/synapsepythonclient:${{ env.RELEASE_VERSION }}" >> $GITHUB_OUTPUT
+          fi
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v2
+      - name: Build Docker image
+        uses: docker/build-push-action@v5
+        with:
+          context: .
+          push: false
+          load: true
+          provenance: false
+          tags: synapsepythonclient-release:local
+          file: ./Dockerfile
+          platforms: linux/amd64
+          cache-from: type=registry,ref=ghcr.io/sage-bionetworks/synapsepythonclient:build-cache
+      - name: Save Docker image to tar
+        run: docker save synapsepythonclient-release:local -o ${{ env.TARFILE_NAME }}
+      - name: Upload tar artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: ${{ env.TARFILE_NAME }}
+          path: ${{ env.TARFILE_NAME }}
+          retention-days: 1
+
+  # Step 2: Scan the built image with Trivy before pushing
+  trivy-scan-release:
+    needs: [ghcr-build-on-release]
+    uses: ./.github/workflows/trivy.yml
+    with:
+      SOURCE_TYPE: tar
+      TARFILE_NAME: synapsepythonclient-release.tar
+      IMAGE_NAME: synapsepythonclient-release:local
+      EXIT_CODE: 1
+    permissions:
+      contents: read
+      security-events: write
+      actions: read
+
+  # Step 3: Push the image to GHCR only if Trivy scan passes
+  ghcr-push-on-release:
+    needs: [ghcr-build-on-release, trivy-scan-release]
     runs-on: ubuntu-latest
     permissions:
       contents: read
@@ -562,9 +627,6 @@ jobs:
     steps:
       - name: Check out the repo
         uses: actions/checkout@v4
-      - name: Extract Release Version
-        run: echo "RELEASE_VERSION=${GITHUB_REF#refs/tags/}" >> $GITHUB_ENV
-        shell: bash
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v2
       - name: Log in to GitHub Container Registry
@@ -573,39 +635,74 @@ jobs:
           registry: ghcr.io
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
-      - name: Build and push Docker image (official release)
-        id: docker_build
-        if: '!github.event.release.prerelease'
-        uses: docker/build-push-action@v3
+      - name: Build and push Docker image
+        uses: docker/build-push-action@v5
         with:
+          context: .
           push: true
           provenance: false
-          tags: ghcr.io/sage-bionetworks/synapsepythonclient:latest,ghcr.io/sage-bionetworks/synapsepythonclient:${{ env.RELEASE_VERSION }}
+          tags: ${{ needs.ghcr-build-on-release.outputs.image-tags }}
           file: ./Dockerfile
           platforms: linux/amd64
           cache-from: type=registry,ref=ghcr.io/sage-bionetworks/synapsepythonclient:build-cache
           cache-to: type=registry,mode=max,ref=ghcr.io/sage-bionetworks/synapsepythonclient:build-cache
-      - name: Build and push Docker image (pre-release)
-        id: docker_build_prerelease
-        if: 'github.event.release.prerelease'
-        uses: docker/build-push-action@v3
-        with:
-          push: true
-          provenance: false
-          tags: ghcr.io/sage-bionetworks/synapsepythonclient:${{ env.RELEASE_VERSION }}-prerelease
-          file: ./Dockerfile
-          platforms: linux/amd64
-          cache-from: type=registry,ref=ghcr.io/sage-bionetworks/synapsepythonclient:build-cache-prerelease
-          cache-to: type=registry,mode=max,ref=ghcr.io/sage-bionetworks/synapsepythonclient:build-cache-prerelease
-      - name: Output image digest (official release)
-        if: '!github.event.release.prerelease'
-        run: echo "The image digest for official release is ${{ steps.docker_build.outputs.digest }}"
-      - name: Output image digest (pre-release)
-        if: 'github.event.release.prerelease'
-        run: echo "The image digest for pre-release is ${{ steps.docker_build_prerelease.outputs.digest }}"
 
   # containerize the package and upload to the GHCR upon commit in develop
-  ghcr-build-and-push-on-develop:
+  # Step 1: Build the Docker image and save as tar for scanning
+  ghcr-build-on-develop:
+    runs-on: ubuntu-latest
+    if: github.ref == 'refs/heads/develop'
+    permissions:
+      contents: read
+      packages: write
+    outputs:
+      image-tag: ghcr.io/sage-bionetworks/synapsepythonclient:develop-${{ github.sha }}
+      image-name: synapsepythonclient-develop
+    env:
+      TARFILE_NAME: synapsepythonclient-develop.tar
+
+    steps:
+      - name: Check out the repo
+        uses: actions/checkout@v4
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v2
+      - name: Build Docker image
+        uses: docker/build-push-action@v5
+        with:
+          context: .
+          push: false
+          load: true
+          provenance: false
+          tags: synapsepythonclient-develop:local
+          file: ./Dockerfile
+          platforms: linux/amd64
+          cache-from: type=registry,ref=ghcr.io/sage-bionetworks/synapsepythonclient:build-cache
+      - name: Save Docker image to tar
+        run: docker save synapsepythonclient-develop:local -o ${{ env.TARFILE_NAME }}
+      - name: Upload tar artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: ${{ env.TARFILE_NAME }}
+          path: ${{ env.TARFILE_NAME }}
+          retention-days: 1
+
+  # Step 2: Scan the built image with Trivy before pushing
+  trivy-scan-develop:
+    needs: [ghcr-build-on-develop]
+    uses: ./.github/workflows/trivy.yml
+    with:
+      SOURCE_TYPE: tar
+      TARFILE_NAME: synapsepythonclient-develop.tar
+      IMAGE_NAME: synapsepythonclient-develop:local
+      EXIT_CODE: 1
+    permissions:
+      contents: read
+      security-events: write
+      actions: read
+
+  # Step 3: Push the image to GHCR only if Trivy scan passes
+  ghcr-push-on-develop:
+    needs: [ghcr-build-on-develop, trivy-scan-develop]
     runs-on: ubuntu-latest
     if: github.ref == 'refs/heads/develop'
     permissions:
@@ -623,10 +720,10 @@ jobs:
           registry: ghcr.io
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
-      - name: Build and push Docker image for develop
-        id: docker_build
+      - name: Build and push Docker image
         uses: docker/build-push-action@v5
         with:
+          context: .
           push: true
           provenance: false
           tags: ghcr.io/sage-bionetworks/synapsepythonclient:develop-${{ github.sha }}
@@ -634,5 +731,3 @@ jobs:
           platforms: linux/amd64
           cache-from: type=registry,ref=ghcr.io/sage-bionetworks/synapsepythonclient:build-cache
           cache-to: type=inline
-      - name: Output image digest
-        run: echo "The image digest is ${{ steps.docker_build.outputs.digest }}"
