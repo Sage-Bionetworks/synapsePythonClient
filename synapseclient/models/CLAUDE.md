@@ -13,6 +13,7 @@ Dataclass-based entity models for the Synapse REST API. Each model represents a 
 4. Register concrete type in `core/constants/concrete_types.py`
 5. Add to `models/__init__.py` exports and `__all__`
 6. Add to entity factory type map in `api/entity_factory.py` if it's an entity type
+7. Add to `ASYNC_JOB_URIS` in `models/mixins/asynchronous_job.py` if it uses async jobs
 
 ### Standard fields every entity model must have
 ```python
@@ -32,6 +33,12 @@ Use `compare=False` for read-only timestamps, child collections, annotations, an
 ### fill_from_dict() pattern
 Maps camelCase REST keys to snake_case fields via `.get("camelCaseKey", None)`. Must return `self`. Handle annotations separately with `set_annotations` parameter. Reference: `folder.py`, `file.py`.
 
+### Annotations handling
+Annotations are deserialized separately from `fill_from_dict()` — they use a `set_annotations` flag parameter. The `Annotations` model wraps key-value metadata. When storing, annotations are sent via a separate API call in `models/services/storable_entity_components.py`.
+
+### Activity/provenance pattern
+`Activity` model tracks provenance (what data/code produced an entity). Contains `used` and `executed` lists of `UsedEntity`/`UsedURL` references. Activity is stored as a separate component — the `associate_activity_to_new_version` flag on File controls whether activity transfers to new versions.
+
 ### _last_persistent_instance lifecycle
 - Set via `_set_last_persistent_instance()` after every successful `store_async()` and `get_async()`
 - Uses `dataclasses.replace(self)` with `deepcopy` for annotations
@@ -46,6 +53,12 @@ Always call `delete_none_keys()` on request dicts before passing to `store_entit
 
 ### EnumCoercionMixin for enum fields
 If a model has enum-typed fields, inherit from `EnumCoercionMixin` and declare `_ENUM_FIELDS: ClassVar[Dict[str, type]]` mapping field names to enum classes. Auto-coerces strings to enums on assignment via `__setattr__`.
+
+### OOP table.py vs legacy synapseclient/table.py
+`models/table.py` is the modern OOP dataclass Table. `synapseclient/table.py` in the package root is the legacy Table class (MutableMapping-based). New table features go in `models/table.py` and `models/table_components.py`.
+
+### Business logic in services/
+Complex orchestration logic lives in `models/services/` (storable_entity, storable_entity_components, search) — not directly on model classes. This keeps models thin.
 
 ## Constraints
 

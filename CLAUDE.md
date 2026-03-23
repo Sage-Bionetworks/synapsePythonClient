@@ -38,6 +38,9 @@ pip install -e ".[docs]" && mkdocs serve
 ### Async-first with generated sync wrappers
 All new methods must be async with `_async` suffix. The `@async_to_sync` class decorator (`core/async_utils.py`) auto-generates sync counterparts at class definition time. Never write sync methods manually on model classes — the decorator handles it.
 
+### `wrap_async_to_sync()` for standalone functions
+Use `wrap_async_to_sync()` (not `@async_to_sync`) for free-standing async functions outside of classes — see `operations/` layer for the pattern. The class decorator only works on classes.
+
 ### Protocol classes for sync type hints
 Each model in `models/` has a corresponding protocol in `models/protocols/` defining the sync method signatures. When adding a new async method to a model, add its sync signature to the protocol class so IDE type hints work.
 
@@ -45,7 +48,10 @@ Each model in `models/` has a corresponding protocol in `models/protocols/` defi
 Models are `@dataclass` classes, NOT Pydantic. REST responses are deserialized via `fill_from_dict()` methods on each model. New models must follow this pattern.
 
 ### Concrete types are Java class names
-`core/constants/concrete_types.py` maps Java class names (e.g., `org.sagebionetworks.repo.model.FileEntity`) for polymorphic entity deserialization. When adding new entity types, register the concrete type string here.
+`core/constants/concrete_types.py` maps Java class names (e.g., `org.sagebionetworks.repo.model.FileEntity`) for polymorphic entity deserialization. When adding new entity types, register the concrete type string here AND in `api/entity_factory.py` AND in `models/mixins/asynchronous_job.py` if it's an async job type.
+
+### Options dataclass pattern
+The `operations/` layer uses dataclass option objects (`StoreFileOptions`, `FileOptions`, `TableOptions`, etc.) to bundle type-specific configuration for CRUD operations. Follow this pattern for new entity-type-specific options.
 
 ### Mixin composition for shared behavior
 Shared functionality lives in `models/mixins/` (AccessControllable, StorableContainer, AsynchronousJob, etc.). Prefer adding to existing mixins over duplicating logic across models.
@@ -60,23 +66,30 @@ Use `SYNPY-{issue_number}` or `synpy-{issue_number}` prefix for feature branches
 
 ```
 synapseclient/
-├── client.py          # Synapse class — public entry point, REST methods, auth
-├── api/               # REST API layer — one file per resource type
-├── models/            # Dataclass entities (Project, File, Table, etc.)
-│   ├── protocols/     # Sync method type signatures for IDE hints
-│   ├── mixins/        # Shared behavior (ACL, containers, async jobs)
-│   └── services/      # Model-level business logic
-├── operations/        # High-level CRUD: get(), store(), delete()
+├── client.py          # Synapse class — public entry point, REST methods, auth (9600+ lines)
+├── api/               # REST API layer — one file per resource type (21 files)
+│   └── entity_factory.py  # Polymorphic entity deserialization via concrete type dispatch
+├── models/            # Dataclass entities (Project, File, Table, etc.) (28 files)
+│   ├── protocols/     # Sync method type signatures for IDE hints (18 files)
+│   ├── mixins/        # Shared behavior (ACL, containers, async jobs, tables) (7 files)
+│   └── services/      # Model-level business logic (storable_entity, search)
+├── operations/        # High-level CRUD: get(), store(), delete() — factory dispatch
 ├── core/              # Infrastructure: upload/download, retry, cache, creds, OTel
 │   ├── upload/        # Multipart upload (sync + async)
 │   ├── download/      # File download (sync + async)
-│   ├── credentials/   # Auth chain (PAT, OAuth, env vars, config file)
-│   └── constants/     # Concrete types, config keys, limits
-├── extensions/        # Optional modules (curator)
-└── entity.py, table.py, ...  # Legacy classes (pre-OOP rewrite)
+│   ├── credentials/   # Auth chain (PAT, env var, config file, AWS SSM)
+│   ├── constants/     # Concrete types, config keys, limits, method flags
+│   ├── models/        # ACL, Permission, DictObject, custom JSON serialization
+│   └── multithread_download/  # Threaded download manager
+├── extensions/
+│   └── curator/       # Schema curation (pandas, networkx, rdflib) — optional
+├── services/          # JSON schema validation services
+└── entity.py, table.py, ...  # Legacy classes (pre-OOP rewrite, read-only)
+
+synapseutils/          # Legacy bulk utilities (copy, sync, migrate, walk) — sync-only
 ```
 
-Data flows: Client REST methods → API service functions → Models with `fill_from_dict()` → returned to caller. The `operations/` layer provides a simpler interface over this chain.
+Data flow: User → `operations/` factory → model async methods → `api/` service functions → `client.py` REST calls → Synapse API. Responses deserialized via `fill_from_dict()` on model instances.
 
 ## Constraints
 
@@ -85,6 +98,8 @@ Data flows: Client REST methods → API service functions → Models with `fill_
 - Unit tests must not make network calls — `pytest-socket` blocks all sockets. Use `pytest-mock` for HTTP mocking.
 - `develop` is the default/main branch, not `main` or `master`. PRs target `develop`.
 - Legacy classes in root `synapseclient/` (entity.py, table.py, etc.) are kept for backwards compatibility. New features go in `models/` using the dataclass pattern.
+- Avoid adding new methods to `client.py` (9600+ lines) — prefer the `api/` + `models/` layered pattern.
+- `synapseutils/` is legacy sync-only (uses `requests`, NOT `httpx`). Do not add async methods there — new async equivalents go in `models/` or `operations/`.
 
 ## Testing
 
