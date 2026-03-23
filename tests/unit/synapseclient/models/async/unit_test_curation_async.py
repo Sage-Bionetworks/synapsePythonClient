@@ -7,6 +7,7 @@ import pytest
 from synapseclient import Synapse
 from synapseclient.core.constants.concrete_types import (
     FILE_BASED_METADATA_TASK_PROPERTIES,
+    GRID_CSV_IMPORT_REQUEST,
     RECORD_BASED_METADATA_TASK_PROPERTIES,
 )
 from synapseclient.models.curation import (
@@ -14,6 +15,7 @@ from synapseclient.models.curation import (
     CurationTask,
     FileBasedMetadataTaskProperties,
     Grid,
+    GridCsvImportRequest,
     GridRecordSetExportRequest,
     RecordBasedMetadataTaskProperties,
     _create_task_properties_from_dict,
@@ -39,6 +41,7 @@ SOURCE_ENTITY_ID = "syn5555555"
 GRID_ETAG = "grid-etag-456"
 STARTED_BY = "user-1"
 STARTED_ON = "2024-03-01T00:00:00.000Z"
+FILE_HANDLE_ID = "987654321"
 
 
 def _get_file_based_task_api_response():
@@ -905,3 +908,180 @@ class TestGridRecordSetExportRequest:
         # THEN it should contain the correct fields
         assert "concreteType" in result
         assert result["sessionId"] == SESSION_ID
+
+
+class TestGridCsvImportRequest:
+    """Tests for the GridCsvImportRequest helper dataclass."""
+
+    def test_fill_from_dict(self) -> None:
+        # GIVEN a response with grid session data
+        response = {"gridSession": _get_grid_session_response()}
+
+        # WHEN I fill a GridCsvImportRequest from the response
+        request = GridCsvImportRequest(
+            session_id=SESSION_ID, file_handle_id=FILE_HANDLE_ID
+        )
+        request.fill_from_dict(response)
+
+        # THEN the session_id should be populated from the response
+        assert request.session_id == SESSION_ID
+        assert request._grid_session_data == _get_grid_session_response()
+
+    def test_fill_from_dict_empty_grid_session(self) -> None:
+        # GIVEN a response without grid session data
+        response = {}
+
+        # WHEN I fill a GridCsvImportRequest from the response
+        request = GridCsvImportRequest(
+            session_id=SESSION_ID, file_handle_id=FILE_HANDLE_ID
+        )
+        request.fill_from_dict(response)
+
+        # THEN the session_id should be None (from empty dict)
+        assert request.session_id is None
+        assert request._grid_session_data == {}
+
+    def test_fill_grid_session_from_response(self) -> None:
+        # GIVEN a GridCsvImportRequest with stored grid session data
+        response = {"gridSession": _get_grid_session_response()}
+        request = GridCsvImportRequest(
+            session_id=SESSION_ID, file_handle_id=FILE_HANDLE_ID
+        )
+        request.fill_from_dict(response)
+
+        # WHEN I fill a Grid from the stored data
+        grid = Grid()
+        request.fill_grid_session_from_response(grid)
+
+        # THEN the Grid should be populated with session data
+        assert grid.session_id == SESSION_ID
+        assert grid.started_by == STARTED_BY
+        assert grid.started_on == STARTED_ON
+        assert grid.etag == GRID_ETAG
+        assert grid.modified_on == MODIFIED_ON
+        assert grid.source_entity_id == SOURCE_ENTITY_ID
+
+    def test_fill_grid_session_from_response_no_data(self) -> None:
+        # GIVEN a GridCsvImportRequest with no stored grid session data
+        request = GridCsvImportRequest(
+            session_id=SESSION_ID, file_handle_id=FILE_HANDLE_ID
+        )
+
+        # WHEN I fill a Grid (no _grid_session_data set)
+        grid = Grid(session_id="original-session")
+        request.fill_grid_session_from_response(grid)
+
+        # THEN the Grid should be unchanged
+        assert grid.session_id == "original-session"
+
+    def test_to_synapse_request(self) -> None:
+        # GIVEN a GridCsvImportRequest
+        request = GridCsvImportRequest(
+            session_id=SESSION_ID, file_handle_id=FILE_HANDLE_ID
+        )
+
+        # WHEN I convert it to a synapse request
+        result = request.to_synapse_request()
+
+        # THEN it should contain the correct fields
+        assert result["concreteType"] == GRID_CSV_IMPORT_REQUEST
+        assert result["sessionId"] == SESSION_ID
+        assert result["fileHandleId"] == FILE_HANDLE_ID
+
+    def test_to_synapse_request_none_values(self) -> None:
+        # GIVEN a GridCsvImportRequest with no values
+        request = GridCsvImportRequest()
+
+        # WHEN I convert it to a synapse request
+        result = request.to_synapse_request()
+
+        # THEN the request should only contain concreteType
+        assert result == {"concreteType": GRID_CSV_IMPORT_REQUEST}
+
+
+class TestGridImportCsv:
+    """Unit tests for Grid.import_csv_async."""
+
+    @pytest.fixture(autouse=True, scope="function")
+    def init_syn(self, syn: Synapse) -> None:
+        self.syn = syn
+
+    async def test_import_csv_async_with_file_handle_id(self) -> None:
+        # GIVEN a Grid with a session_id
+        grid = Grid(session_id=SESSION_ID)
+
+        mock_import_result = GridCsvImportRequest(
+            session_id=SESSION_ID, file_handle_id=FILE_HANDLE_ID
+        )
+        mock_import_result._grid_session_data = _get_grid_session_response()
+
+        # WHEN I call import_csv_async with a file_handle_id
+        with patch.object(
+            GridCsvImportRequest,
+            "send_job_and_wait_async",
+            new_callable=AsyncMock,
+            return_value=mock_import_result,
+        ):
+            result = await grid.import_csv_async(
+                file_handle_id=FILE_HANDLE_ID, synapse_client=self.syn
+            )
+
+            # THEN the grid should be populated with updated session data
+            assert result is grid
+            assert result.session_id == SESSION_ID
+            assert result.started_by == STARTED_BY
+            assert result.etag == GRID_ETAG
+            assert result.source_entity_id == SOURCE_ENTITY_ID
+
+    async def test_import_csv_async_with_local_path(self) -> None:
+        # GIVEN a Grid with a session_id
+        grid = Grid(session_id=SESSION_ID)
+
+        mock_import_result = GridCsvImportRequest(
+            session_id=SESSION_ID, file_handle_id=FILE_HANDLE_ID
+        )
+        mock_import_result._grid_session_data = _get_grid_session_response()
+
+        # WHEN I call import_csv_async with a local_path
+        with patch(
+            "synapseclient.models.curation.multipart_upload_file_async",
+            new_callable=AsyncMock,
+            return_value=FILE_HANDLE_ID,
+        ) as mock_upload, patch.object(
+            GridCsvImportRequest,
+            "send_job_and_wait_async",
+            new_callable=AsyncMock,
+            return_value=mock_import_result,
+        ):
+            result = await grid.import_csv_async(
+                local_path="/path/to/data.csv", synapse_client=self.syn
+            )
+
+            # THEN the file should have been uploaded
+            mock_upload.assert_called_once()
+            # AND the grid should be populated with updated session data
+            assert result.session_id == SESSION_ID
+            assert result.source_entity_id == SOURCE_ENTITY_ID
+
+    async def test_import_csv_async_without_session_id_raises(self) -> None:
+        # GIVEN a Grid without a session_id
+        grid = Grid()
+
+        # WHEN I call import_csv_async
+        # THEN it should raise ValueError
+        with pytest.raises(ValueError, match="session_id is required to import CSV"):
+            await grid.import_csv_async(
+                file_handle_id=FILE_HANDLE_ID, synapse_client=self.syn
+            )
+
+    async def test_import_csv_async_without_file_source_raises(self) -> None:
+        # GIVEN a Grid with a session_id but no file_handle_id or local_path
+        grid = Grid(session_id=SESSION_ID)
+
+        # WHEN I call import_csv_async with neither file_handle_id nor local_path
+        # THEN it should raise ValueError
+        with pytest.raises(
+            ValueError,
+            match="Either file_handle_id or local_path must be provided",
+        ):
+            await grid.import_csv_async(synapse_client=self.syn)

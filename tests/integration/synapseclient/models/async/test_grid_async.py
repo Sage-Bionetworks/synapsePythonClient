@@ -183,3 +183,69 @@ class TestGridAsync:
             match="session_id is required to delete a GridSession",
         ):
             await grid.delete_async(synapse_client=self.syn)
+
+    async def test_import_csv_async(self, record_set_fixture: RecordSet) -> None:
+        # GIVEN: A grid session created from a record set
+        grid = Grid(record_set_id=record_set_fixture.id)
+        created_grid = await grid.create_async(
+            timeout=ASYNC_JOB_TIMEOUT_SEC, synapse_client=self.syn
+        )
+        assert created_grid.session_id is not None
+        self.schedule_for_cleanup(
+            lambda: Grid(session_id=created_grid.session_id).delete(
+                synapse_client=self.syn
+            )
+        )
+
+        # AND: A new CSV to import
+        new_data = pd.DataFrame(
+            {
+                "id": [6, 7],
+                "name": ["Zeta", "Eta"],
+                "value": [60.0, 70.0],
+                "category": ["A", "B"],
+                "active": [True, False],
+            }
+        )
+        temp_fd, csv_path = tempfile.mkstemp(suffix=".csv")
+        try:
+            os.close(temp_fd)
+            new_data.to_csv(csv_path, index=False)
+            self.schedule_for_cleanup(csv_path)
+
+            # WHEN: Importing the CSV via local path
+            result = await created_grid.import_csv_async(
+                local_path=csv_path,
+                timeout=ASYNC_JOB_TIMEOUT_SEC,
+                synapse_client=self.syn,
+            )
+        except Exception:
+            if os.path.exists(csv_path):
+                os.unlink(csv_path)
+            raise
+
+        # THEN: The grid should be updated
+        assert result is created_grid
+        assert result.session_id is not None
+
+    async def test_import_csv_async_validation_error_no_session_id(self) -> None:
+        # GIVEN: A Grid instance with no session_id
+        grid = Grid()
+
+        # WHEN/THEN: Importing CSV should raise ValueError
+        with pytest.raises(
+            ValueError,
+            match="session_id is required to import CSV",
+        ):
+            await grid.import_csv_async(file_handle_id="12345", synapse_client=self.syn)
+
+    async def test_import_csv_async_validation_error_no_file_source(self) -> None:
+        # GIVEN: A Grid instance with a session_id but no file source
+        grid = Grid(session_id="some-session-id")
+
+        # WHEN/THEN: Importing CSV without file source should raise ValueError
+        with pytest.raises(
+            ValueError,
+            match="Either file_handle_id or local_path must be provided",
+        ):
+            await grid.import_csv_async(synapse_client=self.syn)

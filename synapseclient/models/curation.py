@@ -5,6 +5,8 @@ Curation tasks are used to guide data contributors through the process of contri
 data or metadata in Synapse.
 """
 
+import asyncio
+import os
 from dataclasses import dataclass, field, replace
 from typing import Any, AsyncGenerator, Dict, Generator, Optional, Protocol, Union
 
@@ -28,11 +30,13 @@ from synapseclient.core.async_utils import (
 from synapseclient.core.constants.concrete_types import (
     CREATE_GRID_REQUEST,
     FILE_BASED_METADATA_TASK_PROPERTIES,
+    GRID_CSV_IMPORT_REQUEST,
     GRID_RECORD_SET_EXPORT_REQUEST,
     LIST_GRID_SESSIONS_REQUEST,
     LIST_GRID_SESSIONS_RESPONSE,
     RECORD_BASED_METADATA_TASK_PROPERTIES,
 )
+from synapseclient.core.upload.multipart_upload_async import multipart_upload_file_async
 from synapseclient.core.utils import delete_none_keys, merge_dataclass_entities
 from synapseclient.models.mixins.asynchronous_job import AsynchronousCommunicator
 from synapseclient.models.recordset import ValidationSummary
@@ -1079,6 +1083,88 @@ class GridRecordSetExportRequest(AsynchronousCommunicator):
 
 
 @dataclass
+class GridCsvImportRequest(AsynchronousCommunicator):
+    """
+    A request to import a CSV file into an existing grid session.
+
+    Represents a [Synapse GridCsvImportRequest](https://rest-docs.synapse.org/rest/org/sagebionetworks/repo/model/grid/GridCsvImportRequest.html).
+
+    Attributes:
+        concrete_type: The concrete type for the request
+        session_id: The grid session ID to import the CSV into
+        file_handle_id: The file handle ID of the CSV file to import
+    """
+
+    concrete_type: str = GRID_CSV_IMPORT_REQUEST
+    """The concrete type for the request"""
+
+    session_id: Optional[str] = None
+    """The grid session ID to import the CSV into"""
+
+    file_handle_id: Optional[str] = None
+    """The file handle ID of the CSV file to import"""
+
+    _grid_session_data: Optional[Dict[str, Any]] = field(default=None, compare=False)
+    """Internal storage of the full grid session data from the response for later use."""
+
+    def fill_from_dict(
+        self, synapse_response: Union[Dict[str, Any], Any]
+    ) -> "GridCsvImportRequest":
+        """
+        Converts a response from the REST API into this dataclass.
+
+        Arguments:
+            synapse_response: The response from the REST API.
+
+        Returns:
+            The GridCsvImportRequest object.
+        """
+        grid_session_data = synapse_response.get("gridSession", {})
+        self.session_id = grid_session_data.get("sessionId", None)
+        self._grid_session_data = grid_session_data
+        return self
+
+    def fill_grid_session_from_response(self, grid_session: "Grid") -> "Grid":
+        """
+        Fills a Grid object with data from the stored response.
+
+        Arguments:
+            grid_session: The Grid object to populate.
+
+        Returns:
+            The populated Grid object.
+        """
+        if not self._grid_session_data:
+            return grid_session
+
+        data = self._grid_session_data
+        grid_session.session_id = data.get("sessionId", None)
+        grid_session.started_by = data.get("startedBy", None)
+        grid_session.started_on = data.get("startedOn", None)
+        grid_session.etag = data.get("etag", None)
+        grid_session.modified_on = data.get("modifiedOn", None)
+        grid_session.last_replica_id_client = data.get("lastReplicaIdClient", None)
+        grid_session.last_replica_id_service = data.get("lastReplicaIdService", None)
+        grid_session.grid_json_schema_id = data.get("gridJsonSchema$Id", None)
+        grid_session.source_entity_id = data.get("sourceEntityId", None)
+        return grid_session
+
+    def to_synapse_request(self) -> Dict[str, Any]:
+        """
+        Converts this dataclass to a dictionary suitable for a Synapse REST API request.
+
+        Returns:
+            A dictionary representation of this object for API requests.
+        """
+        request_dict = {"concreteType": self.concrete_type}
+        if self.session_id is not None:
+            request_dict["sessionId"] = self.session_id
+        if self.file_handle_id is not None:
+            request_dict["fileHandleId"] = self.file_handle_id
+        return request_dict
+
+
+@dataclass
 class GridSession:
     """
     Basic information about a grid session.
@@ -1427,6 +1513,66 @@ class GridSynchronousProtocol(Protocol):
             ```
         """
 
+    def import_csv(
+        self,
+        file_handle_id: Optional[str] = None,
+        local_path: Optional[str] = None,
+        *,
+        timeout: int = 120,
+        synapse_client: Optional[Synapse] = None,
+    ) -> "Grid":
+        """
+        Import a CSV file into the grid session to populate or update grid data.
+
+        Arguments:
+            file_handle_id: The file handle ID of the CSV file to import. Either
+                this or `local_path` must be provided.
+            local_path: Path to a local CSV file to upload and import. Either this
+                or `file_handle_id` must be provided. The file will be uploaded
+                automatically before the import.
+            timeout: The number of seconds to wait for the job to complete or progress
+                before raising a SynapseTimeoutError. Defaults to 120.
+            synapse_client: If not passed in and caching was not disabled by
+                `Synapse.allow_client_caching(False)` this will use the last created
+                instance from the Synapse class constructor.
+
+        Returns:
+            Grid: The Grid object with updated session data after the import.
+
+        Raises:
+            ValueError: If `session_id` is not set.
+            ValueError: If neither `file_handle_id` nor `local_path` is provided.
+
+        Example: Import a CSV via file handle ID
+            &nbsp;
+
+            ```python
+            from synapseclient import Synapse
+            from synapseclient.models import Grid
+
+            syn = Synapse()
+            syn.login()
+
+            grid = Grid(session_id="abc-123-def")
+            grid = grid.import_csv(file_handle_id="12345678")
+            ```
+
+        Example: Import a CSV from a local file
+            &nbsp;
+
+            ```python
+            from synapseclient import Synapse
+            from synapseclient.models import Grid
+
+            syn = Synapse()
+            syn.login()
+
+            grid = Grid(session_id="abc-123-def")
+            grid = grid.import_csv(local_path="/path/to/data.csv")
+            ```
+        """
+        return self
+
 
 @dataclass
 @async_to_sync
@@ -1691,6 +1837,90 @@ class Grid(GridSynchronousProtocol):
         self.record_set_id = result.response_record_set_id
         self.record_set_version_number = result.record_set_version_number
         self.validation_summary_statistics = result.validation_summary_statistics
+
+        return self
+
+    async def import_csv_async(
+        self,
+        file_handle_id: Optional[str] = None,
+        local_path: Optional[str] = None,
+        *,
+        timeout: int = 120,
+        synapse_client: Optional[Synapse] = None,
+    ) -> "Grid":
+        """
+        Import a CSV file into the grid session to populate or update grid data.
+
+        Arguments:
+            file_handle_id: The file handle ID of the CSV file to import. Either
+                this or `local_path` must be provided.
+            local_path: Path to a local CSV file to upload and import. Either this
+                or `file_handle_id` must be provided. The file will be uploaded
+                automatically before the import.
+            timeout: The number of seconds to wait for the job to complete or progress
+                before raising a SynapseTimeoutError. Defaults to 120.
+            synapse_client: If not passed in and caching was not disabled by
+                `Synapse.allow_client_caching(False)` this will use the last created
+                instance from the Synapse class constructor.
+
+        Returns:
+            Grid: The Grid object with updated session data after the import.
+
+        Raises:
+            ValueError: If `session_id` is not set.
+            ValueError: If neither `file_handle_id` nor `local_path` is provided.
+
+        Example: Import a CSV from a local file asynchronously
+            &nbsp;
+
+            ```python
+            import asyncio
+            from synapseclient import Synapse
+            from synapseclient.models import Grid
+
+            syn = Synapse()
+            syn.login()
+
+            async def main():
+                grid = Grid(session_id="abc-123-def")
+                grid = await grid.import_csv_async(local_path="/path/to/data.csv")
+                print(f"Import complete, session etag: {grid.etag}")
+
+            asyncio.run(main())
+            ```
+        """
+        if not self.session_id:
+            raise ValueError("session_id is required to import CSV into a GridSession")
+        if not file_handle_id and not local_path:
+            raise ValueError(
+                "Either file_handle_id or local_path must be provided to import CSV"
+            )
+
+        trace.get_current_span().set_attributes(
+            {
+                "synapse.session_id": self.session_id or "",
+            }
+        )
+
+        if local_path:
+            client = Synapse.get_client(synapse_client=synapse_client)
+            async with client._get_parallel_file_transfer_semaphore(
+                asyncio_event_loop=asyncio.get_running_loop()
+            ):
+                file_handle_id = await multipart_upload_file_async(
+                    syn=client,
+                    file_path=os.path.expanduser(local_path),
+                )
+
+        import_request = GridCsvImportRequest(
+            session_id=self.session_id,
+            file_handle_id=file_handle_id,
+        )
+        result = await import_request.send_job_and_wait_async(
+            timeout=timeout, synapse_client=synapse_client
+        )
+
+        result.fill_grid_session_from_response(self)
 
         return self
 
