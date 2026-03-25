@@ -11,8 +11,9 @@ Synapse Python Client — official Python SDK and CLI for Synapse (synapse.org),
 - Models: stdlib dataclasses (NOT Pydantic)
 - Tests: pytest 8.2, pytest-asyncio, pytest-socket, pytest-xdist
 - Docs: MkDocs with Material theme, mkdocstrings
-- Linting: ruff, black (line-length 88), isort (profile=black), bandit, flake8
+- Linting: ruff, black (line-length 88), isort (profile=black), bandit
 - CI: GitHub Actions → SonarCloud, PyPI deploy on release
+- Docker: `Dockerfile` at repo root, published to `ghcr.io/sage-bionetworks/synapsepythonclient`
 
 ## Commands
 
@@ -108,3 +109,5 @@ Data flow: User → `operations/` factory → model async methods → `api/` ser
 - Unit test client fixture: session-scoped, `skip_checks=True`, `cache_client=False`
 - Integration tests use `--reruns 3` for flaky retries and `-n 8 --dist loadscope` for parallelism
 - Integration fixtures create per-worker Synapse projects; use `schedule_for_cleanup()` for teardown
+- Auth env vars: `SYNAPSE_AUTH_TOKEN` (bearer token), `SYNAPSE_PROFILE` (config file profile, default: `"default"`), `SYNAPSE_TOKEN_AWS_SSM_PARAMETER_NAME` (AWS SSM path)
+- CI runs integration tests only on Python 3.10 and 3.14 (oldest + newest) to limit Synapse server load

@@ -50,4 +50,6 @@ Defined in `mkdocs.yml` nav section. 5 main sections: Home, Tutorials, How-To Gu
 - Do not edit tutorial code inline in markdown — edit the `.py` script file in `tutorial_scripts/` and update line ranges if needed.
 - Reference docs auto-generate from source docstrings — to change method documentation, edit the docstring in the Python source, not the markdown.
 - `mkdocs.yml` is at the repo root, not in `docs/` — it configures the entire doc build.
-- Docs deploy via `mkdocs gh-deploy --force` targeting the `master` branch (not `develop`).
+- Docs deploy to Read the Docs (configured via `.readthedocs.yaml` at repo root).
+- Local build output goes to `docs_site/` (via `site_dir` in `mkdocs.yml`) — gitignored.
+- Cross-referencing uses the `autorefs` plugin: `[display text][synapseclient.ClassName.method]` auto-resolves to mkdocstrings anchors.
