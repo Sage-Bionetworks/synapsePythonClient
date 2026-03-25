@@ -207,24 +207,6 @@ class StorageLocation(EnumCoercionMixin, StorageLocationSynchronousProtocol):
 
             print(f"Storage location ID: {storage.storage_location_id}")
 
-    Example: Creating an STS-enabled S3 storage location with a folder
-        Use the convenience classmethod to create a folder with STS-enabled
-        storage:
-
-            from synapseclient.models import StorageLocation
-
-            import synapseclient
-            synapseclient.login()
-
-            folder, storage = StorageLocation.setup_s3(
-                folder_name="my-sts-folder",
-                parent="syn123",
-                bucket_name="my-external-synapse-bucket",
-                base_key="path/within/bucket",
-                sts_enabled=True,
-            )
-            print(f"Folder: {folder.id}, Storage: {storage.storage_location_id}")
-
     Example: Creating a Google Cloud storage location
         Create a storage location backed by your own GCS bucket:
 
@@ -269,9 +251,9 @@ class StorageLocation(EnumCoercionMixin, StorageLocationSynchronousProtocol):
     """The optional base key (prefix/folder) within the bucket. Applicable to
     SYNAPSE_S3, EXTERNAL_S3, and EXTERNAL_GOOGLE_CLOUD types."""
 
-    sts_enabled: Optional[bool] = None
+    sts_enabled: Optional[bool] = False
     """Whether STS (AWS Security Token Service) is enabled on this storage location.
-    Applicable to SYNAPSE_S3 and EXTERNAL_S3 types."""
+    Applicable to SYNAPSE_S3 and EXTERNAL_S3 types. Default: False."""
 
     endpoint_url: Optional[str] = None
     """The endpoint URL of the S3 service. Applicable to EXTERNAL_S3
@@ -354,20 +336,39 @@ class StorageLocation(EnumCoercionMixin, StorageLocationSynchronousProtocol):
             if synapse_response.get("description", None) is not None
             else None
         )
-        self.etag = synapse_response.get("etag", None)
-        self.created_on = synapse_response.get("createdOn", None)
-        self.created_by = synapse_response.get("createdBy", None)
+        self.etag = (
+            synapse_response.get("etag", None)
+            if synapse_response.get("etag", None) is not None
+            else None
+        )
+        self.created_on = (
+            synapse_response.get("createdOn", None)
+            if synapse_response.get("createdOn", None) is not None
+            else None
+        )
+        self.created_by = (
+            synapse_response.get("createdBy", None)
+            if synapse_response.get("createdBy", None) is not None
+            else None
+        )
 
-        self.upload_type = synapse_response.get("uploadType", None)
+        self.upload_type = (
+            synapse_response.get("uploadType", None)
+            if synapse_response.get("uploadType", None) is not None
+            else None
+        )
 
         # Parse storage type from concreteType + uploadType.
         # Both are needed to distinguish EXTERNAL_SFTP from EXTERNAL_HTTPS.
-        self.concrete_type = synapse_response.get("concreteType", "")
+        self.concrete_type = (
+            synapse_response.get("concreteType", "")
+            if synapse_response.get("concreteType", "") is not None
+            else None
+        )
         if self.concrete_type:
             type_suffix = (
                 self.concrete_type.split(".")[-1] if "." in self.concrete_type else ""
             )
-            self.upload_type = synapse_response.get("uploadType", "")
             key = (type_suffix, self.upload_type)
             if key in _CONCRETE_UPLOAD_TO_STORAGE_TYPE:
                 self.storage_type = _CONCRETE_UPLOAD_TO_STORAGE_TYPE[key]
