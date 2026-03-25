@@ -134,6 +134,17 @@ _STORAGE_TYPE_SPECIFIC_FIELDS: Dict[StorageLocationType, Dict[str, str]] = {
     },
 }
 
+# Subset of _STORAGE_TYPE_SPECIFIC_FIELDS that are required (no default value).
+# Fields with defaults (e.g. base_key=None, sts_enabled=False) are omitted.
+_REQUIRED_STORAGE_TYPE_SPECIFIC_FIELDS: Dict[str, set] = {
+    StorageLocationType.EXTERNAL_S3: {"bucket", "endpoint_url"},
+    StorageLocationType.EXTERNAL_GOOGLE_CLOUD: {"bucket"},
+    StorageLocationType.EXTERNAL_OBJECT_STORE: {"bucket", "endpoint_url"},
+    StorageLocationType.EXTERNAL_SFTP: {"url"},
+    StorageLocationType.EXTERNAL_HTTPS: {"url"},
+    StorageLocationType.PROXY: {"proxy_url", "secret_key"},
+}
+
 
 @dataclass()
 @async_to_sync
@@ -226,6 +237,15 @@ class StorageLocation(EnumCoercionMixin, StorageLocationSynchronousProtocol):
         "upload_type": UploadType,
     }
 
+    # REQUIRED fields
+    _REQUIRED_FIELDS = {
+        StorageLocationType.EXTERNAL_S3: {"bucket"},
+        StorageLocationType.EXTERNAL_GOOGLE_CLOUD: {"bucket"},
+        StorageLocationType.EXTERNAL_OBJECT_STORE: {"bucket", "endpoint_url"},
+        StorageLocationType.EXTERNAL_SFTP: {"url"},
+        StorageLocationType.EXTERNAL_HTTPS: {"url"},
+        StorageLocationType.PROXY: {"proxy_url", "secret_key", "benefactor_id"},
+    }
     # Core fields - present on all storage locations
     storage_location_id: Optional[int] = None
     """(Read Only) The unique ID for this storage location, assigned by the server
@@ -255,7 +275,7 @@ class StorageLocation(EnumCoercionMixin, StorageLocationSynchronousProtocol):
     """Whether STS (AWS Security Token Service) is enabled on this storage location.
     Applicable to SYNAPSE_S3 and EXTERNAL_S3 types. Default: False."""
 
-    endpoint_url: Optional[str] = None
+    endpoint_url: Optional[str] = "https://s3.amazonaws.com"
     """The endpoint URL of the S3 service. Applicable to EXTERNAL_S3
     (default: https://s3.amazonaws.com) and EXTERNAL_OBJECT_STORE types."""
 
@@ -264,7 +284,7 @@ class StorageLocation(EnumCoercionMixin, StorageLocationSynchronousProtocol):
     """The base URL for uploading to the external destination. Applicable to
     EXTERNAL_SFTP type."""
 
-    supports_subfolders: Optional[bool] = None
+    supports_subfolders: Optional[bool] = False
     """Whether the destination supports creating subfolders under the base url.
     Applicable to EXTERNAL_SFTP type. Default: False."""
 
@@ -460,6 +480,12 @@ class StorageLocation(EnumCoercionMixin, StorageLocationSynchronousProtocol):
 
                 asyncio.run(main())
         """
+        # check if the attributes without default values for a specific storage type are present
+        for field_name in self._REQUIRED_FIELDS.get(self.storage_type, {}):
+            if getattr(self, field_name, None) is None:
+                raise ValueError(
+                    f"missing the '{field_name}' attribute for {self.storage_type}"
+                )
         request = self._to_synapse_request()
         response = await create_storage_location_setting(
             request=request,
