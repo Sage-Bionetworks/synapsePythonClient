@@ -53,6 +53,8 @@ class StorageLocationConfigurable(StorageLocationConfigurableSynchronousProtocol
     ) -> Dict[str, Any]:
         """Set the upload storage location for this entity. This configures where
         files uploaded to this entity will be stored.
+        By default, the default storage location is used.
+        If the storage location is not provided, the default storage location is used.
 
         Arguments:
             storage_location_id: The storage location ID(s) to set. Can be a single
@@ -140,8 +142,7 @@ class StorageLocationConfigurable(StorageLocationConfigurableSynchronousProtocol
         """Get the project setting for this entity.
 
         Arguments:
-            setting_type: The type of setting to retrieve. One of:
-                'upload', 'external_sync', 'requester_pays'. Default: 'upload'.
+            setting_type: The type of setting to retrieve. Currently only 'upload' is supported.
             synapse_client: If not passed in and caching was not disabled by
                 `Synapse.allow_client_caching(False)` this will use the last created
                 instance from the Synapse class constructor.
@@ -173,7 +174,7 @@ class StorageLocationConfigurable(StorageLocationConfigurableSynchronousProtocol
         if not self.id:
             raise ValueError("The entity must have an id set.")
 
-        if setting_type not in {"upload", "external_sync", "requester_pays"}:
+        if setting_type != "upload":
             raise ValueError(f"Invalid setting_type: {setting_type}")
 
         return await get_project_setting(
