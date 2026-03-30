@@ -9,21 +9,14 @@ import collections.abc
 import json
 import logging
 import os
+import sqlite3
 import sys
 import tempfile
 import traceback
-from typing import (
-    TYPE_CHECKING,
-    Any,
-    AsyncGenerator,
-    Dict,
-    List,
-    Optional,
-    Set,
-    Tuple,
-    Union,
-)
+from typing import Any, AsyncGenerator, Dict, List, Optional, Set, Tuple, Union
 
+from synapseclient import Synapse
+from synapseclient.api import get_entity_type, rest_get_paginated_async
 from synapseclient.api.entity_services import get_children
 from synapseclient.api.file_services import get_file_handle_for_download_async
 from synapseclient.api.table_services import get_columns
@@ -32,12 +25,16 @@ from synapseclient.core.constants import concrete_types
 from synapseclient.core.exceptions import SynapseError
 from synapseclient.core.upload.multipart_upload import MAX_NUMBER_OF_PARTS
 from synapseclient.core.upload.multipart_upload_async import multipart_copy_async
+from synapseclient.entity import Entity
+from synapseclient.models.mixins.table_components import QueryMixin
+from synapseclient.models.table import Table
 from synapseclient.models.table_components import (
     AppendableRowSetRequest,
     PartialRow,
     PartialRowSet,
     TableUpdateTransaction,
 )
+from synapseclient.operations import FileOptions, get_async
 
 from .migration_types import (
     IndexingError,
@@ -48,15 +45,6 @@ from .migration_types import (
     MigrationStatus,
     MigrationType,
 )
-
-if TYPE_CHECKING:
-    from synapseclient.models import Table, query_async
-import sqlite3
-
-from synapseclient import Synapse
-from synapseclient.api import get_entity_type, rest_get_paginated_async
-from synapseclient.entity import Entity
-from synapseclient.operations import FileOptions, get_async
 
 # Default part size for multipart copy (100 MB)
 # we use a much larger default part size for part copies than we would for part uploads.
@@ -804,7 +792,9 @@ async def _index_entity_async(
         synapse_client: The Synapse client.
     """
     entity_id = utils.id_of(entity)
-    retrieved_entity = await get_entity_type(entity_id=entity_id)
+    retrieved_entity = await get_entity_type(
+        entity_id=entity_id, synapse_client=synapse_client
+    )
     concrete_type = retrieved_entity.type
 
     # Check if already indexed
@@ -949,10 +939,8 @@ async def _get_table_file_handle_rows_async(
     file_handle_columns = [c for c in columns if c.column_type == "FILEHANDLEID"]
 
     if file_handle_columns:
-        file_column_select = _join_column_names(
-            file_handle_columns
-        )  # don't think we need this since only one column could be FILEHANDLEID
-        results = await query_async(
+        file_column_select = _join_column_names(file_handle_columns)
+        results = await QueryMixin.query_async(
             query=f"select {file_column_select} from {entity_id}",
             include_row_id_and_row_version=True,
         )
@@ -1052,7 +1040,9 @@ async def _index_container_async(
         continue_on_error: Whether to continue on errors.
         synapse_client: If not passed in and caching was not disabled by `Synapse.allow_client_caching(False)` this will use the last created instance from the Synapse class constructor.
     """
-    retrieved_entity = await get_entity_type(entity_id=entity_id)
+    retrieved_entity = await get_entity_type(
+        entity_id=entity_id, synapse_client=synapse_client
+    )
     concrete_type = retrieved_entity.type
     logger.info(
         f'Indexing {concrete_type[concrete_type.rindex(".") + 1 :]} {entity_id}'
