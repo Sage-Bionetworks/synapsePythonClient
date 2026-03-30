@@ -1,6 +1,6 @@
 # How to Create Metadata Curation Workflows
 
-This guide shows you how to set up a metadata curation workflows in Synapse using the curator extension. You'll learn to find appropriate schemas, create curation tasks for your research data.
+This guide shows you how to set up a metadata curation workflow in Synapse using the curator extension. You'll learn to find appropriate schemas, create curation tasks for your research data.
 
 ## What you'll accomplish
 
@@ -18,6 +18,8 @@ By following this guide, you will:
 - Python environment with synapseclient and the `curator` extension installed (ie. `pip install --upgrade "synapseclient[curator]"`)
 - An existing Synapse project and folder where you want to manage metadata
 - A JSON Schema registered in Synapse (many schemas are already available for Sage-affiliated projects, or you can register your own by following the [JSON Schema tutorial](../../../tutorials/python/json_schema.md))
+    - If you are leveraging the [Curator CSV data model](../../../explanations/curator_data_model.md), you can create JSON schemas by following this [tutorial](../../extensions/curator/schema_operations.md)
+- (Optional) An existing Synapse team if you want multiple users to collaborate on the same Grid session. Pass the team's ID as `assignee_principal_id` when creating the curation task.
 
 ## Step 1: Authenticate and import required functions
 
@@ -80,7 +82,8 @@ record_set, curation_task, data_grid = create_record_based_metadata_task(
     upsert_keys=["StudyKey"],          # Fields that uniquely identify records
     instructions="Complete all required fields according to the schema. Use StudyKey to link records to your data files.",
     schema_uri=schema_uri,             # Schema found in Step 2
-    bind_schema_to_record_set=True
+    bind_schema_to_record_set=True,
+    assignee_principal_id="123456"     # Optional: Assign to a user or team
 )
 
 print(f"Created RecordSet: {record_set.id}")
@@ -106,7 +109,8 @@ entity_view_id, task_id = create_file_based_metadata_task(
     instructions="Annotate each file with metadata according to the schema requirements.",
     attach_wiki=False,                 # Creates a wiki in the folder with the entity view (Defaults to False)
     entity_view_name="Animal Study Files View",
-    schema_uri=schema_uri              # Schema found in Step 2
+    schema_uri=schema_uri,             # Schema found in Step 2
+    assignee_principal_id="123456"     # Optional: Assign to a user or team
 )
 
 print(f"Created EntityView: {entity_view_id}")
@@ -156,7 +160,8 @@ record_set, curation_task, data_grid = create_record_based_metadata_task(
     upsert_keys=["StudyKey"],
     instructions="Complete metadata for all study animals using StudyKey to link records to data files.",
     schema_uri=schema_uri,
-    bind_schema_to_record_set=True
+    bind_schema_to_record_set=True,
+    assignee_principal_id="123456"  # Optional: Assign to a user or team
 )
 
 print(f"Record-based workflow created:")
@@ -171,7 +176,8 @@ entity_view_id, task_id = create_file_based_metadata_task(
     instructions="Annotate each file with complete metadata according to schema.",
     attach_wiki=True,
     entity_view_name="Animal Study Files View",
-    schema_uri=schema_uri
+    schema_uri=schema_uri,
+    assignee_principal_id="123456"  # Optional: Assign to a user or team
 )
 
 print(f"File-based workflow created:")
@@ -389,6 +395,9 @@ if validation_df is not None:
 # Clean up temporary file
 if os.path.exists(temp_csv):
     os.unlink(temp_csv)
+
+# Clean up RecordSet and CurationTask
+curation_task.delete(delete_source=True)
 ```
 
 In this example you would expect to get results like:

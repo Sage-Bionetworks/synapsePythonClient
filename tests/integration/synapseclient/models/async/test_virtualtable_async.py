@@ -4,6 +4,7 @@ from typing import Callable
 
 import pandas as pd
 import pytest
+import pytest_asyncio
 
 from synapseclient import Synapse
 from synapseclient.core.exceptions import SynapseHTTPError
@@ -149,13 +150,18 @@ class TestVirtualTableBasicOperations:
 
 
 class TestVirtualTableWithDataOperations:
-    @pytest.fixture(autouse=True, scope="function")
+    @pytest_asyncio.fixture(autouse=True, scope="function")
     def init(self, syn: Synapse, schedule_for_cleanup: Callable[..., None]) -> None:
         self.syn = syn
         self.schedule_for_cleanup = schedule_for_cleanup
 
-    @pytest.fixture(scope="function")
-    async def base_table_with_data(self, project_model: Project) -> Table:
+    @pytest_asyncio.fixture(scope="class")
+    async def base_table_with_data(
+        self,
+        project_model: Project,
+        syn: Synapse,
+        schedule_for_cleanup: Callable[..., None],
+    ) -> Table:
         # Create a table with columns and data
         table_name = str(uuid.uuid4())
         table = Table(
@@ -167,8 +173,8 @@ class TestVirtualTableWithDataOperations:
                 Column(name="city", column_type=ColumnType.STRING),
             ],
         )
-        table = await table.store_async(synapse_client=self.syn)
-        self.schedule_for_cleanup(table.id)
+        table = await table.store_async(synapse_client=syn)
+        schedule_for_cleanup(table.id)
 
         # Insert data into the table
         data = pd.DataFrame(
@@ -178,7 +184,7 @@ class TestVirtualTableWithDataOperations:
                 "city": ["New York", "Boston", "Chicago"],
             }
         )
-        await table.store_rows_async(data, synapse_client=self.syn)
+        await table.store_rows_async(data, synapse_client=syn)
 
         return table
 
@@ -446,7 +452,7 @@ class TestVirtualTableWithDataOperations:
         self.schedule_for_cleanup(virtual_table.id)
 
         # Wait for virtual table to be ready
-        await asyncio.sleep(3)
+        await asyncio.sleep(2)
 
         # WHEN querying the aggregation virtual table
         query_result = await virtual_table.query_async(

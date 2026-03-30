@@ -10,7 +10,10 @@
               "BAM"
             ]
           }
-        }
+        },
+        "required":[
+          "FileFormat"
+        ]
       },
       "then": {
         "properties": {
@@ -33,7 +36,10 @@
               "CRAM"
             ]
           }
-        }
+        },
+        "required":[
+          "FileFormat"
+        ]
       },
       "then": {
         "properties": {
@@ -41,10 +47,16 @@
             "not": {
               "type": "null"
             }
+          },
+          "GenomeFASTA": {
+            "not": {
+              "type": "null"
+            }
           }
         },
         "required": [
-          "GenomeBuild"
+          "GenomeBuild",
+          "GenomeFASTA"
         ]
       }
     },
@@ -56,7 +68,10 @@
               "CSV/TSV"
             ]
           }
-        }
+        },
+        "required":[
+          "FileFormat"
+        ]
       },
       "then": {
         "properties": {
@@ -68,29 +83,6 @@
         },
         "required": [
           "GenomeBuild"
-        ]
-      }
-    },
-    {
-      "if": {
-        "properties": {
-          "FileFormat": {
-            "enum": [
-              "CRAM"
-            ]
-          }
-        }
-      },
-      "then": {
-        "properties": {
-          "GenomeFASTA": {
-            "not": {
-              "type": "null"
-            }
-          }
-        },
-        "required": [
-          "GenomeFASTA"
         ]
       }
     }

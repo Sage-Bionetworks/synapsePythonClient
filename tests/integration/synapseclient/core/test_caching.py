@@ -37,7 +37,7 @@ def syn_state(syn):
 
 async def sleep_and_end_test(syn: Synapse) -> None:
     """Exit the test after sleeping"""
-    await asyncio.sleep(20)
+    await asyncio.sleep(10)
     syn.test_keepRunning = False
 
 

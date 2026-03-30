@@ -37,10 +37,10 @@
       "description": "TBD",
       "items": {
         "enum": [
-          "ab",
-          "cd",
-          "ef",
-          "gh"
+          "Ab",
+          "Cd",
+          "Ef",
+          "Gh"
         ],
         "type": "string"
       },
@@ -51,10 +51,10 @@
       "description": "TBD",
       "items": {
         "enum": [
-          "ab",
-          "cd",
-          "ef",
-          "gh"
+          "Ab",
+          "Cd",
+          "Ef",
+          "Gh"
         ],
         "type": "string"
       },
@@ -70,10 +70,10 @@
       "description": "TBD",
       "items": {
         "enum": [
-          "ab",
-          "cd",
-          "ef",
-          "gh"
+          "Ab",
+          "Cd",
+          "Ef",
+          "Gh"
         ],
         "type": "string"
       },

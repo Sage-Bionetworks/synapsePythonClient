@@ -34,7 +34,7 @@ class TestSubmissionStatusRetrieval:
         self.syn = syn
         self.schedule_for_cleanup = schedule_for_cleanup
 
-    @pytest.fixture(scope="function")
+    @pytest.fixture(scope="class")
     async def test_evaluation(
         self,
         project_model: Project,
@@ -53,7 +53,7 @@ class TestSubmissionStatusRetrieval:
         schedule_for_cleanup(created_evaluation.id)
         return created_evaluation
 
-    @pytest.fixture(scope="function")
+    @pytest.fixture(scope="class")
     async def test_file(
         self,
         project_model: Project,
@@ -145,7 +145,7 @@ class TestSubmissionStatusUpdates:
         self.syn = syn
         self.schedule_for_cleanup = schedule_for_cleanup
 
-    @pytest.fixture(scope="function")
+    @pytest.fixture(scope="class")
     async def test_evaluation(
         self,
         project_model: Project,
@@ -164,7 +164,7 @@ class TestSubmissionStatusUpdates:
         schedule_for_cleanup(created_evaluation.id)
         return created_evaluation
 
-    @pytest.fixture(scope="function")
+    @pytest.fixture(scope="class")
     async def test_file(
         self,
         project_model: Project,
@@ -490,7 +490,7 @@ class TestSubmissionStatusBulkOperations:
         self.syn = syn
         self.schedule_for_cleanup = schedule_for_cleanup
 
-    @pytest.fixture(scope="function")
+    @pytest.fixture(scope="class")
     async def test_evaluation(
         self,
         project_model: Project,
@@ -509,7 +509,7 @@ class TestSubmissionStatusBulkOperations:
         schedule_for_cleanup(created_evaluation.id)
         return created_evaluation
 
-    @pytest.fixture(scope="function")
+    @pytest.fixture(scope="class")
     async def test_files(
         self,
         project_model: Project,
@@ -678,7 +678,7 @@ class TestSubmissionStatusCancellation:
         self.syn = syn
         self.schedule_for_cleanup = schedule_for_cleanup
 
-    @pytest.fixture(scope="function")
+    @pytest.fixture(scope="class")
     async def test_evaluation(
         self,
         project_model: Project,
@@ -697,7 +697,7 @@ class TestSubmissionStatusCancellation:
         schedule_for_cleanup(created_evaluation.id)
         return created_evaluation
 
-    @pytest.fixture(scope="function")
+    @pytest.fixture(scope="class")
     async def test_file(
         self,
         project_model: Project,

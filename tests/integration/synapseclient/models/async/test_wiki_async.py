@@ -4,7 +4,6 @@ import asyncio
 import gzip
 import os
 import tempfile
-import time
 import uuid
 from typing import Callable
 
@@ -20,32 +19,29 @@ from synapseclient.models import (
     WikiOrderHint,
     WikiPage,
 )
-
-
-@pytest.fixture(scope="function")
-async def wiki_page_fixture(
-    syn: Synapse, schedule_for_cleanup: Callable[..., None]
-) -> WikiPage:
-    """Create a root wiki page fixture that can be shared across tests."""
-    # Create a new project for this test class
-    project = Project(name=f"Test Wiki Project_" + str(uuid.uuid4()))
-    project = await project.store_async(synapse_client=syn)
-    schedule_for_cleanup(project.id)
-
-    wiki_title = f"Root Wiki Page {str(uuid.uuid4())}"
-    wiki_markdown = "# Root Wiki Page\n\nThis is a root wiki page."
-
-    wiki_page = WikiPage(
-        owner_id=project.id,
-        title=wiki_title,
-        markdown=wiki_markdown,
-    )
-    root_wiki = await wiki_page.store_async(synapse_client=syn)
-    return root_wiki
+from tests.integration.helpers import wait_for_condition
 
 
 class TestWikiPageBasicOperations:
     """Tests for basic WikiPage CRUD operations."""
+
+    @pytest.fixture(scope="class")
+    async def wiki_page_fixture(
+        self, syn: Synapse, schedule_for_cleanup: Callable[..., None]
+    ) -> WikiPage:
+        """Create a root wiki page fixture shared across tests in this class."""
+        project = Project(name=f"Test Wiki Project_" + str(uuid.uuid4()))
+        project = await project.store_async(synapse_client=syn)
+        schedule_for_cleanup(project.id)
+        wiki_title = f"Root Wiki Page {str(uuid.uuid4())}"
+        wiki_markdown = "# Root Wiki Page\n\nThis is a root wiki page."
+        wiki_page = WikiPage(
+            owner_id=project.id,
+            title=wiki_title,
+            markdown=wiki_markdown,
+        )
+        root_wiki = await wiki_page.store_async(synapse_client=syn)
+        return root_wiki
 
     @pytest.fixture(autouse=True, scope="function")
     def init(self, syn: Synapse, schedule_for_cleanup: Callable[..., None]) -> None:
@@ -144,6 +140,24 @@ class TestWikiPageBasicOperations:
 class TestWikiPageAttachments:
     """Tests for WikiPage attachment operations."""
 
+    @pytest.fixture(scope="class")
+    async def wiki_page_fixture(
+        self, syn: Synapse, schedule_for_cleanup: Callable[..., None]
+    ) -> WikiPage:
+        """Create a root wiki page fixture shared across tests in this class."""
+        project = Project(name=f"Test Wiki Project_" + str(uuid.uuid4()))
+        project = await project.store_async(synapse_client=syn)
+        schedule_for_cleanup(project.id)
+        wiki_title = f"Root Wiki Page {str(uuid.uuid4())}"
+        wiki_markdown = "# Root Wiki Page\n\nThis is a root wiki page."
+        wiki_page = WikiPage(
+            owner_id=project.id,
+            title=wiki_title,
+            markdown=wiki_markdown,
+        )
+        root_wiki = await wiki_page.store_async(synapse_client=syn)
+        return root_wiki
+
     @pytest.fixture(autouse=True, scope="function")
     def init(self, syn: Synapse, schedule_for_cleanup: Callable[..., None]) -> None:
         self.syn = syn
@@ -239,11 +253,17 @@ class TestWikiPageAttachments:
     ) -> None:
         # GIVEN a wiki page with an attachment
         wiki_page, attachment_name = wiki_page_with_attachment
-        # Sleep for 0.5 minutes to ensure the attachment preview is created
-        await asyncio.sleep(0.5 * 60)
-        # WHEN getting attachment preview URL
-        preview_url = await wiki_page.get_attachment_preview_async(
-            file_name=attachment_name, download_file=False, synapse_client=self.syn
+
+        # WHEN polling until attachment preview is available
+        preview_url = await wait_for_condition(
+            condition_fn=lambda: wiki_page.get_attachment_preview_async(
+                file_name=attachment_name,
+                download_file=False,
+                synapse_client=self.syn,
+            ),
+            timeout_seconds=60,
+            poll_interval_seconds=5,
+            description="attachment preview to be generated",
         )
 
         # THEN a URL should be returned
@@ -262,7 +282,17 @@ class TestWikiPageAttachments:
         download_dir = tempfile.mkdtemp()
         self.schedule_for_cleanup(download_dir)
 
-        await asyncio.sleep(15)
+        # Poll until attachment preview is available for download
+        await wait_for_condition(
+            condition_fn=lambda: wiki_page.get_attachment_preview_async(
+                file_name=attachment_name,
+                download_file=False,
+                synapse_client=self.syn,
+            ),
+            timeout_seconds=60,
+            poll_interval_seconds=5,
+            description="attachment preview to be available for download",
+        )
 
         # WHEN downloading the attachment preview
         downloaded_path = await wiki_page.get_attachment_preview_async(
@@ -272,7 +302,7 @@ class TestWikiPageAttachments:
             synapse_client=self.syn,
         )
         schedule_for_cleanup(downloaded_path)
-        # THEN the file should be downloadeds
+        # THEN the file should be downloaded
         assert os.path.exists(downloaded_path)
         assert os.path.basename(downloaded_path) == "preview.txt"
 
@@ -425,11 +455,17 @@ class TestWikiPageAttachments:
         """Test getting attachment preview URL for a gz file."""
         # GIVEN a wiki page with a gz attachment
         wiki_page, attachment_name = wiki_page_with_gz_attachment
-        # Sleep for 0.5 minutes to ensure the attachment preview is created
-        time.sleep(0.5 * 60)
-        # WHEN getting attachment preview URL
-        preview_url = await wiki_page.get_attachment_preview_async(
-            file_name=attachment_name, download_file=False, synapse_client=self.syn
+
+        # WHEN polling until attachment preview is available
+        preview_url = await wait_for_condition(
+            condition_fn=lambda: wiki_page.get_attachment_preview_async(
+                file_name=attachment_name,
+                download_file=False,
+                synapse_client=self.syn,
+            ),
+            timeout_seconds=60,
+            poll_interval_seconds=5,
+            description="attachment preview to be generated",
         )
 
         # THEN a URL should be returned
@@ -445,7 +481,17 @@ class TestWikiPageAttachments:
         # GIVEN a wiki page with a gz attachment
         wiki_page, attachment_name = wiki_page_with_gz_attachment
 
-        await asyncio.sleep(15)
+        # Poll until attachment preview is available for download
+        await wait_for_condition(
+            condition_fn=lambda: wiki_page.get_attachment_preview_async(
+                file_name=attachment_name,
+                download_file=False,
+                synapse_client=self.syn,
+            ),
+            timeout_seconds=60,
+            poll_interval_seconds=5,
+            description="attachment preview to be available for download",
+        )
 
         # AND a download location
         download_dir = tempfile.mkdtemp()
@@ -467,6 +513,24 @@ class TestWikiPageAttachments:
 
 class TestWikiPageMarkdown:
     """Tests for WikiPage markdown operations."""
+
+    @pytest.fixture(scope="class")
+    async def wiki_page_fixture(
+        self, syn: Synapse, schedule_for_cleanup: Callable[..., None]
+    ) -> WikiPage:
+        """Create a root wiki page fixture shared across tests in this class."""
+        project = Project(name=f"Test Wiki Project_" + str(uuid.uuid4()))
+        project = await project.store_async(synapse_client=syn)
+        schedule_for_cleanup(project.id)
+        wiki_title = f"Root Wiki Page {str(uuid.uuid4())}"
+        wiki_markdown = "# Root Wiki Page\n\nThis is a root wiki page."
+        wiki_page = WikiPage(
+            owner_id=project.id,
+            title=wiki_title,
+            markdown=wiki_markdown,
+        )
+        root_wiki = await wiki_page.store_async(synapse_client=syn)
+        return root_wiki
 
     @pytest.fixture(autouse=True, scope="function")
     def init(self, syn: Synapse, schedule_for_cleanup: Callable[..., None]) -> None:
@@ -607,6 +671,24 @@ class TestWikiPageMarkdown:
 class TestWikiPageVersioning:
     """Tests for WikiPage version operations."""
 
+    @pytest.fixture(scope="class")
+    async def wiki_page_fixture(
+        self, syn: Synapse, schedule_for_cleanup: Callable[..., None]
+    ) -> WikiPage:
+        """Create a root wiki page fixture shared across tests in this class."""
+        project = Project(name=f"Test Wiki Project_" + str(uuid.uuid4()))
+        project = await project.store_async(synapse_client=syn)
+        schedule_for_cleanup(project.id)
+        wiki_title = f"Root Wiki Page {str(uuid.uuid4())}"
+        wiki_markdown = "# Root Wiki Page\n\nThis is a root wiki page."
+        wiki_page = WikiPage(
+            owner_id=project.id,
+            title=wiki_title,
+            markdown=wiki_markdown,
+        )
+        root_wiki = await wiki_page.store_async(synapse_client=syn)
+        return root_wiki
+
     @pytest.fixture(autouse=True, scope="function")
     def init(self, syn: Synapse, schedule_for_cleanup: Callable[..., None]) -> None:
         self.syn = syn
@@ -680,6 +762,24 @@ class TestWikiPageVersioning:
 class TestWikiHeader:
     """Tests for WikiHeader operations."""
 
+    @pytest.fixture(scope="class")
+    async def wiki_page_fixture(
+        self, syn: Synapse, schedule_for_cleanup: Callable[..., None]
+    ) -> WikiPage:
+        """Create a root wiki page fixture shared across tests in this class."""
+        project = Project(name=f"Test Wiki Project_" + str(uuid.uuid4()))
+        project = await project.store_async(synapse_client=syn)
+        schedule_for_cleanup(project.id)
+        wiki_title = f"Root Wiki Page {str(uuid.uuid4())}"
+        wiki_markdown = "# Root Wiki Page\n\nThis is a root wiki page."
+        wiki_page = WikiPage(
+            owner_id=project.id,
+            title=wiki_title,
+            markdown=wiki_markdown,
+        )
+        root_wiki = await wiki_page.store_async(synapse_client=syn)
+        return root_wiki
+
     @pytest.fixture(autouse=True, scope="function")
     def init(self, syn: Synapse, schedule_for_cleanup: Callable[..., None]) -> None:
         self.syn = syn
@@ -688,7 +788,7 @@ class TestWikiHeader:
     async def test_get_wiki_header_tree(
         self, wiki_page_fixture: WikiPage, schedule_for_cleanup: Callable[..., None]
     ) -> None:
-        await asyncio.sleep(15)
+        await asyncio.sleep(5)
         # WHEN getting the wiki header tree
         headers = []
         async for header in WikiHeader.get_async(
@@ -704,6 +804,24 @@ class TestWikiHeader:
 class TestWikiOrderHint:
     """Tests for WikiOrderHint operations."""
 
+    @pytest.fixture(scope="class")
+    async def wiki_page_fixture(
+        self, syn: Synapse, schedule_for_cleanup: Callable[..., None]
+    ) -> WikiPage:
+        """Create a root wiki page fixture shared across tests in this class."""
+        project = Project(name=f"Test Wiki Project_" + str(uuid.uuid4()))
+        project = await project.store_async(synapse_client=syn)
+        schedule_for_cleanup(project.id)
+        wiki_title = f"Root Wiki Page {str(uuid.uuid4())}"
+        wiki_markdown = "# Root Wiki Page\n\nThis is a root wiki page."
+        wiki_page = WikiPage(
+            owner_id=project.id,
+            title=wiki_title,
+            markdown=wiki_markdown,
+        )
+        root_wiki = await wiki_page.store_async(synapse_client=syn)
+        return root_wiki
+
     @pytest.fixture(autouse=True, scope="function")
     def init(self, syn: Synapse, schedule_for_cleanup: Callable[..., None]) -> None:
         self.syn = syn
@@ -714,7 +832,7 @@ class TestWikiOrderHint:
         wiki_page_fixture: WikiPage,
         schedule_for_cleanup: Callable[..., None],
     ) -> None:
-        await asyncio.sleep(15)
+        await asyncio.sleep(5)
         # WHEN getting the wiki order hint
         order_hint = await WikiOrderHint(owner_id=wiki_page_fixture.owner_id).get_async(
             synapse_client=self.syn
@@ -728,7 +846,7 @@ class TestWikiOrderHint:
     async def test_store_wiki_order_hint(
         self, wiki_page_fixture: WikiPage, schedule_for_cleanup: Callable[..., None]
     ) -> None:
-        await asyncio.sleep(15)
+        await asyncio.sleep(5)
         # Get headers
         headers = []
         async for header in WikiHeader.get_async(
@@ -746,7 +864,7 @@ class TestWikiOrderHint:
         order_hint.id_list = header_ids
         updated_order_hint = await order_hint.store_async(synapse_client=self.syn)
         schedule_for_cleanup(updated_order_hint)
-        await asyncio.sleep(15)
+        await asyncio.sleep(5)
         # THEN the order hint should be updated
         # Retrieve the updated order hint
         retrieved_order_hint = await WikiOrderHint(
