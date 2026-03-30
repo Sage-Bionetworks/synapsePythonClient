@@ -1,7 +1,7 @@
 """Tests for the Folder class."""
 import uuid
 from typing import Dict
-from unittest.mock import AsyncMock, patch
+from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
 
@@ -11,6 +11,7 @@ from synapseclient.core.constants import concrete_types
 from synapseclient.core.constants.concrete_types import FILE_ENTITY
 from synapseclient.core.exceptions import SynapseNotFoundError
 from synapseclient.models import FailureStrategy, File, Folder
+from synapseclient.models.services.migration_types import MigrationResult
 
 SYN_123 = "syn123"
 SYN_456 = "syn456"
@@ -785,3 +786,456 @@ class TestFolder:
             assert result.modified_by == MODIFIED_BY
             assert result.files[0].id == SYN_456
             assert result.files[0].name == "example_file_1"
+
+
+class TestStorageLocationMixin:
+    """Tests for StorageLocationConfigurable mixin methods on Folder."""
+
+    STORAGE_LOCATION_ID = 12345
+    SETTING_ID = "setting_abc"
+
+    EXAMPLE_PROJECT_SETTING = {
+        "id": SETTING_ID,
+        "concreteType": "org.sagebionetworks.repo.model.project.UploadDestinationListSetting",
+        "settingsType": "upload",
+        "locations": [12345],
+        "projectId": SYN_123,  # this is actually the folder id since we are setting the storage location on a folder
+    }
+
+    @pytest.fixture(autouse=True, scope="function")
+    def init_syn(self, syn: Synapse) -> None:
+        self.syn = syn
+
+    # -------------------------------------------------------------------------
+    # set_storage_location_async
+    # -------------------------------------------------------------------------
+
+    async def test_set_storage_location_creates_new_when_no_existing_setting(
+        self,
+    ) -> None:
+        """Test that when there is no existing project setting and we set a storage location, a new project setting is created."""
+        folder = Folder(id=SYN_123)
+
+        with patch(
+            "synapseclient.models.mixins.storage_location_mixin.get_project_setting",
+            new_callable=AsyncMock,
+            return_value=None,
+        ) as mocked_get, patch(
+            "synapseclient.models.mixins.storage_location_mixin.create_project_setting",
+            new_callable=AsyncMock,
+            return_value=self.EXAMPLE_PROJECT_SETTING,
+        ) as mocked_create:
+            result = await folder.set_storage_location_async(
+                storage_location_id=self.STORAGE_LOCATION_ID,
+                synapse_client=self.syn,
+            )
+
+            mocked_get.assert_called_once_with(
+                project_id=SYN_123,
+                setting_type="upload",
+                synapse_client=self.syn,
+            )
+
+            mocked_create.assert_called_once_with(
+                request={
+                    "concreteType": concrete_types.UPLOAD_DESTINATION_LIST_SETTING,
+                    "settingsType": "upload",
+                    "locations": [self.STORAGE_LOCATION_ID],
+                    "projectId": SYN_123,
+                },
+                synapse_client=self.syn,
+            )
+
+            assert result == self.EXAMPLE_PROJECT_SETTING
+
+    async def test_set_storage_location_updates_existing_setting(self) -> None:
+        """Test that when there is an existing project setting and we set a storage location, the existing project setting is updated."""
+        folder = Folder(id=SYN_123)
+
+        updated_setting = {**self.EXAMPLE_PROJECT_SETTING, "locations": [99999]}
+        with patch(
+            "synapseclient.models.mixins.storage_location_mixin.get_project_setting",
+            new_callable=AsyncMock,
+            side_effect=[self.EXAMPLE_PROJECT_SETTING, updated_setting],
+        ) as mocked_get, patch(
+            "synapseclient.models.mixins.storage_location_mixin.update_project_setting",
+            new_callable=AsyncMock,
+            return_value=None,
+        ) as mocked_update:
+            result = await folder.set_storage_location_async(
+                storage_location_id=99999,
+                synapse_client=self.syn,
+            )
+            assert mocked_get.call_count == 2
+            mocked_get.assert_any_call(
+                project_id=SYN_123,
+                setting_type="upload",
+                synapse_client=self.syn,
+            )
+
+            mocked_update.assert_called_once_with(
+                request={**self.EXAMPLE_PROJECT_SETTING, "locations": [99999]},
+                synapse_client=self.syn,
+            )
+
+            assert result == updated_setting
+
+    async def test_set_storage_location_use_default_storage_location_instead(
+        self,
+    ) -> None:
+        """Test that when there is an existing project setting and we set a storage location to None, the default storage location is used."""
+        folder = Folder(id=SYN_123)
+
+        with patch(
+            "synapseclient.models.mixins.storage_location_mixin.get_project_setting",
+            new_callable=AsyncMock,
+            side_effect=[
+                self.EXAMPLE_PROJECT_SETTING,
+                {**self.EXAMPLE_PROJECT_SETTING, "locations": [1]},
+            ],
+        ) as mocked_get, patch(
+            "synapseclient.models.mixins.storage_location_mixin.update_project_setting",
+            new_callable=AsyncMock,
+            return_value={**self.EXAMPLE_PROJECT_SETTING, "locations": [1]},
+        ) as mocked_update:
+            result = await folder.set_storage_location_async(
+                storage_location_id=None,
+                synapse_client=self.syn,
+            )
+            assert mocked_get.call_count == 2
+            mocked_get.assert_any_call(
+                project_id=SYN_123,
+                setting_type="upload",
+                synapse_client=self.syn,
+            )
+
+            mocked_update.assert_called_once_with(
+                request={**self.EXAMPLE_PROJECT_SETTING, "locations": [1]},
+                synapse_client=self.syn,
+            )
+
+            assert result == {**self.EXAMPLE_PROJECT_SETTING, "locations": [1]}
+
+    async def test_set_storage_location_accepts_list_of_ids(self) -> None:
+        """Test that when storage_location_id is a list of integers, it is converted to a list of integers."""
+        folder = Folder(id=SYN_123)
+
+        with patch(
+            "synapseclient.models.mixins.storage_location_mixin.get_project_setting",
+            new_callable=AsyncMock,
+            return_value=None,
+        ), patch(
+            "synapseclient.models.mixins.storage_location_mixin.create_project_setting",
+            new_callable=AsyncMock,
+            return_value=self.EXAMPLE_PROJECT_SETTING,
+        ) as mocked_create:
+            await folder.set_storage_location_async(
+                storage_location_id=[111, 222, 333],
+                synapse_client=self.syn,
+            )
+            call_args = mocked_create.call_args
+            assert call_args.kwargs["request"]["locations"] == [111, 222, 333]
+
+    async def test_set_storage_location_converts_single_id_to_list(self) -> None:
+        """Test that when storage_location_id is a single integer, it is converted to a list."""
+        folder = Folder(id=SYN_123)
+
+        with patch(
+            "synapseclient.models.mixins.storage_location_mixin.get_project_setting",
+            new_callable=AsyncMock,
+            return_value=None,
+        ), patch(
+            "synapseclient.models.mixins.storage_location_mixin.create_project_setting",
+            new_callable=AsyncMock,
+            return_value=self.EXAMPLE_PROJECT_SETTING,
+        ) as mocked_create:
+            await folder.set_storage_location_async(
+                storage_location_id=111,
+                synapse_client=self.syn,
+            )
+
+            call_args = mocked_create.call_args
+            assert call_args.kwargs["request"]["locations"] == [111]
+
+    async def test_set_storage_location_raises_when_no_id(self) -> None:
+        """Test that when a folder without an id, an error is raised."""
+        folder = Folder()
+
+        with pytest.raises(ValueError, match="The entity must have an id set."):
+            await folder.set_storage_location_async(
+                storage_location_id=self.STORAGE_LOCATION_ID,
+                synapse_client=self.syn,
+            )
+
+    # -------------------------------------------------------------------------
+    # get_project_setting_async
+    # -------------------------------------------------------------------------
+
+    async def test_get_project_setting_returns_setting(self) -> None:
+        """Test that when a project setting exists, it is returned."""
+        folder = Folder(id=SYN_123)
+
+        with patch(
+            "synapseclient.models.mixins.storage_location_mixin.get_project_setting",
+            new_callable=AsyncMock,
+            return_value=self.EXAMPLE_PROJECT_SETTING,
+        ) as mocked_get:
+            result = await folder.get_project_setting_async(
+                setting_type="upload",
+                synapse_client=self.syn,
+            )
+
+            mocked_get.assert_called_once_with(
+                project_id=SYN_123,
+                setting_type="upload",
+                synapse_client=self.syn,
+            )
+            assert result == self.EXAMPLE_PROJECT_SETTING
+
+    async def test_get_project_setting_raises_when_no_id(self) -> None:
+        """Test that when a folder without an id, an error is raised."""
+        folder = Folder()
+
+        with pytest.raises(ValueError, match="The entity must have an id set."):
+            await folder.get_project_setting_async(synapse_client=self.syn)
+
+    async def test_get_project_setting_raises_for_invalid_type(self) -> None:
+        """Test that when an invalid setting_type is provided, an error is raised."""
+        folder = Folder(id=SYN_123)
+
+        with pytest.raises(ValueError, match="Invalid setting_type: invalid_type"):
+            await folder.get_project_setting_async(
+                setting_type="invalid_type",
+                synapse_client=self.syn,
+            )
+
+    # -------------------------------------------------------------------------
+    # delete_project_setting_async
+    # -------------------------------------------------------------------------
+
+    async def test_delete_project_setting_calls_service(self) -> None:
+        """Test that when a project setting exists, it is deleted."""
+        folder = Folder(id=SYN_123)
+
+        with patch(
+            "synapseclient.models.mixins.storage_location_mixin.delete_project_setting",
+            new_callable=AsyncMock,
+            return_value=None,
+        ) as mocked_delete:
+            await folder.delete_project_setting_async(
+                setting_id=self.SETTING_ID,
+                synapse_client=self.syn,
+            )
+
+            mocked_delete.assert_called_once_with(
+                setting_id=self.SETTING_ID,
+                synapse_client=self.syn,
+            )
+
+    async def test_delete_project_setting_raises_when_no_id(self) -> None:
+        """Test that when a folder without an id, an error is raised."""
+        folder = Folder()
+
+        with pytest.raises(ValueError, match="The entity must have an id set."):
+            await folder.delete_project_setting_async(
+                setting_id=self.SETTING_ID,
+                synapse_client=self.syn,
+            )
+
+    # -------------------------------------------------------------------------
+    # get_sts_storage_token_async
+    # -------------------------------------------------------------------------
+
+    async def test_get_sts_storage_token_returns_credentials(self) -> None:
+        """Test that when a folder with an id, the STS credentials are returned."""
+        folder = Folder(id=SYN_123)
+
+        expected_credentials = {
+            "aws_access_key_id": "AKIA...",
+            "aws_secret_access_key": "secret",
+            "aws_session_token": "token",
+        }
+
+        with patch(
+            "synapseclient.models.mixins.storage_location_mixin.asyncio.to_thread",
+            new_callable=AsyncMock,
+            return_value=expected_credentials,
+        ) as mocked_to_thread:
+            result = await folder.get_sts_storage_token_async(
+                permission="read_only",
+                synapse_client=self.syn,
+            )
+
+            mocked_to_thread.assert_called_once()
+            call_args = mocked_to_thread.call_args
+            assert call_args.args[0].__name__ == "get_sts_credentials"
+            assert call_args.args[2] == SYN_123
+            assert call_args.args[3] == "read_only"
+            assert call_args.kwargs["output_format"] == "json"
+            assert call_args.kwargs["min_remaining_life"] is None
+
+            assert result == expected_credentials
+
+    async def test_get_sts_storage_token_passes_output_format_and_min_remaining_life(
+        self,
+    ) -> None:
+        """Test that when a folder with an id, the STS credentials are returned with the output format and min remaining life."""
+        folder = Folder(id=SYN_123)
+
+        with patch(
+            "synapseclient.models.mixins.storage_location_mixin.asyncio.to_thread",
+            new_callable=AsyncMock,
+            return_value={},
+        ) as mocked_to_thread:
+            await folder.get_sts_storage_token_async(
+                permission="read_write",
+                output_format="boto",
+                min_remaining_life=300,
+                synapse_client=self.syn,
+            )
+
+            call_args = mocked_to_thread.call_args
+            assert call_args.args[0].__name__ == "get_sts_credentials"
+            assert call_args.args[2] == SYN_123
+            assert call_args.args[3] == "read_write"
+            assert call_args.kwargs["output_format"] == "boto"
+            assert call_args.kwargs["min_remaining_life"] == 300
+
+    async def test_get_sts_storage_token_raises_when_no_id(self) -> None:
+        """Test that when a folder without an id, an error is raised."""
+        folder = Folder()
+
+        with pytest.raises(ValueError, match="The entity must have an id set."):
+            await folder.get_sts_storage_token_async(
+                permission="read_only",
+                synapse_client=self.syn,
+            )
+
+    # -------------------------------------------------------------------------
+    # index_files_for_migration_async
+    # -------------------------------------------------------------------------
+
+    async def test_index_files_for_migration_calls_service(self) -> None:
+        """Test that when a folder with an id, the files are indexed."""
+        folder = Folder(id=SYN_123)
+
+        mock_result = MagicMock(spec=MigrationResult)
+
+        with patch(
+            "synapseclient.models.mixins.storage_location_mixin._index_files_for_migration_async",
+            new_callable=AsyncMock,
+            return_value=mock_result,
+        ) as mocked_index:
+            result = await folder.index_files_for_migration_async(
+                dest_storage_location_id=self.STORAGE_LOCATION_ID,
+                synapse_client=self.syn,
+            )
+
+            mocked_index.assert_called_once_with(
+                folder,
+                dest_storage_location_id=str(self.STORAGE_LOCATION_ID),
+                db_path=None,
+                source_storage_location_ids=None,
+                file_version_strategy="new",
+                include_table_files=False,
+                continue_on_error=False,
+                synapse_client=self.syn,
+            )
+            assert result == mock_result
+
+    async def test_index_files_for_migration_converts_source_ids_to_strings(
+        self,
+    ) -> None:
+        """Test that when source_storage_location_ids are integers, they are converted to strings."""
+        folder = Folder(id=SYN_123)
+
+        with patch(
+            "synapseclient.models.mixins.storage_location_mixin._index_files_for_migration_async",
+            new_callable=AsyncMock,
+            return_value=MagicMock(spec=MigrationResult),
+        ) as mocked_index:
+            await folder.index_files_for_migration_async(
+                dest_storage_location_id=self.STORAGE_LOCATION_ID,
+                source_storage_location_ids=[111, 222],
+                synapse_client=self.syn,
+            )
+
+            call_kwargs = mocked_index.call_args.kwargs
+            assert call_kwargs["source_storage_location_ids"] == ["111", "222"]
+
+    async def test_index_files_for_migration_raises_when_no_id(self) -> None:
+        """Test that when a folder without an id, an error is raised."""
+        folder = Folder()
+
+        with pytest.raises(ValueError, match="The entity must have an id set."):
+            await folder.index_files_for_migration_async(
+                dest_storage_location_id=self.STORAGE_LOCATION_ID,
+                synapse_client=self.syn,
+            )
+
+    # -------------------------------------------------------------------------
+    # migrate_indexed_files_async
+    # -------------------------------------------------------------------------
+
+    async def test_migrate_indexed_files_calls_service(self) -> None:
+        """Test that when a folder with an id, the files are migrated."""
+        folder = Folder(id=SYN_123)
+
+        db_path = "/tmp/migration.db"
+        mock_result = MagicMock(spec=MigrationResult)
+
+        with patch(
+            "synapseclient.models.mixins.storage_location_mixin._migrate_indexed_files_async",
+            new_callable=AsyncMock,
+            return_value=mock_result,
+        ) as mocked_migrate:
+            result = await folder.migrate_indexed_files_async(
+                db_path=db_path,
+                synapse_client=self.syn,
+            )
+
+            mocked_migrate.assert_called_once_with(
+                db_path=db_path,
+                create_table_snapshots=True,
+                continue_on_error=False,
+                force=False,
+                synapse_client=self.syn,
+            )
+            assert result == mock_result
+
+    async def test_migrate_indexed_files_passes_all_options(self) -> None:
+        """Test that when a folder with an id, the files are migrated with all options."""
+        folder = Folder(id=SYN_123)
+
+        mock_result = MagicMock(spec=MigrationResult)
+        with patch(
+            "synapseclient.models.mixins.storage_location_mixin._migrate_indexed_files_async",
+            new_callable=AsyncMock,
+            return_value=mock_result,
+        ) as mocked_migrate:
+            result = await folder.migrate_indexed_files_async(
+                db_path="/tmp/migration.db",
+                create_table_snapshots=False,
+                continue_on_error=True,
+                force=True,
+                synapse_client=self.syn,
+            )
+
+            mocked_migrate.assert_called_once_with(
+                db_path="/tmp/migration.db",
+                create_table_snapshots=False,
+                continue_on_error=True,
+                force=True,
+                synapse_client=self.syn,
+            )
+            assert result == mock_result
+
+    async def test_migrate_indexed_files_raises_when_no_id(self) -> None:
+        """Test that when a folder without an id, an error is raised."""
+        folder = Folder()
+
+        with pytest.raises(ValueError, match="The entity must have an id set."):
+            await folder.migrate_indexed_files_async(
+                db_path="/tmp/migration.db",
+                synapse_client=self.syn,
+            )
