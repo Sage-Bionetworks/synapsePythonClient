@@ -13,7 +13,17 @@ import sqlite3
 import sys
 import tempfile
 import traceback
-from typing import Any, AsyncGenerator, Dict, List, Optional, Set, Tuple, Union
+from typing import (
+    TYPE_CHECKING,
+    Any,
+    AsyncGenerator,
+    Dict,
+    List,
+    Optional,
+    Set,
+    Tuple,
+    Union,
+)
 
 from synapseclient import Synapse
 from synapseclient.api import get_entity_type, rest_get_paginated_async
@@ -26,8 +36,10 @@ from synapseclient.core.exceptions import SynapseError
 from synapseclient.core.upload.multipart_upload import MAX_NUMBER_OF_PARTS
 from synapseclient.core.upload.multipart_upload_async import multipart_copy_async
 from synapseclient.entity import Entity
-from synapseclient.models.mixins.table_components import QueryMixin
-from synapseclient.models.table import Table
+
+if TYPE_CHECKING:
+    from synapseclient.models import Table
+
 from synapseclient.models.table_components import (
     AppendableRowSetRequest,
     PartialRow,
@@ -129,8 +141,12 @@ def _escape_column_name(column: Union[str, collections.abc.Mapping]) -> str:
     Returns:
         Escaped column name wrapped in double quotes.
     """
+    from synapseclient.models import Column
+
     col_name = (
-        column["name"] if isinstance(column, collections.abc.Mapping) else str(column)
+        column.name
+        if (isinstance(column, collections.abc.Mapping) or isinstance(column, Column))
+        else str(column)
     )
     escaped_name = col_name.replace('"', '""')
     return f'"{escaped_name}"'
@@ -934,32 +950,38 @@ async def _get_table_file_handle_rows_async(
     Returns:
         A list of tuples containing the row ID, row version, and file handles.
     """
+    from synapseclient.models import Table
+    from synapseclient.models.file import FileHandle
+
     # Get file handle columns using the async API
     columns = await get_columns(table_id=entity_id, synapse_client=synapse_client)
     file_handle_columns = [c for c in columns if c.column_type == "FILEHANDLEID"]
 
     if file_handle_columns:
         file_column_select = _join_column_names(file_handle_columns)
-        results = await QueryMixin.query_async(
+        results = await Table(id=entity_id).query_async(
             query=f"select {file_column_select} from {entity_id}",
             include_row_id_and_row_version=True,
+            synapse_client=synapse_client,
         )
-        for row in results:
+        for _, row in results.iterrows():
             file_handles = {}
-
             # first two cols are row id and row version, rest are file handle ids from our query
             row_id, row_version = row[:2]
 
             file_handle_ids = row[2:]
             for i, file_handle_id in enumerate(file_handle_ids):
                 if file_handle_id:
-                    col_id = file_handle_columns[i]["id"]
-                    response = await get_file_handle_for_download_async(
-                        file_handle_id, entity_id, objectType="TableEntity"
-                    )
-                    file_handle = response["fileHandle"]
-                    file_handles[col_id] = file_handle
+                    col_id = file_handle_columns[i].id
 
+                    response = await get_file_handle_for_download_async(
+                        file_handle_id=file_handle_id,
+                        synapse_id=entity_id,
+                        entity_type="TableEntity",
+                        synapse_client=synapse_client,
+                    )
+                    file_handle = FileHandle().fill_from_dict(response["fileHandle"])
+                    file_handles[col_id] = file_handle
             yield row_id, row_version, file_handles
 
 
