@@ -734,7 +734,7 @@ async def index_files_for_migration_async(
         synapse_client=client,
     )
 
-    entity_id = utils.id_of(entity)
+    entity_id = entity.id
 
     # Create database path if not provided
     if db_path is None:
@@ -1277,7 +1277,7 @@ async def _migrate_table_attached_file_async(
     """
     partial_row = PartialRow(
         row_id=str(key.row_id),
-        values=[{str(key.col_id): to_file_handle_id}],
+        values=[{"key": str(key.col_id), "value": to_file_handle_id}],
     )
     partial_row_set = PartialRowSet(
         table_id=key.id,
