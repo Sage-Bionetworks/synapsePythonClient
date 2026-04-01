@@ -1168,7 +1168,6 @@ async def _migrate_item_async(
                     storage_location_id=dest_storage_location_id,
                     part_size=_get_part_size(file_size),
                 )
-
             # Update entity with new file handle
             if key.type == MigrationType.FILE:
                 if key.version is None:
@@ -1225,8 +1224,8 @@ async def _create_new_file_version_async(
         file_options=FileOptions(download_file=False),
         synapse_client=synapse_client,
     )
-    entity.dataFileHandleId = to_file_handle_id
-    await entity.store_async()
+    entity.data_file_handle_id = to_file_handle_id
+    await entity.store_async(synapse_client=synapse_client)
 
 
 async def _migrate_file_version_async(
@@ -1319,10 +1318,11 @@ async def track_migration_results_async(
     Returns:
         None
     """
-    done, active_tasks = await asyncio.wait(
+    done, _ = await asyncio.wait(
         active_tasks,
         return_when=return_when,
     )
+    active_tasks -= done
     for completed_task in done:
         to_file_handle_id = None
         ex = None
