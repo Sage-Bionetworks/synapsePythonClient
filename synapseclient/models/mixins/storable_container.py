@@ -159,7 +159,6 @@ class StorableContainer(StorableContainerSynchronousProtocol):
         link_hops: int = 1,
         queue: asyncio.Queue = None,
         include_types: Optional[List[str]] = None,
-        generate_manifest: str = "suppress",
         *,
         synapse_client: Optional[Synapse] = None,
     ) -> Self:
@@ -171,8 +170,9 @@ class StorableContainer(StorableContainerSynchronousProtocol):
         If you only want to retrieve the full tree of metadata about your
         container specify `download_file` as False.
 
-        This works similar to [synapseutils.syncFromSynapse][] and supports
-        generating a manifest TSV file with file metadata.
+        This works similar to [synapseutils.syncFromSynapse][], however, this does not
+        currently support the writing of data to a manifest TSV file. This will be a
+        future enhancement.
 
         Supports syncing Files, Folders, Tables, EntityViews, SubmissionViews, Datasets,
         DatasetCollections, MaterializedViews, and VirtualTables from Synapse. The
@@ -208,13 +208,6 @@ class StorableContainer(StorableContainerSynchronousProtocol):
                 `["folder", "file", "table", "entityview", "dockerrepo",
                 "submissionview", "dataset", "datasetcollection", "materializedview",
                 "virtualtable"]`.
-            generate_manifest: Controls manifest file generation. Options:
-
-                - "all": Create a manifest in each directory level
-                - "root": Create a single manifest at the root path only
-                - "suppress": (Default) Do not create any manifest files
-
-                A path must be specified for manifest generation.
             synapse_client: If not passed in and caching was not disabled by
                 `Synapse.allow_client_caching(False)` this will use the last created
                 instance from the Synapse class constructor.
@@ -393,7 +386,7 @@ class StorableContainer(StorableContainerSynchronousProtocol):
             file_size=1, synapse_client=syn, custom_message=custom_message
         ):
             self._synced_from_synapse = True
-            await self._sync_from_synapse_async(
+            return await self._sync_from_synapse_async(
                 path=path,
                 recursive=recursive,
                 download_file=download_file,
@@ -406,19 +399,6 @@ class StorableContainer(StorableContainerSynchronousProtocol):
                 include_types=include_types,
                 synapse_client=syn,
             )
-
-            # Generate manifest if requested and path is provided
-            if generate_manifest != "suppress" and path:
-                # The manifest generation is handled by ManifestGeneratable mixin
-                # which provides generate_manifest_async method
-                if hasattr(self, "generate_manifest_async"):
-                    await self.generate_manifest_async(
-                        path=path,
-                        manifest_scope=generate_manifest,
-                        synapse_client=syn,
-                    )
-
-            return self
 
     async def _sync_from_synapse_async(
         self: Self,
