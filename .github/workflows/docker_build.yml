@@ -40,12 +40,12 @@ jobs:
           context: .
           push: false
           load: true
-          tags: rebuild-image:local
+          tags: ${{ env.LOCAL_IMAGE_TAG }}
           file: ./Dockerfile
           platforms: linux/amd64
 
       - name: Save Docker image to tar
-        run: docker save rebuild-image:local -o ${{ env.TARFILE_NAME }}
+        run: docker save ${{ env.LOCAL_IMAGE_TAG }} -o ${{ env.TARFILE_NAME }}
 
       - name: Upload tarball for use by Trivy job
         uses: actions/upload-artifact@v4
@@ -98,6 +98,6 @@ jobs:
         run: |
           IFS=',' read -ra TAGS <<< "${{ inputs.IMAGE_REFERENCES }}"
           for TAG in "${TAGS[@]}"; do
-            docker tag rebuild-image:local "$TAG"
+            docker tag ${{ env.LOCAL_IMAGE_TAG }} "$TAG"
             docker push "$TAG"
           done

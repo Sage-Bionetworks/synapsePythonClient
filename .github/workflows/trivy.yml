@@ -62,7 +62,7 @@ jobs:
         run: docker load -i ${{ steps.tar-download.outputs.download-path }}/${{ inputs.TARFILE_NAME }}
 
       - name: Run Trivy vulnerability scanner for any major issues
-        uses: aquasecurity/trivy-action@0.32.0
+        uses: aquasecurity/trivy-action@57a97c7e7821a5776cebc9bb87c984fa69cba8f1 # v0.35.0
         id: trivy
         with:
           image-ref: ${{ inputs.IMAGE_NAME }}
@@ -75,14 +75,14 @@ jobs:
 
       - name: Upload Trivy scan results to GitHub Security tab
         uses: github/codeql-action/upload-sarif@v3.25.12
-        if: ${{ success() || steps.trivy.conclusion == 'failure' }}
+        if: ${{ !cancelled() }}
         with:
           sarif_file: ${{ env.sarif_file_name }}
           wait-for-processing: true
 
       - name: Upload Trivy output
         uses: actions/upload-artifact@v4
-        if: ${{ success() || steps.trivy.conclusion == 'failure' }}
+        if: ${{ !cancelled() }}
         with:
           name: ${{ env.sarif_file_name }}
           path: ${{ env.sarif_file_name }}

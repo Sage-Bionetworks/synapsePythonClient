@@ -22,20 +22,18 @@ jobs:
           # While GitHub repos can be mixed case,
           # Docker images can only be lower case
           repo_name=$(echo ${{ github.repository }} | tr '[:upper:]' '[:lower:]')
-          echo "repo_name=$repo_name" >> $GITHUB_ENV
+          echo "repo_name=$repo_name" >> $GITHUB_OUTPUT
       - name: Find current version
         id: find_version
-        uses: mathieudutour/github-tag-action@v6.2
+        uses: mathieudutour/github-tag-action@a22cf08638b34d5badda920f9daf6e72c477b07b # v6.2
         with:
           github_token: ${{ secrets.GITHUB_TOKEN }}
           dry_run: true # setting to 'true' means no new version is created
     outputs:
-      image_repo: ghcr.io/${{ env.repo_name }}
+      image_repo: ghcr.io/${{ steps.to_lower_case.outputs.repo_name }}
       image_tag: ${{ steps.find_version.outputs.previous_version }}
     permissions:
       contents: read
-      deployments: write
-      security-events: write
 
   periodic-scan:
     needs: get-image-reference
@@ -57,12 +55,12 @@ jobs:
     steps:
       - name: Bump version and push tag
         id: tag_version
-        uses: mathieudutour/github-tag-action@v6.2
+        uses: mathieudutour/github-tag-action@a22cf08638b34d5badda920f9daf6e72c477b07b # v6.2
         with:
           github_token: ${{ secrets.GITHUB_TOKEN }}
       - name: Parse new version
         id: parsed
-        uses: booxmedialtd/ws-action-parse-semver@v1
+        uses: booxmedialtd/ws-action-parse-semver@7784200024d6b3fc01253e617ec0168daf603de3 # v1.4.7
         with:
           input_string: ${{ steps.tag_version.outputs.new_version }}
     outputs:
@@ -80,8 +78,7 @@ jobs:
     uses: "./.github/workflows/docker_build.yml"
     with:
       REF_TO_CHECKOUT: ${{ needs.bump-tag.outputs.new_tag }}
-      IMAGE_REFERENCES: "${{ needs.get-image-reference.outputs.image_repo }}:${{ needs.bump-tag.outputs.new_version }},\
-        ${{ needs.get-image-reference.outputs.image_repo }}:${{ needs.bump-tag.outputs.new_major_minor }}"
+      IMAGE_REFERENCES: "${{ needs.get-image-reference.outputs.image_repo }}:${{ needs.bump-tag.outputs.new_version }},${{ needs.get-image-reference.outputs.image_repo }}:${{ needs.bump-tag.outputs.new_major_minor }}"
     permissions:
       contents: read
       deployments: write

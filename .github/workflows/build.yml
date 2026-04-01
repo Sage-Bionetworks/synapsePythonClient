@@ -593,6 +593,7 @@ jobs:
           file: ./Dockerfile
           platforms: linux/amd64
           cache-from: type=registry,ref=ghcr.io/sage-bionetworks/synapsepythonclient:build-cache
+          cache-to: type=registry,mode=max,ref=ghcr.io/sage-bionetworks/synapsepythonclient:build-cache
       - name: Save Docker image to tar
         run: docker save synapsepythonclient-release:local -o ${{ env.TARFILE_NAME }}
       - name: Upload tar artifact
@@ -624,28 +625,31 @@ jobs:
       contents: read
       packages: write
 
+    env:
+      TARFILE_NAME: synapsepythonclient-release.tar
+
     steps:
-      - name: Check out the repo
-        uses: actions/checkout@v4
-      - name: Set up Docker Buildx
-        uses: docker/setup-buildx-action@v2
+      - name: Download scanned tar
+        uses: actions/download-artifact@v4
+        with:
+          name: ${{ env.TARFILE_NAME }}
+          path: /tmp
+      - name: Load Docker image from tar
+        run: docker load -i /tmp/${{ env.TARFILE_NAME }}
       - name: Log in to GitHub Container Registry
         uses: docker/login-action@v2
         with:
           registry: ghcr.io
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
-      - name: Build and push Docker image
-        uses: docker/build-push-action@v5
-        with:
-          context: .
-          push: true
-          provenance: false
-          tags: ${{ needs.ghcr-build-on-release.outputs.image-tags }}
-          file: ./Dockerfile
-          platforms: linux/amd64
-          cache-from: type=registry,ref=ghcr.io/sage-bionetworks/synapsepythonclient:build-cache
-          cache-to: type=registry,mode=max,ref=ghcr.io/sage-bionetworks/synapsepythonclient:build-cache
+      - name: Tag and push Docker image
+        shell: bash
+        run: |
+          IFS=',' read -ra TAGS <<< "${{ needs.ghcr-build-on-release.outputs.image-tags }}"
+          for TAG in "${TAGS[@]}"; do
+            docker tag synapsepythonclient-release:local "$TAG"
+            docker push "$TAG"
+          done
 
   # containerize the package and upload to the GHCR upon commit in develop
   # Step 1: Build the Docker image and save as tar for scanning
@@ -677,6 +681,7 @@ jobs:
           file: ./Dockerfile
           platforms: linux/amd64
           cache-from: type=registry,ref=ghcr.io/sage-bionetworks/synapsepythonclient:build-cache
+          cache-to: type=inline
       - name: Save Docker image to tar
         run: docker save synapsepythonclient-develop:local -o ${{ env.TARFILE_NAME }}
       - name: Upload tar artifact
@@ -709,25 +714,24 @@ jobs:
       contents: read
       packages: write
 
+    env:
+      TARFILE_NAME: synapsepythonclient-develop.tar
+
     steps:
-      - name: Check out the repo
-        uses: actions/checkout@v4
-      - name: Set up Docker Buildx
-        uses: docker/setup-buildx-action@v2
+      - name: Download scanned tar
+        uses: actions/download-artifact@v4
+        with:
+          name: ${{ env.TARFILE_NAME }}
+          path: /tmp
+      - name: Load Docker image from tar
+        run: docker load -i /tmp/${{ env.TARFILE_NAME }}
       - name: Log in to GitHub Container Registry
         uses: docker/login-action@v2
         with:
           registry: ghcr.io
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
-      - name: Build and push Docker image
-        uses: docker/build-push-action@v5
-        with:
-          context: .
-          push: true
-          provenance: false
-          tags: ghcr.io/sage-bionetworks/synapsepythonclient:develop-${{ github.sha }}
-          file: ./Dockerfile
-          platforms: linux/amd64
-          cache-from: type=registry,ref=ghcr.io/sage-bionetworks/synapsepythonclient:build-cache
-          cache-to: type=inline
+      - name: Tag and push Docker image
+        run: |
+          docker tag synapsepythonclient-develop:local "${{ needs.ghcr-build-on-develop.outputs.image-tag }}"
+          docker push "${{ needs.ghcr-build-on-develop.outputs.image-tag }}"
