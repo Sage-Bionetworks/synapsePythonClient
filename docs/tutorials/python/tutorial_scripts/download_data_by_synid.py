@@ -1,5 +1,5 @@
 """
-Here is where you'll find the code for the downloading a file tutorial.
+Here is where you'll find the code for the downloading files by synapse ids tutorial.
 """
 
 import asyncio

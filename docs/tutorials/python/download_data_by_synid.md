@@ -1,5 +1,5 @@
 [](){ #tutorial-downloading-a-file }
-# Downloading files by Synapse ID
+# Downloading data by Synapse ID
 
 This tutorial shows how to download any set of files from Synapse using their
 Synapse IDs. Rather than syncing an entire project or folder, this approach lets
@@ -28,7 +28,7 @@ Create a dictionary that maps each Synapse ID to the local path where that file
 should be saved. Files can be directed to different directories as needed.
 
 ```python
-{!docs/tutorials/python/tutorial_scripts/download_file.py!lines=13-30}
+{!docs/tutorials/python/tutorial_scripts/download_data_by_synid.py!lines=13-30}
 ```
 
 
@@ -38,7 +38,7 @@ Use `File.get_async()` together with `asyncio.gather` to kick off every download
 at the same time and wait for them all to finish.
 
 ```python
-{!docs/tutorials/python/tutorial_scripts/download_file.py!lines=33-42}
+{!docs/tutorials/python/tutorial_scripts/download_data_by_synid.py!lines=31-43}
 ```
 
 <details class="example">
