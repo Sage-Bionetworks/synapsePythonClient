@@ -55,7 +55,7 @@ Retrieved 12 files
   <summary>Click to show me</summary>
 
 ```python
-{!docs/tutorials/python/tutorial_scripts/download_file.py!}
+{!docs/tutorials/python/tutorial_scripts/download_data_by_synid.py!}
 ```
 </details>
 
