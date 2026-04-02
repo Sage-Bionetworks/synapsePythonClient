@@ -125,6 +125,9 @@ class DownloadListManifestRequest(AsynchronousCommunicator):
 
         destination = kwargs.get("destination", ".")
         client = Synapse.get_client(synapse_client=synapse_client)
+        # This calls `get_file_handle_for_download_async` using the `file_handle_id` as the `synapse_id`.
+        # The deprecated function this code replaces did the same, and the Synapse server accepts it.
+        # The server could in theory reject this request in the future.
         file_result = await get_file_handle_for_download_async(
             file_handle_id=self.result_file_handle_id,
             synapse_id=self.result_file_handle_id,
