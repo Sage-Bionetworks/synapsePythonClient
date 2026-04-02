@@ -117,6 +117,11 @@ RECORD_BASED_METADATA_TASK_PROPERTIES = (
     "org.sagebionetworks.repo.model.curation.metadata.RecordBasedMetadataTaskProperties"
 )
 
+# Download List
+DOWNLOAD_LIST_MANIFEST_REQUEST = (
+    "org.sagebionetworks.repo.model.download.DownloadListManifestRequest"
+)
+
 # Grid Session Types
 CREATE_GRID_REQUEST = "org.sagebionetworks.repo.model.grid.CreateGridRequest"
 GRID_RECORD_SET_EXPORT_REQUEST = (

@@ -15,6 +15,7 @@ from synapseclient.models.curation import (
 )
 from synapseclient.models.dataset import Dataset, DatasetCollection, EntityRef
 from synapseclient.models.docker import DockerRepository
+from synapseclient.models.download_list import DownloadList, DownloadListItem
 from synapseclient.models.entityview import EntityView, ViewTypeMask
 from synapseclient.models.evaluation import Evaluation
 from synapseclient.models.file import File, FileHandle
@@ -135,6 +136,9 @@ __all__ = [
     "Row",
     "RowSet",
     "SelectColumn",
+    # Download List models
+    "DownloadList",
+    "DownloadListItem",
     # Dataset models
     "Dataset",
     "EntityRef",
