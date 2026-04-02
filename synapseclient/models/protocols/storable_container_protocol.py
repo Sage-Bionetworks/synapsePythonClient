@@ -29,7 +29,6 @@ class StorableContainerSynchronousProtocol(Protocol):
         link_hops: int = 1,
         queue: asyncio.Queue = None,
         include_types: Optional[List[str]] = None,
-        generate_manifest: str = "suppress",
         *,
         synapse_client: Optional[Synapse] = None,
     ) -> Self:
@@ -41,8 +40,9 @@ class StorableContainerSynchronousProtocol(Protocol):
         If you only want to retrieve the full tree of metadata about your
         container specify `download_file` as False.
 
-        This works similar to [synapseutils.syncFromSynapse][] and supports
-        generating a manifest TSV file with file metadata.
+        This works similar to [synapseutils.syncFromSynapse][], however, this does not
+        currently support the writing of data to a manifest TSV file. This will be a
+        future enhancement.
 
         Supports syncing Files, Folders, Tables, EntityViews, SubmissionViews, Datasets,
         DatasetCollections, MaterializedViews, and VirtualTables from Synapse. The
@@ -74,13 +74,6 @@ class StorableContainerSynchronousProtocol(Protocol):
             include_types: Must be a list of entity types (ie. ["folder","file"]) which
                 can be found
                 [here](https://rest-docs.synapse.org/rest/org/sagebionetworks/repo/model/EntityType.html)
-            generate_manifest: Controls manifest file generation. Options:
-
-                - "all": Create a manifest in each directory level
-                - "root": Create a single manifest at the root path only
-                - "suppress": (Default) Do not create any manifest files
-
-                A path must be specified for manifest generation.
             synapse_client: If not passed in and caching was not disabled by
                 `Synapse.allow_client_caching(False)` this will use the last created
                 instance from the Synapse class constructor.
