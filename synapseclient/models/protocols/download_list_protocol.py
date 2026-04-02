@@ -46,6 +46,34 @@ class DownloadListSynchronousProtocol(Protocol):
             Path to the result manifest CSV, which contains all original manifest
             columns plus ``path`` (local file path) and ``error`` (error message or
             empty string) columns.
+
+        Example: Using this function:
+            Download all files in the cart to a directory:
+
+            ```python
+            from synapseclient import Synapse
+            from synapseclient.models import DownloadList
+
+            syn = Synapse()
+            syn.login()
+
+            manifest_path = DownloadList().download_files(download_location="./downloads")
+            ```
+
+            Use ``parallel=True`` for faster downloads on large carts:
+
+            ```python
+            from synapseclient import Synapse
+            from synapseclient.models import DownloadList
+
+            syn = Synapse()
+            syn.login()
+
+            manifest_path = DownloadList().download_files(
+                download_location="./downloads",
+                parallel=True,
+            )
+            ```
         """
         return ""
 
@@ -63,6 +91,19 @@ class DownloadListSynchronousProtocol(Protocol):
 
         Returns:
             Local path to the downloaded manifest CSV.
+
+        Example: Using this function:
+            Inspect the cart contents before downloading:
+
+            ```python
+            from synapseclient import Synapse
+            from synapseclient.models import DownloadList
+
+            syn = Synapse()
+            syn.login()
+
+            manifest_path = DownloadList().get_manifest()
+            ```
         """
         return ""
 
@@ -82,6 +123,22 @@ class DownloadListSynchronousProtocol(Protocol):
 
         Returns:
             The number of files added.
+
+        Example: Using this function:
+            Add specific file versions to the cart:
+
+            ```python
+            from synapseclient import Synapse
+            from synapseclient.models import DownloadList, DownloadListItem
+
+            syn = Synapse()
+            syn.login()
+
+            count = DownloadList().add_files([
+                DownloadListItem(file_entity_id="syn123", version_number=1),
+                DownloadListItem(file_entity_id="syn456", version_number=2),
+            ])
+            ```
         """
         return 0
 
@@ -101,6 +158,21 @@ class DownloadListSynchronousProtocol(Protocol):
 
         Returns:
             The number of files removed.
+
+        Example: Using this function:
+            Remove specific file versions from the cart:
+
+            ```python
+            from synapseclient import Synapse
+            from synapseclient.models import DownloadList, DownloadListItem
+
+            syn = Synapse()
+            syn.login()
+
+            count = DownloadList().remove_files([
+                DownloadListItem(file_entity_id="syn123", version_number=1),
+            ])
+            ```
         """
         return 0
 
@@ -115,5 +187,18 @@ class DownloadListSynchronousProtocol(Protocol):
             synapse_client: If not passed in and caching was not disabled by
                 `Synapse.allow_client_caching(False)` this will use the last created
                 instance from the Synapse class constructor.
+
+        Example: Using this function:
+            Remove all files from the cart:
+
+            ```python
+            from synapseclient import Synapse
+            from synapseclient.models import DownloadList
+
+            syn = Synapse()
+            syn.login()
+
+            DownloadList().clear()
+            ```
         """
         return

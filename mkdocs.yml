@@ -70,6 +70,7 @@ nav:
       - Project: reference/project.md
       - Folder: reference/folder.md
       - File: reference/file.md
+      - Download List: reference/download_list.md
       - Annotations: reference/annotations.md
       - Tables: reference/tables.md
       - Table Schema: reference/table_schema.md
