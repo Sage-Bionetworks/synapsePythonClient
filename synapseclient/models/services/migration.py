@@ -144,8 +144,10 @@ def _escape_column_name(column: Union[str, collections.abc.Mapping]) -> str:
     from synapseclient.models import Column
 
     col_name = (
-        column.name
-        if (isinstance(column, collections.abc.Mapping) or isinstance(column, Column))
+        column["name"]
+        if isinstance(column, collections.abc.Mapping)
+        else column.name
+        if isinstance(column, Column)
         else str(column)
     )
     escaped_name = col_name.replace('"', '""')

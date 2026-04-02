@@ -1727,24 +1727,21 @@ class TestGetTableFileHandleRowsAsync:
         client = _make_mock_client()
         col = MagicMock()
         col.column_type = "FILEHANDLEID"
-        col.__getitem__ = MagicMock(
-            side_effect=lambda k: "col_42" if k == "id" else None
-        )
         col.id = "col_42"
 
         fh = _make_file_handle()
 
         # Row: [row_id, row_version, file_handle_id]
-        query_results = [[1, 2, "fh_abc"]]
+        mock_results = MagicMock()
+        mock_results.iterrows.return_value = iter([(0, [1, 2, "fh_abc"])])
 
-        # query_async is TYPE_CHECKING-only import so patch requires create=True
+        mock_table_instance = MagicMock()
+        mock_table_instance.query_async = AsyncMock(return_value=mock_results)
+        mock_table_class = MagicMock(return_value=mock_table_instance)
+
         with (
             patch(f"{MODULE}.get_columns", new=AsyncMock(return_value=[col])),
-            patch(
-                f"{MODULE}.query_async",
-                new=AsyncMock(return_value=query_results),
-                create=True,
-            ),
+            patch("synapseclient.models.Table", mock_table_class),
             patch(
                 f"{MODULE}.get_file_handle_for_download_async",
                 new=AsyncMock(return_value={"fileHandle": fh}),
@@ -2110,8 +2107,7 @@ class TestCreateNewFileVersionAsync:
                 to_file_handle_id="fh_new",
                 synapse_client=client,
             )
-
-        assert entity.dataFileHandleId == "fh_new"
+        assert entity.data_file_handle_id == "fh_new"
         entity.store_async.assert_awaited_once()
 
 
