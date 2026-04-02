@@ -392,7 +392,7 @@ class TestDownloadListDownloadFiles:
     async def test_download_row_failure(self):
         """_download_row sets error on the row and returns None on failure."""
         row = {"ID": "syn222", "versionNumber": "1", "name": "secret.txt"}
-        self.syn.get_async = AsyncMock(side_effect=Exception("Forbidden"))
+        self.syn.get_async = AsyncMock(side_effect=SynapseError("Forbidden"))
 
         with patch(
             "synapseclient.Synapse.get_client",
@@ -403,6 +403,21 @@ class TestDownloadListDownloadFiles:
         assert item is None
         assert row["path"] == ""
         assert "Forbidden" in row["error"]
+
+    async def test_download_row_failure_unexpected_exception(self):
+        """_download_row catches non-SynapseError exceptions so one failure does not abort the run."""
+        row = {"ID": "syn222", "versionNumber": "1", "name": "secret.txt"}
+        self.syn.get_async = AsyncMock(side_effect=AttributeError("path"))
+
+        with patch(
+            "synapseclient.Synapse.get_client",
+            return_value=self.syn,
+        ):
+            item = await DownloadList._download_row(row, synapse_client=self.syn)
+
+        assert item is None
+        assert row["path"] == ""
+        assert "path" in row["error"]
 
     async def test_download_row_missing_version_number(self):
         """_download_row returns None and sets error when versionNumber is absent."""
@@ -729,6 +744,38 @@ class TestDownloadListDownloadFiles:
 
             # THEN the temp manifest is cleaned up despite the write failure
             assert not os.path.exists(manifest_path)
+
+    async def test_download_files_async_max_concurrent_limits_parallelism(self):
+        """max_concurrent caps the number of simultaneous downloads in parallel mode."""
+        import asyncio
+
+        concurrency_log: list[int] = []
+        active = 0
+
+        async def fake_download_row(
+            row, download_location=None, *, synapse_client=None
+        ):
+            nonlocal active
+            active += 1
+            concurrency_log.append(active)
+            await asyncio.sleep(0)  # yield so other coroutines can start
+            active -= 1
+            return DownloadListItem(file_entity_id=row["ID"], version_number=1)
+
+        rows = [{"ID": f"syn{i}", "versionNumber": "1"} for i in range(20)]
+
+        with patch.object(DownloadList, "_download_row", side_effect=fake_download_row):
+            await DownloadList._download_all_rows(
+                rows=rows,
+                download_location=None,
+                parallel=True,
+                max_concurrent=5,
+                synapse_client=self.syn,
+            )
+
+        assert (
+            max(concurrency_log) <= 5
+        ), f"Expected at most 5 concurrent downloads, got {max(concurrency_log)}"
 
     def test_download_files_sync_wrapper_exists(self):
         assert hasattr(DownloadList, "download_files")

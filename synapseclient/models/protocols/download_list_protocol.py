@@ -22,6 +22,7 @@ class DownloadListSynchronousProtocol(Protocol):
         download_location: Optional[str] = None,
         *,
         parallel: bool = False,
+        max_concurrent: int = 10,
         synapse_client: Optional["Synapse"] = None,
     ) -> str:
         """Download all files in the Synapse download list (cart) to a local directory.
@@ -34,10 +35,12 @@ class DownloadListSynchronousProtocol(Protocol):
         Arguments:
             download_location: Directory to download files to. Defaults to the
                 current working directory.
-            parallel: If ``True``, all files are downloaded concurrently using
-                ``asyncio.gather``. If ``False`` (default), files are downloaded
-                sequentially. Parallel mode is faster for large carts but places
-                more load on Synapse servers.
+            parallel: If ``True``, files are downloaded concurrently up to
+                ``max_concurrent`` at a time using ``asyncio.gather``. If ``False``
+                (default), files are downloaded sequentially.
+            max_concurrent: Maximum number of files to download concurrently when
+                ``parallel=True``. Defaults to 10. Has no effect when
+                ``parallel=False``.
             synapse_client: If not passed in and caching was not disabled by
                 `Synapse.allow_client_caching(False)` this will use the last created
                 instance from the Synapse class constructor.
@@ -60,7 +63,7 @@ class DownloadListSynchronousProtocol(Protocol):
             manifest_path = DownloadList().download_files(download_location="./downloads")
             ```
 
-            Use ``parallel=True`` for faster downloads on large carts:
+            Use ``parallel=True`` with ``max_concurrent`` for faster downloads on large carts:
 
             ```python
             from synapseclient import Synapse
@@ -72,6 +75,7 @@ class DownloadListSynchronousProtocol(Protocol):
             manifest_path = DownloadList().download_files(
                 download_location="./downloads",
                 parallel=True,
+                max_concurrent=5,
             )
             ```
         """

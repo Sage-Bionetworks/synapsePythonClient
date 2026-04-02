@@ -174,6 +174,7 @@ class DownloadList(DownloadListSynchronousProtocol):
         download_location: Optional[str] = None,
         *,
         parallel: bool = False,
+        max_concurrent: int = 10,
         synapse_client: Optional["Synapse"] = None,
     ) -> str:
         """Download all files in the Synapse download list (cart) to a local directory.
@@ -189,10 +190,12 @@ class DownloadList(DownloadListSynchronousProtocol):
         Arguments:
             download_location: Directory to download files to. Defaults to the
                 current working directory.
-            parallel: If ``True``, all files are downloaded concurrently using
-                ``asyncio.gather``. If ``False`` (default), files are downloaded
-                sequentially. Parallel mode is faster for large carts but places
-                more load on Synapse servers.
+            parallel: If ``True``, files are downloaded concurrently up to
+                ``max_concurrent`` at a time using ``asyncio.gather``. If ``False``
+                (default), files are downloaded sequentially.
+            max_concurrent: Maximum number of files to download concurrently when
+                ``parallel=True``. Defaults to 10. Has no effect when
+                ``parallel=False``.
             synapse_client: If not passed in and caching was not disabled by
                 `Synapse.allow_client_caching(False)` this will use the last created
                 instance from the Synapse class constructor.
@@ -247,6 +250,7 @@ class DownloadList(DownloadListSynchronousProtocol):
             rows=rows,
             download_location=download_location,
             parallel=parallel,
+            max_concurrent=max_concurrent,
             synapse_client=client,
         )
 
@@ -371,6 +375,7 @@ class DownloadList(DownloadListSynchronousProtocol):
         rows: list[dict[str, Any]],
         download_location: Optional[str],
         parallel: bool,
+        max_concurrent: int = 10,
         *,
         synapse_client: Optional["Synapse"] = None,
     ) -> list[DownloadListItem]:
@@ -381,24 +386,36 @@ class DownloadList(DownloadListSynchronousProtocol):
                 place by :meth:`_download_row` to include ``"path"`` and
                 ``"error"`` values.
             download_location: Directory to download files to.
-            parallel: If ``True``, all rows are downloaded concurrently via
-                ``asyncio.gather``. If ``False``, rows are downloaded one at a time.
+            parallel: If ``True``, rows are downloaded concurrently (bounded by
+                ``max_concurrent``) via ``asyncio.gather``. If ``False``, rows are
+                downloaded one at a time.
+            max_concurrent: Maximum number of concurrent downloads when
+                ``parallel=True``. Defaults to 10.
             synapse_client: Optional Synapse client.
 
         Returns:
             List of :class:`DownloadListItem` for each successfully downloaded file.
         """
         if parallel:
-            items = await asyncio.gather(
-                *[
-                    DownloadList._download_row(
+            # asyncio.gather schedules all coroutines immediately, so without a
+            # semaphore a large cart would fire hundreds of concurrent HTTP requests
+            # at once — risking rate-limiting from Synapse and exhausting local
+            # file-descriptor / memory limits. The semaphore lets all coroutines
+            # be created (preserving gather's result ordering) while ensuring that
+            # at most `max_concurrent` are actually running at any given time.
+            sem = asyncio.Semaphore(max_concurrent)
+
+            async def bounded_download(
+                row: dict[str, Any]
+            ) -> Optional[DownloadListItem]:
+                async with sem:
+                    return await DownloadList._download_row(
                         row,
                         download_location=download_location,
                         synapse_client=synapse_client,
                     )
-                    for row in rows
-                ]
-            )
+
+            items = await asyncio.gather(*[bounded_download(row) for row in rows])
             return [item for item in items if item is not None]
         else:
             downloaded: list[DownloadListItem] = []
