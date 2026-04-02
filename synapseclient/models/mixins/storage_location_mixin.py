@@ -271,7 +271,9 @@ class ProjectSettingsMixin(StorageLocationConfigurable):
     )
     async def set_storage_location_async(
         self,
-        storage_location_id: Optional[Union[int, List[int]]] = None,
+        storage_location_id: Optional[
+            Union[int, List[int]]
+        ] = DEFAULT_STORAGE_LOCATION_ID,
         *,
         synapse_client: Optional[Synapse] = None,
     ) -> "ProjectSetting":
@@ -283,7 +285,7 @@ class ProjectSettingsMixin(StorageLocationConfigurable):
         Arguments:
             storage_location_id: The storage location ID(s) to set. Can be a single
                 ID, a list of IDs (first is default, max 10), or None to use
-                Synapse default storage.
+                Synapse default storage. By default, the default Synapse S3 storage location is used.
             synapse_client: If not passed in and caching was not disabled by
                 `Synapse.allow_client_caching(False)` this will use the last created
                 instance from the Synapse class constructor.
@@ -317,9 +319,6 @@ class ProjectSettingsMixin(StorageLocationConfigurable):
 
         if not self.id:
             raise ValueError("The entity must have an id set.")
-
-        if storage_location_id is None:
-            storage_location_id = DEFAULT_STORAGE_LOCATION_ID
 
         if isinstance(storage_location_id, list):
             locations = storage_location_id
