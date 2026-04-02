@@ -1,17 +1,10 @@
-"""Mixin for entities that can have their storage location configured."""
+"""Mixins for entities that can have their storage location and project settings configured."""
 
 import asyncio
-from typing import Any, Dict, List, Optional, Union
+from typing import TYPE_CHECKING, Any, List, Optional, Union
 
 from synapseclient import Synapse
-from synapseclient.api.storage_location_services import (
-    create_project_setting,
-    delete_project_setting,
-    get_project_setting,
-    update_project_setting,
-)
 from synapseclient.core.async_utils import async_to_sync, otel_trace_method
-from synapseclient.core.constants import concrete_types
 from synapseclient.models.protocols.storage_location_mixin_protocol import (
     StorageLocationConfigurableSynchronousProtocol,
 )
@@ -22,6 +15,9 @@ from synapseclient.models.services.migration import (
     migrate_indexed_files_async as _migrate_indexed_files_async,
 )
 from synapseclient.models.services.migration_types import MigrationResult
+
+if TYPE_CHECKING:
+    from synapseclient.models.project_setting import ProjectSetting
 
 # Default storage location ID used by Synapse
 DEFAULT_STORAGE_LOCATION_ID = 1
@@ -34,203 +30,12 @@ class StorageLocationConfigurable(StorageLocationConfigurableSynchronousProtocol
     In order to use this mixin, the class must have an `id` attribute.
 
     This mixin provides methods for:
-    - Setting and getting the upload storage location for an entity
     - Getting STS (AWS Security Token Service) credentials for direct S3 access
     - Migrating files to a new storage location
     """
 
     id: Optional[str] = None
     """The unique immutable ID for this entity."""
-
-    @otel_trace_method(
-        method_to_trace_name=lambda self, **kwargs: f"Entity_SetStorageLocation: {self.id}"
-    )
-    async def set_storage_location_async(
-        self,
-        storage_location_id: Optional[Union[int, List[int]]] = None,
-        *,
-        synapse_client: Optional[Synapse] = None,
-    ) -> Dict[str, Any]:
-        """Set the upload storage location for this entity. This configures where
-        files uploaded to this entity will be stored.
-        By default, the default storage location is used.
-        If the storage location is not provided, the default storage location is used.
-
-        Arguments:
-            storage_location_id: The storage location ID(s) to set. Can be a single
-                ID, a list of IDs (first is default, max 10), or None to use
-                Synapse default storage.
-            synapse_client: If not passed in and caching was not disabled by
-                `Synapse.allow_client_caching(False)` this will use the last created
-                instance from the Synapse class constructor.
-
-        Returns:
-            The project setting dict returned from Synapse.
-
-        Raises:
-            ValueError: If the entity does not have an id set.
-
-        Example: Using this function
-            Set storage location on a folder:
-
-                import asyncio
-                from synapseclient import Synapse
-                from synapseclient.models import Folder
-
-                syn = Synapse()
-                syn.login()
-
-                async def main():
-                    folder = await Folder(id="syn123").get_async()
-                    setting = await folder.set_storage_location_async(
-                        storage_location_id=12345
-                    )
-                    print(setting)
-
-                asyncio.run(main())
-        """
-        if not self.id:
-            raise ValueError("The entity must have an id set.")
-
-        if storage_location_id is None:
-            storage_location_id = DEFAULT_STORAGE_LOCATION_ID
-
-        locations = (
-            storage_location_id
-            if isinstance(storage_location_id, list)
-            else [storage_location_id]
-        )
-
-        existing_setting = await get_project_setting(
-            project_id=self.id,
-            setting_type="upload",
-            synapse_client=synapse_client,
-        )
-
-        if existing_setting is not None:
-            existing_setting["locations"] = locations
-            await update_project_setting(
-                request=existing_setting,
-                synapse_client=synapse_client,
-            )
-            return await get_project_setting(
-                project_id=self.id,
-                setting_type="upload",
-                synapse_client=synapse_client,
-            )
-        else:
-            project_destination = {
-                "concreteType": concrete_types.UPLOAD_DESTINATION_LIST_SETTING,
-                "settingsType": "upload",
-                "locations": locations,
-                "projectId": self.id,
-            }
-            return await create_project_setting(
-                request=project_destination,
-                synapse_client=synapse_client,
-            )
-
-    @otel_trace_method(
-        method_to_trace_name=lambda self, **kwargs: f"Entity_GetProjectSetting: {self.id}"
-    )
-    async def get_project_setting_async(
-        self,
-        setting_type: str = "upload",
-        *,
-        synapse_client: Optional[Synapse] = None,
-    ) -> Optional[Dict[str, Any]]:
-        """Get the project setting for this entity.
-
-        Arguments:
-            setting_type: The type of setting to retrieve. Currently only 'upload' is supported.
-            synapse_client: If not passed in and caching was not disabled by
-                `Synapse.allow_client_caching(False)` this will use the last created
-                instance from the Synapse class constructor.
-
-        Returns:
-            The project setting as a dictionary, or None if no setting exists.
-
-        Raises:
-            ValueError: If the entity does not have an id set.
-
-        Example: Using this function
-            Get the upload settings for a folder:
-
-                import asyncio
-                from synapseclient import Synapse
-                from synapseclient.models import Folder
-
-                syn = Synapse()
-                syn.login()
-
-                async def main():
-                    folder = await Folder(id="syn123").get_async()
-                    setting = await folder.get_project_setting_async(setting_type="upload")
-                    if setting:
-                        print(f"Storage locations: {setting.get('locations')}")
-
-                asyncio.run(main())
-        """
-        if not self.id:
-            raise ValueError("The entity must have an id set.")
-
-        if setting_type != "upload":
-            raise ValueError(f"Invalid setting_type: {setting_type}")
-
-        return await get_project_setting(
-            project_id=self.id,
-            setting_type=setting_type,
-            synapse_client=synapse_client,
-        )
-
-    @otel_trace_method(
-        method_to_trace_name=lambda self, **kwargs: f"Entity_DeleteProjectSetting: {self.id}"
-    )
-    async def delete_project_setting_async(
-        self,
-        setting_id: str,
-        *,
-        synapse_client: Optional[Synapse] = None,
-    ) -> None:
-        """Delete a project setting by its setting ID.
-
-        Arguments:
-            setting_id: The ID of the project setting to delete.
-            synapse_client: If not passed in and caching was not disabled by
-                `Synapse.allow_client_caching(False)` this will use the last created
-                instance from the Synapse class constructor.
-
-        Returns:
-            None
-
-        Raises:
-            ValueError: If the entity does not have an id set.
-
-        Example: Using this function
-            Delete the upload settings for a folder:
-
-                import asyncio
-                from synapseclient import Synapse
-                from synapseclient.models import Folder
-
-                syn = Synapse()
-                syn.login()
-
-                async def main():
-                    folder = await Folder(id="syn123").get_async()
-                    setting = await folder.get_project_setting_async(setting_type="upload")
-                    if setting:
-                        await folder.delete_project_setting_async(setting_id=setting['id'])
-
-                asyncio.run(main())
-        """
-        if not self.id:
-            raise ValueError("The entity must have an id set.")
-
-        await delete_project_setting(
-            setting_id=setting_id,
-            synapse_client=synapse_client,
-        )
 
     @otel_trace_method(
         method_to_trace_name=lambda self, **kwargs: f"Entity_GetStsStorageToken: {self.id}"
@@ -449,3 +254,180 @@ class StorageLocationConfigurable(StorageLocationConfigurableSynchronousProtocol
             force=force,
             synapse_client=synapse_client,
         )
+
+
+@async_to_sync
+class ProjectSettingsMixin(StorageLocationConfigurable):
+    """Mixin for objects that can have their project settings configured.
+
+    Extends StorageLocationConfigurable with methods for managing project
+    settings such as upload storage locations.
+
+    In order to use this mixin, the class must have an `id` attribute.
+    """
+
+    @otel_trace_method(
+        method_to_trace_name=lambda self, **kwargs: f"Entity_SetStorageLocation: {self.id}"
+    )
+    async def set_storage_location_async(
+        self,
+        storage_location_id: Optional[Union[int, List[int]]] = None,
+        *,
+        synapse_client: Optional[Synapse] = None,
+    ) -> "ProjectSetting":
+        """Set the upload storage location for this entity. This configures where
+        files uploaded to this entity will be stored.
+        By default, the default storage location is used.
+        If the storage location is not provided, the default storage location is used.
+
+        Arguments:
+            storage_location_id: The storage location ID(s) to set. Can be a single
+                ID, a list of IDs (first is default, max 10), or None to use
+                Synapse default storage.
+            synapse_client: If not passed in and caching was not disabled by
+                `Synapse.allow_client_caching(False)` this will use the last created
+                instance from the Synapse class constructor.
+
+        Returns:
+            The ProjectSetting object reflecting the current state after the operation.
+
+        Raises:
+            ValueError: If the entity does not have an id set.
+
+        Example: Using this function
+            Set storage location on a folder:
+
+                import asyncio
+                from synapseclient import Synapse
+                from synapseclient.models import Folder
+
+                syn = Synapse()
+                syn.login()
+
+                async def main():
+                    folder = await Folder(id="syn123").get_async()
+                    setting = await folder.set_storage_location_async(
+                        storage_location_id=12345
+                    )
+                    print(setting)
+
+                asyncio.run(main())
+        """
+        from synapseclient.models.project_setting import ProjectSetting
+
+        if not self.id:
+            raise ValueError("The entity must have an id set.")
+
+        if storage_location_id is None:
+            storage_location_id = DEFAULT_STORAGE_LOCATION_ID
+
+        if isinstance(storage_location_id, list):
+            locations = storage_location_id
+        else:
+            locations = [storage_location_id]
+
+        setting = await ProjectSetting(
+            project_id=self.id, settings_type="upload"
+        ).get_async(synapse_client=synapse_client)
+
+        if setting is None:
+            setting = ProjectSetting(
+                project_id=self.id,
+                settings_type="upload",
+                locations=locations,
+            )
+        else:
+            setting.locations = locations
+
+        return await setting.store_async(synapse_client=synapse_client)
+
+    @otel_trace_method(
+        method_to_trace_name=lambda self, **kwargs: f"Entity_GetProjectSetting: {self.id}"
+    )
+    async def get_project_setting_async(
+        self,
+        setting_type: str = "upload",
+        *,
+        synapse_client: Optional[Synapse] = None,
+    ) -> Optional["ProjectSetting"]:
+        """Get the project setting for this entity.
+
+        Arguments:
+            setting_type: The type of setting to retrieve. Currently only 'upload' is supported.
+            synapse_client: If not passed in and caching was not disabled by
+                `Synapse.allow_client_caching(False)` this will use the last created
+                instance from the Synapse class constructor.
+
+        Returns:
+            The ProjectSetting object, or None if no setting exists.
+
+        Raises:
+            ValueError: If the entity does not have an id set.
+
+        Example: Using this function
+            Get the upload settings for a folder:
+
+                import asyncio
+                from synapseclient import Synapse
+                from synapseclient.models import Folder
+
+                syn = Synapse()
+                syn.login()
+
+                async def main():
+                    folder = await Folder(id="syn123").get_async()
+                    setting = await folder.get_project_setting_async(setting_type="upload")
+                    if setting:
+                        print(f"Storage locations: {setting.locations}")
+
+                asyncio.run(main())
+        """
+        from synapseclient.models.project_setting import ProjectSetting
+
+        if not self.id:
+            raise ValueError("The entity must have an id set.")
+
+        return await ProjectSetting(
+            project_id=self.id, settings_type=setting_type
+        ).get_async(synapse_client=synapse_client)
+
+    @otel_trace_method(
+        method_to_trace_name=lambda self, **kwargs: f"Entity_DeleteProjectSetting: {self.id}"
+    )
+    async def delete_project_setting_async(
+        self,
+        setting_id: str,
+        *,
+        synapse_client: Optional[Synapse] = None,
+    ) -> None:
+        """Delete a project setting by its setting ID.
+
+        Arguments:
+            setting_id: The ID of the project setting to delete.
+            synapse_client: If not passed in and caching was not disabled by
+                `Synapse.allow_client_caching(False)` this will use the last created
+                instance from the Synapse class constructor.
+
+        Returns:
+            None
+
+        Raises:
+            ValueError: If the entity does not have an id set.
+
+        Example: Using this function
+            Delete the upload settings for a folder:
+
+                import asyncio
+                from synapseclient import Synapse
+                from synapseclient.models import Folder
+
+                syn = Synapse()
+                syn.login()
+
+                async def main():
+                    folder = await Folder(id="syn123").get_async()
+                    await folder.delete_project_setting_async(setting_id="123")
+
+                asyncio.run(main())
+        """
+        await ProjectSetting(id=setting_id).delete_async(synapse_client=synapse_client)

@@ -23,12 +23,14 @@ from synapseclient.models.mixins.json_schema import (
 )
 from synapseclient.models.mixins.storable_container import StorableContainer
 from synapseclient.models.mixins.storage_location_mixin import (
+    ProjectSettingsMixin,
     StorageLocationConfigurable,
 )
 
 __all__ = [
     "AccessControllable",
     "EnumCoercionMixin",
+    "ProjectSettingsMixin",
     "StorableContainer",
     "StorageLocationConfigurable",
     "AsynchronousCommunicator",

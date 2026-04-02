@@ -16,10 +16,8 @@ from synapseclient.models import Annotations, File, Folder
 from synapseclient.models.mixins import (
     AccessControllable,
     ContainerEntityJSONSchema,
+    ProjectSettingsMixin,
     StorableContainer,
-)
-from synapseclient.models.mixins.storage_location_mixin import (
-    StorageLocationConfigurable,
 )
 from synapseclient.models.protocols.project_protocol import ProjectSynchronousProtocol
 from synapseclient.models.services.search import get_id
@@ -49,7 +47,7 @@ class Project(
     AccessControllable,
     StorableContainer,
     ContainerEntityJSONSchema,
-    StorageLocationConfigurable,
+    ProjectSettingsMixin,
 ):
     """A Project is a top-level container for organizing data in Synapse.
 

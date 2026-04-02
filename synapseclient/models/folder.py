@@ -16,10 +16,8 @@ from synapseclient.models import Annotations, File
 from synapseclient.models.mixins import (
     AccessControllable,
     ContainerEntityJSONSchema,
+    ProjectSettingsMixin,
     StorableContainer,
-)
-from synapseclient.models.mixins.storage_location_mixin import (
-    StorageLocationConfigurable,
 )
 from synapseclient.models.protocols.folder_protocol import FolderSynchronousProtocol
 from synapseclient.models.services.search import get_id
@@ -50,7 +48,7 @@ class Folder(
     AccessControllable,
     StorableContainer,
     ContainerEntityJSONSchema,
-    StorageLocationConfigurable,
+    ProjectSettingsMixin,
 ):
     """Folder is a hierarchical container for organizing data in Synapse.
 
