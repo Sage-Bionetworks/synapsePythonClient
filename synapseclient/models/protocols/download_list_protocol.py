@@ -1,7 +1,7 @@
 """Protocol for the specific methods of this class that have synchronous counterparts
 generated at runtime."""
 
-from typing import TYPE_CHECKING, List, Optional, Protocol
+from typing import TYPE_CHECKING, Optional, Protocol
 
 from synapseclient.core.async_utils import async_to_sync
 
@@ -113,7 +113,7 @@ class DownloadListSynchronousProtocol(Protocol):
 
     def add_files(
         self,
-        files: List["DownloadListItem"],
+        files: list["DownloadListItem"],
         *,
         synapse_client: Optional["Synapse"] = None,
     ) -> int:
@@ -148,7 +148,7 @@ class DownloadListSynchronousProtocol(Protocol):
 
     def remove_files(
         self,
-        files: List["DownloadListItem"],
+        files: list["DownloadListItem"],
         *,
         synapse_client: Optional["Synapse"] = None,
     ) -> int:
