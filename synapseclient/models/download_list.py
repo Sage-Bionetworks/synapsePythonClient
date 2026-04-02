@@ -39,7 +39,7 @@ class DownloadListItem:
     file_entity_id: str
     """Synapse ID of the file entity (e.g. ``"syn123"``)."""
 
-    version_number: int
+    version_number: Optional[int] = None
     """Version of the file to target."""
 
 
@@ -525,14 +525,23 @@ class DownloadList(DownloadListSynchronousProtocol):
 
         Arguments:
             files: List of :class:`DownloadListItem` objects identifying the file
-                versions to remove.
+                versions to remove. Each item must have ``version_number`` set.
             synapse_client: If not passed in and caching was not disabled by
                 `Synapse.allow_client_caching(False)` this will use the last created
                 instance from the Synapse class constructor.
 
         Returns:
             The number of files removed.
+
+        Raises:
+            ValueError: If any item in ``files`` has ``version_number=None``.
         """
+        missing = [item.file_entity_id for item in files if item.version_number is None]
+        if missing:
+            raise ValueError(
+                f"version_number is required to remove files but was not provided "
+                f"for: {missing}"
+            )
         return await remove_from_download_list_async(
             files=files,
             synapse_client=synapse_client,

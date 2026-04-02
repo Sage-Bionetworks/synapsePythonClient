@@ -162,6 +162,66 @@ class TestDownloadList:
         assert file_a.id not in ids_in_cart, "file_a should have been removed"
         assert file_b.id in ids_in_cart, "file_b should still be in the cart"
 
+    async def test_remove_files_wrong_version_leaves_file_in_cart(
+        self, project: Synapse_Project
+    ) -> None:
+        """remove_files() with the wrong version is a no-op — the file stays in the cart."""
+        await DownloadList.clear_async(synapse_client=self.syn)
+
+        file = await self._create_test_file(project)
+        await self._add_to_cart(file)
+
+        wrong_version = (file.version_number or 1) + 99
+
+        removed = await DownloadList.remove_files_async(
+            files=[
+                DownloadListItem(
+                    file_entity_id=file.id,
+                    version_number=wrong_version,
+                )
+            ],
+            synapse_client=self.syn,
+        )
+
+        assert removed == 0, f"Expected 0 files removed, got {removed}"
+
+        manifest_path = await DownloadList.get_manifest_async(synapse_client=self.syn)
+        self.schedule_for_cleanup(manifest_path)
+
+        with open(manifest_path, newline="") as f:
+            reader = csv.DictReader(f)
+            ids_in_cart = {row["ID"] for row in reader}
+
+        await DownloadList.clear_async(synapse_client=self.syn)
+
+        assert (
+            file.id in ids_in_cart
+        ), f"Expected {file.id} to remain in the cart after removing the wrong version"
+
+    async def test_remove_files_no_version_raises(
+        self, project: Synapse_Project
+    ) -> None:
+        """remove_files() raises ValueError when version_number is not specified."""
+        await DownloadList.clear_async(synapse_client=self.syn)
+
+        file = await self._create_test_file(project)
+        await self._add_to_cart(file)
+
+        with pytest.raises(
+            ValueError, match="version_number is required to remove files"
+        ):
+            await DownloadList.remove_files_async(
+                files=[
+                    DownloadListItem(
+                        file_entity_id=file.id,
+                        version_number=None,
+                    )
+                ],
+                synapse_client=self.syn,
+            )
+
+        await DownloadList.clear_async(synapse_client=self.syn)
+
     async def test_download_files_parallel_downloads_and_removes_from_cart(
         self, project: Synapse_Project
     ) -> None:

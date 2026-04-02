@@ -231,6 +231,16 @@ class TestDownloadListRemoveFiles:
             # AND the count is returned
             assert result == 2
 
+    async def test_remove_files_async_raises_when_version_missing(self):
+        # GIVEN a list containing an item with no version number
+        files = [DownloadListItem(file_entity_id="syn123", version_number=None)]
+        # WHEN I call remove_files_async
+        # THEN a ValueError is raised before any network call
+        with pytest.raises(
+            ValueError, match="version_number is required to remove files"
+        ):
+            await DownloadList.remove_files_async(files=files, synapse_client=self.syn)
+
     def test_remove_files_sync_wrapper_exists(self):
         assert hasattr(DownloadList, "remove_files")
         assert callable(DownloadList.remove_files)
