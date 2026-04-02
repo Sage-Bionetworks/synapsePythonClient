@@ -1,6 +1,7 @@
 """Unit tests for asynchronous methods in DownloadList, DownloadListManifestRequest."""
 
 import csv
+import logging
 import os
 import shutil
 import tempfile
@@ -20,6 +21,18 @@ from synapseclient.models.download_list import (
     DownloadListItem,
     DownloadListManifestRequest,
 )
+
+
+@pytest.fixture(scope="module")
+def syn():
+    """
+    Create a Synapse for this modules tests.
+    When using the syn fixture from .conftest, the patches here were causing issues in other tests.
+    """
+    syn = Synapse(debug=False, skip_checks=True, cache_client=False)
+    syn.logger = logging.getLogger()
+    Synapse.set_client(syn)
+    return syn
 
 
 class TestDownloadListServices:
