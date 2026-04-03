@@ -8,6 +8,9 @@ User-facing documentation for the Synapse Python Client. Built with MkDocs + Mat
 
 MkDocs with Material theme, mkdocstrings (Google-style docstrings), termynal (CLI animations), markdown-include (file embedding).
 
+### Python style
+- Use built-in generics (`list`, `dict`, `tuple`, `set`) instead of `typing.List`, `typing.Dict`, etc. (Python 3.9+)
+
 ## Conventions
 
 ### Content types (Diataxis framework)
@@ -50,4 +53,9 @@ Defined in `mkdocs.yml` nav section. 5 main sections: Home, Tutorials, How-To Gu
 - Do not edit tutorial code inline in markdown — edit the `.py` script file in `tutorial_scripts/` and update line ranges if needed.
 - Reference docs auto-generate from source docstrings — to change method documentation, edit the docstring in the Python source, not the markdown.
 - `mkdocs.yml` is at the repo root, not in `docs/` — it configures the entire doc build.
-- Docs deploy via `mkdocs gh-deploy --force` targeting the `master` branch (not `develop`).
+- Docs deploy to Read the Docs (configured via `.readthedocs.yaml` at repo root).
+- Local build output goes to `docs_site/` (via `site_dir` in `mkdocs.yml`) — gitignored.
+- Cross-referencing uses the `autorefs` plugin: `[display text][synapseclient.ClassName.method]` auto-resolves to mkdocstrings anchors.
+
+### news.md
+Release notes live in `docs/news.md`. Each release gets a heading with the version number and date, followed by bullet points describing changes. Group entries by category (Features, Bug Fixes, etc.). Reference Jira ticket numbers (SYNPY-XXXX) in each entry.

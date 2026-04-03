@@ -7,7 +7,7 @@ File download from Synapse storage with MD5 validation, collision handling, and 
 ## Conventions
 
 ### Primary download path
-`download_async.py` is the primary async download implementation. `download_functions.py` contains shared helpers and the sync download wrapper.
+`download_async.py` is the primary async download implementation. `download_functions.py` contains shared helpers and the sync download wrapper. The default part size of 8 MiB was empirically optimized for Synapse download throughput — do not change it without benchmarking.
 
 ### MD5 validation
 Post-transfer MD5 validation is mandatory. Raises `SynapseMd5MismatchError` on mismatch — the download is retried automatically (60 retries spanning ~30 minutes).

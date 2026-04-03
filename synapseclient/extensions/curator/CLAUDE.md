@@ -10,28 +10,14 @@ Optional dependencies (gated by `[curator]` extras): pandas, pandarallel, networ
 
 ## Conventions
 
-### schema_generation.py (5984 lines)
-Largest file in the codebase. Contains `DataModelParser`, `DataModelComponent`, `DataModelRelationships` classes. Uses networkx (DiGraph, MultiDiGraph) for node/edge relationships and cycle detection (via multiprocessing). Many deprecated validation rule enums marked for removal (SYNPY-1724, SYNPY-1692). Active development area — multiple recent PRs modifying conditionals, display names, and grouping.
-
-### schema_registry.py
-Query engine for the schema registry table. Default table ID: `syn69735275` (configurable via parameter). Builds SQL WHERE clauses from filter kwargs — supports exact match and LIKE pattern match. `return_latest_only=True` returns newest version URI only.
+### schema_generation.py
+Largest file in the codebase. Uses networkx (DiGraph, MultiDiGraph) for node/edge relationships and cycle detection (via multiprocessing). Many deprecated validation rule enums marked for removal (SYNPY-1724, SYNPY-1692). Active development area.
 
 ### schema_management.py
-Thin wrappers around `JSONSchema` OOP model:
-- `register_jsonschema()` / `register_jsonschema_async()` — loads schema from file, calls `.store_async()`
-- `bind_jsonschema()` / `bind_jsonschema_async()` — binds schema to entity
-- `fix_schema_name()` — replaces dashes/underscores with periods for Synapse compliance
-
-Uses `wrap_async_to_sync()` for sync versions (not class decorator).
-
-### file_based_metadata_task.py
-Creates EntityView from JSON Schema bound to folder/project. `create_json_schema_entity_view()` auto-reorders columns (createdBy→name→id to front). `create_or_update_wiki_with_entity_view()` embeds EntityView query in Wiki page.
-
-### record_based_metadata_task.py
-Extracts schema properties → DataFrame → RecordSet → CurationTask + Grid. Supports URI-based schemas via `JSONSchema.from_uri()`.
+Uses `wrap_async_to_sync()` for sync versions (not class decorator). `fix_schema_name()` replaces dashes/underscores with periods for Synapse compliance.
 
 ### utils.py
-`project_id_from_entity_id()` — traverses folder hierarchy up to project (max 1000 iterations). Uses legacy sync `get()` API in a loop — known tech debt.
+`project_id_from_entity_id()` — traverses folder hierarchy up to project (max 1000 iterations). Uses `operations.get` in a loop — known tech debt.
 
 ## Constraints
 
