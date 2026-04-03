@@ -14,6 +14,7 @@ from synapseclient.models.curation import (
     RecordBasedMetadataTaskProperties,
 )
 from synapseclient.models.dataset import Dataset, DatasetCollection, EntityRef
+from synapseclient.models.docker import DockerRepository
 from synapseclient.models.entityview import EntityView, ViewTypeMask
 from synapseclient.models.evaluation import Evaluation
 from synapseclient.models.file import File, FileHandle
@@ -78,6 +79,7 @@ __all__ = [
     "File",
     "FileHandle",
     "Folder",
+    "DockerRepository",
     "Link",
     "Project",
     "RecordSet",

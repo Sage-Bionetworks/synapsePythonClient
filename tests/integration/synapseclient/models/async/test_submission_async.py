@@ -17,7 +17,7 @@ class TestSubmissionCreationAsync:
         self.syn = syn
         self.schedule_for_cleanup = schedule_for_cleanup
 
-    @pytest_asyncio.fixture(scope="function")
+    @pytest_asyncio.fixture(scope="class")
     async def test_project(
         self, syn: Synapse, schedule_for_cleanup: Callable[..., None]
     ) -> Project:
@@ -28,7 +28,7 @@ class TestSubmissionCreationAsync:
         schedule_for_cleanup(project.id)
         return project
 
-    @pytest_asyncio.fixture(scope="function")
+    @pytest_asyncio.fixture(scope="class")
     async def test_evaluation(
         self,
         test_project: Project,
@@ -131,7 +131,7 @@ class TestSubmissionRetrievalAsync:
         self.syn = syn
         self.schedule_for_cleanup = schedule_for_cleanup
 
-    @pytest_asyncio.fixture(scope="function")
+    @pytest_asyncio.fixture(scope="class")
     async def test_project(
         self, syn: Synapse, schedule_for_cleanup: Callable[..., None]
     ) -> Project:
@@ -142,7 +142,7 @@ class TestSubmissionRetrievalAsync:
         schedule_for_cleanup(project.id)
         return project
 
-    @pytest_asyncio.fixture(scope="function")
+    @pytest_asyncio.fixture(scope="class")
     async def test_evaluation(
         self,
         test_project: Project,
@@ -305,7 +305,7 @@ class TestSubmissionDeletionAsync:
         self.syn = syn
         self.schedule_for_cleanup = schedule_for_cleanup
 
-    @pytest_asyncio.fixture(scope="function")
+    @pytest_asyncio.fixture(scope="class")
     async def test_project(
         self, syn: Synapse, schedule_for_cleanup: Callable[..., None]
     ) -> Project:
@@ -316,7 +316,7 @@ class TestSubmissionDeletionAsync:
         schedule_for_cleanup(project.id)
         return project
 
-    @pytest_asyncio.fixture(scope="function")
+    @pytest_asyncio.fixture(scope="class")
     async def test_evaluation(
         self,
         test_project: Project,
@@ -398,7 +398,7 @@ class TestSubmissionCancelAsync:
         self.syn = syn
         self.schedule_for_cleanup = schedule_for_cleanup
 
-    @pytest_asyncio.fixture(scope="function")
+    @pytest_asyncio.fixture(scope="class")
     async def test_project(
         self, syn: Synapse, schedule_for_cleanup: Callable[..., None]
     ) -> Project:
@@ -409,7 +409,7 @@ class TestSubmissionCancelAsync:
         schedule_for_cleanup(project.id)
         return project
 
-    @pytest_asyncio.fixture(scope="function")
+    @pytest_asyncio.fixture(scope="class")
     async def test_evaluation(
         self,
         test_project: Project,

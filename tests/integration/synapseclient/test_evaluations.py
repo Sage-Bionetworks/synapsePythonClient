@@ -13,13 +13,14 @@ from synapseclient.core.exceptions import SynapseHTTPError
 
 
 # @skip("Skip integration tests for soon to be removed code")
-def test_evaluations(syn: Synapse, project: Project):
+def test_evaluations(syn: Synapse, project: Project, schedule_for_cleanup):
     # Create an Evaluation
     name = "Test Evaluation %s" % str(uuid.uuid4())
     ev = Evaluation(
         name=name, description="Evaluation for testing", contentSource=project["id"]
     )
     ev = syn.store(ev)
+    schedule_for_cleanup(ev)
 
     try:
         # -- Get the Evaluation by name

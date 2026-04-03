@@ -55,13 +55,13 @@ These columns must be present in your CSV data model:
 - [Description](#description)
 - [Valid Values](#valid-values)
 - [Required](#required)
-- [Parent](#parent)
 - [Validation Rules](#validation-rules)
+- [IsTemplate](#validation-rules)
 
 Defining data types:
 
 - Put a unique data type name in the `Attribute` column.
-- Put the value `DataType` in the `Parent` column.
+- Put the value `True` in the `IsTemplate` column.
 - List at least one attribute in the `DependsOn` column (comma-separated).
 - Optionally add a description to the `Description` column.
 
@@ -142,9 +142,9 @@ JSON Schema output:
 }
 ```
 
-### Parent
+### IsTemplate
 
-Put the value `DataType` in this column if this row is a data type. Other values are currently ignored. It is currently used to find all the data types in the data model.
+Put the value `True` in this column if this row is a data type(template). It is currently used to find all the data types in the data model.
 
 ### columnType
 
@@ -164,11 +164,11 @@ Must be one of:
 
 Data Model:
 
-| Attribute | DependsOn         | columnType  | Parent   |
-|-----------|-------------------|-------------|----------|
-| Patient   | "Gender, Hobbies" |             | DataType |
-| Gender    |                   | string      |          |
-| Hobbies   |                   | string_list |          |
+| Attribute | DependsOn         | columnType  | IsTemplate |
+|-----------|-------------------|-------------|------------|
+| Patient   | "Gender, Hobbies" |             | True       |
+| Gender    |                   | string      |            |
+| Hobbies   |                   | string_list |            |
 
 JSON Schema output:
 
@@ -195,7 +195,15 @@ JSON Schema output:
 
 ### Format
 
-The format of this attribute. See [format](https://json-schema.org/understanding-json-schema/reference/type#format) The type of this attribute must be "string" or "string_list". The value of this column will appear as the `format` of this attribute in the JSON Schema. Must be one of:
+The format of this attribute. See [format](https://json-schema.org/understanding-json-schema/reference/type#format) The type of this attribute must be "string" or "string_list". The value of this column will appear as the `format` of this attribute in the JSON Schema.
+
+Note: The Format and Pattern columns serve different purposes:
+
+  `Pattern`: Use to validate that data matches a specific regex pattern (e.g., enforce that email addresses follow a certain format)
+
+  `Format`: Use with the regex value to indicate that the data itself is a regex pattern being stored (not validated against one)
+
+Must be one of:
 
 - `date-time`
 - `email`
@@ -213,11 +221,11 @@ The format of this attribute. See [format](https://json-schema.org/understanding
 
 Data Model:
 
-| Attribute       | DependsOn            | columnType  | Format | Parent   |
-|-----------------|----------------------|-------------|--------|----------|
-| Patient         | "Gender, Birth Date" |             |        | DataType |
-| Gender          |                      | string      |        |          |
-| Birth Date      |                      | string      | date   |          |
+| Attribute       | DependsOn            | columnType  | Format | IsTemplate |
+|-----------------|----------------------|-------------|--------|------------|
+| Patient         | "Gender, Birth Date" |             |        | True       |
+| Gender          |                      | string      |        |            |
+| Birth Date      |                      | string      | date   |            |
 
 JSON Schema output:
 
@@ -244,13 +252,19 @@ JSON Schema output:
 
 The regex pattern this attribute must match. The type of this attribute must be `string` or `string_list`. See [pattern](https://json-schema.org/understanding-json-schema/reference/regular_expressions#regular-expressions) The value of this column will appear as the `pattern` of this attribute in the JSON Schema. Must be a legal regex pattern as determined by the python `re` library.
 
+Note: The Format and Pattern columns serve different purposes:
+
+  `Pattern`: Use to validate that data matches a specific regex pattern (e.g., enforce that email addresses follow a certain format)
+
+  `Format`: Use with the regex value to indicate that the data itself is a regex pattern being stored (not validated against one)
+
 Data Model:
 
-| Attribute | DependsOn     | columnType  | Pattern | Parent   |
-|-----------|---------------|-------------|---------|----------|
-| Patient   | "Gender, ID"  |             |         | DataType |
-| Gender    |               | string      |         |          |
-| ID        |               | string      | [a-f]   |          |
+| Attribute | DependsOn     | columnType  | Pattern | IsTemplate |
+|-----------|---------------|-------------|---------|------------|
+| Patient   | "Gender, ID"  |             |         | True       |
+| Gender    |               | string      |         |            |
+| ID        |               | string      | [a-f]   |            |
 
 JSON Schema output:
 
@@ -279,12 +293,12 @@ The range that this attribute's numeric values must fall within. The type of thi
 
 Data Model:
 
-| Attribute    | DependsOn                   | columnType  | Minimum | Maximum | Parent   |
-|--------------|-----------------------------|-------------|---------|---------|----------|
-| Patient      | "Age, Weight, Health Score" |             |         |         | DataType |
-| Age          |                             | integer     | 0       | 120     |          |
-| Weight       |                             | number      | 0.0     |         |          |
-| Health Score |                             | number      | 0.0     | 1.0     |          |
+| Attribute    | DependsOn                   | columnType  | Minimum | Maximum | IsTemplate |
+|--------------|-----------------------------|-------------|---------|---------|------------|
+| Patient      | "Age, Weight, Health Score" |             |         |         | True       |
+| Age          |                             | integer     | 0       | 120     |            |
+| Weight       |                             | number      | 0.0     |         |            |
+| Health Score |                             | number      | 0.0     | 1.0     |            |
 
 JSON Schema output:
 
@@ -334,23 +348,23 @@ If you have an existing data model using any of the following validation rules, 
 
 ## Conditional dependencies
 
-The `DependsOn`, `Valid Values` and `Parent` columns can be used together to flexibly define conditional logic for determining the relevant attributes for a data type.
+The `DependsOn`, `Valid Values` and `IsTemplate` columns can be used together to flexibly define conditional logic for determining the relevant attributes for a data type.
 
 In this example we have the `Patient` data type. The `Patient` can be diagnosed as healthy or with cancer. For Patients with cancer we also want to collect info about their cancer type, and any cancers in their family history.
 
 Data Model:
 
-| Attribute      | DependsOn                     | Valid Values        | Required | columnType  | Parent   |
-|----------------|-------------------------------|---------------------|----------|-------------|----------|
-| Patient        | "Diagnosis"                   |                     |          |             | DataType |
-| Diagnosis      |                               | "Healthy, Cancer"   | True     | string      |          |
-| Cancer         | "Cancer Type, Family History" |                     |          |             |          |
-| Cancer Type    |                               | "Brain, Lung, Skin" | True     | string      |          |
-| Family History |                               | "Brain, Lung, Skin" | True     | string_list |          |
+| Attribute      | DependsOn                     | Valid Values        | Required | columnType  | IsTemplate |
+|----------------|-------------------------------|---------------------|----------|-------------|------------|
+| Patient        | "Diagnosis"                   |                     |          |             | True       |
+| Diagnosis      |                               | "Healthy, Cancer"   | True     | string      |            |
+| Cancer         | "Cancer Type, Family History" |                     |          |             |            |
+| Cancer Type    |                               | "Brain, Lung, Skin" |          | string      |            |
+| Family History |                               | "Brain, Lung, Skin" |          | string_list |            |
 
 To demonstrate this, see the above example with the `Patient` and `Cancer` data types:
 
-- `Patient` is a data type, but `Cancer` is not, as defined by the `Parent` column.
+- `Patient` is a data type, but `Cancer` is not, as defined by the `IsTemplate` column.
 - `Diagnosis` is an attribute of `Patient`.
 - `Diagnosis` has `Valid Values` of `Healthy` and `Cancer`.
 - `Cancer` is also a data type.
@@ -398,7 +412,8 @@ As a result of the above data model, in the JSON Schema:
               "Cancer"
             ]
           }
-        }
+        },
+        "required": ["Diagnosis"]
       },
       "then": {
         "required": ["Cancer Type", "Family History"]

@@ -15,7 +15,7 @@ RUN pip3 install --upgrade pip
 WORKDIR /synapsePythonClient
 COPY . .
 
-RUN pip install --no-cache-dir .[pandas]
+RUN pip install --no-cache-dir .[pandas,curator]
 
 
 LABEL org.opencontainers.image.source='https://github.com/Sage-Bionetworks/synapsePythonClient'

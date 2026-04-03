@@ -29,7 +29,30 @@ from typing import (
 
 from deprecated import deprecated
 
-from synapseclient.core.utils import test_import_pandas
+from synapseclient import Synapse
+from synapseclient.core.typing_utils import DataFrame as DATA_FRAME_TYPE
+from synapseclient.core.typing_utils import np, nx
+
+
+def check_curator_imports() -> None:
+    """Attempts to import all necessary packages for the Curator extension.
+
+    Raises:
+        ImportError: If one or more Curator packages are not installed.
+    """
+    try:
+        import inflection  # noqa: F401
+        import networkx  # noqa: F401
+        import pandarallel  # noqa: F401
+        import pandas  # noqa: F401
+        import rdflib  # noqa: F401
+    except ImportError as exception:
+        msg = (
+            "One or more packages needed for the Curator extension are not installed. "
+            "Please install using 'pip install --upgrade 'synapseclient[curator]'"
+        )
+        raise ImportError(msg) from exception
+
 
 try:
     from dataclasses_json import config, dataclass_json
@@ -44,25 +67,6 @@ except ImportError:
         """Dummy config function when dataclasses_json is not installed"""
         return None
 
-
-try:
-    from inflection import camelize
-except ImportError:
-    # inflection is an optional dependency only available with curator extra
-    def camelize(string, uppercase_first_letter=True):
-        """Dummy camelize function when inflection is not installed"""
-        return None
-
-
-try:
-    from rdflib import Namespace
-except ImportError:
-    # rdflib is an optional dependency
-    Namespace = None  # type: ignore
-
-from synapseclient import Synapse
-from synapseclient.core.typing_utils import DataFrame as DATA_FRAME_TYPE
-from synapseclient.core.typing_utils import np, nx
 
 if TYPE_CHECKING:
     NUMPY_INT_64 = np.int64
@@ -329,7 +333,7 @@ def find_and_convert_ints(
         is_int: dataframe with boolean values indicating which cells were converted to type int
 
     """
-    test_import_pandas()
+
     from pandarallel import pandarallel
     from pandas import DataFrame
     from pandas.api.types import is_integer
@@ -381,7 +385,6 @@ def convert_floats(dataframe: DATA_FRAME_TYPE) -> DATA_FRAME_TYPE:
     Returns:
         float_df: dataframe with values that were converted to type float. Columns are type object
     """
-    test_import_pandas()
     from pandas import to_numeric
 
     # create a separate copy of the manifest
@@ -399,7 +402,6 @@ def convert_floats(dataframe: DATA_FRAME_TYPE) -> DATA_FRAME_TYPE:
 
 
 def get_str_pandas_na_values() -> List[str]:
-    test_import_pandas()
     from pandas._libs.parsers import STR_NA_VALUES  # type: ignore
 
     STR_NA_VALUES_FILTERED = deepcopy(STR_NA_VALUES)
@@ -430,7 +432,6 @@ def read_csv(
     Returns:
         pd.DataFrame: The dataframe created from the CSV file or buffer.
     """
-    test_import_pandas()
     from pandas import read_csv as pandas_read_csv
 
     STR_NA_VALUES_FILTERED = get_str_pandas_na_values()
@@ -474,7 +475,6 @@ def load_df(
         pd.DataFrame: a processed dataframe for manifests or unprocessed df for data models and
       where indicated
     """
-    test_import_pandas()
     from pandas import DataFrame
 
     # Read CSV to df as type specified in kwargs
@@ -654,7 +654,6 @@ class DataModelCSVParser:
                     Relationships: {
                                     CSV Header: Value}}}
         """
-        test_import_pandas()
         from pandas import isnull
 
         # Check csv schema follows expectations.
@@ -685,6 +684,10 @@ class DataModelCSVParser:
                     attr_rel_dictionary[attribute_name]["Relationships"].update(
                         {relationship: parsed_rel_entry}
                     )
+            is_template_dict = self.parse_is_template(attr)
+            attr_rel_dictionary[attribute_name]["Relationships"].update(
+                is_template_dict
+            )
             if model_includes_column_type:
                 column_type_dict = self.parse_column_type(attr)
                 attr_rel_dictionary[attribute_name]["Relationships"].update(
@@ -711,6 +714,7 @@ class DataModelCSVParser:
                 attr_rel_dictionary[attribute_name]["Relationships"].update(
                     pattern_dict
                 )
+
         return attr_rel_dictionary
 
     def parse_column_type(self, attr: dict) -> dict:
@@ -723,7 +727,6 @@ class DataModelCSVParser:
             dict: A dictionary containing the parsed column type information if present
             else an empty dict
         """
-        test_import_pandas()
         from pandas import isna
 
         column_type = attr.get("columnType")
@@ -795,7 +798,6 @@ class DataModelCSVParser:
             A dictionary containing the format value if it exists
             else an empty dict
         """
-        test_import_pandas()
         from pandas import isna
 
         format_value = attribute_dict.get("Format")
@@ -853,6 +855,40 @@ class DataModelCSVParser:
         model_dict = self.gather_csv_attributes_relationships(model_df)
 
         return model_dict
+
+    def parse_is_template(self, attribute_dict: dict) -> dict[str, bool]:
+        """Parse the IsTemplate value for a given attribute.
+
+        Args:
+            attribute_dict: The attribute dictionary.
+
+        Returns:
+            dict: A dictionary containing the parsed IsTemplate value.
+
+        Raises:
+            ValueError: If the IsTemplate value is not a boolean.
+        """
+        from pandas import isna
+
+        is_template_value = attribute_dict.get("IsTemplate")
+
+        if isna(is_template_value):
+            template_value = False
+        elif isinstance(is_template_value, str):
+            if is_template_value.lower() == "true":
+                template_value = True
+            else:
+                template_value = False
+        else:
+            try:
+                template_value = bool(is_template_value)
+            except ValueError as exception:
+                raise ValueError(
+                    f"The IsTemplate value: {is_template_value} is not boolean, "
+                    "please correct this value in the data model."
+                ) from exception
+
+        return {"IsTemplate": template_value}
 
 
 class DataModelJSONLDParser:
@@ -1121,7 +1157,6 @@ class DataModelJSONLDParser:
                             attr_rel_dictionary[attr_key]["Relationships"].update(
                                 {rel_csv_header: parsed_rel_entry}
                             )
-
                 elif (
                     rel_vals["jsonld_key"] in entry.keys()
                     and not rel_vals["csv_header"]
@@ -1938,6 +1973,22 @@ class DataModelGraphExplorer:
             return self.get_node_label(node_display_name)
         raise ValueError("Either 'node_label' or 'node_display_name' must be provided.")
 
+    def get_node_is_template(
+        self, node_label: Optional[str] = None, node_display_name: Optional[str] = None
+    ) -> bool:
+        """Check if a given node is a template or not
+
+        Args:
+            node_label: Label of the node for which you need to look up.
+            node_display_name: Display name of the node for which you want look up.
+        Returns:
+            True: If the given node is a template
+        """
+        node_label = self._get_node_label(node_label, node_display_name)
+        rel_node_label = self.dmr.get_relationship_value("IsTemplate", "node_label")
+        node_is_template = self.graph.nodes[node_label][rel_node_label]
+        return node_is_template
+
 
 @dataclass_json
 @dataclass
@@ -2051,7 +2102,6 @@ class DataModelJsonLD:
 
         class_template = ClassTemplate()
         self.class_template = json.loads(class_template.to_json())
-        self.logger = logger
 
     def get_edges_associated_with_node(
         self, node: str
@@ -2282,7 +2332,7 @@ class DataModelJsonLD:
             if rel_key:
                 rel_key = rel_key[0]
                 # If the current relationship can be defined with a 'node_attr_dict'
-                if "node_attr_dict" in self.rel_dict[rel_key].keys():
+                if "node_attr_dict" in self.rel_dict[rel_key]:
                     try:
                         # if possible pull standard function to get node information
                         rel_func = self.rel_dict[rel_key]["node_attr_dict"]["standard"]
@@ -2290,7 +2340,7 @@ class DataModelJsonLD:
                         # if not pull default function to get node information
                         rel_func = self.rel_dict[rel_key]["node_attr_dict"]["default"]
 
-                    # Add appropritae contexts that have been removed in previous steps
+                    # Add appropriate contexts that have been removed in previous steps
                     # (for JSONLD) or did not exist to begin with (csv)
                     if (
                         rel_key == "id"
@@ -2299,7 +2349,7 @@ class DataModelJsonLD:
                     ):
                         template[jsonld_key] = "bts:" + template[jsonld_key]
                     elif (
-                        rel_key == "required"
+                        self.rel_dict[rel_key].get("type") == bool
                         and rel_func == convert_bool_to_str
                         and "sms" not in str(template[jsonld_key]).lower()
                     ):
@@ -2493,6 +2543,8 @@ def get_property_label_from_display_name(
     Returns:
         label, str: property label of display name
     """
+    from inflection import camelize
+
     # This is the newer more strict method
     if strict_camel_case:
         display_name = display_name.strip().translate({ord(c): "_" for c in whitespace})
@@ -2562,6 +2614,8 @@ def get_class_label_from_display_name(
     Returns:
         label, str: class label of display name
     """
+    from inflection import camelize
+
     # This is the newer more strict method
     if strict_camel_case:
         display_name = display_name.strip().translate({ord(c): "_" for c in whitespace})
@@ -2970,6 +3024,19 @@ class DataModelRelationships:
                     "standard": convert_bool_to_str,
                 },
             },
+            "IsTemplate": {
+                "jsonld_key": "sms:IsTemplate",
+                "csv_header": "IsTemplate",
+                "node_label": "IsTemplate",
+                "type": bool,
+                "jsonld_default": "sms:false",
+                "required_header": False,
+                "edge_rel": False,
+                "node_attr_dict": {
+                    "default": False,
+                    "standard": convert_bool_to_str,
+                },
+            },
             "subClassOf": {
                 "jsonld_key": "rdfs:subClassOf",
                 "csv_header": "Parent",
@@ -2979,7 +3046,7 @@ class DataModelRelationships:
                 "jsonld_default": [{"@id": "bts:Thing"}],
                 "type": list,
                 "edge_rel": True,
-                "required_header": True,
+                "required_header": False,
             },
             "validationRules": {
                 "jsonld_key": "sms:validationRules",
@@ -3198,6 +3265,8 @@ class DataModelNodes:
     """Data model Nodes"""
 
     def __init__(self, attribute_relationships_dict: dict, logger: Logger):
+        from rdflib import Namespace
+
         self.logger = logger
         self.namespaces = {
             "rdf": Namespace("http://www.w3.org/1999/02/22-rdf-syntax-ns#")
@@ -4058,7 +4127,7 @@ def parsed_model_as_dataframe(
     Returns:
         pd.DataFrame, DataFrame representation of the parsed model.
     """
-    test_import_pandas()
+
     from pandas import DataFrame
 
     # Convert the parsed model dictionary to a DataFrame
@@ -4561,9 +4630,9 @@ class TraversalNode:  # pylint: disable=too-many-instance-attributes
         name: The name of the node
         source_node: The name of the node where the graph traversal started
         dmge: A DataModelGraphExplorer with the data model loaded
-        display_name: The display name of the node
+        display_label: The display label of the node
         valid_values: The valid values of the node if any
-        valid_value_display_names: The display names of the valid values of the node if any
+        valid_value_display_labels: The display labels of the valid values of the node if any
         is_required: Whether or not this node is required
         dependencies: This nodes dependencies
         description: This nodes description, gotten from the comment in the data model
@@ -4579,9 +4648,9 @@ class TraversalNode:  # pylint: disable=too-many-instance-attributes
     source_node: str
     dmge: DataModelGraphExplorer
     logger: Logger
-    display_name: str = field(init=False)
+    display_label: str = field(init=False)
     valid_values: list[str] = field(init=False)
-    valid_value_display_names: list[str] = field(init=False)
+    valid_value_display_labels: list[str] = field(init=False)
     is_required: bool = field(init=False)
     dependencies: list[str] = field(init=False)
     description: str = field(init=False)
@@ -4596,18 +4665,18 @@ class TraversalNode:  # pylint: disable=too-many-instance-attributes
         """
         Uses the dmge to fill in most of the fields of the dataclass
         """
-        self.display_name = self.dmge.get_nodes_display_names([self.name])[0]
+        self.display_label = self.dmge.get_nodes_display_names([self.name])[0]
         self.valid_values = sorted(self.dmge.get_node_range(node_label=self.name))
-        self.valid_value_display_names = sorted(
+        self.valid_value_display_labels = sorted(
             self.dmge.get_node_range(node_label=self.name, display_names=True)
         )
         validation_rules = self.dmge.get_component_node_validation_rules(
-            manifest_component=self.source_node, node_display_name=self.display_name
+            manifest_component=self.source_node, node_display_name=self.display_label
         )
         self.is_required = self.dmge.get_component_node_required(
             manifest_component=self.source_node,
             node_validation_rules=validation_rules,
-            node_display_name=self.display_name,
+            node_display_name=self.display_label,
         )
         self.dependencies = sorted(
             self.dmge.get_node_dependencies(
@@ -4615,19 +4684,21 @@ class TraversalNode:  # pylint: disable=too-many-instance-attributes
             )
         )
         self.description = self.dmge.get_node_comment(
-            node_display_name=self.display_name
+            node_display_name=self.display_label
         )
         column_type = self.dmge.get_node_column_type(
-            node_display_name=self.display_name
+            node_display_name=self.display_label
         )
         maximum = self.dmge.get_node_maximum_minimum_value(
-            relationship_value="maximum", node_display_name=self.display_name
+            relationship_value="maximum", node_display_name=self.display_label
         )
         minimum = self.dmge.get_node_maximum_minimum_value(
-            relationship_value="minimum", node_display_name=self.display_name
+            relationship_value="minimum", node_display_name=self.display_label
         )
-        pattern = self.dmge.get_node_column_pattern(node_display_name=self.display_name)
-        format = self.dmge.get_node_format(node_display_name=self.display_name)
+        pattern = self.dmge.get_node_column_pattern(
+            node_display_name=self.display_label
+        )
+        format = self.dmge.get_node_format(node_display_name=self.display_label)
 
         self.type, explicit_is_array = self._determine_type_and_array(column_type)
 
@@ -4756,7 +4827,7 @@ class TraversalNode:  # pylint: disable=too-many-instance-attributes
             ):
                 types = keyword_dict["types"]
                 msg = (
-                    f"For attribute '{self.display_name}': columnType is '{self.type.value}' "
+                    f"For attribute '{self.display_label}': columnType is '{self.type.value}' "
                     f"but {keyword} constraint (value: {keyword_dict['value']}) "
                     f"is specified. Please set columnType to one of: {types}."
                 )
@@ -4787,7 +4858,7 @@ class GraphTraversalState:  # pylint: disable=too-many-instance-attributes
     dmge: DataModelGraphExplorer
     source_node: str
     logger: Logger
-    current_node: Optional[Node] = field(init=False)
+    current_node: Optional[TraversalNode] = field(init=False)
     _root_dependencies: list[str] = field(init=False)
     _nodes_to_process: list[str] = field(init=False)
     _processed_nodes: list[str] = field(init=False)
@@ -4908,7 +4979,7 @@ class GraphTraversalState:  # pylint: disable=too-many-instance-attributes
         self._processed_nodes.append(self.current_node.name)
 
     def get_conditional_properties(
-        self, use_node_display_names: bool = True
+        self, use_display_labels: bool = True
     ) -> list[tuple[str, str]]:
         """Returns the conditional dependencies for the current node
 
@@ -4916,8 +4987,8 @@ class GraphTraversalState:  # pylint: disable=too-many-instance-attributes
             ValueError: If there is no current node
 
         Arguments:
-            use_node_display_names: If True the the attributes in the
-              conditional dependencies are return with their display names
+            use_display_labels: If True the the attributes in the
+              conditional dependencies are return with their display labels
 
         Returns:
             The watched_property, and the value for it that triggers the condition
@@ -4925,45 +4996,52 @@ class GraphTraversalState:  # pylint: disable=too-many-instance-attributes
         if self.current_node is None:
             raise ValueError("Current node is None")
         conditional_properties: list[tuple[str, str]] = []
+
         for value in self._reverse_dependencies[self.current_node.name]:
             if value in self._valid_values_map:
                 properties = sorted(self._valid_values_map[value])
                 for watched_property in properties:
-                    if use_node_display_names:
+                    if use_display_labels:
                         watched_property = self.dmge.get_nodes_display_names(
                             [watched_property]
                         )[0]
-                        value = self.dmge.get_nodes_display_names([value])[0]
-                    conditional_properties.append((watched_property, value))
+                        display_name_value = self.dmge.get_nodes_display_names([value])[
+                            0
+                        ]
+                        conditional_properties.append(
+                            (watched_property, display_name_value)
+                        )
+                    else:
+                        conditional_properties.append((watched_property, value))
         return conditional_properties
 
     def _update_valid_values_map(
-        self, node_display_name: str, valid_values_display_names: list[str]
+        self, node_display_label: str, valid_values_display_labels: list[str]
     ) -> None:
         """Updates the valid_values map
 
         Arguments:
-            node_display_name: The display name of the node
-            valid_values_display_names: The display names of the the nodes valid values
+            node_display_label: The display label of the node
+            valid_values_display_labels: The display labels of the the nodes valid values
         """
-        for node in valid_values_display_names:
+        for node in valid_values_display_labels:
             if node not in self._valid_values_map:
                 self._valid_values_map[node] = []
-            self._valid_values_map[node].append(node_display_name)
+            self._valid_values_map[node].append(node_display_label)
 
     def _update_reverse_dependencies(
-        self, node_display_name: str, node_dependencies_display_names: list[str]
+        self, node_display_label: str, node_dependencies_display_labels: list[str]
     ) -> None:
         """Updates the reverse dependencies
 
         Arguments:
-            node_display_name: The display name of the node
-            node_dependencies_display_names: the display names of the reverse dependencies
+            node_display_label: The display label of the node
+            node_dependencies_display_labels: the display labels of the reverse dependencies
         """
-        for dep in node_dependencies_display_names:
+        for dep in node_dependencies_display_labels:
             if dep not in self._reverse_dependencies:
                 self._reverse_dependencies[dep] = []
-            self._reverse_dependencies[dep].append(node_display_name)
+            self._reverse_dependencies[dep].append(node_display_label)
 
     def _update_nodes_to_process(self, nodes: list[str]) -> None:
         """Updates the nodes to process with the input nodes
@@ -4975,7 +5053,7 @@ class GraphTraversalState:  # pylint: disable=too-many-instance-attributes
 
 
 @dataclass
-class JSONSchema:  # pylint: disable=too-many-instance-attributes
+class JSONSchema:
     """
     A dataclass representing a JSON Schema.
     Each attribute represents a keyword in a JSON Schema.
@@ -4988,7 +5066,9 @@ class JSONSchema:  # pylint: disable=too-many-instance-attributes
         description: An optional description of the object described by this schema.
         properties: A list of property schemas.
         required: A list of properties required by the schema.
-        all_of: A list of conditions the schema must meet. This should be removed if empty.
+        _conditional_dependencies: A mapping of conditional dependencies to be added to the "allOf" keyword in JSON Schema.
+            The key is a tuple of (watched_property, enum_value)
+            The value is a list of properties that become required when watched_property has the value enum_value.
     """
 
     schema_id: str = ""
@@ -4998,7 +5078,9 @@ class JSONSchema:  # pylint: disable=too-many-instance-attributes
     description: str = "TBD"
     properties: dict[str, Property] = field(default_factory=dict)
     required: list[str] = field(default_factory=list)
-    all_of: list[AllOf] = field(default_factory=list)
+    _conditional_dependencies: dict[tuple[str, str], list[str]] = field(
+        default_factory=dict
+    )
 
     def as_json_schema_dict(
         self,
@@ -5010,15 +5092,25 @@ class JSONSchema:  # pylint: disable=too-many-instance-attributes
             The dataclass as a dict.
         """
         json_schema_dict = asdict(self)
+        # Change dataclass attribute names to JSON Schema keywords
+        # Dataclass attributes can't start with $
         keywords_to_change = {
             "schema_id": "$id",
             "schema": "$schema",
-            "all_of": "allOf",
         }
         for old_word, new_word in keywords_to_change.items():
             json_schema_dict[new_word] = json_schema_dict.pop(old_word)
-        if not self.all_of:
-            json_schema_dict.pop("allOf")
+
+        # Converts the conditional dependencies to allOf conditions and adds them to the JSON Schema dict
+        # The conditional dependencies are not added to the JSON Schema dict directly because they are not
+        #  in the correct format to be added as is, and they need to be converted to allOf conditions first.
+        # Finally the conditional dependencies are removed from the JSON Schema dict because they are not a
+        #  valid JSON Schema keyword
+        if self._conditional_dependencies:
+            json_schema_dict["allOf"] = self._convert_conditional_properties_to_all_of(
+                self._conditional_dependencies
+            )
+        json_schema_dict.pop("_conditional_dependencies")
         return json_schema_dict
 
     def add_required_property(self, name: str) -> None:
@@ -5029,15 +5121,6 @@ class JSONSchema:  # pylint: disable=too-many-instance-attributes
             name: The name of the property
         """
         self.required.append(name)
-
-    def add_to_all_of_list(self, item: AllOf) -> None:
-        """
-        Adds a property to the all_of list
-
-        Arguments:
-            item: The item to add to the all_of list
-        """
-        self.all_of.append(item)
 
     def update_property(self, property_dict: dict[str, Property]) -> None:
         """
@@ -5064,78 +5147,128 @@ class JSONSchema:  # pylint: disable=too-many-instance-attributes
             )
         self.properties.update(property_dict)
 
+    def add_conditional_dependency(
+        self, watched_property: str, enum_value: str, dependent_property: str
+    ) -> None:
+        """
+        Adds a conditional dependency to the conditional dependencies dict
+        Arguments:
+            watched_property: The property that is being watched
+            enum_value: The value of the watched property that triggers the condition
+            dependent_property: The property that becomes required when the condition is triggered
+        """
+        if (watched_property, enum_value) not in self._conditional_dependencies:
+            self._conditional_dependencies[(watched_property, enum_value)] = [
+                dependent_property
+            ]
+        else:
+            self._conditional_dependencies[(watched_property, enum_value)].append(
+                dependent_property
+            )
+
+    @staticmethod
+    def _convert_conditional_properties_to_all_of(
+        conditional_dependencies: dict[tuple[str, str], list[str]]
+    ) -> list[AllOf]:
+        """
+        Converts the conditional dependencies dict to a list of JSON Schema allOf conditions
+
+        Arguments:
+            conditional_dependencies: A mapping of conditional dependencies to be added to the "allOf" keyword in JSON Schema.
+                The key is a tuple of (watched_property, enum_value)
+                The value is a list of properties that become required when watched_property has the value enum_value.
+
+        Returns:
+            A list of JSON Schema allOf conditions
+
+
+        For example:
+            In the example data model the Patient component has the Diagnosis attribute.
+            The Diagnosis attribute has valid values of ["Healthy", "Cancer"].
+            The Cancer valid value is also an attribute that dependsOn on the
+                attributes Cancer Type and Family History
+            Cancer Type and Family History are attributes with valid values.
+            Therefore: When Diagnosis == "Cancer", Cancer Type and Family History should become required
+
+        Example conditional schema:
+            "if":{
+                "properties":{
+                    "Diagnosis":{
+                        "enum":[
+                            "Cancer"
+                        ]
+                    }
+                },
+                "required":[
+                    "Diagnosis"
+                ]
+            },
+            "then":{
+                "properties":{
+                    "FamilyHistory":{
+                        "not":{
+                            "type":"null"
+                        }
+                    }
+                },
+                    "required":["FamilyHistory"]
+            }
+        """
+        all_of = []
+        for (
+            watched_property,
+            enum_value,
+        ), dependent_properties in conditional_dependencies.items():
+            conditional_dep = {
+                "if": {
+                    "properties": {watched_property: {"enum": [enum_value]}},
+                    "required": [watched_property],
+                },
+                "then": {
+                    "properties": {
+                        prop: {"not": {"type": "null"}} for prop in dependent_properties
+                    },
+                    "required": dependent_properties,
+                },
+            }
+            all_of.append(conditional_dep)
+        return all_of
+
 
 def _set_conditional_dependencies(
     json_schema: JSONSchema,
     graph_state: GraphTraversalState,
-    use_property_display_names: bool = True,
+    use_display_labels: bool = True,
 ) -> None:
     """
-    This sets conditional requirements in the "allOf" keyword.
+    This translates conditional requirements in a JSONSchema object from a GraphTraversalState object
     This is used when certain properties are required depending on the value of another property.
-
-    For example:
-      In the example data model the Patient component has the Diagnosis attribute.
-      The Diagnosis attribute has valid values of ["Healthy", "Cancer"].
-      The Cancer valid value is also an attribute that dependsOn on the
-        attributes Cancer Type and Family History
-      Cancer Type and Family History are attributes with valid values.
-      Therefore: When Diagnosis == "Cancer", Cancer Type and Family History should become required
-
-    Example conditional schema:
-        "if":{
-            "properties":{
-               "Diagnosis":{
-                  "enum":[
-                     "Cancer"
-                  ]
-               }
-            }
-         },
-         "then":{
-            "properties":{
-               "FamilyHistory":{
-                  "not":{
-                     "type":"null"
-                  }
-               }
-            },
-            "required":[
-               "FamilyHistory"
-            ]
-         }
 
     Arguments:
         json_schema: The JSON Scheme where the node might be set as a property
         graph_state: The instance tracking the current state of the graph
-        use_property_display_names: If True, the properties in the JSONSchema
-          will be written using node display names
+        use_display_labels: If True, the properties and enums in the JSONSchema
+            will be written using display labels, otherwise the formatted labels will be used
+
     """
     if graph_state.current_node is None:
         raise ValueError("Node Processor contains no node.")
 
-    if use_property_display_names:
-        node_name = graph_state.current_node.display_name
+    if use_display_labels:
+        node_name = graph_state.current_node.display_label
     else:
         node_name = graph_state.current_node.name
 
-    conditional_properties = graph_state.get_conditional_properties(
-        use_property_display_names
-    )
+    conditional_properties = graph_state.get_conditional_properties(use_display_labels)
     for prop in conditional_properties:
         attribute, value = prop
-        conditional_schema = {
-            "if": {"properties": {attribute: {"enum": [value]}}},
-            "then": {
-                "properties": {node_name: {"not": {"type": "null"}}},
-                "required": [node_name],
-            },
-        }
-        json_schema.add_to_all_of_list(conditional_schema)
+        json_schema.add_conditional_dependency(
+            watched_property=attribute, enum_value=value, dependent_property=node_name
+        )
 
 
 def _create_enum_array_property(
-    node: TraversalNode, use_valid_value_display_names: bool = True
+    node: TraversalNode, use_display_labels: bool = True
 ) -> Property:
     """
     Creates a JSON Schema property array with enum items
@@ -5150,14 +5283,14 @@ def _create_enum_array_property(
 
     Arguments:
         node: The node to make the property of
-        use_valid_value_display_names: If True, the valid_values in the JSONSchema
-          will be written using node display names
+        use_display_labels: If True, the properties and enums in the JSONSchema
+            will be written using display labels, otherwise the formatted labels will be used
 
     Returns:
         JSON object
     """
-    if use_valid_value_display_names:
-        valid_values = node.valid_value_display_names
+    if use_display_labels:
+        valid_values = node.valid_value_display_labels
     else:
         valid_values = node.valid_values
     items: Items = {"enum": valid_values, "type": "string"}
@@ -5201,7 +5334,7 @@ def _create_array_property(node: TraversalNode) -> Property:
 
 
 def _create_enum_property(
-    node: TraversalNode, use_valid_value_display_names: bool = True
+    node: TraversalNode, use_display_labels: bool = True
 ) -> Property:
     """
     Creates a JSON Schema property enum
@@ -5214,12 +5347,14 @@ def _create_enum_property(
 
     Arguments:
         node: The node to make the property of
+        use_display_labels: If True, the properties and enums in the JSONSchema
+            will be written using display labels, otherwise the formatted labels will be used
 
     Returns:
         JSON object
     """
-    if use_valid_value_display_names:
-        valid_values = node.valid_value_display_names
+    if use_display_labels:
+        valid_values = node.valid_value_display_labels
     else:
         valid_values = node.valid_values
 
@@ -5277,8 +5412,7 @@ def _set_type_specific_keywords(schema: dict[str, Any], node: TraversalNode) -> 
 def _set_property(
     json_schema: JSONSchema,
     node: TraversalNode,
-    use_property_display_names: bool = True,
-    use_valid_value_display_names: bool = True,
+    use_display_labels: bool = True,
 ) -> None:
     """
     Sets a property in the JSON schema. that is required by the schema
@@ -5286,21 +5420,19 @@ def _set_property(
     Arguments:
         json_schema: The JSON Scheme where the node might be set as a property
         graph_state: The node the write the property for
-        use_property_display_names: If True, the properties in the JSONSchema
-          will be written using node display names
-        use_valid_value_display_names: If True, the valid_values in the JSONSchema
-          will be written using node display names
+        use_display_labels: If True, the properties and enums in the JSONSchema
+            will be written using display labels, otherwise the formatted labels will be used
     """
-    if use_property_display_names:
-        node_name = node.display_name
+    if use_display_labels:
+        node_name = node.display_label
     else:
         node_name = node.name
 
     if node.valid_values:
         if node.is_array:
-            prop = _create_enum_array_property(node, use_valid_value_display_names)
+            prop = _create_enum_array_property(node, use_display_labels)
         else:
-            prop = _create_enum_property(node, use_valid_value_display_names)
+            prop = _create_enum_property(node, use_display_labels)
 
     else:
         if node.is_array:
@@ -5312,7 +5444,7 @@ def _set_property(
         prop["pattern"] = node.pattern
 
     prop["description"] = node.description
-    prop["title"] = node.display_name
+    prop["title"] = node.display_label
     schema_property = {node_name: prop}
     json_schema.update_property(schema_property)
 
@@ -5324,8 +5456,7 @@ def _process_node(
     json_schema: JSONSchema,
     graph_state: GraphTraversalState,
     logger: Logger,
-    use_property_display_names: bool = True,
-    use_valid_value_display_names: bool = True,
+    use_display_labels: bool = True,
 ) -> None:
     """
     Processes a node in the data model graph.
@@ -5335,10 +5466,8 @@ def _process_node(
     Argument:
         json_schema: The JSON Scheme where the node might be set as a property
         graph_state: The instance tracking the current state of the graph
-        use_property_display_names: If True, the properties in the JSONSchema
-          will be written using node display names
-        use_valid_value_display_names: If True, the valid_values in the JSONSchema
-          will be written using node display names
+        use_display_labels: If True, the properties and enums in the JSONSchema
+            will be written using display labels, otherwise the formatted labels will be used
     """
     if graph_state.current_node is None:
         raise ValueError("Node Processor contains no node.")
@@ -5350,7 +5479,7 @@ def _process_node(
             _set_conditional_dependencies(
                 json_schema=json_schema,
                 graph_state=graph_state,
-                use_property_display_names=use_property_display_names,
+                use_display_labels=use_display_labels,
             )
             # This is to ensure that all properties that are conditional dependencies are not
             #   required, but only become required when the conditional dependency is met.
@@ -5358,8 +5487,7 @@ def _process_node(
         _set_property(
             json_schema=json_schema,
             node=graph_state.current_node,
-            use_property_display_names=use_property_display_names,
-            use_valid_value_display_names=use_valid_value_display_names,
+            use_display_labels=use_display_labels,
         )
         graph_state.update_processed_nodes_with_current_node()
         logger.info("Property set in JSON Schema for %s", graph_state.current_node.name)
@@ -5404,8 +5532,7 @@ def create_json_schema(  # pylint: disable=too-many-arguments
     write_schema: bool = True,
     schema_path: Optional[str] = None,
     jsonld_path: Optional[str] = None,
-    use_property_display_names: bool = True,
-    use_valid_value_display_names: bool = True,
+    use_display_labels: bool = True,
 ) -> dict[str, Any]:
     """
     Creates a JSONSchema dict for the datatype in the data model.
@@ -5432,10 +5559,8 @@ def create_json_schema(  # pylint: disable=too-many-arguments
             when it is hosted on the Internet).
         schema_path: Where to save the JSON Schema file
         jsonld_path: Used to name the file if the path isn't supplied
-        use_property_display_names: If True, the properties in the JSONSchema
-          will be written using node display names
-        use_valid_value_display_names: If True, the valid_values in the JSONSchema
-          will be written using node display names
+        use_display_labels: If True, the properties and enums in the JSONSchema
+            will be written using display names, otherwise the formatted labels will be used
 
     Returns:
         JSON Schema as a dictionary.
@@ -5454,8 +5579,7 @@ def create_json_schema(  # pylint: disable=too-many-arguments
                 json_schema=json_schema,
                 graph_state=graph_state,
                 logger=logger,
-                use_property_display_names=use_property_display_names,
-                use_valid_value_display_names=use_valid_value_display_names,
+                use_display_labels=use_display_labels,
             )
         graph_state.move_to_next_node()
 
@@ -5606,7 +5730,7 @@ def generate_jsonschema(
         )
         ```
     """
-
+    check_curator_imports()
     data_model_parser = DataModelParser(
         path_to_data_model=data_model_source, logger=synapse_client.logger
     )
@@ -5627,13 +5751,16 @@ def generate_jsonschema(
     # Gets all data types if none are specified
     if data_types is None or len(data_types) == 0:
         data_types = [
-            dmge.get_node_label(node[0])
-            for node in [
-                (k, v)
-                for k, v in parsed_data_model.items()
-                if v["Relationships"].get("Parent") == ["DataType"]
-            ]
+            node for node in dmge.find_classes() if dmge.get_node_is_template(node)
         ]
+
+    if len(data_types) == 0:
+        msg = (
+            "No data types found in the data model. "
+            "Please ensure the data model is correctly specified. "
+            "Use the 'IsTemplate' column in your data model to define data types."
+        )
+        raise ValueError(msg)
 
     if len(data_types) != 1 and output is not None and output.endswith(".json"):
         raise ValueError(
@@ -5656,7 +5783,7 @@ def generate_jsonschema(
             logger=synapse_client.logger,
             write_schema=True,
             schema_path=schema_path,
-            use_property_display_names=(data_model_labels == "display_label"),
+            use_display_labels=(data_model_labels == "display_label"),
         )
         for data_type, schema_path in zip(data_types, schema_paths)
     ]
@@ -5773,6 +5900,7 @@ def generate_jsonld(
         )
         ```
     """
+    check_curator_imports()
     syn = Synapse.get_client(synapse_client=synapse_client)
 
     # Instantiate Parser

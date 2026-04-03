@@ -5,11 +5,12 @@ This module provides library functions for creating file-based metadata curation
 in Synapse, including EntityView creation, CurationTask setup, and Wiki attachment.
 """
 
-from typing import Any, Optional, Tuple
+from typing import Any, Optional, Tuple, Union
 
 from synapseclient import Synapse  # type: ignore
 from synapseclient import Wiki  # type: ignore
 from synapseclient.core.exceptions import SynapseHTTPError  # type: ignore
+from synapseclient.extensions.curator.utils import project_id_from_entity_id
 from synapseclient.models import (  # type: ignore
     Column,
     ColumnType,
@@ -23,7 +24,7 @@ from synapseclient.models.curation import CurationTask, FileBasedMetadataTaskPro
 from synapseclient.operations import FileOptions, get
 
 TYPE_DICT = {
-    "string": ColumnType.STRING,
+    "string": ColumnType.MEDIUMTEXT,
     "number": ColumnType.DOUBLE,
     "integer": ColumnType.INTEGER,
     "boolean": ColumnType.BOOLEAN,
@@ -198,30 +199,35 @@ def _create_columns_from_json_schema(json_schema: dict[str, Any]) -> list[Column
         raise ValueError(
             "The 'properties' field in the JSON Schema must be a dictionary."
         )
-    columns = []
-    for name, prop_schema in properties.items():
-        column_type = _get_column_type_from_js_property(prop_schema)
-        maximum_size = None
-        if column_type == "STRING":
-            maximum_size = 100
-        if column_type in LIST_TYPE_DICT.values():
-            maximum_size = 5
-
-        column = Column(
-            name=name,
-            column_type=column_type,
-            maximum_size=maximum_size,
-            default_value=None,
-        )
-        columns.append(column)
+    columns = [
+        _create_synapse_column_from_js_property(prop_schema, name)
+        for name, prop_schema in properties.items()
+    ]
     return columns
+
+
+def _create_synapse_column_from_js_property(
+    js_property: dict[str, Any], name: str
+) -> Column:
+    """
+    Creates a Synapse Column based on a JSON Schema property.
+
+    Args:
+        js_property: A JSON Schema property in dict form.
+        name: The name of the column.
+
+    Returns:
+        A Synapse Column based on the JSON Schema property.
+    """
+    column_type = _get_column_type_from_js_property(js_property)
+    return Column(name=name, column_type=column_type)
 
 
 def _get_column_type_from_js_property(js_property: dict[str, Any]) -> ColumnType:
     """
     Gets the Synapse column type from a JSON Schema property.
     The JSON Schema should be valid but that should not be assumed.
-    If the type can not be determined ColumnType.STRING will be returned.
+    If the type can not be determined ColumnType.MEDIUMTEXT will be returned.
 
     Args:
         js_property: A JSON Schema property in dict form.
@@ -229,17 +235,31 @@ def _get_column_type_from_js_property(js_property: dict[str, Any]) -> ColumnType
     Returns:
         A Synapse ColumnType based on the JSON Schema type
     """
-    # Enums are always strings in Synapse tables
+    # Enums are set as MediumText columns
     if "enum" in js_property:
-        return ColumnType.STRING
+        return ColumnType.MEDIUMTEXT
     if "type" in js_property:
-        if js_property["type"] == "array":
+        js_type = js_property["type"]
+        # Synapse columns cannot be more than one type
+        # If the JSONSchema type is a list of types, check if it's a nullable single type
+        if isinstance(js_type, list):
+            types = [t for t in js_type if t != "null"]
+            if len(types) == 1:
+                js_type = types[0]
+            # If there are multiple non-null types, we cannot determine a single column type, so default to MediumText
+            else:
+                return ColumnType.MEDIUMTEXT
+        if js_type == "array":
             return _get_list_column_type_from_js_property(js_property)
-        return TYPE_DICT.get(js_property["type"], ColumnType.STRING)
+        # If there is only one JSONSChema type, return the corresponding Synapse column type,
+        #  defaulting to MediumText if there is no match
+        return TYPE_DICT.get(js_type, ColumnType.MEDIUMTEXT)
     # A oneOf list usually indicates that the type could be one or more different things
+    # Curator extension does not create the types of JSON Schemas where this is the case
+    #  but if it is present we will attempt to determine the type based on the items in the oneOf list.
     if "oneOf" in js_property and isinstance(js_property["oneOf"], list):
         return _get_column_type_from_js_one_of_list(js_property["oneOf"])
-    return ColumnType.STRING
+    return ColumnType.MEDIUMTEXT
 
 
 def _get_column_type_from_js_one_of_list(js_one_of_list: list[Any]) -> ColumnType:
@@ -257,15 +277,15 @@ def _get_column_type_from_js_one_of_list(js_one_of_list: list[Any]) -> ColumnTyp
     items = [item for item in js_one_of_list if isinstance(item, dict)]
     # Enums are always strings in Synapse tables
     if [item for item in items if "enum" in item]:
-        return ColumnType.STRING
+        return ColumnType.MEDIUMTEXT
     # For Synapse ColumnType we can ignore null types in JSON Schemas
     type_items = [item for item in items if "type" in item if item["type"] != "null"]
     if len(type_items) == 1:
         type_item = type_items[0]
         if type_item["type"] == "array":
             return _get_list_column_type_from_js_property(type_item)
-        return TYPE_DICT.get(type_item["type"], ColumnType.STRING)
-    return ColumnType.STRING
+        return TYPE_DICT.get(type_item["type"], ColumnType.MEDIUMTEXT)
+    return ColumnType.MEDIUMTEXT
 
 
 def _get_list_column_type_from_js_property(js_property: dict[str, Any]) -> ColumnType:
@@ -298,6 +318,7 @@ def create_file_based_metadata_task(
     entity_view_name: str = "JSON Schema view",
     schema_uri: Optional[str] = None,
     enable_derived_annotations: bool = False,
+    assignee_principal_id: Optional[Union[str, int]] = None,
     *,
     synapse_client: Optional[Synapse] = None,
 ) -> Tuple[str, str]:
@@ -322,7 +343,8 @@ def create_file_based_metadata_task(
             instructions="Please curate this metadata according to the schema requirements",
             attach_wiki=False,
             entity_view_name="Biospecimen Metadata View",
-            schema_uri="sage.schemas.v2571-amp.Biospecimen.schema-0.0.1"
+            schema_uri="sage.schemas.v2571-amp.Biospecimen.schema-0.0.1",
+            assignee_principal_id=123456  # Optional: Assign to a user or team (can be str or int)
         )
         ```
 
@@ -338,6 +360,11 @@ def create_file_based_metadata_task(
             the schema will be bound to the folder before creating the entity view.
             (e.g., 'sage.schemas.v2571-amp.Biospecimen.schema-0.0.1')
         enable_derived_annotations: If true, enable derived annotations. Defaults to False.
+        assignee_principal_id: The principal ID of the user or team to assign to this
+            curation task. Can be provided as either a string or an integer. If None
+            (default), the task will be unassigned. For metadata tasks, this determines
+            the owner of the grid session. Team members can all join grid sessions owned
+            by their team, while user-owned grid sessions are restricted to that user only.
         synapse_client: If not passed in and caching was not disabled by
                 `Synapse.allow_client_caching(False)` this will use the last created
                 instance from the Synapse class constructor.
@@ -423,28 +450,21 @@ def create_file_based_metadata_task(
     synapse_client.logger.info(
         "Attempting to get the Synapse ID of the provided folders project."
     )
-    try:
-        entity = Folder(folder_id).get(synapse_client=synapse_client)
-        parent = synapse_client.get(entity.parent_id)
-        project = None
-        while not project:
-            if parent.concreteType == "org.sagebionetworks.repo.model.Project":
-                project = parent
-                break
-            parent = synapse_client.get(parent.parentId)
-    except Exception as e:
-        synapse_client.logger.exception(
-            "Error getting the Synapse ID of the provided folders project"
-        )
-        raise e
+
+    project_id = project_id_from_entity_id(folder_id, synapse_client=synapse_client)
     synapse_client.logger.info("Got the Synapse ID of the provided folders project.")
 
     synapse_client.logger.info("Attempting to create the CurationTask.")
     try:
         task = CurationTask(
             data_type=task_datatype,
-            project_id=project.id,
+            project_id=project_id,
             instructions=instructions,
+            assignee_principal_id=(
+                str(assignee_principal_id)
+                if assignee_principal_id is not None
+                else None
+            ),
             task_properties=FileBasedMetadataTaskProperties(
                 upload_folder_id=folder_id,
                 file_view_id=entity_view_id,

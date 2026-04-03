@@ -45,7 +45,7 @@ class FileBasedMetadataTaskProperties:
     A CurationTaskProperties for file-based data, describing where data is uploaded
     and a view which contains the annotations.
 
-    Represents a [Synapse FileBasedMetadataTaskProperties](https://rest-docs.synapse.org/org/sagebionetworks/repo/model/curation/metadata/FileBasedMetadataTaskProperties.html).
+    Represents a [Synapse FileBasedMetadataTaskProperties](https://rest-docs.synapse.org/rest/org/sagebionetworks/repo/model/curation/metadata/FileBasedMetadataTaskProperties.html).
 
     Attributes:
         upload_folder_id: The synId of the folder where data files of this type are to be uploaded
@@ -94,7 +94,7 @@ class RecordBasedMetadataTaskProperties:
     """
     A CurationTaskProperties for record-based metadata.
 
-    Represents a [Synapse RecordBasedMetadataTaskProperties](https://rest-docs.synapse.org/org/sagebionetworks/repo/model/curation/metadata/RecordBasedMetadataTaskProperties.html).
+    Represents a [Synapse RecordBasedMetadataTaskProperties](https://rest-docs.synapse.org/rest/org/sagebionetworks/repo/model/curation/metadata/RecordBasedMetadataTaskProperties.html).
 
     Attributes:
         record_set_id: The synId of the RecordSet that will contain all record-based metadata
@@ -213,11 +213,18 @@ class CurationTaskSynchronousProtocol(Protocol):
         """
         return self
 
-    def delete(self, *, synapse_client: Optional[Synapse] = None) -> None:
+    def delete(
+        self,
+        delete_source: bool = False,
+        *,
+        synapse_client: Optional[Synapse] = None,
+    ) -> None:
         """
         Deletes a CurationTask from Synapse.
 
         Arguments:
+            delete_source: If True, the associated source data (EntityView or RecordSet) will also be deleted
+                if the task is a FileBasedMetadataTask or RecordBasedMetadataTask respectively. Defaults to False.
             synapse_client: If not passed in and caching was not disabled by
                 `Synapse.allow_client_caching(False)` this will use the last created
                 instance from the Synapse class constructor.
@@ -237,6 +244,20 @@ class CurationTaskSynchronousProtocol(Protocol):
 
             task = CurationTask(task_id=123)
             task.delete()
+            ```
+
+        Example: Delete a curation task and its associated data source
+            &nbsp;
+
+            ```python
+            from synapseclient import Synapse
+            from synapseclient.models import CurationTask
+
+            syn = Synapse()
+            syn.login()
+
+            task = CurationTask(task_id=123)
+            task.delete(delete_source=True)
             ```
         """
         return None
@@ -466,6 +487,11 @@ class CurationTask(CurationTaskSynchronousProtocol):
     modified_by: Optional[str] = None
     """(Read Only) The ID of the user that last modified this task"""
 
+    assignee_principal_id: Optional[str] = None
+    """The principal ID of the user or team assigned to this task. Null if unassigned. For metadata
+    tasks, determines the owner of the grid session. Team members can all join grid sessions
+    owned by their team, while user-owned grid sessions are restricted to that user only."""
+
     _last_persistent_instance: Optional["CurationTask"] = field(
         default=None, repr=False, compare=False
     )
@@ -510,6 +536,7 @@ class CurationTask(CurationTaskSynchronousProtocol):
         self.modified_on = synapse_response.get("modifiedOn", None)
         self.created_by = synapse_response.get("createdBy", None)
         self.modified_by = synapse_response.get("modifiedBy", None)
+        self.assignee_principal_id = synapse_response.get("assigneePrincipalId", None)
 
         task_properties_dict = synapse_response.get("taskProperties", None)
         if task_properties_dict:
@@ -536,6 +563,7 @@ class CurationTask(CurationTaskSynchronousProtocol):
         request_dict["modifiedOn"] = self.modified_on
         request_dict["createdBy"] = self.created_by
         request_dict["modifiedBy"] = self.modified_by
+        request_dict["assigneePrincipalId"] = self.assignee_principal_id
 
         if self.task_properties is not None:
             request_dict["taskProperties"] = self.task_properties.to_synapse_request()
@@ -595,17 +623,26 @@ class CurationTask(CurationTaskSynchronousProtocol):
         self._set_last_persistent_instance()
         return self
 
-    async def delete_async(self, *, synapse_client: Optional[Synapse] = None) -> None:
+    async def delete_async(
+        self,
+        delete_source: bool = False,
+        *,
+        synapse_client: Optional[Synapse] = None,
+    ) -> None:
         """
         Deletes a CurationTask from Synapse.
 
         Arguments:
+            delete_source: If True, the associated source data (EntityView or RecordSet) will also be deleted
+                if the task is a FileBasedMetadataTask or RecordBasedMetadataTask respectively. Defaults to False.
             synapse_client: If not passed in and caching was not disabled by
                 `Synapse.allow_client_caching(False)` this will use the last created
                 instance from the Synapse class constructor.
 
         Raises:
             ValueError: If the CurationTask object does not have a task_id.
+            ValueError: If delete_source is True but the task properties are not properly set
+              to identify the source to delete.
 
         Example: Delete a curation task asynchronously
             &nbsp;
@@ -625,6 +662,25 @@ class CurationTask(CurationTaskSynchronousProtocol):
 
             asyncio.run(main())
             ```
+
+        Example: Delete a curation task and its associated data source asynchronously
+            &nbsp;
+
+            ```python
+            import asyncio
+            from synapseclient import Synapse
+            from synapseclient.models import CurationTask
+
+            syn = Synapse()
+            syn.login()
+
+            async def main():
+                task = CurationTask(task_id=123)
+                await task.delete_async(delete_source=True)
+                print("Task and record set deleted successfully")
+
+            asyncio.run(main())
+            ```
         """
         if not self.task_id:
             raise ValueError("task_id is required to delete a CurationTask")
@@ -634,6 +690,41 @@ class CurationTask(CurationTaskSynchronousProtocol):
                 "synapse.task_id": str(self.task_id),
             }
         )
+
+        if delete_source:
+            if not self.task_properties:
+                await self.get_async(synapse_client=synapse_client)
+
+            if isinstance(self.task_properties, FileBasedMetadataTaskProperties):
+                if not self.task_properties.file_view_id:
+                    raise ValueError(
+                        "Cannot delete Fileview: "
+                        "'file_view_id' attribute is missing."
+                    )
+                from synapseclient.models import EntityView
+
+                await EntityView(id=self.task_properties.file_view_id).delete_async(
+                    synapse_client=synapse_client
+                )
+
+            elif isinstance(self.task_properties, RecordBasedMetadataTaskProperties):
+                if not self.task_properties.record_set_id:
+                    raise ValueError(
+                        "Cannot delete RecordSet: "
+                        "'record_set_id' attribute is missing."
+                    )
+                from synapseclient.models import RecordSet
+
+                await RecordSet(id=self.task_properties.record_set_id).delete_async(
+                    synapse_client=synapse_client
+                )
+
+            else:
+                raise ValueError(
+                    "'task_property' attribute is None. "
+                    "Deletion only supports FileBasedMetadataTaskProperties or "
+                    "RecordBasedMetadataTaskProperties."
+                )
 
         await delete_curation_task(task_id=self.task_id, synapse_client=synapse_client)
 

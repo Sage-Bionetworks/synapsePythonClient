@@ -19,20 +19,20 @@
     "Enum": {
       "description": "TBD",
       "enum": [
-        "ab",
-        "cd",
-        "ef",
-        "gh"
+        "Ab",
+        "Cd",
+        "Ef",
+        "Gh"
       ],
       "title": "Enum"
     },
     "EnumNotRequired": {
       "description": "TBD",
       "enum": [
-        "ab",
-        "cd",
-        "ef",
-        "gh"
+        "Ab",
+        "Cd",
+        "Ef",
+        "Gh"
       ],
       "title": "Enum Not Required"
     },
@@ -67,10 +67,10 @@
       "description": "TBD",
       "items": {
         "enum": [
-          "ab",
-          "cd",
-          "ef",
-          "gh"
+          "Ab",
+          "Cd",
+          "Ef",
+          "Gh"
         ],
         "type": "string"
       },
@@ -81,10 +81,10 @@
       "description": "TBD",
       "items": {
         "enum": [
-          "ab",
-          "cd",
-          "ef",
-          "gh"
+          "Ab",
+          "Cd",
+          "Ef",
+          "Gh"
         ],
         "type": "string"
       },
