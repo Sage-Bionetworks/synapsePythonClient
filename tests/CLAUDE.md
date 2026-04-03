@@ -42,6 +42,20 @@ Use `pytest.mark.parametrize` when possible to merge similar tests into one test
 ### Python 3.14+ limitation
 Sync wrapper smoke tests are skipped on Python 3.14+ — `@async_to_sync` raises `RuntimeError` when an event loop is already active (pytest-asyncio runs one). Users on 3.14+ must call async methods directly.
 
+### Integration test fixture best practices
+- Request fixtures explicitly in test function signatures — do not use `autouse=True` with `scope="function"` to create Synapse resources, as this creates them for every test in the class even when not needed.
+- Use `autouse=True` only for side-effect fixtures (e.g., timezone setup) or at class/module scope when truly needed by all tests.
+- Prefer getting `syn` and `schedule_for_cleanup` directly from conftest fixtures instead of assigning them via `self.syn` in an `init` fixture.
+- Scope resource fixtures carefully: `scope="function"` ensures test isolation but increases API calls. Consider `scope="module"` or `scope="class"` for read-only resources, but be cautious — one test must not influence another.
+- Clean up in the fixture itself rather than having each test call `schedule_for_cleanup` individually:
+  ```python
+  @pytest.fixture(scope="module")
+  def project(syn, schedule_for_cleanup):
+      project = syn.store(Project(name=str(uuid.uuid4())))
+      schedule_for_cleanup(project)
+      return project
+  ```
+
 ## Constraints
 
 - Unit tests must never make network calls — `pytest-socket` will fail them. Mock all HTTP interactions.
