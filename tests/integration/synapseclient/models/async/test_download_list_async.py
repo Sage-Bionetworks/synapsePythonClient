@@ -198,30 +198,6 @@ class TestDownloadList:
             file.id in ids_in_cart
         ), f"Expected {file.id} to remain in the cart after removing the wrong version"
 
-    async def test_remove_files_no_version_raises(
-        self, project: Synapse_Project
-    ) -> None:
-        """remove_files() raises ValueError when version_number is not specified."""
-        await DownloadList.clear_async(synapse_client=self.syn)
-
-        file = await self._create_test_file(project)
-        await self._add_to_cart(file)
-
-        with pytest.raises(
-            ValueError, match="version_number is required to remove files"
-        ):
-            await DownloadList.remove_files_async(
-                files=[
-                    DownloadListItem(
-                        file_entity_id=file.id,
-                        version_number=None,
-                    )
-                ],
-                synapse_client=self.syn,
-            )
-
-        await DownloadList.clear_async(synapse_client=self.syn)
-
     async def test_download_files_parallel_downloads_and_removes_from_cart(
         self, project: Synapse_Project
     ) -> None:

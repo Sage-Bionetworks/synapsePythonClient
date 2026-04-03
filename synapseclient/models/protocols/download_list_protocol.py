@@ -156,7 +156,6 @@ class DownloadListSynchronousProtocol(Protocol):
 
         Arguments:
             files: List of DownloadListItem objects identifying file versions to remove.
-                Each item must have ``version_number`` set.
             synapse_client: If not passed in and caching was not disabled by
                 `Synapse.allow_client_caching(False)` this will use the last created
                 instance from the Synapse class constructor.

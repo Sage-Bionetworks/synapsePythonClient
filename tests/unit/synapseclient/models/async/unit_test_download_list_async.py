@@ -231,15 +231,21 @@ class TestDownloadListRemoveFiles:
             # AND the count is returned
             assert result == 2
 
-    async def test_remove_files_async_raises_when_version_missing(self):
+    async def test_remove_files_async_allows_none_version(self):
         # GIVEN a list containing an item with no version number
         files = [DownloadListItem(file_entity_id="syn123", version_number=None)]
-        # WHEN I call remove_files_async
-        # THEN a ValueError is raised before any network call
-        with pytest.raises(
-            ValueError, match="version_number is required to remove files"
-        ):
-            await DownloadList.remove_files_async(files=files, synapse_client=self.syn)
+        with patch(
+            "synapseclient.models.download_list.remove_from_download_list_async",
+            new_callable=AsyncMock,
+            return_value=1,
+        ) as mock_remove:
+            # WHEN I call remove_files_async
+            result = await DownloadList.remove_files_async(
+                files=files, synapse_client=self.syn
+            )
+            # THEN the API function is called with the item as-is (version_number=None)
+            mock_remove.assert_called_once_with(files=files, synapse_client=self.syn)
+            assert result == 1
 
     def test_remove_files_sync_wrapper_exists(self):
         assert hasattr(DownloadList, "remove_files")
