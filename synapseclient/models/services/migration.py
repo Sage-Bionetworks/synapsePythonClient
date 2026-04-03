@@ -7,7 +7,6 @@ This module provides native async implementations of the indexing and migration 
 import asyncio
 import collections.abc
 import json
-import logging
 import os
 import sqlite3
 import sys
@@ -27,8 +26,12 @@ from typing import (
 
 from synapseclient import Synapse
 from synapseclient.api import get_entity_type, rest_get_paginated_async
-from synapseclient.api.entity_services import get_children
+from synapseclient.api.entity_services import (
+    get_children,
+    update_entity_file_handle_version,
+)
 from synapseclient.api.file_services import get_file_handle_for_download_async
+from synapseclient.api.storage_location_services import get_storage_location_setting
 from synapseclient.api.table_services import get_columns
 from synapseclient.core import utils
 from synapseclient.core.constants import concrete_types
@@ -72,14 +75,12 @@ BATCH_SIZE = 500
 # Maximum concurrent file copy.
 MAX_CONCURRENT_FILE_COPIES = max(int(Synapse().max_threads / 2), 1)
 
-logger = logging.getLogger(__name__)
-
 
 # =============================================================================
 # Indexing Helper Functions
 # =============================================================================
 async def _verify_storage_location_ownership_async(
-    storage_location_id: str,
+    storage_location_id: int,
     *,
     synapse_client: Optional[Synapse] = None,
 ) -> None:
@@ -94,7 +95,10 @@ async def _verify_storage_location_ownership_async(
         ValueError: If the user does not own the storage location.
     """
     try:
-        await synapse_client.rest_get_async(f"/storageLocation/{storage_location_id}")
+        await get_storage_location_setting(
+            storage_location_id=storage_location_id,
+            synapse_client=synapse_client,
+        )
     except SynapseError:
         raise ValueError(
             f"Unable to verify ownership of storage location {storage_location_id}. "
@@ -117,7 +121,7 @@ def _get_default_db_path(entity_id: str) -> str:
 
 async def _get_version_numbers_async(
     entity_id: str,
-    synapse_client: "Synapse",
+    synapse_client: Optional[Synapse] = None,
 ) -> AsyncGenerator[int, None]:
     """Get all version numbers for an entity.
 
@@ -164,13 +168,18 @@ def _join_column_names(columns: List[Any]) -> str:
     return ",".join(_escape_column_name(c) for c in columns)
 
 
-def _check_indexed(cursor: sqlite3.Cursor, entity_id: str) -> bool:
+def _check_indexed(
+    cursor: sqlite3.Cursor,
+    entity_id: str,
+    synapse_client: Optional[Synapse] = None,
+) -> bool:
     """Check if an entity has already been indexed.
     If so, it can skip reindexing it.
 
     Arguments:
         cursor: The cursor object from the connection to the SQLite database.
         entity_id: The entity ID to check.
+        synapse_client: If not passed in and caching was not disabled by `Synapse.allow_client_caching(False)` this will use the last created instance from the Synapse class constructor.
 
     Returns:
         True if the entity is already indexed.
@@ -180,10 +189,10 @@ def _check_indexed(cursor: sqlite3.Cursor, entity_id: str) -> bool:
     ).fetchone()
 
     if indexed_row:
-        logger.debug("%s already indexed, skipping", entity_id)
+        synapse_client.logger.debug(f"{entity_id} already indexed, skipping")
         return True
 
-    logger.debug("%s not yet indexed, indexing now", entity_id)
+    synapse_client.logger.debug(f"{entity_id} not yet indexed, indexing now")
     return False
 
 
@@ -569,7 +578,11 @@ def _update_migration_database(
 
 
 def _confirm_migration(
-    cursor: sqlite3.Cursor, dest_storage_location_id: str, force: bool = False
+    cursor: sqlite3.Cursor,
+    dest_storage_location_id: str,
+    force: bool = False,
+    *,
+    synapse_client: Optional[Synapse] = None,
 ) -> bool:
     """Confirm migration with user if in interactive mode.
 
@@ -578,6 +591,7 @@ def _confirm_migration(
         dest_storage_location_id: Destination storage location ID.
         force: If running in an interactive shell, migration requires an interactice confirmation.
             This can be bypassed by using the force=True option. Defaults to False.
+        synapse_client: If not passed in and caching was not disabled by `Synapse.allow_client_caching(False)` this will use the last created instance from the Synapse class constructor.
 
     Returns:
         True if migration should proceed, False otherwise.
@@ -592,7 +606,7 @@ def _confirm_migration(
     ).fetchone()[0]
 
     if count == 0:
-        logger.info("No items for migration.")
+        synapse_client.logger.info("No items for migration.")
         return False
 
     if sys.stdout.isatty():
@@ -601,11 +615,10 @@ def _confirm_migration(
         )
         return user_input.strip().lower() == "y"
     else:
-        logger.info(
-            "%s items for migration. "
+        synapse_client.logger.info(
+            f"{count} items for migration. "
             "force option not used, and console input not available to confirm migration, aborting. "
-            "Use the force option or run from an interactive shell to proceed with migration.",
-            count,
+            "Use the force option or run from an interactive shell to proceed with migration."
         )
         return False
 
@@ -770,7 +783,7 @@ async def index_files_for_migration_async(
             synapse_client=client,
         )
     except IndexingError as ex:
-        logger.exception(
+        client.logger.exception(
             f"Aborted due to failure to index entity {ex.entity_id} of type {ex.concrete_type}. "
             "Use continue_on_error=True to skip individual failures."
         )
@@ -793,7 +806,7 @@ async def _index_entity_async(
     include_table_files: bool,
     continue_on_error: bool,
     *,
-    synapse_client: "Synapse",
+    synapse_client: Optional[Synapse] = None,
 ) -> None:
     """Recursively index an entity and its children into migrations database.
 
@@ -807,7 +820,7 @@ async def _index_entity_async(
         file_version_strategy: Strategy for file versions.
         include_table_files: Whether to include table-attached files.
         continue_on_error: Whether to continue on errors.
-        synapse_client: The Synapse client.
+        synapse_client: If not passed in and caching was not disabled by `Synapse.allow_client_caching(False)` this will use the last created instance from the Synapse class constructor.
     """
     entity_id = utils.id_of(entity)
     retrieved_entity = await get_entity_type(
@@ -816,7 +829,7 @@ async def _index_entity_async(
     concrete_type = retrieved_entity.type
 
     # Check if already indexed
-    is_indexed = _check_indexed(cursor, entity_id)
+    is_indexed = _check_indexed(cursor, entity_id, synapse_client)
     try:
         if not is_indexed:
             if concrete_type == concrete_types.FILE_ENTITY:
@@ -867,7 +880,7 @@ async def _index_entity_async(
         raise
     except Exception as ex:
         if continue_on_error:
-            logger.warning(f"Error indexing entity {entity_id}: {ex}")
+            synapse_client.logger.warning(f"Error indexing entity {entity_id}: {ex}")
             tb_str = "".join(traceback.format_exception(type(ex), ex, ex.__traceback__))
             migration_type = MigrationType.from_concrete_type(concrete_type).value
             _record_indexing_error(cursor, entity_id, migration_type, parent_id, tb_str)
@@ -883,7 +896,7 @@ async def _index_file_entity_async(
     source_storage_location_ids: List[str],
     file_version_strategy: str,
     *,
-    synapse_client: "Synapse",
+    synapse_client: Optional[Synapse] = None,
 ) -> None:
     """Index a file entity for migration.
 
@@ -894,10 +907,10 @@ async def _index_file_entity_async(
         dest_storage_location_id: Destination storage location ID.
         source_storage_location_ids: List of source storage locations.
         file_version_strategy: Strategy for file versions.
-        synapse_client: The Synapse client.
+        synapse_client: If not passed in and caching was not disabled by `Synapse.allow_client_caching(False)` this will use the last created instance from the Synapse class constructor.
     """
     entity_id = utils.id_of(entity)
-    logger.info("Indexing file entity %s", entity_id)
+    synapse_client.logger.info(f"Indexing file entity {entity_id}")
 
     entity_versions: List[Tuple[Any, Optional[int]]] = []
 
@@ -941,7 +954,7 @@ async def _index_file_entity_async(
 async def _get_table_file_handle_rows_async(
     entity_id: str,
     *,
-    synapse_client: "Synapse",
+    synapse_client: Optional[Synapse] = None,
 ) -> List[Tuple[int, int, Dict[str, Any]]]:
     """Get the table file handle rows for a given entity.
 
@@ -955,7 +968,6 @@ async def _get_table_file_handle_rows_async(
     from synapseclient.models import Table
     from synapseclient.models.file import FileHandle
 
-    # Get file handle columns using the async API
     columns = await get_columns(table_id=entity_id, synapse_client=synapse_client)
     file_handle_columns = [c for c in columns if c.column_type == "FILEHANDLEID"]
 
@@ -994,7 +1006,7 @@ async def _index_table_entity_async(
     dest_storage_location_id: str,
     source_storage_location_ids: List[str],
     *,
-    synapse_client: "Synapse",
+    synapse_client: Optional[Synapse] = None,
 ) -> None:
     """Index a table entity's file attachments for migration.
 
@@ -1006,7 +1018,7 @@ async def _index_table_entity_async(
         source_storage_location_ids: List of source storage locations to filter.
         synapse_client: If not passed in and caching was not disabled by `Synapse.allow_client_caching(False)` this will use the last created instance from the Synapse class constructor.
     """
-    logger.info("Indexing table entity %s", entity_id)
+    synapse_client.logger.info(f"Indexing table entity {entity_id}")
     insert_values = []
     async for row_id, row_version, file_handles in _get_table_file_handle_rows_async(
         entity_id=entity_id, synapse_client=synapse_client
@@ -1048,7 +1060,7 @@ async def _index_container_async(
     include_table_files: bool,
     continue_on_error: bool,
     *,
-    synapse_client: "Synapse",
+    synapse_client: Optional[Synapse] = None,
 ) -> None:
     """Index a container (Project or Folder) and its children.
 
@@ -1068,7 +1080,7 @@ async def _index_container_async(
         entity_id=entity_id, synapse_client=synapse_client
     )
     concrete_type = retrieved_entity.type
-    logger.info(
+    synapse_client.logger.info(
         f'Indexing {concrete_type[concrete_type.rindex(".") + 1 :]} {entity_id}'
     )
 
@@ -1134,7 +1146,7 @@ async def _migrate_item_async(
     dest_storage_location_id: str,
     semaphore: asyncio.Semaphore,
     *,
-    synapse_client: "Synapse",
+    synapse_client: Optional[Synapse] = None,
 ) -> Dict[str, Any]:
     """Migrate a single item.
 
@@ -1209,17 +1221,16 @@ async def _create_new_file_version_async(
     entity_id: str,
     to_file_handle_id: str,
     *,
-    synapse_client: "Synapse",
+    synapse_client: Optional[Synapse] = None,
 ) -> None:
     """Create a new version of a file entity with the new file handle.
 
     Arguments:
         entity_id: The file entity ID.
         to_file_handle_id: The new file handle ID.
-        synapse_client: The Synapse client.
+        synapse_client: If not passed in and caching was not disabled by `Synapse.allow_client_caching(False)` this will use the last created instance from the Synapse class constructor.
     """
-    client = Synapse.get_client(synapse_client=synapse_client)
-    client.logger.info("Creating new version for file entity %s", entity_id)
+    synapse_client.logger.info(f"Creating new version for file entity {entity_id}")
 
     entity = await get_async(
         synapse_id=entity_id,
@@ -1236,30 +1247,23 @@ async def _migrate_file_version_async(
     from_file_handle_id: str,
     to_file_handle_id: str,
     *,
-    synapse_client: "Synapse",
+    synapse_client: Optional[Synapse] = None,
 ) -> None:
     """Migrate/update an existing file version with a new file handle.
 
     Arguments:
-        entity_id: The file entity ID.
-        version: The version number.
+        entity_id: The Synapse ID of the entity.
+        version: The version number of the entity.
         from_file_handle_id: The original file handle ID.
         to_file_handle_id: The new file handle ID.
-        synapse_client: The Synapse client.
+        synapse_client: If not passed in and caching was not disabled by `Synapse.allow_client_caching(False)` this will use the last created instance from the Synapse class constructor.
     """
-    client = Synapse.get_client(synapse_client=synapse_client)
-    client.logger.info(
-        "Updating file handle for file entity %s version %s", entity_id, version
-    )
-
-    await client.rest_put_async(
-        f"/entity/{entity_id}/version/{version}/filehandle",
-        body=json.dumps(
-            {
-                "oldFileHandleId": from_file_handle_id,
-                "newFileHandleId": to_file_handle_id,
-            }
-        ),
+    await update_entity_file_handle_version(
+        entity_id=entity_id,
+        version=version,
+        old_file_handle_id=from_file_handle_id,
+        new_file_handle_id=to_file_handle_id,
+        synapse_client=synapse_client,
     )
 
 
@@ -1267,7 +1271,7 @@ async def _migrate_table_attached_file_async(
     key: MigrationKey,
     to_file_handle_id: str,
     *,
-    synapse_client: "Synapse",
+    synapse_client: Optional[Synapse] = None,
 ) -> None:
     """Migrate/update a table attached file with a new file handle.
 
@@ -1367,17 +1371,25 @@ async def migrate_indexed_files_async(
     This is the second step in migrating files to a new storage location.
     Files must first be indexed using `index_files_for_migration_async`.
 
+    **Interactive confirmation:** When called from an interactive shell and
+    `force=False` (the default), this function will print the number of items
+    queued for migration and prompt the user to confirm before proceeding
+    (``"N items for migration to <location>. Proceed? (y/n)?``). If standard
+    output is not connected to an interactive terminal (e.g. a script or CI
+    environment), migration is aborted unless ``force=True`` is set.
+
     Arguments:
         db_path: Path to SQLite database created by index_files_for_migration_async.
         create_table_snapshots: Whether to create table snapshots before migrating. Defaults to True.
         continue_on_error: Whether to continue on individual migration errors. Defaults to False.
-        force: If running in an interactive shell, migration requires an interactice confirmation.
-            This can be bypassed by using the force=True option. Defaults to False.
-        max_concurrent_copies: Maximum concurrent file copy operations. Defaults to None.
+        force: Skip the interactive confirmation prompt and proceed with migration
+            automatically. Set to ``True`` when running non-interactively (scripts,
+            CI, automated pipelines). Defaults to False.
         synapse_client: If not passed in and caching was not disabled by `Synapse.allow_client_caching(False)` this will use the last created instance from the Synapse class constructor.
 
     Returns:
-        MigrationResult object or None if migration was aborted.
+        MigrationResult object, or None if migration was aborted (user declined
+        the confirmation prompt, or the session is non-interactive and force=False).
     """
     client = Synapse.get_client(synapse_client=synapse_client)
 
@@ -1395,9 +1407,11 @@ async def migrate_indexed_files_async(
         dest_storage_location_id = existing_settings.dest_storage_location_id
 
         # Confirm migration
-        confirmed = _confirm_migration(cursor, dest_storage_location_id, force)
+        confirmed = _confirm_migration(
+            cursor, dest_storage_location_id, force, synapse_client=client
+        )
         if not confirmed:
-            logger.info("Migration aborted.")
+            client.logger.info("Migration aborted.")
             return None
 
         # Execute migration
@@ -1419,7 +1433,7 @@ async def _execute_migration_async(
     create_table_snapshots: bool,
     continue_on_error: bool,
     *,
-    synapse_client: "Synapse",
+    synapse_client: Optional[Synapse] = None,
 ) -> None:
     """Execute the actual file migration.
 
@@ -1430,7 +1444,7 @@ async def _execute_migration_async(
         create_table_snapshots: Whether to create table snapshots.
         continue_on_error: Whether to continue on errors.
         max_concurrent: Maximum concurrent operations.
-        synapse_client: The Synapse client.
+        synapse_client: If not passed in and caching was not disabled by `Synapse.allow_client_caching(False)` this will use the last created instance from the Synapse class constructor.
     """
     pending_file_handles: Set[str] = set()
     completed_file_handles: Set[str] = set()
