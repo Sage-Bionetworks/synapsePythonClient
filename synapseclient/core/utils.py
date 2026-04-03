@@ -1567,3 +1567,23 @@ def test_import_pandas() -> None:
     # catch other errors (see SYNPY-177)
     except:  # noqa
         raise
+
+
+def test_import_sqlite3() -> None:
+    """This function is called within other functions and methods to ensure that sqlite3 is installed."""
+    try:
+        import sqlite3  # noqa F401
+    # used to catch when sqlite3 isn't installed
+    except ModuleNotFoundError:
+        raise ModuleNotFoundError(
+            """\n\nThe sqlite3 package is required for this function!\n
+        Most functions in the synapseclient package don't require sqlite3,
+        but some do. sqlite3 is included in the Python standard library but
+        may be missing in certain minimal environments. Please refer to the
+        Python documentation at: https://docs.python.org/3/library/sqlite3.html
+        or ensure your Python installation includes the sqlite3 module.
+        \n\n\n"""
+        )
+    # catch other errors (see SYNPY-177)
+    except:  # noqa
+        raise

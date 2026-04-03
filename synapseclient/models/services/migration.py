@@ -38,6 +38,7 @@ from synapseclient.core.constants import concrete_types
 from synapseclient.core.exceptions import SynapseError
 from synapseclient.core.upload.multipart_upload import MAX_NUMBER_OF_PARTS
 from synapseclient.core.upload.multipart_upload_async import multipart_copy_async
+from synapseclient.core.utils import test_import_sqlite3
 from synapseclient.entity import Entity
 
 if TYPE_CHECKING:
@@ -728,6 +729,7 @@ async def index_files_for_migration_async(
     Raises:
         ValueError: If the file_version_strategy is invalid or if skipping both file entities and table attached files.
     """
+    test_import_sqlite3()
     client = Synapse.get_client(synapse_client=synapse_client)
 
     # Validate parameters
@@ -1391,6 +1393,7 @@ async def migrate_indexed_files_async(
         MigrationResult object, or None if migration was aborted (user declined
         the confirmation prompt, or the session is non-interactive and force=False).
     """
+    test_import_sqlite3()
     client = Synapse.get_client(synapse_client=synapse_client)
 
     # Retrieve settings
