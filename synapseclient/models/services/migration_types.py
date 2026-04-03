@@ -75,7 +75,7 @@ class MigrationType(Enum):
         raise ValueError(f"Unhandled concrete type: {concrete_type}")
 
 
-@dataclass
+@dataclass(frozen=True)
 class MigrationKey:
     """Unique identifier for a entry in the migrations database.
 
@@ -93,25 +93,10 @@ class MigrationKey:
     row_id: Optional[int] = None
     col_id: Optional[int] = None
 
-    def __hash__(self) -> int:
-        return hash((self.id, self.type, self.version, self.row_id, self.col_id))
-
-    def __eq__(self, other: object) -> bool:
-        if not isinstance(other, MigrationKey):
-            return False
-        return (
-            self.id == other.id
-            and self.type == other.type
-            and self.version == other.version
-            and self.row_id == other.row_id
-            and self.col_id == other.col_id
-        )
-
 
 @dataclass
 class MigrationSettings:
     """Settings for a migration index stored in the database.
-    TODO: check if this is used anywhere
 
     Attributes:
         root_id: The root entity ID being migrated.
