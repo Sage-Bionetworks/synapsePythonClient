@@ -11,6 +11,7 @@ from synapseclient.core.constants import concrete_types
 from synapseclient.core.constants.concrete_types import FILE_ENTITY
 from synapseclient.core.exceptions import SynapseNotFoundError
 from synapseclient.models import FailureStrategy, File, Project
+from synapseclient.models.project_setting import ProjectSetting
 from synapseclient.models.services.migration_types import MigrationResult
 
 PROJECT_ID = "syn123"
@@ -701,151 +702,167 @@ class TestStorageLocationMixin:
     STORAGE_LOCATION_ID = 12345
     SETTING_ID = "setting_abc"
 
-    EXAMPLE_PROJECT_SETTING = {
-        "id": "setting_abc",
-        "concreteType": "org.sagebionetworks.repo.model.project.UploadDestinationListSetting",
-        "settingsType": "upload",
-        "locations": [12345],
-        "projectId": PROJECT_ID,
-    }
-
     @pytest.fixture(autouse=True, scope="function")
     def init_syn(self, syn: Synapse) -> None:
         self.syn = syn
+
+    @pytest.fixture()
+    def example_setting(self):
+        return ProjectSetting(
+            id=self.SETTING_ID,
+            project_id=PROJECT_ID,
+            settings_type="upload",
+            locations=[self.STORAGE_LOCATION_ID],
+        )
 
     # -------------------------------------------------------------------------
     # set_storage_location_async
     # -------------------------------------------------------------------------
 
     async def test_set_storage_location_creates_new_when_no_existing_setting(
-        self,
+        self, example_setting
     ) -> None:
         """Test that when there is no existing project setting and we set a storage location, a new project setting is created."""
         project = Project(id=PROJECT_ID)
-        with patch(
-            "synapseclient.models.mixins.storage_location_mixin.get_project_setting",
-            new_callable=AsyncMock,
-            return_value=None,
-        ) as mocked_get, patch(
-            "synapseclient.models.mixins.storage_location_mixin.create_project_setting",
-            new_callable=AsyncMock,
-            return_value=self.EXAMPLE_PROJECT_SETTING,
-        ) as mocked_create:
+
+        with patch.object(
+            ProjectSetting, "get_async", new_callable=AsyncMock, return_value=None
+        ), patch.object(
+            ProjectSetting, "store_async", autospec=True, return_value=example_setting
+        ) as mocked_store:
             result = await project.set_storage_location_async(
                 storage_location_id=self.STORAGE_LOCATION_ID,
                 synapse_client=self.syn,
             )
 
-            mocked_get.assert_called_once_with(
-                project_id=PROJECT_ID,
-                setting_type="upload",
-                synapse_client=self.syn,
-            )
+        stored_setting = mocked_store.call_args.args[0]
+        assert stored_setting.project_id == PROJECT_ID
+        assert stored_setting.locations == [self.STORAGE_LOCATION_ID]
+        assert result.id == self.SETTING_ID
 
-            mocked_create.assert_called_once_with(
-                request={
-                    "concreteType": concrete_types.UPLOAD_DESTINATION_LIST_SETTING,
-                    "settingsType": "upload",
-                    "locations": [self.STORAGE_LOCATION_ID],
-                    "projectId": PROJECT_ID,
-                },
-                synapse_client=self.syn,
-            )
-
-            assert result == self.EXAMPLE_PROJECT_SETTING
-
-    async def test_set_storage_location_updates_existing_setting(self) -> None:
+    async def test_set_storage_location_updates_existing_setting(
+        self, example_setting
+    ) -> None:
         """Test that when there is an existing project setting and we set a storage location, the existing project setting is updated."""
         project = Project(id=PROJECT_ID)
 
-        updated_setting = {**self.EXAMPLE_PROJECT_SETTING, "locations": [99999]}
+        updated_setting = ProjectSetting(
+            id=self.SETTING_ID,
+            project_id=PROJECT_ID,
+            settings_type="upload",
+            locations=[99999],
+        )
 
-        with patch(
-            "synapseclient.models.mixins.storage_location_mixin.get_project_setting",
+        with patch.object(
+            ProjectSetting,
+            "get_async",
             new_callable=AsyncMock,
-            side_effect=[self.EXAMPLE_PROJECT_SETTING, updated_setting],
-        ) as mocked_get, patch(
-            "synapseclient.models.mixins.storage_location_mixin.update_project_setting",
-            new_callable=AsyncMock,
-            return_value=None,
-        ) as mocked_update:
+            return_value=example_setting,
+        ), patch.object(
+            ProjectSetting, "store_async", autospec=True, return_value=updated_setting
+        ) as mocked_store:
             result = await project.set_storage_location_async(
                 storage_location_id=99999,
                 synapse_client=self.syn,
             )
 
-            assert mocked_get.call_count == 2
-            mocked_get.assert_any_call(
-                project_id=PROJECT_ID,
-                setting_type="upload",
-                synapse_client=self.syn,
-            )
-
-            mocked_update.assert_called_once_with(
-                request={**self.EXAMPLE_PROJECT_SETTING, "locations": [99999]},
-                synapse_client=self.syn,
-            )
-
-            assert result == updated_setting
+        stored_setting = mocked_store.call_args.args[0]
+        assert stored_setting.locations == [99999]
+        assert result.locations == [99999]
 
     async def test_set_storage_location_use_default_storage_location_instead(
-        self,
+        self, example_setting
     ) -> None:
-        """Test that when there is an existing project setting and we set a storage location to None, the default storage location is used."""
+        """Test that when storage_location_id is not provided, the default Synapse S3 storage location is used."""
+        from synapseclient.models.mixins.storage_location_mixin import (
+            DEFAULT_STORAGE_LOCATION_ID,
+        )
+
         project = Project(id=PROJECT_ID)
 
-        with patch(
-            "synapseclient.models.mixins.storage_location_mixin.get_project_setting",
+        default_setting = ProjectSetting(
+            id=self.SETTING_ID,
+            project_id=PROJECT_ID,
+            settings_type="upload",
+            locations=[DEFAULT_STORAGE_LOCATION_ID],
+        )
+
+        with patch.object(
+            ProjectSetting,
+            "get_async",
             new_callable=AsyncMock,
-            side_effect=[
-                self.EXAMPLE_PROJECT_SETTING,
-                {**self.EXAMPLE_PROJECT_SETTING, "locations": [1]},
-            ],
-        ) as mocked_get, patch(
-            "synapseclient.models.mixins.storage_location_mixin.update_project_setting",
-            new_callable=AsyncMock,
-            return_value={**self.EXAMPLE_PROJECT_SETTING, "locations": [1]},
-        ) as mocked_update:
+            return_value=example_setting,
+        ), patch.object(
+            ProjectSetting, "store_async", autospec=True, return_value=default_setting
+        ) as mocked_store:
             result = await project.set_storage_location_async(
-                storage_location_id=None,
                 synapse_client=self.syn,
             )
 
-            assert mocked_get.call_count == 2
-            mocked_get.assert_any_call(
-                project_id=PROJECT_ID,
-                setting_type="upload",
-                synapse_client=self.syn,
-            )
+        stored_setting = mocked_store.call_args.args[0]
+        assert stored_setting.locations == [DEFAULT_STORAGE_LOCATION_ID]
+        assert result.locations == [DEFAULT_STORAGE_LOCATION_ID]
 
-            mocked_update.assert_called_once_with(
-                request={**self.EXAMPLE_PROJECT_SETTING, "locations": [1]},
-                synapse_client=self.syn,
-            )
-
-            assert result == {**self.EXAMPLE_PROJECT_SETTING, "locations": [1]}
-
-    async def test_set_storage_location_accepts_list_of_ids(self) -> None:
-        """Test that when we set a storage location to a list of ids, the project setting is updated with the list of ids."""
+    async def test_set_storage_location_accepts_list_of_ids(
+        self, example_setting
+    ) -> None:
+        """Test that when storage_location_id is a list of integers, all are stored as-is."""
         project = Project(id=PROJECT_ID)
 
-        # WHEN storage_location_id is a list
-        with patch(
-            "synapseclient.models.mixins.storage_location_mixin.get_project_setting",
-            new_callable=AsyncMock,
-            return_value=None,
-        ), patch(
-            "synapseclient.models.mixins.storage_location_mixin.create_project_setting",
-            new_callable=AsyncMock,
-            return_value=self.EXAMPLE_PROJECT_SETTING,
-        ) as mocked_create:
+        with patch.object(
+            ProjectSetting, "get_async", new_callable=AsyncMock, return_value=None
+        ), patch.object(
+            ProjectSetting, "store_async", autospec=True, return_value=example_setting
+        ) as mocked_store:
             await project.set_storage_location_async(
                 storage_location_id=[111, 222, 333],
                 synapse_client=self.syn,
             )
 
-            call_args = mocked_create.call_args
-            assert call_args.kwargs["request"]["locations"] == [111, 222, 333]
+        stored_setting = mocked_store.call_args.args[0]
+        assert stored_setting.locations == [111, 222, 333]
+
+    async def test_partial_update_locations_via_get_and_store(self) -> None:
+        """Test the partial update pattern: retrieve the existing setting, append a
+        location, and store — without losing previously configured locations."""
+        from synapseclient.models.project_setting import ProjectSetting
+
+        project = Project(id=PROJECT_ID)
+
+        existing_setting = ProjectSetting(
+            id=self.SETTING_ID,
+            project_id=PROJECT_ID,
+            settings_type="upload",
+            locations=[111, 222],
+        )
+        updated_setting = ProjectSetting(
+            id=self.SETTING_ID,
+            project_id=PROJECT_ID,
+            settings_type="upload",
+            locations=[111, 222, 333],
+        )
+
+        with patch.object(
+            ProjectSetting,
+            "get_async",
+            new_callable=AsyncMock,
+            return_value=existing_setting,
+        ), patch.object(
+            ProjectSetting,
+            "store_async",
+            new_callable=AsyncMock,
+            return_value=updated_setting,
+        ) as mocked_store:
+            setting = await project.get_project_setting_async(
+                setting_type="upload",
+                synapse_client=self.syn,
+            )
+            setting.locations.append(333)
+            result = await setting.store_async(synapse_client=self.syn)
+
+        # THEN all three locations are present — the existing ones were preserved
+        assert result.locations == [111, 222, 333]
+        mocked_store.assert_awaited_once_with(synapse_client=self.syn)
 
     async def test_set_storage_location_raises_when_no_id(self) -> None:
         """Test that when a project without an id, an error is raised."""
@@ -861,36 +878,23 @@ class TestStorageLocationMixin:
     # get_project_setting_async
     # -------------------------------------------------------------------------
 
-    async def test_get_project_setting_returns_setting(self) -> None:
+    async def test_get_project_setting_returns_setting(self, example_setting) -> None:
         """Test that when a project setting exists, it is returned."""
         project = Project(id=PROJECT_ID)
 
-        with patch(
-            "synapseclient.models.mixins.storage_location_mixin.get_project_setting",
+        with patch.object(
+            ProjectSetting,
+            "get_async",
             new_callable=AsyncMock,
-            return_value=self.EXAMPLE_PROJECT_SETTING,
-        ) as mocked_get:
+            return_value=example_setting,
+        ):
             result = await project.get_project_setting_async(
                 setting_type="upload",
                 synapse_client=self.syn,
             )
 
-            mocked_get.assert_called_once_with(
-                project_id=PROJECT_ID,
-                setting_type="upload",
-                synapse_client=self.syn,
-            )
-            assert result == self.EXAMPLE_PROJECT_SETTING
-
-    async def test_get_project_setting_raises_for_invalid_type(self) -> None:
-        """Test that when an invalid setting_type is provided, an error is raised."""
-        project = Project(id=PROJECT_ID)
-
-        with pytest.raises(ValueError, match="Invalid setting_type: invalid_type"):
-            await project.get_project_setting_async(
-                setting_type="invalid_type",
-                synapse_client=self.syn,
-            )
+        assert result.id == self.SETTING_ID
+        assert result.locations == [self.STORAGE_LOCATION_ID]
 
     async def test_get_project_setting_raises_when_no_id(self) -> None:
         """Test that when a project without an id, an error is raised."""
@@ -907,28 +911,25 @@ class TestStorageLocationMixin:
         """Test that when a project setting exists, it is deleted."""
         project = Project(id=PROJECT_ID)
 
-        with patch(
-            "synapseclient.models.mixins.storage_location_mixin.delete_project_setting",
-            new_callable=AsyncMock,
-            return_value=None,
+        with patch.object(
+            ProjectSetting, "delete_async", new_callable=AsyncMock, return_value=None
         ) as mocked_delete:
             await project.delete_project_setting_async(
                 setting_id=self.SETTING_ID,
                 synapse_client=self.syn,
             )
 
-            mocked_delete.assert_called_once_with(
-                setting_id=self.SETTING_ID,
-                synapse_client=self.syn,
-            )
+        mocked_delete.assert_awaited_once_with(synapse_client=self.syn)
 
     async def test_delete_project_setting_raises_when_no_id(self) -> None:
         """Test that when a project without an id, an error is raised."""
-        project = Project()
+        project = Project(id=PROJECT_ID)
 
-        with pytest.raises(ValueError, match="The entity must have an id set."):
+        with pytest.raises(
+            ValueError, match="The id is required to delete a project setting."
+        ):
             await project.delete_project_setting_async(
-                setting_id=self.SETTING_ID,
+                setting_id=None,
                 synapse_client=self.syn,
             )
 
