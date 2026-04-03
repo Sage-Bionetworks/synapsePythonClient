@@ -47,17 +47,21 @@ jobs:
       deployments: write
       security-events: write
 
-  # If scan failed, bump tag and rebuild the image
-  bump-tag:
+  # If scan failed, compute next version (dry run) and attempt a rebuild.
+  # The tag is only created after a successful rebuild to prevent
+  # infinite bump loops when a CVE fix requires a major version upgrade
+  # that a simple rebuild cannot provide.
+  compute-next-version:
     needs: periodic-scan
     runs-on: ubuntu-latest
     if: ${{ !cancelled() && needs.periodic-scan.outputs.trivy_conclusion == 'failure' }}
     steps:
-      - name: Bump version and push tag
+      - name: Compute next version (dry run — no tag created)
         id: tag_version
         uses: mathieudutour/github-tag-action@a22cf08638b34d5badda920f9daf6e72c477b07b # v6.2
         with:
           github_token: ${{ secrets.GITHUB_TOKEN }}
+          dry_run: true
       - name: Parse new version
         id: parsed
         uses: booxmedialtd/ws-action-parse-semver@7784200024d6b3fc01253e617ec0168daf603de3 # v1.4.7
@@ -68,19 +72,85 @@ jobs:
       new_version: ${{ steps.tag_version.outputs.new_version }}
       new_major_minor: ${{ steps.parsed.outputs.major }}.${{ steps.parsed.outputs.minor }}
     permissions:
-      contents: write
-      deployments: write
-      security-events: write
+      contents: read
 
   update-image:
-    needs: [get-image-reference, periodic-scan, bump-tag]
+    needs: [get-image-reference, periodic-scan, compute-next-version]
     if: ${{ !cancelled() && needs.periodic-scan.outputs.trivy_conclusion == 'failure' }}
     uses: "./.github/workflows/docker_build.yml"
     with:
-      REF_TO_CHECKOUT: ${{ needs.bump-tag.outputs.new_tag }}
-      IMAGE_REFERENCES: "${{ needs.get-image-reference.outputs.image_repo }}:${{ needs.bump-tag.outputs.new_version }},${{ needs.get-image-reference.outputs.image_repo }}:${{ needs.bump-tag.outputs.new_major_minor }}"
+      REF_TO_CHECKOUT: ${{ needs.get-image-reference.outputs.image_tag }}
+      IMAGE_REFERENCES: "${{ needs.get-image-reference.outputs.image_repo }}:${{ needs.compute-next-version.outputs.new_version }},${{ needs.get-image-reference.outputs.image_repo }}:${{ needs.compute-next-version.outputs.new_major_minor }}"
     permissions:
       contents: read
       deployments: write
       security-events: write
       packages: write
+
+  # Only create the git tag after the rebuilt image passes Trivy and is pushed
+  create-tag:
+    needs: [periodic-scan, update-image]
+    runs-on: ubuntu-latest
+    if: ${{ !cancelled() && needs.periodic-scan.outputs.trivy_conclusion == 'failure' && needs.update-image.result == 'success' }}
+    steps:
+      - name: Bump version and push tag
+        uses: mathieudutour/github-tag-action@a22cf08638b34d5badda920f9daf6e72c477b07b # v6.2
+        with:
+          github_token: ${{ secrets.GITHUB_TOKEN }}
+    permissions:
+      contents: write
+
+  # If the rebuild still has vulnerabilities, open a GitHub issue for manual triage
+  # instead of looping endlessly
+  alert-on-failure:
+    needs: [periodic-scan, update-image]
+    runs-on: ubuntu-latest
+    if: ${{ !cancelled() && needs.periodic-scan.outputs.trivy_conclusion == 'failure' && needs.update-image.result == 'failure' }}
+    permissions:
+      issues: write
+    steps:
+      - name: Check for existing open issue
+        id: check_issue
+        uses: actions/github-script@60a0d83039c74a4aee543508d2ffcb1c3799cdea # v7.0.1
+        with:
+          script: |
+            const issues = await github.rest.issues.listForRepo({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              state: 'open',
+              labels: 'trivy,security',
+              per_page: 1
+            });
+            return issues.data.length > 0 ? 'true' : 'false';
+          result-encoding: string
+
+      - name: Create GitHub issue for unresolved vulnerabilities
+        if: steps.check_issue.outputs.result == 'false'
+        uses: actions/github-script@60a0d83039c74a4aee543508d2ffcb1c3799cdea # v7.0.1
+        with:
+          script: |
+            await github.rest.issues.create({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              title: 'Trivy: unresolved container vulnerabilities after rebuild',
+              body: [
+                '## Summary',
+                '',
+                'The daily Trivy periodic scan found Critical/High vulnerabilities in the latest published Docker image.',
+                'An automated rebuild was attempted but the rebuilt image **still has vulnerabilities**,',
+                'indicating the fix requires a manual dependency update rather than a base image refresh.',
+                '',
+                '## Next steps',
+                '',
+                '- Review findings in the [Security tab](../security/code-scanning)',
+                '- Update the affected dependencies to a version that includes the fix',
+                '- Or add the CVE ID(s) to a `.trivyignore` file if the risk is accepted',
+                '',
+                '## Details',
+                '',
+                `- **Workflow run:** ${context.serverUrl}/${context.repo.owner}/${context.repo.repo}/actions/runs/${context.runId}`,
+                `- **Triggered at:** ${new Date().toISOString()}`,
+              ].join('\n'),
+              labels: ['trivy', 'security']
+            });
+
