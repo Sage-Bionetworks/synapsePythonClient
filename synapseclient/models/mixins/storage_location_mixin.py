@@ -279,13 +279,17 @@ class ProjectSettingsMixin(StorageLocationConfigurable):
     ) -> "ProjectSetting":
         """Set the upload storage location for this entity. This configures where
         files uploaded to this entity will be stored.
-        By default, the default storage location is used.
-        If the storage location is not provided, the default storage location is used.
+
+        **This is a destructive update.** The provided `storage_location_id` value(s)
+        will **replace** any storage locations previously configured on this entity.
+        To add a storage location without removing existing ones, first retrieve the
+        current setting via `get_project_setting_async`, append to its `locations`
+        list, and call `store_async` on the returned `ProjectSetting` directly.
 
         Arguments:
             storage_location_id: The storage location ID(s) to set. Can be a single
-                ID, a list of IDs (first is default, max 10), or None to use
-                Synapse default storage. By default, the default Synapse S3 storage location is used.
+                ID, a list of IDs (first is default, max 10). By default, the
+                default Synapse S3 storage location is used.
             synapse_client: If not passed in and caching was not disabled by
                 `Synapse.allow_client_caching(False)` this will use the last created
                 instance from the Synapse class constructor.
@@ -296,8 +300,8 @@ class ProjectSettingsMixin(StorageLocationConfigurable):
         Raises:
             ValueError: If the entity does not have an id set.
 
-        Example: Using this function
-            Set storage location on a folder:
+        Example: Replace all storage locations
+            Fully replace the storage location on a folder with a single location:
 
                 import asyncio
                 from synapseclient import Synapse
@@ -312,6 +316,25 @@ class ProjectSettingsMixin(StorageLocationConfigurable):
                         storage_location_id=12345
                     )
                     print(setting)
+
+                asyncio.run(main())
+
+        Example: Partial update — add a storage location without removing existing ones
+            Retrieve the current setting and append a new location:
+
+                import asyncio
+                from synapseclient import Synapse
+                from synapseclient.models import Folder
+
+                syn = Synapse()
+                syn.login()
+
+                async def main():
+                    folder = await Folder(id="syn123").get_async()
+                    setting = await folder.get_project_setting_async(setting_type="upload")
+                    if setting:
+                        setting.locations.append(67890)
+                        await setting.store_async()
 
                 asyncio.run(main())
         """
