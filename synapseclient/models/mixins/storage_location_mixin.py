@@ -1,10 +1,11 @@
 """Mixins for entities that can have their storage location and project settings configured."""
 
 import asyncio
-from typing import TYPE_CHECKING, Any, List, Optional, Union
+from typing import Any, List, Optional, Union
 
 from synapseclient import Synapse
 from synapseclient.core.async_utils import async_to_sync, otel_trace_method
+from synapseclient.models.project_setting import ProjectSetting
 from synapseclient.models.protocols.storage_location_mixin_protocol import (
     StorageLocationConfigurableSynchronousProtocol,
 )
@@ -15,9 +16,6 @@ from synapseclient.models.services.migration import (
     migrate_indexed_files_async as _migrate_indexed_files_async,
 )
 from synapseclient.models.services.migration_types import MigrationResult
-
-if TYPE_CHECKING:
-    from synapseclient.models.project_setting import ProjectSetting
 
 # Default storage location ID used by Synapse
 DEFAULT_STORAGE_LOCATION_ID = 1
@@ -200,6 +198,12 @@ class StorageLocationConfigurable(StorageLocationConfigurableSynchronousProtocol
         This is the second step in migrating files to a new storage location.
         Files must first be indexed using `index_files_for_migration`.
 
+        **Interactive confirmation:** When called from an interactive shell and
+        ``force=False`` (the default), this method will print the number of items
+        queued for migration and prompt for confirmation before proceeding. If
+        standard output is not connected to an interactive terminal (e.g. a script
+        or CI environment), migration is aborted unless ``force=True`` is set.
+
         Arguments:
             db_path: Path to the SQLite database file created by
                 `index_files_for_migration`. You can get this from the
@@ -207,15 +211,18 @@ class StorageLocationConfigurable(StorageLocationConfigurableSynchronousProtocol
             create_table_snapshots: Whether to create table snapshots before
                 migrating table files.
             continue_on_error: Whether to continue migration if an error occurs.
-            force: Whether to force migration of files that have already been
-                migrated. Also bypasses interactive confirmation.
+            force: Skip the interactive confirmation prompt and proceed with
+                migration automatically. Set to ``True`` when running
+                non-interactively (scripts, CI, automated pipelines).
+                Defaults to False.
             synapse_client: If not passed in and caching was not disabled by
                 `Synapse.allow_client_caching(False)` this will use the last created
                 instance from the Synapse class constructor.
 
         Returns:
             A MigrationResult object containing migration statistics, or None
-            if the user declined the confirmation prompt.
+            if migration was aborted (user declined the confirmation prompt, or
+            the session is non-interactive and force=False).
 
         Example: Migrating indexed files
             Migrate previously indexed files:
@@ -338,8 +345,6 @@ class ProjectSettingsMixin(StorageLocationConfigurable):
 
                 asyncio.run(main())
         """
-        from synapseclient.models.project_setting import ProjectSetting
-
         if not self.id:
             raise ValueError("The entity must have an id set.")
 
@@ -404,8 +409,6 @@ class ProjectSettingsMixin(StorageLocationConfigurable):
 
                 asyncio.run(main())
         """
-        from synapseclient.models.project_setting import ProjectSetting
-
         if not self.id:
             raise ValueError("The entity must have an id set.")
 
@@ -452,4 +455,6 @@ class ProjectSettingsMixin(StorageLocationConfigurable):
 
                 asyncio.run(main())
         """
+        if not setting_id:
+            raise ValueError("The id is required to delete a project setting.")
         await ProjectSetting(id=setting_id).delete_async(synapse_client=synapse_client)
