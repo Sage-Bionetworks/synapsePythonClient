@@ -51,7 +51,7 @@ Sync wrapper smoke tests are skipped on Python 3.14+ — `@async_to_sync` raises
   ```python
   @pytest.fixture(scope="module")
   def project(syn, schedule_for_cleanup):
-      project = syn.store(Project(name=str(uuid.uuid4())))
+      project = Project(name=str(uuid.uuid4())).store(synapse_client=syn)
       schedule_for_cleanup(project)
       return project
   ```
