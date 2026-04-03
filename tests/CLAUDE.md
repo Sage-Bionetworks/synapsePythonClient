@@ -6,8 +6,10 @@ Test suite for the Synapse Python Client. Unit tests run without network access;
 
 ## Conventions
 
-### Write async tests only
-Do not create synchronous test files. The `@async_to_sync` decorator is validated by a dedicated smoke test (`tests/integration/synapseclient/models/synchronous/test_sync_wrapper_smoke.py`). Duplicate sync tests were removed to cut CI cost and maintenance burden.
+### Prefer async tests for new code
+For new or significantly refactored tests, write async tests only and avoid adding new synchronous test modules. The `@async_to_sync` decorator is validated by a dedicated smoke test (`tests/integration/synapseclient/models/synchronous/test_sync_wrapper_smoke.py`). Legacy synchronous unit tests (under `tests/unit/synapseclient/`) still exist and are maintained, but should not be expanded.
+
+Use `pytest.mark.parametrize` when possible to merge similar tests into one test.
 
 ### Unit tests (`tests/unit/`)
 - `pytest-socket` blocks all network calls (unix sockets allowed on non-Windows for async event loop). On Windows, socket disabling is skipped entirely — tests still run but are not network-isolated.
@@ -21,6 +23,7 @@ Do not create synchronous test files. The `@async_to_sync` decorator is validate
 ### Integration tests (`tests/integration/`)
 - All async tests share one event loop: `asyncio_default_fixture_loop_scope = session`
 - `schedule_for_cleanup(item)` — defer entity/file cleanup to session teardown. Always use this instead of inline deletion. Cleanup list is reversed before execution for dependency ordering (children deleted before parents).
+- Use shared resources when possible via fixtures in `conftest.py` files (e.g., `project_model`, `project`). Refer to existing integration tests for the pattern.
 - Per-worker project fixtures (`project_model`, `project`) created during session setup
 - `--reruns 3` for flaky retry, `-n 8 --dist loadscope` for parallelism
 - OpenTelemetry tracing opt-in via `SYNAPSE_INTEGRATION_TEST_OTEL_ENABLED` env var

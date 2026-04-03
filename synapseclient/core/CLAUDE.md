@@ -32,7 +32,7 @@ Provider chain tries in order: login args → config file → env var (`SYNAPSE_
 - Download validates MD5 post-transfer, raises `SynapseMd5MismatchError` on mismatch
 - Progress via `tqdm`; multi-threaded uploads suppress per-file messages via `cumulative_transfer_progress`
 
-### concrete_types.py
+### concrete_types.py (`core/constants/concrete_types.py`)
 Maps Java class names from Synapse REST API for polymorphic deserialization. When adding a new entity type, add its concrete type string here AND in `api/entity_factory.py` type map AND in `models/mixins/asynchronous_job.py` ASYNC_JOB_URIS if it's an async job type.
 
 ### Key reusable utilities (`utils.py`)

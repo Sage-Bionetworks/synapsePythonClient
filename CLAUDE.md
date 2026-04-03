@@ -95,8 +95,8 @@ Data flow: User → `operations/` factory → model async methods → `api/` ser
 ## Constraints
 
 - Do not use Pydantic for models — the codebase uses stdlib dataclasses with custom serialization. Mixing would break the `@async_to_sync` decorator and `fill_from_dict()` pattern.
-- Do not write synchronous test files — write async tests only. The `@async_to_sync` decorator is validated by a dedicated smoke test. Duplicate sync tests were removed to cut CI cost.
-- Unit tests must not make network calls — `pytest-socket` blocks all sockets. Use `pytest-mock` for HTTP mocking.
+- For new tests, prefer async test modules. Existing synchronous unit tests under `tests/unit/` are retained and maintained; the `@async_to_sync` decorator is covered by a dedicated smoke test, so avoid adding duplicate sync/async test coverage.
+- On non-Windows platforms, unit tests must not make external network calls — `pytest-socket` blocks internet-facing sockets while allowing Unix domain sockets. Socket blocking is skipped on Windows. Use `pytest-mock` for HTTP mocking.
 - `develop` is the default/main branch, not `main` or `master`. PRs target `develop`.
 - Legacy classes in root `synapseclient/` (entity.py, table.py, etc.) are kept for backwards compatibility. New features go in `models/` using the dataclass pattern.
 - Avoid adding new methods to `client.py` (9600+ lines) — prefer the `api/` + `models/` layered pattern.
@@ -111,3 +111,7 @@ Data flow: User → `operations/` factory → model async methods → `api/` ser
 - Integration fixtures create per-worker Synapse projects; use `schedule_for_cleanup()` for teardown
 - Auth env vars: `SYNAPSE_AUTH_TOKEN` (bearer token), `SYNAPSE_PROFILE` (config file profile, default: `"default"`), `SYNAPSE_TOKEN_AWS_SSM_PARAMETER_NAME` (AWS SSM path)
 - CI runs integration tests only on Python 3.10 and 3.14 (oldest + newest) to limit Synapse server load
+
+## Maintenance
+
+Each CLAUDE.md file has a `<!-- Last reviewed: YYYY-MM -->` header. Update this when the file is reviewed or modified. If a code change invalidates guidance in a CLAUDE.md file, update the guidance in the same PR.
