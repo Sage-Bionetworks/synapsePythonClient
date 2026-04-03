@@ -153,4 +153,3 @@ jobs:
               ].join('\n'),
               labels: ['trivy', 'security']
             });
-
