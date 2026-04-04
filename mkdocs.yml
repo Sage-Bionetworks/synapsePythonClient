@@ -59,6 +59,7 @@ nav:
       # - Using Entity Views: guides/views.md
       - Data Storage: guides/data_storage.md
       - Access the REST API: guides/accessing_the_rest_api.md
+      - Synapse MCP Server: guides/synapse_mcp.md
       - Extensions:
           - Curator JSONschemas: guides/extensions/curator/schema_operations.md
           - Curator: guides/extensions/curator/metadata_curation.md
