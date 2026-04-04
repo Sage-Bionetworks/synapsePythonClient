@@ -2,6 +2,8 @@
 
 The [Synapse MCP server](https://github.com/Sage-Bionetworks/synapse-mcp) implements the [Model Context Protocol (MCP)](https://modelcontextprotocol.io/) and lets AI assistants (Claude, GitHub Copilot, Cursor, and others) directly query Synapse — search for datasets, inspect entity metadata, explore project hierarchies, and trace provenance — without you writing any code.
 
+The server is implemented in Python and built on top of this `synapseclient` package, so its behavior and capabilities mirror what you can do programmatically through the Python client.
+
 !!! warning "Terms of Service"
     Using the Synapse MCP server with consumer AI services that store conversation data may violate the Synapse Terms of Service prohibition on data redistribution. Prefer enterprise deployments with data-residency guarantees or self-hosted models when working with sensitive or restricted datasets.
 
@@ -62,15 +64,13 @@ Configure your MCP client to point to `http://localhost:8000/mcp` (or the port s
 
 ## Available tools
 
-Once connected, your AI assistant gains access to the following tools:
+For the full and up-to-date list of tools, see the [synapse-mcp repository](https://github.com/Sage-Bionetworks/synapse-mcp). At the time of writing, the server exposes tools including:
 
-| Tool | What it does |
-|------|-------------|
-| `search_synapse` | Full-text search across all public (and your private) entities — filter by name, entity type, and parent |
-| `get_entity` | Fetch core metadata for any entity by Synapse ID (projects, folders, files, tables, etc.) |
-| `get_entity_annotations` | Retrieve the custom annotation key/value pairs attached to an entity |
-| `get_entity_children` | List all children within a project or folder |
-| `get_entity_provenance` | Inspect the activity log and inputs/outputs for a specific entity version |
+- `search_synapse` — full-text search across public and private entities
+- `get_entity` — fetch core metadata for any entity by Synapse ID
+- `get_entity_annotations` — retrieve custom annotation key/value pairs
+- `get_entity_children` — list children within a project or folder
+- `get_entity_provenance` — inspect the activity log and inputs/outputs for an entity version
 
 ---
 
@@ -115,8 +115,4 @@ using synapseclient to download it and load it into a pandas DataFrame.
 
 ## Feature requests and feedback
 
-Have an idea for a new MCP tool or want to report a bug? Use one of the channels below:
-
-- **Request a feature or report a bug** — [Open a support ticket](https://sagebionetworks.jira.com/servicedesk/customer/portal/9/group/16/create/206) via the Sage Bionetworks service desk
-- **GitHub issues** — [synapse-mcp/issues](https://github.com/Sage-Bionetworks/synapse-mcp/issues) for technical bugs and pull requests
-- **Discussion forum** — [Synapse Help Forum](https://www.synapse.org/#!SynapseForum:default) for general questions
+Have an idea for a new MCP tool or want to report a bug? [Open a support ticket](https://sagebionetworks.jira.com/servicedesk/customer/portal/9/group/16/create/206) via the Sage Bionetworks service desk.
