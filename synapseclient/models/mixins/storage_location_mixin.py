@@ -49,6 +49,7 @@ class StorageLocationConfigurable(StorageLocationConfigurableSynchronousProtocol
         """Get STS (AWS Security Token Service) credentials for direct access to
         the storage location backing this entity. These credentials can be used
         with AWS tools like awscli and boto3.
+        Note: The entity must use a storage location that has STS enabled.
 
         Arguments:
             permission: The permission level for the token. Must be 'read_only'
