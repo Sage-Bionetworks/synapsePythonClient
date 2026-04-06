@@ -31,7 +31,7 @@ jobs:
           dry_run: true # setting to 'true' means no new version is created
     outputs:
       image_repo: ghcr.io/${{ steps.to_lower_case.outputs.repo_name }}
-      image_tag: ${{ steps.find_version.outputs.previous_version }}
+      image_tag: ${{ steps.find_version.outputs.previous_tag }}
     permissions:
       contents: read
 
@@ -80,7 +80,7 @@ jobs:
     uses: "./.github/workflows/docker_build.yml"
     with:
       REF_TO_CHECKOUT: ${{ needs.get-image-reference.outputs.image_tag }}
-      IMAGE_REFERENCES: "${{ needs.get-image-reference.outputs.image_repo }}:${{ needs.compute-next-version.outputs.new_version }},${{ needs.get-image-reference.outputs.image_repo }}:${{ needs.compute-next-version.outputs.new_major_minor }}"
+      IMAGE_REFERENCES: "${{ needs.get-image-reference.outputs.image_repo }}:${{ needs.compute-next-version.outputs.new_tag }},${{ needs.get-image-reference.outputs.image_repo }}:${{ needs.compute-next-version.outputs.new_major_minor }}"
     permissions:
       contents: read
       deployments: write

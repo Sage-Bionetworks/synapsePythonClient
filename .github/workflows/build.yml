@@ -593,7 +593,7 @@ jobs:
           file: ./Dockerfile
           platforms: linux/amd64
           cache-from: type=registry,ref=ghcr.io/sage-bionetworks/synapsepythonclient:build-cache
-          cache-to: type=registry,mode=max,ref=ghcr.io/sage-bionetworks/synapsepythonclient:build-cache
+          cache-to: type=inline
       - name: Save Docker image to tar
         run: docker save synapsepythonclient-release:local -o ${{ env.TARFILE_NAME }}
       - name: Upload tar artifact
