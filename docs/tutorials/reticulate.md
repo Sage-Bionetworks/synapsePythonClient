@@ -255,7 +255,7 @@ results
 
 ## Views
 
-An EntityView provides a table-like interface over entities (Files, Folders, Projects, Tables, etc.) spread across one or more Projects or Folders. You can query a view with SQL, making it easy to filter, sort, and inspect entity metadata at scale.```
+An EntityView provides a table-like interface over entities (Files, Folders, Projects, Tables, etc.) spread across one or more Projects or Folders. You can query a view with SQL, making it easy to filter, sort, and inspect entity metadata at scale.
 The following examples illustrate some view operations.
 
 See [here](../guides/views.md) for more information on Views.
