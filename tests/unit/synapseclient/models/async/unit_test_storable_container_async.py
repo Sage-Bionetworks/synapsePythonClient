@@ -75,7 +75,9 @@ class TestSyncToSynapse:
             tmp_path,
         )
 
-        with patch("synapseutils.sync._SyncUploader") as mock_uploader_cls:
+        with patch(
+            "synapseclient.models.mixins.storable_container.SyncUploader"
+        ) as mock_uploader_cls:
             result = await _TEST_PROJECT.sync_to_synapse_async(
                 manifest_path=str(manifest_path), synapse_client=self.syn
             )

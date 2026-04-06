@@ -464,7 +464,9 @@ class TestSyncToSynapseAsync:
                 "synapseclient.models.mixins.storable_container.read_manifest_for_upload",
                 new=AsyncMock(return_value=(mock_items, 100)),
             ) as mock_read,
-            patch("synapseutils.sync._SyncUploader") as mock_uploader_cls,
+            patch(
+                "synapseclient.models.mixins.storable_container.SyncUploader"
+            ) as mock_uploader_cls,
         ):
             result = await project.sync_to_synapse_async(
                 manifest_path=str(manifest),
@@ -499,7 +501,7 @@ class TestSyncToSynapseAsync:
                 new=AsyncMock(return_value=(mock_items, 100)),
             ),
             patch(
-                "synapseutils.sync._SyncUploader",
+                "synapseclient.models.mixins.storable_container.SyncUploader",
                 return_value=mock_uploader,
             ),
         ):
@@ -527,7 +529,9 @@ class TestSyncToSynapseAsync:
                 "synapseclient.models.mixins.storable_container.read_manifest_for_upload",
                 new=AsyncMock(return_value=([], 0)),
             ),
-            patch("synapseutils.sync._SyncUploader") as mock_uploader_cls,
+            patch(
+                "synapseclient.models.mixins.storable_container.SyncUploader"
+            ) as mock_uploader_cls,
         ):
             result = await project.sync_to_synapse_async(
                 manifest_path=str(f),
