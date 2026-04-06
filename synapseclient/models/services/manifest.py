@@ -7,6 +7,7 @@ import asyncio
 import datetime
 import os
 import re
+from dataclasses import dataclass
 from typing import TYPE_CHECKING, Iterable, NamedTuple
 
 from synapseclient import Synapse
@@ -18,6 +19,7 @@ from synapseclient.core.exceptions import (
 from synapseclient.core.utils import (
     bool_or_none,
     datetime_or_none,
+    get_synid_and_version,
     is_synapse_id_str,
     is_url,
     test_import_pandas,
@@ -29,6 +31,7 @@ from synapseclient.operations.factory_operations import get_async as factory_get
 if TYPE_CHECKING:
     from pandas import DataFrame, Series
 
+    from synapseclient.models import UsedEntity, UsedURL
     from synapseclient.models.file import File
 
 #: Scalar types that Synapse supports as annotation values.
@@ -74,11 +77,6 @@ _COMMAS_OUTSIDE_DOUBLE_QUOTES_PATTERN = re.compile(r",(?=(?:[^\"]*\"[^\"]*\")*[^
 _FILE_NAME_PATTERN = re.compile(r"^[`\w \-\+\.\(\)]{1,256}$")
 
 
-def _expand_path(path: str) -> str:
-    """Expand ``~`` and environment variables, then return the absolute path."""
-    return os.path.abspath(os.path.expandvars(os.path.expanduser(path)))
-
-
 class SyncUploadItem(NamedTuple):
     """Represents a single file being uploaded.
 
@@ -96,6 +94,238 @@ class SyncUploadItem(NamedTuple):
     executed: list[str | File]
     activity_name: str | None
     activity_description: str | None
+
+
+@dataclass
+class SyncUploader:
+    """Manages the uploads associated with a sync_to_synapse call.
+
+    Files will be uploaded concurrently and in an order that honours any
+    interdependent provenance.
+    """
+
+    syn: Synapse
+
+    @dataclass
+    class DependencyGraph:
+        """The graph that represents the dependencies of the files to be uploaded.
+
+        Attributes:
+            path_to_dependencies: A dictionary where the key is the path of the file and
+                the value is a list of paths that need to be uploaded before the key can
+                be uploaded.
+            path_to_upload_item: A dictionary where the key is the path of the file and
+                the value is the upload item that is associated with the file.
+            path_to_file_check: A dictionary where the key is the path of the file and
+                the value is a boolean that represents if the file is a file or not.
+        """
+
+        path_to_dependencies: dict[str, list[str]]
+        path_to_upload_item: dict[str, SyncUploadItem]
+        path_to_file_check: dict[str, bool]
+
+    def _build_dependency_graph(
+        self, items: Iterable[SyncUploadItem]
+    ) -> DependencyGraph:
+        """Determine the order in which the files should be uploaded based on their
+        dependencies.  This will also verify that the dependencies are valid and that
+        there are no cycles in the graph.
+
+        Arguments:
+            items: The list of items to upload.
+
+        Return:
+            A graph that represents information about how to upload the graph of items
+            into Synapse.
+        """
+        items_by_path = {i.entity.path: i for i in items}
+        graph: dict[str, list[str]] = {}
+        resolved_file_checks: dict[str, bool] = {}
+
+        for item in items:
+            item_file_provenance: list[str] = []
+            for provenance_dependency in item.used + item.executed:
+                # File objects (already in Synapse) are not local-path
+                # dependencies — skip them in the dependency graph.
+                if not isinstance(provenance_dependency, str):
+                    continue
+                if provenance_dependency in resolved_file_checks:
+                    is_file = resolved_file_checks[provenance_dependency]
+                else:
+                    is_file = os.path.isfile(provenance_dependency)
+                    resolved_file_checks[provenance_dependency] = is_file
+                if is_file:
+                    if provenance_dependency not in items_by_path:
+                        raise ValueError(
+                            f"{item.entity.path} depends on"
+                            f" {provenance_dependency} which is not being uploaded"
+                        )
+                    item_file_provenance.append(provenance_dependency)
+
+            graph[item.entity.path] = item_file_provenance
+
+        graph_sorted = topolgical_sort(graph)
+        path_to_dependencies_sorted: dict[str, list[str]] = {}
+        path_to_upload_items_sorted: dict[str, SyncUploadItem] = {}
+        for path, dependency_paths in graph_sorted:
+            path_to_dependencies_sorted[path] = dependency_paths
+            path_to_upload_items_sorted[path] = items_by_path.get(path)
+
+        return self.DependencyGraph(
+            path_to_dependencies=path_to_dependencies_sorted,
+            path_to_upload_item=path_to_upload_items_sorted,
+            path_to_file_check=resolved_file_checks,
+        )
+
+    def _build_tasks_from_dependency_graph(
+        self, dependency_graph: DependencyGraph
+    ) -> list[asyncio.Task]:
+        """Build the asyncio tasks that will be used to upload the files in the correct
+        order based on their dependencies.
+
+        Arguments:
+            dependency_graph: The graph that represents the dependencies of the files to
+                be uploaded.
+
+        Return:
+            A list of asyncio tasks that will upload the files in the correct order.
+        """
+        created_tasks_by_path: dict[str, asyncio.Task] = {}
+
+        for (
+            file_path,
+            dependent_file_paths,
+        ) in dependency_graph.path_to_dependencies.items():
+            dependent_tasks: list[asyncio.Task] = []
+            for dependent_file in dependent_file_paths:
+                task = created_tasks_by_path.get(dependent_file)
+                if task is not None:
+                    dependent_tasks.append(task)
+
+            upload_item = dependency_graph.path_to_upload_item.get(file_path)
+            file_task = asyncio.create_task(
+                self._upload_item_async(
+                    item=upload_item.entity,
+                    used=upload_item.used,
+                    executed=upload_item.executed,
+                    activity_name=upload_item.activity_name,
+                    activity_description=upload_item.activity_description,
+                    dependent_futures=dependent_tasks,
+                )
+            )
+            created_tasks_by_path[file_path] = file_task
+
+        return list(created_tasks_by_path.values())
+
+    async def upload(self, items: Iterable[SyncUploadItem]) -> list[File]:
+        """Upload a number of files to Synapse as provided in the manifest file.  This
+        will handle ordering the files based on their dependency graph.
+
+        Arguments:
+            items: The list of items to upload.
+
+        Returns:
+            List of File entities that were created or updated, in the same
+            order as the dependency-graph task execution.
+        """
+        dependency_graph = self._build_dependency_graph(items=list(items))
+        tasks = self._build_tasks_from_dependency_graph(
+            dependency_graph=dependency_graph
+        )
+        results = await asyncio.gather(*tasks)
+        return list(results)
+
+    def _build_activity_linkage(
+        self,
+        used_or_executed: Iterable[str | File],
+        resolved_file_ids: dict[str, str],
+    ) -> list[UsedEntity | UsedURL]:
+        """Loop over the incoming list of used or executed items and build the
+        appropriate UsedEntity or UsedURL objects.
+
+        Arguments:
+            used_or_executed: The list of used or executed items.
+            resolved_file_ids: A dictionary that maps the path of a file to its Synapse
+                ID.
+
+        Returns:
+            A list of UsedEntity or UsedURL objects.
+        """
+        from synapseclient.models import UsedEntity, UsedURL
+
+        returned_linkage: list[UsedEntity | UsedURL] = []
+        for item in used_or_executed:
+            if not isinstance(item, str):
+                # item is a File object resolved from provenance — use its ID
+                returned_linkage.append(UsedEntity(target_id=item.id))
+                continue
+            resolved_file_id = resolved_file_ids.get(item, None)
+            if resolved_file_id:
+                returned_linkage.append(UsedEntity(target_id=resolved_file_id))
+            elif is_url(item):
+                returned_linkage.append(UsedURL(url=item))
+            else:
+                if not is_synapse_id_str(item):
+                    raise ValueError(f"{item} is not a valid Synapse id")
+                synid, version = get_synid_and_version(item)
+                target_version = int(version) if version else None
+                returned_linkage.append(
+                    UsedEntity(target_id=synid, target_version_number=target_version)
+                )
+        return returned_linkage
+
+    async def _upload_item_async(
+        self,
+        item: File,
+        used: Iterable[str | File],
+        executed: Iterable[str | File],
+        activity_name: str,
+        activity_description: str,
+        dependent_futures: list[asyncio.Future],
+    ) -> File:
+        """Upload a single file, waiting for any provenance dependencies to finish first.
+
+        Arguments:
+            item: The File entity to upload.
+            used: Provenance ``used`` references (paths, URLs, Synapse IDs, or File
+                objects).
+            executed: Provenance ``executed`` references.
+            activity_name: Name for the provenance Activity.
+            activity_description: Description for the provenance Activity.
+            dependent_futures: Futures for files that must be uploaded before this one.
+
+        Returns:
+            The stored File entity.
+        """
+        from synapseclient.models import Activity
+
+        resolved_file_ids: dict[str, str] = {}
+        if dependent_futures:
+            finished_dependencies, pending = await asyncio.wait(dependent_futures)
+            if pending:
+                raise RuntimeError(
+                    f"There were {len(pending)} dependencies left when storing {item}"
+                )
+            for finished_dependency in finished_dependencies:
+                result = finished_dependency.result()
+                resolved_file_ids[result.path] = result.id
+
+        used_activity = self._build_activity_linkage(
+            used_or_executed=used, resolved_file_ids=resolved_file_ids
+        )
+        executed_activity = self._build_activity_linkage(
+            used_or_executed=executed, resolved_file_ids=resolved_file_ids
+        )
+
+        if used_activity or executed_activity:
+            item.activity = Activity(
+                name=activity_name,
+                description=activity_description,
+                used=used_activity,
+                executed=executed_activity,
+            )
+        await item.store_async(synapse_client=self.syn)
+        return item
 
 
 async def read_manifest_for_upload(
@@ -258,6 +488,11 @@ def _check_path_and_normalize(f: str) -> str:
     if not os.path.isfile(path_normalized):
         raise OSError(f"The path {f} is not a file or does not exist")
     return path_normalized
+
+
+def _expand_path(path: str) -> str:
+    """Expand ``~`` and environment variables, then return the absolute path."""
+    return os.path.abspath(os.path.expandvars(os.path.expanduser(path)))
 
 
 def _check_file_names(df: DataFrame) -> None:

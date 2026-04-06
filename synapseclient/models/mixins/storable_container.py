@@ -47,7 +47,10 @@ from synapseclient.core.upload.multipart_upload_async import (
 from synapseclient.models.protocols.storable_container_protocol import (
     StorableContainerSynchronousProtocol,
 )
-from synapseclient.models.services.manifest import read_manifest_for_upload
+from synapseclient.models.services.manifest import (
+    SyncUploader,
+    read_manifest_for_upload,
+)
 from synapseclient.models.services.storable_entity_components import (
     MANIFEST_UPLOAD_MAX_RETRIES,
     FailureStrategy,
@@ -577,7 +580,6 @@ class StorableContainer(StorableContainerSynchronousProtocol):
         from tqdm import tqdm
 
         from synapseutils.monitor import notify_me_async
-        from synapseutils.sync import _SyncUploader
 
         syn = Synapse.get_client(synapse_client=synapse_client)
 
@@ -609,7 +611,7 @@ class StorableContainer(StorableContainerSynchronousProtocol):
         )
         with upload_shared_progress_bar(progress_bar):
             try:
-                uploader = _SyncUploader(syn)
+                uploader = SyncUploader(syn)
                 if send_messages:
                     notify_decorator = notify_me_async(
                         syn, f"Upload from {manifest_path}", retries=retries
