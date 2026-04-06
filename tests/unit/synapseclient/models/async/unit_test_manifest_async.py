@@ -1,5 +1,6 @@
 """Unit tests for synapseclient.models.services.manifest (upload-side)."""
 
+import asyncio
 import os
 from pathlib import Path
 from typing import Any
@@ -11,6 +12,8 @@ import pytest
 from synapseclient import Synapse
 from synapseclient.models.services.manifest import (
     NON_ANNOTATION_COLUMNS,
+    SyncUploader,
+    SyncUploadItem,
     _build_annotations_for_file,
     _build_upload_items,
     _check_file_names,
@@ -1384,3 +1387,376 @@ class TestCheckSizeEachFile:
         """If every row is a URL, the total size is zero."""
         df = pd.DataFrame({"path": ["https://a.com/f1", "https://b.com/f2"]})
         assert _check_size_each_file(df) == 0
+
+
+def _make_file_mock(path: str, file_id: str = "syn100") -> MagicMock:
+    """Create a MagicMock that behaves like a File entity for SyncUploader tests."""
+    mock = MagicMock()
+    mock.path = path
+    mock.id = file_id
+    mock.store_async = AsyncMock(return_value=mock)
+    return mock
+
+
+def _make_item(
+    path: str,
+    file_id: str = "syn100",
+    used: list | None = None,
+    executed: list | None = None,
+    activity_name: str | None = None,
+    activity_description: str | None = None,
+) -> SyncUploadItem:
+    """Create a SyncUploadItem backed by a mock File entity."""
+    return SyncUploadItem(
+        entity=_make_file_mock(path, file_id),
+        used=used or [],
+        executed=executed or [],
+        activity_name=activity_name,
+        activity_description=activity_description,
+    )
+
+
+class TestSyncUploaderBuildDependencyGraph:
+    @pytest.fixture(autouse=True)
+    def init_syn(self, syn: Synapse) -> None:
+        self.uploader = SyncUploader(syn=syn)
+
+    def test_no_provenance(self) -> None:
+        """Items without provenance produce a graph with no dependencies."""
+        item = _make_item("/a.txt")
+        graph = self.uploader._build_dependency_graph([item])
+
+        assert graph.path_to_dependencies == {"/a.txt": []}
+        assert graph.path_to_upload_item["/a.txt"] is item
+
+    def test_file_dependency_between_items(self, tmp_path: Path) -> None:
+        """A file dependency between two items is captured in the graph."""
+        f1 = tmp_path / "dep.txt"
+        f1.write_text("dep")
+        f2 = tmp_path / "main.txt"
+        f2.write_text("main")
+
+        dep_item = _make_item(str(f1), file_id="syn1")
+        main_item = _make_item(str(f2), file_id="syn2", used=[str(f1)])
+
+        graph = self.uploader._build_dependency_graph([dep_item, main_item])
+
+        assert graph.path_to_dependencies[str(f2)] == [str(f1)]
+        assert graph.path_to_dependencies[str(f1)] == []
+
+    @pytest.mark.parametrize(
+        "used, executed, description",
+        [
+            ([_make_file_mock("/resolved.txt", "syn999")], [], "File object in used"),
+            (["https://example.com/code.py"], [], "URL in used"),
+            ([], ["syn12345"], "Synapse ID in executed"),
+        ],
+        ids=["file_object", "url", "synapse_id"],
+    )
+    def test_non_file_provenance_not_a_dependency(
+        self, used: list, executed: list, description: str
+    ) -> None:
+        """Non-local-file provenance references (File objects, URLs, Synapse IDs)
+        are not treated as dependencies in the graph."""
+        item = _make_item("/a.txt", used=used, executed=executed)
+
+        graph = self.uploader._build_dependency_graph([item])
+
+        assert graph.path_to_dependencies["/a.txt"] == []
+
+    def test_missing_file_dependency_raises(self, tmp_path: Path) -> None:
+        """If an item depends on a local file not in the upload batch, ValueError is raised."""
+        dep = tmp_path / "dep.txt"
+        dep.write_text("dep")
+        item = _make_item("/main.txt", used=[str(dep)])
+
+        with pytest.raises(ValueError, match="depends on"):
+            self.uploader._build_dependency_graph([item])
+
+    def test_cached_file_check(self, tmp_path: Path) -> None:
+        """The file-check cache avoids redundant os.path.isfile calls."""
+        f1 = tmp_path / "dep.txt"
+        f1.write_text("dep")
+
+        dep_item = _make_item(str(f1), file_id="syn1")
+        item_a = _make_item(str(tmp_path / "a.txt"), file_id="syn2", used=[str(f1)])
+        # Give a.txt a real file so the item_a entity.path resolves
+        (tmp_path / "a.txt").write_text("a")
+        item_b = _make_item(str(tmp_path / "b.txt"), file_id="syn3", used=[str(f1)])
+        (tmp_path / "b.txt").write_text("b")
+
+        with patch(
+            "synapseclient.models.services.manifest.os.path.isfile",
+            wraps=os.path.isfile,
+        ) as mock_isfile:
+            self.uploader._build_dependency_graph([dep_item, item_a, item_b])
+            # dep.txt checked once, then cached for the second reference
+            isfile_calls_for_dep = [
+                c for c in mock_isfile.call_args_list if str(f1) in str(c)
+            ]
+            assert len(isfile_calls_for_dep) == 1
+
+
+class TestSyncUploaderBuildActivityLinkage:
+    @pytest.fixture(autouse=True)
+    def init_syn(self, syn: Synapse) -> None:
+        self.uploader = SyncUploader(syn=syn)
+
+    def test_resolved_file_id(self) -> None:
+        """A local path that was resolved to a Synapse ID uses UsedEntity."""
+        from synapseclient.models import UsedEntity
+
+        result = self.uploader._build_activity_linkage(
+            used_or_executed=["/dep.txt"],
+            resolved_file_ids={"/dep.txt": "syn999"},
+        )
+        assert len(result) == 1
+        assert isinstance(result[0], UsedEntity)
+        assert result[0].target_id == "syn999"
+
+    def test_url_uses_used_url(self) -> None:
+        """A URL provenance item becomes a UsedURL."""
+        from synapseclient.models import UsedURL
+
+        result = self.uploader._build_activity_linkage(
+            used_or_executed=["https://github.com/repo"],
+            resolved_file_ids={},
+        )
+        assert len(result) == 1
+        assert isinstance(result[0], UsedURL)
+        assert result[0].url == "https://github.com/repo"
+
+    def test_synapse_id(self) -> None:
+        """A bare Synapse ID becomes a UsedEntity with the correct target_id."""
+        from synapseclient.models import UsedEntity
+
+        result = self.uploader._build_activity_linkage(
+            used_or_executed=["syn12345"],
+            resolved_file_ids={},
+        )
+        assert len(result) == 1
+        assert isinstance(result[0], UsedEntity)
+        assert result[0].target_id == "syn12345"
+
+    def test_synapse_id_with_version(self) -> None:
+        """A Synapse ID with a version suffix is parsed correctly."""
+        from synapseclient.models import UsedEntity
+
+        result = self.uploader._build_activity_linkage(
+            used_or_executed=["syn12345.3"],
+            resolved_file_ids={},
+        )
+        assert len(result) == 1
+        assert isinstance(result[0], UsedEntity)
+        assert result[0].target_id == "syn12345"
+        assert result[0].target_version_number == 3
+
+    def test_file_object_uses_its_id(self) -> None:
+        """A File object in the list is converted to a UsedEntity using its .id."""
+        from synapseclient.models import UsedEntity
+
+        file_obj = _make_file_mock("/resolved.txt", "syn777")
+        result = self.uploader._build_activity_linkage(
+            used_or_executed=[file_obj],
+            resolved_file_ids={},
+        )
+        assert len(result) == 1
+        assert isinstance(result[0], UsedEntity)
+        assert result[0].target_id == "syn777"
+
+    def test_invalid_string_raises(self) -> None:
+        """A string that is not a URL, Synapse ID, or resolved path raises ValueError."""
+        with pytest.raises(ValueError, match="not a valid Synapse id"):
+            self.uploader._build_activity_linkage(
+                used_or_executed=["not-a-valid-reference"],
+                resolved_file_ids={},
+            )
+
+    def test_empty_list(self) -> None:
+        """An empty list returns an empty list."""
+        result = self.uploader._build_activity_linkage(
+            used_or_executed=[],
+            resolved_file_ids={},
+        )
+        assert result == []
+
+    def test_mixed_provenance_types(self) -> None:
+        """Different provenance types in a single list are all handled correctly."""
+        from synapseclient.models import UsedEntity, UsedURL
+
+        file_obj = _make_file_mock("/already.txt", "syn555")
+        result = self.uploader._build_activity_linkage(
+            used_or_executed=[
+                "/local.txt",
+                "https://example.com",
+                "syn123",
+                file_obj,
+            ],
+            resolved_file_ids={"/local.txt": "syn444"},
+        )
+        assert len(result) == 4
+        assert isinstance(result[0], UsedEntity)
+        assert result[0].target_id == "syn444"
+        assert isinstance(result[1], UsedURL)
+        assert isinstance(result[2], UsedEntity)
+        assert result[2].target_id == "syn123"
+        assert isinstance(result[3], UsedEntity)
+        assert result[3].target_id == "syn555"
+
+
+class TestSyncUploaderUploadItemAsync:
+    @pytest.fixture(autouse=True)
+    def init_syn(self, syn: Synapse) -> None:
+        self.uploader = SyncUploader(syn=syn)
+
+    @pytest.mark.asyncio
+    async def test_no_provenance_no_activity(self) -> None:
+        """When used and executed are empty, no Activity is set on the file."""
+        mock_file = _make_file_mock("/a.txt", "syn1")
+
+        result = await self.uploader._upload_item_async(
+            item=mock_file,
+            used=[],
+            executed=[],
+            activity_name=None,
+            activity_description=None,
+            dependent_futures=[],
+        )
+
+        assert result is mock_file
+        mock_file.store_async.assert_awaited_once_with(synapse_client=self.uploader.syn)
+        assert (
+            not hasattr(mock_file, "activity")
+            or mock_file.activity == mock_file.activity
+        )
+
+    @pytest.mark.asyncio
+    async def test_with_provenance_sets_activity(self) -> None:
+        """When used/executed are provided, an Activity is attached before store."""
+        from synapseclient.models import Activity
+
+        mock_file = _make_file_mock("/a.txt", "syn1")
+        # Remove any default activity attribute so we can check it gets set
+        del mock_file.activity
+
+        await self.uploader._upload_item_async(
+            item=mock_file,
+            used=["syn999"],
+            executed=["https://github.com/code.py"],
+            activity_name="my activity",
+            activity_description="my description",
+            dependent_futures=[],
+        )
+
+        assert isinstance(mock_file.activity, Activity)
+        assert mock_file.activity.name == "my activity"
+        assert mock_file.activity.description == "my description"
+        assert len(mock_file.activity.used) == 1
+        assert len(mock_file.activity.executed) == 1
+
+    @pytest.mark.asyncio
+    async def test_dependent_futures_resolved(self) -> None:
+        """Dependent futures are awaited and their results populate resolved_file_ids."""
+        dep_file = _make_file_mock("/dep.txt", "syn_dep")
+
+        # Create a real future that resolves to dep_file
+        dep_future = asyncio.get_event_loop().create_future()
+        dep_future.set_result(dep_file)
+
+        mock_file = _make_file_mock("/main.txt", "syn_main")
+        del mock_file.activity
+
+        await self.uploader._upload_item_async(
+            item=mock_file,
+            used=["/dep.txt"],
+            executed=[],
+            activity_name="test",
+            activity_description=None,
+            dependent_futures=[dep_future],
+        )
+
+        # The dependency's path should have been resolved to its Synapse ID
+        assert mock_file.activity.used[0].target_id == "syn_dep"
+
+
+class TestSyncUploaderUpload:
+    @pytest.fixture(autouse=True)
+    def init_syn(self, syn: Synapse) -> None:
+        self.uploader = SyncUploader(syn=syn)
+
+    @pytest.mark.asyncio
+    async def test_single_item_no_provenance(self) -> None:
+        """A single item with no dependencies is uploaded and returned."""
+        item = _make_item("/a.txt", file_id="syn1")
+
+        results = await self.uploader.upload([item])
+
+        assert len(results) == 1
+        item.entity.store_async.assert_awaited_once()
+
+    @pytest.mark.asyncio
+    async def test_multiple_independent_items(self) -> None:
+        """Multiple items with no inter-dependencies are all uploaded."""
+        items = [
+            _make_item("/a.txt", file_id="syn1"),
+            _make_item("/b.txt", file_id="syn2"),
+            _make_item("/c.txt", file_id="syn3"),
+        ]
+
+        results = await self.uploader.upload(items)
+
+        assert len(results) == 3
+        for item in items:
+            item.entity.store_async.assert_awaited_once()
+
+    @pytest.mark.asyncio
+    async def test_empty_items(self) -> None:
+        """An empty item list produces an empty result."""
+        results = await self.uploader.upload([])
+        assert results == []
+
+    @pytest.mark.asyncio
+    async def test_dependent_items_uploaded_in_order(self, tmp_path: Path) -> None:
+        """When item B depends on item A, A is stored before B."""
+        f_dep = tmp_path / "dep.txt"
+        f_dep.write_text("dep")
+        f_main = tmp_path / "main.txt"
+        f_main.write_text("main")
+
+        call_order = []
+
+        dep_mock = _make_file_mock(str(f_dep), "syn_dep")
+
+        async def dep_store(**kwargs):
+            call_order.append("dep")
+            return dep_mock
+
+        dep_mock.store_async = AsyncMock(side_effect=dep_store)
+
+        main_mock = _make_file_mock(str(f_main), "syn_main")
+
+        async def main_store(**kwargs):
+            call_order.append("main")
+            return main_mock
+
+        main_mock.store_async = AsyncMock(side_effect=main_store)
+
+        dep_item = SyncUploadItem(
+            entity=dep_mock,
+            used=[],
+            executed=[],
+            activity_name=None,
+            activity_description=None,
+        )
+        main_item = SyncUploadItem(
+            entity=main_mock,
+            used=[str(f_dep)],
+            executed=[],
+            activity_name="uses dep",
+            activity_description=None,
+        )
+
+        results = await self.uploader.upload([dep_item, main_item])
+
+        assert len(results) == 2
+        assert call_order.index("dep") < call_order.index("main")

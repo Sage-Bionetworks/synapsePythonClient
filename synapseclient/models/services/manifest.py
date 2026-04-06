@@ -267,10 +267,10 @@ class SyncUploader:
             else:
                 if not is_synapse_id_str(item):
                     raise ValueError(f"{item} is not a valid Synapse id")
-                synid, version = get_synid_and_version(item)
+                syn_id, version = get_synid_and_version(item)
                 target_version = int(version) if version else None
                 returned_linkage.append(
-                    UsedEntity(target_id=synid, target_version_number=target_version)
+                    UsedEntity(target_id=syn_id, target_version_number=target_version)
                 )
         return returned_linkage
 
