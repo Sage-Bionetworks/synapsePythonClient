@@ -57,7 +57,7 @@ NON_ANNOTATION_COLUMNS = frozenset(
         # Download-list / Synapse UI informational columns — ignore for upload
         "error",
         "versionNumber",
-        "dataFileSizeBites",
+        "dataFileSizeBytes",
         "createdBy",
         "createdOn",
         "modifiedBy",
