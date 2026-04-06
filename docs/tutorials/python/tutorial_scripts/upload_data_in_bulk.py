@@ -6,6 +6,7 @@ import os
 
 import synapseclient
 import synapseutils
+from synapseclient.models import Project
 
 syn = synapseclient.Synapse()
 syn.login()
@@ -31,9 +32,8 @@ synapseutils.generate_sync_manifest(
 )
 
 # Step 3: After generating the manifest file, we can upload the data in bulk
-synapseutils.syncToSynapse(
-    syn=syn, manifestFile=PATH_TO_MANIFEST_FILE, sendMessages=False
-)
+project = Project(id=my_project_id)
+project.sync_to_synapse(manifest_path=PATH_TO_MANIFEST_FILE)
 
 # Step 4: Let's add an annotation to our manifest file
 # Pandas is a powerful data manipulation library in Python, although it is not required
@@ -50,11 +50,7 @@ df["species"] = "Homo sapiens"
 # Write the DataFrame back to the manifest file
 df.to_csv(PATH_TO_MANIFEST_FILE, sep="\t", index=False)
 
-synapseutils.syncToSynapse(
-    syn=syn,
-    manifestFile=PATH_TO_MANIFEST_FILE,
-    sendMessages=False,
-)
+project.sync_to_synapse(manifest_path=PATH_TO_MANIFEST_FILE)
 
 # Step 5: Let's create an Activity/Provenance
 # First let's find the row in the TSV we want to update. This code finds the row number
@@ -83,8 +79,4 @@ df.loc[
 # Write the DataFrame back to the manifest file
 df.to_csv(PATH_TO_MANIFEST_FILE, sep="\t", index=False)
 
-synapseutils.syncToSynapse(
-    syn=syn,
-    manifestFile=PATH_TO_MANIFEST_FILE,
-    sendMessages=False,
-)
+project.sync_to_synapse(manifest_path=PATH_TO_MANIFEST_FILE)

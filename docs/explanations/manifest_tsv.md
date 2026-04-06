@@ -1,5 +1,8 @@
-# Manifest
+# Manifest TSV (Legacy)
 The manifest is a tsv file with file locations and metadata to be pushed to Synapse. The purpose is to allow bulk actions through a TSV without the need to manually execute commands for every requested action.
+
+!!! warning "Deprecated"
+    This TSV manifest format is produced by [synapseutils.syncFromSynapse][] and consumed by [synapseutils.syncToSynapse][], both of which are deprecated and will be removed in v5.0.0. Use `Project.sync_from_synapse` / `Folder.sync_from_synapse` and `Project.sync_to_synapse` / `Folder.sync_to_synapse` instead, which use the [CSV manifest format](manifest_csv.md).
 
 ## Manifest file format
 

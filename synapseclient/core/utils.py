@@ -354,7 +354,7 @@ def get_properties(entity):
     return entity.properties if hasattr(entity, "properties") else entity
 
 
-def is_url(s):
+def is_url(s: str) -> bool:
     """Return True if the string appears to be a valid URL."""
     if isinstance(s, str):
         try:

@@ -512,7 +512,7 @@ class _SyncUploader:
 
         return created_tasks_by_path.values()
 
-    async def upload(self, items: Iterable[_SyncUploadItem]) -> None:
+    async def upload(self, items: Iterable[_SyncUploadItem]) -> List["File"]:
         """Upload a number of files to Synapse as provided in the manifest file. This
         will handle ordering the files based on their dependency graph.
 
@@ -520,14 +520,16 @@ class _SyncUploader:
             items: The list of items to upload.
 
         Returns:
-            None
+            List of File entities that were created or updated, in the same
+            order as the dependency-graph task execution.
         """
         dependency_graph = self._build_dependency_graph(items=[i for i in items])
         tasks = self._build_tasks_from_dependency_graph(
             dependency_graph=dependency_graph
         )
 
-        await asyncio.gather(*tasks)
+        results = await asyncio.gather(*tasks)
+        return list(results)
 
     def _build_activity_linkage(
         self, used_or_executed: Iterable[str], resolved_file_ids: Dict[str, str]
@@ -1113,6 +1115,13 @@ async def readManifestFile_async(syn: Synapse, manifestFile: str) -> DATA_FRAME_
     return df
 
 
+@deprecated(
+    version="4.13.0",
+    reason=(
+        "To be removed in 5.0.0. Use Project.sync_to_synapse or "
+        "Folder.sync_to_synapse from synapseclient.models instead."
+    ),
+)
 def syncToSynapse(
     syn: Synapse,
     manifestFile,
@@ -1123,6 +1132,11 @@ def syncToSynapse(
     associate_activity_to_new_version: bool = False,
 ) -> None:
     """Synchronizes files specified in the manifest file to Synapse.
+
+    .. deprecated:: 4.13.0
+        Use :meth:`synapseclient.models.Project.sync_to_synapse` or
+        :meth:`synapseclient.models.Folder.sync_to_synapse` instead.
+        This function will be removed in v5.0.0.
 
     Given a file describing all of the uploads, this uploads the content to Synapse and
     optionally notifies you via Synapse messagging (email) at specific intervals, on
