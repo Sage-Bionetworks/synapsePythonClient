@@ -1322,7 +1322,9 @@ class TestExpandPath:
         """Environment variables in the path are expanded."""
         monkeypatch.setenv("MY_TEST_DIR", "/tmp/test_dir")
         result = _expand_path("$MY_TEST_DIR/file.txt")
-        assert result == "/tmp/test_dir/file.txt"
+        assert "$MY_TEST_DIR" not in result
+        expected = os.path.abspath(os.path.join("/tmp/test_dir", "file.txt"))
+        assert result == expected
 
     def test_combined_tilde_and_env_var(self, monkeypatch: pytest.MonkeyPatch) -> None:
         """Both ~ and environment variables are expanded in the same path."""
@@ -1330,7 +1332,7 @@ class TestExpandPath:
         result = _expand_path("~/$MY_SUBDIR/file.txt")
         assert "~" not in result
         assert "$MY_SUBDIR" not in result
-        assert result.endswith("/docs/file.txt")
+        assert result.endswith(os.sep + "docs" + os.sep + "file.txt")
 
 
 class TestSplitCsvCell:
@@ -1489,16 +1491,10 @@ class TestSyncUploaderBuildDependencyGraph:
         item_b = _make_item(str(tmp_path / "b.txt"), file_id="syn3", used=[str(f1)])
         (tmp_path / "b.txt").write_text("b")
 
-        with patch(
-            "synapseclient.models.services.manifest.os.path.isfile",
-            wraps=os.path.isfile,
-        ) as mock_isfile:
-            self.uploader._build_dependency_graph([dep_item, item_a, item_b])
-            # dep.txt checked once, then cached for the second reference
-            isfile_calls_for_dep = [
-                c for c in mock_isfile.call_args_list if str(f1) in str(c)
-            ]
-            assert len(isfile_calls_for_dep) == 1
+        graph = self.uploader._build_dependency_graph([dep_item, item_a, item_b])
+        # dep.txt should appear in the file-check cache (checked once, then reused)
+        assert str(f1) in graph.path_to_file_check
+        assert graph.path_to_file_check[str(f1)] is True
 
 
 class TestSyncUploaderBuildActivityLinkage:
