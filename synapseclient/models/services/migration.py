@@ -834,7 +834,10 @@ async def _index_entity_async(
     is_indexed = _check_indexed(cursor, entity_id, synapse_client)
     try:
         if not is_indexed:
-            if concrete_type == concrete_types.FILE_ENTITY:
+            if concrete_type in (
+                concrete_types.FILE_ENTITY,
+                concrete_types.RECORD_SET_ENTITY,
+            ):
                 if file_version_strategy != "skip":
                     await _index_file_entity_async(
                         cursor=cursor,
@@ -1102,10 +1105,10 @@ async def _index_container_async(
     ):
         children.append(child)
 
-    semaphore = asyncio.Semaphore(MAX_CONCURRENT_FILE_COPIES)
-
     async def index_child(child: Dict[str, Any]) -> None:
-        async with semaphore:
+        async with synapse_client._get_parallel_file_transfer_semaphore(
+            asyncio_event_loop=asyncio.get_running_loop()
+        ):
             child_entity = await get_async(
                 synapse_id=child["id"], synapse_client=synapse_client
             )
@@ -1308,7 +1311,7 @@ async def track_migration_results_async(
     pending_file_handles: Set[str],
     completed_file_handles: Set[str],
     pending_keys: Set[MigrationKey],
-    return_when: asyncio.Future[asyncio.Task],
+    return_when: str,
     continue_on_error: bool,
 ) -> None:
     """Track the results of the migration tasks.
@@ -1453,7 +1456,9 @@ async def _execute_migration_async(
     completed_file_handles: Set[str] = set()
     pending_keys: Set[MigrationKey] = set()
 
-    semaphore = asyncio.Semaphore(MAX_CONCURRENT_FILE_COPIES)
+    semaphore = synapse_client._get_parallel_file_transfer_semaphore(
+        asyncio_event_loop=asyncio.get_running_loop()
+    )
     active_tasks: Set[asyncio.Task] = set()
 
     # Initialize last key to an empty key so the first iteration can proceed.
@@ -1465,7 +1470,7 @@ async def _execute_migration_async(
             key,
             pending_file_handles,
             completed_file_handles,
-            min(BATCH_SIZE, MAX_CONCURRENT_FILE_COPIES - len(active_tasks)),
+            min(BATCH_SIZE, semaphore.value - len(active_tasks)),
         )
         row_count = 0
         for item in batch:
@@ -1522,18 +1527,16 @@ async def _execute_migration_async(
             # tasks to conclude.
             break
 
-        # Wait for tasks if at capacity or end of batch
-        if len(active_tasks) >= MAX_CONCURRENT_FILE_COPIES or len(batch) < BATCH_SIZE:
-            await track_migration_results_async(
-                conn,
-                cursor,
-                active_tasks,
-                pending_file_handles,
-                completed_file_handles,
-                pending_keys,
-                asyncio.FIRST_COMPLETED,
-                continue_on_error,
-            )
+        await track_migration_results_async(
+            conn,
+            cursor,
+            active_tasks,
+            pending_file_handles,
+            completed_file_handles,
+            pending_keys,
+            asyncio.FIRST_COMPLETED,
+            continue_on_error,
+        )
 
     # Wait for any remaining tasks
     if active_tasks:
