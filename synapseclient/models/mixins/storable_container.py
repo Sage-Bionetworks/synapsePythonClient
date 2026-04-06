@@ -1,6 +1,8 @@
 """Mixin for objects that can have Folders and Files stored in them."""
 
 import asyncio
+import csv
+import io
 import os
 from typing import (
     TYPE_CHECKING,
@@ -62,6 +64,100 @@ if TYPE_CHECKING:
         Table,
         VirtualTable,
     )
+
+
+MANIFEST_CSV_FILENAME = "manifest.csv"
+DEFAULT_GENERATED_MANIFEST_CSV_KEYS = [
+    "path",
+    "parentId",
+    "name",
+    "ID",
+    "synapseStore",
+    "contentType",
+    "used",
+    "executed",
+    "activityName",
+    "activityDescription",
+]
+
+
+def _manifest_csv_filename(path: str) -> str:
+    return os.path.join(os.path.expanduser(path), MANIFEST_CSV_FILENAME)
+
+
+def _get_entity_provenance_dict_for_manifest(entity: "File") -> dict:
+    if not entity.activity:
+        return {}
+    used = [a.format_for_manifest() for a in entity.activity.used]
+    executed = [a.format_for_manifest() for a in entity.activity.executed]
+    return {
+        "used": ";".join(used),
+        "executed": ";".join(executed),
+        "activityName": entity.activity.name or "",
+        "activityDescription": entity.activity.description or "",
+    }
+
+
+def _extract_entity_metadata_for_manifest_csv(
+    all_files: List["File"],
+) -> Tuple[List[str], List[Dict]]:
+    keys = list(DEFAULT_GENERATED_MANIFEST_CSV_KEYS)
+    annotation_keys: set = set()
+    data = []
+    for entity in all_files:
+        row: Dict = {
+            "path": entity.path,
+            "parentId": entity.parent_id,
+            "name": entity.name,
+            "ID": entity.id,
+            "synapseStore": entity.synapse_store,
+            "contentType": entity.content_type,
+        }
+        if entity.annotations:
+            annotation_keys.update(entity.annotations.keys())
+            row.update(
+                {
+                    key: (val if len(val) > 0 else "")
+                    for key, val in entity.annotations.items()
+                }
+            )
+        row.update(_get_entity_provenance_dict_for_manifest(entity=entity))
+        data.append(row)
+    keys.extend(annotation_keys)
+    return keys, data
+
+
+def _write_manifest_data_csv(filename: str, keys: List[str], data: List[Dict]) -> None:
+    from synapseutils.sync import _convert_manifest_data_row_to_dict
+
+    with io.open(filename, "w", encoding="utf8", newline="") as fp:
+        writer = csv.DictWriter(
+            fp,
+            keys,
+            restval="",
+            extrasaction="ignore",
+            quoting=csv.QUOTE_MINIMAL,
+        )
+        writer.writeheader()
+        for row in data:
+            writer.writerow(_convert_manifest_data_row_to_dict(row, keys))
+
+
+def generate_manifest_csv(all_files: List["File"], path: str) -> None:
+    """Generates a manifest.csv file based on a list of File entities.
+
+    The generated file uses CSV format with comma delimiter and is interoperable
+    with the Synapse UI download cart. Column names follow the new convention:
+    `parentId` (instead of `parent`) and `ID` (instead of `id`).
+
+    Arguments:
+        all_files: A list of File model objects.
+        path: The directory path where manifest.csv will be written.
+    """
+    if path and all_files:
+        filename = _manifest_csv_filename(path=path)
+        keys, data = _extract_entity_metadata_for_manifest_csv(all_files=all_files)
+        _write_manifest_data_csv(filename, keys, data)
 
 
 @async_to_sync
@@ -159,6 +255,7 @@ class StorableContainer(StorableContainerSynchronousProtocol):
         link_hops: int = 1,
         queue: asyncio.Queue = None,
         include_types: Optional[List[str]] = None,
+        manifest: str = "all",
         *,
         synapse_client: Optional[Synapse] = None,
     ) -> Self:
@@ -170,9 +267,10 @@ class StorableContainer(StorableContainerSynchronousProtocol):
         If you only want to retrieve the full tree of metadata about your
         container specify `download_file` as False.
 
-        This works similar to [synapseutils.syncFromSynapse][], however, this does not
-        currently support the writing of data to a manifest TSV file. This will be a
-        future enhancement.
+        This works similar to [synapseutils.syncFromSynapse][], and generates a
+        `manifest.csv` file in each synced directory. The manifest uses CSV format
+        with `parentId` and `ID` columns, interoperable with the Synapse UI download
+        cart and `synapse get-download-list` CLI output.
 
         Supports syncing Files, Folders, Tables, EntityViews, SubmissionViews, Datasets,
         DatasetCollections, MaterializedViews, and VirtualTables from Synapse. The
@@ -208,6 +306,11 @@ class StorableContainer(StorableContainerSynchronousProtocol):
                 `["folder", "file", "table", "entityview", "dockerrepo",
                 "submissionview", "dataset", "datasetcollection", "materializedview",
                 "virtualtable"]`.
+            manifest: Determines whether to generate a manifest CSV file. Options are:
+
+                - `all` (default): generate `manifest.csv` in every synced directory
+                - `root`: generate `manifest.csv` only in the root `path` directory
+                - `suppress`: do not generate any manifest file
             synapse_client: If not passed in and caching was not disabled by
                 `Synapse.allow_client_caching(False)` this will use the last created
                 instance from the Synapse class constructor.
@@ -397,6 +500,7 @@ class StorableContainer(StorableContainerSynchronousProtocol):
                 link_hops=link_hops,
                 queue=queue,
                 include_types=include_types,
+                manifest=manifest,
                 synapse_client=syn,
             )
 
@@ -412,6 +516,7 @@ class StorableContainer(StorableContainerSynchronousProtocol):
         link_hops: int = 1,
         queue: asyncio.Queue = None,
         include_types: Optional[List[str]] = None,
+        manifest: str = "all",
         *,
         synapse_client: Optional[Synapse] = None,
     ) -> Self:
@@ -493,6 +598,22 @@ class StorableContainer(StorableContainerSynchronousProtocol):
             finally:
                 for task in worker_tasks:
                     task.cancel()
+
+        if create_workers and path and manifest != "suppress":
+            if manifest == "all":
+                for (
+                    directory_path,
+                    file_entities,
+                ) in self.map_directory_to_all_contained_files(root_path=path).items():
+                    generate_manifest_csv(
+                        all_files=file_entities,
+                        path=directory_path,
+                    )
+            elif manifest == "root":
+                generate_manifest_csv(
+                    all_files=self.flatten_file_list(),
+                    path=path,
+                )
 
         return self
 

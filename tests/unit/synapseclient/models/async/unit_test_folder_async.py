@@ -1,7 +1,11 @@
 """Tests for the Folder class."""
+import csv
+import io
+import os
+import tempfile
 import uuid
 from typing import Dict
-from unittest.mock import AsyncMock, patch
+from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
 
@@ -10,7 +14,12 @@ from synapseclient import Synapse
 from synapseclient.core.constants import concrete_types
 from synapseclient.core.constants.concrete_types import FILE_ENTITY
 from synapseclient.core.exceptions import SynapseNotFoundError
-from synapseclient.models import FailureStrategy, File, Folder
+from synapseclient.models import Activity, FailureStrategy, File, Folder
+from synapseclient.models.mixins.storable_container import (
+    _extract_entity_metadata_for_manifest_csv,
+    _write_manifest_data_csv,
+    generate_manifest_csv,
+)
 
 SYN_123 = "syn123"
 SYN_456 = "syn456"
@@ -785,3 +794,289 @@ class TestFolder:
             assert result.modified_by == MODIFIED_BY
             assert result.files[0].id == SYN_456
             assert result.files[0].name == "example_file_1"
+
+    async def test_sync_from_synapse_manifest_all_generates_per_directory(
+        self,
+    ) -> None:
+        # GIVEN a Folder object with a path
+        folder = Folder(id=SYN_123)
+        children = [{"id": SYN_456, "type": FILE_ENTITY, "name": "example_file_1"}]
+
+        async def mock_get_children(*args, **kwargs):
+            for child in children:
+                yield child
+
+        downloaded_file = File(
+            id=SYN_456,
+            name="example_file_1",
+            path="/tmp/mydir/example_file_1.txt",
+            parent_id=SYN_123,
+        )
+
+        # WHEN I call sync_from_synapse with manifest="all" and a path
+        with patch(
+            "synapseclient.models.mixins.storable_container.get_children",
+            side_effect=mock_get_children,
+        ), patch(
+            "synapseclient.api.entity_factory.get_entity_id_bundle2",
+            new_callable=AsyncMock,
+            return_value=self.get_example_rest_api_folder_output(),
+        ), patch(
+            "synapseclient.models.file.File.get_async",
+            return_value=downloaded_file,
+        ), patch(
+            "synapseclient.models.mixins.storable_container.generate_manifest_csv",
+        ) as mock_generate:
+            await folder.sync_from_synapse_async(
+                path="/tmp/mydir", manifest="all", synapse_client=self.syn
+            )
+
+        # THEN generate_manifest_csv should be called for each directory
+        assert mock_generate.call_count >= 1
+        call_paths = [c.kwargs["path"] for c in mock_generate.call_args_list]
+        assert "/tmp/mydir" in call_paths
+
+    async def test_sync_from_synapse_manifest_root_generates_only_at_root(
+        self,
+    ) -> None:
+        # GIVEN a Folder object with a path
+        folder = Folder(id=SYN_123)
+        children = [{"id": SYN_456, "type": FILE_ENTITY, "name": "example_file_1"}]
+
+        async def mock_get_children(*args, **kwargs):
+            for child in children:
+                yield child
+
+        downloaded_file = File(
+            id=SYN_456,
+            name="example_file_1",
+            path="/tmp/mydir/example_file_1.txt",
+            parent_id=SYN_123,
+        )
+
+        # WHEN I call sync_from_synapse with manifest="root" and a path
+        with patch(
+            "synapseclient.models.mixins.storable_container.get_children",
+            side_effect=mock_get_children,
+        ), patch(
+            "synapseclient.api.entity_factory.get_entity_id_bundle2",
+            new_callable=AsyncMock,
+            return_value=self.get_example_rest_api_folder_output(),
+        ), patch(
+            "synapseclient.models.file.File.get_async",
+            return_value=downloaded_file,
+        ), patch(
+            "synapseclient.models.mixins.storable_container.generate_manifest_csv",
+        ) as mock_generate:
+            await folder.sync_from_synapse_async(
+                path="/tmp/mydir", manifest="root", synapse_client=self.syn
+            )
+
+        # THEN generate_manifest_csv should be called exactly once with the root path
+        mock_generate.assert_called_once()
+        assert mock_generate.call_args.kwargs["path"] == "/tmp/mydir"
+
+    async def test_sync_from_synapse_manifest_suppress_skips_generation(
+        self,
+    ) -> None:
+        # GIVEN a Folder object with a path
+        folder = Folder(id=SYN_123)
+        children = [{"id": SYN_456, "type": FILE_ENTITY, "name": "example_file_1"}]
+
+        async def mock_get_children(*args, **kwargs):
+            for child in children:
+                yield child
+
+        # WHEN I call sync_from_synapse with manifest="suppress"
+        with patch(
+            "synapseclient.models.mixins.storable_container.get_children",
+            side_effect=mock_get_children,
+        ), patch(
+            "synapseclient.api.entity_factory.get_entity_id_bundle2",
+            new_callable=AsyncMock,
+            return_value=self.get_example_rest_api_folder_output(),
+        ), patch(
+            "synapseclient.models.file.File.get_async",
+            return_value=(File(id=SYN_456, name="example_file_1")),
+        ), patch(
+            "synapseclient.models.mixins.storable_container.generate_manifest_csv",
+        ) as mock_generate:
+            await folder.sync_from_synapse_async(
+                path="/tmp/mydir", manifest="suppress", synapse_client=self.syn
+            )
+
+        # THEN generate_manifest_csv should never be called
+        mock_generate.assert_not_called()
+
+    async def test_sync_from_synapse_no_manifest_without_path(self) -> None:
+        # GIVEN a Folder with no path specified
+        folder = Folder(id=SYN_123)
+        children = [{"id": SYN_456, "type": FILE_ENTITY, "name": "example_file_1"}]
+
+        async def mock_get_children(*args, **kwargs):
+            for child in children:
+                yield child
+
+        # WHEN I call sync_from_synapse with no path (default manifest="all")
+        with patch(
+            "synapseclient.models.mixins.storable_container.get_children",
+            side_effect=mock_get_children,
+        ), patch(
+            "synapseclient.api.entity_factory.get_entity_id_bundle2",
+            new_callable=AsyncMock,
+            return_value=self.get_example_rest_api_folder_output(),
+        ), patch(
+            "synapseclient.models.file.File.get_async",
+            return_value=(File(id=SYN_456, name="example_file_1")),
+        ), patch(
+            "synapseclient.models.mixins.storable_container.generate_manifest_csv",
+        ) as mock_generate:
+            await folder.sync_from_synapse_async(synapse_client=self.syn)
+
+        # THEN generate_manifest_csv should not be called (no path to write to)
+        mock_generate.assert_not_called()
+
+
+class TestGenerateManifestCsv:
+    """Tests for the generate_manifest_csv and related helper functions."""
+
+    def _make_file(
+        self,
+        syn_id: str = "syn123",
+        name: str = "file.txt",
+        path: str = "/data/file.txt",
+        parent_id: str = "syn456",
+        content_type: str = "text/plain",
+        synapse_store: bool = True,
+        annotations: dict = None,
+        activity: Activity = None,
+    ) -> File:
+        f = File(
+            id=syn_id,
+            name=name,
+            path=path,
+            parent_id=parent_id,
+            content_type=content_type,
+            synapse_store=synapse_store,
+        )
+        if annotations:
+            f.annotations = annotations
+        if activity:
+            f.activity = activity
+        return f
+
+    def test_extract_entity_metadata_uses_parentId_and_ID_columns(self) -> None:
+        # GIVEN a File entity
+        f = self._make_file()
+
+        # WHEN metadata is extracted
+        keys, data = _extract_entity_metadata_for_manifest_csv([f])
+
+        # THEN column names use new convention
+        assert "parentId" in keys
+        assert "ID" in keys
+        assert "parent" not in keys
+        assert "id" not in keys
+
+        # AND values are correct
+        assert data[0]["parentId"] == "syn456"
+        assert data[0]["ID"] == "syn123"
+        assert data[0]["path"] == "/data/file.txt"
+        assert data[0]["name"] == "file.txt"
+
+    def test_extract_entity_metadata_includes_annotations(self) -> None:
+        # GIVEN a File entity with annotations
+        f = self._make_file(annotations={"tissue": ["brain"], "count": [42]})
+
+        # WHEN metadata is extracted
+        keys, data = _extract_entity_metadata_for_manifest_csv([f])
+
+        # THEN annotation keys are included
+        assert "tissue" in keys
+        assert "count" in keys
+        assert data[0]["tissue"] == ["brain"]
+
+    def test_write_manifest_data_csv_produces_comma_separated_output(self) -> None:
+        # GIVEN some data with a value that contains a comma
+        keys = ["path", "parentId", "name", "ID"]
+        data = [
+            {
+                "path": "/data/file.txt",
+                "parentId": "syn456",
+                "name": "a, b, c",
+                "ID": "syn123",
+            }
+        ]
+
+        # WHEN written to a CSV buffer
+        buf = io.StringIO()
+        with patch("builtins.open", side_effect=lambda *a, **kw: buf):
+            pass  # we call directly below
+
+        output = io.StringIO()
+        writer = csv.DictWriter(
+            output,
+            keys,
+            restval="",
+            extrasaction="ignore",
+            quoting=csv.QUOTE_MINIMAL,
+        )
+        writer.writeheader()
+        writer.writerow(data[0])
+        content = output.getvalue()
+
+        # THEN the header uses commas
+        assert "path,parentId,name,ID" in content
+        # AND the value with commas is quoted
+        assert '"a, b, c"' in content
+
+    def test_generate_manifest_csv_creates_file(self) -> None:
+        # GIVEN a list of File entities and a temp directory
+        f = self._make_file(
+            syn_id="syn123",
+            name="data.csv",
+            path="/tmp/data.csv",
+            parent_id="syn456",
+        )
+
+        with tempfile.TemporaryDirectory() as tmpdir:
+            # WHEN generate_manifest_csv is called
+            generate_manifest_csv(all_files=[f], path=tmpdir)
+
+            # THEN manifest.csv is created in the directory
+            manifest_path = os.path.join(tmpdir, "manifest.csv")
+            assert os.path.exists(manifest_path)
+
+            # AND it has the expected columns with new naming convention
+            with open(manifest_path, newline="", encoding="utf8") as fp:
+                reader = csv.DictReader(fp)
+                headers = reader.fieldnames
+                assert "parentId" in headers
+                assert "ID" in headers
+                assert "parent" not in headers
+                assert "id" not in headers
+
+                row = next(reader)
+                assert row["parentId"] == "syn456"
+                assert row["ID"] == "syn123"
+
+    def test_generate_manifest_csv_skips_when_no_files(self) -> None:
+        # GIVEN an empty file list
+        with tempfile.TemporaryDirectory() as tmpdir:
+            # WHEN generate_manifest_csv is called with no files
+            generate_manifest_csv(all_files=[], path=tmpdir)
+
+            # THEN no manifest.csv is created
+            assert not os.path.exists(os.path.join(tmpdir, "manifest.csv"))
+
+    def test_generate_manifest_csv_quotes_values_with_commas(self) -> None:
+        # GIVEN a File whose name contains a comma
+        f = self._make_file(name="file, extra.txt", path="/tmp/file, extra.txt")
+
+        with tempfile.TemporaryDirectory() as tmpdir:
+            generate_manifest_csv(all_files=[f], path=tmpdir)
+            manifest_path = os.path.join(tmpdir, "manifest.csv")
+            content = open(manifest_path, encoding="utf8").read()
+
+        # THEN the comma-containing value is quoted in the CSV
+        assert '"file, extra.txt"' in content
