@@ -495,6 +495,7 @@ class TestSyncToSynapseAsync:
         mock_uploaded = [MagicMock()]
         mock_uploader = MagicMock()
         mock_uploader.upload = AsyncMock(return_value=mock_uploaded)
+
         with (
             patch(
                 "synapseclient.models.mixins.storable_container.read_manifest_for_upload",
@@ -508,6 +509,7 @@ class TestSyncToSynapseAsync:
             result = await project.sync_to_synapse_async(
                 manifest_path=str(manifest),
                 dry_run=False,
+                send_messages=False,
                 synapse_client=self.syn,
             )
             mock_uploader.upload.assert_awaited_once_with(mock_items)
