@@ -84,7 +84,7 @@ class StorageLocationConfigurableSynchronousProtocol(Protocol):
                 folder = Folder(id="syn123").get()
                 setting = folder.get_project_setting(setting_type="upload")
                 if setting:
-                    print(f"Storage locations: {setting.get('locations')}")
+                    print(f"Storage locations: {setting.locations}")
         """
         return {}
 
