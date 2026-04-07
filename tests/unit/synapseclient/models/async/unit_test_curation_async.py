@@ -381,14 +381,17 @@ class TestCurationTask:
             return
             yield  # pragma: no cover
 
-        with patch(
-            "synapseclient.models.curation.list_curation_tasks",
-            return_value=empty_list_gen(),
-        ), patch(
-            "synapseclient.models.curation.create_curation_task",
-            new_callable=AsyncMock,
-            return_value=_get_file_based_task_api_response(),
-        ) as mock_create:
+        with (
+            patch(
+                "synapseclient.models.curation.list_curation_tasks",
+                return_value=empty_list_gen(),
+            ),
+            patch(
+                "synapseclient.models.curation.create_curation_task",
+                new_callable=AsyncMock,
+                return_value=_get_file_based_task_api_response(),
+            ) as mock_create,
+        ):
             result = await task.store_async(synapse_client=self.syn)
 
             # THEN the create API should be called
@@ -446,18 +449,22 @@ class TestCurationTask:
             yield existing_response
 
         # WHEN I call store_async
-        with patch(
-            "synapseclient.models.curation.list_curation_tasks",
-            return_value=mock_list(),
-        ), patch(
-            "synapseclient.models.curation.get_curation_task",
-            new_callable=AsyncMock,
-            return_value=existing_response,
-        ), patch(
-            "synapseclient.models.curation.update_curation_task",
-            new_callable=AsyncMock,
-            return_value=existing_response,
-        ) as mock_update:
+        with (
+            patch(
+                "synapseclient.models.curation.list_curation_tasks",
+                return_value=mock_list(),
+            ),
+            patch(
+                "synapseclient.models.curation.get_curation_task",
+                new_callable=AsyncMock,
+                return_value=existing_response,
+            ),
+            patch(
+                "synapseclient.models.curation.update_curation_task",
+                new_callable=AsyncMock,
+                return_value=existing_response,
+            ) as mock_update,
+        ):
             result = await task.store_async(synapse_client=self.syn)
 
             # THEN it should have merged the existing task and done an update
@@ -664,15 +671,18 @@ class TestGrid:
 
         # WHEN I call create_async with attach_to_previous_session=True and no
         # existing sessions
-        with patch.object(
-            Grid,
-            "list_async",
-            return_value=mock_list_async(),
-        ), patch.object(
-            CreateGridRequest,
-            "send_job_and_wait_async",
-            new_callable=AsyncMock,
-            return_value=mock_create_request,
+        with (
+            patch.object(
+                Grid,
+                "list_async",
+                return_value=mock_list_async(),
+            ),
+            patch.object(
+                CreateGridRequest,
+                "send_job_and_wait_async",
+                new_callable=AsyncMock,
+                return_value=mock_create_request,
+            ),
         ):
             result = await grid.create_async(
                 attach_to_previous_session=True, synapse_client=self.syn

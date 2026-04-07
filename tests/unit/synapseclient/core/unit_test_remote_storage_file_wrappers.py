@@ -33,13 +33,13 @@ class TestS3ClientWrapper:
         endpoint_url = "http://foo.s3.amazon.com"
         show_progress = kwargs.pop("show_progress", True)
 
-        with mock.patch(
-            "boto3.session.Session"
-        ) as mock_boto_session, mock.patch.object(
-            S3ClientWrapper, "_create_progress_callback_func"
-        ) as mock_create_progress_callback, mock.patch(
-            "boto3.s3.transfer.TransferConfig"
-        ) as mock_TransferConfig:
+        with (
+            mock.patch("boto3.session.Session") as mock_boto_session,
+            mock.patch.object(
+                S3ClientWrapper, "_create_progress_callback_func"
+            ) as mock_create_progress_callback,
+            mock.patch("boto3.s3.transfer.TransferConfig") as mock_TransferConfig,
+        ):
             # Create a mock object for s3.Object with content_length set to an integer
             mock_s3_object = mock.Mock(content_length=1234)
             # Make resource().Object return the mock object
@@ -162,15 +162,14 @@ class TestS3ClientWrapper:
         upload_file_path = "/tmp/upload_file"
         endpoint_url = "http://foo.s3.amazon.com"
 
-        with mock.patch(
-            "boto3.session.Session"
-        ) as mock_boto_session, mock.patch.object(
-            S3ClientWrapper, "_create_progress_callback_func"
-        ) as mock_create_progress_callback, mock.patch(
-            "boto3.s3.transfer.TransferConfig"
-        ) as mock_TransferConfig, mock.patch.object(
-            remote_file_storage_wrappers, "os"
-        ) as mock_os:
+        with (
+            mock.patch("boto3.session.Session") as mock_boto_session,
+            mock.patch.object(
+                S3ClientWrapper, "_create_progress_callback_func"
+            ) as mock_create_progress_callback,
+            mock.patch("boto3.s3.transfer.TransferConfig") as mock_TransferConfig,
+            mock.patch.object(remote_file_storage_wrappers, "os") as mock_os,
+        ):
             mock_os.stat.return_value = mock.Mock(st_size=1234)
             returned_upload_path = S3ClientWrapper.upload_file(
                 bucket_name, endpoint_url, remote_file_key, upload_file_path, **kwargs

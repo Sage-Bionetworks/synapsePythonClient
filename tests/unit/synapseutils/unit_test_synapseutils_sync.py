@@ -1,4 +1,5 @@
 """Unit tests for the Sync utility functions"""
+
 import csv
 import datetime
 import math
@@ -165,9 +166,11 @@ def test_read_manifest_sync_order_with_home_directory(syn: Synapse) -> None:
     # mock syn.get() to return a project because the final check is making sure parent is a container
     # mock isfile() to always return true to avoid having to create files in the home directory
     # side effect mocks values for: manfiest file, file1.txt, file2.txt, isfile(project.id) check in syn.get()
-    with patch.object(syn, "get_async", return_value=Project()), patch.object(
-        os.path, "isfile", side_effect=[True, True, True, False]
-    ), patch.object(sync, "_check_size_each_file", return_value=Mock()):
+    with (
+        patch.object(syn, "get_async", return_value=Project()),
+        patch.object(os.path, "isfile", side_effect=[True, True, True, False]),
+        patch.object(sync, "_check_size_each_file", return_value=Mock()),
+    ):
         manifest_dataframe = synapseutils.sync.readManifestFile(syn, manifest)
         expected_order = pd.Series(
             [
@@ -194,10 +197,10 @@ def test_read_manifest_file_synapse_store_values_not_set(syn: Synapse) -> None:
     }
 
     manifest = StringIO(header + row1 + row2)
-    with patch.object(syn, "get_async", return_value=Project()), patch.object(
-        os.path, "isfile", return_value=True
-    ), patch.object(
-        sync, "_check_size_each_file", return_value=Mock()
+    with (
+        patch.object(syn, "get_async", return_value=Project()),
+        patch.object(os.path, "isfile", return_value=True),
+        patch.object(sync, "_check_size_each_file", return_value=Mock()),
     ):  # side effect mocks values for: file1.txt
         manifest_dataframe = synapseutils.sync.readManifestFile(syn, manifest)
         actual_synapseStore = manifest_dataframe.set_index("path")[
@@ -233,10 +236,10 @@ def test_read_manifest_file_synapse_store_values_are_set(syn: Synapse) -> None:
     }
 
     manifest = StringIO(header + row1 + row2 + row3 + row4 + row5 + row6)
-    with patch.object(syn, "get_async", return_value=Project()), patch.object(
-        sync, "_check_size_each_file", return_value=Mock()
-    ), patch.object(
-        os.path, "isfile", return_value=True
+    with (
+        patch.object(syn, "get_async", return_value=Project()),
+        patch.object(sync, "_check_size_each_file", return_value=Mock()),
+        patch.object(os.path, "isfile", return_value=True),
     ):  # mocks values for: file1.txt, file3.txt, file5.txt
         manifest_dataframe = synapseutils.sync.readManifestFile(syn, manifest)
 
@@ -248,12 +251,14 @@ def test_read_manifest_file_synapse_store_values_are_set(syn: Synapse) -> None:
 
 def test_sync_from_synapse_non_file_entity(syn: Synapse) -> None:
     table_schema = "syn12345"
-    with patch.object(syn, "getChildren", return_value=[]), patch.object(
-        syn, "get", return_value=Schema(name="asssdfa", parent=PARENT_ID)
-    ), patch(
-        "synapseutils.sync.get_entity",
-        new_callable=AsyncMock,
-        return_value={"concreteType": concrete_types.TABLE_ENTITY},
+    with (
+        patch.object(syn, "getChildren", return_value=[]),
+        patch.object(syn, "get", return_value=Schema(name="asssdfa", parent=PARENT_ID)),
+        patch(
+            "synapseutils.sync.get_entity",
+            new_callable=AsyncMock,
+            return_value={"concreteType": concrete_types.TABLE_ENTITY},
+        ),
     ):
         pytest.raises(ValueError, synapseutils.syncFromSynapse, syn, table_schema)
 
@@ -263,17 +268,21 @@ def test_sync_from_synapse_empty_folder(syn: Synapse) -> None:
         for child in []:
             yield child
 
-    with patch(
-        "synapseclient.models.mixins.storable_container.get_children",
-        side_effect=mock_get_children,
-    ), patch(
-        "synapseutils.sync.get_entity",
-        new_callable=AsyncMock,
-        return_value=(mock_folder_dict()),
-    ), patch(
-        "synapseclient.api.entity_factory.get_entity_id_bundle2",
-        new_callable=AsyncMock,
-        return_value=(mocked_folder_rest_api_dict()),
+    with (
+        patch(
+            "synapseclient.models.mixins.storable_container.get_children",
+            side_effect=mock_get_children,
+        ),
+        patch(
+            "synapseutils.sync.get_entity",
+            new_callable=AsyncMock,
+            return_value=(mock_folder_dict()),
+        ),
+        patch(
+            "synapseclient.api.entity_factory.get_entity_id_bundle2",
+            new_callable=AsyncMock,
+            return_value=(mocked_folder_rest_api_dict()),
+        ),
     ):
         assert list() == synapseutils.syncFromSynapse(syn=syn, entity=SYN_123)
 
@@ -285,14 +294,18 @@ def test_sync_from_synapse_file_entity(syn: Synapse) -> None:
         id=SYN_123,
         properties={"isLatestVersion": True},
     )
-    with patch.object(syn, "getChildren") as patch_syn_get_children, patch(
-        "synapseutils.sync.get_entity",
-        new_callable=AsyncMock,
-        return_value=(mock_file_dict()),
-    ), patch(
-        "synapseclient.api.entity_factory.get_entity_id_bundle2",
-        new_callable=AsyncMock,
-        return_value=(mocked_file_rest_api_dict()),
+    with (
+        patch.object(syn, "getChildren") as patch_syn_get_children,
+        patch(
+            "synapseutils.sync.get_entity",
+            new_callable=AsyncMock,
+            return_value=(mock_file_dict()),
+        ),
+        patch(
+            "synapseclient.api.entity_factory.get_entity_id_bundle2",
+            new_callable=AsyncMock,
+            return_value=(mocked_file_rest_api_dict()),
+        ),
     ):
         result = synapseutils.syncFromSynapse(syn, file)
         assert [file] == result
@@ -312,17 +325,21 @@ def test_sync_from_synapse_folder_contains_one_file(syn: Synapse) -> None:
         for child in [mocked_file_child()]:
             yield child
 
-    with patch(
-        "synapseclient.models.mixins.storable_container.get_children",
-        side_effect=mock_get_children,
-    ), patch(
-        "synapseutils.sync.get_entity",
-        new_callable=AsyncMock,
-        side_effect=[mock_folder_dict(), mock_file_dict()],
-    ), patch(
-        "synapseclient.api.entity_factory.get_entity_id_bundle2",
-        new_callable=AsyncMock,
-        side_effect=[mocked_folder_rest_api_dict(), mocked_file_rest_api_dict()],
+    with (
+        patch(
+            "synapseclient.models.mixins.storable_container.get_children",
+            side_effect=mock_get_children,
+        ),
+        patch(
+            "synapseutils.sync.get_entity",
+            new_callable=AsyncMock,
+            side_effect=[mock_folder_dict(), mock_file_dict()],
+        ),
+        patch(
+            "synapseclient.api.entity_factory.get_entity_id_bundle2",
+            new_callable=AsyncMock,
+            side_effect=[mocked_folder_rest_api_dict(), mocked_file_rest_api_dict()],
+        ),
     ):
         result = synapseutils.syncFromSynapse(syn, folder)
         assert [file] == result
@@ -353,25 +370,32 @@ def test_sync_from_synapse_project_contains_empty_folder(syn: Synapse) -> None:
             yield child
         call_count += 1
 
-    with patch(
-        "synapseclient.models.mixins.storable_container.get_children",
-        side_effect=mock_get_children,
-    ) as patch_syn_get_children, patch(
-        "synapseutils.sync.get_entity",
-        new_callable=AsyncMock,
-        side_effect=[mock_project_dict(), mock_folder_dict(), mock_file_dict()],
-    ), patch(
-        "synapseclient.api.entity_factory.get_entity_id_bundle2",
-        new_callable=AsyncMock,
-        side_effect=[
-            mocked_project_rest_api_dict(),
-            mocked_folder_rest_api_dict(),
-            mocked_file_rest_api_dict(),
-        ],
-    ), patch(
-        "synapseclient.models.file.get_from_entity_factory",
-        wraps=spy_for_async_function(synapseclient.models.file.get_from_entity_factory),
-    ) as patch_get_file_entity:
+    with (
+        patch(
+            "synapseclient.models.mixins.storable_container.get_children",
+            side_effect=mock_get_children,
+        ) as patch_syn_get_children,
+        patch(
+            "synapseutils.sync.get_entity",
+            new_callable=AsyncMock,
+            side_effect=[mock_project_dict(), mock_folder_dict(), mock_file_dict()],
+        ),
+        patch(
+            "synapseclient.api.entity_factory.get_entity_id_bundle2",
+            new_callable=AsyncMock,
+            side_effect=[
+                mocked_project_rest_api_dict(),
+                mocked_folder_rest_api_dict(),
+                mocked_file_rest_api_dict(),
+            ],
+        ),
+        patch(
+            "synapseclient.models.file.get_from_entity_factory",
+            wraps=spy_for_async_function(
+                synapseclient.models.file.get_from_entity_factory
+            ),
+        ) as patch_get_file_entity,
+    ):
         result = synapseutils.syncFromSynapse(syn=syn, entity=project)
         assert [file] == result
         assert patch_syn_get_children.call_count == 2
@@ -420,25 +444,32 @@ def test_sync_from_synapse_download_file_is_false(syn: Synapse) -> None:
             yield child
         call_count += 1
 
-    with patch(
-        "synapseclient.models.mixins.storable_container.get_children",
-        side_effect=mock_get_children,
-    ) as patch_syn_get_children, patch(
-        "synapseutils.sync.get_entity",
-        new_callable=AsyncMock,
-        side_effect=[mock_project_dict(), mock_folder_dict(), mock_file_dict()],
-    ), patch(
-        "synapseclient.api.entity_factory.get_entity_id_bundle2",
-        new_callable=AsyncMock,
-        side_effect=[
-            mocked_project_rest_api_dict(),
-            mocked_file_rest_api_dict(),
-            mocked_folder_rest_api_dict(),
-        ],
-    ), patch(
-        "synapseclient.models.file.get_from_entity_factory",
-        wraps=spy_for_async_function(synapseclient.models.file.get_from_entity_factory),
-    ) as patch_get_file_entity:
+    with (
+        patch(
+            "synapseclient.models.mixins.storable_container.get_children",
+            side_effect=mock_get_children,
+        ) as patch_syn_get_children,
+        patch(
+            "synapseutils.sync.get_entity",
+            new_callable=AsyncMock,
+            side_effect=[mock_project_dict(), mock_folder_dict(), mock_file_dict()],
+        ),
+        patch(
+            "synapseclient.api.entity_factory.get_entity_id_bundle2",
+            new_callable=AsyncMock,
+            side_effect=[
+                mocked_project_rest_api_dict(),
+                mocked_file_rest_api_dict(),
+                mocked_folder_rest_api_dict(),
+            ],
+        ),
+        patch(
+            "synapseclient.models.file.get_from_entity_factory",
+            wraps=spy_for_async_function(
+                synapseclient.models.file.get_from_entity_factory
+            ),
+        ) as patch_get_file_entity,
+    ):
         result = synapseutils.syncFromSynapse(
             syn=syn, entity=project, downloadFile=False
         )
@@ -520,38 +551,47 @@ def test_sync_from_synapse_manifest_is_all(
             yield child
         call_count += 1
 
-    with patch(
-        "synapseclient.models.mixins.storable_container.get_children",
-        side_effect=mock_get_children,
-    ) as patch_syn_get_children, patch(
-        "synapseutils.sync.get_entity",
-        new_callable=AsyncMock,
-        side_effect=[
-            mock_project_dict(),
-            mock_file_dict(syn_id=SYN_123),
-            mock_folder_dict(),
-            mock_file_dict(syn_id=SYN_789),
-        ],
-    ), patch(
-        "synapseclient.api.entity_factory.get_entity_id_bundle2",
-        new_callable=AsyncMock,
-        side_effect=[
-            mocked_project_rest_api_dict(),
-            mocked_file_rest_api_dict(syn_id=SYN_123),
-            mocked_folder_rest_api_dict(),
-            mocked_file_rest_api_dict(syn_id=SYN_789),
-        ],
-    ), patch(
-        "synapseclient.models.file.get_from_entity_factory",
-        wraps=spy_for_async_function(synapseclient.models.file.get_from_entity_factory),
-    ) as patch_get_file_entity, patch(
-        "synapseclient.models.activity.Activity.from_parent_async",
-        new_callable=AsyncMock,
-        side_effect=lambda parent, **kwargs: provenance.get(parent.id),
-    ) as patch_activity_from_parent, patch(
-        "synapseutils.sync.generate_manifest",
-        wraps=spy_for_function(synapseutils.sync.generate_manifest),
-    ) as generate_manifest_spy:
+    with (
+        patch(
+            "synapseclient.models.mixins.storable_container.get_children",
+            side_effect=mock_get_children,
+        ) as patch_syn_get_children,
+        patch(
+            "synapseutils.sync.get_entity",
+            new_callable=AsyncMock,
+            side_effect=[
+                mock_project_dict(),
+                mock_file_dict(syn_id=SYN_123),
+                mock_folder_dict(),
+                mock_file_dict(syn_id=SYN_789),
+            ],
+        ),
+        patch(
+            "synapseclient.api.entity_factory.get_entity_id_bundle2",
+            new_callable=AsyncMock,
+            side_effect=[
+                mocked_project_rest_api_dict(),
+                mocked_file_rest_api_dict(syn_id=SYN_123),
+                mocked_folder_rest_api_dict(),
+                mocked_file_rest_api_dict(syn_id=SYN_789),
+            ],
+        ),
+        patch(
+            "synapseclient.models.file.get_from_entity_factory",
+            wraps=spy_for_async_function(
+                synapseclient.models.file.get_from_entity_factory
+            ),
+        ) as patch_get_file_entity,
+        patch(
+            "synapseclient.models.activity.Activity.from_parent_async",
+            new_callable=AsyncMock,
+            side_effect=lambda parent, **kwargs: provenance.get(parent.id),
+        ) as patch_activity_from_parent,
+        patch(
+            "synapseutils.sync.generate_manifest",
+            wraps=spy_for_function(synapseutils.sync.generate_manifest),
+        ) as generate_manifest_spy,
+    ):
         result = synapseutils.syncFromSynapse(
             syn=syn, entity=project, path=temp_directory_path, manifest="all"
         )
@@ -712,38 +752,47 @@ def test_sync_from_synapse_manifest_is_root(
             yield child
         call_count += 1
 
-    with patch(
-        "synapseclient.models.mixins.storable_container.get_children",
-        side_effect=mock_get_children,
-    ) as patch_syn_get_children, patch(
-        "synapseutils.sync.get_entity",
-        new_callable=AsyncMock,
-        side_effect=[
-            mock_project_dict(),
-            mock_file_dict(syn_id=SYN_123),
-            mock_folder_dict(),
-            mock_file_dict(syn_id=SYN_789),
-        ],
-    ), patch(
-        "synapseclient.api.entity_factory.get_entity_id_bundle2",
-        new_callable=AsyncMock,
-        side_effect=[
-            mocked_project_rest_api_dict(),
-            mocked_file_rest_api_dict(syn_id=SYN_123),
-            mocked_folder_rest_api_dict(),
-            mocked_file_rest_api_dict(syn_id=SYN_789),
-        ],
-    ), patch(
-        "synapseclient.models.file.get_from_entity_factory",
-        wraps=spy_for_async_function(synapseclient.models.file.get_from_entity_factory),
-    ) as patch_get_file_entity, patch(
-        "synapseclient.models.activity.Activity.from_parent_async",
-        new_callable=AsyncMock,
-        side_effect=lambda parent, **kwargs: provenance.get(parent.id),
-    ) as patch_activity_from_parent, patch(
-        "synapseutils.sync.generate_manifest",
-        wraps=spy_for_function(synapseutils.sync.generate_manifest),
-    ) as generate_manifest_spy:
+    with (
+        patch(
+            "synapseclient.models.mixins.storable_container.get_children",
+            side_effect=mock_get_children,
+        ) as patch_syn_get_children,
+        patch(
+            "synapseutils.sync.get_entity",
+            new_callable=AsyncMock,
+            side_effect=[
+                mock_project_dict(),
+                mock_file_dict(syn_id=SYN_123),
+                mock_folder_dict(),
+                mock_file_dict(syn_id=SYN_789),
+            ],
+        ),
+        patch(
+            "synapseclient.api.entity_factory.get_entity_id_bundle2",
+            new_callable=AsyncMock,
+            side_effect=[
+                mocked_project_rest_api_dict(),
+                mocked_file_rest_api_dict(syn_id=SYN_123),
+                mocked_folder_rest_api_dict(),
+                mocked_file_rest_api_dict(syn_id=SYN_789),
+            ],
+        ),
+        patch(
+            "synapseclient.models.file.get_from_entity_factory",
+            wraps=spy_for_async_function(
+                synapseclient.models.file.get_from_entity_factory
+            ),
+        ) as patch_get_file_entity,
+        patch(
+            "synapseclient.models.activity.Activity.from_parent_async",
+            new_callable=AsyncMock,
+            side_effect=lambda parent, **kwargs: provenance.get(parent.id),
+        ) as patch_activity_from_parent,
+        patch(
+            "synapseutils.sync.generate_manifest",
+            wraps=spy_for_function(synapseutils.sync.generate_manifest),
+        ) as generate_manifest_spy,
+    ):
         result = synapseutils.syncFromSynapse(
             syn=syn, entity=project, path=temp_directory_path, manifest="root"
         )
@@ -875,35 +924,43 @@ def test_sync_from_synapse_manifest_is_suppress(
             yield child
         call_count += 1
 
-    with patch(
-        "synapseclient.models.mixins.storable_container.get_children",
-        side_effect=mock_get_children,
-    ) as patch_syn_get_children, patch(
-        "synapseutils.sync.get_entity",
-        new_callable=AsyncMock,
-        side_effect=[
-            mock_project_dict(),
-            mock_file_dict(syn_id=SYN_123),
-            mock_folder_dict(),
-            mock_file_dict(syn_id=SYN_789),
-        ],
-    ), patch(
-        "synapseclient.api.entity_factory.get_entity_id_bundle2",
-        new_callable=AsyncMock,
-        side_effect=[
-            mocked_project_rest_api_dict(),
-            mocked_file_rest_api_dict(syn_id=SYN_123),
-            mocked_folder_rest_api_dict(),
-            mocked_file_rest_api_dict(syn_id=SYN_789),
-        ],
-    ), patch(
-        "synapseclient.models.file.get_from_entity_factory",
-        wraps=spy_for_async_function(synapseclient.models.file.get_from_entity_factory),
-    ) as patch_get_file_entity, patch(
-        "synapseclient.models.activity.Activity.from_parent_async",
-        new_callable=AsyncMock,
-        return_value=None,
-    ) as patch_activity_from_parent:
+    with (
+        patch(
+            "synapseclient.models.mixins.storable_container.get_children",
+            side_effect=mock_get_children,
+        ) as patch_syn_get_children,
+        patch(
+            "synapseutils.sync.get_entity",
+            new_callable=AsyncMock,
+            side_effect=[
+                mock_project_dict(),
+                mock_file_dict(syn_id=SYN_123),
+                mock_folder_dict(),
+                mock_file_dict(syn_id=SYN_789),
+            ],
+        ),
+        patch(
+            "synapseclient.api.entity_factory.get_entity_id_bundle2",
+            new_callable=AsyncMock,
+            side_effect=[
+                mocked_project_rest_api_dict(),
+                mocked_file_rest_api_dict(syn_id=SYN_123),
+                mocked_folder_rest_api_dict(),
+                mocked_file_rest_api_dict(syn_id=SYN_789),
+            ],
+        ),
+        patch(
+            "synapseclient.models.file.get_from_entity_factory",
+            wraps=spy_for_async_function(
+                synapseclient.models.file.get_from_entity_factory
+            ),
+        ) as patch_get_file_entity,
+        patch(
+            "synapseclient.models.activity.Activity.from_parent_async",
+            new_callable=AsyncMock,
+            return_value=None,
+        ) as patch_activity_from_parent,
+    ):
         result = synapseutils.syncFromSynapse(
             syn=syn, entity=project, path="./", manifest="suppress"
         )
@@ -1086,10 +1143,9 @@ async def test_manifest_upload(syn: Synapse) -> None:
         mocked_uploaders.append(mock_uploader)
         return mock_uploader
 
-    with patch.object(
-        synapseutils.sync, "_SyncUploadItem"
-    ) as upload_item_init, patch.object(
-        synapseutils.sync, "_SyncUploader", new=mock_uploader_constructor
+    with (
+        patch.object(synapseutils.sync, "_SyncUploadItem") as upload_item_init,
+        patch.object(synapseutils.sync, "_SyncUploader", new=mock_uploader_constructor),
     ):
         await synapseutils.sync._manifest_upload(syn, df)
 
@@ -1637,11 +1693,10 @@ def test_generate_sync_manifest(syn: Synapse) -> None:
     folder_name = "TestName"
     parent_id = SYN_123
     manifest_path = "TestFolder"
-    with patch.object(
-        sync, "_walk_directory_tree"
-    ) as patch_walk_directory_tree, patch.object(
-        sync, "_write_manifest_data"
-    ) as patch_write_manifest_data:
+    with (
+        patch.object(sync, "_walk_directory_tree") as patch_walk_directory_tree,
+        patch.object(sync, "_write_manifest_data") as patch_write_manifest_data,
+    ):
         sync.generate_sync_manifest(syn, folder_name, parent_id, manifest_path)
         patch_walk_directory_tree.assert_called_once_with(syn, folder_name, parent_id)
         patch_write_manifest_data.assert_called_with(

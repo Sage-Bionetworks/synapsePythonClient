@@ -33,9 +33,11 @@ async def test_register_jsonschema_async(mock_synapse_client, mock_jsonschema):
 
     m_open = mock_open(read_data=json.dumps(schema_content))
 
-    with patch("builtins.open", m_open), patch(
-        "synapseclient.Synapse.get_client", return_value=mock_synapse_client
-    ), patch("json.load", return_value=schema_content):
+    with (
+        patch("builtins.open", m_open),
+        patch("synapseclient.Synapse.get_client", return_value=mock_synapse_client),
+        patch("json.load", return_value=schema_content),
+    ):
         result = await register_jsonschema_async(
             schema_path=schema_path,
             organization_name=org_name,
@@ -71,9 +73,11 @@ async def test_register_jsonschema_async_fix_schema_name(
 
     m_open = mock_open(read_data=json.dumps(schema_content))
 
-    with patch("builtins.open", m_open), patch(
-        "synapseclient.Synapse.get_client", return_value=mock_synapse_client
-    ), patch("json.load", return_value=schema_content):
+    with (
+        patch("builtins.open", m_open),
+        patch("synapseclient.Synapse.get_client", return_value=mock_synapse_client),
+        patch("json.load", return_value=schema_content),
+    ):
         result = await register_jsonschema_async(
             schema_path=schema_path,
             organization_name=org_name,

@@ -37,11 +37,14 @@ class TestPresignedUrlProvider(object):
             expiration_utc=utc_now + datetime.timedelta(seconds=6),
         )
 
-        with mock.patch.object(
-            PresignedUrlProvider, "_get_pre_signed_info", return_value=info
-        ) as mock_get_presigned_info, mock.patch.object(
-            download_threads, "datetime", wraps=datetime
-        ) as mock_datetime:
+        with (
+            mock.patch.object(
+                PresignedUrlProvider, "_get_pre_signed_info", return_value=info
+            ) as mock_get_presigned_info,
+            mock.patch.object(
+                download_threads, "datetime", wraps=datetime
+            ) as mock_datetime,
+        ):
             mock_datetime.datetime.utcnow.return_value = utc_now
 
             presigned_url_provider = PresignedUrlProvider(
@@ -68,13 +71,14 @@ class TestPresignedUrlProvider(object):
             expiration_utc=utc_now + datetime.timedelta(seconds=6),
         )
 
-        with mock.patch.object(
-            PresignedUrlProvider,
-            "_get_pre_signed_info",
-            side_effect=[expired_info, unexpired_info],
-        ) as mock_get_presigned_info, mock.patch.object(
-            download_threads, "datetime"
-        ) as mock_datetime:
+        with (
+            mock.patch.object(
+                PresignedUrlProvider,
+                "_get_pre_signed_info",
+                side_effect=[expired_info, unexpired_info],
+            ) as mock_get_presigned_info,
+            mock.patch.object(download_threads, "datetime") as mock_datetime,
+        ):
             mock_datetime.datetime.utcnow.return_value = utc_now
 
             presigned_url_provider = PresignedUrlProvider(
@@ -235,25 +239,29 @@ class MultithreadedDownloaderTests(TestCase):
         file_size = int(1.5 * (2**20))
         request = DownloadRequest(file_handle_id, object_id, None, path)
 
-        with mock.patch.object(
-            download_threads, "PresignedUrlProvider"
-        ) as mock_url_provider_init, mock.patch.object(
-            download_threads, "TransferStatus"
-        ) as mock_transfer_status_init, mock.patch.object(
-            download_threads, "_get_file_size"
-        ) as mock_get_file_size, mock.patch.object(
-            download_threads, "_generate_chunk_ranges"
-        ) as mock_generate_chunk_ranges, mock.patch.object(
-            _MultithreadedDownloader, "_prep_file"
-        ) as mock_prep_file, mock.patch.object(
-            _MultithreadedDownloader, "_submit_chunks"
-        ) as mock_submit_chunks, mock.patch.object(
-            _MultithreadedDownloader, "_write_chunks"
-        ) as mock_write_chunks, mock.patch(
-            "concurrent.futures.wait"
-        ) as mock_futures_wait, mock.patch.object(
-            _MultithreadedDownloader, "_check_for_errors"
-        ) as mock_check_for_errors:
+        with (
+            mock.patch.object(
+                download_threads, "PresignedUrlProvider"
+            ) as mock_url_provider_init,
+            mock.patch.object(
+                download_threads, "TransferStatus"
+            ) as mock_transfer_status_init,
+            mock.patch.object(download_threads, "_get_file_size") as mock_get_file_size,
+            mock.patch.object(
+                download_threads, "_generate_chunk_ranges"
+            ) as mock_generate_chunk_ranges,
+            mock.patch.object(_MultithreadedDownloader, "_prep_file") as mock_prep_file,
+            mock.patch.object(
+                _MultithreadedDownloader, "_submit_chunks"
+            ) as mock_submit_chunks,
+            mock.patch.object(
+                _MultithreadedDownloader, "_write_chunks"
+            ) as mock_write_chunks,
+            mock.patch("concurrent.futures.wait") as mock_futures_wait,
+            mock.patch.object(
+                _MultithreadedDownloader, "_check_for_errors"
+            ) as mock_check_for_errors,
+        ):
             mock_url_info = mock.create_autospec(PresignedUrlInfo, url=url)
             mock_url_provider = mock.create_autospec(PresignedUrlProvider)
             mock_url_provider.get_info.return_value = mock_url_info
@@ -340,25 +348,25 @@ class MultithreadedDownloaderTests(TestCase):
         file_size = int(1.5 * (2**20))
         request = DownloadRequest(file_handle_id, entity_id, None, path)
 
-        with mock.patch.object(
-            download_threads, "PresignedUrlProvider"
-        ) as mock_url_provider_init, mock.patch.object(
-            download_threads, "TransferStatus"
-        ) as mock_transfer_status_init, mock.patch.object(
-            download_threads, "_get_file_size"
-        ) as mock_get_file_size, mock.patch.object(
-            download_threads, "_generate_chunk_ranges"
-        ) as mock_generate_chunk_ranges, mock.patch.object(
-            download_threads, "os"
-        ) as mock_os, mock.patch.object(
-            _MultithreadedDownloader, "_prep_file"
-        ), mock.patch.object(
-            _MultithreadedDownloader, "_submit_chunks"
-        ) as mock_submit_chunks, mock.patch.object(
-            _MultithreadedDownloader, "_write_chunks"
-        ), mock.patch(
-            "concurrent.futures.wait"
-        ) as mock_futures_wait:
+        with (
+            mock.patch.object(
+                download_threads, "PresignedUrlProvider"
+            ) as mock_url_provider_init,
+            mock.patch.object(
+                download_threads, "TransferStatus"
+            ) as mock_transfer_status_init,
+            mock.patch.object(download_threads, "_get_file_size") as mock_get_file_size,
+            mock.patch.object(
+                download_threads, "_generate_chunk_ranges"
+            ) as mock_generate_chunk_ranges,
+            mock.patch.object(download_threads, "os") as mock_os,
+            mock.patch.object(_MultithreadedDownloader, "_prep_file"),
+            mock.patch.object(
+                _MultithreadedDownloader, "_submit_chunks"
+            ) as mock_submit_chunks,
+            mock.patch.object(_MultithreadedDownloader, "_write_chunks"),
+            mock.patch("concurrent.futures.wait") as mock_futures_wait,
+        ):
             mock_url_info = mock.create_autospec(PresignedUrlInfo, url=url)
             mock_url_provider = mock.create_autospec(PresignedUrlProvider)
             mock_url_provider.get_info.return_value = mock_url_info
@@ -412,11 +420,14 @@ class MultithreadedDownloaderTests(TestCase):
         request = DownloadRequest(file_handle_id, entity_id, None, path)
 
         # AND A mocked session
-        with mock.patch.object(
-            download_threads, "_get_new_session"
-        ) as mock_get_new_session, mock.patch.object(
-            download_threads, "PresignedUrlProvider"
-        ) as mock_url_provider_init:
+        with (
+            mock.patch.object(
+                download_threads, "_get_new_session"
+            ) as mock_get_new_session,
+            mock.patch.object(
+                download_threads, "PresignedUrlProvider"
+            ) as mock_url_provider_init,
+        ):
             mock_url_info = mock.create_autospec(PresignedUrlInfo, url=url)
             mock_url_provider = mock.create_autospec(PresignedUrlProvider)
             mock_url_provider.get_info.return_value = mock_url_info

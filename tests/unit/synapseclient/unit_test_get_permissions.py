@@ -1,6 +1,7 @@
 """
 Unit test for synapseclient.client.get_permissions
 """
+
 from typing import Dict
 from unittest.mock import patch
 

@@ -1,4 +1,5 @@
 """Unit test for synapseclient.table"""
+
 import csv
 import io
 import json
@@ -259,9 +260,10 @@ def test_csv_to_pandas_df_no_kwargs():
         {"col1": [1, 2, 3], "col2": ["a", "b", "c"], "col3": [True, False, True]}
     )
 
-    with patch.object(
-        pd, "read_csv", return_value=expected_df
-    ) as mock_read_csv, patch.object(os, "linesep", "\r\n"):
+    with (
+        patch.object(pd, "read_csv", return_value=expected_df) as mock_read_csv,
+        patch.object(os, "linesep", "\r\n"),
+    ):
         # WHEN I call _csv_to_pandas_df with default parameters
         df = _csv_to_pandas_df(
             filepath="dummy_path.csv",
@@ -297,9 +299,10 @@ def test_csv_to_pandas_df_with_kwargs() -> None:
     # GIVEN a pandas DataFrame (CSV file stand-in)
     expected_df = pd.DataFrame({"col1": [1, 2, 3], "col2": ["a", "b", "c"]})
 
-    with patch.object(
-        pd, "read_csv", return_value=expected_df
-    ) as mock_read_csv, patch.object(os, "linesep", "\r\n"):
+    with (
+        patch.object(pd, "read_csv", return_value=expected_df) as mock_read_csv,
+        patch.object(os, "linesep", "\r\n"),
+    ):
         # WHEN I call _csv_to_pandas_df with custom keyword arguments
         kwargs = {"escapechar": "\\", "keep_default_na": False}
         df = _csv_to_pandas_df(
@@ -339,9 +342,12 @@ def test_csv_to_pandas_df_calls_convert_date_cols():
         {"col1": [1, 2, 3], "date_col": ["2021-01-01", "2021-01-02", "2021-01-03"]}
     )
 
-    with patch.object(pd, "read_csv", return_value=expected_df), patch.object(
-        synapseclient.table, "_convert_df_date_cols_to_datetime"
-    ) as mock_convert_dates:
+    with (
+        patch.object(pd, "read_csv", return_value=expected_df),
+        patch.object(
+            synapseclient.table, "_convert_df_date_cols_to_datetime"
+        ) as mock_convert_dates,
+    ):
         # WHEN I call _csv_to_pandas_df with date_columns specified
         _csv_to_pandas_df(
             filepath="dummy_path.csv",
@@ -372,11 +378,13 @@ def test_csv_to_pandas_df_handles_list_columns():
         {"col1": [1, 2, 3], "list_col": [[1, 2, 3], [4, 5, 6], [7, 8, 9]]}
     )
 
-    with patch.object(pd, "read_csv", return_value=initial_df), patch.object(
-        synapseclient.table, "_convert_df_date_cols_to_datetime"
-    ), patch.object(
-        pd.Series, "apply", return_value=expected_final_df["list_col"]
-    ) as mock_apply:
+    with (
+        patch.object(pd, "read_csv", return_value=initial_df),
+        patch.object(synapseclient.table, "_convert_df_date_cols_to_datetime"),
+        patch.object(
+            pd.Series, "apply", return_value=expected_final_df["list_col"]
+        ) as mock_apply,
+    ):
         # WHEN I call _csv_to_pandas_df with list_columns specified
         result_df = synapseclient.table._csv_to_pandas_df(
             filepath="dummy_path.csv",
@@ -415,11 +423,14 @@ def test_csv_to_pandas_df_handles_row_id_and_version():
         {"col1": ["a", "b", "c"], "col2": [10, 20, 30]}, index=["1_1", "2_1", "3_2"]
     )  # Index format: ROW_ID_ROW_VERSION
 
-    with patch.object(pd, "read_csv", return_value=initial_df), patch.object(
-        synapseclient.table,
-        "row_labels_from_id_and_version",
-        return_value=["1_1", "2_1", "3_2"],
-    ) as mock_row_labels:
+    with (
+        patch.object(pd, "read_csv", return_value=initial_df),
+        patch.object(
+            synapseclient.table,
+            "row_labels_from_id_and_version",
+            return_value=["1_1", "2_1", "3_2"],
+        ) as mock_row_labels,
+    ):
         # WHEN I call _csv_to_pandas_df with rowIdAndVersionInIndex=True
         result_df = synapseclient.table._csv_to_pandas_df(
             filepath="dummy_path.csv",
@@ -1173,22 +1184,25 @@ def test_downloadTableColumns(syn: Synapse, download_location: str) -> None:
         3: zip_entry_file_paths[1],
     }
 
-    with patch.object(syn, "cache") as mock_cache, patch.object(
-        syn, "_waitForAsync"
-    ) as mock_async, patch(
-        "synapseclient.client.ensure_download_location_is_directory"
-    ) as mock_ensure_dir, patch(
-        "synapseclient.client.download_by_file_handle"
-    ) as mock_download_file_handle, patch.object(
-        client, "zipfile"
-    ), patch.object(
-        client, "extract_zip_file_to_directory"
-    ) as mock_extract_zip_file_to_directory:
+    with (
+        patch.object(syn, "cache") as mock_cache,
+        patch.object(syn, "_waitForAsync") as mock_async,
+        patch(
+            "synapseclient.client.ensure_download_location_is_directory"
+        ) as mock_ensure_dir,
+        patch(
+            "synapseclient.client.download_by_file_handle"
+        ) as mock_download_file_handle,
+        patch.object(client, "zipfile"),
+        patch.object(
+            client, "extract_zip_file_to_directory"
+        ) as mock_extract_zip_file_to_directory,
+    ):
         mock_cache.get.side_effect = cached_paths
         mock_async.return_value = mock_async_response
-        mock_ensure_dir.return_value = (
-            mock_cache.get_cache_dir.return_value
-        ) = "/tmp/download"
+        mock_ensure_dir.return_value = mock_cache.get_cache_dir.return_value = (
+            "/tmp/download"
+        )
         mock_download_file_handle.return_value = zip_file_path
         mock_extract_zip_file_to_directory.side_effect = zip_entry_file_paths
 
@@ -1245,12 +1259,10 @@ def test_SubmissionViewSchema__default_params() -> None:
 
 
 def test_SubmissionViewSchema__before_synapse_store(syn: Synapse) -> None:
-    with patch.object(
-        syn, "_get_default_view_columns"
-    ) as mocked_get_default, patch.object(
-        syn, "_get_annotation_view_columns"
-    ) as mocked_get_annotations, patch.object(
-        SchemaBase, "_before_synapse_store"
+    with (
+        patch.object(syn, "_get_default_view_columns") as mocked_get_default,
+        patch.object(syn, "_get_annotation_view_columns") as mocked_get_annotations,
+        patch.object(SchemaBase, "_before_synapse_store"),
     ):
         submission_view = SubmissionViewSchema(scopes=["123"], parent="idk")
         submission_view._before_synapse_store(syn)
@@ -1265,12 +1277,10 @@ def test_SubmissionViewSchema__before_synapse_store(syn: Synapse) -> None:
 def test_EntityViewSchema__before_synapse_store(syn: Synapse) -> None:
     syn = Synapse(debug=True, skip_checks=True, cache_client=False)
 
-    with patch.object(
-        syn, "_get_default_view_columns"
-    ) as mocked_get_default, patch.object(
-        syn, "_get_annotation_view_columns"
-    ) as mocked_get_annotations, patch.object(
-        SchemaBase, "_before_synapse_store"
+    with (
+        patch.object(syn, "_get_default_view_columns") as mocked_get_default,
+        patch.object(syn, "_get_annotation_view_columns") as mocked_get_annotations,
+        patch.object(SchemaBase, "_before_synapse_store"),
     ):
         submission_view = EntityViewSchema(scopes=["syn123"], parent="idk")
         submission_view._before_synapse_store(syn)
@@ -1385,12 +1395,12 @@ def test_EntityViewSchema__ignore_annotation_column_names(syn: Synapse) -> None:
         Column(name="long2", columnType="INTEGER"),
     ]
 
-    with patch.object(
-        syn, "_get_annotation_view_columns", return_value=mocked_annotation_result1
-    ) as mocked_get_annotations, patch.object(
-        syn, "getColumns"
-    ) as mocked_get_columns, patch.object(
-        SchemaBase, "_before_synapse_store"
+    with (
+        patch.object(
+            syn, "_get_annotation_view_columns", return_value=mocked_annotation_result1
+        ) as mocked_get_annotations,
+        patch.object(syn, "getColumns") as mocked_get_columns,
+        patch.object(SchemaBase, "_before_synapse_store"),
     ):
         entity_view._before_synapse_store(syn)
 
@@ -1500,8 +1510,9 @@ def test_rowset_asDataFrame__with_ROW_ETAG_column(syn: Synapse) -> None:
         },
     }
 
-    with patch.object(syn, "_queryTable", return_value=query_result), patch.object(
-        syn, "_queryTableNext", return_value=query_result_next_page
+    with (
+        patch.object(syn, "_queryTable", return_value=query_result),
+        patch.object(syn, "_queryTableNext", return_value=query_result_next_page),
     ):
         table = syn.tableQuery("select something from syn123", resultsAs="rowset")
         dataframe = table.asDataFrame()
@@ -1539,14 +1550,17 @@ def test_build_table__with_pandas_DataFrame() -> None:
 
 def test_build_table__with_csv() -> None:
     string_io = StringIOContextManager("a,b\n" "1,c\n" "2,d\n" "3,e")
-    with patch.object(
-        synapseclient.table,
-        "as_table_columns",
-        return_value=[
-            Column(name="a", columnType="INTEGER"),
-            Column(name="b", columnType="STRING"),
-        ],
-    ), patch.object(io, "open", return_value=string_io):
+    with (
+        patch.object(
+            synapseclient.table,
+            "as_table_columns",
+            return_value=[
+                Column(name="a", columnType="INTEGER"),
+                Column(name="b", columnType="STRING"),
+            ],
+        ),
+        patch.object(io, "open", return_value=string_io),
+    ):
         table = build_table("test", "syn123", "some_file_name")
         for col, row in enumerate(table):
             assert row[0] == (col + 1)

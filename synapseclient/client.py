@@ -2,6 +2,7 @@
 The `Synapse` object encapsulates a connection to the Synapse service and is used for building projects, uploading and
 retrieving data, and recording provenance of data analysis.
 """
+
 import asyncio
 import collections
 import collections.abc
@@ -607,9 +608,7 @@ class Synapse(object):
         logger_name = (
             SILENT_LOGGER_NAME
             if self.silent
-            else DEBUG_LOGGER_NAME
-            if self.debug
-            else DEFAULT_LOGGER_NAME
+            else DEBUG_LOGGER_NAME if self.debug else DEFAULT_LOGGER_NAME
         )
         self.logger = logging.getLogger(logger_name)
         logging.getLogger("py.warnings").handlers = self.logger.handlers
@@ -2672,9 +2671,11 @@ class Synapse(object):
                 fileHandle = await upload_file_handle_async(
                     self,
                     parent_id_for_upload,
-                    local_state["path"]
-                    if (synapseStore or local_state_fh.get("externalURL") is None)
-                    else local_state_fh.get("externalURL"),
+                    (
+                        local_state["path"]
+                        if (synapseStore or local_state_fh.get("externalURL") is None)
+                        else local_state_fh.get("externalURL")
+                    ),
                     synapse_store=synapseStore,
                     md5=local_file_md5_hex or local_state_fh.get("contentMd5"),
                     file_size=local_state_fh.get("contentSize"),
@@ -3367,9 +3368,10 @@ class Synapse(object):
         dl_list_path = self.get_download_list_manifest()
         downloaded_files = []
         new_manifest_path = f"manifest_{time.time_ns()}.csv"
-        with open(dl_list_path) as manifest_f, open(
-            new_manifest_path, "w"
-        ) as write_obj:
+        with (
+            open(dl_list_path) as manifest_f,
+            open(new_manifest_path, "w") as write_obj,
+        ):
             reader = csv.DictReader(manifest_f)
             columns = reader.fieldnames
             columns.extend(["path", "error"])
@@ -5049,9 +5051,11 @@ class Synapse(object):
         if usedList is None:
             return None
         usedList = [
-            self.get(target, limitSearch=limitSearch)
-            if (os.path.isfile(target) if isinstance(target, str) else False)
-            else target
+            (
+                self.get(target, limitSearch=limitSearch)
+                if (os.path.isfile(target) if isinstance(target, str) else False)
+                else target
+            )
             for target in usedList
         ]
         return usedList
@@ -5592,7 +5596,7 @@ class Synapse(object):
             "contentSize": fileSize,
         }
         if mimetype is None:
-            (mimetype, enc) = mimetypes.guess_type(externalURL, strict=False)
+            mimetype, enc = mimetypes.guess_type(externalURL, strict=False)
         if mimetype is not None:
             fileHandle["contentType"] = mimetype
         return self.restPOST(
@@ -6017,16 +6021,16 @@ class Synapse(object):
         }
 
         if bucket_name:
-            storage_location_kwargs[
-                "concreteType"
-            ] = concrete_types.EXTERNAL_S3_STORAGE_LOCATION_SETTING
+            storage_location_kwargs["concreteType"] = (
+                concrete_types.EXTERNAL_S3_STORAGE_LOCATION_SETTING
+            )
             storage_location_kwargs["bucket"] = bucket_name
             if base_key:
                 storage_location_kwargs["baseKey"] = base_key
         else:
-            storage_location_kwargs[
-                "concreteType"
-            ] = concrete_types.SYNAPSE_S3_STORAGE_LOCATION_SETTING
+            storage_location_kwargs["concreteType"] = (
+                concrete_types.SYNAPSE_S3_STORAGE_LOCATION_SETTING
+            )
 
         storage_location_setting = self.restPOST(
             "/storageLocation", json.dumps(storage_location_kwargs)

@@ -93,9 +93,7 @@ class Annotations(AnnotationsSynchronousProtocol):
         return self
 
     @classmethod
-    def from_dict(
-        cls, synapse_annotations: dict
-    ) -> Union[
+    def from_dict(cls, synapse_annotations: dict) -> Union[
         Dict[
             str,
             Union[

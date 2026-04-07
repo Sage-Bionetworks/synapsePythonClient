@@ -154,11 +154,16 @@ class TestDescribe:
 
     def test_describe(self):
         syn = Mock()
-        with patch.object(
-            describe_functions, "_open_entity_as_df", return_value=self.df_mixed
-        ) as mock_open_entity, patch.object(
-            describe_functions, "_describe_wrapper", return_value=self.expected_results
-        ) as mock_describe:
+        with (
+            patch.object(
+                describe_functions, "_open_entity_as_df", return_value=self.df_mixed
+            ) as mock_open_entity,
+            patch.object(
+                describe_functions,
+                "_describe_wrapper",
+                return_value=self.expected_results,
+            ) as mock_describe,
+        ):
             result = describe_functions.describe(syn=syn, entity="syn1234")
             mock_open_entity.assert_called_once_with(syn=syn, entity="syn1234")
             mock_describe.assert_called_once_with(self.df_mixed, syn=syn)
@@ -167,9 +172,10 @@ class TestDescribe:
     def test_describe_none(self):
         """Test if data type is not supported"""
         syn = Mock()
-        with patch.object(
-            describe_functions, "_open_entity_as_df", return_value=None
-        ), patch.object(describe_functions, "_describe_wrapper") as mock_describe:
+        with (
+            patch.object(describe_functions, "_open_entity_as_df", return_value=None),
+            patch.object(describe_functions, "_describe_wrapper") as mock_describe,
+        ):
             result = describe_functions.describe(syn=syn, entity="syn1234")
             mock_describe.assert_not_called()
             assert result is None
