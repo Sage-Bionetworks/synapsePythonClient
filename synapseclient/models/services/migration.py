@@ -73,9 +73,6 @@ DEFAULT_PART_SIZE = 100 * utils.MB
 # Batch size for database operations so the batch operations are chunked.
 BATCH_SIZE = 500
 
-# Maximum concurrent file copy.
-MAX_CONCURRENT_FILE_COPIES = max(int(Synapse().max_threads / 2), 1)
-
 
 # =============================================================================
 # Indexing Helper Functions
@@ -575,7 +572,6 @@ def _update_migration_database(
             update_sql += "and {} is null\n".format(arg)
 
     cursor.execute(update_sql, tuple(update_args))
-    conn.commit()
 
 
 def _confirm_migration(
@@ -1352,12 +1348,19 @@ async def track_migration_results_async(
             status = MigrationStatus.ERRORED.value
             completed_file_handles.add(from_file_handle_id)
 
-        _update_migration_database(conn, cursor, key, to_file_handle_id, status, ex)
+        await asyncio.to_thread(
+            _update_migration_database, conn, cursor, key, to_file_handle_id, status, ex
+        )
         pending_keys.discard(key)
         pending_file_handles.discard(from_file_handle_id)
 
         if not continue_on_error and ex:
+            # Commit whatever updates completed before raising so the DB is consistent.
+            await asyncio.to_thread(conn.commit)
             raise ex from None
+
+    # Single commit for the entire batch of completed tasks.
+    await asyncio.to_thread(conn.commit)
 
 
 # =============================================================================
@@ -1464,8 +1467,10 @@ async def _execute_migration_async(
     # Initialize last key to an empty key so the first iteration can proceed.
     key = MigrationKey(id="", type=None, row_id=-1, col_id=-1, version=-1)
     while True:
-        # Query next batch
-        batch = _query_migration_batch(
+        # Query next batch — run in a thread to avoid blocking the event loop
+        # while SQLite performs the ORDER BY scan.
+        batch = await asyncio.to_thread(
+            _query_migration_batch,
             cursor,
             key,
             pending_file_handles,
@@ -1493,8 +1498,10 @@ async def _execute_migration_async(
 
             pending_keys.add(key)
 
-            # Check for existing copy
-            to_file_handle_id = _check_file_handle_exists(cursor, from_file_handle_id)
+            # Check for existing copy — run in a thread to avoid blocking the event loop.
+            to_file_handle_id = await asyncio.to_thread(
+                _check_file_handle_exists, cursor, from_file_handle_id
+            )
 
             if not to_file_handle_id:
                 pending_file_handles.add(from_file_handle_id)
@@ -1505,7 +1512,9 @@ async def _execute_migration_async(
                 and create_table_snapshots
                 and last_key.id != key.id
             ):
-                await Table(id=key.id).snapshot_async(synapse_client=synapse_client)
+                await asyncio.to_thread(
+                    Table(id=key.id).snapshot_async, synapse_client=synapse_client
+                )
 
             # Create migration task
             task = asyncio.create_task(
