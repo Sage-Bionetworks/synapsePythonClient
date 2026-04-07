@@ -6,7 +6,7 @@ These types are used to track the state of file migrations between storage locat
 
 import asyncio
 import csv
-from dataclasses import dataclass, fields
+from dataclasses import dataclass, field, fields
 from enum import Enum
 from typing import TYPE_CHECKING, Any, Dict, Iterator, List, Optional
 
@@ -108,7 +108,7 @@ class MigrationSettings:
 
     root_id: str
     dest_storage_location_id: str
-    source_storage_location_ids: List[str] = None
+    source_storage_location_ids: List[str] = field(default_factory=list)
     file_version_strategy: str = "new"
     include_table_files: bool = False
 
@@ -141,13 +141,13 @@ class MigrationSettings:
     ) -> None:
         """Raise ValueError if the migration settings do not match the existing settings"""
         # compare all fields
-        for field in fields(self):
-            if getattr(self, field.name) != getattr(existing_settings, field.name):
+        for f in fields(self):
+            if getattr(self, f.name) != getattr(existing_settings, f.name):
                 # we can't resume indexing with an existing index file using a different setting.
                 raise ValueError(
                     "Index parameter does not match the setting recorded in the existing index file. "
                     "To change the index settings start over by deleting the file or using a different path. "
-                    f"Expected {field.name} {getattr(existing_settings, field.name)}, found {getattr(self, field.name)} in index file {db_path}"
+                    f"Expected {f.name} {getattr(existing_settings, f.name)}, found {getattr(self, f.name)} in index file {db_path}"
                 )
 
 
