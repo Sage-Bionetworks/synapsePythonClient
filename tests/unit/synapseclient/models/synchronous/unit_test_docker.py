@@ -197,15 +197,18 @@ class TestDockerRepository:
             # Separately set annotations to match real implementation
             entity_to_update.annotations = Annotations.from_dict(test_annotation)
 
-        with patch(
-            "synapseclient.models.docker.get_entity_id_by_repository_name",
-            new_callable=AsyncMock,
-            side_effect=mock_get_entity_id_by_repository_name,
-        ) as mocked_get_id, patch(
-            "synapseclient.models.docker.get_from_entity_factory",
-            new_callable=AsyncMock,
-            side_effect=mock_get_from_entity_factory,
-        ) as mocked_get_from_factory:
+        with (
+            patch(
+                "synapseclient.models.docker.get_entity_id_by_repository_name",
+                new_callable=AsyncMock,
+                side_effect=mock_get_entity_id_by_repository_name,
+            ) as mocked_get_id,
+            patch(
+                "synapseclient.models.docker.get_from_entity_factory",
+                new_callable=AsyncMock,
+                side_effect=mock_get_from_entity_factory,
+            ) as mocked_get_from_factory,
+        ):
             result = docker.get(synapse_client=self.syn)
 
             # Verify repository name lookup was called

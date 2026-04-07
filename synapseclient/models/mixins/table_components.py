@@ -1844,10 +1844,10 @@ def _construct_partial_rows_for_upsert(
                 if (
                     isinstance(cell_value, list) and len(cell_value) > 0
                 ) or not cell_is_na:
-                    partial_change_values[
-                        column_id
-                    ] = _convert_pandas_row_to_python_types(
-                        cell=cell_value, column_type=column_type
+                    partial_change_values[column_id] = (
+                        _convert_pandas_row_to_python_types(
+                            cell=cell_value, column_type=column_type
+                        )
                     )
                 else:
                     partial_change_values[column_id] = None
