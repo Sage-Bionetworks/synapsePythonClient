@@ -188,7 +188,7 @@ class ProjectSetting(ProjectSettingSynchronousProtocol):
             setting_type=self.settings_type,
             synapse_client=synapse_client,
         )
-        if response is None:
+        if not response:
             return None
         self.fill_from_dict(response)
         return self
