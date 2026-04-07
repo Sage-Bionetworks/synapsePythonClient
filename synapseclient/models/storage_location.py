@@ -249,6 +249,9 @@ class StorageLocation(EnumCoercionMixin, StorageLocationSynchronousProtocol):
     """The type of storage location. Required when creating a new storage location
     via `store()`. Determines the `concreteType` sent to the Synapse REST API."""
 
+    concrete_type: Optional[str] = field(default=None, compare=False)
+    """The concrete type of the storage location indicating which implementation this object represents. """
+
     banner: Optional[str] = None
     """The banner text to display to a user every time a file is uploaded."""
 
