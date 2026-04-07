@@ -349,11 +349,12 @@ class ProjectSettingsMixin(StorageLocationConfigurable):
         if not self.id:
             raise ValueError("The entity must have an id set.")
 
-        if isinstance(storage_location_id, list):
+        if storage_location_id is None:
+            locations = [DEFAULT_STORAGE_LOCATION_ID]
+        elif isinstance(storage_location_id, list):
             locations = storage_location_id
         else:
             locations = [storage_location_id]
-
         setting = await ProjectSetting(
             project_id=self.id, settings_type="upload"
         ).get_async(synapse_client=synapse_client)
@@ -366,7 +367,6 @@ class ProjectSettingsMixin(StorageLocationConfigurable):
             )
         else:
             setting.locations = locations
-
         return await setting.store_async(synapse_client=synapse_client)
 
     @otel_trace_method(
