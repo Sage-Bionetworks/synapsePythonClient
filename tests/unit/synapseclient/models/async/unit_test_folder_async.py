@@ -812,7 +812,7 @@ class TestStorageLocationMixin:
     # set_storage_location_async
     # -------------------------------------------------------------------------
 
-    async def test_set_storage_location_creates_new_custome_storage_location(
+    async def test_set_storage_location_creates_new_custom_storage_location(
         self, example_setting
     ) -> None:
         """Test that when there is no existing project setting and we set a storage location, a new project setting is created."""
@@ -928,6 +928,40 @@ class TestStorageLocationMixin:
             ProjectSetting, "store_async", autospec=True, return_value=default_setting
         ) as mocked_store:
             result = await folder.set_storage_location_async(
+                synapse_client=self.syn,
+            )
+
+        stored_setting = mocked_store.call_args.args[0]
+        assert stored_setting.locations == [DEFAULT_STORAGE_LOCATION_ID]
+        assert result.locations == [DEFAULT_STORAGE_LOCATION_ID]
+
+    async def test_set_storage_location_uses_default_storage_location_instead_when_storage_location_id_is_none(
+        self, example_setting
+    ) -> None:
+        """Test that when storage_location_id is not provided, the default Synapse S3 storage location is used."""
+        from synapseclient.models.mixins.storage_location_mixin import (
+            DEFAULT_STORAGE_LOCATION_ID,
+        )
+
+        folder = Folder(id=SYN_123)
+
+        default_setting = ProjectSetting(
+            id=self.SETTING_ID,
+            project_id=SYN_123,
+            settings_type="upload",
+            locations=[DEFAULT_STORAGE_LOCATION_ID],
+        )
+
+        with patch.object(
+            ProjectSetting,
+            "get_async",
+            new_callable=AsyncMock,
+            return_value=example_setting,
+        ), patch.object(
+            ProjectSetting, "store_async", autospec=True, return_value=default_setting
+        ) as mocked_store:
+            result = await folder.set_storage_location_async(
+                storage_location_id=None,
                 synapse_client=self.syn,
             )
 
