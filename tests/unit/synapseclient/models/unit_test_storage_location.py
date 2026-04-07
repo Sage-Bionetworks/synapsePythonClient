@@ -1,5 +1,6 @@
 """Unit tests for the synapseclient.models.StorageLocation class."""
 
+import re
 from unittest.mock import AsyncMock, patch
 
 import pytest
@@ -537,7 +538,9 @@ class TestStorageLocation:
         # THEN it should raise ValueError
         with pytest.raises(
             ValueError,
-            match=f"missing the '{missing_field}' attribute for {storage_type}",
+            match=re.escape(
+                f"missing the '{missing_field}' attribute for {storage_type}"
+            ),
         ):
             await storage.store_async(synapse_client=self.syn)
 

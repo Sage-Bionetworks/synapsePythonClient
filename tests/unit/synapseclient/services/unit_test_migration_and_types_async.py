@@ -724,7 +724,7 @@ class TestEnsureSchema:
 class TestCheckIndexed:
     def test_not_indexed(self, in_memory_db):
         conn, cursor = in_memory_db
-        assert _check_indexed(cursor, "syn999") is False
+        assert _check_indexed(cursor, "syn999", synapse_client=MagicMock()) is False
 
     def test_indexed(self, in_memory_db):
         conn, cursor = in_memory_db
@@ -733,7 +733,7 @@ class TestCheckIndexed:
             ("syn1", MigrationType.FILE.value, MigrationStatus.INDEXED.value),
         )
         conn.commit()
-        assert _check_indexed(cursor, "syn1") is True
+        assert _check_indexed(cursor, "syn1", synapse_client=MagicMock()) is True
 
 
 class TestMarkContainerIndexed:
@@ -756,7 +756,7 @@ class TestMarkContainerIndexed:
         conn, cursor = in_memory_db
         _mark_container_indexed(cursor, "syn10", MigrationType.FOLDER.value, "syn1")
         conn.commit()
-        assert _check_indexed(cursor, "syn10") is True
+        assert _check_indexed(cursor, "syn10", synapse_client=MagicMock()) is True
 
 
 class TestRecordIndexingError:
@@ -1056,7 +1056,10 @@ class TestConfirmMigration:
 
     def test_no_items_returns_false(self, in_memory_db):
         conn, cursor = in_memory_db
-        assert _confirm_migration(cursor, "99", force=False) is False
+        assert (
+            _confirm_migration(cursor, "99", force=False, synapse_client=MagicMock())
+            is False
+        )
 
     def test_non_tty_returns_false_without_input(self, in_memory_db):
         conn, cursor = in_memory_db
@@ -1067,7 +1070,9 @@ class TestConfirmMigration:
         conn.commit()
         with mock.patch("sys.stdout") as mock_stdout:
             mock_stdout.isatty.return_value = False
-            result = _confirm_migration(cursor, "99", force=False)
+            result = _confirm_migration(
+                cursor, "99", force=False, synapse_client=MagicMock()
+            )
         assert result is False
 
     def test_tty_yes_returns_true(self, in_memory_db):
