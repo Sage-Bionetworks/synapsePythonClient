@@ -23,6 +23,18 @@ from synapseclient.models.download_list import (
 )
 
 
+@pytest.fixture(scope="module")
+def syn():
+    """
+    Create a Synapse for this modules tests.
+    When using the syn fixture from .conftest, the patches here were causing issues in other tests.
+    """
+    syn = Synapse(debug=False, skip_checks=True, cache_client=False)
+    syn.logger = logging.getLogger()
+    Synapse.set_client(syn)
+    return syn
+
+
 class TestDownloadListServices:
     """Unit tests for download_list_services API functions."""
 
