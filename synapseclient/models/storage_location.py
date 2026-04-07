@@ -30,13 +30,7 @@ class StorageLocationType:
     """
 
     name: str
-    concrete_type: str
-
-    def __str__(self) -> str:
-        return self.name
-
-    def __repr__(self) -> str:
-        return f"StorageLocationType.{self.name}"
+    concrete_type: str = field(repr=False)
 
 
 StorageLocationType.SYNAPSE_S3 = StorageLocationType(
@@ -303,7 +297,7 @@ class StorageLocation(EnumCoercionMixin, StorageLocationSynchronousProtocol):
     using its storage location ID. Applicable to PROXY type."""
 
     # Read-only fields
-    upload_type: Optional[UploadType] = field(default=None, repr=False, compare=False)
+    upload_type: Optional[UploadType] = field(default=None, compare=False)
     """(Read Only) The upload type for this storage location. Automatically derived
     from `storage_type`."""
 
