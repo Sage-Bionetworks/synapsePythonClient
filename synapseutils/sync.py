@@ -733,12 +733,6 @@ def _get_file_entity_provenance_dict(syn, entity):
             raise  # unexpected error so we re-raise the exception
 
 
-@deprecated(
-    version="4.13.0",
-    reason=(
-        "To be removed in 5.0.0. " "Moved to synapseclient.models.services.manifest.py"
-    ),
-)
 def generate_manifest(all_files: List[File], path: str) -> None:
     """Generates a manifest file based on a list of entities objects.
 

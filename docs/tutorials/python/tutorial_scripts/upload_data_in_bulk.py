@@ -23,8 +23,8 @@ my_project_id = syn.findEntityId(
 # Walk the local directory tree and build a manifest with the required "path" and
 # "parentId" columns.  Folders that do not yet exist in Synapse are created
 # automatically by sync_to_synapse, so we set parentId to the project for every file.
-# NOTE: In a future release, Project.sync_from_synapse will support writing a manifest
-# CSV directly, removing the need to build one manually.
+# TODO: https://sagebionetworks.jira.com/browse/SYNPY-1804
+# In a future release, Project.sync_from_synapse will support writing a manifest CSV directly, removing the need to build one manually.
 import pandas as pd
 
 rows = []

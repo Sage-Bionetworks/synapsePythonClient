@@ -36,18 +36,14 @@ def _write_manifest(rows: list[dict], tmp_path: Path) -> Path:
     return path
 
 
-def _create_local_test_file(content: str = "test content") -> Path:
-    """Create a temporary local file with *content*.
-
-    The caller is responsible for registering the returned path for cleanup.
+def _create_local_test_file(content: str, tmp_path: Path) -> Path:
+    """Write content to a unique file under *tmp_path*.
 
     Returns:
-        Path to the created file.
+        Path to the written file.
     """
-    fd, tmp = tempfile.mkstemp()
-    os.close(fd)
-    path = Path(tmp)
-    path.write_text(content)
+    path = tmp_path / f"{uuid.uuid4()}_local_test_file.txt"
+    path.write_text(content, encoding="utf-8")
     return path
 
 
