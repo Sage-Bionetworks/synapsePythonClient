@@ -15,7 +15,7 @@ The server is implemented in Python and built on top of this `synapseclient` pac
 
 The hosted MCP server at `https://mcp.synapse.org/mcp` authenticates via OAuth2 — no token management required.
 
-=== "Claude Code (CLI)"
+#### "Claude Code (CLI)"
 
     ```bash
     claude mcp add --transport http synapse -- https://mcp.synapse.org/mcp
@@ -23,13 +23,13 @@ The hosted MCP server at `https://mcp.synapse.org/mcp` authenticates via OAuth2 
 
     On first use, Claude Code will open a browser window to complete the OAuth2 login.
 
-=== "Claude Desktop"
+#### "Claude Desktop"
 
     1. Open **Settings → Connectors → Add custom connector**
     2. Enter the URL: `https://mcp.synapse.org/mcp`
     3. Save and restart Claude Desktop
 
-=== "VS Code / GitHub Copilot"
+#### "VS Code / GitHub Copilot"
 
     Add to your `settings.json` or `.vscode/mcp.json`:
 
