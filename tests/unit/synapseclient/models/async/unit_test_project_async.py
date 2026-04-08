@@ -803,6 +803,40 @@ class TestStorageLocationMixin:
         assert stored_setting.locations == [DEFAULT_STORAGE_LOCATION_ID]
         assert result.locations == [DEFAULT_STORAGE_LOCATION_ID]
 
+    async def test_set_storage_location_uses_default_storage_location_instead_when_storage_location_id_is_none(
+        self, example_setting
+    ) -> None:
+        """Test that when storage_location_id is not provided, the default Synapse S3 storage location is used."""
+        from synapseclient.models.mixins.storage_location_mixin import (
+            DEFAULT_STORAGE_LOCATION_ID,
+        )
+
+        folder = Project(id=PROJECT_ID)
+
+        default_setting = ProjectSetting(
+            id=self.SETTING_ID,
+            project_id=PROJECT_ID,
+            settings_type="upload",
+            locations=[DEFAULT_STORAGE_LOCATION_ID],
+        )
+
+        with patch.object(
+            ProjectSetting,
+            "get_async",
+            new_callable=AsyncMock,
+            return_value=example_setting,
+        ), patch.object(
+            ProjectSetting, "store_async", autospec=True, return_value=default_setting
+        ) as mocked_store:
+            result = await folder.set_storage_location_async(
+                storage_location_id=None,
+                synapse_client=self.syn,
+            )
+
+        stored_setting = mocked_store.call_args.args[0]
+        assert stored_setting.locations == [DEFAULT_STORAGE_LOCATION_ID]
+        assert result.locations == [DEFAULT_STORAGE_LOCATION_ID]
+
     async def test_set_storage_location_accepts_list_of_ids(
         self, example_setting
     ) -> None:
