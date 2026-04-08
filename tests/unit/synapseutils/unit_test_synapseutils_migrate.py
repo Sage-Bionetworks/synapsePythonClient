@@ -275,9 +275,10 @@ class TestIndex:
     @pytest.fixture(scope="function")
     def conn(self):
         # temp file context manager doesn't work on windows so we manually remove in fixture
-        with tempfile.NamedTemporaryFile(delete=False) as tmpfile, sqlite3.connect(
-            tmpfile.name
-        ) as conn:
+        with (
+            tempfile.NamedTemporaryFile(delete=False) as tmpfile,
+            sqlite3.connect(tmpfile.name) as conn,
+        ):
             yield conn
 
     def test_check_indexed(self, conn):
@@ -330,8 +331,7 @@ class TestIndex:
             file_version_strategy,
         )
 
-        row = cursor.execute(
-            """
+        row = cursor.execute("""
                 select
                     id,
                     parent_id,
@@ -341,8 +341,7 @@ class TestIndex:
                     file_size,
                     status
                 from migrations
-            """
-        ).fetchone()
+            """).fetchone()
 
         row_dict = _get_row_dict(cursor, row, True)
 
@@ -436,8 +435,7 @@ class TestIndex:
             "all",
         )
 
-        result = cursor.execute(
-            """
+        result = cursor.execute("""
                 select
                     id,
                     parent_id,
@@ -447,8 +445,7 @@ class TestIndex:
                     file_size,
                     status
                 from migrations
-            """
-        ).fetchall()
+            """).fetchall()
 
         result_iter = iter(result)
         row_0 = next(result_iter)
@@ -578,8 +575,7 @@ class TestIndex:
             [from_storage_location_id, "543"],
         )
 
-        result = cursor.execute(
-            """
+        result = cursor.execute("""
                 select
                     id,
                     parent_id,
@@ -589,8 +585,7 @@ class TestIndex:
                     from_file_handle_id,
                     status
                 from migrations
-            """
-        ).fetchall()
+            """).fetchall()
 
         row_iter = iter(result)
         row_0_dict = _get_row_dict(cursor, next(row_iter), True)
@@ -724,16 +719,14 @@ class TestIndex:
 
         assert mock_index_entity.call_args_list == expected_calls
 
-        row = cursor.execute(
-            """
+        row = cursor.execute("""
                 select
                     id,
                     type,
                     parent_id,
                     status
                 from migrations
-            """
-        ).fetchone()
+            """).fetchone()
 
         row_dict = _get_row_dict(cursor, row, True)
         assert row_dict["id"] == project_id
@@ -800,16 +793,14 @@ class TestIndex:
 
         assert mock_index_entity.call_args_list == expected_calls
 
-        row = cursor.execute(
-            """
+        row = cursor.execute("""
                 select
                     id,
                     type,
                     parent_id,
                     status
                 from migrations
-            """
-        ).fetchone()
+            """).fetchone()
 
         row_dict = _get_row_dict(cursor, row, True)
         assert row_dict["id"] == folder_id
@@ -1047,16 +1038,14 @@ class TestIndex:
             file_version_strategy,
         )
 
-        row = cursor.execute(
-            """
+        row = cursor.execute("""
                 select
                     id,
                     type,
                     status,
                     exception
                 from migrations
-            """
-        ).fetchone()
+            """).fetchone()
 
         row_dict = _get_row_dict(cursor, row, True)
         assert row_dict["id"] == entity_id
@@ -1288,9 +1277,10 @@ class TestMigrate:
     @pytest.fixture(scope="function")
     def conn(self):
         # temp file context manager doesn't work on windows so we manually remove in fixture
-        with tempfile.NamedTemporaryFile(delete=False) as tmpfile, sqlite3.connect(
-            tmpfile.name
-        ) as conn:
+        with (
+            tempfile.NamedTemporaryFile(delete=False) as tmpfile,
+            sqlite3.connect(tmpfile.name) as conn,
+        ):
             yield conn
 
     @pytest.fixture(scope="function")
@@ -1547,19 +1537,21 @@ class TestMigrate:
                 migration_values,
             )
 
-        with mock.patch.object(syn, "get") as mock_syn_get, mock.patch.object(
-            syn, "store"
-        ) as mock_syn_store, mock.patch.object(
-            syn, "_getFileHandleDownload"
-        ) as mock_get_file_handle_download, mock.patch.object(
-            syn, "restGET"
-        ) as mock_syn_rest_get, mock.patch.object(
-            syn, "create_snapshot_version"
-        ) as mock_create_snapshot_version, mock.patch.object(
-            syn, "tableQuery"
-        ) as mock_syn_table_query, mock.patch.object(
-            synapseutils.migrate_functions, "multipart_copy"
-        ) as mock_multipart_copy:
+        with (
+            mock.patch.object(syn, "get") as mock_syn_get,
+            mock.patch.object(syn, "store") as mock_syn_store,
+            mock.patch.object(
+                syn, "_getFileHandleDownload"
+            ) as mock_get_file_handle_download,
+            mock.patch.object(syn, "restGET") as mock_syn_rest_get,
+            mock.patch.object(
+                syn, "create_snapshot_version"
+            ) as mock_create_snapshot_version,
+            mock.patch.object(syn, "tableQuery") as mock_syn_table_query,
+            mock.patch.object(
+                synapseutils.migrate_functions, "multipart_copy"
+            ) as mock_multipart_copy,
+        ):
             mock_syn_get.side_effect = mock_syn_get_side_effect
             mock_syn_store.side_effect = mock_syn_store_side_effect
             mock_get_file_handle_download.side_effect = (
@@ -1693,9 +1685,10 @@ def test_migrate__shared_file_handles(mocker, syn):
         ),
     ]
 
-    with tempfile.NamedTemporaryFile(delete=False) as tmpfile, sqlite3.connect(
-        tmpfile.name
-    ) as conn:
+    with (
+        tempfile.NamedTemporaryFile(delete=False) as tmpfile,
+        sqlite3.connect(tmpfile.name) as conn,
+    ):
         cursor = conn.cursor()
         _ensure_schema(cursor)
 
@@ -2101,8 +2094,7 @@ def test_get_table_file_handle_rows__no_file_columns(mocker, syn):
 
 
 def _verify_schema(cursor):
-    results = cursor.execute(
-        """
+    results = cursor.execute("""
             SELECT
               m.name as table_name,
               p.name as column_name
@@ -2113,8 +2105,7 @@ def _verify_schema(cursor):
             ORDER BY
               m.name,
               p.cid
-        """
-    )
+        """)
 
     expected_table_columns = {
         "migration_settings": {
@@ -2148,9 +2139,10 @@ def _verify_schema(cursor):
 def test_ensure_schema():
     """Verify _ensure_schema bootstraps the necessary schema"""
 
-    with tempfile.NamedTemporaryFile(delete=False) as db_file, sqlite3.connect(
-        db_file.name
-    ) as conn:
+    with (
+        tempfile.NamedTemporaryFile(delete=False) as db_file,
+        sqlite3.connect(db_file.name) as conn,
+    ):
         cursor = conn.cursor()
         _ensure_schema(cursor)
         _verify_schema(cursor)
@@ -2177,9 +2169,10 @@ def test_verify_storage_location_ownership():
 def test__verify_index_settings__retrieve_index_settings():
     """Verify the behavior saving index settings and re-retreiving them."""
 
-    with tempfile.NamedTemporaryFile(delete=False) as db_file, sqlite3.connect(
-        db_file.name
-    ) as conn:
+    with (
+        tempfile.NamedTemporaryFile(delete=False) as db_file,
+        sqlite3.connect(db_file.name) as conn,
+    ):
         db_path = db_file.name
         cursor = conn.cursor()
         _ensure_schema(cursor)
@@ -2302,9 +2295,10 @@ def test__verify_index_settings__invalid_table_schema():
     version of the function.
     """
 
-    with tempfile.NamedTemporaryFile(delete=False) as db_file, sqlite3.connect(
-        db_file.name
-    ) as conn:
+    with (
+        tempfile.NamedTemporaryFile(delete=False) as db_file,
+        sqlite3.connect(db_file.name) as conn,
+    ):
         db_path = db_file.name
         cursor = conn.cursor()
         cursor.execute("create table migration_settings (foo text)")

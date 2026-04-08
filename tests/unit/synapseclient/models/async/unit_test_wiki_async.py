@@ -1,4 +1,5 @@
 """Tests for the synapseclient.models.wiki classes."""
+
 import copy
 import os
 from typing import Any, AsyncGenerator, Dict, List
@@ -96,12 +97,15 @@ class TestWikiOrderHint:
 
         # WHEN I call `store_async`
         # THEN it should raise ValueError
-        with patch(
-            "synapseclient.models.wiki.put_wiki_order_hint",
-            new_callable=AsyncMock,
-            return_value=self.api_response,
-        ) as mocked_put, pytest.raises(
-            ValueError, match="Must provide owner_id to store wiki order hint."
+        with (
+            patch(
+                "synapseclient.models.wiki.put_wiki_order_hint",
+                new_callable=AsyncMock,
+                return_value=self.api_response,
+            ) as mocked_put,
+            pytest.raises(
+                ValueError, match="Must provide owner_id to store wiki order hint."
+            ),
         ):
             await order_hint.store_async(synapse_client=self.syn)
             # THEN the API should not be called
@@ -130,10 +134,11 @@ class TestWikiOrderHint:
         self.order_hint.owner_id = None
         # WHEN I call `get_async`
         # THEN it should raise ValueError
-        with patch(
-            "synapseclient.models.wiki.get_wiki_order_hint"
-        ) as mocked_get, pytest.raises(
-            ValueError, match="Must provide owner_id to get wiki order hint."
+        with (
+            patch("synapseclient.models.wiki.get_wiki_order_hint") as mocked_get,
+            pytest.raises(
+                ValueError, match="Must provide owner_id to get wiki order hint."
+            ),
         ):
             await self.order_hint.get_async(synapse_client=self.syn)
             # THEN the API should not be called
@@ -236,10 +241,11 @@ class TestWikiHistorySnapshot:
 
     async def test_get_async_missing_owner_id(self) -> None:
         # WHEN I call `get_async`
-        with patch(
-            "synapseclient.models.wiki.get_wiki_history"
-        ) as mocked_get, pytest.raises(
-            ValueError, match="Must provide owner_id to get wiki history."
+        with (
+            patch("synapseclient.models.wiki.get_wiki_history") as mocked_get,
+            pytest.raises(
+                ValueError, match="Must provide owner_id to get wiki history."
+            ),
         ):
             async for _ in WikiHistorySnapshot.get_async(
                 owner_id=None,
@@ -252,10 +258,9 @@ class TestWikiHistorySnapshot:
 
     async def test_get_async_missing_id(self) -> None:
         # WHEN I call `get_async`
-        with patch(
-            "synapseclient.models.wiki.get_wiki_history"
-        ) as mocked_get, pytest.raises(
-            ValueError, match="Must provide id to get wiki history."
+        with (
+            patch("synapseclient.models.wiki.get_wiki_history") as mocked_get,
+            pytest.raises(ValueError, match="Must provide id to get wiki history."),
         ):
             async for _ in WikiHistorySnapshot.get_async(
                 owner_id="syn123",
@@ -343,10 +348,11 @@ class TestWikiHeader:
     async def test_get_async_missing_owner_id(self) -> None:
         # WHEN I call `get_async`
         # THEN it should raise ValueError
-        with patch(
-            "synapseclient.models.wiki.get_wiki_header_tree"
-        ) as mocked_get, pytest.raises(
-            ValueError, match="Must provide owner_id to get wiki header tree."
+        with (
+            patch("synapseclient.models.wiki.get_wiki_header_tree") as mocked_get,
+            pytest.raises(
+                ValueError, match="Must provide owner_id to get wiki header tree."
+            ),
         ):
             async for _ in WikiHeader.get_async(owner_id=None, synapse_client=self.syn):
                 pass
@@ -419,9 +425,11 @@ class TestWikiPage:
         self.syn.cache.cache_root_dir = "temp_cache_dir"
 
         # WHEN I call `_to_gzip_file` with a markdown string
-        with patch("builtins.open") as mock_open_file, patch(
-            "gzip.open"
-        ) as mock_gzip_open, patch("os.path.exists", return_value=True):
+        with (
+            patch("builtins.open") as mock_open_file,
+            patch("gzip.open") as mock_gzip_open,
+            patch("os.path.exists", return_value=True),
+        ):
             file_path = self.wiki_page._to_gzip_file(self.wiki_page.markdown, self.syn)
 
         # THEN the content should be written to a gzipped file
@@ -446,9 +454,11 @@ class TestWikiPage:
         )
 
     def test_to_gzip_file_with_gzipped_file(self) -> None:
-        with patch("os.path.isfile"), patch("gzip.open") as mock_gzip_open, patch(
-            "builtins.open"
-        ) as mock_open_file:
+        with (
+            patch("os.path.isfile"),
+            patch("gzip.open") as mock_gzip_open,
+            patch("builtins.open") as mock_open_file,
+        ):
             self.syn.cache.cache_root_dir = "temp_cache_dir"
             markdown_file_path = "wiki_markdown_Test Wiki Page.md.gz"
 
@@ -462,10 +472,13 @@ class TestWikiPage:
         self.syn.cache.cache_root_dir = "temp_cache_dir"
 
         # WHEN I call `_to_gzip_file` with a file path
-        with patch("os.path.isfile", return_value=True), patch(
-            "builtins.open", new=mock_open(read_data=b"test content")
-        ) as mock_open_file, patch("gzip.open") as mock_gzip_open, patch(
-            "os.path.exists", return_value=True
+        with (
+            patch("os.path.isfile", return_value=True),
+            patch(
+                "builtins.open", new=mock_open(read_data=b"test content")
+            ) as mock_open_file,
+            patch("gzip.open") as mock_gzip_open,
+            patch("os.path.exists", return_value=True),
         ):
             test_file_path = os.path.join("file_path", "test.txt")
             file_path = self.wiki_page._to_gzip_file(test_file_path, self.syn)
@@ -501,9 +514,11 @@ class TestWikiPage:
         markdown_content_bytes = markdown_content.encode("utf-8")
 
         # WHEN I call `_unzip_gzipped_file` with a binary file
-        with patch("gzip.open") as mock_gzip_open, patch(
-            "builtins.open"
-        ) as mock_open_file, patch("pprint.pp") as mock_pprint:
+        with (
+            patch("gzip.open") as mock_gzip_open,
+            patch("builtins.open") as mock_open_file,
+            patch("pprint.pp") as mock_pprint,
+        ):
             mock_gzip_open.return_value.__enter__.return_value.read.return_value = (
                 markdown_content_bytes
             )
@@ -529,9 +544,11 @@ class TestWikiPage:
         binary_content = b"\x00\x01\x02\x03\xff\xfe\xfd"
 
         # WHEN I call `_unzip_gzipped_file` with a binary file
-        with patch("gzip.open") as mock_gzip_open, patch(
-            "builtins.open"
-        ) as mock_open_file, patch("pprint.pp") as mock_pprint:
+        with (
+            patch("gzip.open") as mock_gzip_open,
+            patch("builtins.open") as mock_open_file,
+            patch("pprint.pp") as mock_pprint,
+        ):
             mock_gzip_open.return_value.__enter__.return_value.read.return_value = (
                 binary_content
             )
@@ -556,11 +573,11 @@ class TestWikiPage:
         text_content_bytes = text_content.encode("utf-8")
 
         # WHEN I call `_unzip_gzipped_file` with a text file
-        with patch("gzip.open") as mock_gzip_open, patch(
-            "builtins.open"
-        ) as mock_open_file, patch(
-            "synapseclient.models.wiki.pprint.pp"
-        ) as mock_pprint:
+        with (
+            patch("gzip.open") as mock_gzip_open,
+            patch("builtins.open") as mock_open_file,
+            patch("synapseclient.models.wiki.pprint.pp") as mock_pprint,
+        ):
             mock_gzip_open.return_value.__enter__.return_value.read.return_value = (
                 text_content_bytes
             )
@@ -650,21 +667,20 @@ class TestWikiPage:
             WikiPage._should_gzip_file(123)
 
     async def test_get_markdown_file_handle_success_with_markdown(self) -> WikiPage:
-        with patch(
-            "synapseclient.models.wiki.WikiPage._to_gzip_file",
-            return_value=("test.txt.gz"),
-        ) as mock_to_gzip_file, patch(
-            "synapseclient.models.wiki.upload_file_handle",
-            return_value={"id": "handle1"},
-        ) as mock_upload, patch.object(
-            self.syn.logger, "info"
-        ) as mock_logger_info, patch.object(
-            self.syn.logger, "debug"
-        ) as mock_logger_debug, patch(
-            "os.path.exists", return_value=True
-        ), patch(
-            "os.remove"
-        ) as mock_remove:
+        with (
+            patch(
+                "synapseclient.models.wiki.WikiPage._to_gzip_file",
+                return_value=("test.txt.gz"),
+            ) as mock_to_gzip_file,
+            patch(
+                "synapseclient.models.wiki.upload_file_handle",
+                return_value={"id": "handle1"},
+            ) as mock_upload,
+            patch.object(self.syn.logger, "info") as mock_logger_info,
+            patch.object(self.syn.logger, "debug") as mock_logger_debug,
+            patch("os.path.exists", return_value=True),
+            patch("os.remove") as mock_remove,
+        ):
             # WHEN I call `_get_markdown_file_handle`
             results = await self.wiki_page._get_markdown_file_handle(
                 synapse_client=self.syn
@@ -721,21 +737,20 @@ class TestWikiPage:
             {"id": "handle2"},
         ]
 
-        with patch(
-            "synapseclient.models.wiki.WikiPage._to_gzip_file",
-            side_effect=mock_to_gzip_file_responses,
-        ) as mock_to_gzip_file, patch(
-            "synapseclient.models.wiki.upload_file_handle",
-            side_effect=mock_upload_responses,
-        ) as mock_upload, patch.object(
-            self.syn.logger, "info"
-        ) as mock_logger_info, patch.object(
-            self.syn.logger, "debug"
-        ) as mock_logger_debug, patch(
-            "os.path.exists", return_value=True
-        ), patch(
-            "os.remove"
-        ) as mock_remove:
+        with (
+            patch(
+                "synapseclient.models.wiki.WikiPage._to_gzip_file",
+                side_effect=mock_to_gzip_file_responses,
+            ) as mock_to_gzip_file,
+            patch(
+                "synapseclient.models.wiki.upload_file_handle",
+                side_effect=mock_upload_responses,
+            ) as mock_upload,
+            patch.object(self.syn.logger, "info") as mock_logger_info,
+            patch.object(self.syn.logger, "debug") as mock_logger_debug,
+            patch("os.path.exists", return_value=True),
+            patch("os.remove") as mock_remove,
+        ):
             # WHEN I call `_get_attachment_file_handles`
             results = await self.wiki_page._get_attachment_file_handles(
                 synapse_client=self.syn
@@ -817,21 +832,20 @@ class TestWikiPage:
             owner_id="syn123",
         )
 
-        with patch(
-            "synapseclient.models.wiki.WikiPage._to_gzip_file",
-            return_value=("/tmp/cache/test_1.txt.gz"),
-        ) as mock_to_gzip_file, patch(
-            "synapseclient.models.wiki.upload_file_handle",
-            return_value={"id": "handle1"},
-        ) as mock_upload, patch.object(
-            self.syn.logger, "info"
-        ) as mock_logger_info, patch.object(
-            self.syn.logger, "debug"
-        ) as mock_logger_debug, patch(
-            "os.path.exists", return_value=True
-        ), patch(
-            "os.remove"
-        ) as mock_remove:
+        with (
+            patch(
+                "synapseclient.models.wiki.WikiPage._to_gzip_file",
+                return_value=("/tmp/cache/test_1.txt.gz"),
+            ) as mock_to_gzip_file,
+            patch(
+                "synapseclient.models.wiki.upload_file_handle",
+                return_value={"id": "handle1"},
+            ) as mock_upload,
+            patch.object(self.syn.logger, "info") as mock_logger_info,
+            patch.object(self.syn.logger, "debug") as mock_logger_debug,
+            patch("os.path.exists", return_value=True),
+            patch("os.remove") as mock_remove,
+        ):
             # WHEN I call `_get_attachment_file_handles`
             results = await wiki_page._get_attachment_file_handles(
                 synapse_client=self.syn
@@ -874,21 +888,20 @@ class TestWikiPage:
             owner_id="syn123",
         )
 
-        with patch(
-            "synapseclient.models.wiki.WikiPage._to_gzip_file",
-            return_value=("/tmp/cache/test_1.txt.gz"),
-        ), patch(
-            "synapseclient.models.wiki.upload_file_handle",
-            return_value={"id": "handle1"},
-        ), patch(
-            "os.path.exists", return_value=False
-        ), patch.object(
-            self.syn.logger, "info"
-        ) as mock_logger_info, patch.object(
-            self.syn.logger, "debug"
-        ) as mock_logger_debug, patch(
-            "os.remove"
-        ) as mock_remove:
+        with (
+            patch(
+                "synapseclient.models.wiki.WikiPage._to_gzip_file",
+                return_value=("/tmp/cache/test_1.txt.gz"),
+            ),
+            patch(
+                "synapseclient.models.wiki.upload_file_handle",
+                return_value={"id": "handle1"},
+            ),
+            patch("os.path.exists", return_value=False),
+            patch.object(self.syn.logger, "info") as mock_logger_info,
+            patch.object(self.syn.logger, "debug") as mock_logger_debug,
+            patch("os.remove") as mock_remove,
+        ):
             # WHEN I call `_get_attachment_file_handles`
             results = await wiki_page._get_attachment_file_handles(
                 synapse_client=self.syn
@@ -913,19 +926,19 @@ class TestWikiPage:
             owner_id="syn123",
         )
 
-        with patch(
-            "synapseclient.models.wiki.WikiPage._to_gzip_file",
-            return_value=("/tmp/cache/test_1.txt.gz"),
-        ), patch(
-            "synapseclient.models.wiki.upload_file_handle",
-            side_effect=Exception("Upload failed"),
-        ), patch(
-            "os.path.exists", return_value=True
-        ), patch.object(
-            self.syn.logger, "debug"
-        ) as mock_logger_debug, patch(
-            "os.remove"
-        ) as mock_remove:
+        with (
+            patch(
+                "synapseclient.models.wiki.WikiPage._to_gzip_file",
+                return_value=("/tmp/cache/test_1.txt.gz"),
+            ),
+            patch(
+                "synapseclient.models.wiki.upload_file_handle",
+                side_effect=Exception("Upload failed"),
+            ),
+            patch("os.path.exists", return_value=True),
+            patch.object(self.syn.logger, "debug") as mock_logger_debug,
+            patch("os.remove") as mock_remove,
+        ):
             # WHEN I call `_get_attachment_file_handles`
             # THEN it should raise the exception
             with pytest.raises(Exception, match="Upload failed"):
@@ -1074,20 +1087,25 @@ class TestWikiPage:
         ]
 
         # AND mock responses
-        with patch(
-            "synapseclient.models.wiki.WikiPage._determine_wiki_action",
-            return_value="create_root_wiki_page",
-        ), patch(
-            "synapseclient.models.wiki.WikiPage._get_markdown_file_handle",
-            return_value=mock_wiki_with_markdown,
-        ), patch(
-            "synapseclient.models.wiki.WikiPage._get_attachment_file_handles",
-            return_value=mock_wiki_with_attachments,
-        ), patch(
-            "synapseclient.models.wiki.post_wiki_page", return_value=post_api_response
-        ) as mock_post_wiki, patch.object(
-            self.syn.logger, "info"
-        ) as mock_logger:
+        with (
+            patch(
+                "synapseclient.models.wiki.WikiPage._determine_wiki_action",
+                return_value="create_root_wiki_page",
+            ),
+            patch(
+                "synapseclient.models.wiki.WikiPage._get_markdown_file_handle",
+                return_value=mock_wiki_with_markdown,
+            ),
+            patch(
+                "synapseclient.models.wiki.WikiPage._get_attachment_file_handles",
+                return_value=mock_wiki_with_attachments,
+            ),
+            patch(
+                "synapseclient.models.wiki.post_wiki_page",
+                return_value=post_api_response,
+            ) as mock_post_wiki,
+            patch.object(self.syn.logger, "info") as mock_logger,
+        ):
             # WHEN I call `store_async`
 
             results = await new_wiki_page.store_async(synapse_client=self.syn)
@@ -1161,24 +1179,29 @@ class TestWikiPage:
         ]
 
         # AND mock responses
-        with patch(
-            "synapseclient.models.wiki.WikiPage._determine_wiki_action",
-            return_value="update_existing_wiki_page",
-        ), patch(
-            "synapseclient.models.wiki.WikiPage._get_markdown_file_handle",
-            return_value=mock_wiki_with_markdown,
-        ), patch(
-            "synapseclient.models.wiki.WikiPage._get_attachment_file_handles",
-            return_value=mock_wiki_with_attachments,
-        ), patch(
-            "synapseclient.models.wiki.get_wiki_page",
-            return_value=mock_get_wiki_response,
-        ) as mock_get_wiki, patch(
-            "synapseclient.models.wiki.put_wiki_page",
-            return_value=mock_put_wiki_response,
-        ) as mock_put_wiki, patch.object(
-            self.syn.logger, "info"
-        ) as mock_logger:
+        with (
+            patch(
+                "synapseclient.models.wiki.WikiPage._determine_wiki_action",
+                return_value="update_existing_wiki_page",
+            ),
+            patch(
+                "synapseclient.models.wiki.WikiPage._get_markdown_file_handle",
+                return_value=mock_wiki_with_markdown,
+            ),
+            patch(
+                "synapseclient.models.wiki.WikiPage._get_attachment_file_handles",
+                return_value=mock_wiki_with_attachments,
+            ),
+            patch(
+                "synapseclient.models.wiki.get_wiki_page",
+                return_value=mock_get_wiki_response,
+            ) as mock_get_wiki,
+            patch(
+                "synapseclient.models.wiki.put_wiki_page",
+                return_value=mock_put_wiki_response,
+            ) as mock_put_wiki,
+            patch.object(self.syn.logger, "info") as mock_logger,
+        ):
             # WHEN I call `store_async`
             results = await new_wiki_page.store_async(synapse_client=self.syn)
             # THEN the existing wiki should be retrieved
@@ -1244,20 +1267,25 @@ class TestWikiPage:
         ]
 
         # AND mock responses
-        with patch(
-            "synapseclient.models.wiki.WikiPage._determine_wiki_action",
-            return_value="create_sub_wiki_page",
-        ), patch(
-            "synapseclient.models.wiki.WikiPage._get_markdown_file_handle",
-            return_value=mock_wiki_with_markdown,
-        ), patch(
-            "synapseclient.models.wiki.WikiPage._get_attachment_file_handles",
-            return_value=mock_wiki_with_attachments,
-        ), patch(
-            "synapseclient.models.wiki.post_wiki_page", return_value=post_api_response
-        ) as mock_post_wiki, patch.object(
-            self.syn.logger, "info"
-        ) as mock_logger:
+        with (
+            patch(
+                "synapseclient.models.wiki.WikiPage._determine_wiki_action",
+                return_value="create_sub_wiki_page",
+            ),
+            patch(
+                "synapseclient.models.wiki.WikiPage._get_markdown_file_handle",
+                return_value=mock_wiki_with_markdown,
+            ),
+            patch(
+                "synapseclient.models.wiki.WikiPage._get_attachment_file_handles",
+                return_value=mock_wiki_with_attachments,
+            ),
+            patch(
+                "synapseclient.models.wiki.post_wiki_page",
+                return_value=post_api_response,
+            ) as mock_post_wiki,
+            patch.object(self.syn.logger, "info") as mock_logger,
+        ):
             # WHEN I call `store_async`
             results = await self.wiki_page.store_async(synapse_client=self.syn)
 
@@ -1313,9 +1341,10 @@ class TestWikiPage:
     ) -> None:
         # WHEN I call `restore_async`
         # THEN it should raise ValueError
-        with patch(
-            "synapseclient.models.wiki.put_wiki_version"
-        ) as mocked_put, pytest.raises(ValueError, match=expected_error):
+        with (
+            patch("synapseclient.models.wiki.put_wiki_version") as mocked_put,
+            pytest.raises(ValueError, match=expected_error),
+        ):
             await wiki_page.restore_async(synapse_client=self.syn)
             # THEN the API should not be called
             mocked_put.assert_not_called()
@@ -1389,12 +1418,16 @@ class TestWikiPage:
             for item in values:
                 yield item
 
-        with patch(
-            "synapseclient.models.wiki.get_wiki_header_tree",
-            return_value=mock_async_generator(mock_responses),
-        ) as mock_get_header_tree, patch(
-            "synapseclient.models.wiki.get_wiki_page", return_value=self.api_response
-        ) as mock_get_wiki:
+        with (
+            patch(
+                "synapseclient.models.wiki.get_wiki_header_tree",
+                return_value=mock_async_generator(mock_responses),
+            ) as mock_get_header_tree,
+            patch(
+                "synapseclient.models.wiki.get_wiki_page",
+                return_value=self.api_response,
+            ) as mock_get_wiki,
+        ):
             # WHEN I call `get_async`
             results = await wiki.get_async(synapse_client=self.syn)
 
@@ -1468,9 +1501,10 @@ class TestWikiPage:
     ) -> None:
         # WHEN I call `delete_async`
         # THEN it should raise ValueError
-        with patch(
-            "synapseclient.models.wiki.delete_wiki_page"
-        ) as mocked_delete, pytest.raises(ValueError, match=expected_error):
+        with (
+            patch("synapseclient.models.wiki.delete_wiki_page") as mocked_delete,
+            pytest.raises(ValueError, match=expected_error),
+        ):
             await wiki_page.delete_async(synapse_client=self.syn)
             # THEN the API should not be called
             mocked_delete.assert_not_called()
@@ -1504,9 +1538,10 @@ class TestWikiPage:
     ) -> None:
         # WHEN I call `get_attachment_handles_async`
         # THEN it should raise ValueError
-        with patch(
-            "synapseclient.models.wiki.get_attachment_handles"
-        ) as mocked_get, pytest.raises(ValueError, match=expected_error):
+        with (
+            patch("synapseclient.models.wiki.get_attachment_handles") as mocked_get,
+            pytest.raises(ValueError, match=expected_error),
+        ):
             await wiki_page.get_attachment_handles_async(synapse_client=self.syn)
             # THEN the API should not be called
             mocked_get.assert_not_called()
@@ -1558,9 +1593,10 @@ class TestWikiPage:
     ) -> None:
         # WHEN I call `get_attachment_async`
         # THEN it should raise ValueError
-        with patch(
-            "synapseclient.models.wiki.get_attachment_url"
-        ) as mocked_get, pytest.raises(ValueError, match=expected_error):
+        with (
+            patch("synapseclient.models.wiki.get_attachment_url") as mocked_get,
+            pytest.raises(ValueError, match=expected_error),
+        ):
             await wiki_page.get_attachment_async(
                 file_name=file_name,
                 synapse_client=self.syn,
@@ -1581,30 +1617,34 @@ class TestWikiPage:
             ]
         }
 
-        with patch(
-            "synapseclient.models.wiki.get_attachment_url",
-            return_value=mock_attachment_url,
-        ) as mock_get_url, patch(
-            "synapseclient.models.wiki.get_attachment_handles",
-            return_value=mock_filehandle_dict,
-        ) as mock_get_handles, patch(
-            "synapseclient.models.wiki.download_from_url",
-            return_value="/tmp/download/test.txt.gz",
-        ) as mock_download_from_url, patch(
-            "synapseclient.models.wiki.download_from_url_multi_threaded",
-            return_value="/tmp/download/test.txt.gz",
-        ) as mock_download_from_url_multi_threaded, patch(
-            "synapseclient.models.wiki._pre_signed_url_expiration_time",
-            return_value="2030-01-01T00:00:00.000Z",
-        ) as mock_expiration_time, patch.object(
-            self.syn.logger, "info"
-        ) as mock_logger_info, patch(
-            "os.remove"
-        ) as mock_remove, patch(
-            "synapseclient.models.wiki.WikiPage.unzip_gzipped_file"
-        ) as mock_unzip_gzipped_file, patch.object(
-            self.syn.logger, "debug"
-        ) as mock_logger_debug:
+        with (
+            patch(
+                "synapseclient.models.wiki.get_attachment_url",
+                return_value=mock_attachment_url,
+            ) as mock_get_url,
+            patch(
+                "synapseclient.models.wiki.get_attachment_handles",
+                return_value=mock_filehandle_dict,
+            ) as mock_get_handles,
+            patch(
+                "synapseclient.models.wiki.download_from_url",
+                return_value="/tmp/download/test.txt.gz",
+            ) as mock_download_from_url,
+            patch(
+                "synapseclient.models.wiki.download_from_url_multi_threaded",
+                return_value="/tmp/download/test.txt.gz",
+            ) as mock_download_from_url_multi_threaded,
+            patch(
+                "synapseclient.models.wiki._pre_signed_url_expiration_time",
+                return_value="2030-01-01T00:00:00.000Z",
+            ) as mock_expiration_time,
+            patch.object(self.syn.logger, "info") as mock_logger_info,
+            patch("os.remove") as mock_remove,
+            patch(
+                "synapseclient.models.wiki.WikiPage.unzip_gzipped_file"
+            ) as mock_unzip_gzipped_file,
+            patch.object(self.syn.logger, "debug") as mock_logger_debug,
+        ):
             # WHEN I call `get_attachment_async` with download_file=True
             result = await self.wiki_page.get_attachment_async(
                 file_name="test.txt",
@@ -1698,12 +1738,15 @@ class TestWikiPage:
         # AND a mock attachment URL
         mock_attachment_url = "https://example.com/attachment.txt"
 
-        with patch(
-            "synapseclient.models.wiki.get_attachment_url",
-            return_value=mock_attachment_url,
-        ) as mock_get_url, patch(
-            "synapseclient.models.wiki.get_attachment_handles"
-        ) as mock_get_handles:
+        with (
+            patch(
+                "synapseclient.models.wiki.get_attachment_url",
+                return_value=mock_attachment_url,
+            ) as mock_get_url,
+            patch(
+                "synapseclient.models.wiki.get_attachment_handles"
+            ) as mock_get_handles,
+        ):
             # WHEN I call `get_attachment_async` with download_file=True but no download_location
             # THEN it should raise ValueError
             with pytest.raises(
@@ -1753,9 +1796,10 @@ class TestWikiPage:
     ) -> None:
         # WHEN I call `get_attachment_preview_url_async`
         # THEN it should raise ValueError
-        with patch(
-            "synapseclient.models.wiki.get_attachment_preview_url"
-        ) as mocked_get, pytest.raises(ValueError, match=expected_error):
+        with (
+            patch("synapseclient.models.wiki.get_attachment_preview_url") as mocked_get,
+            pytest.raises(ValueError, match=expected_error),
+        ):
             await wiki_page.get_attachment_preview_async(
                 file_name=file_name,
                 synapse_client=self.syn,
@@ -1778,24 +1822,29 @@ class TestWikiPage:
             ]
         }
 
-        with patch(
-            "synapseclient.models.wiki.get_attachment_preview_url",
-            return_value=mock_attachment_url,
-        ) as mock_get_url, patch(
-            "synapseclient.models.wiki.get_attachment_handles",
-            return_value=mock_filehandle_dict,
-        ) as mock_get_handles, patch(
-            "synapseclient.models.wiki.download_from_url",
-            return_value="/tmp/download/test.txt.gz",
-        ) as mock_download_from_url, patch(
-            "synapseclient.models.wiki.download_from_url_multi_threaded",
-            return_value="/tmp/download/test.txt.gz",
-        ) as mock_download_from_url_multi_threaded, patch(
-            "synapseclient.models.wiki._pre_signed_url_expiration_time",
-            return_value="2030-01-01T00:00:00.000Z",
-        ) as mock_expiration_time, patch.object(
-            self.syn.logger, "info"
-        ) as mock_logger_info:
+        with (
+            patch(
+                "synapseclient.models.wiki.get_attachment_preview_url",
+                return_value=mock_attachment_url,
+            ) as mock_get_url,
+            patch(
+                "synapseclient.models.wiki.get_attachment_handles",
+                return_value=mock_filehandle_dict,
+            ) as mock_get_handles,
+            patch(
+                "synapseclient.models.wiki.download_from_url",
+                return_value="/tmp/download/test.txt.gz",
+            ) as mock_download_from_url,
+            patch(
+                "synapseclient.models.wiki.download_from_url_multi_threaded",
+                return_value="/tmp/download/test.txt.gz",
+            ) as mock_download_from_url_multi_threaded,
+            patch(
+                "synapseclient.models.wiki._pre_signed_url_expiration_time",
+                return_value="2030-01-01T00:00:00.000Z",
+            ) as mock_expiration_time,
+            patch.object(self.syn.logger, "info") as mock_logger_info,
+        ):
             # WHEN I call `get_attachment_async` with download_file=True
             result = await self.wiki_page.get_attachment_preview_async(
                 file_name="test.txt",
@@ -1883,12 +1932,15 @@ class TestWikiPage:
         # AND a mock attachment URL
         mock_attachment_url = "https://example.com/attachment.txt"
 
-        with patch(
-            "synapseclient.models.wiki.get_attachment_preview_url",
-            return_value=mock_attachment_url,
-        ) as mock_get_url, patch(
-            "synapseclient.models.wiki.get_attachment_handles"
-        ) as mock_get_handles:
+        with (
+            patch(
+                "synapseclient.models.wiki.get_attachment_preview_url",
+                return_value=mock_attachment_url,
+            ) as mock_get_url,
+            patch(
+                "synapseclient.models.wiki.get_attachment_handles"
+            ) as mock_get_handles,
+        ):
             # WHEN I call `get_attachment_async` with download_file=True but no download_location
             # THEN it should raise ValueError
             with pytest.raises(
@@ -1930,9 +1982,10 @@ class TestWikiPage:
     ) -> None:
         # WHEN I call `get_markdown_async`
         # THEN it should raise ValueError
-        with patch(
-            "synapseclient.models.wiki.get_markdown_url"
-        ) as mocked_get, pytest.raises(ValueError, match=expected_error):
+        with (
+            patch("synapseclient.models.wiki.get_markdown_url") as mocked_get,
+            pytest.raises(ValueError, match=expected_error),
+        ):
             await wiki_page.get_markdown_file_async(synapse_client=self.syn)
             # THEN the API should not be called
             mocked_get.assert_not_called()
@@ -1941,21 +1994,22 @@ class TestWikiPage:
         # Mock responses
         mock_markdown_url = "https://example.com/markdown.md.gz"
 
-        with patch(
-            "synapseclient.models.wiki.get_markdown_url",
-            return_value=mock_markdown_url,
-        ) as mock_get_url, patch(
-            "synapseclient.models.wiki.download_from_url",
-            return_value="/tmp/download/markdown.md.gz",
-        ) as mock_download_from_url, patch(
-            "synapseclient.models.wiki.WikiPage.unzip_gzipped_file"
-        ) as mock_unzip_gzipped_file, patch.object(
-            self.syn.logger, "info"
-        ) as mock_logger_info, patch.object(
-            self.syn.logger, "debug"
-        ) as mock_logger_debug, patch(
-            "os.remove"
-        ) as mock_remove:
+        with (
+            patch(
+                "synapseclient.models.wiki.get_markdown_url",
+                return_value=mock_markdown_url,
+            ) as mock_get_url,
+            patch(
+                "synapseclient.models.wiki.download_from_url",
+                return_value="/tmp/download/markdown.md.gz",
+            ) as mock_download_from_url,
+            patch(
+                "synapseclient.models.wiki.WikiPage.unzip_gzipped_file"
+            ) as mock_unzip_gzipped_file,
+            patch.object(self.syn.logger, "info") as mock_logger_info,
+            patch.object(self.syn.logger, "debug") as mock_logger_debug,
+            patch("os.remove") as mock_remove,
+        ):
             # WHEN I call `get_markdown_async` with download_file=True
             result = await self.wiki_page.get_markdown_file_async(
                 download_file=True,
@@ -2025,12 +2079,15 @@ class TestWikiPage:
         # AND a mock markdown URL
         mock_markdown_url = "https://example.com/markdown.md"
 
-        with patch(
-            "synapseclient.models.wiki.get_markdown_url",
-            return_value=mock_markdown_url,
-        ) as mock_get_url, patch(
-            "synapseclient.models.wiki.get_attachment_handles"
-        ) as mock_get_handles:
+        with (
+            patch(
+                "synapseclient.models.wiki.get_markdown_url",
+                return_value=mock_markdown_url,
+            ) as mock_get_url,
+            patch(
+                "synapseclient.models.wiki.get_attachment_handles"
+            ) as mock_get_handles,
+        ):
             # WHEN I call `get_markdown_async` with download_file=True but no download_location
             # THEN it should raise ValueError
             with pytest.raises(

@@ -269,7 +269,7 @@ async def post_external_filehandle(
         "contentSize": file_size,
     }
     if mimetype is None:
-        (mimetype, _) = mimetypes.guess_type(external_url, strict=False)
+        mimetype, _ = mimetypes.guess_type(external_url, strict=False)
     if mimetype is not None:
         file_handle["contentType"] = mimetype
     return await client.rest_post_async(

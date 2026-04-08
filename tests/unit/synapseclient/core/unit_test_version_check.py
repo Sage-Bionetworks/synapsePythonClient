@@ -1,6 +1,5 @@
 """Unit tests for version check functions"""
 
-
 from unittest.mock import patch
 
 import pytest

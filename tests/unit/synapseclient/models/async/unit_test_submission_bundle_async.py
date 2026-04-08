@@ -246,7 +246,9 @@ class TestSubmissionBundle:
             mock_get_bundles.side_effect = mock_async_gen
 
             result = []
-            async for bundle in SubmissionBundle.get_evaluation_submission_bundles_async(
+            async for (
+                bundle
+            ) in SubmissionBundle.get_evaluation_submission_bundles_async(
                 evaluation_id=EVALUATION_ID,
                 status="RECEIVED",
                 synapse_client=self.syn,
@@ -296,7 +298,9 @@ class TestSubmissionBundle:
             mock_get_bundles.side_effect = mock_async_gen
 
             result = []
-            async for bundle in SubmissionBundle.get_evaluation_submission_bundles_async(
+            async for (
+                bundle
+            ) in SubmissionBundle.get_evaluation_submission_bundles_async(
                 evaluation_id=EVALUATION_ID,
                 synapse_client=self.syn,
             ):
