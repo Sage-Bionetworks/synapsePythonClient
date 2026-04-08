@@ -136,7 +136,7 @@ _REQUIRED_STORAGE_TYPE_SPECIFIC_FIELDS: Dict[str, set] = {
     StorageLocationType.EXTERNAL_OBJECT_STORE: {"bucket", "endpoint_url"},
     StorageLocationType.EXTERNAL_SFTP: {"url"},
     StorageLocationType.EXTERNAL_HTTPS: {"url"},
-    StorageLocationType.PROXY: {"proxy_url", "secret_key"},
+    StorageLocationType.PROXY: {"proxy_url", "secret_key", "benefactor_id"},
 }
 
 
