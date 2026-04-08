@@ -22,6 +22,7 @@ from synapseclient.models.mixins.asynchronous_job import AsynchronousCommunicato
 from synapseclient.models.protocols.download_list_protocol import (
     DownloadListSynchronousProtocol,
 )
+from synapseclient.models.table_components import CsvTableDescriptor
 
 _PATH_COLUMN = "path"
 _ERROR_COLUMN = "error"
@@ -97,17 +98,16 @@ class DownloadListManifestRequest(AsynchronousCommunicator):
     ``_post_exchange_async()`` after the file is downloaded. ``None`` until
     ``send_job_and_wait_async()`` returns."""
 
+    csv_table_descriptor: CsvTableDescriptor = field(
+        default_factory=CsvTableDescriptor,
+    )
+    """Describes the format of the generated CSV manifest."""
+
     def to_synapse_request(self) -> dict[str, Any]:
         """Build the request body for the manifest async job."""
         return {
             "concreteType": self.concrete_type,
-            "csvTableDescriptor": {
-                "separator": ",",
-                "quoteCharacter": '"',
-                "escapeCharacter": "\\",
-                "lineEnd": os.linesep,
-                "isFirstLineHeader": True,
-            },
+            "csvTableDescriptor": self.csv_table_descriptor.to_synapse_request(),
         }
 
     def fill_from_dict(
