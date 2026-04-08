@@ -46,6 +46,9 @@ async def add_to_download_list_async(
 
     Returns:
         The number of files added to the download list.
+
+    Raises:
+        ValueError: If the API response is missing the 'numberOfFilesAdded' field.
     """
     from synapseclient import Synapse
 
@@ -58,7 +61,9 @@ async def add_to_download_list_async(
     result = await client.rest_post_async(
         "/download/list/add", body=json.dumps(request_body)
     )
-    return result.get("numberOfFilesAdded", 0)
+    if "numberOfFilesAdded" not in result:
+        raise ValueError("API response missing 'numberOfFilesAdded' field")
+    return result["numberOfFilesAdded"]
 
 
 async def remove_from_download_list_async(
@@ -78,6 +83,9 @@ async def remove_from_download_list_async(
 
     Returns:
         The number of files removed from the download list.
+
+    Raises:
+        ValueError: If the API response is missing the 'numberOfFilesRemoved' field.
     """
     from synapseclient import Synapse
 
@@ -90,4 +98,6 @@ async def remove_from_download_list_async(
     result = await client.rest_post_async(
         "/download/list/remove", body=json.dumps(request_body)
     )
-    return result.get("numberOfFilesRemoved", 0)
+    if "numberOfFilesRemoved" not in result:
+        raise ValueError("API response missing 'numberOfFilesRemoved' field")
+    return result["numberOfFilesRemoved"]
