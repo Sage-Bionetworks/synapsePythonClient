@@ -1,8 +1,12 @@
-<!-- Last reviewed: 2026-03 -->
+<!-- Last reviewed: 2026-04 -->
 
 ## Project
 
 REST API service layer — thin async functions that map to Synapse REST endpoints. One file per resource type. Called by model layer, never by end users directly.
+
+## Reference
+
+- [Synapse REST API docs](https://rest-docs.synapse.org/rest/)
 
 ## Conventions
 
