@@ -1,7 +1,6 @@
 """Unit tests for asynchronous methods in DownloadList, DownloadListManifestRequest."""
 
 import csv
-import logging
 import os
 import shutil
 import tempfile
