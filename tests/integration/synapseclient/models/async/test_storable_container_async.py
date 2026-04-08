@@ -36,12 +36,16 @@ def _write_manifest(rows: list[dict], tmp_path: Path) -> Path:
     return path
 
 
-def _create_local_test_file(content: str, tmp_path: Path) -> Path:
+def _create_local_test_file(content: str, tmp_path: Path = None) -> Path:
     """Write content to a unique file under *tmp_path*.
+
+    If *tmp_path* is not supplied a temporary directory is created automatically.
 
     Returns:
         Path to the written file.
     """
+    if tmp_path is None:
+        tmp_path = Path(tempfile.mkdtemp())
     path = tmp_path / f"{uuid.uuid4()}_local_test_file.txt"
     path.write_text(content, encoding="utf-8")
     return path
