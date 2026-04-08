@@ -31,6 +31,8 @@ _ERROR_COLUMN = "error"
 class DownloadListItem:
     """Identifies a specific file version in the Synapse download list.
 
+    <https://rest-docs.synapse.org/rest/org/sagebionetworks/repo/model/download/DownloadListItem.html>
+
     Attributes:
         file_entity_id: Synapse ID of the file entity (e.g. ``"syn123"``).
         version_number: Version of the file to target.
@@ -406,7 +408,7 @@ class DownloadList(DownloadListSynchronousProtocol):
             sem = asyncio.Semaphore(max_concurrent)
 
             async def bounded_download(
-                row: dict[str, Any]
+                row: dict[str, Any],
             ) -> Optional[DownloadListItem]:
                 async with sem:
                     return await DownloadList._download_row(
