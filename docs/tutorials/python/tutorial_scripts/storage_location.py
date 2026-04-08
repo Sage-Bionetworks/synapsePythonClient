@@ -237,7 +237,49 @@ print(f"Bucket: {retrieved_storage.bucket}")
 print(f"Base key: {retrieved_storage.base_key}")
 
 
-# Step 10: Index and migrate files to the new storage location
+# Step 10: Update a storage location
+#
+# Storage locations are immutable in Synapse — individual fields cannot be edited
+# after creation. To "update" a storage location, create a new one with the desired
+# settings and reassign it to the folder or project.
+#
+# Example: change the base key of the External S3 storage location used by
+# external_s3_folder from MY_BASE_KEY to "synapse-data-v2".
+
+updated_s3_storage_location = StorageLocation(
+    storage_type=StorageLocationType.EXTERNAL_S3,
+    bucket=MY_BUCKET_NAME,
+    base_key="synapse-data-v2",
+    description="External S3 storage location (updated base key)",
+).store()
+
+print(f"New storage location ID: {updated_s3_storage_location.storage_location_id}")
+
+# Reassign the folder to point at the new storage location
+external_s3_folder.set_storage_location(
+    storage_location_id=updated_s3_storage_location.storage_location_id
+)
+updated_folder_setting = external_s3_folder.get_project_setting()
+assert (
+    updated_folder_setting["locations"][0]
+    == updated_s3_storage_location.storage_location_id
+), "Folder storage location was not updated"
+
+print("Folder now uses the updated storage location.")
+
+# Step 10b: Partial update — add a storage location without removing existing ones
+#
+# `set_storage_location` is a destructive replacement. To append a new location
+# while keeping the ones already configured, read the current ProjectSetting,
+# append to its `locations` list, and call store() on the setting directly.
+
+setting = external_s3_folder.get_project_setting()
+if setting is not None:
+    setting.locations.append(gcs_storage.storage_location_id)
+    setting.store()
+    print(f"Updated locations after partial update: {setting.locations}")
+
+# Step 11: Index and migrate files to the new storage location
 #
 # WARNING: This will actually migrate files associated with the project/folder.
 # Run against a test project first and review the index (MigrationResult) before
