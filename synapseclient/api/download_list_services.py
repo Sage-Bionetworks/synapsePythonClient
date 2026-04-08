@@ -16,7 +16,7 @@ async def clear_download_list_async(
 ) -> None:
     """Clear all files from the user's Synapse download list.
 
-    [Endpoint](https://rest-docs.synapse.org/rest/DELETE/download/list.html)
+    <https://rest-docs.synapse.org/rest/DELETE/download/list.html>
 
     Arguments:
         synapse_client: If not passed in and caching was not disabled by
@@ -36,7 +36,7 @@ async def add_to_download_list_async(
 ) -> int:
     """Add a batch of specific file versions to the user's Synapse download list.
 
-    [Endpoint](https://rest-docs.synapse.org/rest/POST/download/list/add.html)
+    <https://rest-docs.synapse.org/rest/POST/download/list/add.html>
 
     Arguments:
         files: List of DownloadListItem objects identifying the file versions to add.
@@ -68,7 +68,7 @@ async def remove_from_download_list_async(
 ) -> int:
     """Remove a batch of specific file versions from the user's Synapse download list.
 
-    [Endpoint](https://rest-docs.synapse.org/rest/POST/download/list/remove.html)
+    <https://rest-docs.synapse.org/rest/POST/download/list/remove.html>
 
     Arguments:
         files: List of DownloadListItem objects identifying the file versions to remove.
