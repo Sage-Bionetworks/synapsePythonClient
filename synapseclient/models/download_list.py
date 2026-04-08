@@ -4,6 +4,7 @@ import asyncio
 import csv
 import os
 import time
+import warnings
 from dataclasses import dataclass, field
 from typing import TYPE_CHECKING, Any, Optional
 
@@ -376,8 +377,8 @@ class DownloadList(DownloadListSynchronousProtocol):
     async def _download_all_rows(
         rows: list[dict[str, Any]],
         download_location: Optional[str],
-        parallel: bool,
-        max_concurrent: int = 10,
+        parallel: bool = False,
+        max_concurrent: Optional[int] = None,
         *,
         synapse_client: Optional["Synapse"] = None,
     ) -> list[DownloadListItem]:
@@ -392,12 +393,31 @@ class DownloadList(DownloadListSynchronousProtocol):
                 ``max_concurrent``) via ``asyncio.gather``. If ``False``, rows are
                 downloaded one at a time.
             max_concurrent: Maximum number of concurrent downloads when
-                ``parallel=True``. Defaults to 10.
+                ``parallel=True``. Defaults to ``None``, which is treated as
+                10. Must be at least 1. Has no effect when ``parallel=False``;
+                a ``UserWarning`` is emitted if set explicitly in that case.
             synapse_client: Optional Synapse client.
+
+        Raises:
+            ValueError: If ``max_concurrent`` is less than 1.
+
+        Warns:
+            UserWarning: If ``max_concurrent`` is set but ``parallel=False``.
 
         Returns:
             List of :class:`DownloadListItem` for each successfully downloaded file.
         """
+        if max_concurrent is not None and not parallel:
+            warnings.warn(
+                "max_concurrent has no effect when parallel=False.",
+                UserWarning,
+                stacklevel=2,
+            )
+        if max_concurrent is not None and max_concurrent < 1:
+            raise ValueError(
+                f"max_concurrent must be at least 1, got {max_concurrent}."
+            )
+        max_concurrent = max_concurrent if max_concurrent is not None else 10
         if parallel:
             # asyncio.gather schedules all coroutines immediately, so without a
             # semaphore a large cart would fire hundreds of concurrent HTTP requests
