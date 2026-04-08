@@ -8,8 +8,6 @@ relationships, and data flows that enable flexible storage configuration.
 
 ## On This Page
 
-<div class="grid cards" markdown>
-
 -   **[Domain Model](#domain-model)**
 
     Core classes, enums, and their relationships
@@ -34,7 +32,6 @@ relationships, and data flows that enable flexible storage configuration.
 
     Two-phase file migration process
 
-</div>
 
 ---
 
@@ -181,7 +178,7 @@ classDiagram
 
 <br>
 
-## Storage Type Mapping (TODO: double checking if EXTERNAL_HTTP works as expected)
+## Storage Type Mapping
 
 Each `StorageLocationType` maps to a specific REST API `concreteType` and has a
 default `UploadType`. This mapping allows the system to parse
@@ -194,6 +191,7 @@ flowchart LR
         EXTERNAL_S3["EXTERNAL_S3"]
         EXTERNAL_GOOGLE_CLOUD["EXTERNAL_GOOGLE_CLOUD"]
         EXTERNAL_SFTP["EXTERNAL_SFTP"]
+        EXTERNAL_HTTPS["EXTERNAL_HTTPS"]
         EXTERNAL_OBJECT_STORE["EXTERNAL_OBJECT_STORE"]
         PROXY["PROXY"]
     end
@@ -212,12 +210,14 @@ flowchart LR
         GCS["GOOGLECLOUDSTORAGE"]
         SFTP["SFTP"]
         HTTPS["HTTPS"]
+        PROXYLOCAL["PROXYLOCAL"]
     end
 
     SYNAPSE_S3 --> S3SLS --> S3
     EXTERNAL_S3 --> ExtS3SLS --> S3
     EXTERNAL_GOOGLE_CLOUD --> ExtGCSSLS --> GCS
     EXTERNAL_SFTP --> ExtSLS --> SFTP
+    EXTERNAL_HTTPS --> ExtSLS --> HTTPS
     EXTERNAL_OBJECT_STORE --> ExtObjSLS --> S3
     PROXY --> ProxySLS --> HTTPS
 ```
@@ -244,11 +244,11 @@ Different storage types support different configuration attributes:
 | `stsEnabled` | boolean | ✓ | ✓ | — | — | — | — |
 | `bucket` | string | — | ✓ (required) | ✓ (required) | — | ✓ (required) | — |
 | `endpointUrl` | string | — | ✓ | ✓ (required) | — | — | — |
-| `url` | string | — | — | — | ✓ | — | — |
+| `url` | string | — | — | — | ✓ (required) | — | — |
 | `supportsSubfolders` | boolean | — | — | — | ✓ | — | — |
-| `proxyUrl` | string | — | — | — | — | — | ✓ |
-| `secretKey` | string | — | — | — | — | — | ✓ |
-| `benefactorId` | string | — | — | — | — | — | ✓ |
+| `proxyUrl` | string | — | — | — | — | — | ✓ (required) |
+| `secretKey` | string | — | — | — | — | — | ✓ (required) |
+| `benefactorId` | string | — | — | — | — | — | ✓ (required) |
 
 ## Summary by type
 
@@ -257,9 +257,9 @@ Different storage types support different configuration attributes:
 | **S3StorageLocationSetting** | Default Synapse storage on Amazon S3. | `baseKey`, `stsEnabled` |
 | **ExternalS3StorageLocationSetting** | External S3 bucket connected with Synapse (Synapse-accessed). | `bucket` (required), `baseKey`, `stsEnabled`, `endpointUrl` |
 | **ExternalObjectStorageLocationSetting** | S3-compatible object storage **not** accessed by Synapse. | `bucket` (required), `endpointUrl` (required) |
-| **ExternalStorageLocationSetting** | SFTP or HTTPS upload destination. | `url`, `supportsSubfolders` |
+| **ExternalStorageLocationSetting** | SFTP or HTTPS upload destination. | `url` (required), `supportsSubfolders` |
 | **ExternalGoogleCloudStorageLocationSetting** | External Google Cloud Storage bucket connected with Synapse. | `bucket` (required), `baseKey` |
-| **ProxyStorageLocationSettings** | HTTPS proxy for all upload/download operations. | `proxyUrl`, `secretKey`, `benefactorId` |
+| **ProxyStorageLocationSettings** | HTTPS proxy for all upload/download operations. | `proxyUrl` (required), `secretKey` (required), `benefactorId` (required) |
 
 
 <br>
@@ -274,7 +274,7 @@ flowchart TB
     Start -->|No| DEFAULT[Use default Synapse storage]
     Start -->|Yes| Q1{Want Synapse to<br/>manage storage?}
 
-    Q1 -->|Yes| SYNAPSE_S3[Use SYNAPSE_S3]
+    Q1 -->|Yes| DEFAULT[Use default Synapse storage]
     Q1 -->|No| Q2{What storage<br/>backend?}
 
     Q2 -->|AWS S3| Q3{Synapse accesses<br/>bucket directly?}
@@ -785,6 +785,7 @@ sequenceDiagram
             MigrateFn->>DB: Update row status to MIGRATED/ERRORED
         end
 
+    end
 
     MigrateFn-->>Entity: MigrationResult (migrated counts)
     deactivate MigrateFn
