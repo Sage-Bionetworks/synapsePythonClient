@@ -1403,7 +1403,7 @@ async def migrate_indexed_files_async(
     client = Synapse.get_client(synapse_client=synapse_client)
 
     # Retrieve settings
-    with sqlite3.connect(db_path) as conn:
+    with sqlite3.connect(db_path, check_same_thread=False) as conn:
         cursor = conn.cursor()
         _ensure_schema(cursor)
         existing_settings = _retrieve_index_settings(cursor)
@@ -1475,7 +1475,7 @@ async def _execute_migration_async(
             key,
             pending_file_handles,
             completed_file_handles,
-            min(BATCH_SIZE, semaphore.value - len(active_tasks)),
+            min(BATCH_SIZE, semaphore._value - len(active_tasks)),
         )
         row_count = 0
         for item in batch:
