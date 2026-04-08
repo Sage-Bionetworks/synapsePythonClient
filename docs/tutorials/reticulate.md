@@ -8,7 +8,7 @@ While the separate [synapser](https://github.com/Sage-Bionetworks/synapser) R pa
 
 ### Setting up a fresh RStudio environment with Python
 
-The following Docker command starts an RStudio instance with Python dependencies pre-installed, which you can use to follow this guide:
+The following Docker command starts an RStudio instance with Python pre-installed, which you can use to follow this guide:
 
 ```bash
 docker run --rm -it -p 8787:8787 \
