@@ -29,7 +29,7 @@ _ERROR_COLUMN = "error"
 
 @dataclass
 class DownloadListItem:
-    """Identifies a specific file version in the Synapse download list.
+    """A single item for a user's download list.
 
     <https://rest-docs.synapse.org/rest/org/sagebionetworks/repo/model/download/DownloadListItem.html>
 
