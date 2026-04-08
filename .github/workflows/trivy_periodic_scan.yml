@@ -76,7 +76,7 @@ jobs:
 
   update-image:
     needs: [get-image-reference, periodic-scan, compute-next-version]
-    if: ${{ !cancelled() && needs.periodic-scan.outputs.trivy_conclusion == 'failure' }}
+    if: ${{ !cancelled() && needs.periodic-scan.outputs.trivy_conclusion == 'failure' && needs.compute-next-version.result == 'success' }}
     uses: "./.github/workflows/docker_build.yml"
     with:
       REF_TO_CHECKOUT: ${{ needs.get-image-reference.outputs.image_tag }}
@@ -142,7 +142,7 @@ jobs:
                 '',
                 '## Next steps',
                 '',
-                '- Review findings in the [Security tab](../security/code-scanning)',
+                `- Review findings in the [Security tab](${context.serverUrl}/${context.repo.owner}/${context.repo.repo}/security/code-scanning)`,
                 '- Update the affected dependencies to a version that includes the fix',
                 '- Or add the CVE ID(s) to a `.trivyignore` file if the risk is accepted',
                 '',
