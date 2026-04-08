@@ -77,8 +77,8 @@ class DownloadListManifestRequest(AsynchronousCommunicator):
     After ``send_job_and_wait_async()`` returns, ``manifest_path`` holds the
     local path to the downloaded CSV and is ready to use.
 
-    [Request](https://rest-docs.synapse.org/rest/org/sagebionetworks/repo/model/download/DownloadListManifestRequest.html)
-    [Response](https://rest-docs.synapse.org/rest/org/sagebionetworks/repo/model/download/DownloadListManifestResponse.html)
+    <https://rest-docs.synapse.org/rest/org/sagebionetworks/repo/model/download/DownloadListManifestRequest.html>
+    <https://rest-docs.synapse.org/rest/org/sagebionetworks/repo/model/download/DownloadListManifestResponse.html>
     """
 
     concrete_type: str = field(
