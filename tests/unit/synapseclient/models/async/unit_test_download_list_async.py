@@ -23,18 +23,6 @@ from synapseclient.models.download_list import (
 )
 
 
-@pytest.fixture(scope="module")
-def syn():
-    """
-    Create a Synapse for this modules tests.
-    When using the syn fixture from .conftest, the patches here were causing issues in other tests.
-    """
-    syn = Synapse(debug=False, skip_checks=True, cache_client=False)
-    syn.logger = logging.getLogger()
-    Synapse.set_client(syn)
-    return syn
-
-
 class TestDownloadListServices:
     """Unit tests for download_list_services API functions."""
 
@@ -45,11 +33,18 @@ class TestDownloadListServices:
     async def test_add_to_download_list_async_returns_count(self):
         """add_to_download_list_async extracts numberOfFilesAdded from the response."""
         files = [DownloadListItem(file_entity_id="syn123", version_number=1)]
-        with patch(
-            "synapseclient.Synapse.get_client",
-            return_value=self.syn,
+        with (
+            patch(
+                "synapseclient.Synapse.get_client",
+                return_value=self.syn,
+            ),
+            patch.object(
+                self.syn,
+                "rest_post_async",
+                new_callable=AsyncMock,
+                return_value={"numberOfFilesAdded": 1},
+            ),
         ):
-            self.syn.rest_post_async = AsyncMock(return_value={"numberOfFilesAdded": 1})
             result = await add_to_download_list_async(
                 files=files, synapse_client=self.syn
             )
@@ -58,13 +53,18 @@ class TestDownloadListServices:
     async def test_remove_from_download_list_async_returns_count(self):
         """remove_from_download_list_async extracts numberOfFilesRemoved from the response."""
         files = [DownloadListItem(file_entity_id="syn123", version_number=1)]
-        with patch(
-            "synapseclient.Synapse.get_client",
-            return_value=self.syn,
+        with (
+            patch(
+                "synapseclient.Synapse.get_client",
+                return_value=self.syn,
+            ),
+            patch.object(
+                self.syn,
+                "rest_post_async",
+                new_callable=AsyncMock,
+                return_value={"numberOfFilesRemoved": 1},
+            ),
         ):
-            self.syn.rest_post_async = AsyncMock(
-                return_value={"numberOfFilesRemoved": 1}
-            )
             result = await remove_from_download_list_async(
                 files=files, synapse_client=self.syn
             )
@@ -117,18 +117,22 @@ class TestDownloadListManifestRequest:
             "fileHandleId": "fh456",
             "fileHandle": {"contentMd5": "abc123"},
         }
-        with patch(
-            "synapseclient.api.file_services.get_file_handle_for_download_async",
-            new_callable=AsyncMock,
-            return_value=fake_file_result,
-        ) as mock_get_fh, patch(
-            "synapseclient.core.download.download_functions.download_from_url",
-            return_value="/tmp/manifest.csv",
-        ) as mock_download, patch(
-            "asyncio.to_thread",
-            new_callable=AsyncMock,
-            return_value="/tmp/manifest.csv",
-        ) as mock_to_thread:
+        with (
+            patch(
+                "synapseclient.api.file_services.get_file_handle_for_download_async",
+                new_callable=AsyncMock,
+                return_value=fake_file_result,
+            ) as mock_get_fh,
+            patch(
+                "synapseclient.core.download.download_functions.download_from_url",
+                return_value="/tmp/manifest.csv",
+            ) as mock_download,
+            patch(
+                "asyncio.to_thread",
+                new_callable=AsyncMock,
+                return_value="/tmp/manifest.csv",
+            ) as mock_to_thread,
+        ):
             # WHEN I call _post_exchange_async
             await request._post_exchange_async(
                 synapse_client=self.syn, destination="/tmp"
@@ -321,22 +325,26 @@ class TestDownloadListDownloadFiles:
                 [{"ID": "syn123", "versionNumber": "1", "name": "file1.txt"}],
             )
 
-            with patch.object(
-                DownloadList,
-                "get_manifest_async",
-                new_callable=AsyncMock,
-                return_value=manifest_path,
-            ), patch.object(
-                DownloadList,
-                "_download_row",
-                new_callable=AsyncMock,
-                return_value=DownloadListItem(
-                    file_entity_id="syn123", version_number=1
+            with (
+                patch.object(
+                    DownloadList,
+                    "get_manifest_async",
+                    new_callable=AsyncMock,
+                    return_value=manifest_path,
                 ),
-            ), patch(
-                "synapseclient.models.download_list.remove_from_download_list_async",
-                new_callable=AsyncMock,
-            ) as mock_remove:
+                patch.object(
+                    DownloadList,
+                    "_download_row",
+                    new_callable=AsyncMock,
+                    return_value=DownloadListItem(
+                        file_entity_id="syn123", version_number=1
+                    ),
+                ),
+                patch(
+                    "synapseclient.models.download_list.remove_from_download_list_async",
+                    new_callable=AsyncMock,
+                ) as mock_remove,
+            ):
                 result_path = await DownloadList.download_files_async(
                     download_location=tmpdir,
                     synapse_client=self.syn,
@@ -360,20 +368,24 @@ class TestDownloadListDownloadFiles:
                 [{"ID": "syn789", "versionNumber": "2", "name": "inaccessible.txt"}],
             )
 
-            with patch.object(
-                DownloadList,
-                "get_manifest_async",
-                new_callable=AsyncMock,
-                return_value=manifest_path,
-            ), patch.object(
-                DownloadList,
-                "_download_row",
-                new_callable=AsyncMock,
-                return_value=None,  # failure
-            ), patch(
-                "synapseclient.models.download_list.remove_from_download_list_async",
-                new_callable=AsyncMock,
-            ) as mock_remove:
+            with (
+                patch.object(
+                    DownloadList,
+                    "get_manifest_async",
+                    new_callable=AsyncMock,
+                    return_value=manifest_path,
+                ),
+                patch.object(
+                    DownloadList,
+                    "_download_row",
+                    new_callable=AsyncMock,
+                    return_value=None,  # failure
+                ),
+                patch(
+                    "synapseclient.models.download_list.remove_from_download_list_async",
+                    new_callable=AsyncMock,
+                ) as mock_remove,
+            ):
                 result_path = await DownloadList.download_files_async(
                     synapse_client=self.syn,
                 )
@@ -389,11 +401,18 @@ class TestDownloadListDownloadFiles:
         fake_entity.path = "/tmp/file.txt"
 
         row = {"ID": "syn111", "versionNumber": "5", "name": "file.txt"}
-        self.syn.get_async = AsyncMock(return_value=fake_entity)
 
-        with patch(
-            "synapseclient.Synapse.get_client",
-            return_value=self.syn,
+        with (
+            patch(
+                "synapseclient.Synapse.get_client",
+                return_value=self.syn,
+            ),
+            patch.object(
+                self.syn,
+                "get_async",
+                new_callable=AsyncMock,
+                return_value=fake_entity,
+            ),
         ):
             item = await DownloadList._download_row(
                 row, download_location="/tmp", synapse_client=self.syn
@@ -408,11 +427,18 @@ class TestDownloadListDownloadFiles:
     async def test_download_row_failure(self):
         """_download_row sets error on the row and returns None on failure."""
         row = {"ID": "syn222", "versionNumber": "1", "name": "secret.txt"}
-        self.syn.get_async = AsyncMock(side_effect=SynapseError("Forbidden"))
 
-        with patch(
-            "synapseclient.Synapse.get_client",
-            return_value=self.syn,
+        with (
+            patch(
+                "synapseclient.Synapse.get_client",
+                return_value=self.syn,
+            ),
+            patch.object(
+                self.syn,
+                "get_async",
+                new_callable=AsyncMock,
+                side_effect=SynapseError("Forbidden"),
+            ),
         ):
             item = await DownloadList._download_row(row, synapse_client=self.syn)
 
@@ -423,11 +449,18 @@ class TestDownloadListDownloadFiles:
     async def test_download_row_failure_unexpected_exception(self):
         """_download_row catches non-SynapseError exceptions so one failure does not abort the run."""
         row = {"ID": "syn222", "versionNumber": "1", "name": "secret.txt"}
-        self.syn.get_async = AsyncMock(side_effect=AttributeError("path"))
 
-        with patch(
-            "synapseclient.Synapse.get_client",
-            return_value=self.syn,
+        with (
+            patch(
+                "synapseclient.Synapse.get_client",
+                return_value=self.syn,
+            ),
+            patch.object(
+                self.syn,
+                "get_async",
+                new_callable=AsyncMock,
+                side_effect=AttributeError("path"),
+            ),
         ):
             item = await DownloadList._download_row(row, synapse_client=self.syn)
 
@@ -453,13 +486,20 @@ class TestDownloadListDownloadFiles:
         """_download_row does not pass downloadLocation when it is None."""
         fake_entity = MagicMock()
         fake_entity.path = "/tmp/file.txt"
-        self.syn.get_async = AsyncMock(return_value=fake_entity)
 
         row = {"ID": "syn444", "versionNumber": "2", "name": "file.txt"}
 
-        with patch(
-            "synapseclient.Synapse.get_client",
-            return_value=self.syn,
+        with (
+            patch(
+                "synapseclient.Synapse.get_client",
+                return_value=self.syn,
+            ),
+            patch.object(
+                self.syn,
+                "get_async",
+                new_callable=AsyncMock,
+                return_value=fake_entity,
+            ) as mock_get,
         ):
             item = await DownloadList._download_row(
                 row, download_location=None, synapse_client=self.syn
@@ -467,7 +507,7 @@ class TestDownloadListDownloadFiles:
 
         assert item is not None
         # THEN get_async was called with only the entity ID and version — no downloadLocation
-        self.syn.get_async.assert_called_once_with("syn444", version=2)
+        mock_get.assert_called_once_with("syn444", version=2)
 
     def test_read_manifest_rows_headers_no_rows(self):
         """_read_manifest_rows returns (columns, []) for a CSV with headers but no data."""
@@ -524,17 +564,19 @@ class TestDownloadListDownloadFiles:
                 writer = csv.DictWriter(f, fieldnames=["ID", "versionNumber", "name"])
                 writer.writeheader()
 
-            with patch.object(
-                DownloadList,
-                "get_manifest_async",
-                new_callable=AsyncMock,
-                return_value=manifest_path,
-            ), patch(
-                "synapseclient.models.download_list.remove_from_download_list_async",
-                new_callable=AsyncMock,
-            ) as mock_remove, patch.object(
-                self.syn.logger, "warning"
-            ) as mock_warning:
+            with (
+                patch.object(
+                    DownloadList,
+                    "get_manifest_async",
+                    new_callable=AsyncMock,
+                    return_value=manifest_path,
+                ),
+                patch(
+                    "synapseclient.models.download_list.remove_from_download_list_async",
+                    new_callable=AsyncMock,
+                ) as mock_remove,
+                patch.object(self.syn.logger, "warning") as mock_warning,
+            ):
                 await DownloadList.download_files_async(
                     download_location=tmpdir,
                     synapse_client=self.syn,
@@ -563,18 +605,22 @@ class TestDownloadListDownloadFiles:
                 captured_location["value"] = download_location
                 return DownloadListItem(file_entity_id=row["ID"], version_number=1)
 
-            with patch.object(
-                DownloadList,
-                "get_manifest_async",
-                new_callable=AsyncMock,
-                return_value=manifest_path,
-            ), patch.object(
-                DownloadList,
-                "_download_row",
-                side_effect=capture_download_row,
-            ), patch(
-                "synapseclient.models.download_list.remove_from_download_list_async",
-                new_callable=AsyncMock,
+            with (
+                patch.object(
+                    DownloadList,
+                    "get_manifest_async",
+                    new_callable=AsyncMock,
+                    return_value=manifest_path,
+                ),
+                patch.object(
+                    DownloadList,
+                    "_download_row",
+                    side_effect=capture_download_row,
+                ),
+                patch(
+                    "synapseclient.models.download_list.remove_from_download_list_async",
+                    new_callable=AsyncMock,
+                ),
             ):
                 result_path = await DownloadList.download_files_async(
                     download_location="~/my-download-dir",
@@ -625,20 +671,24 @@ class TestDownloadListDownloadFiles:
                 DownloadListItem(file_entity_id="syn456", version_number=2),
             ]
 
-            with patch.object(
-                DownloadList,
-                "get_manifest_async",
-                new_callable=AsyncMock,
-                return_value=manifest_path,
-            ), patch.object(
-                DownloadList,
-                "_download_row",
-                new_callable=AsyncMock,
-                side_effect=returned_items,
-            ), patch(
-                "synapseclient.models.download_list.remove_from_download_list_async",
-                new_callable=AsyncMock,
-            ) as mock_remove:
+            with (
+                patch.object(
+                    DownloadList,
+                    "get_manifest_async",
+                    new_callable=AsyncMock,
+                    return_value=manifest_path,
+                ),
+                patch.object(
+                    DownloadList,
+                    "_download_row",
+                    new_callable=AsyncMock,
+                    side_effect=returned_items,
+                ),
+                patch(
+                    "synapseclient.models.download_list.remove_from_download_list_async",
+                    new_callable=AsyncMock,
+                ) as mock_remove,
+            ):
                 result_path = await DownloadList.download_files_async(
                     download_location=tmpdir,
                     parallel=True,
@@ -670,20 +720,24 @@ class TestDownloadListDownloadFiles:
                 None,
             ]
 
-            with patch.object(
-                DownloadList,
-                "get_manifest_async",
-                new_callable=AsyncMock,
-                return_value=manifest_path,
-            ), patch.object(
-                DownloadList,
-                "_download_row",
-                new_callable=AsyncMock,
-                side_effect=side_effects,
-            ), patch(
-                "synapseclient.models.download_list.remove_from_download_list_async",
-                new_callable=AsyncMock,
-            ) as mock_remove:
+            with (
+                patch.object(
+                    DownloadList,
+                    "get_manifest_async",
+                    new_callable=AsyncMock,
+                    return_value=manifest_path,
+                ),
+                patch.object(
+                    DownloadList,
+                    "_download_row",
+                    new_callable=AsyncMock,
+                    side_effect=side_effects,
+                ),
+                patch(
+                    "synapseclient.models.download_list.remove_from_download_list_async",
+                    new_callable=AsyncMock,
+                ) as mock_remove,
+            ):
                 result_path = await DownloadList.download_files_async(
                     download_location=tmpdir,
                     parallel=True,
@@ -737,23 +791,27 @@ class TestDownloadListDownloadFiles:
                 [{"ID": "syn123", "versionNumber": "1", "name": "file1.txt"}],
             )
 
-            with patch.object(
-                DownloadList,
-                "get_manifest_async",
-                new_callable=AsyncMock,
-                return_value=manifest_path,
-            ), patch.object(
-                DownloadList,
-                "_download_row",
-                new_callable=AsyncMock,
-                return_value=DownloadListItem(
-                    file_entity_id="syn123", version_number=1
+            with (
+                patch.object(
+                    DownloadList,
+                    "get_manifest_async",
+                    new_callable=AsyncMock,
+                    return_value=manifest_path,
                 ),
-            ), patch.object(
-                DownloadList,
-                "_save_result_manifest",
-                new_callable=AsyncMock,
-                side_effect=OSError("disk full"),
+                patch.object(
+                    DownloadList,
+                    "_download_row",
+                    new_callable=AsyncMock,
+                    return_value=DownloadListItem(
+                        file_entity_id="syn123", version_number=1
+                    ),
+                ),
+                patch.object(
+                    DownloadList,
+                    "_save_result_manifest",
+                    new_callable=AsyncMock,
+                    side_effect=OSError("disk full"),
+                ),
             ):
                 with pytest.raises(OSError, match="disk full"):
                     await DownloadList.download_files_async(synapse_client=self.syn)
