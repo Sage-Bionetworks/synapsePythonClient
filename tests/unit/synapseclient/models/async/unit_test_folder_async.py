@@ -13,7 +13,7 @@ import pytest
 from synapseclient import Folder as Synapse_Folder
 from synapseclient import Synapse
 from synapseclient.core.constants import concrete_types
-from synapseclient.core.constants.concrete_types import FILE_ENTITY
+from synapseclient.core.constants.concrete_types import FILE_ENTITY, FOLDER_ENTITY
 from synapseclient.core.exceptions import SynapseNotFoundError
 from synapseclient.models import Activity, FailureStrategy, File, Folder
 from synapseclient.models.services.manifest import (
@@ -799,20 +799,61 @@ class TestFolder:
     async def test_sync_from_synapse_manifest_all_generates_per_directory(
         self,
     ) -> None:
-        # GIVEN a Folder object with a path
+        SUB_FOLDER_ID = "syn789"
+        SUB_FOLDER_NAME = "sub_folder"
+        FILE_2_ID = "syn012"
+        FILE_2_NAME = "example_file_2"
+
+        # GIVEN a root folder with one file and one subfolder containing one file
         folder = Folder(id=SYN_123)
-        children = [{"id": SYN_456, "type": FILE_ENTITY, "name": "example_file_1"}]
+
+        root_children = [
+            {"id": SYN_456, "type": FILE_ENTITY, "name": "example_file_1"},
+            {"id": SUB_FOLDER_ID, "type": FOLDER_ENTITY, "name": SUB_FOLDER_NAME},
+        ]
+        sub_children = [
+            {"id": FILE_2_ID, "type": FILE_ENTITY, "name": FILE_2_NAME},
+        ]
+        get_children_call_count = 0
 
         async def mock_get_children(*args, **kwargs):
+            nonlocal get_children_call_count
+            children = root_children if get_children_call_count == 0 else sub_children
+            get_children_call_count += 1
             for child in children:
                 yield child
 
-        downloaded_file = File(
+        downloaded_file_1 = File(
             id=SYN_456,
             name="example_file_1",
-            path="/tmp/mydir/example_file_1.txt",
             parent_id=SYN_123,
         )
+        downloaded_file_2 = File(
+            id=FILE_2_ID,
+            name=FILE_2_NAME,
+            parent_id=SUB_FOLDER_ID,
+        )
+        file_map = {SYN_456: downloaded_file_1, FILE_2_ID: downloaded_file_2}
+
+        async def mock_file_get(self_file, **kwargs):
+            return file_map[self_file.id]
+
+        async def mock_get_entity_bundle(entity_id, *args, **kwargs):
+            if entity_id == SUB_FOLDER_ID:
+                return {
+                    "entity": {
+                        "concreteType": concrete_types.FOLDER_ENTITY,
+                        "id": SUB_FOLDER_ID,
+                        "name": SUB_FOLDER_NAME,
+                        "parentId": SYN_123,
+                        "etag": ETAG,
+                        "createdOn": CREATED_ON,
+                        "modifiedOn": MODIFIED_ON,
+                        "createdBy": CREATED_BY,
+                        "modifiedBy": MODIFIED_BY,
+                    }
+                }
+            return self.get_example_rest_api_folder_output()
 
         # WHEN I call sync_from_synapse with manifest="all" and a path
         with patch(
@@ -820,11 +861,13 @@ class TestFolder:
             side_effect=mock_get_children,
         ), patch(
             "synapseclient.api.entity_factory.get_entity_id_bundle2",
-            new_callable=AsyncMock,
-            return_value=self.get_example_rest_api_folder_output(),
+            side_effect=mock_get_entity_bundle,
         ), patch(
             "synapseclient.models.file.File.get_async",
-            return_value=downloaded_file,
+            side_effect=mock_file_get,
+        ), patch(
+            "synapseclient.models.mixins.storable_container.os.path.exists",
+            return_value=True,
         ), patch(
             "synapseclient.models.mixins.storable_container.generate_manifest_csv",
         ) as mock_generate:
@@ -832,10 +875,16 @@ class TestFolder:
                 path="/tmp/mydir", manifest="all", synapse_client=self.syn
             )
 
-        # THEN generate_manifest_csv should be called for each directory
-        assert mock_generate.call_count >= 1
-        call_paths = [c.kwargs["path"] for c in mock_generate.call_args_list]
-        assert "/tmp/mydir" in call_paths
+        # THEN generate_manifest_csv is called once per directory (root + subfolder)
+        assert mock_generate.call_count == 2
+        calls_by_path = {
+            c.kwargs["path"]: c.kwargs["all_files"]
+            for c in mock_generate.call_args_list
+        }
+        assert any(f.id == SYN_456 for f in calls_by_path["/tmp/mydir"])
+        assert any(
+            f.id == FILE_2_ID for f in calls_by_path[f"/tmp/mydir/{SUB_FOLDER_NAME}"]
+        )
 
     async def test_sync_from_synapse_manifest_root_generates_only_at_root(
         self,
