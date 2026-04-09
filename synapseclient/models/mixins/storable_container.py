@@ -1,8 +1,6 @@
 """Mixin for objects that can have Folders and Files stored in them."""
 
 import asyncio
-import csv
-import io
 import os
 from typing import (
     TYPE_CHECKING,
@@ -65,99 +63,7 @@ if TYPE_CHECKING:
         VirtualTable,
     )
 
-
-MANIFEST_CSV_FILENAME = "manifest.csv"
-DEFAULT_GENERATED_MANIFEST_CSV_KEYS = [
-    "path",
-    "parentId",
-    "name",
-    "ID",
-    "synapseStore",
-    "contentType",
-    "used",
-    "executed",
-    "activityName",
-    "activityDescription",
-]
-
-
-def _manifest_csv_filename(path: str) -> str:
-    return os.path.join(os.path.expanduser(path), MANIFEST_CSV_FILENAME)
-
-
-def _get_entity_provenance_dict_for_manifest(entity: "File") -> dict:
-    if not entity.activity:
-        return {}
-    used = [a.format_for_manifest() for a in entity.activity.used]
-    executed = [a.format_for_manifest() for a in entity.activity.executed]
-    return {
-        "used": ";".join(used),
-        "executed": ";".join(executed),
-        "activityName": entity.activity.name or "",
-        "activityDescription": entity.activity.description or "",
-    }
-
-
-def _extract_entity_metadata_for_manifest_csv(
-    all_files: List["File"],
-) -> Tuple[List[str], List[Dict]]:
-    keys = list(DEFAULT_GENERATED_MANIFEST_CSV_KEYS)
-    annotation_keys: set = set()
-    data = []
-    for entity in all_files:
-        row: Dict = {
-            "path": entity.path,
-            "parentId": entity.parent_id,
-            "name": entity.name,
-            "ID": entity.id,
-            "synapseStore": entity.synapse_store,
-            "contentType": entity.content_type,
-        }
-        if entity.annotations:
-            annotation_keys.update(entity.annotations.keys())
-            row.update(
-                {
-                    key: (val if len(val) > 0 else "")
-                    for key, val in entity.annotations.items()
-                }
-            )
-        row.update(_get_entity_provenance_dict_for_manifest(entity=entity))
-        data.append(row)
-    keys.extend(annotation_keys)
-    return keys, data
-
-
-def _write_manifest_data_csv(filename: str, keys: List[str], data: List[Dict]) -> None:
-    from synapseutils.sync import _convert_manifest_data_row_to_dict
-
-    with io.open(filename, "w", encoding="utf8", newline="") as fp:
-        writer = csv.DictWriter(
-            fp,
-            keys,
-            restval="",
-            extrasaction="ignore",
-            quoting=csv.QUOTE_MINIMAL,
-        )
-        writer.writeheader()
-        for row in data:
-            writer.writerow(_convert_manifest_data_row_to_dict(row, keys))
-
-
-def generate_manifest_csv(all_files: List["File"], path: str) -> None:
-    """Generates a manifest.csv file based on a list of File entities.
-
-    The generated file uses CSV format with comma delimiter and is interoperable
-    with the Synapse UI download cart. Column names follow the new convention:
-    `parentId` (instead of `parent`) and `ID` (instead of `id`).
-
-    Arguments:
-        all_files: A list of File model objects.
-        path: The directory path where manifest.csv will be written.
-    """
-    if path and all_files:
-        filename = _manifest_csv_filename(path=path)
-        keys, data = _extract_entity_metadata_for_manifest_csv(all_files=all_files)
-        _write_manifest_data_csv(filename, keys, data)
+from synapseclient.models.services.manifest import generate_manifest_csv
 
 
 @async_to_sync
@@ -478,6 +384,18 @@ class StorableContainer(StorableContainerSynchronousProtocol):
                     end
                 end
 
+                opt manifest != "suppress" and path is set
+                    alt manifest == "all"
+                        loop For each directory path
+                            sync_from_synapse->>manifest: call `generate_manifest_csv(files, dir_path)`
+                            manifest-->>sync_from_synapse: manifest.csv written to dir_path
+                        end
+                    else manifest == "root"
+                        sync_from_synapse->>manifest: call `generate_manifest_csv(all_files, root_path)`
+                        manifest-->>sync_from_synapse: manifest.csv written to root_path
+                    end
+                end
+
             deactivate sync_from_synapse
             deactivate project_or_folder
         ```
@@ -531,6 +449,12 @@ class StorableContainer(StorableContainerSynchronousProtocol):
         syn.logger.info(
             f"[{self.id}:{self.name}]: Syncing {self.__class__.__name__} from Synapse."
         )
+
+        if manifest not in ("all", "root", "suppress"):
+            syn.logger.error(
+                f"[{self.id}:{self.name}]: Invalid manifest value: {manifest}"
+            )
+
         path = os.path.expanduser(path) if path else None
 
         children = await self._retrieve_children(

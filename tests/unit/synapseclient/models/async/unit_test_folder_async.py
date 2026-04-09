@@ -15,7 +15,7 @@ from synapseclient.core.constants import concrete_types
 from synapseclient.core.constants.concrete_types import FILE_ENTITY
 from synapseclient.core.exceptions import SynapseNotFoundError
 from synapseclient.models import Activity, FailureStrategy, File, Folder
-from synapseclient.models.mixins.storable_container import (
+from synapseclient.models.services.manifest import (
     _extract_entity_metadata_for_manifest_csv,
     _write_manifest_data_csv,
     generate_manifest_csv,
