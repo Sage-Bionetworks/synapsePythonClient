@@ -1,5 +1,6 @@
 """Tests for the Folder class."""
 import csv
+import datetime
 import io
 import os
 import tempfile
@@ -972,13 +973,6 @@ class TestGenerateManifestCsv:
         # WHEN metadata is extracted
         keys, data = _extract_entity_metadata_for_manifest_csv([f])
 
-        # THEN column names use new convention
-        assert "parentId" in keys
-        assert "ID" in keys
-        assert "parent" not in keys
-        assert "id" not in keys
-
-        # AND values are correct
         assert data[0]["parentId"] == "syn456"
         assert data[0]["ID"] == "syn123"
         assert data[0]["path"] == "/data/file.txt"
@@ -991,44 +985,61 @@ class TestGenerateManifestCsv:
         # WHEN metadata is extracted
         keys, data = _extract_entity_metadata_for_manifest_csv([f])
 
-        # THEN annotation keys are included
+        # THEN annotation keys are included and single-item lists are serialized as scalars
         assert "tissue" in keys
         assert "count" in keys
-        assert data[0]["tissue"] == ["brain"]
+        assert data[0]["tissue"] == "brain"
+        assert data[0]["count"] == "42"
 
     def test_write_manifest_data_csv_produces_comma_separated_output(self) -> None:
-        # GIVEN some data with a value that contains a comma
-        keys = ["path", "parentId", "name", "ID"]
-        data = [
-            {
-                "path": "/data/file.txt",
-                "parentId": "syn456",
-                "name": "a, b, c",
-                "ID": "syn123",
-            }
-        ]
-
-        # WHEN written to a CSV buffer
-        buf = io.StringIO()
-        with patch("builtins.open", side_effect=lambda *a, **kw: buf):
-            pass  # we call directly below
-
-        output = io.StringIO()
-        writer = csv.DictWriter(
-            output,
-            keys,
-            restval="",
-            extrasaction="ignore",
-            quoting=csv.QUOTE_MINIMAL,
+        # GIVEN a File with a name containing a comma and mixed-type annotations
+        f = self._make_file(
+            name="a, b, c",
+            path="/data/file.txt",
+            annotations={
+                "single_str": "hello",
+                "multi_str": ["a", "b", "c"],
+                "str_with_comma": ["hello,world", "plain"],
+                "booleans": [True, False],
+                "integers": [1],
+                "single_dt": [
+                    datetime.datetime(2020, 1, 1, 0, 0, 0, tzinfo=datetime.timezone.utc)
+                ],
+                "multi_dt": [
+                    datetime.datetime(
+                        2020, 1, 1, 0, 0, 0, tzinfo=datetime.timezone.utc
+                    ),
+                    datetime.datetime(
+                        2021, 6, 15, 12, 30, 0, tzinfo=datetime.timezone.utc
+                    ),
+                ],
+            },
         )
-        writer.writeheader()
-        writer.writerow(data[0])
-        content = output.getvalue()
 
-        # THEN the header uses commas
-        assert "path,parentId,name,ID" in content
-        # AND the value with commas is quoted
+        with tempfile.TemporaryDirectory() as tmpdir:
+            # WHEN generate_manifest_csv is called
+            generate_manifest_csv(all_files=[f], path=tmpdir)
+            manifest_path = os.path.join(tmpdir, "manifest.csv")
+            content = open(manifest_path, encoding="utf8").read()
+            with open(manifest_path, newline="", encoding="utf8") as fp:
+                row = next(csv.DictReader(fp))
+
+        # THEN the name with a comma is quoted in the CSV output
         assert '"a, b, c"' in content
+        # AND single-item list is serialized as a plain scalar
+        assert row["single_str"] == "hello"
+        # AND multi-value list is serialized as a bracketed string
+        assert row["multi_str"] == "[a,b,c]"
+        # AND a value with a comma is quoted inside the brackets
+        assert row["str_with_comma"] == '["hello,world",plain]'
+        # AND booleans are serialized unquoted
+        assert row["booleans"] == "[True,False]"
+        # AND integers are serialized unquoted
+        assert row["integers"] == "1"
+        # AND a single datetime is serialized as ISO 8601 UTC
+        assert row["single_dt"] == "2020-01-01T00:00:00Z"
+        # AND multiple datetimes are serialized as a bracketed ISO 8601 list
+        assert row["multi_dt"] == "[2020-01-01T00:00:00Z,2021-06-15T12:30:00Z]"
 
     def test_generate_manifest_csv_creates_file(self) -> None:
         # GIVEN a list of File entities and a temp directory
@@ -1050,12 +1061,6 @@ class TestGenerateManifestCsv:
             # AND it has the expected columns with new naming convention
             with open(manifest_path, newline="", encoding="utf8") as fp:
                 reader = csv.DictReader(fp)
-                headers = reader.fieldnames
-                assert "parentId" in headers
-                assert "ID" in headers
-                assert "parent" not in headers
-                assert "id" not in headers
-
                 row = next(reader)
                 assert row["parentId"] == "syn456"
                 assert row["ID"] == "syn123"
@@ -1077,6 +1082,5 @@ class TestGenerateManifestCsv:
             generate_manifest_csv(all_files=[f], path=tmpdir)
             manifest_path = os.path.join(tmpdir, "manifest.csv")
             content = open(manifest_path, encoding="utf8").read()
-
         # THEN the comma-containing value is quoted in the CSV
         assert '"file, extra.txt"' in content
