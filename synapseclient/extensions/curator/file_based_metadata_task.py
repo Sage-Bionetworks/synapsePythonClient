@@ -41,6 +41,8 @@ def create_json_schema_entity_view(
     syn: Synapse,
     synapse_entity_id: str,
     entity_view_name: str = "JSON Schema view",
+    maximum_size: Optional[int] = None,
+    maximum_list_length: Optional[int] = None,
 ) -> str:
     """
     Creates a Synapse entity view based on a JSON Schema that is bound to a Synapse entity
@@ -50,6 +52,13 @@ def create_json_schema_entity_view(
         syn: A Synapse object thats been logged in
         synapse_entity_id: The ID of the entity in Synapse to bind the JSON Schema to
         entity_view_name: The name the crated entity view will have
+        maximum_size: The maximum size of each column. For STRING columns,
+            the Synapse default is 50 characters (range 1-1000). For
+            STRING_LIST columns, this limits individual string element size.
+            Defaults to None (Synapse server default).
+        maximum_list_length: The maximum number of values in a list-type
+            column. The Synapse default is 100 (range 1-100). Defaults to
+            None (Synapse server default).
 
     Returns:
         The Synapse id of the crated entity view
@@ -64,7 +73,11 @@ def create_json_schema_entity_view(
     version_info = jsb.json_schema_version_info
     schema = JSONSchema(version_info.schema_name, version_info.organization_name)
     body = schema.get_body(version=version_info.semantic_version, synapse_client=syn)
-    columns = _create_columns_from_json_schema(body)
+    columns = _create_columns_from_json_schema(
+        body,
+        maximum_size=maximum_size,
+        maximum_list_length=maximum_list_length,
+    )
     view = EntityView(
         name=entity_view_name,
         parent_id=synapse_entity_id,
@@ -179,11 +192,22 @@ def update_wiki_with_entity_view(
     return wiki
 
 
-def _create_columns_from_json_schema(json_schema: dict[str, Any]) -> list[Column]:
+def _create_columns_from_json_schema(
+    json_schema: dict[str, Any],
+    maximum_size: Optional[int] = None,
+    maximum_list_length: Optional[int] = None,
+) -> list[Column]:
     """Creates a list of Synapse Columns based on the JSON Schema type
 
     Arguments:
         json_schema: The JSON Schema in dict form
+        maximum_size: The maximum size of each column. For STRING columns,
+            the Synapse default is 50 characters (range 1-1000). For
+            STRING_LIST columns, this limits individual string element size.
+            Defaults to None (Synapse server default).
+        maximum_list_length: The maximum number of values in a list-type
+            column. The Synapse default is 100 (range 1-100). Defaults to
+            None (Synapse server default).
 
     Raises:
         ValueError: If the JSON Schema has no properties
@@ -200,14 +224,22 @@ def _create_columns_from_json_schema(json_schema: dict[str, Any]) -> list[Column
             "The 'properties' field in the JSON Schema must be a dictionary."
         )
     columns = [
-        _create_synapse_column_from_js_property(prop_schema, name)
+        _create_synapse_column_from_js_property(
+            prop_schema,
+            name,
+            maximum_size=maximum_size,
+            maximum_list_length=maximum_list_length,
+        )
         for name, prop_schema in properties.items()
     ]
     return columns
 
 
 def _create_synapse_column_from_js_property(
-    js_property: dict[str, Any], name: str
+    js_property: dict[str, Any],
+    name: str,
+    maximum_size: Optional[int] = None,
+    maximum_list_length: Optional[int] = None,
 ) -> Column:
     """
     Creates a Synapse Column based on a JSON Schema property.
@@ -215,12 +247,34 @@ def _create_synapse_column_from_js_property(
     Args:
         js_property: A JSON Schema property in dict form.
         name: The name of the column.
+        maximum_size: The maximum size of the column. For STRING columns,
+            the Synapse default is 50 characters (range 1-1000). For
+            STRING_LIST columns, this limits individual string element size.
+            Defaults to None (Synapse server default).
+        maximum_list_length: The maximum number of values in a list-type
+            column. The Synapse default is 100 (range 1-100). Defaults to
+            None (Synapse server default).
 
     Returns:
         A Synapse Column based on the JSON Schema property.
     """
     column_type = _get_column_type_from_js_property(js_property)
-    return Column(name=name, column_type=column_type)
+    if column_type == ColumnType.MEDIUMTEXT and maximum_size is not None:
+        column_type = ColumnType.STRING
+    if column_type not in [ColumnType.STRING_LIST, ColumnType.STRING]:
+        maximum_size = None
+    if column_type not in [
+        ColumnType.STRING_LIST,
+        ColumnType.INTEGER_LIST,
+        ColumnType.BOOLEAN_LIST,
+    ]:
+        maximum_list_length = None
+    return Column(
+        name=name,
+        column_type=column_type,
+        maximum_size=maximum_size,
+        maximum_list_length=maximum_list_length,
+    )
 
 
 def _get_column_type_from_js_property(js_property: dict[str, Any]) -> ColumnType:
@@ -319,6 +373,8 @@ def create_file_based_metadata_task(
     schema_uri: Optional[str] = None,
     enable_derived_annotations: bool = False,
     assignee_principal_id: Optional[Union[str, int]] = None,
+    maximum_size: Optional[int] = None,
+    maximum_list_length: Optional[int] = None,
     *,
     synapse_client: Optional[Synapse] = None,
 ) -> Tuple[str, str]:
@@ -360,6 +416,13 @@ def create_file_based_metadata_task(
             the schema will be bound to the folder before creating the entity view.
             (e.g., 'sage.schemas.v2571-amp.Biospecimen.schema-0.0.1')
         enable_derived_annotations: If true, enable derived annotations. Defaults to False.
+        maximum_size: The maximum size of each column in the entity view.
+            For STRING columns, the Synapse default is 50 characters
+            (range 1-1000). For STRING_LIST columns, this limits individual
+            string element size. Defaults to None (Synapse server default).
+        maximum_list_length: The maximum number of values in a list-type
+            column in the entity view. The Synapse default is 100
+            (range 1-100). Defaults to None (Synapse server default).
         assignee_principal_id: The principal ID of the user or team to assign to this
             curation task. Can be provided as either a string or an integer. If None
             (default), the task will be unassigned. For metadata tasks, this determines
@@ -415,6 +478,8 @@ def create_file_based_metadata_task(
             syn=synapse_client,
             synapse_entity_id=folder_id,
             entity_view_name=entity_view_name,
+            maximum_size=maximum_size,
+            maximum_list_length=maximum_list_length,
         )
     except Exception as e:
         synapse_client.logger.exception("Error creating entity view")
