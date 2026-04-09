@@ -110,7 +110,7 @@ def _write_manifest_data_csv(filename: str, keys: List[str], data: List[Dict]) -
             fieldnames=keys,
             restval="",
             extrasaction="ignore",
-            quoting=csv.QUOTE_NONE,
+            quoting=csv.QUOTE_MINIMAL,
         )
         writer.writeheader()
         for row in data:
