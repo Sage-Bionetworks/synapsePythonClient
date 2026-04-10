@@ -35,7 +35,6 @@ class TestSyncToSynapse:
     def init_syn(self, syn: Synapse) -> None:
         self.syn = syn
 
-    @pytest.mark.asyncio
     async def test_missing_path_column_raises(self, tmp_path: Path) -> None:
         """A manifest without a 'path' column raises ValueError immediately."""
         manifest_path = _write_manifest([{"parentId": "syn123", "name": "x"}], tmp_path)
@@ -45,7 +44,6 @@ class TestSyncToSynapse:
                 manifest_path=str(manifest_path), synapse_client=self.syn
             )
 
-    @pytest.mark.asyncio
     async def test_missing_parentid_column_raises(self, tmp_path: Path) -> None:
         """A manifest without a 'parentId' column raises ValueError immediately."""
         local_file = tmp_path / "f.txt"
@@ -60,7 +58,6 @@ class TestSyncToSynapse:
                 manifest_path=str(manifest_path), synapse_client=self.syn
             )
 
-    @pytest.mark.asyncio
     async def test_all_rows_have_errors_no_crash(self, tmp_path: Path) -> None:
         """When every row has an error the call completes without uploading anything."""
         manifest_path = _write_manifest(

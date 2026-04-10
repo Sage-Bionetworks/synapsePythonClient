@@ -2,7 +2,6 @@
 
 import csv
 import os
-import tempfile
 import uuid
 from pathlib import Path
 from typing import Callable
@@ -36,16 +35,12 @@ def _write_manifest(rows: list[dict], tmp_path: Path) -> Path:
     return path
 
 
-def _create_local_test_file(content: str, tmp_path: Path = None) -> Path:
+def _create_local_test_file(content: str, tmp_path: Path) -> Path:
     """Write content to a unique file under *tmp_path*.
-
-    If *tmp_path* is not supplied a temporary directory is created automatically.
 
     Returns:
         Path to the written file.
     """
-    if tmp_path is None:
-        tmp_path = Path(tempfile.mkdtemp())
     path = tmp_path / f"{uuid.uuid4()}_local_test_file.txt"
     path.write_text(content, encoding="utf-8")
     return path
@@ -78,9 +73,9 @@ class TestSyncToSynapse:
     ) -> None:
         """Files listed in the manifest that don't yet exist in Synapse are created."""
         # GIVEN two local files and a manifest that points them at the project
-        file_a = _create_local_test_file("content of file A")
+        file_a = _create_local_test_file("content of file A", tmp_path)
         name_a = file_a.name
-        file_b = _create_local_test_file("content of file B")
+        file_b = _create_local_test_file("content of file B", tmp_path)
         name_b = file_b.name
 
         manifest_path = _write_manifest(
@@ -123,8 +118,7 @@ class TestSyncToSynapse:
     ) -> None:
         """Annotation columns in the manifest are stored as file annotations."""
         # GIVEN a local file with annotation columns in the manifest
-        local_file = _create_local_test_file("annotated content")
-        self.schedule_for_cleanup(str(local_file))
+        local_file = _create_local_test_file("annotated content", tmp_path)
 
         unique_name = f"annotated_{uuid.uuid4()}.txt"
         manifest_path = _write_manifest(
@@ -171,8 +165,7 @@ class TestSyncToSynapse:
         assert stored_file.version_number == 1
 
         # WHEN I update the local file content and change the annotation in the manifest
-        updated_path = _create_local_test_file("updated content — v2")
-        self.schedule_for_cleanup(str(updated_path))
+        updated_path = _create_local_test_file("updated content — v2", tmp_path)
 
         manifest_path = _write_manifest(
             [
@@ -203,8 +196,7 @@ class TestSyncToSynapse:
     ) -> None:
         """used and executed columns in the manifest are stored as provenance."""
         # GIVEN a local file with provenance entries in the manifest
-        local_file = _create_local_test_file("data")
-        self.schedule_for_cleanup(str(local_file))
+        local_file = _create_local_test_file("data", tmp_path)
 
         unique_name = f"prov_{uuid.uuid4()}.txt"
         manifest_path = _write_manifest(
@@ -251,8 +243,7 @@ class TestSyncToSynapse:
     ) -> None:
         """dry_run=True validates the manifest but does not create any entities."""
         # GIVEN a unique file name we can look for after the dry run
-        local_file = _create_local_test_file("should not appear in Synapse")
-        self.schedule_for_cleanup(str(local_file))
+        local_file = _create_local_test_file("should not appear in Synapse", tmp_path)
         unique_name = f"dry_run_{uuid.uuid4()}.txt"
 
         manifest_path = _write_manifest(
@@ -291,8 +282,7 @@ class TestSyncToSynapse:
         ).store_async(synapse_client=self.syn)
         self.schedule_for_cleanup(folder.id)
 
-        local_file = _create_local_test_file("goes into the folder")
-        self.schedule_for_cleanup(str(local_file))
+        local_file = _create_local_test_file("goes into the folder", tmp_path)
 
         manifest_path = _write_manifest(
             [
@@ -329,8 +319,7 @@ class TestSyncToSynapse:
         file_entity = await self._create_test_file(project_model)
 
         # AND a manifest that points another file at that File entity as parent
-        upload_file = _create_local_test_file("upload")
-        self.schedule_for_cleanup(str(upload_file))
+        upload_file = _create_local_test_file("upload", tmp_path)
 
         manifest_path = _write_manifest(
             [
@@ -356,8 +345,7 @@ class TestSyncToSynapse:
     ) -> None:
         """Rows with a non-empty 'error' column (from get-download-list) are ignored."""
         # GIVEN a manifest where one row has an error and one is valid
-        good_file = _create_local_test_file("good content")
-        self.schedule_for_cleanup(str(good_file))
+        good_file = _create_local_test_file("good content", tmp_path)
         unique_name = f"error_skip_{uuid.uuid4()}.txt"
 
         manifest_path = _write_manifest(

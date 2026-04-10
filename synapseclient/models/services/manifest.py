@@ -301,7 +301,9 @@ class SyncUploader:
 
         resolved_file_ids: dict[str, str] = {}
         if dependent_futures:
-            finished_dependencies, pending = await asyncio.wait(dependent_futures)
+            finished_dependencies, pending = await asyncio.wait(
+                dependent_futures, return_when=asyncio.ALL_COMPLETED
+            )
             if pending:
                 raise RuntimeError(
                     f"There were {len(pending)} dependencies left when storing {item}"
@@ -721,7 +723,7 @@ async def _check_provenance(
         return item
 
     # URLs and Synapse IDs are valid provenance references as-is
-    if is_url(item) or is_synapse_id_str(item) is not None:
+    if is_url(item) or (is_synapse_id_str(item) is not None):
         return item
 
     # Resolve as a local file path

@@ -164,7 +164,6 @@ class TestCheckParentContainersAsync:
     def init_syn(self, syn: Synapse) -> None:
         self.syn = syn
 
-    @pytest.mark.asyncio
     async def test_valid_project_passes(self) -> None:
         """A parent ID that resolves to a Project does not raise."""
         from synapseclient.models.project import Project
@@ -176,7 +175,6 @@ class TestCheckParentContainersAsync:
         ):
             await _check_parent_containers_async(["syn1"], syn=self.syn)
 
-    @pytest.mark.asyncio
     async def test_valid_folder_passes(self) -> None:
         """A parent ID that resolves to a Folder does not raise."""
         from synapseclient.models.folder import Folder
@@ -188,7 +186,6 @@ class TestCheckParentContainersAsync:
         ):
             await _check_parent_containers_async(["syn1"], syn=self.syn)
 
-    @pytest.mark.asyncio
     async def test_non_container_raises(self) -> None:
         """A parent ID that resolves to a non-container Synapse entity raises ValueError."""
         mock_entity = MagicMock()  # not a Folder or Project
@@ -199,7 +196,6 @@ class TestCheckParentContainersAsync:
             with pytest.raises(ValueError, match="not a Folder or Project"):
                 await _check_parent_containers_async(["syn1"], syn=self.syn)
 
-    @pytest.mark.asyncio
     async def test_empty_parent_id_skipped(self) -> None:
         """An empty parent ID string is skipped without calling the Synapse API."""
         with patch(
@@ -209,7 +205,6 @@ class TestCheckParentContainersAsync:
             await _check_parent_containers_async([""], syn=self.syn)
             mock_get.assert_not_called()
 
-    @pytest.mark.asyncio
     async def test_nonexistent_parent_id_reraises_http_error(self) -> None:
         """A parent ID that does not exist in Synapse re-raises the SynapseHTTPError."""
         from synapseclient.core.exceptions import SynapseHTTPError
@@ -227,7 +222,6 @@ class TestReadManifestForUpload:
     def init_syn(self, syn: Synapse) -> None:
         self.syn = syn
 
-    @pytest.mark.asyncio
     async def test_missing_path_column_raises(self, tmp_path: Path) -> None:
         """A manifest without a 'path' column raises ValueError."""
         csv = "parentId\nsyn1\n"
@@ -236,7 +230,6 @@ class TestReadManifestForUpload:
         with pytest.raises(ValueError, match="'path'"):
             await read_manifest_for_upload(str(manifest), self.syn, True, False)
 
-    @pytest.mark.asyncio
     async def test_missing_parent_id_column_raises(self, tmp_path: Path) -> None:
         """A manifest without a 'parentId' column raises ValueError."""
         f = tmp_path / "file.txt"
@@ -249,7 +242,6 @@ class TestReadManifestForUpload:
 
     # -- error column handling ---------------------------------------------
 
-    @pytest.mark.asyncio
     async def test_rows_with_error_are_skipped(self, tmp_path: Path) -> None:
         """Rows with a non-empty 'error' cell are excluded from the returned items list."""
         f = tmp_path / "file.txt"
@@ -263,7 +255,6 @@ class TestReadManifestForUpload:
         assert items == []
         assert total == 0
 
-    @pytest.mark.asyncio
     async def test_all_rows_have_errors_returns_empty(self, tmp_path: Path) -> None:
         """When every row has an error, both the items list and total size are zero."""
         csv = "path,parentId,error\n/x/y.txt,syn1,fail\n/x/z.txt,syn1,fail\n"
@@ -277,7 +268,6 @@ class TestReadManifestForUpload:
 
     # -- path validation ---------------------------------------------------
 
-    @pytest.mark.asyncio
     async def test_duplicate_paths_raise(self, tmp_path: Path) -> None:
         """Two rows referencing the same file path raise ValueError about unique file paths."""
         f = tmp_path / "file.txt"
@@ -294,7 +284,6 @@ class TestReadManifestForUpload:
             with pytest.raises(ValueError, match="unique file path"):
                 await read_manifest_for_upload(str(manifest), self.syn, True, False)
 
-    @pytest.mark.asyncio
     async def test_empty_file_raises(self, tmp_path: Path) -> None:
         """A manifest row pointing to a zero-byte file raises ValueError."""
         f = tmp_path / "empty.txt"
@@ -307,7 +296,6 @@ class TestReadManifestForUpload:
 
     # -- successful upload items -------------------------------------------
 
-    @pytest.mark.asyncio
     async def test_valid_manifest_returns_items_and_size(self, tmp_path: Path) -> None:
         """A valid manifest returns one upload item and the correct total file size."""
         f = tmp_path / "file.txt"
@@ -330,7 +318,6 @@ class TestReadManifestForUpload:
         assert items[0].entity.parent_id == "syn1"
         assert items[0].entity.id == "syn42"
 
-    @pytest.mark.asyncio
     async def test_name_derived_from_basename_when_absent(self, tmp_path: Path) -> None:
         """When the manifest has no 'name' column, the entity name defaults to the file's basename."""
         f = tmp_path / "myfile.csv"
@@ -349,7 +336,6 @@ class TestReadManifestForUpload:
 
         assert items[0].entity.name == "myfile.csv"
 
-    @pytest.mark.asyncio
     async def test_url_path_sets_synapse_store_false_and_excluded_from_size(
         self, tmp_path: Path
     ) -> None:
@@ -370,7 +356,6 @@ class TestReadManifestForUpload:
         assert total == 0
         assert items[0].entity.synapse_store is False
 
-    @pytest.mark.asyncio
     async def test_empty_error_column_row_is_kept(self, tmp_path: Path) -> None:
         """A row with an empty 'error' cell is treated as valid and included in the upload items."""
         f = tmp_path / "file.txt"
@@ -389,7 +374,6 @@ class TestReadManifestForUpload:
 
         assert len(items) == 1
 
-    @pytest.mark.asyncio
     async def test_synapse_store_defaults_to_true(self, tmp_path: Path) -> None:
         """When 'synapseStore' is absent from the manifest, it defaults to True."""
         f = tmp_path / "file.txt"
@@ -408,7 +392,6 @@ class TestReadManifestForUpload:
 
         assert items[0].entity.synapse_store is True
 
-    @pytest.mark.asyncio
     async def test_empty_csv_returns_empty(self, tmp_path: Path) -> None:
         """A CSV with headers but no data rows returns ([], 0)."""
         manifest = tmp_path / "manifest.csv"
@@ -419,7 +402,6 @@ class TestReadManifestForUpload:
         assert items == []
         assert total == 0
 
-    @pytest.mark.asyncio
     async def test_explicit_synapse_store_false_preserved(self, tmp_path: Path) -> None:
         """An explicit 'False' in the synapseStore column is preserved."""
         f = tmp_path / "file.txt"
@@ -444,7 +426,6 @@ class TestSyncToSynapseAsync:
     def init_syn(self, syn: Synapse) -> None:
         self.syn = syn
 
-    @pytest.mark.asyncio
     async def test_dry_run_skips_upload(self, tmp_path: Path) -> None:
         """With dry_run=True, the manifest is read and validated but upload is never called, returning []."""
         f = tmp_path / "file.txt"
@@ -477,7 +458,6 @@ class TestSyncToSynapseAsync:
             mock_uploader_cls.return_value.upload.assert_not_called()
             assert result == []
 
-    @pytest.mark.asyncio
     async def test_upload_called_with_items(self, tmp_path: Path) -> None:
         """With valid items, the uploader is called and the returned File list is passed back to the caller."""
         f = tmp_path / "file.txt"
@@ -515,7 +495,6 @@ class TestSyncToSynapseAsync:
             mock_uploader.upload.assert_awaited_once_with(mock_items)
             assert result is mock_uploaded
 
-    @pytest.mark.asyncio
     async def test_empty_items_skips_upload(self, tmp_path: Path) -> None:
         """When read_manifest_for_upload returns no items, the uploader is not called and [] is returned."""
         f = tmp_path / "manifest.csv"
@@ -542,7 +521,6 @@ class TestSyncToSynapseAsync:
             mock_uploader_cls.return_value.upload.assert_not_called()
             assert result == []
 
-    @pytest.mark.asyncio
     async def test_merge_existing_annotations_passed_through(
         self, tmp_path: Path
     ) -> None:
@@ -568,7 +546,6 @@ class TestSyncToSynapseAsync:
             _, kwargs = mock_read.call_args
             assert kwargs["merge_existing_annotations"] is False
 
-    @pytest.mark.asyncio
     async def test_associate_activity_to_new_version_passed_through(
         self, tmp_path
     ) -> None:
@@ -600,7 +577,6 @@ class TestSortAndFixProvenance:
     def init_syn(self, syn: Synapse) -> None:
         self.syn = syn
 
-    @pytest.mark.asyncio
     async def test_no_provenance_columns_returns_rows_unchanged(
         self, tmp_path: Path
     ) -> None:
@@ -616,7 +592,6 @@ class TestSortAndFixProvenance:
 
         assert list(result["path"]) == [str(f1), str(f2)]
 
-    @pytest.mark.asyncio
     async def test_used_column_split_and_resolved(self, tmp_path: Path) -> None:
         """Semicolon-delimited 'used' strings are split, resolved via _check_provenance,
         and stored as lists on the returned DataFrame."""
@@ -634,7 +609,6 @@ class TestSortAndFixProvenance:
 
         assert result.loc[0, "used"] == ["syn111", "https://example.com"]
 
-    @pytest.mark.asyncio
     async def test_executed_column_split_and_resolved(self, tmp_path: Path) -> None:
         """Semicolon-delimited 'executed' strings are split and stored as lists."""
         f = tmp_path / "file.txt"
@@ -654,7 +628,6 @@ class TestSortAndFixProvenance:
             "https://github.com/b",
         ]
 
-    @pytest.mark.asyncio
     async def test_empty_used_cell_produces_empty_list(self, tmp_path: Path) -> None:
         """A 'used' cell that is empty or whitespace-only is resolved to an empty list."""
         f = tmp_path / "file.txt"
@@ -665,7 +638,6 @@ class TestSortAndFixProvenance:
 
         assert result.loc[0, "used"] == []
 
-    @pytest.mark.asyncio
     async def test_topological_sort_orders_dependency_before_dependent(
         self, tmp_path: Path
     ) -> None:
@@ -691,7 +663,6 @@ class TestSortAndFixProvenance:
         paths = list(result["path"])
         assert paths.index(abs_a) < paths.index(abs_b)
 
-    @pytest.mark.asyncio
     async def test_used_cell_already_a_list_is_not_split(self, tmp_path: Path) -> None:
         """A 'used' cell that was already converted to a Python list by
         _parse_annotation_cell is handled without calling
@@ -710,7 +681,6 @@ class TestSortAndFixProvenance:
 
         assert result.loc[0, "used"] == ["syn111", "https://example.com"]
 
-    @pytest.mark.asyncio
     async def test_used_cell_list_with_non_string_item_does_not_crash(
         self, tmp_path: Path
     ) -> None:
@@ -742,7 +712,6 @@ class TestSortAndFixProvenance:
         )
         assert result.loc[0, "used"] == [existing_file]
 
-    @pytest.mark.asyncio
     async def test_invalid_provenance_item_propagates_error(
         self, tmp_path: Path
     ) -> None:
@@ -773,7 +742,6 @@ class TestResolveProvenanceColumn:
         """Return a path-indexed DataFrame with the given paths as the index."""
         return pd.DataFrame(index=paths)
 
-    @pytest.mark.asyncio
     @pytest.mark.parametrize("cell", ["", "   "])
     async def test_empty_or_whitespace_string_returns_empty_list(
         self, cell: str
@@ -783,14 +751,12 @@ class TestResolveProvenanceColumn:
         result = await _resolve_provenance_column(cell, "/file.txt", self.syn, df)
         assert result == []
 
-    @pytest.mark.asyncio
     async def test_single_synapse_id_string_resolved(self) -> None:
         """A single Synapse ID string is resolved and returned as a one-element list."""
         df = self._make_df([])
         result = await _resolve_provenance_column("syn123", "/file.txt", self.syn, df)
         assert result == ["syn123"]
 
-    @pytest.mark.asyncio
     async def test_semicolon_delimited_string_split_and_resolved(self) -> None:
         """A semicolon-delimited string is split into individual items, each resolved."""
         df = self._make_df([])
@@ -799,7 +765,6 @@ class TestResolveProvenanceColumn:
         )
         assert result == ["syn111", "https://example.com"]
 
-    @pytest.mark.asyncio
     async def test_already_a_list_passed_through_without_splitting(self) -> None:
         """A cell that is already a Python list is not split — items are resolved directly."""
         df = self._make_df([])
@@ -808,7 +773,6 @@ class TestResolveProvenanceColumn:
         )
         assert result == ["syn111", "https://example.com"]
 
-    @pytest.mark.asyncio
     async def test_non_string_list_item_passed_without_strip(self) -> None:
         """Non-string items in an already-parsed list are forwarded to _check_provenance
         without calling .strip(), which would raise AttributeError."""
@@ -836,7 +800,6 @@ class TestCheckProvenance:
         """Return a path-indexed DataFrame with the given paths as the index."""
         return pd.DataFrame(index=paths)
 
-    @pytest.mark.asyncio
     @pytest.mark.parametrize(
         "item",
         [
@@ -851,7 +814,6 @@ class TestCheckProvenance:
         result = await _check_provenance(item, "/some/file.txt", self.syn, df)
         assert result == item
 
-    @pytest.mark.asyncio
     async def test_local_file_in_upload_batch_returned_as_path(
         self, tmp_path: Path
     ) -> None:
@@ -864,7 +826,6 @@ class TestCheckProvenance:
         result = await _check_provenance(str(f), "/some/file.txt", self.syn, df)
         assert result == abs_path
 
-    @pytest.mark.asyncio
     async def test_local_file_not_in_batch_found_in_synapse(
         self, tmp_path: Path
     ) -> None:
@@ -883,7 +844,6 @@ class TestCheckProvenance:
             result = await _check_provenance(str(f), "/some/file.txt", self.syn, df)
         assert result is synapse_file
 
-    @pytest.mark.asyncio
     async def test_local_file_not_in_batch_not_in_synapse_raises(
         self, tmp_path: Path
     ) -> None:
@@ -906,7 +866,6 @@ class TestCheckProvenance:
             ):
                 await _check_provenance(str(f), "/some/file.txt", self.syn, df)
 
-    @pytest.mark.asyncio
     async def test_invalid_item_raises(self) -> None:
         """A string that is not a local file path, URL, or Synapse ID raises
         SynapseProvenanceError."""
@@ -1611,7 +1570,6 @@ class TestSyncUploaderUploadItemAsync:
     def init_syn(self, syn: Synapse) -> None:
         self.uploader = SyncUploader(syn=syn)
 
-    @pytest.mark.asyncio
     async def test_no_provenance_no_activity(self) -> None:
         """When used and executed are empty, no Activity is set on the file."""
         mock_file = _make_file_mock("/a.txt", "syn1")
@@ -1632,7 +1590,6 @@ class TestSyncUploaderUploadItemAsync:
             or mock_file.activity == mock_file.activity
         )
 
-    @pytest.mark.asyncio
     async def test_with_provenance_sets_activity(self) -> None:
         """When used/executed are provided, an Activity is attached before store."""
         from synapseclient.models import Activity
@@ -1656,7 +1613,6 @@ class TestSyncUploaderUploadItemAsync:
         assert len(mock_file.activity.used) == 1
         assert len(mock_file.activity.executed) == 1
 
-    @pytest.mark.asyncio
     async def test_dependent_futures_resolved(self) -> None:
         """Dependent futures are awaited and their results populate resolved_file_ids."""
         dep_file = _make_file_mock("/dep.txt", "syn_dep")
@@ -1686,7 +1642,6 @@ class TestSyncUploaderUpload:
     def init_syn(self, syn: Synapse) -> None:
         self.uploader = SyncUploader(syn=syn)
 
-    @pytest.mark.asyncio
     async def test_single_item_no_provenance(self) -> None:
         """A single item with no dependencies is uploaded and returned."""
         item = _make_item("/a.txt", file_id="syn1")
@@ -1696,7 +1651,6 @@ class TestSyncUploaderUpload:
         assert len(results) == 1
         item.entity.store_async.assert_awaited_once()
 
-    @pytest.mark.asyncio
     async def test_multiple_independent_items(self) -> None:
         """Multiple items with no inter-dependencies are all uploaded."""
         items = [
@@ -1711,13 +1665,11 @@ class TestSyncUploaderUpload:
         for item in items:
             item.entity.store_async.assert_awaited_once()
 
-    @pytest.mark.asyncio
     async def test_empty_items(self) -> None:
         """An empty item list produces an empty result."""
         results = await self.uploader.upload([])
         assert results == []
 
-    @pytest.mark.asyncio
     async def test_dependent_items_uploaded_in_order(self, tmp_path: Path) -> None:
         """When item B depends on item A, A is stored before B."""
         f_dep = tmp_path / "dep.txt"
