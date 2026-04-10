@@ -6,7 +6,7 @@ data or metadata in Synapse.
 """
 
 from dataclasses import dataclass, field, replace
-from typing import Any, AsyncGenerator, Dict, Generator, Optional, Protocol, Union
+from typing import Any, AsyncGenerator, Dict, Generator, List, Optional, Protocol, Union
 
 from opentelemetry import trace
 
@@ -28,15 +28,22 @@ from synapseclient.core.async_utils import (
 from synapseclient.core.constants.concrete_types import (
     CREATE_GRID_REQUEST,
     FILE_BASED_METADATA_TASK_PROPERTIES,
+    GRID_CSV_IMPORT_REQUEST,
     GRID_RECORD_SET_EXPORT_REQUEST,
     LIST_GRID_SESSIONS_REQUEST,
     LIST_GRID_SESSIONS_RESPONSE,
     RECORD_BASED_METADATA_TASK_PROPERTIES,
+    UPLOAD_TO_TABLE_PREVIEW_REQUEST,
 )
 from synapseclient.core.utils import delete_none_keys, merge_dataclass_entities
 from synapseclient.models.mixins.asynchronous_job import AsynchronousCommunicator
 from synapseclient.models.recordset import ValidationSummary
-from synapseclient.models.table_components import Query
+from synapseclient.models.table_components import (
+    Column,
+    ColumnType,
+    CsvTableDescriptor,
+    Query,
+)
 
 
 @dataclass
@@ -990,6 +997,158 @@ class CreateGridRequest(AsynchronousCommunicator):
 
 
 @dataclass
+class GridCsvImportRequest(AsynchronousCommunicator):
+    """
+    A request to import a CSV file into a grid. Currently supports only grid
+    created from a record set.
+
+    This result is modeled from: <https://rest-docs.synapse.org/rest/org/sagebionetworks/repo/model/grid/GridCsvImportRequest.html>
+    """
+
+    concrete_type: str = GRID_CSV_IMPORT_REQUEST
+    """The concrete type for this request."""
+
+    session_id: Optional[str] = None
+    """The grid session ID."""
+
+    file_handle_id: Optional[str] = None
+    """The id of the file handle that contains the CSV data."""
+
+    csv_descriptor: CsvTableDescriptor = field(default_factory=CsvTableDescriptor)
+    """The description of a csv for upload or download."""
+
+    schema: Optional[List[Column]] = None
+    """The list of ColumnModel that describe the CSV file. Currently this is is required."""
+
+    # Response fields (populated by fill_from_dict)
+    total_count: Optional[int] = field(default=None, compare=False)
+    """The total number of rows in the CSV."""
+
+    created_count: Optional[int] = field(default=None, compare=False)
+    """The number of rows that were created."""
+
+    updated_count: Optional[int] = field(default=None, compare=False)
+    """The number of rows that were updated."""
+
+    def fill_from_dict(
+        self, synapse_response: Union[Dict[str, Any], Any]
+    ) -> "GridCsvImportRequest":
+        """
+        Converts a response from the REST API into this dataclass.
+
+        Arguments:
+            synapse_response: The response from the REST API.
+
+        Returns:
+            The GridCsvImportRequest object.
+        """
+        self.session_id = synapse_response.get("sessionId", self.session_id)
+        self.total_count = synapse_response.get("totalCount", None)
+        self.created_count = synapse_response.get("createdCount", None)
+        self.updated_count = synapse_response.get("updatedCount", None)
+        return self
+
+    def to_synapse_request(self) -> Dict[str, Any]:
+        """
+        Converts this dataclass to a dictionary suitable for a Synapse REST API request.
+
+        Returns:
+            A dictionary representation of this object for API requests.
+        """
+        request_dict: Dict[str, Any] = {"concreteType": self.concrete_type}
+        if self.session_id is not None:
+            request_dict["sessionId"] = self.session_id
+        if self.file_handle_id is not None:
+            request_dict["fileHandleId"] = self.file_handle_id
+        if self.csv_descriptor is not None:
+            request_dict["csvDescriptor"] = self.csv_descriptor.to_synapse_request()
+        if self.schema is not None:
+            request_dict["schema"] = [col.to_synapse_request() for col in self.schema]
+        return request_dict
+
+
+@dataclass
+class UploadToTablePreviewRequest(AsynchronousCommunicator):
+    """
+    Request for a preview of an upload to a Table.
+
+    This result is modeled from: <https://rest-docs.synapse.org/rest/org/sagebionetworks/repo/model/table/UploadToTablePreviewRequest.html>
+    """
+
+    concrete_type: str = UPLOAD_TO_TABLE_PREVIEW_REQUEST
+    """The concrete type for this request."""
+
+    upload_file_handle_id: Optional[str] = None
+    """The ID of the file handle for a type of UPLOAD"""
+
+    line_to_skip: Optional[int] = None
+    """The number of lines to skip from the start of the file. The default value of 0 will be used if this is not provided by the caller."""
+
+    csv_table_descriptor: CsvTableDescriptor = field(default_factory=CsvTableDescriptor)
+    """The description of a csv for upload or download."""
+
+    do_full_file_scan: Optional[bool] = None
+    """When set to true the full file will be scanned for a schema suggestions. A full scan is more accurate but can take more time. When set to false only a sub-set of the first rows will be scanned, which can be faster but is less accurate. The default value is false."""
+
+    # Response fields (populated by fill_from_dict)
+    suggested_columns: Optional[List[Column]] = field(default=None, compare=False)
+    """The suggested columns for the table based on the file scan."""
+
+    sample_rows: Optional[List[List[Optional[str]]]] = field(
+        default=None, compare=False
+    )
+    """A sample of the rows in the file."""
+
+    rows_scanned: Optional[int] = field(default=None, compare=False)
+    """The number of rows scanned from the file."""
+
+    def fill_from_dict(
+        self, synapse_response: Union[Dict[str, Any], Any]
+    ) -> "UploadToTablePreviewRequest":
+        """
+        Converts a response from the REST API into this dataclass.
+
+        Arguments:
+            synapse_response: The response from the REST API.
+
+        Returns:
+            The UploadToTablePreviewRequest object.
+        """
+        suggested_columns_data = synapse_response.get("suggestedColumns", None)
+        if suggested_columns_data:
+            self.suggested_columns = [
+                Column().fill_from_dict(col) for col in suggested_columns_data
+            ]
+
+        sample_rows_data = synapse_response.get("sampleRows", None)
+        if sample_rows_data:
+            self.sample_rows = [row.get("values", []) for row in sample_rows_data]
+
+        self.rows_scanned = synapse_response.get("rowsScanned", None)
+        return self
+
+    def to_synapse_request(self) -> Dict[str, Any]:
+        """
+        Converts this dataclass to a dictionary suitable for a Synapse REST API request.
+
+        Returns:
+            A dictionary representation of this object for API requests.
+        """
+        request_dict: Dict[str, Any] = {"concreteType": self.concrete_type}
+        if self.upload_file_handle_id is not None:
+            request_dict["uploadFileHandleId"] = self.upload_file_handle_id
+        if self.line_to_skip is not None:
+            request_dict["linesToSkip"] = self.line_to_skip
+        if self.csv_table_descriptor is not None:
+            request_dict["csvTableDescriptor"] = (
+                self.csv_table_descriptor.to_synapse_request()
+            )
+        if self.do_full_file_scan is not None:
+            request_dict["doFullFileScan"] = self.do_full_file_scan
+        return request_dict
+
+
+@dataclass
 class GridRecordSetExportRequest(AsynchronousCommunicator):
     """
     A request to export a grid created from a record set back to the original record set.
@@ -1838,3 +1997,75 @@ class Grid(GridSynchronousProtocol):
         await delete_grid_session(
             session_id=self.session_id, synapse_client=synapse_client
         )
+
+    async def import_csv_async(
+        self,
+        file_handle_id: str,
+        csv_table_descriptor: Optional[CsvTableDescriptor] = None,
+        *,
+        timeout: int = 120,
+        synapse_client: Optional[Synapse] = None,
+    ) -> "Grid":
+        """
+        Import a CSV file into this grid session. Previews the file to determine
+        the column schema, then imports the data. Currently supports only grids
+        created from a record set.
+
+        Arguments:
+            file_handle_id: The id of the file handle that contains the CSV data.
+            csv_table_descriptor: The description of the CSV format (delimiter,
+                quote character, etc.). If not provided, the default CSV format
+                will be used.
+            timeout: The number of seconds to wait for each async job to complete
+                or progress before raising a SynapseTimeoutError. Defaults to 120.
+            synapse_client: If not passed in and caching was not disabled by
+                `Synapse.allow_client_caching(False)` this will use the last created
+                instance from the Synapse class constructor.
+
+        Returns:
+            The Grid object.
+
+        Example: Import a CSV file into a grid session asynchronously
+            &nbsp;
+
+            ```python
+            import asyncio
+            from synapseclient import Synapse
+            from synapseclient.models import Grid
+
+            syn = Synapse()
+            syn.login()
+
+            async def main():
+                grid = Grid(session_id="abc-123-def")
+                grid = await grid.import_csv_async(file_handle_id="123456")
+                print(f"Import complete for session: {grid.session_id}")
+
+            asyncio.run(main())
+            ```
+        """
+        upload_to_table_preview = UploadToTablePreviewRequest(
+            csv_table_descriptor=csv_table_descriptor,
+            upload_file_handle_id=file_handle_id,
+        )
+        preview_response = await upload_to_table_preview.send_job_and_wait_async(
+            timeout=timeout
+        )
+        all_columns = [
+            Column(name="ROW_ID", column_type=ColumnType.STRING),
+            Column(name="ROW_VERSION", column_type=ColumnType.STRING),
+        ] + preview_response.suggested_columns
+        import_request = GridCsvImportRequest(
+            session_id=self.session_id,
+            file_handle_id=file_handle_id,
+            schema=all_columns,
+        )
+        if csv_table_descriptor:
+            import_request.csv_descriptor = csv_table_descriptor
+        import_response = await import_request.send_job_and_wait_async(
+            synapse_client=synapse_client, timeout=timeout
+        )
+        print(
+            f"CSV import to grid session {self.session_id} completed successfully, total count: {import_response.total_count}, total created: {import_response.created_count}, total updated: {import_response.updated_count}"
+        )
+        return self
