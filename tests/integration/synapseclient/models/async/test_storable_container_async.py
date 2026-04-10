@@ -101,7 +101,9 @@ class TestSyncToSynapse:
 
         # WHEN I sync to Synapse
         await project_model.sync_to_synapse_async(
-            manifest_path=str(manifest_path), synapse_client=self.syn
+            manifest_path=str(manifest_path),
+            send_messages=False,
+            synapse_client=self.syn,
         )
 
         # THEN both files should exist in Synapse
@@ -140,7 +142,9 @@ class TestSyncToSynapse:
 
         # WHEN I sync to Synapse
         await project_model.sync_to_synapse_async(
-            manifest_path=str(manifest_path), synapse_client=self.syn
+            manifest_path=str(manifest_path),
+            send_messages=False,
+            synapse_client=self.syn,
         )
 
         # THEN the file exists with the correct annotations
@@ -184,7 +188,9 @@ class TestSyncToSynapse:
         )
 
         await project_model.sync_to_synapse_async(
-            manifest_path=str(manifest_path), synapse_client=self.syn
+            manifest_path=str(manifest_path),
+            send_messages=False,
+            synapse_client=self.syn,
         )
 
         # THEN a new version exists with the updated annotation
@@ -218,7 +224,9 @@ class TestSyncToSynapse:
 
         # WHEN I sync to Synapse
         await project_model.sync_to_synapse_async(
-            manifest_path=str(manifest_path), synapse_client=self.syn
+            manifest_path=str(manifest_path),
+            send_messages=False,
+            synapse_client=self.syn,
         )
 
         # THEN the file has activity with the expected provenance
@@ -262,6 +270,7 @@ class TestSyncToSynapse:
         await project_model.sync_to_synapse_async(
             manifest_path=str(manifest_path),
             dry_run=True,
+            send_messages=False,
             synapse_client=self.syn,
         )
 
@@ -298,7 +307,9 @@ class TestSyncToSynapse:
 
         # WHEN I sync to Synapse
         await project_model.sync_to_synapse_async(
-            manifest_path=str(manifest_path), synapse_client=self.syn
+            manifest_path=str(manifest_path),
+            send_messages=False,
+            synapse_client=self.syn,
         )
 
         # THEN the file exists inside the folder, not at the project root
@@ -335,7 +346,9 @@ class TestSyncToSynapse:
         # THEN sync_to_synapse should raise because the parent is not a container
         with pytest.raises(ValueError, match="not a Folder or Project"):
             await project_model.sync_to_synapse_async(
-                manifest_path=str(manifest_path), synapse_client=self.syn
+                manifest_path=str(manifest_path),
+                send_messages=False,
+                synapse_client=self.syn,
             )
 
     async def test_error_column_rows_skipped(
@@ -369,7 +382,9 @@ class TestSyncToSynapse:
 
         # WHEN I sync to Synapse
         await project_model.sync_to_synapse_async(
-            manifest_path=str(manifest_path), synapse_client=self.syn
+            manifest_path=str(manifest_path),
+            send_messages=False,
+            synapse_client=self.syn,
         )
 
         # THEN only the valid row was uploaded
