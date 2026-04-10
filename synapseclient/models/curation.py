@@ -1586,6 +1586,53 @@ class GridSynchronousProtocol(Protocol):
             ```
         """
 
+    def import_csv(
+        self,
+        file_handle_id: str,
+        csv_table_descriptor: Optional[CsvTableDescriptor] = None,
+        *,
+        timeout: int = 120,
+        synapse_client: Optional[Synapse] = None,
+    ) -> "Grid":
+        """
+        Import a CSV file into this grid session. Previews the file to determine
+        the column schema, then imports the data. Currently supports only grids
+        created from a record set.
+
+        Arguments:
+            file_handle_id: The id of the file handle that contains the CSV data.
+            csv_table_descriptor: The description of the CSV format (delimiter,
+                quote character, etc.). If not provided, the default CSV format
+                will be used.
+            timeout: The number of seconds to wait for each async job to complete
+                or progress before raising a SynapseTimeoutError. Defaults to 120.
+            synapse_client: If not passed in and caching was not disabled by
+                `Synapse.allow_client_caching(False)` this will use the last created
+                instance from the Synapse class constructor.
+
+        Returns:
+            The Grid object.
+
+        Raises:
+            ValueError: If session_id is not provided.
+
+        Example: Import a CSV file into a grid session
+            &nbsp;
+
+            ```python
+            from synapseclient import Synapse
+            from synapseclient.models import Grid
+
+            syn = Synapse()
+            syn.login()
+
+            grid = Grid(session_id="abc-123-def")
+            grid = grid.import_csv(file_handle_id="123456")
+            print(f"Import complete for session: {grid.session_id}")
+            ```
+        """
+        return self
+
 
 @dataclass
 @async_to_sync
@@ -2024,6 +2071,9 @@ class Grid(GridSynchronousProtocol):
 
         Returns:
             The Grid object.
+
+        Raises:
+            ValueError: If session_id is not provided.
 
         Example: Import a CSV file into a grid session asynchronously
             &nbsp;
