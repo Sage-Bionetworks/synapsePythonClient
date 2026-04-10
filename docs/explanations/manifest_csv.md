@@ -18,6 +18,9 @@ Values that contain commas are automatically quoted (e.g., `"hello, world"`). Th
 | path     | local file path or URL     | /path/to/local/file.txt |
 | parentId | Synapse ID of parent       | syn1235                 |
 
+!!! note "Column renamed from legacy TSV format"
+    The legacy TSV manifest used a column named `parent`. The CSV manifest uses `parentId` instead, which is consistent with the Synapse REST API field name. If you are migrating an existing TSV manifest to CSV, rename the `parent` column to `parentId`.
+
 ### Standard fields
 
 These columns are recognized by `sync_to_synapse` and have specific meaning. Any of these columns may be present in the manifest but only `path` and `parentId` are required for upload.

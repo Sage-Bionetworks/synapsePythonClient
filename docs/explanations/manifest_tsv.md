@@ -23,6 +23,9 @@ Any additional columns will be added as annotations.
 | path   | local file path or URL | /path/to/local/file.txt |
 | parent | synapse id             | syn1235                 |
 
+!!! note "Column renamed in CSV format"
+    The CSV manifest format uses `parentId` instead of `parent`. If you are migrating to the new [CSV manifest format](manifest_csv.md), rename the `parent` column to `parentId`.
+
 ### Common fields:
 
 | Field        | Meaning                   | Example      |
