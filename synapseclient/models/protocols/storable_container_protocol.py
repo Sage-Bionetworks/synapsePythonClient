@@ -235,7 +235,7 @@ class StorableContainerSynchronousProtocol(Protocol):
         self: Self,
         manifest_path: str,
         dry_run: bool = False,
-        send_messages: bool = False,
+        send_messages: bool = True,
         retries: int = MANIFEST_UPLOAD_MAX_RETRIES,
         merge_existing_annotations: bool = True,
         associate_activity_to_new_version: bool = False,
