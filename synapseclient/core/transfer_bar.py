@@ -1,4 +1,5 @@
 """Logic used to handle progress bars for file uploads and downloads."""
+
 try:
     import threading as _threading
 except ImportError:

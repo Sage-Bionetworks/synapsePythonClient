@@ -1,4 +1,5 @@
 """Protocol defining the synchronous interface for DockerRepository operations."""
+
 from typing import TYPE_CHECKING, Optional, Protocol
 
 from synapseclient import Synapse

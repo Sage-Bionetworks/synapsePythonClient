@@ -1,4 +1,5 @@
 """Tests for the Folder class."""
+
 import uuid
 from typing import Dict
 from unittest.mock import AsyncMock, patch
@@ -89,22 +90,25 @@ class TestFolder:
         folder.description = description
 
         # WHEN I call `store` with the Folder object
-        with patch(
-            "synapseclient.models.services.storable_entity.put_entity",
-            new_callable=AsyncMock,
-            return_value=(self.get_example_synapse_folder_output()),
-        ) as mocked_client_call, patch(
-            "synapseclient.api.entity_factory.get_entity_id_bundle2",
-            new_callable=AsyncMock,
-            return_value=(
-                {
-                    "entity": {
-                        "concreteType": concrete_types.FOLDER_ENTITY,
-                        "id": folder.id,
+        with (
+            patch(
+                "synapseclient.models.services.storable_entity.put_entity",
+                new_callable=AsyncMock,
+                return_value=(self.get_example_synapse_folder_output()),
+            ) as mocked_client_call,
+            patch(
+                "synapseclient.api.entity_factory.get_entity_id_bundle2",
+                new_callable=AsyncMock,
+                return_value=(
+                    {
+                        "entity": {
+                            "concreteType": concrete_types.FOLDER_ENTITY,
+                            "id": folder.id,
+                        }
                     }
-                }
-            ),
-        ) as mocked_get:
+                ),
+            ) as mocked_get,
+        ):
             result = await folder.store_async(synapse_client=self.syn)
 
             # THEN we should call the method with this data
@@ -142,21 +146,24 @@ class TestFolder:
         )
 
         # WHEN I call `store` with the Folder object
-        with patch.object(
-            self.syn,
-            "store",
-        ) as mocked_store, patch(
-            "synapseclient.api.entity_factory.get_entity_id_bundle2",
-            new_callable=AsyncMock,
-            return_value=(
-                {
-                    "entity": {
-                        "concreteType": concrete_types.FOLDER_ENTITY,
-                        "id": folder.id,
+        with (
+            patch.object(
+                self.syn,
+                "store",
+            ) as mocked_store,
+            patch(
+                "synapseclient.api.entity_factory.get_entity_id_bundle2",
+                new_callable=AsyncMock,
+                return_value=(
+                    {
+                        "entity": {
+                            "concreteType": concrete_types.FOLDER_ENTITY,
+                            "id": folder.id,
+                        }
                     }
-                }
-            ),
-        ) as mocked_get:
+                ),
+            ) as mocked_get,
+        ):
             result = await folder.store_async(synapse_client=self.syn)
 
             # THEN we should not call store because there are no changes
@@ -195,16 +202,19 @@ class TestFolder:
             assert folder.id == SYN_123
 
         # WHEN I call `store` with the Folder object
-        with patch.object(
-            self.syn,
-            "store",
-        ) as mocked_store, patch.object(
-            self.syn,
-            "get",
-            return_value=Synapse_Folder(
-                id=folder.id,
-            ),
-        ) as mocked_get:
+        with (
+            patch.object(
+                self.syn,
+                "store",
+            ) as mocked_store,
+            patch.object(
+                self.syn,
+                "get",
+                return_value=Synapse_Folder(
+                    id=folder.id,
+                ),
+            ) as mocked_get,
+        ):
             result = await folder.store_async(synapse_client=self.syn)
 
             # THEN we should not call store because there are no changes
@@ -247,14 +257,17 @@ class TestFolder:
         folder.description = description
 
         # WHEN I call `store` with the Folder object
-        with patch(
-            "synapseclient.models.services.storable_entity.put_entity",
-            new_callable=AsyncMock,
-            return_value=(self.get_example_synapse_folder_output()),
-        ) as mocked_store, patch(
-            "synapseclient.api.entity_factory.get_entity_id_bundle2",
-            new_callable=AsyncMock,
-        ) as mocked_get:
+        with (
+            patch(
+                "synapseclient.models.services.storable_entity.put_entity",
+                new_callable=AsyncMock,
+                return_value=(self.get_example_synapse_folder_output()),
+            ) as mocked_store,
+            patch(
+                "synapseclient.api.entity_factory.get_entity_id_bundle2",
+                new_callable=AsyncMock,
+            ) as mocked_get,
+        ):
             result = await folder.store_async(synapse_client=self.syn)
 
             # THEN we should  call store because there are changes
@@ -303,25 +316,29 @@ class TestFolder:
         folder.description = description
 
         # WHEN I call `store` with the Folder object
-        with patch(
-            "synapseclient.models.folder.store_entity_components",
-            return_value=(None),
-        ) as mocked_store_entity_components, patch(
-            "synapseclient.models.services.storable_entity.put_entity",
-            new_callable=AsyncMock,
-            return_value=(self.get_example_synapse_folder_output()),
-        ) as mocked_client_call, patch(
-            "synapseclient.api.entity_factory.get_entity_id_bundle2",
-            new_callable=AsyncMock,
-            return_value=(
-                {
-                    "entity": {
-                        "concreteType": concrete_types.FOLDER_ENTITY,
-                        "id": folder.id,
+        with (
+            patch(
+                "synapseclient.models.folder.store_entity_components",
+                return_value=(None),
+            ) as mocked_store_entity_components,
+            patch(
+                "synapseclient.models.services.storable_entity.put_entity",
+                new_callable=AsyncMock,
+                return_value=(self.get_example_synapse_folder_output()),
+            ) as mocked_client_call,
+            patch(
+                "synapseclient.api.entity_factory.get_entity_id_bundle2",
+                new_callable=AsyncMock,
+                return_value=(
+                    {
+                        "entity": {
+                            "concreteType": concrete_types.FOLDER_ENTITY,
+                            "id": folder.id,
+                        }
                     }
-                }
-            ),
-        ) as mocked_get:
+                ),
+            ) as mocked_get,
+        ):
             result = await folder.store_async(synapse_client=self.syn)
 
             # THEN we should call the method with this data
@@ -371,26 +388,30 @@ class TestFolder:
         folder.description = description
 
         # WHEN I call `store` with the Folder object
-        with patch(
-            "synapseclient.models.services.storable_entity.put_entity",
-            new_callable=AsyncMock,
-            return_value=(self.get_example_synapse_folder_output()),
-        ) as mocked_client_call, patch.object(
-            self.syn,
-            "findEntityId",
-            return_value=SYN_123,
-        ) as mocked_get, patch(
-            "synapseclient.api.entity_factory.get_entity_id_bundle2",
-            new_callable=AsyncMock,
-            return_value=(
-                {
-                    "entity": {
-                        "concreteType": concrete_types.FOLDER_ENTITY,
-                        "id": folder.id,
+        with (
+            patch(
+                "synapseclient.models.services.storable_entity.put_entity",
+                new_callable=AsyncMock,
+                return_value=(self.get_example_synapse_folder_output()),
+            ) as mocked_client_call,
+            patch.object(
+                self.syn,
+                "findEntityId",
+                return_value=SYN_123,
+            ) as mocked_get,
+            patch(
+                "synapseclient.api.entity_factory.get_entity_id_bundle2",
+                new_callable=AsyncMock,
+                return_value=(
+                    {
+                        "entity": {
+                            "concreteType": concrete_types.FOLDER_ENTITY,
+                            "id": folder.id,
+                        }
                     }
-                }
-            ),
-        ) as mocked_get:
+                ),
+            ) as mocked_get,
+        ):
             result = await folder.store_async(synapse_client=self.syn)
 
             # THEN we should call the method with this data
@@ -436,26 +457,30 @@ class TestFolder:
         folder.description = description
 
         # WHEN I call `store` with the Folder object
-        with patch(
-            "synapseclient.models.services.storable_entity.put_entity",
-            new_callable=AsyncMock,
-            return_value=(self.get_example_synapse_folder_output()),
-        ) as mocked_client_call, patch.object(
-            self.syn,
-            "findEntityId",
-            return_value=SYN_123,
-        ) as mocked_get, patch(
-            "synapseclient.api.entity_factory.get_entity_id_bundle2",
-            new_callable=AsyncMock,
-            return_value=(
-                {
-                    "entity": {
-                        "concreteType": concrete_types.FOLDER_ENTITY,
-                        "id": folder.id,
+        with (
+            patch(
+                "synapseclient.models.services.storable_entity.put_entity",
+                new_callable=AsyncMock,
+                return_value=(self.get_example_synapse_folder_output()),
+            ) as mocked_client_call,
+            patch.object(
+                self.syn,
+                "findEntityId",
+                return_value=SYN_123,
+            ) as mocked_get,
+            patch(
+                "synapseclient.api.entity_factory.get_entity_id_bundle2",
+                new_callable=AsyncMock,
+                return_value=(
+                    {
+                        "entity": {
+                            "concreteType": concrete_types.FOLDER_ENTITY,
+                            "id": folder.id,
+                        }
                     }
-                }
-            ),
-        ) as mocked_get:
+                ),
+            ) as mocked_get,
+        ):
             result = await folder.store_async(
                 parent=Folder(id=PARENT_ID), synapse_client=self.syn
             )
@@ -572,15 +597,18 @@ class TestFolder:
         )
 
         # WHEN I call `get` with the Folder object
-        with patch.object(
-            self.syn,
-            "findEntityId",
-            return_value=(SYN_123),
-        ) as mocked_client_search, patch(
-            "synapseclient.api.entity_factory.get_entity_id_bundle2",
-            new_callable=AsyncMock,
-            return_value=self.get_example_rest_api_folder_output(),
-        ) as mocked_client_call:
+        with (
+            patch.object(
+                self.syn,
+                "findEntityId",
+                return_value=(SYN_123),
+            ) as mocked_client_search,
+            patch(
+                "synapseclient.api.entity_factory.get_entity_id_bundle2",
+                new_callable=AsyncMock,
+                return_value=self.get_example_rest_api_folder_output(),
+            ) as mocked_client_call,
+        ):
             result = await folder.get_async(synapse_client=self.syn)
 
             # THEN we should call the method with this data
@@ -675,16 +703,20 @@ class TestFolder:
         }
 
         # WHEN I call `copy` with the Folder object
-        with patch(
-            "synapseclient.models.folder.copy",
-            return_value=(copy_mapping),
-        ) as mocked_copy, patch(
-            "synapseclient.models.folder.Folder.get_async",
-            return_value=(returned_folder),
-        ) as mocked_get, patch(
-            "synapseclient.models.folder.Folder.sync_from_synapse_async",
-            return_value=(returned_folder),
-        ) as mocked_sync:
+        with (
+            patch(
+                "synapseclient.models.folder.copy",
+                return_value=(copy_mapping),
+            ) as mocked_copy,
+            patch(
+                "synapseclient.models.folder.Folder.get_async",
+                return_value=(returned_folder),
+            ) as mocked_get,
+            patch(
+                "synapseclient.models.folder.Folder.sync_from_synapse_async",
+                return_value=(returned_folder),
+            ) as mocked_sync,
+        ):
             result = await folder.copy_async(
                 parent_id="destination_id", synapse_client=self.syn
             )
@@ -754,16 +786,20 @@ class TestFolder:
             for child in children:
                 yield child
 
-        with patch(
-            "synapseclient.models.mixins.storable_container.get_children",
-            side_effect=mock_get_children,
-        ) as mocked_children_call, patch(
-            "synapseclient.api.entity_factory.get_entity_id_bundle2",
-            new_callable=AsyncMock,
-            return_value=self.get_example_rest_api_folder_output(),
-        ) as mocked_folder_get, patch(
-            "synapseclient.models.file.File.get_async",
-            return_value=(File(id=SYN_456, name="example_file_1")),
+        with (
+            patch(
+                "synapseclient.models.mixins.storable_container.get_children",
+                side_effect=mock_get_children,
+            ) as mocked_children_call,
+            patch(
+                "synapseclient.api.entity_factory.get_entity_id_bundle2",
+                new_callable=AsyncMock,
+                return_value=self.get_example_rest_api_folder_output(),
+            ) as mocked_folder_get,
+            patch(
+                "synapseclient.models.file.File.get_async",
+                return_value=(File(id=SYN_456, name="example_file_1")),
+            ),
         ):
             result = await folder.sync_from_synapse_async(synapse_client=self.syn)
 
