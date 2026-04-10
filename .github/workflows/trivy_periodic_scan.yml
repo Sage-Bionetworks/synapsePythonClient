@@ -86,6 +86,7 @@ jobs:
       deployments: write
       security-events: write
       packages: write
+      actions: read # Required by docker_build.yml's nested trivy-scan job
 
   # Only create the git tag after the rebuilt image passes Trivy and is pushed
   create-tag:
