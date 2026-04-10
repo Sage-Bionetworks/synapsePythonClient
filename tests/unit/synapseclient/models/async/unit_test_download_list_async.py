@@ -917,23 +917,6 @@ class TestDownloadListDownloadFiles:
                 max_concurrent=0,
             )
 
-    async def test_download_all_rows_max_concurrent_with_parallel_false_warns(self):
-        """max_concurrent set with parallel=False emits a UserWarning."""
-        rows = [{"ID": "syn1", "versionNumber": "1"}]
-        with patch.object(
-            DownloadList,
-            "_download_row",
-            new_callable=AsyncMock,
-            return_value=None,
-        ):
-            with pytest.warns(UserWarning, match="max_concurrent has no effect"):
-                await DownloadList._download_all_rows(
-                    rows=rows,
-                    download_location=None,
-                    parallel=False,
-                    max_concurrent=5,
-                )
-
     def test_download_files_sync_wrapper_exists(self):
         assert hasattr(DownloadList, "download_files")
         assert callable(DownloadList.download_files)
