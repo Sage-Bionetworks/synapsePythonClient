@@ -20,6 +20,7 @@ from synapseclient.models.download_list import (
     DownloadListItem,
     DownloadListManifestRequest,
 )
+from synapseclient.models.table_components import CsvTableDescriptor
 
 
 class TestDownloadListServices:
@@ -316,6 +317,23 @@ class TestDownloadListGetManifest:
             mock_request.send_job_and_wait_async.assert_called_once_with(
                 synapse_client=self.syn
             )
+            assert result == "/tmp/manifest.csv"
+
+    async def test_get_manifest_async_forwards_csv_table_descriptor(self):
+        """get_manifest_async passes a custom CsvTableDescriptor to the request."""
+        descriptor = CsvTableDescriptor(separator="\t", is_first_line_header=False)
+        mock_request = MagicMock()
+        mock_request.manifest_path = "/tmp/manifest.csv"
+        mock_request.send_job_and_wait_async = AsyncMock(return_value=mock_request)
+
+        with patch(
+            "synapseclient.models.download_list.DownloadListManifestRequest",
+            return_value=mock_request,
+        ) as mock_cls:
+            result = await DownloadList.get_manifest_async(
+                csv_table_descriptor=descriptor, synapse_client=self.syn
+            )
+            mock_cls.assert_called_once_with(csv_table_descriptor=descriptor)
             assert result == "/tmp/manifest.csv"
 
     async def test_get_manifest_async_raises_when_no_path(self):

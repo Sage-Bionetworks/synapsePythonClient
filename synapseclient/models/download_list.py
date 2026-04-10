@@ -4,7 +4,6 @@ import asyncio
 import csv
 import os
 import time
-import warnings
 from dataclasses import dataclass, field
 from typing import TYPE_CHECKING, Any, Optional
 
@@ -36,12 +35,12 @@ class DownloadListItem:
     <https://rest-docs.synapse.org/rest/org/sagebionetworks/repo/model/download/DownloadListItem.html>
 
     Attributes:
-        file_entity_id: Synapse ID of the file entity (e.g. ``"syn123"``).
+        file_entity_id: Synapse ID of the file entity (e.g. "syn123").
         version_number: Version of the file to target.
     """
 
     file_entity_id: str
-    """Synapse ID of the file entity (e.g. ``"syn123"``)."""
+    """Synapse ID of the file entity (e.g. "syn123")."""
 
     version_number: Optional[int] = None
     """Version of the file to target."""
@@ -51,31 +50,31 @@ class DownloadListItem:
 class DownloadListManifestRequest(AsynchronousCommunicator):
     """Drives the full lifecycle of a Synapse async manifest job in one object.
 
-    Calling ``send_job_and_wait_async()`` executes four phases automatically:
+    Calling send_job_and_wait_async() executes four phases automatically:
 
-    **Phase 1 — Submit** (``to_synapse_request``)
+    **Phase 1 — Submit** (to_synapse_request)
         Builds the POST body and submits it to
-        ``POST /download/list/manifest/async/start``. Synapse starts a
+        POST /download/list/manifest/async/start. Synapse starts a
         background job and returns a token.
 
-    **Phase 2 — Poll** (``AsynchronousCommunicator`` base class)
-        Polls ``GET /download/list/manifest/async/get/{token}`` until the job
-        state is ``COMPLETE`` (or the timeout is reached). No code needed here
+    **Phase 2 — Poll** (AsynchronousCommunicator base class)
+        Polls GET /download/list/manifest/async/get/{token} until the job
+        state is COMPLETE (or the timeout is reached). No code needed here
         — the base class handles this using the endpoint registered in
-        ``ASYNC_JOB_URIS`` for this class's ``concrete_type``.
+        ASYNC_JOB_URIS for this class's concrete_type.
 
-    **Phase 3 — Parse response** (``fill_from_dict``)
-        Extracts ``resultFileHandleId`` from the completed job response and
-        stores it in ``self.result_file_handle_id``.
+    **Phase 3 — Parse response** (fill_from_dict)
+        Extracts resultFileHandleId from the completed job response and
+        stores it in self.result_file_handle_id.
 
-    **Phase 4 — Download** (``_post_exchange_async``)
+    **Phase 4 — Download** (_post_exchange_async)
         Exchanges the file handle ID for a pre-signed S3 URL via
-        ``get_file_handle_for_download_async()``, then streams the CSV to disk
-        via ``download_from_url()`` (run in a thread pool via
-        ``asyncio.to_thread`` since it is a blocking sync method). Stores the
-        local path in ``self.manifest_path``.
+        get_file_handle_for_download_async(), then streams the CSV to disk
+        via download_from_url() (run in a thread pool via
+        asyncio.to_thread since it is a blocking sync method). Stores the
+        local path in self.manifest_path.
 
-    After ``send_job_and_wait_async()`` returns, ``manifest_path`` holds the
+    After send_job_and_wait_async() returns, manifest_path holds the
     local path to the downloaded CSV and is ready to use.
 
     <https://rest-docs.synapse.org/rest/org/sagebionetworks/repo/model/download/DownloadListManifestRequest.html>
@@ -87,17 +86,17 @@ class DownloadListManifestRequest(AsynchronousCommunicator):
         default=DOWNLOAD_LIST_MANIFEST_REQUEST,
     )
     """The concreteType string sent in the request body. Set automatically;
-    registered in ``ASYNC_JOB_URIS`` to resolve the REST endpoint."""
+    registered in ASYNC_JOB_URIS to resolve the REST endpoint."""
 
     result_file_handle_id: Optional[str] = field(init=False, default=None)
     """File handle ID of the generated manifest CSV. Populated by
-    ``fill_from_dict()`` from the ``resultFileHandleId`` field of the job
-    response. ``None`` until the job completes."""
+    fill_from_dict() from the resultFileHandleId field of the job
+    response. None until the job completes."""
 
     manifest_path: Optional[str] = field(init=False, default=None)
     """Absolute local path of the downloaded manifest CSV. Populated by
-    ``_post_exchange_async()`` after the file is downloaded. ``None`` until
-    ``send_job_and_wait_async()`` returns."""
+    _post_exchange_async() after the file is downloaded. None until
+    send_job_and_wait_async() returns."""
 
     csv_table_descriptor: CsvTableDescriptor = field(
         default_factory=CsvTableDescriptor,
@@ -114,7 +113,7 @@ class DownloadListManifestRequest(AsynchronousCommunicator):
     def fill_from_dict(
         self, synapse_response: dict[str, Any]
     ) -> "DownloadListManifestRequest":
-        """Extract ``resultFileHandleId`` from the completed job response."""
+        """Extract resultFileHandleId from the completed job response."""
         self.result_file_handle_id = synapse_response.get("resultFileHandleId")
         return self
 
@@ -128,7 +127,7 @@ class DownloadListManifestRequest(AsynchronousCommunicator):
 
         destination = kwargs.get("destination", ".")
         client = Synapse.get_client(synapse_client=synapse_client)
-        # This calls `get_file_handle_for_download_async` using the `file_handle_id` as the `synapse_id`.
+        # This calls get_file_handle_for_download_async using the file_handle_id as the synapse_id.
         # The deprecated function this code replaces did the same, and the Synapse server accepts it.
         # The server could in theory reject this request in the future.
         file_result = await get_file_handle_for_download_async(
@@ -160,14 +159,18 @@ class DownloadList(DownloadListSynchronousProtocol):
     100 GB. Instead, files are downloaded individually and removed from the list
     after successful download, so interrupted runs are safely resumable.
 
-    Example: Download all files in the cart::
-
+    Example: Download all files in the cart
+        &nbsp;
+        Download all files in the user's download list to a local directory.
+        ```python
         from synapseclient.models import DownloadList
-        manifest_path = await DownloadList().download_files_async(download_location="./data")
+        from synapseclient import Synapse
 
-    Example: Sync usage::
+        syn = Synapse()
+        syn.login()
 
-        manifest_path = DownloadList().download_files(download_location="./data")
+        manifest_path = DownloadList.download_files(download_location="./data")
+        ```
     """
 
     # No persistent fields — the cart is user-scoped server-side state.
@@ -188,32 +191,32 @@ class DownloadList(DownloadListSynchronousProtocol):
         resumable.
 
         Files that cannot be accessed or fail to download are left in the cart and
-        recorded with an ``error`` value in the result manifest.
+        recorded with an error value in the result manifest.
 
         Arguments:
             download_location: Directory to download files to. Defaults to the
                 current working directory.
-            parallel: If ``True``, files are downloaded concurrently up to
-                ``max_concurrent`` at a time using ``asyncio.gather``. If ``False``
+            parallel: If True, files are downloaded concurrently up to
+                max_concurrent at a time using asyncio.gather. If False
                 (default), files are downloaded sequentially.
             max_concurrent: Maximum number of files to download concurrently when
-                ``parallel=True``. Defaults to 10. Has no effect when
-                ``parallel=False``.
+                parallel=True. Defaults to 10. Has no effect when
+                parallel=False.
             synapse_client: If not passed in and caching was not disabled by
-                `Synapse.allow_client_caching(False)` this will use the last created
+                Synapse.allow_client_caching(False) this will use the last created
                 instance from the Synapse class constructor.
 
         Returns:
             Path to the result manifest CSV, which contains all original manifest
-            columns plus ``path`` (local file path) and ``error`` (error message or
+            columns plus path (local file path) and error (error message or
             empty string) columns.
 
         Raises:
             SynapseHTTPError: If the manifest async job fails or the cart is empty
-                (``"No files available for download"``).
+                ("No files available for download").
             SynapseError: If the manifest job completes but produces no local file,
                 or if the downloaded CSV has no headers or contains reserved column
-                names (``"path"`` or ``"error"``).
+                names ("path" or "error").
         """
         from synapseclient import Synapse
 
@@ -285,9 +288,9 @@ class DownloadList(DownloadListSynchronousProtocol):
         Arguments:
             path: Local path to the server-generated manifest CSV.
         Returns:
-            ``(columns, rows)`` where ``columns`` is the list of field names and
-            ``rows`` is a list of row dicts (possibly empty). Returns
-            ``(None, [])`` if the CSV file has no column headers.
+            (columns, rows) where columns is the list of field names and
+            rows is a list of row dicts (possibly empty). Returns
+            (None, []) if the CSV file has no column headers.
         """
         with open(path, newline="") as f:
             reader = csv.DictReader(f)
@@ -307,20 +310,22 @@ class DownloadList(DownloadListSynchronousProtocol):
         """
         Attempt to download a single file from the manifest.
 
-        Mutates ``row`` in place, setting ``"path"`` and ``"error"`` columns.
-        Each call must receive exclusive ownership of its ``row`` dict — do not
+        Mutates row in place, setting "path" and "error" columns.
+        Each call must receive exclusive ownership of its row dict — do not
         pass the same row to multiple concurrent calls.
         Files in the cart that the user cannot access are caught here so that a
         single failure does not abort the entire run.
 
         Arguments:
             row: A dict representing one row from the server-generated manifest.
-                Must contain ``"ID"`` and ``"versionNumber"`` keys.
+                Must contain "ID" and "versionNumber" keys.
+            download_location: Directory to download the file to. Defaults to
+                the Synapse cache location if None.
             synapse_client: Optional Synapse client. Uses cached singleton if omitted.
 
         Returns:
-            A :class:`DownloadListItem` identifying the file on success, or
-            ``None`` on failure. The caller collects successful items for batch
+            A DownloadListItem identifying the file on success, or
+            None on failure. The caller collects successful items for batch
             removal from the cart after all downloads complete.
         """
         from synapseclient import Synapse
@@ -358,15 +363,15 @@ class DownloadList(DownloadListSynchronousProtocol):
     ) -> None:
         """
         Write the annotated result rows to the output manifest CSV.
-        Intended to be called via ``asyncio.to_thread`` to avoid blocking the
+        Intended to be called via asyncio.to_thread to avoid blocking the
         event loop on synchronous file I/O.
 
         Arguments:
             path: Destination path for the output manifest CSV.
-            columns: Field names for the CSV header, including ``"path"`` and
-                ``"error"``.
-            rows: List of row dicts, each mutated by :meth:`_download_row` to
-                include ``"path"`` and ``"error"`` values.
+            columns: Field names for the CSV header, including "path" and
+                "error".
+            rows: List of row dicts, each mutated by _download_row to
+                include "path" and "error" values.
         """
         with open(path, "w", newline="") as f:
             writer = csv.DictWriter(f, fieldnames=columns, extrasaction="ignore")
@@ -386,33 +391,24 @@ class DownloadList(DownloadListSynchronousProtocol):
 
         Arguments:
             rows: List of row dicts from the manifest. Each row is mutated in
-                place by :meth:`_download_row` to include ``"path"`` and
-                ``"error"`` values.
+                place by _download_row to include "path" and
+                "error" values.
             download_location: Directory to download files to.
-            parallel: If ``True``, rows are downloaded concurrently (bounded by
-                ``max_concurrent``) via ``asyncio.gather``. If ``False``, rows are
+            parallel: If True, rows are downloaded concurrently (bounded by
+                max_concurrent) via asyncio.gather. If False, rows are
                 downloaded one at a time.
             max_concurrent: Maximum number of concurrent downloads when
-                ``parallel=True``. Defaults to ``None``, which is treated as
-                10. Must be at least 1. Has no effect when ``parallel=False``;
-                a ``UserWarning`` is emitted if set explicitly in that case.
+                parallel=True. Defaults to None, which is treated as
+                10. Must be at least 1. Has no effect when parallel=False;
+                a UserWarning is emitted if set explicitly in that case.
             synapse_client: Optional Synapse client.
 
         Raises:
-            ValueError: If ``max_concurrent`` is less than 1.
-
-        Warns:
-            UserWarning: If ``max_concurrent`` is set but ``parallel=False``.
+            ValueError: If max_concurrent is less than 1.
 
         Returns:
-            List of :class:`DownloadListItem` for each successfully downloaded file.
+            List of DownloadListItem for each successfully downloaded file.
         """
-        if max_concurrent is not None and not parallel:
-            warnings.warn(
-                "max_concurrent has no effect when parallel=False.",
-                UserWarning,
-                stacklevel=2,
-            )
         if max_concurrent is not None and max_concurrent < 1:
             raise ValueError(
                 f"max_concurrent must be at least 1, got {max_concurrent}."
@@ -424,7 +420,7 @@ class DownloadList(DownloadListSynchronousProtocol):
             # at once — risking rate-limiting from Synapse and exhausting local
             # file-descriptor / memory limits. The semaphore lets all coroutines
             # be created (preserving gather's result ordering) while ensuring that
-            # at most `max_concurrent` are actually running at any given time.
+            # at most max_concurrent are actually running at any given time.
             sem = asyncio.Semaphore(max_concurrent)
 
             async def bounded_download(
@@ -460,12 +456,12 @@ class DownloadList(DownloadListSynchronousProtocol):
         """Write the annotated rows to a new result manifest CSV and return its path.
 
         Arguments:
-            rows: List of row dicts, each mutated by :meth:`_download_row` to
-                include ``"path"`` and ``"error"`` values.
-            columns: Field names for the CSV header, including ``"path"`` and
-                ``"error"``.
+            rows: List of row dicts, each mutated by _download_row to
+                include "path" and "error" values.
+            columns: Field names for the CSV header, including "path" and
+                "error".
             download_location: Directory to write the manifest to. Defaults to
-                the current working directory if ``None``.
+                the current working directory if None.
 
         Returns:
             Absolute path to the written manifest CSV.
@@ -488,6 +484,7 @@ class DownloadList(DownloadListSynchronousProtocol):
     @staticmethod
     async def get_manifest_async(
         *,
+        csv_table_descriptor: Optional[CsvTableDescriptor] = None,
         synapse_client: Optional["Synapse"] = None,
     ) -> str:
         """
@@ -497,13 +494,19 @@ class DownloadList(DownloadListSynchronousProtocol):
         manifest downloaded from the Synapse web UI.
 
         Arguments:
+            csv_table_descriptor: Optional CsvTableDescriptor controlling the
+                format of the generated CSV (separator, quote character, escape
+                character, line ending, and whether the first line is a header).
+                When omitted the Synapse defaults are used.
             synapse_client: Optional Synapse client. Uses cached singleton if omitted.
         Raises:
             SynapseError: If the async job completes without producing a manifest
         Returns:
             Path to the downloaded manifest CSV.
         """
-        manifest_request = DownloadListManifestRequest()
+        manifest_request = DownloadListManifestRequest(
+            csv_table_descriptor=csv_table_descriptor or CsvTableDescriptor(),
+        )
         await manifest_request.send_job_and_wait_async(
             synapse_client=synapse_client,
         )
@@ -523,10 +526,10 @@ class DownloadList(DownloadListSynchronousProtocol):
         """Add specific file versions to the Synapse download list.
 
         Arguments:
-            files: List of :class:`DownloadListItem` objects identifying the file
+            files: List of DownloadListItem objects identifying the file
                 versions to add.
             synapse_client: If not passed in and caching was not disabled by
-                `Synapse.allow_client_caching(False)` this will use the last created
+                Synapse.allow_client_caching(False) this will use the last created
                 instance from the Synapse class constructor.
 
         Returns:
@@ -546,9 +549,9 @@ class DownloadList(DownloadListSynchronousProtocol):
         """Remove specific file versions from the Synapse download list.
 
         Arguments:
-            files: List of :class:`DownloadListItem` objects identifying the file versions to remove.
+            files: List of :class:DownloadListItem objects identifying the file versions to remove.
             synapse_client: If not passed in and caching was not disabled by
-                `Synapse.allow_client_caching(False)` this will use the last created
+                Synapse.allow_client_caching(False) this will use the last created
                 instance from the Synapse class constructor.
 
         Returns:
@@ -568,7 +571,7 @@ class DownloadList(DownloadListSynchronousProtocol):
 
         Arguments:
             synapse_client: If not passed in and caching was not disabled by
-                `Synapse.allow_client_caching(False)` this will use the last created
+                Synapse.allow_client_caching(False) this will use the last created
                 instance from the Synapse class constructor.
         """
         await clear_download_list_async(synapse_client=synapse_client)

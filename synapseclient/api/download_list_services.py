@@ -20,7 +20,7 @@ async def clear_download_list_async(
 
     Arguments:
         synapse_client: If not passed in and caching was not disabled by
-            `Synapse.allow_client_caching(False)` this will use the last created
+            Synapse.allow_client_caching(False) this will use the last created
             instance from the Synapse class constructor.
     """
     from synapseclient import Synapse
@@ -41,7 +41,7 @@ async def add_to_download_list_async(
     Arguments:
         files: List of DownloadListItem objects identifying the file versions to add.
         synapse_client: If not passed in and caching was not disabled by
-            `Synapse.allow_client_caching(False)` this will use the last created
+            Synapse.allow_client_caching(False) this will use the last created
             instance from the Synapse class constructor.
 
     Returns:
@@ -78,7 +78,7 @@ async def remove_from_download_list_async(
     Arguments:
         files: List of DownloadListItem objects identifying the file versions to remove.
         synapse_client: If not passed in and caching was not disabled by
-            `Synapse.allow_client_caching(False)` this will use the last created
+            Synapse.allow_client_caching(False) this will use the last created
             instance from the Synapse class constructor.
 
     Returns:

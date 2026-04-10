@@ -8,6 +8,7 @@ from synapseclient.core.async_utils import async_to_sync
 if TYPE_CHECKING:
     from synapseclient import Synapse
     from synapseclient.models.download_list import DownloadListItem
+    from synapseclient.models.table_components import CsvTableDescriptor
 
 
 @async_to_sync
@@ -35,44 +36,45 @@ class DownloadListSynchronousProtocol(Protocol):
         Arguments:
             download_location: Directory to download files to. Defaults to the
                 current working directory.
-            parallel: If ``True``, files are downloaded concurrently up to
-                ``max_concurrent`` at a time using ``asyncio.gather``. If ``False``
+            parallel: If True, files are downloaded concurrently up to
+                max_concurrent at a time using asyncio.gather. If False
                 (default), files are downloaded sequentially.
             max_concurrent: Maximum number of files to download concurrently when
-                ``parallel=True``. Defaults to 10. Has no effect when
-                ``parallel=False``.
+                parallel=True. Defaults to 10. Has no effect when
+                parallel=False.
             synapse_client: If not passed in and caching was not disabled by
-                `Synapse.allow_client_caching(False)` this will use the last created
+                Synapse.allow_client_caching(False) this will use the last created
                 instance from the Synapse class constructor.
 
         Returns:
             Path to the result manifest CSV, which contains all original manifest
-            columns plus ``path`` (local file path) and ``error`` (error message or
+            columns plus path (local file path) and error (error message or
             empty string) columns.
 
-        Example: Using this function:
-            Download all files in the cart to a directory:
-
+        Example: Download all files in the cart
+            &nbsp;
+            Download all files in the user's download list to a local directory.
             ```python
-            from synapseclient import Synapse
             from synapseclient.models import DownloadList
+            from synapseclient import Synapse
 
             syn = Synapse()
             syn.login()
 
-            manifest_path = DownloadList().download_files(download_location="./downloads")
+            manifest_path = DownloadList.download_files(download_location="./downloads")
             ```
 
-            Use ``parallel=True`` with ``max_concurrent`` for faster downloads on large carts:
-
+        Example: Download files in parallel
+            &nbsp;
+            Use parallel=True with max_concurrent for faster downloads on large carts.
             ```python
-            from synapseclient import Synapse
             from synapseclient.models import DownloadList
+            from synapseclient import Synapse
 
             syn = Synapse()
             syn.login()
 
-            manifest_path = DownloadList().download_files(
+            manifest_path = DownloadList.download_files(
                 download_location="./downloads",
                 parallel=True,
                 max_concurrent=5,
@@ -84,29 +86,56 @@ class DownloadListSynchronousProtocol(Protocol):
     def get_manifest(
         self,
         *,
+        csv_table_descriptor: Optional["CsvTableDescriptor"] = None,
         synapse_client: Optional["Synapse"] = None,
     ) -> str:
         """Generate and download the download list manifest CSV without downloading files.
 
         Arguments:
+            csv_table_descriptor: Optional CsvTableDescriptor controlling the
+                format of the generated CSV (separator, quote character, escape
+                character, line ending, and whether the first line is a header).
+                When omitted the Synapse defaults are used.
             synapse_client: If not passed in and caching was not disabled by
-                `Synapse.allow_client_caching(False)` this will use the last created
+                Synapse.allow_client_caching(False) this will use the last created
                 instance from the Synapse class constructor.
 
         Returns:
             Local path to the downloaded manifest CSV.
 
-        Example: Using this function:
-            Inspect the cart contents before downloading:
-
+        Example: Get the download list manifest
+            &nbsp;
+            Inspect the cart contents before downloading.
             ```python
-            from synapseclient import Synapse
             from synapseclient.models import DownloadList
+            from synapseclient import Synapse
 
             syn = Synapse()
             syn.login()
 
-            manifest_path = DownloadList().get_manifest()
+            manifest_path = DownloadList.get_manifest()
+            ```
+
+        Example: Get a manifest with custom CSV formatting
+            &nbsp;
+            Generate a manifest with custom separator, quote, escape, line
+            ending, and header settings.
+            ```python
+            from synapseclient.models import DownloadList
+            from synapseclient.models.table_components import CsvTableDescriptor
+            from synapseclient import Synapse
+
+            syn = Synapse()
+            syn.login()
+
+            descriptor = CsvTableDescriptor(
+                separator="\\t",
+                quote_character="'",
+                escape_character="\\\\",
+                line_end="\\n",
+                is_first_line_header=False,
+            )
+            manifest_path = DownloadList.get_manifest(csv_table_descriptor=descriptor)
             ```
         """
         return ""
@@ -122,23 +151,23 @@ class DownloadListSynchronousProtocol(Protocol):
         Arguments:
             files: List of DownloadListItem objects identifying file versions to add.
             synapse_client: If not passed in and caching was not disabled by
-                `Synapse.allow_client_caching(False)` this will use the last created
+                Synapse.allow_client_caching(False) this will use the last created
                 instance from the Synapse class constructor.
 
         Returns:
             The number of files added.
 
-        Example: Using this function:
-            Add specific file versions to the cart:
-
+        Example: Add files to the download list
+            &nbsp;
+            Add specific file versions to the cart.
             ```python
-            from synapseclient import Synapse
             from synapseclient.models import DownloadList, DownloadListItem
+            from synapseclient import Synapse
 
             syn = Synapse()
             syn.login()
 
-            count = DownloadList().add_files([
+            count = DownloadList.add_files([
                 DownloadListItem(file_entity_id="syn123", version_number=1),
                 DownloadListItem(file_entity_id="syn456", version_number=2),
             ])
@@ -157,23 +186,23 @@ class DownloadListSynchronousProtocol(Protocol):
         Arguments:
             files: List of DownloadListItem objects identifying file versions to remove.
             synapse_client: If not passed in and caching was not disabled by
-                `Synapse.allow_client_caching(False)` this will use the last created
+                Synapse.allow_client_caching(False) this will use the last created
                 instance from the Synapse class constructor.
 
         Returns:
             The number of files removed.
 
-        Example: Using this function:
-            Remove specific file versions from the cart:
-
+        Example: Remove files from the download list
+            &nbsp;
+            Remove specific file versions from the cart.
             ```python
-            from synapseclient import Synapse
             from synapseclient.models import DownloadList, DownloadListItem
+            from synapseclient import Synapse
 
             syn = Synapse()
             syn.login()
 
-            count = DownloadList().remove_files([
+            count = DownloadList.remove_files([
                 DownloadListItem(file_entity_id="syn123", version_number=1),
             ])
             ```
@@ -189,20 +218,20 @@ class DownloadListSynchronousProtocol(Protocol):
 
         Arguments:
             synapse_client: If not passed in and caching was not disabled by
-                `Synapse.allow_client_caching(False)` this will use the last created
+                Synapse.allow_client_caching(False) this will use the last created
                 instance from the Synapse class constructor.
 
-        Example: Using this function:
-            Remove all files from the cart:
-
+        Example: Clear the download list
+            &nbsp;
+            Remove all files from the cart.
             ```python
-            from synapseclient import Synapse
             from synapseclient.models import DownloadList
+            from synapseclient import Synapse
 
             syn = Synapse()
             syn.login()
 
-            DownloadList().clear()
+            DownloadList.clear()
             ```
         """
         return
