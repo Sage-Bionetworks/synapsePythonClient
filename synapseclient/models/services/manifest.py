@@ -39,7 +39,7 @@ SynapseAnnotationType = datetime.datetime | float | int | bool | str
 
 # Columns that are NOT annotations — stripped before building File.annotations.
 # Covers the standard manifest columns plus the extra metadata columns produced
-# by the Synapse UI download cart and `synapse get-download-list` CLI.
+# by the Synapse UI download cart and synapse get-download-list CLI.
 NON_ANNOTATION_COLUMNS = frozenset(
     [
         # Standard manifest columns used directly during upload
@@ -83,8 +83,8 @@ class SyncUploadItem(NamedTuple):
     Attributes:
         entity: The file that is going through the sync process.
         used: Resolved provenance references — absolute local paths for files in
-            the upload batch, or ``File`` objects for files already in Synapse.
-        executed: Same as ``used`` but for executed provenance references.
+            the upload batch, or File objects for files already in Synapse.
+        executed: Same as used but for executed provenance references.
         activity_name: The name of the activity that is being performed.
         activity_description: The description of the activity that is being performed.
     """
@@ -287,9 +287,9 @@ class SyncUploader:
 
         Arguments:
             item: The File entity to upload.
-            used: Provenance ``used`` references (paths, URLs, Synapse IDs, or File
+            used: Provenance used references (paths, URLs, Synapse IDs, or File
                 objects).
-            executed: Provenance ``executed`` references.
+            executed: Provenance executed references.
             activity_name: Name for the provenance Activity.
             activity_description: Description for the provenance Activity.
             dependent_futures: Futures for files that must be uploaded before this one.
@@ -336,9 +336,9 @@ async def read_manifest_for_upload(
 ) -> tuple[list[SyncUploadItem], int]:
     """Read and validate a manifest CSV file, returning items ready for upload.
 
-    Accepts manifests produced by `StorableContainer.sync_from_synapse`,
-    the `synapse get-download-list` CLI, or the Synapse UI download cart.
-    Rows with a non-empty `error` column (added by `get-download-list`) are
+    Accepts manifests produced by StorableContainer.sync_from_synapse,
+    the synapse get-download-list CLI, or the Synapse UI download cart.
+    Rows with a non-empty error column (added by get-download-list) are
     silently skipped.
 
     Arguments:
@@ -350,8 +350,8 @@ async def read_manifest_for_upload(
             the existing Synapse activity will be associated with the new version.
 
     Returns:
-        A tuple of ``(items, total_bytes)`` where ``items`` is a list of
-        ``SyncUploadItem`` objects ready for upload and ``total_bytes`` is the
+        A tuple of (items, total_bytes) where items is a list of
+        SyncUploadItem objects ready for upload and total_bytes is the
         combined size of all local files.
 
     Raises:
@@ -445,8 +445,8 @@ def _check_size_each_file(df: DataFrame) -> int:
     """Raise ValueError if any non-URL file in the manifest is empty (0 bytes).
 
     Arguments:
-        df: Manifest DataFrame containing a ``path`` column. Rows whose
-            ``path`` is a URL are skipped.
+        df: Manifest DataFrame containing a path column. Rows whose
+            path is a URL are skipped.
 
     Returns:
         Combined size in bytes of all local (non-URL) files in the manifest.
@@ -469,17 +469,17 @@ def _check_size_each_file(df: DataFrame) -> int:
 
 
 def _check_path_and_normalize(f: str) -> str:
-    """Return the normalized absolute path for ``f``, or ``f`` unchanged if it is a URL.
+    """Return the normalized absolute path for f, or f unchanged if it is a URL.
 
     Arguments:
-        f: A file path or URL as read from the manifest ``path`` column.
+        f: A file path or URL as read from the manifest path column.
 
     Returns:
         The input unchanged if it is a URL, otherwise the resolved absolute
-        path after expanding ``~`` and environment variables.
+        path after expanding ~ and environment variables.
 
     Raises:
-        OSError: If ``f`` is not a URL and the resolved path does not point to
+        OSError: If f is not a URL and the resolved path does not point to
             an existing file on disk.
     """
     if is_url(f):
@@ -491,7 +491,7 @@ def _check_path_and_normalize(f: str) -> str:
 
 
 def _expand_path(path: str) -> str:
-    """Expand ``~`` and environment variables, then return the absolute path."""
+    """Expand ~ and environment variables, then return the absolute path."""
     return os.path.abspath(os.path.expandvars(os.path.expanduser(path)))
 
 
@@ -500,13 +500,13 @@ def _check_file_names(df: DataFrame) -> None:
     (name, parentId) pairs are unique.
 
     Arguments:
-        df: Manifest DataFrame containing ``name`` and ``parentId`` columns.
-            All ``name`` cells must already be populated (empty names should be
+        df: Manifest DataFrame containing name and parentId columns.
+            All name cells must already be populated (empty names should be
             defaulted before calling this function).
 
     Raises:
         ValueError: If any file name contains characters not permitted by
-            Synapse, or if two rows share the same ``name`` and ``parentId``.
+            Synapse, or if two rows share the same name and parentId.
     """
     for _, row in df.iterrows():
         file_name = row["name"]
@@ -527,18 +527,18 @@ def _check_file_names(df: DataFrame) -> None:
 async def _check_parent_containers_async(
     parent_ids: Iterable[str], syn: Synapse
 ) -> None:
-    """Verify that every ``parentId`` in the manifest is a valid Synapse container.
+    """Verify that every parentId in the manifest is a valid Synapse container.
 
     All parent IDs are validated concurrently.
 
     Arguments:
         parent_ids: Iterable of Synapse IDs taken from the manifest
-            ``parentId`` column. Empty strings are silently skipped.
+            parentId column. Empty strings are silently skipped.
         syn: Authenticated Synapse client used to fetch each entity.
 
     Raises:
-        SynapseHTTPError: If a ``parentId`` does not exist in Synapse.
-        ValueError: If a ``parentId`` exists but is not a Project or Folder.
+        SynapseHTTPError: If a parentId does not exist in Synapse.
+        ValueError: If a parentId exists but is not a Project or Folder.
     """
 
     async def _check_one(syn_id: str) -> None:
@@ -571,7 +571,7 @@ async def _sort_and_fix_provenance(syn: Synapse, df: DataFrame) -> DataFrame:
     """Validate and normalize provenance references, then topologically sort the
     manifest rows so that files are uploaded before any file that depends on them.
 
-    Each ``used`` and ``executed`` cell is split on ``;``, and each item is
+    Each used and executed cell is split on ;, and each item is
     resolved to an absolute path (if it is a local file being uploaded), a
     Synapse entity (if the local file already exists in Synapse), or left as-is
     if it is a URL or Synapse ID.
@@ -579,14 +579,14 @@ async def _sort_and_fix_provenance(syn: Synapse, df: DataFrame) -> DataFrame:
     Arguments:
         syn: Authenticated Synapse client, used to look up local files that are
             not in the upload manifest but may already exist in Synapse.
-        df: Manifest DataFrame indexed or containing a ``path`` column, with
-            optional ``used`` and ``executed`` columns holding ``;``-delimited
+        df: Manifest DataFrame indexed or containing a path column, with
+            optional used and executed columns holding ;-delimited
             provenance strings.
 
     Returns:
         A new DataFrame with the same rows reordered so that provenance
         dependencies are uploaded before the files that reference them, and with
-        ``used`` and ``executed`` columns replaced by lists of resolved
+        used and executed columns replaced by lists of resolved
         references.
 
     Raises:
@@ -621,12 +621,12 @@ async def _resolve_row(
         path: The file path for this row (used as its manifest key).
         row: The pandas Series for this row.
         frame: The full manifest DataFrame (path-indexed), passed through to
-            ``_resolve_provenance_column`` for cross-row lookups.
+            _resolve_provenance_column for cross-row lookups.
         client: Authenticated Synapse client.
 
     Returns:
-        A ``(path, resolved)`` tuple where *resolved* maps column names
-        (``"used"`` and/or ``"executed"``) to their resolved reference lists.
+        A (path, resolved) tuple where resolved maps column names
+        (used and/or executed) to their resolved reference lists.
     """
     resolved: dict[str, list[str | File]] = {}
     for col in ("used", "executed"):
@@ -646,12 +646,12 @@ async def _resolve_provenance_column(
     """Parse and resolve all provenance references in a single manifest cell.
 
     Handles cells that are already Python lists (converted by
-    ``_parse_annotation_cell``) as well as raw
+    _parse_annotation_cell) as well as raw
     semicolon-delimited strings from the CSV.  Each item is validated and
-    resolved via ``_check_provenance``.
+    resolved via _check_provenance.
 
     Arguments:
-        cell: The raw cell value from the ``used`` or ``executed`` column —
+        cell: The raw cell value from the used or executed column —
             either a semicolon-delimited string or an already-parsed list.
         path: The manifest file path of the row that owns this cell. Used only
             for error messages.
@@ -702,11 +702,11 @@ async def _check_provenance(
             local file path is part of the current upload batch.
 
     Returns:
-        ``str`` — an absolute local path (item in the upload batch), a URL,
+        str — an absolute local path (item in the upload batch), a URL,
         or a Synapse ID passed through unchanged.
-        ``File`` — a Synapse File model resolved via MD5 lookup when the local
+        File — a Synapse File model resolved via MD5 lookup when the local
         file already exists in Synapse but is not in the current upload batch.
-        ``None`` — when ``item`` is ``None``.
+        None — when item is None.
 
     Raises:
         SynapseProvenanceError: If the item is a local file that is neither
@@ -757,12 +757,12 @@ def _build_upload_items(
 ) -> list[SyncUploadItem]:
     """Convert a validated manifest DataFrame into a list of upload items.
 
-    All columns not in ``NON_ANNOTATION_COLUMNS`` are treated as annotations.
+    All columns not in NON_ANNOTATION_COLUMNS are treated as annotations.
 
     Arguments:
         df: Validated manifest DataFrame (after provenance sort).
-        merge_existing_annotations: Passed through to each ``File``.
-        associate_activity_to_new_version: Passed through to each ``File``.
+        merge_existing_annotations: Passed through to each File.
+        associate_activity_to_new_version: Passed through to each File.
 
     Returns:
         List of upload items.
@@ -828,7 +828,7 @@ def _build_annotations_for_file(
 
     Returns:
         A dict mapping annotation key to a list of converted Python values.
-        String values are passed through ``_parse_annotation_cell``.
+        String values are passed through _parse_annotation_cell.
         Non-string values (e.g. an int or float that pandas inferred from the
         CSV) are wrapped in a single-element list.
     """
@@ -850,16 +850,16 @@ def _parse_annotation_cell(
 ) -> list[SynapseAnnotationType]:
     """Convert a raw manifest CSV cell string into a typed list of annotation values.
 
-    ``pandas.read_csv`` returns every cell as a string, but Synapse annotations
+    pandas.read_csv returns every cell as a string, but Synapse annotations
     are typed (int, float, datetime, bool, str). This function parses a single
     cell and returns the correctly-typed Python values so that annotations
     round-trip faithfully through a manifest file.
 
     Multi-value cells are expressed in the manifest as a bracket-delimited,
-    comma-separated string (e.g. ``"[a, b, c]"``).  Single-value cells are
+    comma-separated string (e.g. "[a, b, c]").  Single-value cells are
     treated as a one-element list.  The return is always a list so callers
     never need to branch on scalar-vs-list.  Empty values (e.g. from
-    ``"[a, , c]"``) are silently dropped.
+    "[a, , c]") are silently dropped.
 
     Arguments:
         cell: A single cell string read from a manifest CSV.
@@ -881,24 +881,24 @@ def _convert_value(value: str) -> SynapseAnnotationType:
     The conversion order matters: each step is tried only if the previous one
     returned no match.
 
-    1. **datetime** — tried first because date strings like ``"2024-01-01"``
-       are also valid ``ast.literal_eval`` strings (they parse as subtraction
+    1. datetime — tried first because date strings like "2024-01-01"
+       are also valid ast.literal_eval strings (they parse as subtraction
        expressions), so datetime must win.
-    2. **bool** — tried before ``ast.literal_eval`` because ``"true"`` and
-       ``"false"`` (lowercase) are *not* valid Python literals and would fall
-       through to a raw string if ``literal_eval`` ran first, giving inconsistent
-       results for ``"true"`` vs ``"True"``.
-    3. **int / float** — parsed via ``ast.literal_eval``.  ``bool`` results are
-       excluded here because step 2 already handled them (``bool`` is a subclass
-       of ``int``, so without the exclusion ``"True"`` would come back as ``1``).
-    4. **raw string** — returned unchanged when no conversion matched.
+    2. bool — tried before ast.literal_eval because "true" and
+       "false" (lowercase) are not valid Python literals and would fall
+       through to a raw string if literal_eval ran first, giving inconsistent
+       results for "true" vs "True".
+    3. int / float — parsed via ast.literal_eval.  bool results are
+       excluded here because step 2 already handled them (bool is a subclass
+       of int, so without the exclusion "True" would come back as 1).
+    4. raw string — returned unchanged when no conversion matched.
 
     Arguments:
         value: A non-empty string token from a manifest cell.
 
     Returns:
-        The token as a ``datetime.datetime``, ``bool``, ``int``, ``float``, or
-        the original ``str`` if no conversion matched.
+        The token as a datetime.datetime, bool, int, float, or
+        the original str if no conversion matched.
     """
     datetime_ = datetime_or_none(value)
     if datetime_ is not None:
@@ -916,32 +916,32 @@ def _convert_value(value: str) -> SynapseAnnotationType:
 
 
 def _parse_literal(value: str) -> int | float | str | None:
-    """Try to parse ``value`` as a scalar Python literal via ``ast.literal_eval``.
+    """Try to parse value as a scalar Python literal via ast.literal_eval.
 
-    **Why ``str`` is accepted:** bracket-array cells like ``["foo bar", "baz"]``
-    are split into tokens such as ``'"foo bar"'`` — a string that is itself a
-    quoted Python string literal.  ``ast.literal_eval`` strips the outer quotes
-    and returns ``"foo bar"``.  Plain unquoted strings (e.g. ``"hello"``) are
-    *not* valid Python literals, so ``literal_eval`` raises ``ValueError`` and
-    the raw string is returned by ``_convert_value`` instead.
+    Why str is accepted: bracket-array cells like ["foo bar", "baz"]
+    are split into tokens such as '"foo bar"' — a string that is itself a
+    quoted Python string literal.  ast.literal_eval strips the outer quotes
+    and returns "foo bar".  Plain unquoted strings (e.g. "hello") are
+    not valid Python literals, so literal_eval raises ValueError and
+    the raw string is returned by _convert_value instead.
 
-    **Why ``bool`` is excluded:** ``bool`` is a subclass of ``int``, so
-    ``ast.literal_eval("True")`` returns ``True`` and passes the
-    ``isinstance(parsed, int)`` check.  Without the exclusion, ``"True"`` would
-    come back as the bool ``True`` from this function, but ``"true"`` (lowercase)
+    Why bool is excluded: bool is a subclass of int, so
+    ast.literal_eval("True") returns True and passes the
+    isinstance(parsed, int) check.  Without the exclusion, "True" would
+    come back as the bool True from this function, but "true" (lowercase)
     would not be a valid literal and would fall through to a raw string — an
-    inconsistency.  ``bool_or_none`` in ``_convert_value`` handles both cases
+    inconsistency.  bool_or_none in _convert_value handles both cases
     uniformly before this function is ever called.
 
-    **Why complex types are rejected:** tuples, lists, and dicts are valid Python
+    Why complex types are rejected: tuples, lists, and dicts are valid Python
     literals but are not valid Synapse annotation value types.
 
     Arguments:
         value: A string token to parse.
 
     Returns:
-        An ``int``, ``float``, or ``str`` if the token is a recognized scalar
-        literal; ``None`` if parsing fails or produces an unsupported type.
+        An int, float, or str if the token is a recognized scalar
+        literal; None if parsing fails or produces an unsupported type.
     """
     try:
         parsed = ast.literal_eval(value)
