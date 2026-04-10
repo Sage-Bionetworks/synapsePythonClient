@@ -516,7 +516,7 @@ class StorableContainer(StorableContainerSynchronousProtocol):
         merge_existing_annotations: bool = True,
         associate_activity_to_new_version: bool = False,
         *,
-        synapse_client: Optional[Synapse] = None,
+        synapse_client: Synapse | None = None,
     ) -> list["File"]:
         """Upload files to Synapse using a manifest CSV file.
 
