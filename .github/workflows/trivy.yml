@@ -24,6 +24,10 @@ on:
         required: false
         type: number
         default: 0
+      ARTIFACT_NAME_SUFFIX: # optional suffix to disambiguate artifact names when this workflow is called multiple times in the same run
+        required: false
+        type: string
+        default: ""
     outputs:
       trivy_conclusion:
         description: "The pass/fail status from Trivy"
@@ -84,7 +88,7 @@ jobs:
         uses: actions/upload-artifact@v4
         if: ${{ !cancelled() }}
         with:
-          name: ${{ env.sarif_file_name }}
+          name: ${{ env.sarif_file_name }}${{ inputs.ARTIFACT_NAME_SUFFIX }}
           path: ${{ env.sarif_file_name }}
 
     outputs:
