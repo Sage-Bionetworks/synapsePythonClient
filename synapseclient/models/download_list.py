@@ -584,7 +584,7 @@ class DownloadList(DownloadListSynchronousProtocol):
         """Remove specific file versions from the Synapse download list.
 
         Arguments:
-            files: List of :class:DownloadListItem objects identifying the file versions to remove.
+            files: List of DownloadListItem objects identifying the file versions to remove.
             synapse_client: If not passed in and caching was not disabled by
                 Synapse.allow_client_caching(False) this will use the last created
                 instance from the Synapse class constructor.
