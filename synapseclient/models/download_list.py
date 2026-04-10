@@ -104,7 +104,16 @@ class DownloadListManifestRequest(AsynchronousCommunicator):
     """Describes the format of the generated CSV manifest."""
 
     def to_synapse_request(self) -> dict[str, Any]:
-        """Build the request body for the manifest async job."""
+        """Build the request body for the manifest async job.
+
+        Constructs the POST body for
+        POST /download/list/manifest/async/start including the concrete type
+        and CSV descriptor.
+
+        Returns:
+            A dictionary containing the request body expected by the Synapse
+            REST API.
+        """
         return {
             "concreteType": self.concrete_type,
             "csvTableDescriptor": self.csv_table_descriptor.to_synapse_request(),
@@ -113,14 +122,40 @@ class DownloadListManifestRequest(AsynchronousCommunicator):
     def fill_from_dict(
         self, synapse_response: dict[str, Any]
     ) -> "DownloadListManifestRequest":
-        """Extract resultFileHandleId from the completed job response."""
+        """Converts the data coming from the Synapse async job response into
+        this datamodel.
+
+        Extracts the resultFileHandleId from the completed job response and
+        stores it in result_file_handle_id.
+
+        Arguments:
+            synapse_response: The response dict from the completed Synapse
+                async manifest job.
+
+        Returns:
+            The DownloadListManifestRequest object instance.
+        """
         self.result_file_handle_id = synapse_response.get("resultFileHandleId")
         return self
 
     async def _post_exchange_async(
         self, synapse_client: Optional["Synapse"] = None, **kwargs
     ) -> None:
-        """Download the manifest CSV from Synapse after the async job completes."""
+        """Download the manifest CSV from Synapse after the async job completes.
+
+        Exchanges the result_file_handle_id for a pre-signed S3 URL via
+        get_file_handle_for_download_async, then streams the CSV to disk
+        using download_from_url (run in a thread pool to avoid blocking the
+        event loop). On success, sets self.manifest_path to the local path
+        of the downloaded file.
+
+        Arguments:
+            synapse_client: The Synapse client to use for the request. Uses
+                the cached singleton if omitted.
+            **kwargs: Additional arguments. Supports destination (str) to
+                control the download directory; defaults to the current
+                working directory.
+        """
         from synapseclient import Synapse
         from synapseclient.api.file_services import get_file_handle_for_download_async
         from synapseclient.core.download.download_functions import download_from_url
