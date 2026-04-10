@@ -27,6 +27,11 @@ from .curation_services import (
 )
 from .docker_commit_services import get_docker_tag
 from .docker_services import get_entity_id_by_repository_name
+from .download_list_services import (
+    add_to_download_list_async,
+    clear_download_list_async,
+    remove_from_download_list_async,
+)
 from .entity_bundle_services_v2 import (
     get_entity_id_bundle2,
     get_entity_id_version_bundle2,
@@ -318,6 +323,10 @@ __all__ = [
     "list_curation_tasks",
     "list_grid_sessions",
     "update_curation_task",
+    # download_list_services
+    "add_to_download_list_async",
+    "clear_download_list_async",
+    "remove_from_download_list_async",
     # docker_commit_services
     "get_docker_tag",
     # docker_services
