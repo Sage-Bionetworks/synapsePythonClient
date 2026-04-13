@@ -411,9 +411,6 @@ async def read_manifest_for_upload(
     syn.logger.info("Validating that all the files are not empty...")
     total_size = _check_size_each_file(df)
 
-    syn.logger.info("Recreating local directory hierarchy in Synapse...")
-    df = await _recreate_directory_hierarchy_async(df, syn=syn)
-
     syn.logger.info("Validating file names...")
     _check_file_names(df)
 
@@ -431,73 +428,6 @@ async def read_manifest_for_upload(
     )
 
     return items, total_size
-
-
-async def _recreate_directory_hierarchy_async(
-    df: "DataFrame",
-    syn: Synapse,
-) -> "DataFrame":
-    """Create Synapse folders to mirror local directory structure.
-
-    For each group of files sharing the same parentId, computes the common
-    base directory of their local paths, then creates Synapse Folder entities
-    for any intermediate directories between the base and each file. Updates
-    the parentId column in the DataFrame so each file is uploaded into the
-    correct Synapse folder.
-
-    Only applies to local files (rows where synapseStore is True and path
-    is not a URL). Rows with URLs are left unchanged.
-
-    Arguments:
-        df: The manifest DataFrame with normalized paths and parentId columns.
-        syn: Authenticated Synapse client.
-
-    Returns:
-        The DataFrame with parentId values updated to point to the newly
-        created (or existing) Synapse folders.
-    """
-    from synapseclient.models import Folder
-
-    local_mask = df["synapseStore"] & ~df["path"].apply(is_url)
-    if not local_mask.any():
-        return df
-
-    local_df = df[local_mask]
-
-    for parent_id, group in local_df.groupby("parentId"):
-        dirs = [os.path.dirname(p) for p in group["path"]]
-        unique_dirs = set(dirs)
-        if len(unique_dirs) <= 1:
-            continue
-
-        base_dir = os.path.commonpath(dirs)
-
-        # Cache: relative directory path -> Synapse folder ID
-        folder_cache: dict[str, str] = {}
-
-        for idx, row in group.iterrows():
-            file_dir = os.path.dirname(row["path"])
-            rel_dir = os.path.relpath(file_dir, base_dir)
-
-            if rel_dir == ".":
-                continue
-
-            parts = os.path.normpath(rel_dir).split(os.sep)
-            for i, part in enumerate(parts):
-                partial = os.path.join(*parts[: i + 1])
-                if partial not in folder_cache:
-                    folder_parent = (
-                        parent_id if i == 0 else folder_cache[os.path.join(*parts[:i])]
-                    )
-                    folder = await Folder(
-                        name=part,
-                        parent_id=folder_parent,
-                    ).store_async(synapse_client=syn)
-                    folder_cache[partial] = folder.id
-
-            df.at[idx, "parentId"] = folder_cache[os.path.normpath(rel_dir)]
-
-    return df
 
 
 def _split_csv_cell(input_string: str) -> list[str]:
