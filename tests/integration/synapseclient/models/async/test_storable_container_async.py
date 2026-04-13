@@ -311,7 +311,7 @@ class TestSyncToSynapse:
         for f in synced_folder.files:
             self.schedule_for_cleanup(f.id)
 
-    async def test_non_container_parentid_raises(
+    async def test_non_container_parent_id_raises(
         self, project_model: Project, tmp_path: Path
     ) -> None:
         """A parentId pointing at a File (not a container) raises during validation."""
@@ -385,4 +385,109 @@ class TestSyncToSynapse:
 
         for f in synced.files:
             if f.name == unique_name:
+                self.schedule_for_cleanup(f.id)
+
+    async def test_recreate_hierarchy_creates_folders(
+        self, project_model: Project, tmp_path: Path
+    ) -> None:
+        """
+        When files live in nested local directories (e.g., subdir_a/file1.txt,
+        subdir_a/subdir_b/file2.txt) and recreate_hierarchy is enabled,
+        Synapse folders are created to match the local layout and files are
+        placed inside the corresponding folders.
+        """
+        # GIVEN local files arranged in a nested directory hierarchy
+        subdir_a = tmp_path / "subdir_a"
+        subdir_b = subdir_a / "subdir_b"
+        subdir_b.mkdir(parents=True)
+
+        file_at_root = _create_local_test_file("root level", tmp_path)
+        file_in_a = subdir_a / f"{uuid.uuid4()}_in_a.txt"
+        file_in_a.write_text("inside subdir_a", encoding="utf-8")
+        file_in_b = subdir_b / f"{uuid.uuid4()}_in_b.txt"
+        file_in_b.write_text("inside subdir_a/subdir_b", encoding="utf-8")
+
+        name_root = f"root_{uuid.uuid4()}.txt"
+        name_a = f"a_{uuid.uuid4()}.txt"
+        name_b = f"b_{uuid.uuid4()}.txt"
+
+        # AND a manifest where every file points at the project as parentId
+        manifest_path = _write_manifest(
+            [
+                {
+                    "path": str(file_at_root),
+                    "parentId": project_model.id,
+                    "name": name_root,
+                },
+                {
+                    "path": str(file_in_a),
+                    "parentId": project_model.id,
+                    "name": name_a,
+                },
+                {
+                    "path": str(file_in_b),
+                    "parentId": project_model.id,
+                    "name": name_b,
+                },
+            ],
+            tmp_path,
+        )
+
+        # WHEN I sync to Synapse
+        await project_model.sync_to_synapse_async(
+            manifest_path=str(manifest_path),
+            send_messages=False,
+            synapse_client=self.syn,
+        )
+
+        # THEN the project contains the mirrored folder structure
+        synced_project = await Project(id=project_model.id).sync_from_synapse_async(
+            recursive=True, download_file=False, synapse_client=self.syn
+        )
+
+        # The root-level file is in the project root, but NOT the subdirectory files
+        root_file_names = {f.name for f in synced_project.files}
+        assert name_root in root_file_names
+        assert name_a not in root_file_names, "file_in_a should not be at project root"
+        assert name_b not in root_file_names, "file_in_b should not be at project root"
+
+        # subdir_a was created as a Synapse folder
+        folder_names = {f.name for f in synced_project.folders}
+        assert "subdir_a" in folder_names
+
+        synapse_subdir_a = next(
+            f for f in synced_project.folders if f.name == "subdir_a"
+        )
+        self.schedule_for_cleanup(synapse_subdir_a.id)
+        synced_a = await Folder(id=synapse_subdir_a.id).sync_from_synapse_async(
+            recursive=True, download_file=False, synapse_client=self.syn
+        )
+
+        # file_in_a is inside subdir_a
+        a_file_names = {f.name for f in synced_a.files}
+        assert name_a in a_file_names
+
+        # subdir_b was created as a nested Synapse folder inside subdir_a
+        a_folder_names = {f.name for f in synced_a.folders}
+        assert "subdir_b" in a_folder_names
+
+        synapse_subdir_b = next(f for f in synced_a.folders if f.name == "subdir_b")
+        self.schedule_for_cleanup(synapse_subdir_b.id)
+        synced_b = await Folder(id=synapse_subdir_b.id).sync_from_synapse_async(
+            recursive=False, download_file=False, synapse_client=self.syn
+        )
+
+        # file_in_b is inside subdir_a/subdir_b
+        b_file_names = {f.name for f in synced_b.files}
+        assert name_b in b_file_names
+
+        # Clean up files
+        for f in synced_project.files:
+            if f.name == name_root:
+                self.schedule_for_cleanup(f.id)
+        for f in synced_a.files:
+            if f.name == name_a:
+                self.schedule_for_cleanup(f.id)
+        for f in synced_b.files:
+            if f.name == name_b:
                 self.schedule_for_cleanup(f.id)

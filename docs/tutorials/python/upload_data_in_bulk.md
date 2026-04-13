@@ -57,7 +57,7 @@ tools to open and manipulate CSV files.
 
 First let's set up some constants we'll use in this script, and find the ID of our project
 ```python
-{!docs/tutorials/python/tutorial_scripts/upload_data_in_bulk.py!lines=5-21}
+{!docs/tutorials/python/tutorial_scripts/upload_data_in_bulk.py!lines=5-15}
 ```
 
 ## 2. Create a manifest CSV file to upload data in bulk
@@ -66,7 +66,7 @@ Let's walk our local directory and build a CSV manifest with the required `path`
 `parentId` columns. In a future release `Project.sync_from_synapse` will support
 writing a manifest CSV directly; for now we build one with pandas.
 ```python
-{!docs/tutorials/python/tutorial_scripts/upload_data_in_bulk.py!lines=22-41}
+{!docs/tutorials/python/tutorial_scripts/upload_data_in_bulk.py!lines=20-32}
 ```
 
 <details class="example">
@@ -74,20 +74,20 @@ writing a manifest CSV directly; for now we build one with pandas.
 similar to this:</summary>
 ```
 path,parentId
-/home/user_name/my_ad_project/single_cell_RNAseq_batch_2/SRR12345678_R2.fastq.gz,syn60109500
-/home/user_name/my_ad_project/single_cell_RNAseq_batch_2/SRR12345678_R1.fastq.gz,syn60109500
-/home/user_name/my_ad_project/biospecimen_experiment_2/fileD.txt,syn60109500
-/home/user_name/my_ad_project/biospecimen_experiment_2/fileC.txt,syn60109500
-/home/user_name/my_ad_project/single_cell_RNAseq_batch_1/SRR12345678_R2.fastq.gz,syn60109500
-/home/user_name/my_ad_project/single_cell_RNAseq_batch_1/SRR12345678_R1.fastq.gz,syn60109500
-/home/user_name/my_ad_project/biospecimen_experiment_1/fileA.txt,syn60109500
-/home/user_name/my_ad_project/biospecimen_experiment_1/fileB.txt,syn60109500
+/home/user_name/my_ad_project/single_cell_RNAseq_batch_2/SRR12345678_R2.fastq.gz,syn60109537
+/home/user_name/my_ad_project/single_cell_RNAseq_batch_2/SRR12345678_R1.fastq.gz,syn60109537
+/home/user_name/my_ad_project/biospecimen_experiment_2/fileD.txt,syn60109543
+/home/user_name/my_ad_project/biospecimen_experiment_2/fileC.txt,syn60109543
+/home/user_name/my_ad_project/single_cell_RNAseq_batch_1/SRR12345678_R2.fastq.gz,syn60109534
+/home/user_name/my_ad_project/single_cell_RNAseq_batch_1/SRR12345678_R1.fastq.gz,syn60109534
+/home/user_name/my_ad_project/biospecimen_experiment_1/fileA.txt,syn60109540
+/home/user_name/my_ad_project/biospecimen_experiment_1/fileB.txt,syn60109540
 ```
 </details>
 
 ## 3. Upload the data in bulk
 ```python
-{!docs/tutorials/python/tutorial_scripts/upload_data_in_bulk.py!lines=43-45}
+{!docs/tutorials/python/tutorial_scripts/upload_data_in_bulk.py!lines=34-36}
 ```
 
 
@@ -113,7 +113,7 @@ you are not comfortable with pandas you may use any tool that can open and manip
 CSV files such as Excel or Google Sheets.
 
 ```python
-{!docs/tutorials/python/tutorial_scripts/upload_data_in_bulk.py!lines=47-61}
+{!docs/tutorials/python/tutorial_scripts/upload_data_in_bulk.py!lines=38-52}
 ```
 
 Now that you have uploaded and annotated your files you'll be able to inspect your data
@@ -135,7 +135,7 @@ Synapse. Additionally we'll link off to a sample URL that describes a process th
 may have executed to generate the file.
 
 ```python
-{!docs/tutorials/python/tutorial_scripts/upload_data_in_bulk.py!lines=63-91}
+{!docs/tutorials/python/tutorial_scripts/upload_data_in_bulk.py!lines=54-81}
 ```
 
 After running this code we may again inspect the synapse web UI. In this screenshot i've

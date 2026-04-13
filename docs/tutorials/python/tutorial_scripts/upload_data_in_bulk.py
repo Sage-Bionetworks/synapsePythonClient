@@ -2,7 +2,7 @@
 Here is where you'll find the code for the uploading data in bulk tutorial.
 """
 
-import os
+import pandas as pd
 
 import synapseclient
 from synapseclient.models import Project
@@ -10,38 +10,31 @@ from synapseclient.models import Project
 syn = synapseclient.Synapse()
 syn.login()
 
-# Create some constants to store the paths to the data
-DIRECTORY_FOR_MY_PROJECT = os.path.expanduser(os.path.join("~", "my_ad_project"))
-PATH_TO_MANIFEST_FILE = os.path.expanduser(os.path.join("~", "manifest-for-upload.csv"))
+# Step 1: Create some constants to store the paths to the data
+DIRECTORY_FOR_MY_PROJECT = "test_folder"  # This should exist with your files in it
+PATH_TO_MANIFEST_FILE = "test_manifest.csv"  # This doesn't need to exist yet
+SYNAPSE_PROJECT_ID = "syn74396054"
 
-# Step 1: Let's find the synapse ID of our project:
-my_project_id = syn.findEntityId(
-    name="My uniquely named project about Alzheimer's Disease"
+# TODO switch to using new version of synapseutils/sync.py.generate_sync_manifest
+# https://sagebionetworks.jira.com/browse/SYNPY-1809
+
+# Step 2: Create a manifest CSV file with the paths to the files and their parent folders
+# old function generates a TSV
+from synapseutils import generate_sync_manifest
+
+generate_sync_manifest(
+    syn=syn,
+    directory_path=DIRECTORY_FOR_MY_PROJECT,
+    parent_id=SYNAPSE_PROJECT_ID,
+    manifest_path=PATH_TO_MANIFEST_FILE,
 )
-
-# Step 2: Create a manifest CSV file to upload data in bulk
-# Walk the local directory tree and build a manifest with the required "path" and
-# "parentId" columns.  Folders that do not yet exist in Synapse are created
-# automatically by sync_to_synapse, so we set parentId to the project for every file.
-# TODO: https://sagebionetworks.jira.com/browse/SYNPY-1804
-# In a future release, Project.sync_from_synapse will support writing a manifest CSV directly, removing the need to build one manually.
-import pandas as pd
-
-rows = []
-for dirpath, _dirnames, filenames in os.walk(DIRECTORY_FOR_MY_PROJECT):
-    for filename in filenames:
-        rows.append(
-            {
-                "path": os.path.join(dirpath, filename),
-                "parentId": my_project_id,
-            }
-        )
-
-df = pd.DataFrame(rows)
-df.to_csv(PATH_TO_MANIFEST_FILE, index=False)
+# reformat the manifest file to work with sync_to_synapse
+manifest_df = pd.read_csv(PATH_TO_MANIFEST_FILE, sep="\t")
+manifest_df.rename(columns={"parent": "parentId"}, inplace=True)
+manifest_df.to_csv(PATH_TO_MANIFEST_FILE, index=False)
 
 # Step 3: After generating the manifest file, we can upload the data in bulk
-project = Project(id=my_project_id)
+project = Project(id=SYNAPSE_PROJECT_ID)
 project.sync_to_synapse(manifest_path=PATH_TO_MANIFEST_FILE, send_messages=False)
 
 # Step 4: Let's add an annotation to our manifest file
