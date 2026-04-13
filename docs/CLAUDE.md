@@ -33,6 +33,7 @@ Reference markdown files use `::: synapseclient.ClassName` syntax to trigger aut
 - `filters: ["!^_", "!to_synapse_request", "!fill_from_dict"]` — private members, `to_synapse_request()`, and `fill_from_dict()` are excluded from docs
 - `inherited_members: true` — shows mixin methods on inheriting classes
 - Member lists are explicit — each reference page specifies which methods to document
+- When adding a new public method to a model class, add it to the `members:` list in the corresponding reference pages (`docs/reference/experimental/sync/` and `docs/reference/experimental/async/`). Without this, mkdocstrings won't generate an anchor and cross-references like `[synapseclient.models.ClassName.method]` will break.
 
 ### Anchor links for cross-referencing
 Pattern: `[](){ #reference-anchor }` in reference pages. Tutorials link to reference via `[API Reference][project-reference-sync]`. Explicit type hints use: `[syn.login][synapseclient.Synapse.login]`.
