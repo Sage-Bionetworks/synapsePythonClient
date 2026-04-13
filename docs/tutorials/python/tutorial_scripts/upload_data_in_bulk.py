@@ -13,7 +13,7 @@ syn.login()
 # Step 1: Create some constants to store the paths to the data
 DIRECTORY_FOR_MY_PROJECT = "test_folder"  # This should exist with your files in it
 PATH_TO_MANIFEST_FILE = "test_manifest.csv"  # This doesn't need to exist yet
-SYNAPSE_PROJECT_ID = "syn74396054"
+SYNAPSE_PROJECT_ID = ""  # Put your Synapse project ID here. This is the project where you want to upload your data.
 
 # TODO switch to using new version of synapseutils/sync.py.generate_sync_manifest
 # https://sagebionetworks.jira.com/browse/SYNPY-1809

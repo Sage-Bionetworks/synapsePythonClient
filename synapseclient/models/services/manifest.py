@@ -595,7 +595,7 @@ async def _sort_and_fix_provenance(syn: Synapse, df: DataFrame) -> DataFrame:
         SynapseProvenanceError: If a provenance item is neither a local file
             path, a URL, nor a valid Synapse ID.
     """
-    df = df.set_index("path")
+    df = df.set_index("path").copy()
 
     results = await asyncio.gather(
         *[_resolve_row(str(path), row, df, syn) for path, row in df.iterrows()]
