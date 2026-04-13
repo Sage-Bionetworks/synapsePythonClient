@@ -67,11 +67,6 @@ manifest that maps each file to the correct parent folder in Synapse (creating f
 as needed). The output is a TSV with a `parent` column, so we convert it to CSV and
 rename `parent` to `parentId` for use with `sync_to_synapse`.
 
-!!! note
-    `sync_to_synapse` does **not** create folders automatically — every `parentId` in
-    the manifest must already exist in Synapse. `generate_sync_manifest` handles this
-    by creating the folder hierarchy and writing the correct parent IDs.
-
 ```python
 {!docs/tutorials/python/tutorial_scripts/upload_data_in_bulk.py!lines=20-39}
 ```
