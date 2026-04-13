@@ -57,7 +57,7 @@ tools to open and manipulate CSV files.
 
 First let's set up some constants we'll use in this script
 ```python
-{!docs/tutorials/python/tutorial_scripts/upload_data_in_bulk.py!lines=5-15}
+{!docs/tutorials/python/tutorial_scripts/upload_data_in_bulk.py!lines=5-16}
 ```
 
 ## 2. Create a manifest CSV file to upload data in bulk
@@ -73,7 +73,7 @@ rename `parent` to `parentId` for use with `sync_to_synapse`.
     by creating the folder hierarchy and writing the correct parent IDs.
 
 ```python
-{!docs/tutorials/python/tutorial_scripts/upload_data_in_bulk.py!lines=20-34}
+{!docs/tutorials/python/tutorial_scripts/upload_data_in_bulk.py!lines=20-39}
 ```
 
 <details class="example">
@@ -94,7 +94,7 @@ path,parentId
 
 ## 3. Upload the data in bulk
 ```python
-{!docs/tutorials/python/tutorial_scripts/upload_data_in_bulk.py!lines=36-38}
+{!docs/tutorials/python/tutorial_scripts/upload_data_in_bulk.py!lines=41-43}
 ```
 
 
@@ -120,7 +120,7 @@ you are not comfortable with pandas you may use any tool that can open and manip
 CSV files such as Excel or Google Sheets.
 
 ```python
-{!docs/tutorials/python/tutorial_scripts/upload_data_in_bulk.py!lines=40-54}
+{!docs/tutorials/python/tutorial_scripts/upload_data_in_bulk.py!lines=45-59}
 ```
 
 Now that you have uploaded and annotated your files you'll be able to inspect your data
@@ -142,7 +142,7 @@ Synapse. Additionally we'll link off to a sample URL that describes a process th
 may have executed to generate the file.
 
 ```python
-{!docs/tutorials/python/tutorial_scripts/upload_data_in_bulk.py!lines=56-83}
+{!docs/tutorials/python/tutorial_scripts/upload_data_in_bulk.py!lines=61-88}
 ```
 
 After running this code we may again inspect the synapse web UI. In this screenshot i've

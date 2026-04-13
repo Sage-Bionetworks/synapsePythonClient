@@ -19,6 +19,11 @@ SYNAPSE_PROJECT_ID = "syn74396054"
 # https://sagebionetworks.jira.com/browse/SYNPY-1809
 
 # Step 2: Create a manifest CSV file with the paths to the files and their parent folders
+# Note: When this command is run it will re-create your directory structure within
+# Synapse. Be aware of this before running this command.
+# If folders with the exact names already exists in Synapse, those folders will be used.
+
+
 # old function generates a TSV
 from synapseutils import generate_sync_manifest
 
