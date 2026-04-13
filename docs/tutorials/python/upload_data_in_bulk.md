@@ -23,7 +23,7 @@ With a project that has this example layout:
 
 In this tutorial you will:
 
-1. Find the synapse ID of your project
+1. Set up constants for your project
 1. Create a manifest CSV file to upload data in bulk
 1. Upload all of the files for our project
 1. Add an annotation to all of our files
@@ -53,20 +53,27 @@ portion of the tutorial if you do not wish to use Pandas. You may also use exter
 tools to open and manipulate CSV files.
 
 
-## 1. Find the synapse ID of your project
+## 1. Set up constants
 
-First let's set up some constants we'll use in this script, and find the ID of our project
+First let's set up some constants we'll use in this script
 ```python
 {!docs/tutorials/python/tutorial_scripts/upload_data_in_bulk.py!lines=5-15}
 ```
 
 ## 2. Create a manifest CSV file to upload data in bulk
 
-Let's walk our local directory and build a CSV manifest with the required `path` and
-`parentId` columns. In a future release `Project.sync_from_synapse` will support
-writing a manifest CSV directly; for now we build one with pandas.
+We use `synapseutils.generate_sync_manifest` to walk our local directory and produce a
+manifest that maps each file to the correct parent folder in Synapse (creating folders
+as needed). The output is a TSV with a `parent` column, so we convert it to CSV and
+rename `parent` to `parentId` for use with `sync_to_synapse`.
+
+!!! note
+    `sync_to_synapse` does **not** create folders automatically — every `parentId` in
+    the manifest must already exist in Synapse. `generate_sync_manifest` handles this
+    by creating the folder hierarchy and writing the correct parent IDs.
+
 ```python
-{!docs/tutorials/python/tutorial_scripts/upload_data_in_bulk.py!lines=20-32}
+{!docs/tutorials/python/tutorial_scripts/upload_data_in_bulk.py!lines=20-34}
 ```
 
 <details class="example">
@@ -87,7 +94,7 @@ path,parentId
 
 ## 3. Upload the data in bulk
 ```python
-{!docs/tutorials/python/tutorial_scripts/upload_data_in_bulk.py!lines=34-36}
+{!docs/tutorials/python/tutorial_scripts/upload_data_in_bulk.py!lines=36-38}
 ```
 
 
@@ -113,7 +120,7 @@ you are not comfortable with pandas you may use any tool that can open and manip
 CSV files such as Excel or Google Sheets.
 
 ```python
-{!docs/tutorials/python/tutorial_scripts/upload_data_in_bulk.py!lines=38-52}
+{!docs/tutorials/python/tutorial_scripts/upload_data_in_bulk.py!lines=40-54}
 ```
 
 Now that you have uploaded and annotated your files you'll be able to inspect your data
@@ -135,7 +142,7 @@ Synapse. Additionally we'll link off to a sample URL that describes a process th
 may have executed to generate the file.
 
 ```python
-{!docs/tutorials/python/tutorial_scripts/upload_data_in_bulk.py!lines=54-81}
+{!docs/tutorials/python/tutorial_scripts/upload_data_in_bulk.py!lines=56-83}
 ```
 
 After running this code we may again inspect the synapse web UI. In this screenshot i've
@@ -161,7 +168,7 @@ navigated to the Files tab and selected the file that we added a Provenance reco
 ## References used in this tutorial
 
 - [syn.login][synapseclient.Synapse.login]
-- [syn.findEntityId][synapseclient.Synapse.findEntityId]
+- [synapseutils.generate_sync_manifest][]
 - [Project.sync_to_synapse][synapseclient.models.mixins.StorableContainer.sync_to_synapse]
 - [Manifest CSV format](../../explanations/manifest_csv.md)
 - [Activity/Provenance](../../explanations/domain_models_of_synapse.md#activityprovenance)
