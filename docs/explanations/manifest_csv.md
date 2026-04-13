@@ -2,7 +2,8 @@
 
 The manifest is a CSV file with file locations and metadata used to bulk upload and download files in Synapse. It is the standard manifest format used by `Project.sync_from_synapse`, `Project.sync_to_synapse`, `Folder.sync_from_synapse`, `Folder.sync_to_synapse`, the Synapse UI download cart, and the `synapse get-download-list` CLI command.
 
-**Note:** This CSV manifest replaces the legacy TSV manifest produced by `synapseutils.syncFromSynapse`. The `syncFromSynapse` and `syncToSynapse` utility functions are deprecated and will be removed in v5.0.0. Use `Project.sync_from_synapse` / `Folder.sync_from_synapse` and `Project.sync_to_synapse` / `Folder.sync_to_synapse` instead. See the [legacy TSV manifest documentation](manifest_tsv.md) for details on the old format.
+!!! note
+    This CSV manifest replaces the legacy TSV manifest produced by `synapseutils.syncFromSynapse`. The `syncFromSynapse` and `syncToSynapse` utility functions are deprecated and will be removed in v5.0.0. Use `Project.sync_from_synapse` / `Folder.sync_from_synapse` and `Project.sync_to_synapse` / `Folder.sync_to_synapse` instead. See the [legacy TSV manifest documentation](manifest_tsv.md) for details on the old format.
 
 ## Manifest file format
 
@@ -15,7 +16,8 @@ The format of the manifest file is a comma-separated value (CSV) file with one r
 | path     | local file path or URL     | /path/to/local/file.txt |
 | parentId | Synapse ID of parent       | syn1235                 |
 
-**Note:** The legacy TSV manifest used a column named `parent`. The CSV manifest uses `parentId` instead, which is consistent with the Synapse REST API field name. If you are migrating an existing TSV manifest to CSV, rename the `parent` column to `parentId`.
+!!! note
+    The legacy TSV manifest used a column named `parent`. The CSV manifest uses `parentId` instead, which is consistent with the Synapse REST API field name. If you are migrating an existing TSV manifest to CSV, rename the `parent` column to `parentId`.
 
 ### Standard fields
 
