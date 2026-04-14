@@ -865,7 +865,7 @@ def _create_upload_tasks(
     1. Collects the already-created asyncio.Task objects for its
        prerequisites -- these are guaranteed to exist because of the
        topological ordering.
-    2. Creates a new asyncio.Task wrapping _upload_item_async, passing
+    2. Creates a new asyncio.Task wrapping _upload_file_async, passing
        the prerequisite tasks in. That function calls asyncio.wait() on
        them before uploading, so the file will not start uploading until
        its dependencies finish.
@@ -900,8 +900,8 @@ def _create_upload_tasks(
 
         upload_item = upload_plan.path_to_upload_item[file_path]
         file_task = asyncio.create_task(
-            _upload_item_async(
-                item=upload_item.entity,
+            _upload_file_async(
+                file_entity=upload_item.entity,
                 used=upload_item.used,
                 executed=upload_item.executed,
                 activity_name=upload_item.activity_name,
@@ -935,7 +935,7 @@ def _build_activity_linkage(
          version, returned as UsedEntity).
        - If none match, raises ValueError.
 
-    The resolved_file_ids dict is built by _upload_item_async after
+    The resolved_file_ids dict is built by _upload_file_async after
     prerequisite uploads finish, mapping each uploaded file's local path to
     the Synapse ID it received. This is how provenance references between
     files in the same manifest batch get wired up: file A uploads first and
@@ -947,7 +947,7 @@ def _build_activity_linkage(
             a File object (already resolved from provenance), or a string that is
             a local file path, URL, or Synapse ID.
         resolved_file_ids: A dictionary that maps the local path of a file to the
-            Synapse ID it received after upload. Populated by _upload_item_async
+            Synapse ID it received after upload. Populated by _upload_file_async
             once prerequisite uploads complete.
 
     Returns:
@@ -1005,8 +1005,8 @@ def _resolve_linkage_item(
     )
 
 
-async def _upload_item_async(
-    item: File,
+async def _upload_file_async(
+    file_entity: File,
     used: Iterable[str | File],
     executed: Iterable[str | File],
     activity_name: str,
@@ -1016,8 +1016,31 @@ async def _upload_item_async(
 ) -> File:
     """Upload a single file, waiting for any provenance dependencies to finish first.
 
+    This function is invoked as an asyncio.Task by _create_upload_tasks. Many
+    instances run concurrently, but each one self-serializes by awaiting only
+    its specific prerequisites. Files with no dependencies start uploading
+    immediately in parallel.
+
+    The flow:
+
+    1. Wait for prerequisites -- if this file declares provenance on other
+       files in the same manifest batch (e.g. "file B was derived from
+       file A"), those files must be uploaded first so they have Synapse IDs.
+       asyncio.wait blocks until all prerequisite upload tasks finish, then
+       a path-to-Synapse-ID mapping is collected from their results.
+    2. Build provenance linkages -- converts the raw used and executed
+       references (local paths, URLs, Synapse IDs, or File objects) into
+       typed UsedEntity/UsedURL objects. Local paths are resolved to Synapse
+       IDs using the mapping from step 1.
+    3. Attach Activity -- if any provenance references exist, creates an
+       Activity with the name, description, and linkages, and attaches it
+       to the file.
+    4. Store -- calls file_entity.store_async() to perform the actual upload.
+    5. Return -- the returned File (now with a Synapse ID) becomes available
+       to downstream tasks that depend on it via the resolved mapping.
+
     Arguments:
-        item: The File entity to upload.
+        file_entity: The File entity to upload.
         used: Provenance used references (paths, URLs, Synapse IDs, or File
             objects).
         executed: Provenance executed references.
@@ -1036,19 +1059,26 @@ async def _upload_item_async(
     """
     from synapseclient.models import Activity
 
+    # Step 1: Wait for prerequisite uploads to finish and collect their
+    # Synapse IDs so provenance references can point to them.
     resolved_file_ids: dict[str, str] = {}
     if prerequisite_tasks:
         finished_dependencies, pending = await asyncio.wait(
             prerequisite_tasks, return_when=asyncio.ALL_COMPLETED
         )
+        # Defensive check: ALL_COMPLETED guarantees pending is empty, but
+        # guard against unexpected asyncio behavior or future refactors.
         if pending:
             raise RuntimeError(
-                f"There were {len(pending)} dependencies left when storing {item}"
+                f"There were {len(pending)} dependencies left when storing {file_entity}"
             )
         for finished_dependency in finished_dependencies:
-            result = finished_dependency.result()
+            result: File = finished_dependency.result()
             resolved_file_ids[result.path] = result.id
 
+    # Step 2: Convert raw provenance references (local paths, URLs, Synapse
+    # IDs, File objects) into typed UsedEntity/UsedURL objects. Local paths
+    # are resolved to Synapse IDs using the mapping built in step 1.
     used_activity = _build_activity_linkage(
         used_or_executed=used, resolved_file_ids=resolved_file_ids
     )
@@ -1056,15 +1086,18 @@ async def _upload_item_async(
         used_or_executed=executed, resolved_file_ids=resolved_file_ids
     )
 
+    # Step 3: Attach an Activity to the file if provenance was declared.
     if used_activity or executed_activity:
-        item.activity = Activity(
+        file_entity.activity = Activity(
             name=activity_name,
             description=activity_description,
             used=used_activity,
             executed=executed_activity,
         )
-    await item.store_async(synapse_client=syn)
-    return item
+
+    # Step 4: Upload and return the file (now with a Synapse ID).
+    await file_entity.store_async(synapse_client=syn)
+    return file_entity
 
 
 def _split_csv_cell(input_string: str) -> list[str]:
@@ -1142,24 +1175,20 @@ async def _resolve_provenance_column(
     if isinstance(cell, list):
         items = cell
     else:
-        # cell is guaranteed to be a str here; .strip() is safe.
         items = list(cell.split(";")) if cell.strip() != "" else []
 
-    return [
-        r
-        for r in await asyncio.gather(
-            *[
-                _resolve_provenance_item(
-                    item.strip() if isinstance(item, str) else item,
-                    owner_path=path,
-                    syn=syn,
-                    df=df,
-                )
-                for item in items
-            ]
-        )
-        if r is not None
-    ]
+    resolved = await asyncio.gather(
+        *[
+            _resolve_provenance_item(
+                item.strip() if isinstance(item, str) else item,
+                owner_path=path,
+                syn=syn,
+                df=df,
+            )
+            for item in items
+        ]
+    )
+    return [item for item in resolved if item is not None]
 
 
 async def _resolve_provenance_item(
@@ -1198,19 +1227,31 @@ async def _resolve_provenance_item(
 
 
 async def _resolve_local_file_provenance(
-    item: str, owner_path: str, syn: Synapse, df: DataFrame
+    raw_path: str, owner_path: str, syn: Synapse, manifest_by_path: DataFrame
 ) -> str | File:
     """Resolve a local file path to either an in-batch path or a Synapse File.
 
-    If the file is part of the current upload batch (present in df.index),
-    returns its absolute path. Otherwise, looks it up in Synapse by MD5 hash.
+    Given a manifest row that declares provenance on a local file, this
+    function determines where that file is:
+
+    1. If the file does not exist on disk, the provenance reference is
+       broken and a SynapseProvenanceError is raised.
+    2. If the file is in the current upload batch (present in
+       manifest_by_path.index), its absolute path is returned as a string.
+       The Synapse ID will be resolved later, after that file is uploaded.
+    3. If the file exists on disk but is not being uploaded, it is looked
+       up in Synapse by MD5 hash. If found, the File object is returned
+       so its Synapse ID can be used for provenance. If not found, a
+       SynapseProvenanceError is raised because the reference cannot be
+       linked.
 
     Arguments:
-        item: A local file path string from a provenance cell.
+        raw_path: A local file path string from a provenance cell, not yet
+            expanded or normalized.
         owner_path: The manifest file path of the file that declares this
             provenance reference. Used only for error messages.
         syn: Authenticated Synapse client.
-        df: The manifest DataFrame (path-indexed).
+        manifest_by_path: The manifest DataFrame indexed by absolute file path.
 
     Returns:
         str — the absolute path if the file is in the upload batch.
@@ -1222,21 +1263,21 @@ async def _resolve_local_file_provenance(
     """
     from synapseclient.models.file import File
 
-    item_path = _expand_path(item)
+    absolute_path = _expand_path(raw_path)
 
-    if not os.path.isfile(item_path):
+    if not os.path.isfile(absolute_path):
         raise SynapseProvenanceError(
             f"The provenance record for file: {owner_path} is incorrect.\n"
-            f"Specifically {item} is not an existing file path, a valid URL, or a Synapse ID."
+            f"Specifically {raw_path} is not an existing file path, a valid URL, or a Synapse ID."
         )
 
-    if item_path in df.index:
-        return item_path
+    if absolute_path in manifest_by_path.index:
+        return absolute_path
 
     try:
-        return await File.from_path_async(path=item_path, synapse_client=syn)
+        return await File.from_path_async(path=absolute_path, synapse_client=syn)
     except SynapseFileNotFoundError as e:
         raise SynapseProvenanceError(
             f"The provenance record for file: {owner_path} is incorrect.\n"
-            f"Specifically {item_path} is not being uploaded and is not in Synapse."
+            f"Specifically {absolute_path} is not being uploaded and is not in Synapse."
         ) from e
