@@ -1,5 +1,6 @@
 """Unit tests for the CurationTask and Grid models."""
 
+import os
 from unittest.mock import AsyncMock, patch
 
 import pytest
@@ -817,6 +818,81 @@ class TestGrid:
             assert len(results) == 1
             assert results[0].session_id == SESSION_ID
 
+    async def test_import_csv_async_without_session_id(self) -> None:
+        """Test that calling import_csv_async without a session_id raises a ValueError."""
+        # GIVEN a Grid without a session_id
+        grid = Grid()
+
+        # WHEN I call import_csv_async
+        # THEN it should raise ValueError
+        with pytest.raises(
+            ValueError,
+            match="session_id is required to import a CSV into a GridSession",
+        ):
+            await grid.import_csv_async(
+                synapse_client=self.syn, file_handle_id="1234567"
+            )
+
+    async def test_import_csv_async(self) -> None:
+        """Test the import_csv_async method of the Grid class, ensuring it correctly calls the preview and import requests and logs the results."""
+        # GIVEN a Grid with a session_id
+        grid = Grid(session_id=SESSION_ID)
+
+        # Mock the CreateGridRequest's send_job_and_wait_async
+        csv_table_descriptor = CsvTableDescriptor(
+            separator=",",
+            quote_character='"',
+            escape_character="\\",
+            line_end=os.linesep,
+            is_first_line_header=True,
+        )
+        mock_preview = UploadToTablePreviewRequest(
+            csv_table_descriptor=csv_table_descriptor,
+            suggested_columns=[
+                Column(name="col1", column_type="STRING", maximum_size=50)
+            ],
+            sample_rows=[["value1"]],
+            rows_scanned=1,
+        )
+        mock_import = GridCsvImportRequest(
+            file_handle_id="1234567",
+            csv_descriptor=csv_table_descriptor,
+            schema=UploadToTablePreviewRequest.suggested_columns,
+            total_count=1,
+            created_count=1,
+            updated_count=1,
+        )
+
+        # WHEN I call import_csv_async
+        with (
+            patch.object(
+                UploadToTablePreviewRequest,
+                "send_job_and_wait_async",
+                new_callable=AsyncMock,
+                return_value=mock_preview,
+            ),
+            patch.object(
+                GridCsvImportRequest,
+                "send_job_and_wait_async",
+                new_callable=AsyncMock,
+                return_value=mock_import,
+            ),
+            patch.object(self.syn, "logger") as mock_logger,
+        ):
+            result = await grid.import_csv_async(
+                synapse_client=self.syn, file_handle_id="1234567"
+            )
+
+        # THEN the grid should be populated with session data
+        assert result.session_id == SESSION_ID
+
+        # AND the log message should contain the import counts
+        mock_logger.info.assert_called_once()
+        log_message = mock_logger.info.call_args[0][0]
+        assert "total count: 1" in log_message
+        assert "total created: 1" in log_message
+        assert "total updated: 1" in log_message
+
 
 class TestCreateGridRequest:
     """Tests for the CreateGridRequest helper dataclass."""
@@ -904,7 +980,7 @@ class TestUploadToTablePreviewRequest:
             name="Diagnosis", column_type="STRING", maximum_size=7
         )
         assert preview_response.suggested_columns[4] == Column(
-            name="PatientID", column_type="INTEGER", max_size=None
+            name="PatientID", column_type="INTEGER", maximum_size=None
         )
         assert preview_response.sample_rows == [
             [None, "Female", "test", "Healthy", "1", None, None, None]

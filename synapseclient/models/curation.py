@@ -1081,7 +1081,7 @@ class UploadToTablePreviewRequest(AsynchronousCommunicator):
     upload_file_handle_id: Optional[str] = None
     """The ID of the file handle for a type of UPLOAD"""
 
-    line_to_skip: Optional[int] = None
+    lines_to_skip: Optional[int] = None
     """The number of lines to skip from the start of the file. The default value of 0 will be used if this is not provided by the caller."""
 
     csv_table_descriptor: CsvTableDescriptor = field(default_factory=CsvTableDescriptor)
@@ -1137,8 +1137,8 @@ class UploadToTablePreviewRequest(AsynchronousCommunicator):
         request_dict: Dict[str, Any] = {"concreteType": self.concrete_type}
         if self.upload_file_handle_id is not None:
             request_dict["uploadFileHandleId"] = self.upload_file_handle_id
-        if self.line_to_skip is not None:
-            request_dict["linesToSkip"] = self.line_to_skip
+        if self.lines_to_skip is not None:
+            request_dict["linesToSkip"] = self.lines_to_skip
         if self.csv_table_descriptor is not None:
             request_dict["csvTableDescriptor"] = (
                 self.csv_table_descriptor.to_synapse_request()
@@ -2094,13 +2094,21 @@ class Grid(GridSynchronousProtocol):
             asyncio.run(main())
             ```
         """
+
+        if not self.session_id:
+            raise ValueError(
+                "session_id is required to import a CSV into a GridSession"
+            )
+
         upload_to_table_preview = UploadToTablePreviewRequest(
             csv_table_descriptor=csv_table_descriptor,
             upload_file_handle_id=file_handle_id,
         )
+
         preview_response = await upload_to_table_preview.send_job_and_wait_async(
             timeout=timeout
         )
+
         # ROW_ID and ROW_VERSION must be prepended to the schema to avoid:
         # SynapseHTTPError: 400 Client Error: The CSV header does not match the schema size.
         all_columns = [
@@ -2117,7 +2125,8 @@ class Grid(GridSynchronousProtocol):
         import_response = await import_request.send_job_and_wait_async(
             synapse_client=synapse_client, timeout=timeout
         )
-        print(
+        client = Synapse.get_client(synapse_client=synapse_client)
+        client.logger.info(
             f"CSV import to grid session {self.session_id} completed successfully, total count: {import_response.total_count}, total created: {import_response.created_count}, total updated: {import_response.updated_count}"
         )
         return self
