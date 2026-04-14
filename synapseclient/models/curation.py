@@ -38,12 +38,7 @@ from synapseclient.core.constants.concrete_types import (
 from synapseclient.core.utils import delete_none_keys, merge_dataclass_entities
 from synapseclient.models.mixins.asynchronous_job import AsynchronousCommunicator
 from synapseclient.models.recordset import ValidationSummary
-from synapseclient.models.table_components import (
-    Column,
-    ColumnType,
-    CsvTableDescriptor,
-    Query,
-)
+from synapseclient.models.table_components import Column, CsvTableDescriptor, Query
 
 
 @dataclass
@@ -2106,15 +2101,10 @@ class Grid(GridSynchronousProtocol):
         )
 
         preview_response = await upload_to_table_preview.send_job_and_wait_async(
-            timeout=timeout
+            timeout=timeout, synapse_client=synapse_client
         )
 
-        # ROW_ID and ROW_VERSION must be prepended to the schema to avoid:
-        # SynapseHTTPError: 400 Client Error: The CSV header does not match the schema size.
-        all_columns = [
-            Column(name="ROW_ID", column_type=ColumnType.STRING),
-            Column(name="ROW_VERSION", column_type=ColumnType.STRING),
-        ] + preview_response.suggested_columns
+        all_columns = preview_response.suggested_columns
         import_request = GridCsvImportRequest(
             session_id=self.session_id,
             file_handle_id=file_handle_id,
@@ -2123,7 +2113,7 @@ class Grid(GridSynchronousProtocol):
         if csv_table_descriptor:
             import_request.csv_descriptor = csv_table_descriptor
         import_response = await import_request.send_job_and_wait_async(
-            synapse_client=synapse_client, timeout=timeout
+            timeout=timeout, synapse_client=synapse_client
         )
         client = Synapse.get_client(synapse_client=synapse_client)
         client.logger.info(
