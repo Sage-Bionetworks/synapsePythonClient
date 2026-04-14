@@ -65,6 +65,7 @@ jobs:
       IMAGE_NAME: rebuild-image:local
       TARFILE_NAME: ${{ needs.build.outputs.tarfile_artifact }}
       EXIT_CODE: 1
+      ARTIFACT_NAME_SUFFIX: -rebuild
     permissions:
       contents: read
       security-events: write
