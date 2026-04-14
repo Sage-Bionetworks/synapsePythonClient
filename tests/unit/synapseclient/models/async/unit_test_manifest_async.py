@@ -1666,7 +1666,7 @@ class TestUploadItemAsync:
         dep_file = _make_file_mock("/dep.txt", "syn_dep")
 
         # Create a real future that resolves to dep_file
-        dep_future = asyncio.get_event_loop().create_future()
+        dep_future = asyncio.get_running_loop().create_future()
         dep_future.set_result(dep_file)
 
         mock_file = _make_file_mock("/main.txt", "syn_main")
