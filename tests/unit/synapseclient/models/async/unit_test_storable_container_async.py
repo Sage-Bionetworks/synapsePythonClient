@@ -73,10 +73,10 @@ class TestSyncToSynapse:
         )
 
         with patch(
-            "synapseclient.models.mixins.storable_container.SyncUploader"
-        ) as mock_uploader_cls:
+            "synapseclient.models.mixins.storable_container.upload_sync_files"
+        ) as mock_upload:
             result = await _TEST_PROJECT.sync_to_synapse_async(
                 manifest_path=str(manifest_path), synapse_client=self.syn
             )
-            mock_uploader_cls.return_value.upload.assert_not_called()
+            mock_upload.assert_not_called()
             assert result == []

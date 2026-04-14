@@ -77,7 +77,7 @@ _COMMAS_OUTSIDE_DOUBLE_QUOTES_PATTERN = re.compile(r",(?=(?:[^\"]*\"[^\"]*\")*[^
 _FILE_NAME_PATTERN = re.compile(r"^[`\w \-\+\.\(\)]{1,256}$")
 
 
-class SyncUploadItem(NamedTuple):
+class UploadSyncFile(NamedTuple):
     """Represents a single file being uploaded.
 
     Attributes:
@@ -96,246 +96,12 @@ class SyncUploadItem(NamedTuple):
     activity_description: str | None
 
 
-@dataclass
-class SyncUploader:
-    """Manages the uploads associated with a sync_to_synapse call.
-
-    Files will be uploaded concurrently and in an order that honours any
-    interdependent provenance.
-    """
-
-    syn: Synapse
-
-    @dataclass
-    class DependencyGraph:
-        """The graph that represents the dependencies of the files to be uploaded.
-
-        Attributes:
-            path_to_dependencies: A dictionary where the key is the path of the file and
-                the value is a list of paths that need to be uploaded before the key can
-                be uploaded.
-            path_to_upload_item: A dictionary where the key is the path of the file and
-                the value is the upload item that is associated with the file.
-            path_to_file_check: A dictionary where the key is the path of the file and
-                the value is a boolean that represents if the file is a file or not.
-        """
-
-        path_to_dependencies: dict[str, list[str]]
-        path_to_upload_item: dict[str, SyncUploadItem]
-        path_to_file_check: dict[str, bool]
-
-    def _build_dependency_graph(
-        self, items: Iterable[SyncUploadItem]
-    ) -> DependencyGraph:
-        """Determine the order in which the files should be uploaded based on their
-        dependencies.  This will also verify that the dependencies are valid and that
-        there are no cycles in the graph.
-
-        Arguments:
-            items: The list of items to upload.
-
-        Return:
-            A graph that represents information about how to upload the graph of items
-            into Synapse.
-        """
-        items_by_path = {i.entity.path: i for i in items}
-        graph: dict[str, list[str]] = {}
-        resolved_file_checks: dict[str, bool] = {}
-
-        for item in items:
-            item_file_provenance: list[str] = []
-            for provenance_dependency in item.used + item.executed:
-                # File objects (already in Synapse) are not local-path
-                # dependencies — skip them in the dependency graph.
-                if not isinstance(provenance_dependency, str):
-                    continue
-                if provenance_dependency in resolved_file_checks:
-                    is_file = resolved_file_checks[provenance_dependency]
-                else:
-                    is_file = os.path.isfile(provenance_dependency)
-                    resolved_file_checks[provenance_dependency] = is_file
-                if is_file:
-                    if provenance_dependency not in items_by_path:
-                        raise ValueError(
-                            f"{item.entity.path} depends on"
-                            f" {provenance_dependency} which is not being uploaded"
-                        )
-                    item_file_provenance.append(provenance_dependency)
-
-            graph[item.entity.path] = item_file_provenance
-
-        graph_sorted = topolgical_sort(graph)
-        path_to_dependencies_sorted: dict[str, list[str]] = {}
-        path_to_upload_items_sorted: dict[str, SyncUploadItem] = {}
-        for path, dependency_paths in graph_sorted:
-            path_to_dependencies_sorted[path] = dependency_paths
-            path_to_upload_items_sorted[path] = items_by_path.get(path)
-
-        return self.DependencyGraph(
-            path_to_dependencies=path_to_dependencies_sorted,
-            path_to_upload_item=path_to_upload_items_sorted,
-            path_to_file_check=resolved_file_checks,
-        )
-
-    def _build_tasks_from_dependency_graph(
-        self, dependency_graph: DependencyGraph
-    ) -> list[asyncio.Task]:
-        """Build the asyncio tasks that will be used to upload the files in the correct
-        order based on their dependencies.
-
-        Arguments:
-            dependency_graph: The graph that represents the dependencies of the files to
-                be uploaded.
-
-        Return:
-            A list of asyncio tasks that will upload the files in the correct order.
-        """
-        created_tasks_by_path: dict[str, asyncio.Task] = {}
-
-        for (
-            file_path,
-            dependent_file_paths,
-        ) in dependency_graph.path_to_dependencies.items():
-            dependent_tasks: list[asyncio.Task] = []
-            for dependent_file in dependent_file_paths:
-                task = created_tasks_by_path.get(dependent_file)
-                if task is not None:
-                    dependent_tasks.append(task)
-
-            upload_item = dependency_graph.path_to_upload_item.get(file_path)
-            file_task = asyncio.create_task(
-                self._upload_item_async(
-                    item=upload_item.entity,
-                    used=upload_item.used,
-                    executed=upload_item.executed,
-                    activity_name=upload_item.activity_name,
-                    activity_description=upload_item.activity_description,
-                    dependent_futures=dependent_tasks,
-                )
-            )
-            created_tasks_by_path[file_path] = file_task
-
-        return list(created_tasks_by_path.values())
-
-    async def upload(self, items: Iterable[SyncUploadItem]) -> list[File]:
-        """Upload a number of files to Synapse as provided in the manifest file.  This
-        will handle ordering the files based on their dependency graph.
-
-        Arguments:
-            items: The list of items to upload.
-
-        Returns:
-            List of File entities that were created or updated, in the same
-            order as the dependency-graph task execution.
-        """
-        dependency_graph = self._build_dependency_graph(items=list(items))
-        tasks = self._build_tasks_from_dependency_graph(
-            dependency_graph=dependency_graph
-        )
-        results = await asyncio.gather(*tasks)
-        return list(results)
-
-    def _build_activity_linkage(
-        self,
-        used_or_executed: Iterable[str | File],
-        resolved_file_ids: dict[str, str],
-    ) -> list[UsedEntity | UsedURL]:
-        """Loop over the incoming list of used or executed items and build the
-        appropriate UsedEntity or UsedURL objects.
-
-        Arguments:
-            used_or_executed: The list of used or executed items.
-            resolved_file_ids: A dictionary that maps the path of a file to its Synapse
-                ID.
-
-        Returns:
-            A list of UsedEntity or UsedURL objects.
-        """
-        from synapseclient.models import UsedEntity, UsedURL
-
-        returned_linkage: list[UsedEntity | UsedURL] = []
-        for item in used_or_executed:
-            if not isinstance(item, str):
-                # item is a File object resolved from provenance — use its ID
-                returned_linkage.append(UsedEntity(target_id=item.id))
-                continue
-            resolved_file_id = resolved_file_ids.get(item, None)
-            if resolved_file_id:
-                returned_linkage.append(UsedEntity(target_id=resolved_file_id))
-            elif is_url(item):
-                returned_linkage.append(UsedURL(url=item))
-            else:
-                if not is_synapse_id_str(item):
-                    raise ValueError(f"{item} is not a valid Synapse id")
-                syn_id, version = get_synid_and_version(item)
-                target_version = int(version) if version else None
-                returned_linkage.append(
-                    UsedEntity(target_id=syn_id, target_version_number=target_version)
-                )
-        return returned_linkage
-
-    async def _upload_item_async(
-        self,
-        item: File,
-        used: Iterable[str | File],
-        executed: Iterable[str | File],
-        activity_name: str,
-        activity_description: str,
-        dependent_futures: list[asyncio.Future],
-    ) -> File:
-        """Upload a single file, waiting for any provenance dependencies to finish first.
-
-        Arguments:
-            item: The File entity to upload.
-            used: Provenance used references (paths, URLs, Synapse IDs, or File
-                objects).
-            executed: Provenance executed references.
-            activity_name: Name for the provenance Activity.
-            activity_description: Description for the provenance Activity.
-            dependent_futures: Futures for files that must be uploaded before this one.
-
-        Returns:
-            The stored File entity.
-        """
-        from synapseclient.models import Activity
-
-        resolved_file_ids: dict[str, str] = {}
-        if dependent_futures:
-            finished_dependencies, pending = await asyncio.wait(
-                dependent_futures, return_when=asyncio.ALL_COMPLETED
-            )
-            if pending:
-                raise RuntimeError(
-                    f"There were {len(pending)} dependencies left when storing {item}"
-                )
-            for finished_dependency in finished_dependencies:
-                result = finished_dependency.result()
-                resolved_file_ids[result.path] = result.id
-
-        used_activity = self._build_activity_linkage(
-            used_or_executed=used, resolved_file_ids=resolved_file_ids
-        )
-        executed_activity = self._build_activity_linkage(
-            used_or_executed=executed, resolved_file_ids=resolved_file_ids
-        )
-
-        if used_activity or executed_activity:
-            item.activity = Activity(
-                name=activity_name,
-                description=activity_description,
-                used=used_activity,
-                executed=executed_activity,
-            )
-        await item.store_async(synapse_client=self.syn)
-        return item
-
-
 async def read_manifest_for_upload(
     manifest_path: str,
     syn: Synapse,
     merge_existing_annotations: bool,
     associate_activity_to_new_version: bool,
-) -> tuple[list[SyncUploadItem], int]:
+) -> tuple[list[UploadSyncFile], int]:
     """Read and validate a manifest CSV file, returning items ready for upload.
 
     Accepts manifests produced by StorableContainer.sync_from_synapse,
@@ -353,75 +119,34 @@ async def read_manifest_for_upload(
 
     Returns:
         A tuple of (items, total_bytes) where items is a list of
-        SyncUploadItem objects ready for upload and total_bytes is the
+        UploadSyncFile objects ready for upload and total_bytes is the
         combined size of all local files.
 
     Raises:
         ValueError: If required columns are missing, paths are not unique,
-            files are empty, or file names are invalid.
-        OSError: If a non-URL path in the manifest does not exist on disk.
+            files are empty, file names are invalid, or a parentId is not a
+            Folder or Project.
+        OSError: If a non-URL path does not exist on disk.
+        SynapseProvenanceError: If a provenance item is neither a local file
+            path, a URL, nor a valid Synapse ID.
+        SynapseHTTPError: If a parentId does not exist in Synapse.
     """
-    test_import_pandas()
-    import pandas as pd
-
     syn.logger.info(f"Validating manifest: {manifest_path}")
-    df = pd.read_csv(manifest_path)
-
-    # Skip rows that failed to download (error column added by get-download-list)
-    if "error" in df.columns:
-        df = df[df["error"].fillna("") == ""]
+    df = _clean_manifest(manifest_path)
 
     if df.empty:
         return [], 0
 
-    # Validate required columns before attempting any column-dependent operations
-    for col in ("path", "parentId"):
-        if col not in df.columns:
-            raise ValueError(f"Manifest must contain a '{col}' column")
+    syn.logger.info("Validating manifest contents...")
+    total_size = _validate_manifest(df)
 
-    # synapseStore defaults must be set before fillna("") so that isnull()
-    # correctly identifies rows that still need the default (True). After
-    # fillna the NaN sentinels would be replaced with "" and isnull() would
-    # return False for every row.
-    if "synapseStore" not in df.columns:
-        df["synapseStore"] = None
-    df.loc[df["path"].apply(is_url), "synapseStore"] = False
-    df.loc[df["synapseStore"].isnull(), "synapseStore"] = True
-    df["synapseStore"] = df["synapseStore"].astype(bool)
-
-    df = df.fillna("")
-
-    syn.logger.info("Validating that all paths exist...")
-    df["path"] = df["path"].apply(_check_path_and_normalize)
-
-    syn.logger.info("Validating that all files are unique...")
-    if df["path"].duplicated().any():
-        raise ValueError(
-            "All rows in manifest must contain a unique file path to upload"
-        )
-
-    if "name" not in df.columns:
-        df["name"] = df["path"].apply(os.path.basename)
-    empty_names = df["name"] == ""
-    if empty_names.any():
-        df.loc[empty_names, "name"] = df.loc[empty_names, "path"].apply(
-            os.path.basename
-        )
-
-    syn.logger.info("Validating that all the files are not empty...")
-    total_size = _check_size_each_file(df)
-
-    syn.logger.info("Validating file names...")
-    _check_file_names(df)
-
-    parent_ids = df["parentId"].unique()
     syn.logger.info("Validating provenance and parent containers...")
     df, _ = await asyncio.gather(
         _sort_and_fix_provenance(syn, df),
-        _check_parent_containers_async(parent_ids, syn=syn),
+        _check_parent_containers_async(df["parentId"].unique(), syn=syn),
     )
 
-    items = _build_upload_items(
+    items = _build_upload_files(
         df,
         merge_existing_annotations=merge_existing_annotations,
         associate_activity_to_new_version=associate_activity_to_new_version,
@@ -430,44 +155,140 @@ async def read_manifest_for_upload(
     return items, total_size
 
 
-def _split_csv_cell(input_string: str) -> list[str]:
-    """Split a string on commas that are not inside double quotes.
+def _clean_manifest(manifest_path: str) -> DataFrame:
+    """Read a manifest CSV and return a cleaned DataFrame ready for validation.
 
     Arguments:
-        input_string: A string to split apart.
+        manifest_path: Path to the CSV manifest file.
 
     Returns:
-        The list of split items as strings.
+        A cleaned DataFrame. May be empty if all rows were filtered out.
+
+    Raises:
+        ValueError: If required columns (path, parentId) are missing, or if
+            file paths are not unique.
+        OSError: If a non-URL path does not exist on disk.
     """
-    parts = _COMMAS_OUTSIDE_DOUBLE_QUOTES_PATTERN.split(input_string)
-    return [item.strip() for item in parts]
+    df = _read_and_filter_errors(manifest_path)
+    if df.empty:
+        return df
+
+    _check_required_columns(df)
+    _apply_synapse_store_defaults(df)
+    df = df.fillna("")
+    df["path"] = df["path"].apply(_check_path_and_normalize)
+    _check_unique_paths(df)
+    _default_name_column(df)
+    return df
 
 
-def _check_size_each_file(df: DataFrame) -> int:
-    """Raise ValueError if any non-URL file in the manifest is empty (0 bytes).
+def _read_and_filter_errors(manifest_path: str) -> DataFrame:
+    """Read a manifest CSV and drop rows with a non-empty error column.
+
+    The error column is added by the Synapse get-download-list CLI and the
+    Synapse UI download cart to mark rows that failed to download.
 
     Arguments:
-        df: Manifest DataFrame containing a path column. Rows whose
-            path is a URL are skipped.
+        manifest_path: Path to the CSV manifest file.
+
+    Returns:
+        A DataFrame with error rows removed. May be empty.
+    """
+    test_import_pandas()
+    import pandas as pd
+
+    df = pd.read_csv(manifest_path)
+    if "error" in df.columns:
+        df = df[df["error"].fillna("") == ""]
+    return df
+
+
+def _check_required_columns(df: DataFrame) -> None:
+    """Raise ValueError if the manifest is missing required columns.
+
+    Arguments:
+        df: A non-empty manifest DataFrame.
+
+    Raises:
+        ValueError: If path or parentId columns are missing.
+    """
+    for col in ("path", "parentId"):
+        if col not in df.columns:
+            raise ValueError(f"Manifest must contain a '{col}' column")
+
+
+def _check_unique_paths(df: DataFrame) -> None:
+    """Raise ValueError if any file path appears more than once.
+
+    Arguments:
+        df: Manifest DataFrame with a normalized path column.
+
+    Raises:
+        ValueError: If duplicate paths are found.
+    """
+    if df["path"].duplicated().any():
+        raise ValueError(
+            "All rows in manifest must contain a unique file path to upload"
+        )
+
+
+def _default_name_column(df: DataFrame) -> None:
+    """Ensure every row has a name, defaulting to the basename of the path.
+
+    Creates the name column if it does not exist.  For rows where the name
+    is blank, fills it from the path column.  Mutates df in place.
+
+    Arguments:
+        df: Manifest DataFrame with a path column.
+    """
+    if "name" not in df.columns:
+        df["name"] = df["path"].apply(os.path.basename)
+    empty_names = df["name"] == ""
+    if empty_names.any():
+        df.loc[empty_names, "name"] = df.loc[empty_names, "path"].apply(
+            os.path.basename
+        )
+
+
+def _validate_manifest(df: DataFrame) -> int:
+    """Run pure validation checks on a cleaned manifest DataFrame.
+
+    Arguments:
+        df: A non-empty, cleaned manifest DataFrame as returned by
+            _clean_manifest.
 
     Returns:
         Combined size in bytes of all local (non-URL) files in the manifest.
 
     Raises:
-        ValueError: If any local file referenced by the manifest has a size of
-            zero bytes.
+        ValueError: If any file is empty (0 bytes) or has an invalid name,
+            or if (name, parentId) pairs are not unique.
     """
-    total = 0
-    for _, row in df.iterrows():
-        file_path = row["path"]
-        if not is_url(file_path):
-            size = os.stat(file_path).st_size
-            if size == 0:
-                raise ValueError(
-                    f"File {file_path} is empty, empty files cannot be uploaded to Synapse"
-                )
-            total += size
-    return total
+    total_size = _check_size_each_file(df)
+    _check_file_names(df)
+    return total_size
+
+
+def _apply_synapse_store_defaults(df: "DataFrame") -> None:
+    """Set synapseStore column defaults on the manifest DataFrame in place.
+
+    Steps:
+        1. Creates the synapseStore column if the manifest CSV didn't include
+           one (defaults to None/NaN).
+        2. Sets URL rows to False -- files referenced by URL should not be
+           uploaded to Synapse storage.
+        3. Sets all remaining nulls to True -- local file paths should be
+           uploaded by default.
+        4. Casts the column to bool for consistent downstream usage.
+
+    Arguments:
+        df: Manifest DataFrame with at least a path column.
+    """
+    if "synapseStore" not in df.columns:
+        df["synapseStore"] = None
+    df.loc[df["path"].apply(is_url), "synapseStore"] = False
+    df.loc[df["synapseStore"].isnull(), "synapseStore"] = True
+    df["synapseStore"] = df["synapseStore"].astype(bool)
 
 
 def _check_path_and_normalize(f: str) -> str:
@@ -495,6 +316,33 @@ def _check_path_and_normalize(f: str) -> str:
 def _expand_path(path: str) -> str:
     """Expand ~ and environment variables, then return the absolute path."""
     return os.path.abspath(os.path.expandvars(os.path.expanduser(path)))
+
+
+def _check_size_each_file(df: DataFrame) -> int:
+    """Raise ValueError if any non-URL file in the manifest is empty (0 bytes).
+
+    Arguments:
+        df: Manifest DataFrame containing a path column. Rows whose
+            path is a URL are skipped.
+
+    Returns:
+        Combined size in bytes of all local (non-URL) files in the manifest.
+
+    Raises:
+        ValueError: If any local file referenced by the manifest has a size of
+            zero bytes.
+    """
+    total = 0
+    for _, row in df.iterrows():
+        file_path = row["path"]
+        if not is_url(file_path):
+            size = os.stat(file_path).st_size
+            if size == 0:
+                raise ValueError(
+                    f"File {file_path} is empty, empty files cannot be uploaded to Synapse"
+                )
+            total += size
+    return total
 
 
 def _check_file_names(df: DataFrame) -> None:
@@ -526,9 +374,75 @@ def _check_file_names(df: DataFrame) -> None:
         )
 
 
-async def _check_parent_containers_async(
-    parent_ids: Iterable[str], syn: Synapse
-) -> None:
+async def _sort_and_fix_provenance(syn: Synapse, df: DataFrame) -> DataFrame:
+    """Validate and normalize provenance references, then topologically sort the
+    manifest rows so that files are uploaded before any file that depends on them.
+
+    Each used and executed cell is split on ;, and each item is
+    resolved to an absolute path (if it is a local file being uploaded), a
+    Synapse entity (if the local file already exists in Synapse), or left as-is
+    if it is a URL or Synapse ID.
+
+    Arguments:
+        syn: Authenticated Synapse client, used to look up local files that are
+            not in the upload manifest but may already exist in Synapse.
+        df: Manifest DataFrame indexed or containing a path column, with
+            optional used and executed columns holding ;-delimited
+            provenance strings.
+
+    Returns:
+        A new DataFrame with the same rows reordered so that provenance
+        dependencies are uploaded before the files that reference them, and with
+        used and executed columns replaced by lists of resolved
+        references.
+
+    Raises:
+        SynapseProvenanceError: If a provenance item is neither a local file
+            path, a URL, nor a valid Synapse ID.
+    """
+    df = df.set_index("path").copy()
+
+    results = await asyncio.gather(
+        *[_resolve_row(str(path), row, df, syn) for path, row in df.iterrows()]
+    )
+
+    deps: dict[str, list[str]] = {}
+    for path, resolved in results:
+        # Write resolved provenance back into the DataFrame
+        for col, values in resolved.items():
+            df.at[path, col] = values
+
+        # Local file paths (str) are upload-order dependencies;
+        # File objects (already in Synapse) are not.
+        deps[path] = _local_path_refs(resolved)
+
+    sorted_order = [path for path, _deps in topolgical_sort(deps)]
+    df = df.reindex(sorted_order)
+    return df.reset_index()
+
+
+def _local_path_refs(
+    resolved: dict[str, list[str | File]],
+) -> list[str]:
+    """Extract local file path references from resolved provenance columns.
+
+    Local paths (str) represent files in the current upload batch that must be
+    uploaded first. File objects are already in Synapse and do not create
+    upload-order dependencies.
+
+    Arguments:
+        resolved: A dict mapping provenance column names (used, executed) to
+            their resolved reference lists.
+
+    Returns:
+        A flat list of local file path strings found across all columns.
+    """
+    return [
+        ref for values in resolved.values() for ref in values if isinstance(ref, str)
+    ]
+
+
+async def _check_parent_containers_async(parent_ids: list[str], syn: Synapse) -> None:
     """Verify that every parentId in the manifest is a valid Synapse container.
 
     All parent IDs are validated concurrently.
@@ -569,205 +483,26 @@ async def _check_parent_containers_async(
     await asyncio.gather(*[_check_one(syn_id) for syn_id in parent_ids])
 
 
-async def _sort_and_fix_provenance(syn: Synapse, df: DataFrame) -> DataFrame:
-    """Validate and normalize provenance references, then topologically sort the
-    manifest rows so that files are uploaded before any file that depends on them.
-
-    Each used and executed cell is split on ;, and each item is
-    resolved to an absolute path (if it is a local file being uploaded), a
-    Synapse entity (if the local file already exists in Synapse), or left as-is
-    if it is a URL or Synapse ID.
-
-    Arguments:
-        syn: Authenticated Synapse client, used to look up local files that are
-            not in the upload manifest but may already exist in Synapse.
-        df: Manifest DataFrame indexed or containing a path column, with
-            optional used and executed columns holding ;-delimited
-            provenance strings.
-
-    Returns:
-        A new DataFrame with the same rows reordered so that provenance
-        dependencies are uploaded before the files that reference them, and with
-        used and executed columns replaced by lists of resolved
-        references.
-
-    Raises:
-        SynapseProvenanceError: If a provenance item is neither a local file
-            path, a URL, nor a valid Synapse ID.
-    """
-    df = df.set_index("path").copy()
-
-    results = await asyncio.gather(
-        *[_resolve_row(str(path), row, df, syn) for path, row in df.iterrows()]
-    )
-
-    deps: dict[str, list[str]] = {}
-    for path, resolved in results:
-        all_refs: list[str] = []
-        for col, values in resolved.items():
-            df.at[path, col] = values
-            all_refs.extend(v for v in values if isinstance(v, str))
-        deps[path] = all_refs
-
-    sorted_paths = topolgical_sort(deps)
-    df = df.reindex([i[0] for i in sorted_paths])
-    return df.reset_index()
-
-
-async def _resolve_row(
-    path: str, row: Series, frame: DataFrame, client: Synapse
-) -> tuple[str, dict[str, list[str | File]]]:
-    """Resolve provenance columns for a single manifest row.
-
-    Arguments:
-        path: The file path for this row (used as its manifest key).
-        row: The pandas Series for this row.
-        frame: The full manifest DataFrame (path-indexed), passed through to
-            _resolve_provenance_column for cross-row lookups.
-        client: Authenticated Synapse client.
-
-    Returns:
-        A (path, resolved) tuple where resolved maps column names
-        (used and/or executed) to their resolved reference lists.
-    """
-    resolved: dict[str, list[str | File]] = {}
-    for col in ("used", "executed"):
-        if col in row:
-            resolved[col] = await _resolve_provenance_column(
-                row[col], path, client, frame
-            )
-    return path, resolved
-
-
-async def _resolve_provenance_column(
-    cell: str | list[str | File],
-    path: str,
-    syn: Synapse,
-    df: DataFrame,
-) -> list[str | File]:
-    """Parse and resolve all provenance references in a single manifest cell.
-
-    Handles cells that are already Python lists (converted by
-    _parse_annotation_cell) as well as raw
-    semicolon-delimited strings from the CSV.  Each item is validated and
-    resolved via _check_provenance.
-
-    Arguments:
-        cell: The raw cell value from the used or executed column —
-            either a semicolon-delimited string or an already-parsed list.
-        path: The manifest file path of the row that owns this cell. Used only
-            for error messages.
-        syn: Authenticated Synapse client.
-        df: The manifest DataFrame (path-indexed), used to check whether a
-            local file path is part of the current upload batch.
-
-    Returns:
-        A list of resolved provenance references.
-    """
-    items: list[str | File]
-    if isinstance(cell, list):
-        items = cell
-    else:
-        # cell is guaranteed to be a str here; .strip() is safe.
-        items = list(cell.split(";")) if cell.strip() != "" else []
-
-    return [
-        r
-        for r in await asyncio.gather(
-            *[
-                _check_provenance(
-                    item.strip() if isinstance(item, str) else item,
-                    path,
-                    syn,
-                    df,
-                )
-                for item in items
-            ]
-        )
-        if r is not None
-    ]
-
-
-async def _check_provenance(
-    item: str | File | None, path: str, syn: Synapse, df: DataFrame
-) -> str | File | None:
-    """Resolve and validate a single provenance reference.
-
-    Arguments:
-        item: A provenance item string — a local file path, a URL, a Synapse
-            ID, or None.
-        path: The manifest file path of the file that declares this provenance
-            reference. Used only for error messages.
-        syn: Authenticated Synapse client, used to look up local files that are
-            not in the upload manifest but may already exist in Synapse.
-        df: The manifest DataFrame (path-indexed), used to determine whether a
-            local file path is part of the current upload batch.
-
-    Returns:
-        str — an absolute local path (item in the upload batch), a URL,
-        or a Synapse ID passed through unchanged.
-        File — a Synapse File model resolved via MD5 lookup when the local
-        file already exists in Synapse but is not in the current upload batch.
-        None — when item is None.
-
-    Raises:
-        SynapseProvenanceError: If the item is a local file that is neither
-            being uploaded nor found in Synapse, or if the item is not a local
-            file path, URL, or valid Synapse ID.
-    """
-    if item is None:
-        return item
-
-    # Non-string items (e.g. File objects from a prior pass) are already resolved
-    if not isinstance(item, str):
-        return item
-
-    # URLs and Synapse IDs are valid provenance references as-is
-    if is_url(item) or (is_synapse_id_str(item) is not None):
-        return item
-
-    # Resolve as a local file path
-    item_path_normalized = _expand_path(item)
-
-    if not os.path.isfile(item_path_normalized):
-        raise SynapseProvenanceError(
-            f"The provenance record for file: {path} is incorrect.\n"
-            f"Specifically {item} is not an existing file path, a valid URL, or a Synapse ID."
-        )
-
-    # Local file in the upload batch
-    if item_path_normalized in df.index:
-        return item_path_normalized
-
-    # Local file not in the upload batch — check if it already exists in Synapse using MD5 hash.
-    # Lazy import to avoid circular dependency with synapseclient.models.
-    from synapseclient.models.file import File
-
-    try:
-        return await File.from_path_async(path=item_path_normalized, synapse_client=syn)
-    except SynapseFileNotFoundError as e:
-        raise SynapseProvenanceError(
-            f"The provenance record for file: {path} is incorrect.\n"
-            f"Specifically {item_path_normalized} is not being uploaded and is not in Synapse."
-        ) from e
-
-
-def _build_upload_items(
+def _build_upload_files(
     df: DataFrame,
     merge_existing_annotations: bool,
     associate_activity_to_new_version: bool,
-) -> list[SyncUploadItem]:
-    """Convert a validated manifest DataFrame into a list of upload items.
+) -> list[UploadSyncFile]:
+    """Convert a validated manifest DataFrame into a list of UploadSyncFile objects,
+    one per manifest row.
 
     All columns not in NON_ANNOTATION_COLUMNS are treated as annotations.
 
     Arguments:
         df: Validated manifest DataFrame (after provenance sort).
-        merge_existing_annotations: Passed through to each File.
-        associate_activity_to_new_version: Passed through to each File.
+        merge_existing_annotations: If True, manifest annotations are merged with
+            existing annotations on each File in Synapse. If False, manifest
+            annotations replace them entirely.
+        associate_activity_to_new_version: If True and a version update occurs,
+            the existing Synapse activity will be associated with the new version.
 
     Returns:
-        List of upload items.
+        List of UploadSyncFile objects ready for upload, one per manifest row.
     """
     from synapseclient.models.file import (
         File,  # lazy import to avoid circular dependency
@@ -775,16 +510,6 @@ def _build_upload_items(
 
     items = []
     for _, row in df.iterrows():
-        raw_force_version = row.get("forceVersion", "")
-        if raw_force_version == "":
-            force_version = True
-        elif isinstance(raw_force_version, bool):
-            force_version = raw_force_version
-        else:
-            # CSV strings like "True"/"False" need explicit conversion;
-            # fall back to True if the value is unrecognisable.
-            parsed = bool_or_none(str(raw_force_version))
-            force_version = parsed if parsed is not None else True
         file_entity = File(
             path=row["path"],
             parent_id=row["parentId"],
@@ -792,7 +517,7 @@ def _build_upload_items(
             id=row.get("ID") or None,
             synapse_store=row.get("synapseStore", True),
             content_type=row.get("contentType") or None,
-            force_version=force_version,
+            force_version=_parse_force_version(row.get("forceVersion", "")),
             merge_existing_annotations=merge_existing_annotations,
             associate_activity_to_new_version=associate_activity_to_new_version,
             _present_manifest_fields=list(row.index),
@@ -803,7 +528,7 @@ def _build_upload_items(
         }
         file_entity.annotations = _build_annotations_for_file(annotation_cols)
 
-        item = SyncUploadItem(
+        item = UploadSyncFile(
             file_entity,
             used=row.get("used", []) or [],
             executed=row.get("executed", []) or [],
@@ -813,6 +538,37 @@ def _build_upload_items(
         items.append(item)
 
     return items
+
+
+def _parse_force_version(raw: object) -> bool:
+    """Parse a forceVersion cell into a bool, defaulting to True.
+
+    The input comes from a CSV cell which can arrive in several forms
+    depending on whether the column existed, was blank, or had a value.
+    The conversion cascade is:
+
+    1. Missing or blank (empty string / None) -- the manifest did not
+       include a forceVersion column, or the cell was left empty. Defaults
+       to True (force a new version), the safe default for uploads.
+    2. Already a bool -- pandas infers the column type as bool when every
+       row contains True/False. Used as-is.
+    3. Parseable string -- CSV strings like "True"/"False" that pandas
+       read as str. bool_or_none handles case-insensitive conversion.
+    4. Anything else -- unrecognizable values (e.g. "yes", "1", garbage)
+       fall back to True.
+
+    Arguments:
+        raw: The raw cell value from the forceVersion manifest column.
+
+    Returns:
+        True if a new version should be forced, False otherwise.
+    """
+    if raw == "" or raw is None:
+        return True
+    if isinstance(raw, bool):
+        return raw
+    parsed = bool_or_none(str(raw))
+    return parsed if parsed is not None else True
 
 
 def _build_annotations_for_file(
@@ -952,3 +708,535 @@ def _parse_literal(value: str) -> int | float | str | None:
     except (ValueError, SyntaxError):
         pass
     return None
+
+
+async def upload_sync_files(files: list[UploadSyncFile], syn: Synapse) -> list[File]:
+    """Upload files to Synapse concurrently in an order that honours
+    interdependent provenance dependencies.
+
+    Arguments:
+        files: The list of UploadSyncFile items to upload.
+        syn: Authenticated Synapse client.
+
+    Returns:
+        List of File entities that were created or updated, in the same
+        order as the dependency-graph task execution.
+
+    Raises:
+        ValueError: If a provenance reference points to a local file not
+            in the upload batch, or if a provenance item is not a valid
+            Synapse ID.
+        RuntimeError: If prerequisite upload tasks fail to complete.
+    """
+    plan = _build_upload_plan(items=list(files))
+    tasks = _create_upload_tasks(upload_plan=plan, syn=syn)
+    results = await asyncio.gather(*tasks)
+    return list(results)
+
+
+@dataclass
+class _UploadPlan:
+    """Topologically sorted upload plan built from manifest provenance dependencies.
+
+    Attributes:
+        path_to_dependencies: Maps each file path to the list of file paths that
+            must be uploaded before it (i.e. its provenance dependencies).
+        path_to_upload_item: Maps each file path to its UploadSyncFile, ordered
+            by the resolved dependency sort.
+        path_to_file_check: Cache of os.path.isfile results for provenance
+            references encountered during dependency resolution.
+    """
+
+    path_to_dependencies: dict[str, list[str]]
+    path_to_upload_item: dict[str, UploadSyncFile]
+    path_to_file_check: dict[str, bool]
+
+
+def _build_upload_plan(
+    items: list[UploadSyncFile],
+) -> _UploadPlan:
+    """Determine the order in which files should be uploaded, given that some
+    files depend on others via provenance.
+
+    A manifest CSV can declare that file B was derived from file A
+    (provenance). If B is uploaded before A, B's provenance record cannot
+    reference A's Synapse ID because A does not have one yet. This
+    function ensures the upload order respects those constraints.
+
+    Steps:
+        1. Build a dependency graph. For each file in the upload batch,
+           scan its used and executed provenance references. If a
+           reference points to a local file that is also being uploaded,
+           that is a dependency edge. If it points to a local file that
+           is not in the batch, that is an error.
+        2. Topologically sort the graph. This produces an ordering where
+           every file comes after its dependencies, guaranteeing that by
+           the time B is uploaded, A already has a Synapse ID.
+        3. Package the result into an _UploadPlan.
+
+    Arguments:
+        items: The list of items to upload.
+
+    Returns:
+        An _UploadPlan containing the topologically sorted dependency map
+        and the upload items keyed by file path.
+
+    Raises:
+        ValueError: If a provenance reference points to a local file
+            that is not part of the upload batch.
+    """
+    items_by_path = {i.entity.path: i for i in items}
+    file_check_cache: dict[str, bool] = {}
+
+    graph: dict[str, list[str]] = {}
+    for item in items:
+        graph[item.entity.path] = _resolve_file_dependencies(
+            item, items_by_path, file_check_cache
+        )
+
+    graph_sorted = topolgical_sort(graph)
+    path_to_dependencies_sorted = {path: deps for path, deps in graph_sorted}
+    path_to_upload_items_sorted = {
+        path: items_by_path[path] for path in path_to_dependencies_sorted
+    }
+
+    return _UploadPlan(
+        path_to_dependencies=path_to_dependencies_sorted,
+        path_to_upload_item=path_to_upload_items_sorted,
+        path_to_file_check=file_check_cache,
+    )
+
+
+def _resolve_file_dependencies(
+    item: UploadSyncFile,
+    items_by_path: dict[str, UploadSyncFile],
+    file_check_cache: dict[str, bool],
+) -> list[str]:
+    """Return local-file provenance paths that this item depends on.
+
+    Arguments:
+        item: The upload item whose provenance references to resolve.
+        items_by_path: All items in the upload batch keyed by file path.
+        file_check_cache: Mutable cache of os.path.isfile results,
+            updated in place for any new paths encountered.
+
+    Returns:
+        A list of absolute file paths from the upload batch that this
+        item depends on via provenance.
+
+    Raises:
+        ValueError: If a provenance reference points to a local file
+            that is not part of the upload batch.
+    """
+    deps: list[str] = []
+    for ref in item.used + item.executed:
+        # File objects (already in Synapse) are not local-path
+        # dependencies — skip them in the dependency graph.
+        if not isinstance(ref, str):
+            continue
+        if ref not in file_check_cache:
+            file_check_cache[ref] = os.path.isfile(ref)
+        if file_check_cache[ref]:
+            if ref not in items_by_path:
+                raise ValueError(
+                    f"{item.entity.path} depends on"
+                    f" {ref} which is not being uploaded"
+                )
+            deps.append(ref)
+    return deps
+
+
+def _create_upload_tasks(
+    upload_plan: _UploadPlan,
+    syn: Synapse,
+) -> list[asyncio.Task]:
+    """Build an asyncio task graph that uploads files concurrently while
+    honouring provenance dependencies.
+
+    The manifest may declare that file B was derived from file A
+    (provenance). A must be uploaded before B so that B's provenance
+    record can reference A's Synapse ID. Files with no dependency
+    relationship upload concurrently.
+
+    The function iterates over the upload plan's dependency map (already
+    topologically sorted, so dependencies always appear before
+    dependents). For each file it:
+
+    1. Collects the already-created asyncio.Task objects for its
+       prerequisites -- these are guaranteed to exist because of the
+       topological ordering.
+    2. Creates a new asyncio.Task wrapping _upload_item_async, passing
+       the prerequisite tasks in. That function calls asyncio.wait() on
+       them before uploading, so the file will not start uploading until
+       its dependencies finish.
+    3. Stores the new task so later files can reference it as a
+       prerequisite.
+
+    The returned list can be passed directly to asyncio.gather(). The
+    concurrency constraints are encoded inside the tasks themselves
+    (each one awaits its own prerequisites), so gather fires them all
+    off but they naturally serialize where needed.
+
+    Example: if A has no deps, B depends on A, and C has no deps:
+        - A and C start uploading immediately (in parallel).
+        - B's task starts but immediately awaits A's task.
+        - Once A finishes, B proceeds with A's Synapse ID available for
+          its provenance record.
+
+    Arguments:
+        upload_plan: The topologically sorted upload plan produced by
+            _build_upload_plan.
+        syn: Authenticated Synapse client.
+
+    Returns:
+        A list of asyncio tasks, one per file, that can be passed to
+        asyncio.gather for concurrent execution.
+    """
+    created_tasks_by_path: dict[str, asyncio.Task] = {}
+
+    for file_path, prerequisite_paths in upload_plan.path_to_dependencies.items():
+        # Topological sort guarantees every prerequisite was already created.
+        prerequisite_tasks = [created_tasks_by_path[p] for p in prerequisite_paths]
+
+        upload_item = upload_plan.path_to_upload_item[file_path]
+        file_task = asyncio.create_task(
+            _upload_item_async(
+                item=upload_item.entity,
+                used=upload_item.used,
+                executed=upload_item.executed,
+                activity_name=upload_item.activity_name,
+                activity_description=upload_item.activity_description,
+                prerequisite_tasks=prerequisite_tasks,
+                syn=syn,
+            )
+        )
+        created_tasks_by_path[file_path] = file_task
+
+    return list(created_tasks_by_path.values())
+
+
+def _build_activity_linkage(
+    used_or_executed: Iterable[str | File],
+    resolved_file_ids: dict[str, str],
+) -> list[UsedEntity | UsedURL]:
+    """Convert raw provenance references into typed Synapse objects (UsedEntity
+    or UsedURL) that the Activity model expects.
+
+    Each item in the input list is one of two things:
+
+    1. A File object -- already resolved from a prior provenance pass. Its
+       id is extracted and wrapped in a UsedEntity.
+    2. A string -- delegated to _resolve_linkage_item, which checks in
+       priority order:
+       - A local file path that was just uploaded (found in
+         resolved_file_ids, mapped to a Synapse ID, returned as UsedEntity).
+       - A URL (returned as UsedURL).
+       - A Synapse ID like syn123 or syn123.4 (parsed into ID + optional
+         version, returned as UsedEntity).
+       - If none match, raises ValueError.
+
+    The resolved_file_ids dict is built by _upload_item_async after
+    prerequisite uploads finish, mapping each uploaded file's local path to
+    the Synapse ID it received. This is how provenance references between
+    files in the same manifest batch get wired up: file A uploads first and
+    gets syn111, then when file B (which declares used: /path/to/A) uploads,
+    resolved_file_ids maps /path/to/A to syn111.
+
+    Arguments:
+        used_or_executed: The list of used or executed items. Each item is either
+            a File object (already resolved from provenance), or a string that is
+            a local file path, URL, or Synapse ID.
+        resolved_file_ids: A dictionary that maps the local path of a file to the
+            Synapse ID it received after upload. Populated by _upload_item_async
+            once prerequisite uploads complete.
+
+    Returns:
+        A list of UsedEntity or UsedURL objects.
+
+    Raises:
+        ValueError: If a string item is not a resolved file path, a URL, or a
+            valid Synapse ID.
+    """
+    from synapseclient.models import UsedEntity
+
+    return [
+        (
+            UsedEntity(target_id=item.id)
+            if not isinstance(item, str)
+            else _resolve_linkage_item(item, resolved_file_ids)
+        )
+        for item in used_or_executed
+    ]
+
+
+def _resolve_linkage_item(
+    item: str,
+    resolved_file_ids: dict[str, str],
+) -> UsedEntity | UsedURL:
+    """Resolve a single string provenance reference to a UsedEntity or UsedURL.
+
+    Arguments:
+        item: A string provenance reference — a local file path present in
+            resolved_file_ids, a URL, or a Synapse ID.
+        resolved_file_ids: Maps local file paths to their Synapse IDs (populated
+            after prerequisite uploads complete).
+
+    Returns:
+        A UsedEntity if the item resolves to a Synapse ID (either via
+        resolved_file_ids or directly), or a UsedURL if the item is a URL.
+
+    Raises:
+        ValueError: If the item is not a resolved file path, a URL, or a
+            valid Synapse ID.
+    """
+    from synapseclient.models import UsedEntity, UsedURL
+
+    resolved_file_id = resolved_file_ids.get(item)
+    if resolved_file_id:
+        return UsedEntity(target_id=resolved_file_id)
+    if is_url(item):
+        return UsedURL(url=item)
+    if not is_synapse_id_str(item):
+        raise ValueError(f"{item} is not a valid Synapse id")
+    syn_id, version = get_synid_and_version(item)
+    return UsedEntity(
+        target_id=syn_id,
+        target_version_number=int(version) if version else None,
+    )
+
+
+async def _upload_item_async(
+    item: File,
+    used: Iterable[str | File],
+    executed: Iterable[str | File],
+    activity_name: str,
+    activity_description: str,
+    prerequisite_tasks: list[asyncio.Task],
+    syn: Synapse,
+) -> File:
+    """Upload a single file, waiting for any provenance dependencies to finish first.
+
+    Arguments:
+        item: The File entity to upload.
+        used: Provenance used references (paths, URLs, Synapse IDs, or File
+            objects).
+        executed: Provenance executed references.
+        activity_name: Name for the provenance Activity.
+        activity_description: Description for the provenance Activity.
+        prerequisite_tasks: Tasks for files that must be uploaded before this one.
+        syn: Authenticated Synapse client.
+
+    Returns:
+        The stored File entity.
+
+    Raises:
+        RuntimeError: If prerequisite tasks have not all completed.
+        ValueError: If a provenance item is not a resolved file ID, a URL,
+            or a valid Synapse ID.
+    """
+    from synapseclient.models import Activity
+
+    resolved_file_ids: dict[str, str] = {}
+    if prerequisite_tasks:
+        finished_dependencies, pending = await asyncio.wait(
+            prerequisite_tasks, return_when=asyncio.ALL_COMPLETED
+        )
+        if pending:
+            raise RuntimeError(
+                f"There were {len(pending)} dependencies left when storing {item}"
+            )
+        for finished_dependency in finished_dependencies:
+            result = finished_dependency.result()
+            resolved_file_ids[result.path] = result.id
+
+    used_activity = _build_activity_linkage(
+        used_or_executed=used, resolved_file_ids=resolved_file_ids
+    )
+    executed_activity = _build_activity_linkage(
+        used_or_executed=executed, resolved_file_ids=resolved_file_ids
+    )
+
+    if used_activity or executed_activity:
+        item.activity = Activity(
+            name=activity_name,
+            description=activity_description,
+            used=used_activity,
+            executed=executed_activity,
+        )
+    await item.store_async(synapse_client=syn)
+    return item
+
+
+def _split_csv_cell(input_string: str) -> list[str]:
+    """Split a string on commas that are not inside double quotes.
+
+    Arguments:
+        input_string: A string to split apart.
+
+    Returns:
+        The list of split items as strings.
+    """
+    parts = _COMMAS_OUTSIDE_DOUBLE_QUOTES_PATTERN.split(input_string)
+    return [item.strip() for item in parts]
+
+
+async def _resolve_row(
+    path: str, row: Series, frame: DataFrame, client: Synapse
+) -> tuple[str, dict[str, list[str | File]]]:
+    """Resolve provenance columns for a single manifest row.
+
+    Arguments:
+        path: The file path for this row (used as its manifest key).
+        row: The pandas Series for this row.
+        frame: The full manifest DataFrame (path-indexed), passed through to
+            _resolve_provenance_column for cross-row lookups.
+        client: Authenticated Synapse client.
+
+    Returns:
+        A (path, resolved) tuple where resolved maps column names
+        (used and/or executed) to their resolved reference lists.
+
+    Raises:
+        SynapseProvenanceError: If a provenance item is neither a local file
+            path, a URL, nor a valid Synapse ID.
+    """
+    resolved: dict[str, list[str | File]] = {}
+    for col in ("used", "executed"):
+        if col in row:
+            resolved[col] = await _resolve_provenance_column(
+                row[col], path, client, frame
+            )
+    return path, resolved
+
+
+async def _resolve_provenance_column(
+    cell: str | list[str | File],
+    path: str,
+    syn: Synapse,
+    df: DataFrame,
+) -> list[str | File]:
+    """Parse and resolve all provenance references in a single manifest cell.
+
+    Handles cells that are already Python lists (converted by
+    _parse_annotation_cell) as well as raw
+    semicolon-delimited strings from the CSV.  Each item is validated and
+    resolved via _check_provenance.
+
+    Arguments:
+        cell: The raw cell value from the used or executed column —
+            either a semicolon-delimited string or an already-parsed list.
+        path: The manifest file path of the row that owns this cell. Used only
+            for error messages.
+        syn: Authenticated Synapse client.
+        df: The manifest DataFrame (path-indexed), used to check whether a
+            local file path is part of the current upload batch.
+
+    Returns:
+        A list of resolved provenance references.
+
+    Raises:
+        SynapseProvenanceError: If a provenance item is neither a local file
+            path, a URL, nor a valid Synapse ID.
+    """
+    items: list[str | File]
+    if isinstance(cell, list):
+        items = cell
+    else:
+        # cell is guaranteed to be a str here; .strip() is safe.
+        items = list(cell.split(";")) if cell.strip() != "" else []
+
+    return [
+        r
+        for r in await asyncio.gather(
+            *[
+                _resolve_provenance_item(
+                    item.strip() if isinstance(item, str) else item,
+                    owner_path=path,
+                    syn=syn,
+                    df=df,
+                )
+                for item in items
+            ]
+        )
+        if r is not None
+    ]
+
+
+async def _resolve_provenance_item(
+    item: str | File | None, owner_path: str, syn: Synapse, df: DataFrame
+) -> str | File | None:
+    """Resolve a single provenance reference to its normalized form.
+
+    Items that are already resolved (None, non-string File objects, URLs,
+    Synapse IDs) are returned as-is. Local file paths are handed off to
+    _resolve_local_file_provenance for batch/Synapse lookup.
+
+    Arguments:
+        item: A provenance reference — a local file path, a URL, a Synapse
+            ID, a File object from a prior resolution pass, or None.
+        owner_path: The manifest file path of the file that declares this
+            provenance reference. Used only for error messages.
+        syn: Authenticated Synapse client.
+        df: The manifest DataFrame (path-indexed), used to check whether a
+            local file path is part of the current upload batch.
+
+    Returns:
+        The resolved reference: a str (absolute local path, URL, or Synapse
+        ID), a File (looked up via MD5), or None.
+
+    Raises:
+        SynapseProvenanceError: If the item is a local file that is neither
+            being uploaded nor found in Synapse.
+    """
+    if item is None or not isinstance(item, str):
+        return item
+
+    if is_url(item) or is_synapse_id_str(item) is not None:
+        return item
+
+    return await _resolve_local_file_provenance(item, owner_path, syn, df)
+
+
+async def _resolve_local_file_provenance(
+    item: str, owner_path: str, syn: Synapse, df: DataFrame
+) -> str | File:
+    """Resolve a local file path to either an in-batch path or a Synapse File.
+
+    If the file is part of the current upload batch (present in df.index),
+    returns its absolute path. Otherwise, looks it up in Synapse by MD5 hash.
+
+    Arguments:
+        item: A local file path string from a provenance cell.
+        owner_path: The manifest file path of the file that declares this
+            provenance reference. Used only for error messages.
+        syn: Authenticated Synapse client.
+        df: The manifest DataFrame (path-indexed).
+
+    Returns:
+        str — the absolute path if the file is in the upload batch.
+        File — a Synapse File model if the file already exists in Synapse.
+
+    Raises:
+        SynapseProvenanceError: If the path does not exist on disk, or the
+            file is neither in the upload batch nor found in Synapse.
+    """
+    from synapseclient.models.file import File
+
+    item_path = _expand_path(item)
+
+    if not os.path.isfile(item_path):
+        raise SynapseProvenanceError(
+            f"The provenance record for file: {owner_path} is incorrect.\n"
+            f"Specifically {item} is not an existing file path, a valid URL, or a Synapse ID."
+        )
+
+    if item_path in df.index:
+        return item_path
+
+    try:
+        return await File.from_path_async(path=item_path, synapse_client=syn)
+    except SynapseFileNotFoundError as e:
+        raise SynapseProvenanceError(
+            f"The provenance record for file: {owner_path} is incorrect.\n"
+            f"Specifically {item_path} is not being uploaded and is not in Synapse."
+        ) from e

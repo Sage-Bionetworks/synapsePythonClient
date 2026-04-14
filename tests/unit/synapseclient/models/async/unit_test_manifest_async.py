@@ -12,23 +12,28 @@ import pytest
 from synapseclient import Synapse
 from synapseclient.models.services.manifest import (
     NON_ANNOTATION_COLUMNS,
-    SyncUploader,
-    SyncUploadItem,
+    UploadSyncFile,
+    _build_activity_linkage,
     _build_annotations_for_file,
-    _build_upload_items,
+    _build_upload_files,
+    _build_upload_plan,
     _check_file_names,
     _check_parent_containers_async,
     _check_path_and_normalize,
-    _check_provenance,
     _check_size_each_file,
+    _clean_manifest,
     _convert_value,
     _expand_path,
     _parse_annotation_cell,
     _parse_literal,
     _resolve_provenance_column,
+    _resolve_provenance_item,
     _sort_and_fix_provenance,
     _split_csv_cell,
+    _upload_item_async,
+    _validate_manifest,
     read_manifest_for_upload,
+    upload_sync_files,
 )
 
 
@@ -446,8 +451,8 @@ class TestSyncToSynapseAsync:
                 new=AsyncMock(return_value=(mock_items, 100)),
             ) as mock_read,
             patch(
-                "synapseclient.models.mixins.storable_container.SyncUploader"
-            ) as mock_uploader_cls,
+                "synapseclient.models.mixins.storable_container.upload_sync_files"
+            ) as mock_upload,
         ):
             result = await project.sync_to_synapse_async(
                 manifest_path=str(manifest),
@@ -455,7 +460,7 @@ class TestSyncToSynapseAsync:
                 synapse_client=self.syn,
             )
             mock_read.assert_awaited_once()
-            mock_uploader_cls.return_value.upload.assert_not_called()
+            mock_upload.assert_not_called()
             assert result == []
 
     async def test_upload_called_with_items(self, tmp_path: Path) -> None:
@@ -473,8 +478,6 @@ class TestSyncToSynapseAsync:
 
         mock_items = [MagicMock()]
         mock_uploaded = [MagicMock()]
-        mock_uploader = MagicMock()
-        mock_uploader.upload = AsyncMock(return_value=mock_uploaded)
 
         with (
             patch(
@@ -482,9 +485,9 @@ class TestSyncToSynapseAsync:
                 new=AsyncMock(return_value=(mock_items, 100)),
             ),
             patch(
-                "synapseclient.models.mixins.storable_container.SyncUploader",
-                return_value=mock_uploader,
-            ),
+                "synapseclient.models.mixins.storable_container.upload_sync_files",
+                new=AsyncMock(return_value=mock_uploaded),
+            ) as mock_upload,
         ):
             result = await project.sync_to_synapse_async(
                 manifest_path=str(manifest),
@@ -492,7 +495,7 @@ class TestSyncToSynapseAsync:
                 send_messages=False,
                 synapse_client=self.syn,
             )
-            mock_uploader.upload.assert_awaited_once_with(mock_items)
+            mock_upload.assert_awaited_once_with(mock_items, syn=self.syn)
             assert result is mock_uploaded
 
     async def test_empty_items_skips_upload(self, tmp_path: Path) -> None:
@@ -511,14 +514,14 @@ class TestSyncToSynapseAsync:
                 new=AsyncMock(return_value=([], 0)),
             ),
             patch(
-                "synapseclient.models.mixins.storable_container.SyncUploader"
-            ) as mock_uploader_cls,
+                "synapseclient.models.mixins.storable_container.upload_sync_files"
+            ) as mock_upload,
         ):
             result = await project.sync_to_synapse_async(
                 manifest_path=str(f),
                 synapse_client=self.syn,
             )
-            mock_uploader_cls.return_value.upload.assert_not_called()
+            mock_upload.assert_not_called()
             assert result == []
 
     async def test_merge_existing_annotations_passed_through(
@@ -593,7 +596,7 @@ class TestSortAndFixProvenance:
         assert list(result["path"]) == [str(f1), str(f2)]
 
     async def test_used_column_split_and_resolved(self, tmp_path: Path) -> None:
-        """Semicolon-delimited 'used' strings are split, resolved via _check_provenance,
+        """Semicolon-delimited 'used' strings are split, resolved via _resolve_provenance_item,
         and stored as lists on the returned DataFrame."""
         f = tmp_path / "file.txt"
         f.write_text("content")
@@ -685,7 +688,7 @@ class TestSortAndFixProvenance:
         self, tmp_path: Path
     ) -> None:
         """Non-string items already in a 'used' list (e.g. a File object) are
-        passed to _check_provenance without calling .strip(), which would raise
+        passed to _resolve_provenance_item without calling .strip(), which would raise
         AttributeError on a non-string."""
         from synapseclient.models.file import File
 
@@ -701,14 +704,17 @@ class TestSortAndFixProvenance:
         )
 
         with patch(
-            "synapseclient.models.services.manifest._check_provenance",
+            "synapseclient.models.services.manifest._resolve_provenance_item",
             new=AsyncMock(return_value=existing_file),
         ) as mock_check:
             result = await _sort_and_fix_provenance(self.syn, df)
 
-        # _check_provenance must be called with the File object, not item.strip()
+        # _resolve_provenance_item must be called with the File object, not item.strip()
         mock_check.assert_awaited_once_with(
-            existing_file, str(f), self.syn, mock_check.call_args[0][3]
+            existing_file,
+            owner_path=str(f),
+            syn=self.syn,
+            df=mock_check.call_args.kwargs["df"],
         )
         assert result.loc[0, "used"] == [existing_file]
 
@@ -716,7 +722,7 @@ class TestSortAndFixProvenance:
         self, tmp_path: Path
     ) -> None:
         """A provenance reference that is not a file path, URL, or Synapse ID
-        propagates SynapseProvenanceError from _check_provenance."""
+        propagates SynapseProvenanceError from _resolve_provenance_item."""
         from synapseclient.core.exceptions import SynapseProvenanceError
 
         f = tmp_path / "file.txt"
@@ -774,20 +780,22 @@ class TestResolveProvenanceColumn:
         assert result == ["syn111", "https://example.com"]
 
     async def test_non_string_list_item_passed_without_strip(self) -> None:
-        """Non-string items in an already-parsed list are forwarded to _check_provenance
+        """Non-string items in an already-parsed list are forwarded to _resolve_provenance_item
         without calling .strip(), which would raise AttributeError."""
         from synapseclient.models.file import File
 
         existing_file = MagicMock(spec=File)
         df = self._make_df([])
         with patch(
-            "synapseclient.models.services.manifest._check_provenance",
+            "synapseclient.models.services.manifest._resolve_provenance_item",
             new=AsyncMock(return_value=existing_file),
         ) as mock_check:
             result = await _resolve_provenance_column(
                 [existing_file], "/file.txt", self.syn, df
             )
-        mock_check.assert_awaited_once_with(existing_file, "/file.txt", self.syn, df)
+        mock_check.assert_awaited_once_with(
+            existing_file, owner_path="/file.txt", syn=self.syn, df=df
+        )
         assert result == [existing_file]
 
 
@@ -811,7 +819,7 @@ class TestCheckProvenance:
     async def test_passthrough_items(self, item: str | None) -> None:
         """None, URLs, and Synapse IDs are returned unchanged without any lookup."""
         df = self._make_df([])
-        result = await _check_provenance(item, "/some/file.txt", self.syn, df)
+        result = await _resolve_provenance_item(item, "/some/file.txt", self.syn, df)
         assert result == item
 
     async def test_local_file_in_upload_batch_returned_as_path(
@@ -823,7 +831,7 @@ class TestCheckProvenance:
         f.write_text("content")
         abs_path = str(f.resolve())
         df = self._make_df([abs_path])
-        result = await _check_provenance(str(f), "/some/file.txt", self.syn, df)
+        result = await _resolve_provenance_item(str(f), "/some/file.txt", self.syn, df)
         assert result == abs_path
 
     async def test_local_file_not_in_batch_found_in_synapse(
@@ -841,7 +849,9 @@ class TestCheckProvenance:
             "synapseclient.models.file.File.from_path_async",
             new=AsyncMock(return_value=synapse_file),
         ):
-            result = await _check_provenance(str(f), "/some/file.txt", self.syn, df)
+            result = await _resolve_provenance_item(
+                str(f), "/some/file.txt", self.syn, df
+            )
         assert result is synapse_file
 
     async def test_local_file_not_in_batch_not_in_synapse_raises(
@@ -864,7 +874,7 @@ class TestCheckProvenance:
             with pytest.raises(
                 SynapseProvenanceError, match="not being uploaded and is not in Synapse"
             ):
-                await _check_provenance(str(f), "/some/file.txt", self.syn, df)
+                await _resolve_provenance_item(str(f), "/some/file.txt", self.syn, df)
 
     async def test_invalid_item_raises(self) -> None:
         """A string that is not a local file path, URL, or Synapse ID raises
@@ -873,7 +883,7 @@ class TestCheckProvenance:
 
         df = self._make_df([])
         with pytest.raises(SynapseProvenanceError):
-            await _check_provenance(
+            await _resolve_provenance_item(
                 "not_a_url_or_synapse_id", "/some/file.txt", self.syn, df
             )
 
@@ -896,7 +906,7 @@ class TestBuildUploadItems:
                 "activityDescription": [""],
             }
         )
-        items = _build_upload_items(
+        items = _build_upload_files(
             df,
             merge_existing_annotations=True,
             associate_activity_to_new_version=False,
@@ -921,7 +931,7 @@ class TestBuildUploadItems:
                 "activityDescription": [""],
             }
         )
-        items = _build_upload_items(
+        items = _build_upload_files(
             df,
             merge_existing_annotations=True,
             associate_activity_to_new_version=False,
@@ -945,7 +955,7 @@ class TestBuildUploadItems:
                 "activityDescription": [""],
             }
         )
-        items = _build_upload_items(
+        items = _build_upload_files(
             df,
             merge_existing_annotations=True,
             associate_activity_to_new_version=False,
@@ -968,7 +978,7 @@ class TestBuildUploadItems:
                 "activityDescription": ["a description"],
             }
         )
-        items = _build_upload_items(
+        items = _build_upload_files(
             df,
             merge_existing_annotations=True,
             associate_activity_to_new_version=False,
@@ -987,7 +997,7 @@ class TestBuildUploadItems:
                 "forceVersion": [""],
             }
         )
-        items = _build_upload_items(
+        items = _build_upload_files(
             df,
             merge_existing_annotations=True,
             associate_activity_to_new_version=False,
@@ -1014,7 +1024,7 @@ class TestBuildUploadItems:
                 "forceVersion": [raw],
             }
         )
-        items = _build_upload_items(
+        items = _build_upload_files(
             df,
             merge_existing_annotations=True,
             associate_activity_to_new_version=False,
@@ -1030,7 +1040,7 @@ class TestBuildUploadItems:
                 "forceVersion": [False],
             }
         )
-        items = _build_upload_items(
+        items = _build_upload_files(
             df,
             merge_existing_annotations=True,
             associate_activity_to_new_version=False,
@@ -1056,7 +1066,7 @@ class TestBuildUploadItems:
                 column: [""],
             }
         )
-        items = _build_upload_items(
+        items = _build_upload_files(
             df,
             merge_existing_annotations=True,
             associate_activity_to_new_version=False,
@@ -1069,7 +1079,7 @@ class TestBuildUploadItems:
     def test_missing_used_and_executed_columns_default_to_empty_list(self) -> None:
         """When 'used' and 'executed' columns are absent, both default to empty lists."""
         df = pd.DataFrame({"path": ["/a/file.txt"], "parentId": ["syn99"]})
-        items = _build_upload_items(
+        items = _build_upload_files(
             df,
             merge_existing_annotations=True,
             associate_activity_to_new_version=False,
@@ -1094,7 +1104,7 @@ class TestBuildUploadItems:
                 "my_annotation": ["hello"],
             }
         )
-        items = _build_upload_items(
+        items = _build_upload_files(
             df,
             merge_existing_annotations=True,
             associate_activity_to_new_version=False,
@@ -1357,7 +1367,7 @@ class TestCheckSizeEachFile:
 
 
 def _make_file_mock(path: str, file_id: str = "syn100") -> MagicMock:
-    """Create a MagicMock that behaves like a File entity for SyncUploader tests."""
+    """Create a MagicMock that behaves like a File entity for upload tests."""
     mock = MagicMock()
     mock.path = path
     mock.id = file_id
@@ -1372,9 +1382,9 @@ def _make_item(
     executed: list | None = None,
     activity_name: str | None = None,
     activity_description: str | None = None,
-) -> SyncUploadItem:
-    """Create a SyncUploadItem backed by a mock File entity."""
-    return SyncUploadItem(
+) -> UploadSyncFile:
+    """Create a UploadSyncFile backed by a mock File entity."""
+    return UploadSyncFile(
         entity=_make_file_mock(path, file_id),
         used=used or [],
         executed=executed or [],
@@ -1383,15 +1393,11 @@ def _make_item(
     )
 
 
-class TestSyncUploaderBuildDependencyGraph:
-    @pytest.fixture(autouse=True)
-    def init_syn(self, syn: Synapse) -> None:
-        self.uploader = SyncUploader(syn=syn)
-
+class TestBuildDependencyGraph:
     def test_no_provenance(self) -> None:
         """Items without provenance produce a graph with no dependencies."""
         item = _make_item("/a.txt")
-        graph = self.uploader._build_dependency_graph([item])
+        graph = _build_upload_plan([item])
 
         assert graph.path_to_dependencies == {"/a.txt": []}
         assert graph.path_to_upload_item["/a.txt"] is item
@@ -1406,7 +1412,7 @@ class TestSyncUploaderBuildDependencyGraph:
         dep_item = _make_item(str(f1), file_id="syn1")
         main_item = _make_item(str(f2), file_id="syn2", used=[str(f1)])
 
-        graph = self.uploader._build_dependency_graph([dep_item, main_item])
+        graph = _build_upload_plan([dep_item, main_item])
 
         assert graph.path_to_dependencies[str(f2)] == [str(f1)]
         assert graph.path_to_dependencies[str(f1)] == []
@@ -1427,7 +1433,7 @@ class TestSyncUploaderBuildDependencyGraph:
         are not treated as dependencies in the graph."""
         item = _make_item("/a.txt", used=used, executed=executed)
 
-        graph = self.uploader._build_dependency_graph([item])
+        graph = _build_upload_plan([item])
 
         assert graph.path_to_dependencies["/a.txt"] == []
 
@@ -1438,7 +1444,7 @@ class TestSyncUploaderBuildDependencyGraph:
         item = _make_item("/main.txt", used=[str(dep)])
 
         with pytest.raises(ValueError, match="depends on"):
-            self.uploader._build_dependency_graph([item])
+            _build_upload_plan([item])
 
     def test_cached_file_check(self, tmp_path: Path) -> None:
         """The file-check cache avoids redundant os.path.isfile calls."""
@@ -1452,22 +1458,18 @@ class TestSyncUploaderBuildDependencyGraph:
         item_b = _make_item(str(tmp_path / "b.txt"), file_id="syn3", used=[str(f1)])
         (tmp_path / "b.txt").write_text("b")
 
-        graph = self.uploader._build_dependency_graph([dep_item, item_a, item_b])
+        graph = _build_upload_plan([dep_item, item_a, item_b])
         # dep.txt should appear in the file-check cache (checked once, then reused)
         assert str(f1) in graph.path_to_file_check
         assert graph.path_to_file_check[str(f1)] is True
 
 
-class TestSyncUploaderBuildActivityLinkage:
-    @pytest.fixture(autouse=True)
-    def init_syn(self, syn: Synapse) -> None:
-        self.uploader = SyncUploader(syn=syn)
-
+class TestBuildActivityLinkage:
     def test_resolved_file_id(self) -> None:
         """A local path that was resolved to a Synapse ID uses UsedEntity."""
         from synapseclient.models import UsedEntity
 
-        result = self.uploader._build_activity_linkage(
+        result = _build_activity_linkage(
             used_or_executed=["/dep.txt"],
             resolved_file_ids={"/dep.txt": "syn999"},
         )
@@ -1479,7 +1481,7 @@ class TestSyncUploaderBuildActivityLinkage:
         """A URL provenance item becomes a UsedURL."""
         from synapseclient.models import UsedURL
 
-        result = self.uploader._build_activity_linkage(
+        result = _build_activity_linkage(
             used_or_executed=["https://github.com/repo"],
             resolved_file_ids={},
         )
@@ -1491,7 +1493,7 @@ class TestSyncUploaderBuildActivityLinkage:
         """A bare Synapse ID becomes a UsedEntity with the correct target_id."""
         from synapseclient.models import UsedEntity
 
-        result = self.uploader._build_activity_linkage(
+        result = _build_activity_linkage(
             used_or_executed=["syn12345"],
             resolved_file_ids={},
         )
@@ -1503,7 +1505,7 @@ class TestSyncUploaderBuildActivityLinkage:
         """A Synapse ID with a version suffix is parsed correctly."""
         from synapseclient.models import UsedEntity
 
-        result = self.uploader._build_activity_linkage(
+        result = _build_activity_linkage(
             used_or_executed=["syn12345.3"],
             resolved_file_ids={},
         )
@@ -1517,7 +1519,7 @@ class TestSyncUploaderBuildActivityLinkage:
         from synapseclient.models import UsedEntity
 
         file_obj = _make_file_mock("/resolved.txt", "syn777")
-        result = self.uploader._build_activity_linkage(
+        result = _build_activity_linkage(
             used_or_executed=[file_obj],
             resolved_file_ids={},
         )
@@ -1528,14 +1530,14 @@ class TestSyncUploaderBuildActivityLinkage:
     def test_invalid_string_raises(self) -> None:
         """A string that is not a URL, Synapse ID, or resolved path raises ValueError."""
         with pytest.raises(ValueError, match="not a valid Synapse id"):
-            self.uploader._build_activity_linkage(
+            _build_activity_linkage(
                 used_or_executed=["not-a-valid-reference"],
                 resolved_file_ids={},
             )
 
     def test_empty_list(self) -> None:
         """An empty list returns an empty list."""
-        result = self.uploader._build_activity_linkage(
+        result = _build_activity_linkage(
             used_or_executed=[],
             resolved_file_ids={},
         )
@@ -1546,7 +1548,7 @@ class TestSyncUploaderBuildActivityLinkage:
         from synapseclient.models import UsedEntity, UsedURL
 
         file_obj = _make_file_mock("/already.txt", "syn555")
-        result = self.uploader._build_activity_linkage(
+        result = _build_activity_linkage(
             used_or_executed=[
                 "/local.txt",
                 "https://example.com",
@@ -1565,26 +1567,27 @@ class TestSyncUploaderBuildActivityLinkage:
         assert result[3].target_id == "syn555"
 
 
-class TestSyncUploaderUploadItemAsync:
+class TestUploadItemAsync:
     @pytest.fixture(autouse=True)
     def init_syn(self, syn: Synapse) -> None:
-        self.uploader = SyncUploader(syn=syn)
+        self.syn = syn
 
     async def test_no_provenance_no_activity(self) -> None:
         """When used and executed are empty, no Activity is set on the file."""
         mock_file = _make_file_mock("/a.txt", "syn1")
 
-        result = await self.uploader._upload_item_async(
+        result = await _upload_item_async(
             item=mock_file,
             used=[],
             executed=[],
             activity_name=None,
             activity_description=None,
-            dependent_futures=[],
+            prerequisite_tasks=[],
+            syn=self.syn,
         )
 
         assert result is mock_file
-        mock_file.store_async.assert_awaited_once_with(synapse_client=self.uploader.syn)
+        mock_file.store_async.assert_awaited_once_with(synapse_client=self.syn)
         assert (
             not hasattr(mock_file, "activity")
             or mock_file.activity == mock_file.activity
@@ -1598,13 +1601,14 @@ class TestSyncUploaderUploadItemAsync:
         # Remove any default activity attribute so we can check it gets set
         del mock_file.activity
 
-        await self.uploader._upload_item_async(
+        await _upload_item_async(
             item=mock_file,
             used=["syn999"],
             executed=["https://github.com/code.py"],
             activity_name="my activity",
             activity_description="my description",
-            dependent_futures=[],
+            prerequisite_tasks=[],
+            syn=self.syn,
         )
 
         assert isinstance(mock_file.activity, Activity)
@@ -1613,8 +1617,8 @@ class TestSyncUploaderUploadItemAsync:
         assert len(mock_file.activity.used) == 1
         assert len(mock_file.activity.executed) == 1
 
-    async def test_dependent_futures_resolved(self) -> None:
-        """Dependent futures are awaited and their results populate resolved_file_ids."""
+    async def test_prerequisite_tasks_resolved(self) -> None:
+        """Prerequisite futures are awaited and their results populate resolved_file_ids."""
         dep_file = _make_file_mock("/dep.txt", "syn_dep")
 
         # Create a real future that resolves to dep_file
@@ -1624,29 +1628,30 @@ class TestSyncUploaderUploadItemAsync:
         mock_file = _make_file_mock("/main.txt", "syn_main")
         del mock_file.activity
 
-        await self.uploader._upload_item_async(
+        await _upload_item_async(
             item=mock_file,
             used=["/dep.txt"],
             executed=[],
             activity_name="test",
             activity_description=None,
-            dependent_futures=[dep_future],
+            prerequisite_tasks=[dep_future],
+            syn=self.syn,
         )
 
         # The dependency's path should have been resolved to its Synapse ID
         assert mock_file.activity.used[0].target_id == "syn_dep"
 
 
-class TestSyncUploaderUpload:
+class TestUploadSyncFiles:
     @pytest.fixture(autouse=True)
     def init_syn(self, syn: Synapse) -> None:
-        self.uploader = SyncUploader(syn=syn)
+        self.syn = syn
 
     async def test_single_item_no_provenance(self) -> None:
         """A single item with no dependencies is uploaded and returned."""
         item = _make_item("/a.txt", file_id="syn1")
 
-        results = await self.uploader.upload([item])
+        results = await upload_sync_files([item], syn=self.syn)
 
         assert len(results) == 1
         item.entity.store_async.assert_awaited_once()
@@ -1659,7 +1664,7 @@ class TestSyncUploaderUpload:
             _make_item("/c.txt", file_id="syn3"),
         ]
 
-        results = await self.uploader.upload(items)
+        results = await upload_sync_files(items, syn=self.syn)
 
         assert len(results) == 3
         for item in items:
@@ -1667,7 +1672,7 @@ class TestSyncUploaderUpload:
 
     async def test_empty_items(self) -> None:
         """An empty item list produces an empty result."""
-        results = await self.uploader.upload([])
+        results = await upload_sync_files([], syn=self.syn)
         assert results == []
 
     async def test_dependent_items_uploaded_in_order(self, tmp_path: Path) -> None:
@@ -1695,14 +1700,14 @@ class TestSyncUploaderUpload:
 
         main_mock.store_async = AsyncMock(side_effect=main_store)
 
-        dep_item = SyncUploadItem(
+        dep_item = UploadSyncFile(
             entity=dep_mock,
             used=[],
             executed=[],
             activity_name=None,
             activity_description=None,
         )
-        main_item = SyncUploadItem(
+        main_item = UploadSyncFile(
             entity=main_mock,
             used=[str(f_dep)],
             executed=[],
@@ -1710,7 +1715,7 @@ class TestSyncUploaderUpload:
             activity_description=None,
         )
 
-        results = await self.uploader.upload([dep_item, main_item])
+        results = await upload_sync_files([dep_item, main_item], syn=self.syn)
 
         assert len(results) == 2
         assert call_order.index("dep") < call_order.index("main")
