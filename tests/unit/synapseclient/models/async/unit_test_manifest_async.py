@@ -1575,6 +1575,8 @@ class TestUploadItemAsync:
     async def test_no_provenance_no_activity(self) -> None:
         """When used and executed are empty, no Activity is set on the file."""
         mock_file = _make_file_mock("/a.txt", "syn1")
+        # Remove the auto-created attribute so we can detect if it gets set
+        del mock_file.activity
 
         result = await _upload_item_async(
             item=mock_file,
@@ -1588,17 +1590,59 @@ class TestUploadItemAsync:
 
         assert result is mock_file
         mock_file.store_async.assert_awaited_once_with(synapse_client=self.syn)
-        assert (
-            not hasattr(mock_file, "activity")
-            or mock_file.activity == mock_file.activity
-        )
+        assert not hasattr(mock_file, "activity")
 
-    async def test_with_provenance_sets_activity(self) -> None:
-        """When used/executed are provided, an Activity is attached before store."""
+    async def test_with_used_only_sets_activity(self) -> None:
+        """When only used is provided, an Activity is attached before store."""
         from synapseclient.models import Activity
 
         mock_file = _make_file_mock("/a.txt", "syn1")
-        # Remove any default activity attribute so we can check it gets set
+        del mock_file.activity
+
+        await _upload_item_async(
+            item=mock_file,
+            used=["syn999"],
+            executed=[],
+            activity_name="my activity",
+            activity_description="my description",
+            prerequisite_tasks=[],
+            syn=self.syn,
+        )
+
+        assert isinstance(mock_file.activity, Activity)
+        assert mock_file.activity.name == "my activity"
+        assert mock_file.activity.description == "my description"
+        assert len(mock_file.activity.used) == 1
+        assert len(mock_file.activity.executed) == 0
+
+    async def test_with_executed_only_sets_activity(self) -> None:
+        """When only executed is provided, an Activity is attached before store."""
+        from synapseclient.models import Activity
+
+        mock_file = _make_file_mock("/a.txt", "syn1")
+        del mock_file.activity
+
+        await _upload_item_async(
+            item=mock_file,
+            used=[],
+            executed=["https://github.com/code.py"],
+            activity_name="my activity",
+            activity_description="my description",
+            prerequisite_tasks=[],
+            syn=self.syn,
+        )
+
+        assert isinstance(mock_file.activity, Activity)
+        assert mock_file.activity.name == "my activity"
+        assert mock_file.activity.description == "my description"
+        assert len(mock_file.activity.used) == 0
+        assert len(mock_file.activity.executed) == 1
+
+    async def test_with_used_and_executed_sets_activity(self) -> None:
+        """When both used and executed are provided, an Activity is attached before store."""
+        from synapseclient.models import Activity
+
+        mock_file = _make_file_mock("/a.txt", "syn1")
         del mock_file.activity
 
         await _upload_item_async(
