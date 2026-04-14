@@ -8,6 +8,7 @@ from synapseclient import Synapse
 from synapseclient.core.constants.concrete_types import (
     FILE_BASED_METADATA_TASK_PROPERTIES,
     RECORD_BASED_METADATA_TASK_PROPERTIES,
+    UPLOAD_TO_TABLE_PREVIEW_REQUEST,
 )
 from synapseclient.models.curation import (
     CreateGridRequest,
@@ -16,9 +17,11 @@ from synapseclient.models.curation import (
     Grid,
     GridRecordSetExportRequest,
     RecordBasedMetadataTaskProperties,
+    UploadToTablePreviewRequest,
     _create_task_properties_from_dict,
 )
 from synapseclient.models.recordset import ValidationSummary
+from synapseclient.models.table_components import Column, CsvTableDescriptor
 
 TASK_ID = 42
 TASK_ID_2 = 99
@@ -854,6 +857,86 @@ class TestCreateGridRequest:
         assert "concreteType" in result
         assert result["recordSetId"] == RECORD_SET_ID
         assert "initialQuery" not in result
+
+
+class TestUploadToTablePreviewRequest:
+    """Tests for the UploadToTablePreviewRequest helper dataclass."""
+
+    def test_fill_from_dict(self) -> None:
+        # GIVEN a response with upload to table preview data
+        raw_synapse_response = {
+            "jobId": "1234",
+            "concreteType": "org.sagebionetworks.repo.model.table.UploadToTablePreviewResult",
+            "suggestedColumns": [
+                {"name": "etag", "columnType": "STRING", "maximumSize": 50},
+                {"name": "Sex", "columnType": "STRING", "maximumSize": 6},
+                {"name": "Component", "columnType": "STRING", "maximumSize": 4},
+                {"name": "Diagnosis", "columnType": "STRING", "maximumSize": 7},
+                {"name": "PatientID", "columnType": "INTEGER"},
+                {"name": "CancerType", "columnType": "STRING", "maximumSize": 50},
+                {"name": "YearofBirth", "columnType": "STRING", "maximumSize": 50},
+                {"name": "FamilyHistory", "columnType": "STRING", "maximumSize": 50},
+            ],
+            "sampleRows": [
+                {"values": [None, "Female", "test", "Healthy", "1", None, None, None]}
+            ],
+            "rowsScanned": 1,
+        }
+
+        # WHEN I fill an UploadToTablePreviewRequest from the response
+        preview_req = UploadToTablePreviewRequest()
+        preview_response = preview_req.fill_from_dict(raw_synapse_response)
+
+        # THEN the fields should be populated correctly
+        assert len(preview_response.suggested_columns) == 8
+        assert preview_response.suggested_columns[0] == Column(
+            name="etag", column_type="STRING", maximum_size=50
+        )
+        assert preview_response.suggested_columns[1] == Column(
+            name="Sex", column_type="STRING", maximum_size=6
+        )
+        assert preview_response.suggested_columns[2] == Column(
+            name="Component", column_type="STRING", maximum_size=4
+        )
+        assert preview_response.suggested_columns[3] == Column(
+            name="Diagnosis", column_type="STRING", maximum_size=7
+        )
+        assert preview_response.suggested_columns[4] == Column(
+            name="PatientID", column_type="INTEGER"
+        )
+        assert preview_response.sample_rows == [
+            [None, "Female", "test", "Healthy", "1", None, None, None]
+        ]
+        assert preview_response.rows_scanned == 1
+
+    def test_to_synapse_request(self) -> None:
+        # GIVEN an UploadToTablePreviewRequest
+        preview_req = UploadToTablePreviewRequest(
+            upload_file_handle_id="1234567",
+            lines_to_skip=1,
+            do_full_file_scan=True,
+            csv_table_descriptor=CsvTableDescriptor(
+                separator=";",
+                quote_character='"',
+                escape_character="\\",
+                line_end="\n",
+                is_first_line_header=True,
+            ),
+        )
+
+        # WHEN I convert it to a synapse request
+        result = preview_req.to_synapse_request()
+
+        # THEN it should contain the correct fields
+        assert result["concreteType"] == UPLOAD_TO_TABLE_PREVIEW_REQUEST
+        assert result["uploadFileHandleId"] == "1234567"
+        assert result["linesToSkip"] == 1
+        assert result["doFullFileScan"] is True
+        assert result["csvTableDescriptor"]["separator"] == ";"
+        assert result["csvTableDescriptor"]["quoteCharacter"] == '"'
+        assert result["csvTableDescriptor"]["escapeCharacter"] == "\\"
+        assert result["csvTableDescriptor"]["lineEnd"] == "\n"
+        assert result["csvTableDescriptor"]["isFirstLineHeader"] is True
 
 
 class TestGridRecordSetExportRequest:
