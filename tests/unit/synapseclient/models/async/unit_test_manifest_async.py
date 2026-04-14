@@ -10,9 +10,11 @@ import pandas as pd
 import pytest
 
 from synapseclient import Synapse
+from synapseclient.core.exceptions import SynapseProvenanceError
 from synapseclient.models.services.manifest import (
     NON_ANNOTATION_COLUMNS,
     UploadSyncFile,
+    _apply_synapse_store_defaults,
     _build_activity_linkage,
     _build_annotations_for_file,
     _build_upload_files,
@@ -20,206 +22,30 @@ from synapseclient.models.services.manifest import (
     _check_file_names,
     _check_parent_containers_async,
     _check_path_and_normalize,
+    _check_required_columns,
     _check_size_each_file,
+    _check_unique_paths,
     _clean_manifest,
     _convert_value,
+    _create_upload_tasks,
+    _default_name_column,
     _expand_path,
+    _local_path_refs,
     _parse_annotation_cell,
+    _parse_force_version,
     _parse_literal,
+    _read_and_filter_errors,
+    _resolve_local_file_provenance,
     _resolve_provenance_column,
     _resolve_provenance_item,
+    _resolve_row,
     _sort_and_fix_provenance,
     _split_csv_cell,
-    _upload_item_async,
+    _upload_file_async,
     _validate_manifest,
     read_manifest_for_upload,
     upload_sync_files,
 )
-
-
-class TestConvertCellInManifestToPythonTypes:
-    @pytest.mark.parametrize(
-        "cell, expected",
-        [
-            ("hello", ["hello"]),
-            ("42", [42]),
-            ("3.14", [3.14]),
-            ("true", [True]),
-            ("false", [False]),
-            ("[a, b, c]", ["a", "b", "c"]),
-            ("[1, 2, 3]", [1, 2, 3]),
-            ('["foo bar", "baz"]', ["foo bar", "baz"]),
-            ("[hello]", ["hello"]),
-            ("  42  ", [42]),
-            ("[]", []),
-            ("[a, , c]", ["a", "c"]),
-        ],
-    )
-    def test_scalar_and_array_conversions(self, cell: str, expected: Any) -> None:
-        """Strings, numbers, bools, and bracket-delimited arrays are always returned
-        as lists. Single-value cells produce a one-element list."""
-        assert _parse_annotation_cell(cell) == expected
-
-    def test_datetime_string(self) -> None:
-        """An ISO-8601 datetime string is converted to a one-element list containing
-        a datetime.datetime object."""
-        import datetime
-
-        result = _parse_annotation_cell("1970-01-01T00:00:00.000Z")
-        assert isinstance(result, list)
-        assert isinstance(result[0], datetime.datetime)
-
-
-class TestCheckPathAndNormalize:
-    @pytest.fixture(autouse=True)
-    def init_syn(self, syn: Synapse) -> None:
-        self.syn = syn
-
-    def test_url_passes_through(self) -> None:
-        """URLs are returned unchanged without any filesystem check."""
-        url = "https://example.com/file.txt"
-        assert _check_path_and_normalize(url) == url
-
-    def test_existing_file_returns_absolute_path(self, tmp_path: Path) -> None:
-        """A relative or home-relative path to an existing file is resolved to an
-        absolute path."""
-        f = tmp_path / "test.txt"
-        f.write_text("hello")
-        result = _check_path_and_normalize(str(f))
-        assert os.path.isabs(result)
-        assert result == str(f.resolve())
-
-    def test_missing_file_raises(self) -> None:
-        """A path that does not point to an existing file raises IOError."""
-        with pytest.raises(IOError):
-            _check_path_and_normalize("/nonexistent/path/file.txt")
-
-
-class TestCheckFileNameNewFormat:
-    def test_valid_names_pass(self) -> None:
-        """Unique, validly named files in the same parent do not raise."""
-        df = pd.DataFrame(
-            {
-                "path": ["/a/file1.txt", "/a/file2.txt"],
-                "name": ["file1.txt", "file2.txt"],
-                "parentId": ["syn1", "syn1"],
-            }
-        )
-        _check_file_names(df)  # should not raise
-
-    def test_invalid_name_raises(self) -> None:
-        """A file name containing characters not permitted by Synapse raises ValueError."""
-        df = pd.DataFrame(
-            {
-                "path": ["/a/bad!name.txt"],
-                "name": ["bad!name.txt"],
-                "parentId": ["syn1"],
-            }
-        )
-        with pytest.raises(ValueError, match="cannot be stored to Synapse"):
-            _check_file_names(df)
-
-    def test_duplicate_name_and_parent_raises(self) -> None:
-        """Two files with the same name uploaded to the same parent raise ValueError."""
-        df = pd.DataFrame(
-            {
-                "path": ["/a/file.txt", "/b/file.txt"],
-                "name": ["file.txt", "file.txt"],
-                "parentId": ["syn1", "syn1"],
-            }
-        )
-        with pytest.raises(ValueError, match="unique file name"):
-            _check_file_names(df)
-
-    def test_same_name_different_parent_is_ok(self) -> None:
-        """The same file name is allowed in different parent containers."""
-        df = pd.DataFrame(
-            {
-                "path": ["/a/file.txt", "/b/file.txt"],
-                "name": ["file.txt", "file.txt"],
-                "parentId": ["syn1", "syn2"],
-            }
-        )
-        _check_file_names(df)  # should not raise
-
-    @pytest.mark.parametrize(
-        "name",
-        [
-            "file`name.txt",
-            "file+name.txt",
-            "file (1).txt",
-            "file-name.txt",
-            "file.name.txt",
-        ],
-    )
-    def test_special_characters_in_name_accepted(self, name: str) -> None:
-        """Backticks, plus signs, parentheses, hyphens, and periods are valid in file names."""
-        df = pd.DataFrame(
-            {
-                "path": ["/a/" + name],
-                "name": [name],
-                "parentId": ["syn1"],
-            }
-        )
-        _check_file_names(df)  # should not raise
-
-
-class TestCheckParentContainersAsync:
-    @pytest.fixture(autouse=True)
-    def init_syn(self, syn: Synapse) -> None:
-        self.syn = syn
-
-    async def test_valid_project_passes(self) -> None:
-        """A parent ID that resolves to a Project does not raise."""
-        from synapseclient.models.project import Project
-
-        mock_project = MagicMock(spec=Project)
-        with patch(
-            "synapseclient.models.services.manifest.factory_get_async",
-            new=AsyncMock(return_value=mock_project),
-        ):
-            await _check_parent_containers_async(["syn1"], syn=self.syn)
-
-    async def test_valid_folder_passes(self) -> None:
-        """A parent ID that resolves to a Folder does not raise."""
-        from synapseclient.models.folder import Folder
-
-        mock_folder = MagicMock(spec=Folder)
-        with patch(
-            "synapseclient.models.services.manifest.factory_get_async",
-            new=AsyncMock(return_value=mock_folder),
-        ):
-            await _check_parent_containers_async(["syn1"], syn=self.syn)
-
-    async def test_non_container_raises(self) -> None:
-        """A parent ID that resolves to a non-container Synapse entity raises ValueError."""
-        mock_entity = MagicMock()  # not a Folder or Project
-        with patch(
-            "synapseclient.models.services.manifest.factory_get_async",
-            new=AsyncMock(return_value=mock_entity),
-        ):
-            with pytest.raises(ValueError, match="not a Folder or Project"):
-                await _check_parent_containers_async(["syn1"], syn=self.syn)
-
-    async def test_empty_parent_id_skipped(self) -> None:
-        """An empty parent ID string is skipped without calling the Synapse API."""
-        with patch(
-            "synapseclient.models.services.manifest.factory_get_async",
-            new=AsyncMock(),
-        ) as mock_get:
-            await _check_parent_containers_async([""], syn=self.syn)
-            mock_get.assert_not_called()
-
-    async def test_nonexistent_parent_id_reraises_http_error(self) -> None:
-        """A parent ID that does not exist in Synapse re-raises the SynapseHTTPError."""
-        from synapseclient.core.exceptions import SynapseHTTPError
-
-        with patch(
-            "synapseclient.models.services.manifest.factory_get_async",
-            new=AsyncMock(side_effect=SynapseHTTPError("Not found")),
-        ):
-            with pytest.raises(SynapseHTTPError):
-                await _check_parent_containers_async(["syn999"], syn=self.syn)
 
 
 class TestReadManifestForUpload:
@@ -426,153 +252,363 @@ class TestReadManifestForUpload:
         assert items[0].entity.synapse_store is False
 
 
-class TestSyncToSynapseAsync:
+class TestCleanManifest:
+    def test_returns_cleaned_dataframe(self, tmp_path: Path) -> None:
+        """Returns a DataFrame with required columns and normalized paths."""
+        f = tmp_path / "data.txt"
+        f.write_text("content")
+        csv = tmp_path / "manifest.csv"
+        csv.write_text(f"path,parentId\n{f},syn1\n")
+        df = _clean_manifest(str(csv))
+        assert len(df) == 1
+        assert df.iloc[0]["path"] == str(f)
+        assert "name" in df.columns
+
+    def test_empty_after_error_filter_returns_empty(self, tmp_path: Path) -> None:
+        """Returns empty DataFrame when all rows have errors."""
+        csv = tmp_path / "manifest.csv"
+        csv.write_text("path,parentId,error\n/a.txt,syn1,oops\n")
+        df = _clean_manifest(str(csv))
+        assert df.empty
+
+    def test_missing_path_column_raises(self, tmp_path: Path) -> None:
+        """ValueError when the path column is missing."""
+        csv = tmp_path / "manifest.csv"
+        csv.write_text("parentId\nsyn1\n")
+        with pytest.raises(ValueError, match="path"):
+            _clean_manifest(str(csv))
+
+    def test_synapse_store_defaults_applied(self, tmp_path: Path) -> None:
+        """synapseStore column is created and defaulted when absent."""
+        f = tmp_path / "data.txt"
+        f.write_text("content")
+        csv = tmp_path / "manifest.csv"
+        csv.write_text(f"path,parentId\n{f},syn1\n")
+        df = _clean_manifest(str(csv))
+        assert "synapseStore" in df.columns
+        assert df.iloc[0]["synapseStore"] == True  # noqa: E712
+
+
+class TestReadAndFilterErrors:
+    def test_rows_without_error_column_returned(self, tmp_path: Path) -> None:
+        """A manifest with no error column returns all rows."""
+        csv = tmp_path / "manifest.csv"
+        csv.write_text("path,parentId\n/a.txt,syn1\n/b.txt,syn2\n")
+        df = _read_and_filter_errors(str(csv))
+        assert len(df) == 2
+
+    def test_error_rows_filtered(self, tmp_path: Path) -> None:
+        """Rows with a non-empty error column are dropped."""
+        csv = tmp_path / "manifest.csv"
+        csv.write_text(
+            "path,parentId,error\n/a.txt,syn1,\n/b.txt,syn2,download failed\n"
+        )
+        df = _read_and_filter_errors(str(csv))
+        assert len(df) == 1
+        assert df.iloc[0]["path"] == "/a.txt"
+
+    def test_all_errors_returns_empty(self, tmp_path: Path) -> None:
+        """If every row has an error, the result is empty."""
+        csv = tmp_path / "manifest.csv"
+        csv.write_text("path,parentId,error\n/a.txt,syn1,bad\n")
+        df = _read_and_filter_errors(str(csv))
+        assert df.empty
+
+
+class TestCheckRequiredColumns:
+    def test_valid_columns_pass(self) -> None:
+        """No error when both path and parentId columns are present."""
+        df = pd.DataFrame({"path": ["/a.txt"], "parentId": ["syn1"]})
+        _check_required_columns(df)
+
+    def test_missing_path_raises(self) -> None:
+        """ValueError when path column is missing."""
+        df = pd.DataFrame({"parentId": ["syn1"]})
+        with pytest.raises(ValueError, match="path"):
+            _check_required_columns(df)
+
+    def test_missing_parent_id_raises(self) -> None:
+        """ValueError when parentId column is missing."""
+        df = pd.DataFrame({"path": ["/a.txt"]})
+        with pytest.raises(ValueError, match="parentId"):
+            _check_required_columns(df)
+
+
+class TestCheckUniquePaths:
+    def test_unique_paths_pass(self) -> None:
+        """No error when all paths are unique."""
+        df = pd.DataFrame({"path": ["/a.txt", "/b.txt"]})
+        _check_unique_paths(df)
+
+    def test_duplicate_paths_raise(self) -> None:
+        """ValueError when a path appears more than once."""
+        df = pd.DataFrame({"path": ["/a.txt", "/a.txt"]})
+        with pytest.raises(ValueError, match="unique"):
+            _check_unique_paths(df)
+
+
+class TestDefaultNameColumn:
+    def test_creates_name_from_path(self) -> None:
+        """Creates the name column from path basenames when absent."""
+        df = pd.DataFrame({"path": ["/dir/file.txt", "/dir/other.csv"]})
+        _default_name_column(df)
+        assert list(df["name"]) == ["file.txt", "other.csv"]
+
+    def test_fills_empty_names(self) -> None:
+        """Fills blank names from the path column, preserving existing names."""
+        df = pd.DataFrame(
+            {"path": ["/dir/file.txt", "/dir/other.csv"], "name": ["custom", ""]}
+        )
+        _default_name_column(df)
+        assert list(df["name"]) == ["custom", "other.csv"]
+
+    def test_existing_names_preserved(self) -> None:
+        """Non-empty names are not overwritten."""
+        df = pd.DataFrame({"path": ["/dir/file.txt"], "name": ["keepme"]})
+        _default_name_column(df)
+        assert df.iloc[0]["name"] == "keepme"
+
+
+class TestValidateManifest:
+    def test_returns_total_size(self, tmp_path: Path) -> None:
+        """Returns the combined size of all local files."""
+        f1 = tmp_path / "a.txt"
+        f1.write_text("hello")
+        f2 = tmp_path / "b.txt"
+        f2.write_text("world!")
+        df = pd.DataFrame(
+            {
+                "path": [str(f1), str(f2)],
+                "parentId": ["syn1", "syn2"],
+                "name": ["a.txt", "b.txt"],
+                "synapseStore": [True, True],
+            }
+        )
+        total = _validate_manifest(df)
+        assert total == f1.stat().st_size + f2.stat().st_size
+
+    def test_invalid_name_raises(self, tmp_path: Path) -> None:
+        """Raises ValueError for invalid file names."""
+        f = tmp_path / "good.txt"
+        f.write_text("data")
+        df = pd.DataFrame(
+            {
+                "path": [str(f)],
+                "parentId": ["syn1"],
+                "name": ["bad/name"],
+                "synapseStore": [True],
+            }
+        )
+        with pytest.raises(ValueError, match="name"):
+            _validate_manifest(df)
+
+    def test_empty_file_raises(self, tmp_path: Path) -> None:
+        """Raises ValueError for empty (0-byte) files."""
+        f = tmp_path / "empty.txt"
+        f.write_text("")
+        df = pd.DataFrame(
+            {
+                "path": [str(f)],
+                "parentId": ["syn1"],
+                "name": ["empty.txt"],
+                "synapseStore": [True],
+            }
+        )
+        with pytest.raises(ValueError, match="empty"):
+            _validate_manifest(df)
+
+
+class TestApplySynapseStoreDefaults:
+    def test_creates_column_when_missing(self) -> None:
+        """Creates synapseStore column defaulting to True for local paths."""
+        df = pd.DataFrame({"path": ["/a.txt"]})
+        _apply_synapse_store_defaults(df)
+        assert df.iloc[0]["synapseStore"] == True  # noqa: E712
+
+    def test_url_rows_set_to_false(self) -> None:
+        """URL paths are set to synapseStore=False."""
+        df = pd.DataFrame({"path": ["https://example.com/data.csv"]})
+        _apply_synapse_store_defaults(df)
+        assert df.iloc[0]["synapseStore"] == False  # noqa: E712
+
+    def test_explicit_false_preserved(self) -> None:
+        """An explicit False is preserved even for local paths."""
+        df = pd.DataFrame({"path": ["/a.txt"], "synapseStore": [False]})
+        _apply_synapse_store_defaults(df)
+        assert df.iloc[0]["synapseStore"] == False  # noqa: E712
+
+    def test_null_defaults_to_true(self) -> None:
+        """Null/NaN values default to True for local paths."""
+        df = pd.DataFrame({"path": ["/a.txt"], "synapseStore": [None]})
+        _apply_synapse_store_defaults(df)
+        assert df.iloc[0]["synapseStore"] == True  # noqa: E712
+
+    def test_column_is_bool_dtype(self) -> None:
+        """The synapseStore column is cast to bool dtype."""
+        df = pd.DataFrame({"path": ["/a.txt", "https://example.com/f.csv"]})
+        _apply_synapse_store_defaults(df)
+        assert df["synapseStore"].dtype == bool
+
+
+class TestCheckPathAndNormalize:
     @pytest.fixture(autouse=True)
     def init_syn(self, syn: Synapse) -> None:
         self.syn = syn
 
-    async def test_dry_run_skips_upload(self, tmp_path: Path) -> None:
-        """With dry_run=True, the manifest is read and validated but upload is never called, returning []."""
-        f = tmp_path / "file.txt"
-        f.write_text("hi")
-        csv = f"path,parentId\n{f},syn1\n"
-        manifest = tmp_path / "manifest.csv"
-        manifest.write_text(csv)
+    def test_url_passes_through(self) -> None:
+        """URLs are returned unchanged without any filesystem check."""
+        url = "https://example.com/file.txt"
+        assert _check_path_and_normalize(url) == url
 
-        from synapseclient.models import Project
+    def test_existing_file_returns_absolute_path(self, tmp_path: Path) -> None:
+        """A relative or home-relative path to an existing file is resolved to an
+        absolute path."""
+        f = tmp_path / "test.txt"
+        f.write_text("hello")
+        result = _check_path_and_normalize(str(f))
+        assert os.path.isabs(result)
+        assert result == str(f.resolve())
 
-        project = Project(id="syn123", name="test")
-        project._last_persistent_instance = project
+    def test_missing_file_raises(self) -> None:
+        """A path that does not point to an existing file raises IOError."""
+        with pytest.raises(IOError):
+            _check_path_and_normalize("/nonexistent/path/file.txt")
 
-        mock_items = [MagicMock()]
-        with (
-            patch(
-                "synapseclient.models.mixins.storable_container.read_manifest_for_upload",
-                new=AsyncMock(return_value=(mock_items, 100)),
-            ) as mock_read,
-            patch(
-                "synapseclient.models.mixins.storable_container.upload_sync_files"
-            ) as mock_upload,
-        ):
-            result = await project.sync_to_synapse_async(
-                manifest_path=str(manifest),
-                dry_run=True,
-                synapse_client=self.syn,
-            )
-            mock_read.assert_awaited_once()
-            mock_upload.assert_not_called()
-            assert result == []
 
-    async def test_upload_called_with_items(self, tmp_path: Path) -> None:
-        """With valid items, the uploader is called and the returned File list is passed back to the caller."""
-        f = tmp_path / "file.txt"
-        f.write_text("hi")
-        csv = f"path,parentId\n{f},syn1\n"
-        manifest = tmp_path / "manifest.csv"
-        manifest.write_text(csv)
+class TestExpandPath:
+    def test_absolute_path_unchanged(self, tmp_path: Path) -> None:
+        """An absolute path with no special characters is returned as-is."""
+        p = str(tmp_path / "file.txt")
+        assert _expand_path(p) == p
 
-        from synapseclient.models import Project
+    def test_tilde_expanded(self) -> None:
+        """A leading ~ is expanded to the user's home directory."""
+        result = _expand_path("~/somefile.txt")
+        assert not result.startswith("~")
+        assert os.path.isabs(result)
 
-        project = Project(id="syn123", name="test")
-        project._last_persistent_instance = project
+    def test_relative_path_becomes_absolute(self) -> None:
+        """A relative path is resolved to an absolute path."""
+        result = _expand_path("relative/path.txt")
+        assert os.path.isabs(result)
 
-        mock_items = [MagicMock()]
-        mock_uploaded = [MagicMock()]
+    def test_env_var_expanded(self, monkeypatch: pytest.MonkeyPatch) -> None:
+        """Environment variables in the path are expanded."""
+        monkeypatch.setenv("MY_TEST_DIR", "/tmp/test_dir")
+        result = _expand_path("$MY_TEST_DIR/file.txt")
+        assert "$MY_TEST_DIR" not in result
+        expected = os.path.abspath(os.path.join("/tmp/test_dir", "file.txt"))
+        assert result == expected
 
-        with (
-            patch(
-                "synapseclient.models.mixins.storable_container.read_manifest_for_upload",
-                new=AsyncMock(return_value=(mock_items, 100)),
-            ),
-            patch(
-                "synapseclient.models.mixins.storable_container.upload_sync_files",
-                new=AsyncMock(return_value=mock_uploaded),
-            ) as mock_upload,
-        ):
-            result = await project.sync_to_synapse_async(
-                manifest_path=str(manifest),
-                dry_run=False,
-                send_messages=False,
-                synapse_client=self.syn,
-            )
-            mock_upload.assert_awaited_once_with(mock_items, syn=self.syn)
-            assert result is mock_uploaded
+    def test_combined_tilde_and_env_var(self, monkeypatch: pytest.MonkeyPatch) -> None:
+        """Both ~ and environment variables are expanded in the same path."""
+        monkeypatch.setenv("MY_SUBDIR", "docs")
+        result = _expand_path("~/$MY_SUBDIR/file.txt")
+        assert "~" not in result
+        assert "$MY_SUBDIR" not in result
+        assert result.endswith(os.sep + "docs" + os.sep + "file.txt")
 
-    async def test_empty_items_skips_upload(self, tmp_path: Path) -> None:
-        """When read_manifest_for_upload returns no items, the uploader is not called and [] is returned."""
-        f = tmp_path / "manifest.csv"
-        f.write_text("path,parentId,error\n/x.txt,syn1,fail\n")
 
-        from synapseclient.models import Project
+class TestCheckSizeEachFile:
+    def test_returns_total_size(self, tmp_path: Path) -> None:
+        """Returns the combined size of all local files."""
+        f1 = tmp_path / "a.txt"
+        f1.write_text("hello")
+        f2 = tmp_path / "b.txt"
+        f2.write_text("world!")
+        df = pd.DataFrame({"path": [str(f1), str(f2)]})
+        total = _check_size_each_file(df)
+        assert total == f1.stat().st_size + f2.stat().st_size
 
-        project = Project(id="syn123", name="test")
-        project._last_persistent_instance = project
-
-        with (
-            patch(
-                "synapseclient.models.mixins.storable_container.read_manifest_for_upload",
-                new=AsyncMock(return_value=([], 0)),
-            ),
-            patch(
-                "synapseclient.models.mixins.storable_container.upload_sync_files"
-            ) as mock_upload,
-        ):
-            result = await project.sync_to_synapse_async(
-                manifest_path=str(f),
-                synapse_client=self.syn,
-            )
-            mock_upload.assert_not_called()
-            assert result == []
-
-    async def test_merge_existing_annotations_passed_through(
-        self, tmp_path: Path
-    ) -> None:
-        """The merge_existing_annotations flag is forwarded to read_manifest_for_upload."""
-        f = tmp_path / "manifest.csv"
+    def test_empty_file_raises(self, tmp_path: Path) -> None:
+        """A zero-byte file raises ValueError."""
+        f = tmp_path / "empty.txt"
         f.write_text("")
+        df = pd.DataFrame({"path": [str(f)]})
+        with pytest.raises(ValueError, match="empty"):
+            _check_size_each_file(df)
 
-        from synapseclient.models import Project
+    def test_url_rows_skipped(self, tmp_path: Path) -> None:
+        """Rows whose path is a URL are skipped and not counted."""
+        f = tmp_path / "local.txt"
+        f.write_text("data")
+        df = pd.DataFrame({"path": [str(f), "https://example.com/file.csv"]})
+        total = _check_size_each_file(df)
+        assert total == f.stat().st_size
 
-        project = Project(id="syn123", name="test")
-        project._last_persistent_instance = project
+    def test_all_urls_returns_zero(self) -> None:
+        """If every row is a URL, the total size is zero."""
+        df = pd.DataFrame({"path": ["https://a.com/f1", "https://b.com/f2"]})
+        assert _check_size_each_file(df) == 0
 
-        mock_read = AsyncMock(return_value=([], 0))
-        with patch(
-            "synapseclient.models.mixins.storable_container.read_manifest_for_upload",
-            new=mock_read,
-        ):
-            await project.sync_to_synapse_async(
-                manifest_path=str(f),
-                merge_existing_annotations=False,
-                synapse_client=self.syn,
-            )
-            _, kwargs = mock_read.call_args
-            assert kwargs["merge_existing_annotations"] is False
 
-    async def test_associate_activity_to_new_version_passed_through(
-        self, tmp_path
-    ) -> None:
-        """The associate_activity_to_new_version flag is forwarded to read_manifest_for_upload."""
-        f = tmp_path / "manifest.csv"
-        f.write_text("")
+class TestCheckFileNameNewFormat:
+    def test_valid_names_pass(self) -> None:
+        """Unique, validly named files in the same parent do not raise."""
+        df = pd.DataFrame(
+            {
+                "path": ["/a/file1.txt", "/a/file2.txt"],
+                "name": ["file1.txt", "file2.txt"],
+                "parentId": ["syn1", "syn1"],
+            }
+        )
+        _check_file_names(df)  # should not raise
 
-        from synapseclient.models import Project
+    def test_invalid_name_raises(self) -> None:
+        """A file name containing characters not permitted by Synapse raises ValueError."""
+        df = pd.DataFrame(
+            {
+                "path": ["/a/bad!name.txt"],
+                "name": ["bad!name.txt"],
+                "parentId": ["syn1"],
+            }
+        )
+        with pytest.raises(ValueError, match="cannot be stored to Synapse"):
+            _check_file_names(df)
 
-        project = Project(id="syn123", name="test")
-        project._last_persistent_instance = project
+    def test_duplicate_name_and_parent_raises(self) -> None:
+        """Two files with the same name uploaded to the same parent raise ValueError."""
+        df = pd.DataFrame(
+            {
+                "path": ["/a/file.txt", "/b/file.txt"],
+                "name": ["file.txt", "file.txt"],
+                "parentId": ["syn1", "syn1"],
+            }
+        )
+        with pytest.raises(ValueError, match="unique file name"):
+            _check_file_names(df)
 
-        mock_read = AsyncMock(return_value=([], 0))
-        with patch(
-            "synapseclient.models.mixins.storable_container.read_manifest_for_upload",
-            new=mock_read,
-        ):
-            await project.sync_to_synapse_async(
-                manifest_path=str(f),
-                associate_activity_to_new_version=True,
-                synapse_client=self.syn,
-            )
-            _, kwargs = mock_read.call_args
-            assert kwargs["associate_activity_to_new_version"] is True
+    def test_same_name_different_parent_is_ok(self) -> None:
+        """The same file name is allowed in different parent containers."""
+        df = pd.DataFrame(
+            {
+                "path": ["/a/file.txt", "/b/file.txt"],
+                "name": ["file.txt", "file.txt"],
+                "parentId": ["syn1", "syn2"],
+            }
+        )
+        _check_file_names(df)  # should not raise
+
+    @pytest.mark.parametrize(
+        "name",
+        [
+            "file`name.txt",
+            "file+name.txt",
+            "file (1).txt",
+            "file-name.txt",
+            "file.name.txt",
+        ],
+    )
+    def test_special_characters_in_name_accepted(self, name: str) -> None:
+        """Backticks, plus signs, parentheses, hyphens, and periods are valid in file names."""
+        df = pd.DataFrame(
+            {
+                "path": ["/a/" + name],
+                "name": [name],
+                "parentId": ["syn1"],
+            }
+        )
+        _check_file_names(df)  # should not raise
 
 
 class TestSortAndFixProvenance:
@@ -739,153 +775,86 @@ class TestSortAndFixProvenance:
             await _sort_and_fix_provenance(self.syn, df)
 
 
-class TestResolveProvenanceColumn:
-    @pytest.fixture(autouse=True)
-    def init_syn(self, syn: Synapse) -> None:
-        self.syn = syn
-
-    def _make_df(self, paths: list[str]) -> pd.DataFrame:
-        """Return a path-indexed DataFrame with the given paths as the index."""
-        return pd.DataFrame(index=paths)
-
-    @pytest.mark.parametrize("cell", ["", "   "])
-    async def test_empty_or_whitespace_string_returns_empty_list(
-        self, cell: str
-    ) -> None:
-        """An empty or whitespace-only string cell returns [] with no provenance calls."""
-        df = self._make_df([])
-        result = await _resolve_provenance_column(cell, "/file.txt", self.syn, df)
-        assert result == []
-
-    async def test_single_synapse_id_string_resolved(self) -> None:
-        """A single Synapse ID string is resolved and returned as a one-element list."""
-        df = self._make_df([])
-        result = await _resolve_provenance_column("syn123", "/file.txt", self.syn, df)
-        assert result == ["syn123"]
-
-    async def test_semicolon_delimited_string_split_and_resolved(self) -> None:
-        """A semicolon-delimited string is split into individual items, each resolved."""
-        df = self._make_df([])
-        result = await _resolve_provenance_column(
-            "syn111 ; https://example.com", "/file.txt", self.syn, df
-        )
-        assert result == ["syn111", "https://example.com"]
-
-    async def test_already_a_list_passed_through_without_splitting(self) -> None:
-        """A cell that is already a Python list is not split — items are resolved directly."""
-        df = self._make_df([])
-        result = await _resolve_provenance_column(
-            ["syn111", "https://example.com"], "/file.txt", self.syn, df
-        )
-        assert result == ["syn111", "https://example.com"]
-
-    async def test_non_string_list_item_passed_without_strip(self) -> None:
-        """Non-string items in an already-parsed list are forwarded to _resolve_provenance_item
-        without calling .strip(), which would raise AttributeError."""
-        from synapseclient.models.file import File
-
-        existing_file = MagicMock(spec=File)
-        df = self._make_df([])
-        with patch(
-            "synapseclient.models.services.manifest._resolve_provenance_item",
-            new=AsyncMock(return_value=existing_file),
-        ) as mock_check:
-            result = await _resolve_provenance_column(
-                [existing_file], "/file.txt", self.syn, df
-            )
-        mock_check.assert_awaited_once_with(
-            existing_file, owner_path="/file.txt", syn=self.syn, df=df
-        )
-        assert result == [existing_file]
-
-
-class TestCheckProvenance:
-    @pytest.fixture(autouse=True)
-    def init_syn(self, syn: Synapse) -> None:
-        self.syn = syn
-
-    def _make_df(self, paths: list[str]) -> pd.DataFrame:
-        """Return a path-indexed DataFrame with the given paths as the index."""
-        return pd.DataFrame(index=paths)
+class TestLocalPathRefs:
+    def test_extracts_string_refs(self) -> None:
+        """String references (local paths) are extracted from resolved provenance."""
+        file_mock = MagicMock()
+        resolved = {
+            "used": ["/a.txt", file_mock, "/b.txt"],
+            "executed": ["/c.txt"],
+        }
+        result = _local_path_refs(resolved)
+        assert result == ["/a.txt", "/b.txt", "/c.txt"]
 
     @pytest.mark.parametrize(
-        "item",
+        "resolved",
         [
-            None,
-            "https://github.com/example/repo",
-            "syn123456",
+            pytest.param({}, id="empty_dict"),
+            pytest.param(
+                {"used": [MagicMock()], "executed": [MagicMock()]},
+                id="no_string_refs",
+            ),
         ],
     )
-    async def test_passthrough_items(self, item: str | None) -> None:
-        """None, URLs, and Synapse IDs are returned unchanged without any lookup."""
-        df = self._make_df([])
-        result = await _resolve_provenance_item(item, "/some/file.txt", self.syn, df)
-        assert result == item
+    def test_returns_empty_list(self, resolved: dict) -> None:
+        """An empty dict or one with only non-string refs returns an empty list."""
+        assert _local_path_refs(resolved) == []
 
-    async def test_local_file_in_upload_batch_returned_as_path(
-        self, tmp_path: Path
-    ) -> None:
-        """A local file that is part of the current upload batch is returned as its
-        resolved absolute path so the topological sort can order it correctly."""
-        f = tmp_path / "dep.txt"
-        f.write_text("content")
-        abs_path = str(f.resolve())
-        df = self._make_df([abs_path])
-        result = await _resolve_provenance_item(str(f), "/some/file.txt", self.syn, df)
-        assert result == abs_path
 
-    async def test_local_file_not_in_batch_found_in_synapse(
-        self, tmp_path: Path
-    ) -> None:
-        """A local file that is not in the upload batch but exists in Synapse is
-        resolved to a File model object via MD5 lookup."""
-        from synapseclient.models.file import File
+class TestCheckParentContainersAsync:
+    @pytest.fixture(autouse=True)
+    def init_syn(self, syn: Synapse) -> None:
+        self.syn = syn
 
-        f = tmp_path / "existing.txt"
-        f.write_text("content")
-        synapse_file = MagicMock(spec=File)
-        df = self._make_df([])  # file not in upload batch
+    @pytest.mark.parametrize(
+        "container_cls",
+        [
+            pytest.param("Project", id="project"),
+            pytest.param("Folder", id="folder"),
+        ],
+    )
+    async def test_valid_container_passes(self, container_cls: str) -> None:
+        """A parent ID that resolves to a Project or Folder does not raise."""
+        from synapseclient.models.folder import Folder
+        from synapseclient.models.project import Project
+
+        cls = {"Project": Project, "Folder": Folder}[container_cls]
+        mock_container = MagicMock(spec=cls)
         with patch(
-            "synapseclient.models.file.File.from_path_async",
-            new=AsyncMock(return_value=synapse_file),
+            "synapseclient.models.services.manifest.factory_get_async",
+            new=AsyncMock(return_value=mock_container),
         ):
-            result = await _resolve_provenance_item(
-                str(f), "/some/file.txt", self.syn, df
-            )
-        assert result is synapse_file
+            await _check_parent_containers_async(["syn1"], syn=self.syn)
 
-    async def test_local_file_not_in_batch_not_in_synapse_raises(
-        self, tmp_path: Path
-    ) -> None:
-        """A local file that is neither in the upload batch nor found in Synapse
-        raises SynapseProvenanceError — it cannot be used as a provenance reference."""
-        from synapseclient.core.exceptions import (
-            SynapseFileNotFoundError,
-            SynapseProvenanceError,
-        )
-
-        f = tmp_path / "orphan.txt"
-        f.write_text("content")
-        df = self._make_df([])
+    async def test_non_container_raises(self) -> None:
+        """A parent ID that resolves to a non-container Synapse entity raises ValueError."""
+        mock_entity = MagicMock()  # not a Folder or Project
         with patch(
-            "synapseclient.models.file.File.from_path_async",
-            new=AsyncMock(side_effect=SynapseFileNotFoundError("not found")),
+            "synapseclient.models.services.manifest.factory_get_async",
+            new=AsyncMock(return_value=mock_entity),
         ):
-            with pytest.raises(
-                SynapseProvenanceError, match="not being uploaded and is not in Synapse"
-            ):
-                await _resolve_provenance_item(str(f), "/some/file.txt", self.syn, df)
+            with pytest.raises(ValueError, match="not a Folder or Project"):
+                await _check_parent_containers_async(["syn1"], syn=self.syn)
 
-    async def test_invalid_item_raises(self) -> None:
-        """A string that is not a local file path, URL, or Synapse ID raises
-        SynapseProvenanceError."""
-        from synapseclient.core.exceptions import SynapseProvenanceError
+    async def test_empty_parent_id_skipped(self) -> None:
+        """An empty parent ID string is skipped without calling the Synapse API."""
+        with patch(
+            "synapseclient.models.services.manifest.factory_get_async",
+            new=AsyncMock(),
+        ) as mock_get:
+            await _check_parent_containers_async([""], syn=self.syn)
+            mock_get.assert_not_called()
 
-        df = self._make_df([])
-        with pytest.raises(SynapseProvenanceError):
-            await _resolve_provenance_item(
-                "not_a_url_or_synapse_id", "/some/file.txt", self.syn, df
-            )
+    async def test_nonexistent_parent_id_reraises_http_error(self) -> None:
+        """A parent ID that does not exist in Synapse re-raises the SynapseHTTPError."""
+        from synapseclient.core.exceptions import SynapseHTTPError
+
+        with patch(
+            "synapseclient.models.services.manifest.factory_get_async",
+            new=AsyncMock(side_effect=SynapseHTTPError("Not found")),
+        ):
+            with pytest.raises(SynapseHTTPError):
+                await _check_parent_containers_async(["syn999"], syn=self.syn)
 
 
 class TestBuildUploadItems:
@@ -1115,6 +1084,28 @@ class TestBuildUploadItems:
             assert col not in items[0].entity.annotations
 
 
+class TestParseForceVersion:
+    @pytest.mark.parametrize("blank", ["", None])
+    def test_blank_defaults_to_true(self, blank: str | None) -> None:
+        """Missing or empty forceVersion defaults to True."""
+        assert _parse_force_version(blank) is True
+
+    @pytest.mark.parametrize("value", [True, False])
+    def test_bool_passthrough(self, value: bool) -> None:
+        """A bool value is returned as-is."""
+        assert _parse_force_version(value) is value
+
+    @pytest.mark.parametrize("raw, expected", [("True", True), ("False", False)])
+    def test_string_parsed(self, raw: str, expected: bool) -> None:
+        """String booleans are parsed case-insensitively."""
+        assert _parse_force_version(raw) is expected
+
+    @pytest.mark.parametrize("raw", ["yes", "1", "garbage"])
+    def test_unparseable_defaults_to_true(self, raw: str) -> None:
+        """Unrecognizable values fall back to True."""
+        assert _parse_force_version(raw) is True
+
+
 class TestBuildAnnotationsForFile:
     @pytest.mark.parametrize("empty_value", ["", None])
     def test_empty_and_none_values_omitted(self, empty_value: str | None) -> None:
@@ -1122,16 +1113,21 @@ class TestBuildAnnotationsForFile:
         result = _build_annotations_for_file({"key": empty_value})
         assert "key" not in result
 
-    def test_string_value_converted(self) -> None:
-        """String annotation values are converted to their Python types via
-        _parse_annotation_cell."""
-        result = _build_annotations_for_file({"score": "42"})
-        assert result["score"] == [42]
-
-    def test_non_string_value_wrapped_in_list(self) -> None:
-        """Non-string values (e.g. already-typed ints) are wrapped in a single-element list."""
-        result = _build_annotations_for_file({"count": 7})
-        assert result["count"] == [7]
+    @pytest.mark.parametrize(
+        "input_dict, key, expected",
+        [
+            ({"score": "42"}, "score", [42]),
+            ({"count": 7}, "count", [7]),
+        ],
+        ids=["string_value_converted", "non_string_wrapped_in_list"],
+    )
+    def test_value_converted_to_list(
+        self, input_dict: dict, key: str, expected: list
+    ) -> None:
+        """String values are parsed via _parse_annotation_cell and non-string values
+        are wrapped in a single-element list."""
+        result = _build_annotations_for_file(input_dict)
+        assert result[key] == expected
 
     def test_multiple_keys_mixed(self) -> None:
         """Empty and None values are dropped while valid string and non-string values
@@ -1146,62 +1142,37 @@ class TestBuildAnnotationsForFile:
         assert _build_annotations_for_file({}) == {}
 
 
-class TestParseLiteral:
+class TestConvertCellInManifestToPythonTypes:
     @pytest.mark.parametrize(
-        "value, expected",
+        "cell, expected",
         [
-            ("42", 42),
-            ("-7", -7),
-            ("3.14", 3.14),
-            ("-0.5", -0.5),
-            ('"hello"', "hello"),
-            ('"foo bar"', "foo bar"),
+            ("hello", ["hello"]),
+            ("42", [42]),
+            ("3.14", [3.14]),
+            ("true", [True]),
+            ("false", [False]),
+            ("[a, b, c]", ["a", "b", "c"]),
+            ("[1, 2, 3]", [1, 2, 3]),
+            ('["foo bar", "baz"]', ["foo bar", "baz"]),
+            ("[hello]", ["hello"]),
+            ("  42  ", [42]),
+            ("[]", []),
+            ("[a, , c]", ["a", "c"]),
         ],
     )
-    def test_valid_scalars_are_returned(
-        self, value: str, expected: int | float | str
-    ) -> None:
-        """Valid int, float, and quoted-string literals are parsed and returned."""
-        assert _parse_literal(value) == expected
+    def test_scalar_and_array_conversions(self, cell: str, expected: Any) -> None:
+        """Strings, numbers, bools, and bracket-delimited arrays are always returned
+        as lists. Single-value cells produce a one-element list."""
+        assert _parse_annotation_cell(cell) == expected
 
-    @pytest.mark.parametrize(
-        "value",
-        [
-            "hello",
-            "foo bar",
-            "",
-            "   ",
-        ],
-    )
-    def test_plain_strings_return_none(self, value: str) -> None:
-        """Plain unquoted strings are not Python literals and return None."""
-        assert _parse_literal(value) is None
+    def test_datetime_string(self) -> None:
+        """An ISO-8601 datetime string is converted to a one-element list containing
+        a datetime.datetime object."""
+        import datetime
 
-    @pytest.mark.parametrize(
-        "value",
-        [
-            "True",
-            "False",
-            "true",
-            "false",
-        ],
-    )
-    def test_bool_strings_return_none(self, value: str) -> None:
-        """Bool literals return None so that bool_or_none handles them instead,
-        ensuring consistent case-insensitive parsing."""
-        assert _parse_literal(value) is None
-
-    @pytest.mark.parametrize(
-        "value",
-        [
-            "(1, 2)",
-            "[1, 2]",
-            "{'a': 1}",
-        ],
-    )
-    def test_complex_literals_return_none(self, value: str) -> None:
-        """Tuples, lists, and dicts are not valid Synapse annotation types and return None."""
-        assert _parse_literal(value) is None
+        result = _parse_annotation_cell("1970-01-01T00:00:00.000Z")
+        assert isinstance(result, list)
+        assert isinstance(result[0], datetime.datetime)
 
 
 class TestConvertValue:
@@ -1272,98 +1243,62 @@ class TestConvertValue:
         assert result != 1 or type(result) is not int
 
 
-class TestExpandPath:
-    def test_absolute_path_unchanged(self, tmp_path: Path) -> None:
-        """An absolute path with no special characters is returned as-is."""
-        p = str(tmp_path / "file.txt")
-        assert _expand_path(p) == p
+class TestParseLiteral:
+    @pytest.mark.parametrize(
+        "value, expected",
+        [
+            ("42", 42),
+            ("-7", -7),
+            ("3.14", 3.14),
+            ("-0.5", -0.5),
+            ('"hello"', "hello"),
+            ('"foo bar"', "foo bar"),
+        ],
+    )
+    def test_valid_scalars_are_returned(
+        self, value: str, expected: int | float | str
+    ) -> None:
+        """Valid int, float, and quoted-string literals are parsed and returned."""
+        assert _parse_literal(value) == expected
 
-    def test_tilde_expanded(self) -> None:
-        """A leading ~ is expanded to the user's home directory."""
-        result = _expand_path("~/somefile.txt")
-        assert not result.startswith("~")
-        assert os.path.isabs(result)
+    @pytest.mark.parametrize(
+        "value",
+        [
+            "hello",
+            "foo bar",
+            "",
+            "   ",
+        ],
+    )
+    def test_plain_strings_return_none(self, value: str) -> None:
+        """Plain unquoted strings are not Python literals and return None."""
+        assert _parse_literal(value) is None
 
-    def test_relative_path_becomes_absolute(self) -> None:
-        """A relative path is resolved to an absolute path."""
-        result = _expand_path("relative/path.txt")
-        assert os.path.isabs(result)
+    @pytest.mark.parametrize(
+        "value",
+        [
+            "True",
+            "False",
+            "true",
+            "false",
+        ],
+    )
+    def test_bool_strings_return_none(self, value: str) -> None:
+        """Bool literals return None so that bool_or_none handles them instead,
+        ensuring consistent case-insensitive parsing."""
+        assert _parse_literal(value) is None
 
-    def test_env_var_expanded(self, monkeypatch: pytest.MonkeyPatch) -> None:
-        """Environment variables in the path are expanded."""
-        monkeypatch.setenv("MY_TEST_DIR", "/tmp/test_dir")
-        result = _expand_path("$MY_TEST_DIR/file.txt")
-        assert "$MY_TEST_DIR" not in result
-        expected = os.path.abspath(os.path.join("/tmp/test_dir", "file.txt"))
-        assert result == expected
-
-    def test_combined_tilde_and_env_var(self, monkeypatch: pytest.MonkeyPatch) -> None:
-        """Both ~ and environment variables are expanded in the same path."""
-        monkeypatch.setenv("MY_SUBDIR", "docs")
-        result = _expand_path("~/$MY_SUBDIR/file.txt")
-        assert "~" not in result
-        assert "$MY_SUBDIR" not in result
-        assert result.endswith(os.sep + "docs" + os.sep + "file.txt")
-
-
-class TestSplitCsvCell:
-    def test_single_value(self) -> None:
-        """A string with no commas returns a single-element list."""
-        assert _split_csv_cell("hello") == ["hello"]
-
-    def test_multiple_values(self) -> None:
-        """Comma-separated values are split into a list."""
-        assert _split_csv_cell("a, b, c") == ["a", "b", "c"]
-
-    def test_quoted_commas_preserved(self) -> None:
-        """Commas inside double quotes are not treated as delimiters."""
-        assert _split_csv_cell('"foo, bar", baz') == ['"foo, bar"', "baz"]
-
-    def test_whitespace_stripped(self) -> None:
-        """Leading and trailing whitespace around each value is stripped."""
-        assert _split_csv_cell("  a  ,  b  ") == ["a", "b"]
-
-    def test_empty_string(self) -> None:
-        """An empty string returns a list with a single empty string."""
-        assert _split_csv_cell("") == [""]
-
-    def test_trailing_comma(self) -> None:
-        """A trailing comma produces an empty trailing element."""
-        result = _split_csv_cell("a, b,")
-        assert result == ["a", "b", ""]
-
-
-class TestCheckSizeEachFile:
-    def test_returns_total_size(self, tmp_path: Path) -> None:
-        """Returns the combined size of all local files."""
-        f1 = tmp_path / "a.txt"
-        f1.write_text("hello")
-        f2 = tmp_path / "b.txt"
-        f2.write_text("world!")
-        df = pd.DataFrame({"path": [str(f1), str(f2)]})
-        total = _check_size_each_file(df)
-        assert total == f1.stat().st_size + f2.stat().st_size
-
-    def test_empty_file_raises(self, tmp_path: Path) -> None:
-        """A zero-byte file raises ValueError."""
-        f = tmp_path / "empty.txt"
-        f.write_text("")
-        df = pd.DataFrame({"path": [str(f)]})
-        with pytest.raises(ValueError, match="empty"):
-            _check_size_each_file(df)
-
-    def test_url_rows_skipped(self, tmp_path: Path) -> None:
-        """Rows whose path is a URL are skipped and not counted."""
-        f = tmp_path / "local.txt"
-        f.write_text("data")
-        df = pd.DataFrame({"path": [str(f), "https://example.com/file.csv"]})
-        total = _check_size_each_file(df)
-        assert total == f.stat().st_size
-
-    def test_all_urls_returns_zero(self) -> None:
-        """If every row is a URL, the total size is zero."""
-        df = pd.DataFrame({"path": ["https://a.com/f1", "https://b.com/f2"]})
-        assert _check_size_each_file(df) == 0
+    @pytest.mark.parametrize(
+        "value",
+        [
+            "(1, 2)",
+            "[1, 2]",
+            "{'a': 1}",
+        ],
+    )
+    def test_complex_literals_return_none(self, value: str) -> None:
+        """Tuples, lists, and dicts are not valid Synapse annotation types and return None."""
+        assert _parse_literal(value) is None
 
 
 def _make_file_mock(path: str, file_id: str = "syn100") -> MagicMock:
@@ -1391,6 +1326,234 @@ def _make_item(
         activity_name=activity_name,
         activity_description=activity_description,
     )
+
+
+class TestSyncToSynapseAsync:
+    @pytest.fixture(autouse=True)
+    def init_syn(self, syn: Synapse) -> None:
+        self.syn = syn
+
+    async def test_dry_run_skips_upload(self, tmp_path: Path) -> None:
+        """With dry_run=True, the manifest is read and validated but upload is never called, returning []."""
+        f = tmp_path / "file.txt"
+        f.write_text("hi")
+        csv = f"path,parentId\n{f},syn1\n"
+        manifest = tmp_path / "manifest.csv"
+        manifest.write_text(csv)
+
+        from synapseclient.models import Project
+
+        project = Project(id="syn123", name="test")
+        project._last_persistent_instance = project
+
+        mock_items = [MagicMock()]
+        with (
+            patch(
+                "synapseclient.models.mixins.storable_container.read_manifest_for_upload",
+                new=AsyncMock(return_value=(mock_items, 100)),
+            ) as mock_read,
+            patch(
+                "synapseclient.models.mixins.storable_container.upload_sync_files"
+            ) as mock_upload,
+        ):
+            result = await project.sync_to_synapse_async(
+                manifest_path=str(manifest),
+                dry_run=True,
+                synapse_client=self.syn,
+            )
+            mock_read.assert_awaited_once()
+            mock_upload.assert_not_called()
+            assert result == []
+
+    async def test_upload_called_with_items(self, tmp_path: Path) -> None:
+        """With valid items, the uploader is called and the returned File list is passed back to the caller."""
+        f = tmp_path / "file.txt"
+        f.write_text("hi")
+        csv = f"path,parentId\n{f},syn1\n"
+        manifest = tmp_path / "manifest.csv"
+        manifest.write_text(csv)
+
+        from synapseclient.models import Project
+
+        project = Project(id="syn123", name="test")
+        project._last_persistent_instance = project
+
+        mock_items = [MagicMock()]
+        mock_uploaded = [MagicMock()]
+
+        with (
+            patch(
+                "synapseclient.models.mixins.storable_container.read_manifest_for_upload",
+                new=AsyncMock(return_value=(mock_items, 100)),
+            ),
+            patch(
+                "synapseclient.models.mixins.storable_container.upload_sync_files",
+                new=AsyncMock(return_value=mock_uploaded),
+            ) as mock_upload,
+        ):
+            result = await project.sync_to_synapse_async(
+                manifest_path=str(manifest),
+                dry_run=False,
+                send_messages=False,
+                synapse_client=self.syn,
+            )
+            mock_upload.assert_awaited_once_with(mock_items, syn=self.syn)
+            assert result is mock_uploaded
+
+    async def test_empty_items_skips_upload(self, tmp_path: Path) -> None:
+        """When read_manifest_for_upload returns no items, the uploader is not called and [] is returned."""
+        f = tmp_path / "manifest.csv"
+        f.write_text("path,parentId,error\n/x.txt,syn1,fail\n")
+
+        from synapseclient.models import Project
+
+        project = Project(id="syn123", name="test")
+        project._last_persistent_instance = project
+
+        with (
+            patch(
+                "synapseclient.models.mixins.storable_container.read_manifest_for_upload",
+                new=AsyncMock(return_value=([], 0)),
+            ),
+            patch(
+                "synapseclient.models.mixins.storable_container.upload_sync_files"
+            ) as mock_upload,
+        ):
+            result = await project.sync_to_synapse_async(
+                manifest_path=str(f),
+                synapse_client=self.syn,
+            )
+            mock_upload.assert_not_called()
+            assert result == []
+
+    async def test_merge_existing_annotations_passed_through(
+        self, tmp_path: Path
+    ) -> None:
+        """The merge_existing_annotations flag is forwarded to read_manifest_for_upload."""
+        f = tmp_path / "manifest.csv"
+        f.write_text("")
+
+        from synapseclient.models import Project
+
+        project = Project(id="syn123", name="test")
+        project._last_persistent_instance = project
+
+        mock_read = AsyncMock(return_value=([], 0))
+        with patch(
+            "synapseclient.models.mixins.storable_container.read_manifest_for_upload",
+            new=mock_read,
+        ):
+            await project.sync_to_synapse_async(
+                manifest_path=str(f),
+                merge_existing_annotations=False,
+                synapse_client=self.syn,
+            )
+            _, kwargs = mock_read.call_args
+            assert kwargs["merge_existing_annotations"] is False
+
+    async def test_associate_activity_to_new_version_passed_through(
+        self, tmp_path
+    ) -> None:
+        """The associate_activity_to_new_version flag is forwarded to read_manifest_for_upload."""
+        f = tmp_path / "manifest.csv"
+        f.write_text("")
+
+        from synapseclient.models import Project
+
+        project = Project(id="syn123", name="test")
+        project._last_persistent_instance = project
+
+        mock_read = AsyncMock(return_value=([], 0))
+        with patch(
+            "synapseclient.models.mixins.storable_container.read_manifest_for_upload",
+            new=mock_read,
+        ):
+            await project.sync_to_synapse_async(
+                manifest_path=str(f),
+                associate_activity_to_new_version=True,
+                synapse_client=self.syn,
+            )
+            _, kwargs = mock_read.call_args
+            assert kwargs["associate_activity_to_new_version"] is True
+
+
+class TestUploadSyncFiles:
+    @pytest.fixture(autouse=True)
+    def init_syn(self, syn: Synapse) -> None:
+        self.syn = syn
+
+    async def test_single_item_no_provenance(self) -> None:
+        """A single item with no dependencies is uploaded and returned."""
+        item = _make_item("/a.txt", file_id="syn1")
+
+        results = await upload_sync_files([item], syn=self.syn)
+
+        assert len(results) == 1
+        item.entity.store_async.assert_awaited_once()
+
+    async def test_multiple_independent_items(self) -> None:
+        """Multiple items with no inter-dependencies are all uploaded."""
+        items = [
+            _make_item("/a.txt", file_id="syn1"),
+            _make_item("/b.txt", file_id="syn2"),
+            _make_item("/c.txt", file_id="syn3"),
+        ]
+
+        results = await upload_sync_files(items, syn=self.syn)
+
+        assert len(results) == 3
+        for item in items:
+            item.entity.store_async.assert_awaited_once()
+
+    async def test_empty_items(self) -> None:
+        """An empty item list produces an empty result."""
+        results = await upload_sync_files([], syn=self.syn)
+        assert results == []
+
+    async def test_dependent_items_uploaded_in_order(self, tmp_path: Path) -> None:
+        """When item B depends on item A, A is stored before B."""
+        f_dep = tmp_path / "dep.txt"
+        f_dep.write_text("dep")
+        f_main = tmp_path / "main.txt"
+        f_main.write_text("main")
+
+        call_order = []
+
+        dep_mock = _make_file_mock(str(f_dep), "syn_dep")
+
+        async def dep_store(**kwargs):
+            call_order.append("dep")
+            return dep_mock
+
+        dep_mock.store_async = AsyncMock(side_effect=dep_store)
+
+        main_mock = _make_file_mock(str(f_main), "syn_main")
+
+        async def main_store(**kwargs):
+            call_order.append("main")
+            return main_mock
+
+        main_mock.store_async = AsyncMock(side_effect=main_store)
+
+        dep_item = UploadSyncFile(
+            entity=dep_mock,
+            used=[],
+            executed=[],
+            activity_name=None,
+            activity_description=None,
+        )
+        main_item = UploadSyncFile(
+            entity=main_mock,
+            used=[str(f_dep)],
+            executed=[],
+            activity_name="uses dep",
+            activity_description=None,
+        )
+
+        results = await upload_sync_files([dep_item, main_item], syn=self.syn)
+
+        assert len(results) == 2
+        assert call_order.index("dep") < call_order.index("main")
 
 
 class TestBuildDependencyGraph:
@@ -1462,6 +1625,69 @@ class TestBuildDependencyGraph:
         # dep.txt should appear in the file-check cache (checked once, then reused)
         assert str(f1) in graph.path_to_file_check
         assert graph.path_to_file_check[str(f1)] is True
+
+
+class TestCreateUploadTasks:
+    async def test_creates_tasks_for_each_item(self) -> None:
+        """One asyncio task is created per item in the upload plan."""
+        from synapseclient.models.services.manifest import _UploadPlan
+
+        item_a = _make_item("/a.txt", file_id="syn1")
+        item_b = _make_item("/b.txt", file_id="syn2")
+
+        plan = _UploadPlan(
+            path_to_dependencies={"/a.txt": [], "/b.txt": []},
+            path_to_upload_item={"/a.txt": item_a, "/b.txt": item_b},
+            path_to_file_check={},
+        )
+        mock_syn = MagicMock(spec=Synapse)
+
+        tasks = _create_upload_tasks(plan, mock_syn)
+        assert len(tasks) == 2
+        # Clean up tasks to avoid warnings
+        for t in tasks:
+            t.cancel()
+        await asyncio.gather(*tasks, return_exceptions=True)
+
+    async def test_dependent_task_receives_prerequisite(self, tmp_path: Path) -> None:
+        """A dependent item's task receives its prerequisite task."""
+        from synapseclient.models.services.manifest import _UploadPlan
+
+        f_dep = tmp_path / "dep.txt"
+        f_dep.write_text("dep")
+        f_main = tmp_path / "main.txt"
+        f_main.write_text("main")
+
+        dep_item = _make_item(str(f_dep), file_id="syn1")
+        main_item = _make_item(str(f_main), file_id="syn2", used=[str(f_dep)])
+
+        plan = _UploadPlan(
+            path_to_dependencies={str(f_dep): [], str(f_main): [str(f_dep)]},
+            path_to_upload_item={str(f_dep): dep_item, str(f_main): main_item},
+            path_to_file_check={str(f_dep): True},
+        )
+        mock_syn = MagicMock(spec=Synapse)
+
+        tasks = _create_upload_tasks(plan, mock_syn)
+        assert len(tasks) == 2
+        # Clean up tasks to avoid warnings
+        for t in tasks:
+            t.cancel()
+        await asyncio.gather(*tasks, return_exceptions=True)
+
+    async def test_empty_plan_returns_empty(self) -> None:
+        """An empty upload plan produces no tasks."""
+        from synapseclient.models.services.manifest import _UploadPlan
+
+        plan = _UploadPlan(
+            path_to_dependencies={},
+            path_to_upload_item={},
+            path_to_file_check={},
+        )
+        mock_syn = MagicMock(spec=Synapse)
+
+        tasks = _create_upload_tasks(plan, mock_syn)
+        assert tasks == []
 
 
 class TestBuildActivityLinkage:
@@ -1578,8 +1804,8 @@ class TestUploadItemAsync:
         # Remove the auto-created attribute so we can detect if it gets set
         del mock_file.activity
 
-        result = await _upload_item_async(
-            item=mock_file,
+        result = await _upload_file_async(
+            file_entity=mock_file,
             used=[],
             executed=[],
             activity_name=None,
@@ -1592,17 +1818,32 @@ class TestUploadItemAsync:
         mock_file.store_async.assert_awaited_once_with(synapse_client=self.syn)
         assert not hasattr(mock_file, "activity")
 
-    async def test_with_used_only_sets_activity(self) -> None:
-        """When only used is provided, an Activity is attached before store."""
+    @pytest.mark.parametrize(
+        "used, executed, expected_used_count, expected_executed_count",
+        [
+            (["syn999"], [], 1, 0),
+            ([], ["https://github.com/code.py"], 0, 1),
+            (["syn999"], ["https://github.com/code.py"], 1, 1),
+        ],
+        ids=["used_only", "executed_only", "both"],
+    )
+    async def test_provenance_sets_activity(
+        self,
+        used: list,
+        executed: list,
+        expected_used_count: int,
+        expected_executed_count: int,
+    ) -> None:
+        """When used and/or executed are provided, an Activity is attached before store."""
         from synapseclient.models import Activity
 
         mock_file = _make_file_mock("/a.txt", "syn1")
         del mock_file.activity
 
-        await _upload_item_async(
-            item=mock_file,
-            used=["syn999"],
-            executed=[],
+        await _upload_file_async(
+            file_entity=mock_file,
+            used=used,
+            executed=executed,
             activity_name="my activity",
             activity_description="my description",
             prerequisite_tasks=[],
@@ -1612,54 +1853,8 @@ class TestUploadItemAsync:
         assert isinstance(mock_file.activity, Activity)
         assert mock_file.activity.name == "my activity"
         assert mock_file.activity.description == "my description"
-        assert len(mock_file.activity.used) == 1
-        assert len(mock_file.activity.executed) == 0
-
-    async def test_with_executed_only_sets_activity(self) -> None:
-        """When only executed is provided, an Activity is attached before store."""
-        from synapseclient.models import Activity
-
-        mock_file = _make_file_mock("/a.txt", "syn1")
-        del mock_file.activity
-
-        await _upload_item_async(
-            item=mock_file,
-            used=[],
-            executed=["https://github.com/code.py"],
-            activity_name="my activity",
-            activity_description="my description",
-            prerequisite_tasks=[],
-            syn=self.syn,
-        )
-
-        assert isinstance(mock_file.activity, Activity)
-        assert mock_file.activity.name == "my activity"
-        assert mock_file.activity.description == "my description"
-        assert len(mock_file.activity.used) == 0
-        assert len(mock_file.activity.executed) == 1
-
-    async def test_with_used_and_executed_sets_activity(self) -> None:
-        """When both used and executed are provided, an Activity is attached before store."""
-        from synapseclient.models import Activity
-
-        mock_file = _make_file_mock("/a.txt", "syn1")
-        del mock_file.activity
-
-        await _upload_item_async(
-            item=mock_file,
-            used=["syn999"],
-            executed=["https://github.com/code.py"],
-            activity_name="my activity",
-            activity_description="my description",
-            prerequisite_tasks=[],
-            syn=self.syn,
-        )
-
-        assert isinstance(mock_file.activity, Activity)
-        assert mock_file.activity.name == "my activity"
-        assert mock_file.activity.description == "my description"
-        assert len(mock_file.activity.used) == 1
-        assert len(mock_file.activity.executed) == 1
+        assert len(mock_file.activity.used) == expected_used_count
+        assert len(mock_file.activity.executed) == expected_executed_count
 
     async def test_prerequisite_tasks_resolved(self) -> None:
         """Prerequisite futures are awaited and their results populate resolved_file_ids."""
@@ -1672,8 +1867,8 @@ class TestUploadItemAsync:
         mock_file = _make_file_mock("/main.txt", "syn_main")
         del mock_file.activity
 
-        await _upload_item_async(
-            item=mock_file,
+        await _upload_file_async(
+            file_entity=mock_file,
             used=["/dep.txt"],
             executed=[],
             activity_name="test",
@@ -1686,80 +1881,271 @@ class TestUploadItemAsync:
         assert mock_file.activity.used[0].target_id == "syn_dep"
 
 
-class TestUploadSyncFiles:
+class TestSplitCsvCell:
+    @pytest.mark.parametrize(
+        "cell, expected",
+        [
+            ("hello", ["hello"]),
+            ("a, b, c", ["a", "b", "c"]),
+            ('"foo, bar", baz', ['"foo, bar"', "baz"]),
+            ("  a  ,  b  ", ["a", "b"]),
+            ("", [""]),
+            ("a, b,", ["a", "b", ""]),
+        ],
+        ids=[
+            "single_value",
+            "multiple_values",
+            "quoted_commas_preserved",
+            "whitespace_stripped",
+            "empty_string",
+            "trailing_comma",
+        ],
+    )
+    def test_split_csv_cell(self, cell: str, expected: list[str]) -> None:
+        """CSV cell strings are split correctly, respecting quotes and whitespace."""
+        assert _split_csv_cell(cell) == expected
+
+
+class TestResolveRow:
+    async def test_resolves_used_and_executed(self) -> None:
+        """Both used and executed columns are resolved for a row."""
+        df = pd.DataFrame(
+            {"path": ["/a.txt"], "used": ["syn123"], "executed": ["syn456"]}
+        ).set_index("path")
+        row = df.iloc[0]
+        mock_syn = MagicMock(spec=Synapse)
+
+        with patch(
+            "synapseclient.models.services.manifest._resolve_provenance_column",
+            new_callable=AsyncMock,
+            side_effect=[["resolved_used"], ["resolved_exec"]],
+        ):
+            path, resolved = await _resolve_row("/a.txt", row, df, mock_syn)
+
+        assert path == "/a.txt"
+        assert "used" in resolved
+        assert "executed" in resolved
+
+    async def test_missing_columns_skipped(self) -> None:
+        """Columns not present in the row are not included in the result."""
+        df = pd.DataFrame({"path": ["/a.txt"]}).set_index("path")
+        row = df.iloc[0]
+        mock_syn = MagicMock(spec=Synapse)
+
+        path, resolved = await _resolve_row("/a.txt", row, df, mock_syn)
+
+        assert path == "/a.txt"
+        assert resolved == {}
+
+
+class TestResolveProvenanceColumn:
     @pytest.fixture(autouse=True)
     def init_syn(self, syn: Synapse) -> None:
         self.syn = syn
 
-    async def test_single_item_no_provenance(self) -> None:
-        """A single item with no dependencies is uploaded and returned."""
-        item = _make_item("/a.txt", file_id="syn1")
+    def _make_df(self, paths: list[str]) -> pd.DataFrame:
+        """Return a path-indexed DataFrame with the given paths as the index."""
+        return pd.DataFrame(index=paths)
 
-        results = await upload_sync_files([item], syn=self.syn)
+    @pytest.mark.parametrize("cell", ["", "   "])
+    async def test_empty_or_whitespace_string_returns_empty_list(
+        self, cell: str
+    ) -> None:
+        """An empty or whitespace-only string cell returns [] with no provenance calls."""
+        df = self._make_df([])
+        result = await _resolve_provenance_column(cell, "/file.txt", self.syn, df)
+        assert result == []
 
-        assert len(results) == 1
-        item.entity.store_async.assert_awaited_once()
+    async def test_single_synapse_id_string_resolved(self) -> None:
+        """A single Synapse ID string is resolved and returned as a one-element list."""
+        df = self._make_df([])
+        result = await _resolve_provenance_column("syn123", "/file.txt", self.syn, df)
+        assert result == ["syn123"]
 
-    async def test_multiple_independent_items(self) -> None:
-        """Multiple items with no inter-dependencies are all uploaded."""
-        items = [
-            _make_item("/a.txt", file_id="syn1"),
-            _make_item("/b.txt", file_id="syn2"),
-            _make_item("/c.txt", file_id="syn3"),
-        ]
-
-        results = await upload_sync_files(items, syn=self.syn)
-
-        assert len(results) == 3
-        for item in items:
-            item.entity.store_async.assert_awaited_once()
-
-    async def test_empty_items(self) -> None:
-        """An empty item list produces an empty result."""
-        results = await upload_sync_files([], syn=self.syn)
-        assert results == []
-
-    async def test_dependent_items_uploaded_in_order(self, tmp_path: Path) -> None:
-        """When item B depends on item A, A is stored before B."""
-        f_dep = tmp_path / "dep.txt"
-        f_dep.write_text("dep")
-        f_main = tmp_path / "main.txt"
-        f_main.write_text("main")
-
-        call_order = []
-
-        dep_mock = _make_file_mock(str(f_dep), "syn_dep")
-
-        async def dep_store(**kwargs):
-            call_order.append("dep")
-            return dep_mock
-
-        dep_mock.store_async = AsyncMock(side_effect=dep_store)
-
-        main_mock = _make_file_mock(str(f_main), "syn_main")
-
-        async def main_store(**kwargs):
-            call_order.append("main")
-            return main_mock
-
-        main_mock.store_async = AsyncMock(side_effect=main_store)
-
-        dep_item = UploadSyncFile(
-            entity=dep_mock,
-            used=[],
-            executed=[],
-            activity_name=None,
-            activity_description=None,
+    async def test_semicolon_delimited_string_split_and_resolved(self) -> None:
+        """A semicolon-delimited string is split into individual items, each resolved."""
+        df = self._make_df([])
+        result = await _resolve_provenance_column(
+            "syn111 ; https://example.com", "/file.txt", self.syn, df
         )
-        main_item = UploadSyncFile(
-            entity=main_mock,
-            used=[str(f_dep)],
-            executed=[],
-            activity_name="uses dep",
-            activity_description=None,
+        assert result == ["syn111", "https://example.com"]
+
+    async def test_already_a_list_passed_through_without_splitting(self) -> None:
+        """A cell that is already a Python list is not split — items are resolved directly."""
+        df = self._make_df([])
+        result = await _resolve_provenance_column(
+            ["syn111", "https://example.com"], "/file.txt", self.syn, df
+        )
+        assert result == ["syn111", "https://example.com"]
+
+    async def test_non_string_list_item_passed_without_strip(self) -> None:
+        """Non-string items in an already-parsed list are forwarded to _resolve_provenance_item
+        without calling .strip(), which would raise AttributeError."""
+        from synapseclient.models.file import File
+
+        existing_file = MagicMock(spec=File)
+        df = self._make_df([])
+        with patch(
+            "synapseclient.models.services.manifest._resolve_provenance_item",
+            new=AsyncMock(return_value=existing_file),
+        ) as mock_check:
+            result = await _resolve_provenance_column(
+                [existing_file], "/file.txt", self.syn, df
+            )
+        mock_check.assert_awaited_once_with(
+            existing_file, owner_path="/file.txt", syn=self.syn, df=df
+        )
+        assert result == [existing_file]
+
+
+class TestCheckProvenance:
+    @pytest.fixture(autouse=True)
+    def init_syn(self, syn: Synapse) -> None:
+        self.syn = syn
+
+    def _make_df(self, paths: list[str]) -> pd.DataFrame:
+        """Return a path-indexed DataFrame with the given paths as the index."""
+        return pd.DataFrame(index=paths)
+
+    @pytest.mark.parametrize(
+        "item",
+        [
+            None,
+            "https://github.com/example/repo",
+            "syn123456",
+        ],
+    )
+    async def test_passthrough_items(self, item: str | None) -> None:
+        """None, URLs, and Synapse IDs are returned unchanged without any lookup."""
+        df = self._make_df([])
+        result = await _resolve_provenance_item(item, "/some/file.txt", self.syn, df)
+        assert result == item
+
+    async def test_local_file_in_upload_batch_returned_as_path(
+        self, tmp_path: Path
+    ) -> None:
+        """A local file that is part of the current upload batch is returned as its
+        resolved absolute path so the topological sort can order it correctly."""
+        f = tmp_path / "dep.txt"
+        f.write_text("content")
+        abs_path = str(f.resolve())
+        df = self._make_df([abs_path])
+        result = await _resolve_provenance_item(str(f), "/some/file.txt", self.syn, df)
+        assert result == abs_path
+
+    async def test_local_file_not_in_batch_found_in_synapse(
+        self, tmp_path: Path
+    ) -> None:
+        """A local file that is not in the upload batch but exists in Synapse is
+        resolved to a File model object via MD5 lookup."""
+        from synapseclient.models.file import File
+
+        f = tmp_path / "existing.txt"
+        f.write_text("content")
+        synapse_file = MagicMock(spec=File)
+        df = self._make_df([])  # file not in upload batch
+        with patch(
+            "synapseclient.models.file.File.from_path_async",
+            new=AsyncMock(return_value=synapse_file),
+        ):
+            result = await _resolve_provenance_item(
+                str(f), "/some/file.txt", self.syn, df
+            )
+        assert result is synapse_file
+
+    async def test_local_file_not_in_batch_not_in_synapse_raises(
+        self, tmp_path: Path
+    ) -> None:
+        """A local file that is neither in the upload batch nor found in Synapse
+        raises SynapseProvenanceError — it cannot be used as a provenance reference."""
+        from synapseclient.core.exceptions import (
+            SynapseFileNotFoundError,
+            SynapseProvenanceError,
         )
 
-        results = await upload_sync_files([dep_item, main_item], syn=self.syn)
+        f = tmp_path / "orphan.txt"
+        f.write_text("content")
+        df = self._make_df([])
+        with patch(
+            "synapseclient.models.file.File.from_path_async",
+            new=AsyncMock(side_effect=SynapseFileNotFoundError("not found")),
+        ):
+            with pytest.raises(
+                SynapseProvenanceError, match="not being uploaded and is not in Synapse"
+            ):
+                await _resolve_provenance_item(str(f), "/some/file.txt", self.syn, df)
 
-        assert len(results) == 2
-        assert call_order.index("dep") < call_order.index("main")
+    async def test_invalid_item_raises(self) -> None:
+        """A string that is not a local file path, URL, or Synapse ID raises
+        SynapseProvenanceError."""
+        from synapseclient.core.exceptions import SynapseProvenanceError
+
+        df = self._make_df([])
+        with pytest.raises(SynapseProvenanceError):
+            await _resolve_provenance_item(
+                "not_a_url_or_synapse_id", "/some/file.txt", self.syn, df
+            )
+
+
+class TestResolveLocalFileProvenance:
+    async def test_file_in_batch_returns_absolute_path(self, tmp_path: Path) -> None:
+        """A file that exists on disk and is in the upload batch returns its path."""
+        f = tmp_path / "data.txt"
+        f.write_text("content")
+        manifest_df = pd.DataFrame({"col": ["val"]}, index=[str(f)])
+        mock_syn = MagicMock(spec=Synapse)
+
+        result = await _resolve_local_file_provenance(
+            str(f), "/owner.txt", mock_syn, manifest_df
+        )
+        assert result == str(f)
+
+    async def test_file_not_on_disk_raises(self, tmp_path: Path) -> None:
+        """A file that does not exist on disk raises SynapseProvenanceError."""
+        manifest_df = pd.DataFrame({"col": ["val"]}, index=["/other.txt"])
+        mock_syn = MagicMock(spec=Synapse)
+
+        with pytest.raises(SynapseProvenanceError, match="not an existing file"):
+            await _resolve_local_file_provenance(
+                str(tmp_path / "missing.txt"), "/owner.txt", mock_syn, manifest_df
+            )
+
+    async def test_file_not_in_batch_found_in_synapse(self, tmp_path: Path) -> None:
+        """A file on disk but not in the batch is looked up in Synapse by MD5."""
+        f = tmp_path / "external.txt"
+        f.write_text("content")
+        manifest_df = pd.DataFrame({"col": ["val"]}, index=["/other.txt"])
+        mock_syn = MagicMock(spec=Synapse)
+        mock_file = MagicMock()
+
+        with patch(
+            "synapseclient.models.file.File.from_path_async",
+            new_callable=AsyncMock,
+            return_value=mock_file,
+        ):
+            result = await _resolve_local_file_provenance(
+                str(f), "/owner.txt", mock_syn, manifest_df
+            )
+
+        assert result is mock_file
+
+    async def test_file_not_in_batch_not_in_synapse_raises(
+        self, tmp_path: Path
+    ) -> None:
+        """A file on disk, not in the batch, and not in Synapse raises."""
+        from synapseclient.core.exceptions import SynapseFileNotFoundError
+
+        f = tmp_path / "orphan.txt"
+        f.write_text("content")
+        manifest_df = pd.DataFrame({"col": ["val"]}, index=["/other.txt"])
+        mock_syn = MagicMock(spec=Synapse)
+
+        with patch(
+            "synapseclient.models.file.File.from_path_async",
+            new_callable=AsyncMock,
+            side_effect=SynapseFileNotFoundError("not found"),
+        ):
+            with pytest.raises(SynapseProvenanceError, match="not being uploaded"):
+                await _resolve_local_file_provenance(
+                    str(f), "/owner.txt", mock_syn, manifest_df
+                )
