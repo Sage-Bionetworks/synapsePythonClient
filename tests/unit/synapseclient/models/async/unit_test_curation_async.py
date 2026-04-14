@@ -7,6 +7,7 @@ import pytest
 from synapseclient import Synapse
 from synapseclient.core.constants.concrete_types import (
     FILE_BASED_METADATA_TASK_PROPERTIES,
+    GRID_CSV_IMPORT_REQUEST,
     RECORD_BASED_METADATA_TASK_PROPERTIES,
     UPLOAD_TO_TABLE_PREVIEW_REQUEST,
 )
@@ -15,6 +16,7 @@ from synapseclient.models.curation import (
     CurationTask,
     FileBasedMetadataTaskProperties,
     Grid,
+    GridCsvImportRequest,
     GridRecordSetExportRequest,
     RecordBasedMetadataTaskProperties,
     UploadToTablePreviewRequest,
@@ -902,7 +904,7 @@ class TestUploadToTablePreviewRequest:
             name="Diagnosis", column_type="STRING", maximum_size=7
         )
         assert preview_response.suggested_columns[4] == Column(
-            name="PatientID", column_type="INTEGER"
+            name="PatientID", column_type="INTEGER", max_size=None
         )
         assert preview_response.sample_rows == [
             [None, "Female", "test", "Healthy", "1", None, None, None]
@@ -937,6 +939,77 @@ class TestUploadToTablePreviewRequest:
         assert result["csvTableDescriptor"]["escapeCharacter"] == "\\"
         assert result["csvTableDescriptor"]["lineEnd"] == "\n"
         assert result["csvTableDescriptor"]["isFirstLineHeader"] is True
+
+
+class TestGridCsvImportRequest:
+    """Tests for the GridCsvImportRequest helper dataclass."""
+
+    def test_fill_from_dict(self) -> None:
+        # GIVEN a response with grid CSV import data
+        raw_synapse_response = {
+            "jobId": "1234",
+            "concreteType": "org.sagebionetworks.repo.model.grid.GridCsvImportResponse",
+            "sessionId": SESSION_ID,
+            "totalCount": 3,
+            "createdCount": 1,
+            "updatedCount": 2,
+        }
+
+        # WHEN I fill a GridCsvImportRequest from the response
+        import_req = GridCsvImportRequest(session_id=SESSION_ID)
+        result = import_req.fill_from_dict(raw_synapse_response)
+
+        # THEN the response fields should be populated correctly
+        assert result.session_id == SESSION_ID
+        assert result.total_count == 3
+        assert result.created_count == 1
+        assert result.updated_count == 2
+
+    def test_to_synapse_request(self) -> None:
+        # GIVEN a GridCsvImportRequest with all fields set
+        import_req = GridCsvImportRequest(
+            session_id=SESSION_ID,
+            file_handle_id="1234567",
+            csv_descriptor=CsvTableDescriptor(
+                separator=",",
+                quote_character='"',
+                escape_character="\\",
+                line_end="\n",
+                is_first_line_header=True,
+            ),
+            schema=[
+                Column(name="ROW_ID", column_type="STRING"),
+                Column(name="ROW_VERSION", column_type="STRING"),
+                Column(name="PatientID", column_type="INTEGER"),
+                Column(name="Diagnosis", column_type="STRING"),
+            ],
+        )
+
+        # WHEN I convert it to a synapse request
+        result = import_req.to_synapse_request()
+
+        # THEN it should contain the correct fields
+        assert result["concreteType"] == GRID_CSV_IMPORT_REQUEST
+        assert result["sessionId"] == SESSION_ID
+        assert result["fileHandleId"] == "1234567"
+        assert result["csvDescriptor"]["separator"] == ","
+        assert result["csvDescriptor"]["quoteCharacter"] == '"'
+        assert result["csvDescriptor"]["escapeCharacter"] == "\\"
+        assert result["csvDescriptor"]["lineEnd"] == "\n"
+        assert result["csvDescriptor"]["isFirstLineHeader"] is True
+        assert len(result["schema"]) == 4
+        assert (
+            result["schema"][0]
+            == Column(name="ROW_ID", column_type="STRING").to_synapse_request()
+        )
+        assert (
+            result["schema"][2]
+            == Column(name="PatientID", column_type="INTEGER").to_synapse_request()
+        )
+        assert (
+            result["schema"][3]
+            == Column(name="Diagnosis", column_type="STRING").to_synapse_request()
+        )
 
 
 class TestGridRecordSetExportRequest:
