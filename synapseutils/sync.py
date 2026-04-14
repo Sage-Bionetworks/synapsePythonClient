@@ -524,7 +524,7 @@ class _SyncUploader:
 
         return created_tasks_by_path.values()
 
-    async def upload(self, items: Iterable[_SyncUploadItem]) -> List["File"]:
+    async def upload(self, items: Iterable[_SyncUploadItem]) -> None:
         """Upload a number of files to Synapse as provided in the manifest file. This
         will handle ordering the files based on their dependency graph.
 
@@ -532,16 +532,14 @@ class _SyncUploader:
             items: The list of items to upload.
 
         Returns:
-            List of File entities that were created or updated, in the same
-            order as the dependency-graph task execution.
+            None
         """
         dependency_graph = self._build_dependency_graph(items=[i for i in items])
         tasks = self._build_tasks_from_dependency_graph(
             dependency_graph=dependency_graph
         )
 
-        results = await asyncio.gather(*tasks)
-        return list(results)
+        await asyncio.gather(*tasks)
 
     def _build_activity_linkage(
         self, used_or_executed: Iterable[str], resolved_file_ids: Dict[str, str]
