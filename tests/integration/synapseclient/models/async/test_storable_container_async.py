@@ -46,7 +46,18 @@ def _create_local_test_file(content: str, tmp_path: Path) -> Path:
 
 
 class TestSyncToSynapse:
-    """Integration tests for Project.sync_to_synapse / Folder.sync_to_synapse."""
+    """Integration tests for Project.sync_to_synapse / Folder.sync_to_synapse.
+
+    Tests:
+        - Upload new files from a CSV manifest
+        - Annotation columns in the manifest are stored as file annotations
+        - Updating an existing file by ID creates a new version
+        - Provenance (used/executed) columns are recorded as activity
+        - dry_run=True validates without uploading
+        - Files can target a subfolder as parentId
+        - A non-container parentId (e.g. a File) raises ValueError
+        - Rows with a non-empty error column are skipped
+    """
 
     @pytest.fixture(autouse=True, scope="function")
     def init(self, syn: Synapse, schedule_for_cleanup: Callable[..., None]) -> None:
