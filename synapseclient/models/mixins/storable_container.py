@@ -571,11 +571,6 @@ class StorableContainer(StorableContainerSynchronousProtocol):
 
             asyncio.run(main())
             ```
-
-        Raises:
-            ValueError: If required manifest columns are missing, paths are
-                not unique, files are empty, or file names are invalid.
-            IOError: If a file path in the manifest does not exist.
         """
         from tqdm import tqdm
 

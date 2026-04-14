@@ -288,13 +288,6 @@ class StorableContainerSynchronousProtocol(Protocol):
 
             project = Project(id="syn12345")
             uploaded = project.sync_to_synapse(manifest_path="/path/to/manifest.csv")
-            for f in uploaded:
-                print(f.id, f.name)
             ```
-
-        Raises:
-            ValueError: If required manifest columns are missing, paths are
-                not unique, files are empty, or file names are invalid.
-            IOError: If a file path in the manifest does not exist.
         """
         return []
