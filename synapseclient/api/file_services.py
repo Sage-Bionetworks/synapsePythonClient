@@ -400,8 +400,8 @@ async def get_file_handle_presigned_url(
     Arguments:
         file_handle_id: The ID of the file handle.
         synapse_client: If not passed in and caching was not disabled by
-                `Synapse.allow_client_caching(False)` this will use the last created
-                instance from the Synapse class constructor.
+            Synapse.allow_client_caching(False) this will use the last created
+            instance from the Synapse class constructor.
 
     Raises:
         SynapseFileNotFoundError: If the fileHandleId is not found in Synapse.
@@ -409,7 +409,9 @@ async def get_file_handle_presigned_url(
             file handle.
 
     Returns:
-        A pre-signed URL string for downloading the file.
+        A pre-signed URL string for downloading the file. The Synapse endpoint
+        returns the URL as text/plain when redirect=false, so rest_get_async
+        returns a plain string rather than a dict for this call.
     """
     from synapseclient import Synapse
 
