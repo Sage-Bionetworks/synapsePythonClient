@@ -184,7 +184,7 @@ class DownloadListManifestRequest(AsynchronousCommunicator):
         )
 
 
-@dataclass()
+@dataclass
 @async_to_sync
 class DownloadList(DownloadListSynchronousProtocol):
     """Represents a user's Synapse Download List (cart).
