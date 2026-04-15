@@ -176,8 +176,6 @@ query_async = QueryMixin.query_async
 query = QueryMixin.query
 query_part_mask_async = QueryMixin.query_part_mask_async
 query_part_mask = QueryMixin.query_part_mask
-
-# DownloadList static methods exposed as plain functions
 download_files_async = DownloadList.download_files_async
 download_files = DownloadList.download_files
 get_manifest_async = DownloadList.get_manifest_async
