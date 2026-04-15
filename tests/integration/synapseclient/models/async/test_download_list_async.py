@@ -30,6 +30,8 @@ class TestDownloadList:
         - add_files_batch: multiple files added in one call
         - download_files_multiple_versions: two versions of the same file both download
         - get_manifest_custom_csv_descriptor: tab-separated descriptor produces TSV
+        - add_files_no_version: version_number=None adds latest version
+        - remove_files_no_version: version_number=None does not match explicit version
         - download_files_default_location: omitting download_location writes to CWD
     """
 
@@ -429,6 +431,72 @@ class TestDownloadList:
         assert any(
             row["ID"] == file.id for row in rows
         ), f"Expected {file.id} in tab-separated manifest"
+
+    async def test_add_files_with_no_version_number(
+        self,
+        project: Synapse_Project,
+        syn: Synapse,
+        schedule_for_cleanup: Callable[..., None],
+    ) -> None:
+        """add_files_async() with version_number=None adds the latest version."""
+        # GIVEN an empty cart and a file in Synapse
+        await DownloadList.clear_async(synapse_client=syn)
+        file = await self._create_test_file(project, syn, schedule_for_cleanup)
+
+        # WHEN I add the file without specifying a version number
+        count = await DownloadList.add_files_async(
+            files=[
+                DownloadListItem(file_entity_id=file.id),
+            ],
+            synapse_client=syn,
+        )
+
+        # THEN the file is added to the cart
+        assert count == 1, f"Expected 1 file added, got {count}"
+
+        manifest_path = await DownloadList.get_manifest_async(synapse_client=syn)
+        schedule_for_cleanup(manifest_path)
+        with open(manifest_path, newline="") as f:
+            reader = csv.DictReader(f)
+            ids_in_cart = {row["ID"] for row in reader}
+        await DownloadList.clear_async(synapse_client=syn)
+
+        assert file.id in ids_in_cart, f"Expected {file.id} in the cart"
+
+    async def test_remove_files_with_no_version_number(
+        self,
+        project: Synapse_Project,
+        syn: Synapse,
+        schedule_for_cleanup: Callable[..., None],
+    ) -> None:
+        """remove_files_async() with version_number=None does NOT match a cart entry
+        that was added with an explicit version — the API requires an exact
+        (fileEntityId, versionNumber) pair."""
+        # GIVEN an empty cart with one file added (with explicit version)
+        await DownloadList.clear_async(synapse_client=syn)
+        file = await self._create_test_file(project, syn, schedule_for_cleanup)
+        await self._add_to_cart(file, syn)
+
+        # WHEN I try to remove the file without specifying a version number
+        removed = await DownloadList.remove_files_async(
+            files=[
+                DownloadListItem(file_entity_id=file.id),
+            ],
+            synapse_client=syn,
+        )
+
+        # THEN nothing is removed because null versionNumber doesn't match
+        assert removed == 0, f"Expected 0 files removed, got {removed}"
+
+        # AND the file is still in the cart
+        manifest_path = await DownloadList.get_manifest_async(synapse_client=syn)
+        schedule_for_cleanup(manifest_path)
+        with open(manifest_path, newline="") as f:
+            reader = csv.DictReader(f)
+            ids_in_cart = {row["ID"] for row in reader}
+        await DownloadList.clear_async(synapse_client=syn)
+
+        assert file.id in ids_in_cart, f"Expected {file.id} to still be in the cart"
 
     async def test_download_files_default_location(
         self,
