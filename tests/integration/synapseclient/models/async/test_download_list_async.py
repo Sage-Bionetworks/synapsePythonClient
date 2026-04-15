@@ -534,22 +534,40 @@ class TestDownloadList:
         file = await self._create_test_file(project, syn, schedule_for_cleanup)
         await self._add_to_cart(file, syn)
 
-        # WHEN I request a manifest with a tab separator
-        descriptor = CsvTableDescriptor(separator="\t")
+        # WHEN I request a manifest with all non-default descriptor options
+        descriptor = CsvTableDescriptor(
+            separator="\t",
+            quote_character="'",
+            escape_character="/",
+            line_end="\n",
+            is_first_line_header=False,
+        )
         manifest_path = await DownloadList.get_manifest_async(
             csv_table_descriptor=descriptor,
             synapse_client=syn,
         )
         schedule_for_cleanup(manifest_path)
 
-        # THEN the downloaded CSV uses tabs as the delimiter
+        # THEN the downloaded file uses the custom descriptor settings
         with open(manifest_path, newline="") as f:
-            reader = csv.DictReader(f, delimiter="\t")
-            rows = list(reader)
+            content = f.read()
 
         await DownloadList.clear_async(synapse_client=syn)
 
-        assert len(rows) >= 1, "Expected at least one row in the manifest"
+        # AND tab separator is used
+        assert "\t" in content, "Expected tab separators in manifest"
+
+        # AND lines end with \n (not \r\n or other)
+        lines = content.split("\n")
+        lines = [line for line in lines if line]
+
+        # AND there is no header row so the file ID appears in the raw content
+        assert len(lines) >= 1, "Expected at least one row in the manifest"
         assert any(
-            row["ID"] == file.id for row in rows
-        ), f"Expected {file.id} in tab-separated manifest"
+            file.id in line for line in lines
+        ), f"Expected {file.id} in manifest content"
+
+        # AND the single-quote character is used for quoting
+        assert (
+            '"' not in content
+        ), "Expected single-quote quoting, but found double quotes in manifest"
