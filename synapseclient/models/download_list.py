@@ -24,6 +24,8 @@ from synapseclient.models.protocols.download_list_protocol import (
 )
 from synapseclient.models.table_components import CsvTableDescriptor
 
+_ID_COLUMN = "ID"
+_VERSION_COLUMN = "versionNumber"
 _PATH_COLUMN = "path"
 _ERROR_COLUMN = "error"
 
@@ -279,7 +281,7 @@ class DownloadList(DownloadListSynchronousProtocol):
         columns = DownloadList._validate_and_extend_columns(columns)
 
         # 3. Download each file in the manifest
-        downloaded_files = await DownloadList._download_all_rows(
+        downloaded_files = await DownloadList._download_all_manifest_files(
             rows=rows,
             download_location=download_location,
             parallel=parallel,
@@ -366,30 +368,7 @@ class DownloadList(DownloadListSynchronousProtocol):
         return list(columns) + [_PATH_COLUMN, _ERROR_COLUMN]
 
     @staticmethod
-    def _write_result_manifest(
-        path: str,
-        columns: list[str],
-        rows: list[dict[str, Any]],
-    ) -> None:
-        """
-        Write the annotated result rows to the output manifest CSV.
-        Intended to be called via asyncio.to_thread to avoid blocking the
-        event loop on synchronous file I/O.
-
-        Arguments:
-            path: Destination path for the output manifest CSV.
-            columns: Field names for the CSV header, including "path" and
-                "error".
-            rows: List of row dicts, each mutated by _download_row to
-                include "path" and "error" values.
-        """
-        with open(path, "w", newline="") as f:
-            writer = csv.DictWriter(f, fieldnames=columns, extrasaction="ignore")
-            writer.writeheader()
-            writer.writerows(rows)
-
-    @staticmethod
-    async def _download_all_rows(
+    async def _download_all_manifest_files(
         rows: list[dict[str, Any]],
         download_location: Optional[str],
         parallel: bool = False,
@@ -397,11 +376,11 @@ class DownloadList(DownloadListSynchronousProtocol):
         *,
         synapse_client: Optional["Synapse"] = None,
     ) -> list[DownloadListItem]:
-        """Download all rows from the manifest, either sequentially or concurrently.
+        """Download all files from the manifest, either sequentially or concurrently.
 
         Arguments:
             rows: List of row dicts from the manifest. Each row is mutated in
-                place by _download_row to include "path" and
+                place by _download_manifest_file to include "path" and
                 "error" values.
             download_location: Directory to download files to.
             parallel: If True, rows are downloaded concurrently (bounded by
@@ -435,7 +414,7 @@ class DownloadList(DownloadListSynchronousProtocol):
                 row: dict[str, Any],
             ) -> Optional[DownloadListItem]:
                 async with sem:
-                    return await DownloadList._download_row(
+                    return await DownloadList._download_manifest_file(
                         row,
                         download_location=download_location,
                         synapse_client=synapse_client,
@@ -446,7 +425,7 @@ class DownloadList(DownloadListSynchronousProtocol):
         else:
             downloaded: list[DownloadListItem] = []
             for row in rows:
-                item = await DownloadList._download_row(
+                item = await DownloadList._download_manifest_file(
                     row,
                     download_location=download_location,
                     synapse_client=synapse_client,
@@ -456,7 +435,7 @@ class DownloadList(DownloadListSynchronousProtocol):
             return downloaded
 
     @staticmethod
-    async def _download_row(
+    async def _download_manifest_file(
         row: dict[str, Any],
         download_location: Optional[str] = None,
         *,
@@ -483,8 +462,8 @@ class DownloadList(DownloadListSynchronousProtocol):
         from synapseclient.models.file import File
 
         client = Synapse.get_client(synapse_client=synapse_client)
-        entity_id = row["ID"]
-        version_str = row.get("versionNumber")
+        entity_id = row[_ID_COLUMN]
+        version_str = row.get(_VERSION_COLUMN)
         version_number = int(version_str) if version_str else None
 
         if version_number is None:
@@ -521,7 +500,7 @@ class DownloadList(DownloadListSynchronousProtocol):
         """Write the annotated rows to a new result manifest CSV and return its path.
 
         Arguments:
-            rows: List of row dicts, each mutated by _download_row to
+            rows: List of row dicts, each mutated by _download_manifest_file to
                 include "path" and "error" values.
             columns: Field names for the CSV header, including "path" and
                 "error".
@@ -545,6 +524,29 @@ class DownloadList(DownloadListSynchronousProtocol):
             rows=rows,
         )
         return path
+
+    @staticmethod
+    def _write_result_manifest(
+        path: str,
+        columns: list[str],
+        rows: list[dict[str, Any]],
+    ) -> None:
+        """
+        Write the annotated result rows to the output manifest CSV.
+        Intended to be called via asyncio.to_thread to avoid blocking the
+        event loop on synchronous file I/O.
+
+        Arguments:
+            path: Destination path for the output manifest CSV.
+            columns: Field names for the CSV header, including "path" and
+                "error".
+            rows: List of row dicts, each mutated by _download_manifest_file to
+                include "path" and "error" values.
+        """
+        with open(path, "w", newline="") as f:
+            writer = csv.DictWriter(f, fieldnames=columns, extrasaction="ignore")
+            writer.writeheader()
+            writer.writerows(rows)
 
     @staticmethod
     async def get_manifest_async(
