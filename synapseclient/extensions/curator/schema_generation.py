@@ -4679,10 +4679,8 @@ class TraversalNode:  # pylint: disable=too-many-instance-attributes
             node_validation_rules=validation_rules,
             node_display_name=self.display_label,
         )
-        self.dependencies = sorted(
-            self.dmge.get_node_dependencies(
-                self.name, display_names=False, schema_ordered=False
-            )
+        self.dependencies = self.dmge.get_node_dependencies(
+            self.name, display_names=False, schema_ordered=True
         )
         self.description = self.dmge.get_node_comment(
             node_display_name=self.display_label
@@ -4875,10 +4873,8 @@ class GraphTraversalState:  # pylint: disable=too-many-instance-attributes
         self._processed_nodes = []
         self._reverse_dependencies = {}
         self._valid_values_map = {}
-        root_dependencies = sorted(
-            self.dmge.get_node_dependencies(
-                self.source_node, display_names=False, schema_ordered=False
-            )
+        root_dependencies = self.dmge.get_node_dependencies(
+            self.source_node, display_names=False, schema_ordered=True
         )
         if not root_dependencies:
             raise ValueError(
@@ -4906,7 +4902,7 @@ class GraphTraversalState:  # pylint: disable=too-many-instance-attributes
                 self.current_node.dependencies,
             )
             self._update_nodes_to_process(sorted(self.current_node.valid_values))
-            self._update_nodes_to_process(sorted(self.current_node.dependencies))
+            self._update_nodes_to_process(self.current_node.dependencies)
         else:
             self.current_node = None
 
