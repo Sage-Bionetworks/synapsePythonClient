@@ -384,6 +384,43 @@ async def get_file_handle(
     )
 
 
+async def get_file_handle_presigned_url(
+    file_handle_id: str,
+    *,
+    synapse_client: Optional["Synapse"] = None,
+) -> str:
+    """
+    Get a pre-signed URL for a file handle owned by the current user.
+    Unlike get_file_handle_for_download_async, this does not require an
+    associated Synapse entity — only that the caller is the creator of the
+    file handle.
+
+    <https://rest-docs.synapse.org/rest/GET/fileHandle/handleId/url.html>
+
+    Arguments:
+        file_handle_id: The ID of the file handle.
+        synapse_client: If not passed in and caching was not disabled by
+                `Synapse.allow_client_caching(False)` this will use the last created
+                instance from the Synapse class constructor.
+
+    Raises:
+        SynapseFileNotFoundError: If the fileHandleId is not found in Synapse.
+        SynapseAuthorizationError: If the caller is not the creator of the
+            file handle.
+
+    Returns:
+        A pre-signed URL string for downloading the file.
+    """
+    from synapseclient import Synapse
+
+    client = Synapse.get_client(synapse_client=synapse_client)
+
+    return await client.rest_get_async(
+        f"/fileHandle/{file_handle_id}/url?redirect=false",
+        endpoint=client.fileHandleEndpoint,
+    )
+
+
 async def get_file_handle_for_download_async(
     file_handle_id: str,
     synapse_id: str,

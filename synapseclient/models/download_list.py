@@ -143,11 +143,11 @@ class DownloadListManifestRequest(AsynchronousCommunicator):
     ) -> None:
         """Download the manifest CSV from Synapse after the async job completes.
 
-        Exchanges the result_file_handle_id for a pre-signed S3 URL via
-        get_file_handle_for_download_async, then streams the CSV to disk
-        using download_from_url (run in a thread pool to avoid blocking the
-        event loop). On success, sets self.manifest_path to the local path
-        of the downloaded file.
+        Retrieves the file handle metadata and a pre-signed S3 URL using
+        creator-based endpoints (no entity association required), then
+        streams the CSV to disk using download_from_url (run in a thread
+        pool to avoid blocking the event loop). On success, sets
+        self.manifest_path to the local path of the downloaded file.
 
         Arguments:
             synapse_client: The Synapse client to use for the request. Uses
@@ -157,26 +157,28 @@ class DownloadListManifestRequest(AsynchronousCommunicator):
                 working directory.
         """
         from synapseclient import Synapse
-        from synapseclient.api.file_services import get_file_handle_for_download_async
+        from synapseclient.api.file_services import (
+            get_file_handle,
+            get_file_handle_presigned_url,
+        )
         from synapseclient.core.download.download_functions import download_from_url
 
         destination = kwargs.get("destination", ".")
         client = Synapse.get_client(synapse_client=synapse_client)
-        # This calls get_file_handle_for_download_async using the file_handle_id as the synapse_id.
-        # The deprecated function this code replaces did the same, and the Synapse server accepts it.
-        # The server could in theory reject this request in the future.
-        file_result = await get_file_handle_for_download_async(
+        file_handle = await get_file_handle(
             file_handle_id=self.result_file_handle_id,
-            synapse_id=self.result_file_handle_id,
-            entity_type="FileEntity",
+            synapse_client=client,
+        )
+        presigned_url = await get_file_handle_presigned_url(
+            file_handle_id=self.result_file_handle_id,
             synapse_client=client,
         )
         self.manifest_path = await asyncio.to_thread(
             download_from_url,
-            url=file_result["preSignedURL"],
+            url=presigned_url,
             destination=destination,
-            file_handle_id=file_result["fileHandleId"],
-            expected_md5=file_result["fileHandle"].get("contentMd5"),
+            file_handle_id=file_handle["id"],
+            expected_md5=file_handle.get("contentMd5"),
             url_is_presigned=True,
             synapse_client=client,
         )

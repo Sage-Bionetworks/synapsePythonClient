@@ -150,17 +150,19 @@ class TestDownloadListManifestRequest:
         request = DownloadListManifestRequest()
         request.result_file_handle_id = "fh456"
 
-        fake_file_result = {
-            "preSignedURL": "https://example.com/manifest.csv",
-            "fileHandleId": "fh456",
-            "fileHandle": {"contentMd5": "abc123"},
-        }
+        fake_file_handle = {"id": "fh456", "contentMd5": "abc123"}
+        fake_presigned_url = "https://example.com/manifest.csv"
         with (
             patch(
-                "synapseclient.api.file_services.get_file_handle_for_download_async",
+                "synapseclient.api.file_services.get_file_handle",
                 new_callable=AsyncMock,
-                return_value=fake_file_result,
+                return_value=fake_file_handle,
             ) as mock_get_fh,
+            patch(
+                "synapseclient.api.file_services.get_file_handle_presigned_url",
+                new_callable=AsyncMock,
+                return_value=fake_presigned_url,
+            ) as mock_get_url,
             patch(
                 "synapseclient.core.download.download_functions.download_from_url",
                 return_value="/tmp/manifest.csv",
@@ -175,11 +177,14 @@ class TestDownloadListManifestRequest:
             await request._post_exchange_async(
                 synapse_client=self.syn, destination="/tmp"
             )
-            # THEN get_file_handle_for_download_async is called with correct args
+            # THEN get_file_handle is called with the file handle ID
             mock_get_fh.assert_called_once_with(
                 file_handle_id="fh456",
-                synapse_id="fh456",
-                entity_type="FileEntity",
+                synapse_client=self.syn,
+            )
+            # AND get_file_handle_presigned_url is called with the file handle ID
+            mock_get_url.assert_called_once_with(
+                file_handle_id="fh456",
                 synapse_client=self.syn,
             )
             # AND the manifest path is set
