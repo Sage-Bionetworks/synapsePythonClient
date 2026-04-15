@@ -225,18 +225,22 @@ class TestLink:
         link = Link(id=LINK_ID)
 
         # WHEN we call get_async with follow_link=True (default)
-        with patch(
-            "synapseclient.models.link.get_id",
-            new_callable=AsyncMock,
-            return_value=LINK_ID,
-        ) as mocked_get_id, patch(
-            "synapseclient.models.link.get_from_entity_factory",
-            new_callable=AsyncMock,
-        ) as mocked_get_entity_factory, patch(
-            "synapseclient.operations.factory_operations.get_async",
-            new_callable=AsyncMock,
-            return_value="followed_entity",
-        ) as mocked_factory_get_async:
+        with (
+            patch(
+                "synapseclient.models.link.get_id",
+                new_callable=AsyncMock,
+                return_value=LINK_ID,
+            ) as mocked_get_id,
+            patch(
+                "synapseclient.models.link.get_from_entity_factory",
+                new_callable=AsyncMock,
+            ) as mocked_get_entity_factory,
+            patch(
+                "synapseclient.operations.factory_operations.get_async",
+                new_callable=AsyncMock,
+                return_value="followed_entity",
+            ) as mocked_factory_get_async,
+        ):
             # Set up get_from_entity_factory to populate the link
             async def fill_link(synapse_id_or_path, entity_to_update, synapse_client):
                 entity_to_update.fill_from_dict(self.get_example_rest_api_response())
@@ -271,14 +275,17 @@ class TestLink:
         link = Link(id=LINK_ID)
 
         # WHEN we call get_async with follow_link=False
-        with patch(
-            "synapseclient.models.link.get_id",
-            new_callable=AsyncMock,
-            return_value=LINK_ID,
-        ) as mocked_get_id, patch(
-            "synapseclient.models.link.get_from_entity_factory",
-            new_callable=AsyncMock,
-        ) as mocked_get_entity_factory:
+        with (
+            patch(
+                "synapseclient.models.link.get_id",
+                new_callable=AsyncMock,
+                return_value=LINK_ID,
+            ) as mocked_get_id,
+            patch(
+                "synapseclient.models.link.get_from_entity_factory",
+                new_callable=AsyncMock,
+            ) as mocked_get_entity_factory,
+        ):
 
             async def fill_link(synapse_id_or_path, entity_to_update, synapse_client):
                 entity_to_update.fill_from_dict(self.get_example_rest_api_response())
@@ -309,14 +316,17 @@ class TestLink:
         link = Link(name=LINK_NAME, parent_id=PARENT_ID)
 
         # WHEN we call get_async
-        with patch(
-            "synapseclient.models.link.get_id",
-            new_callable=AsyncMock,
-            return_value=LINK_ID,
-        ) as mocked_get_id, patch(
-            "synapseclient.models.link.get_from_entity_factory",
-            new_callable=AsyncMock,
-        ) as mocked_get_entity_factory:
+        with (
+            patch(
+                "synapseclient.models.link.get_id",
+                new_callable=AsyncMock,
+                return_value=LINK_ID,
+            ) as mocked_get_id,
+            patch(
+                "synapseclient.models.link.get_from_entity_factory",
+                new_callable=AsyncMock,
+            ) as mocked_get_entity_factory,
+        ):
 
             async def fill_link(synapse_id_or_path, entity_to_update, synapse_client):
                 entity_to_update.fill_from_dict(self.get_example_rest_api_response())
@@ -340,14 +350,17 @@ class TestLink:
         parent = Folder(id=PARENT_ID)
 
         # WHEN we call get_async with the parent
-        with patch(
-            "synapseclient.models.link.get_id",
-            new_callable=AsyncMock,
-            return_value=LINK_ID,
-        ), patch(
-            "synapseclient.models.link.get_from_entity_factory",
-            new_callable=AsyncMock,
-        ) as mocked_get_entity_factory:
+        with (
+            patch(
+                "synapseclient.models.link.get_id",
+                new_callable=AsyncMock,
+                return_value=LINK_ID,
+            ),
+            patch(
+                "synapseclient.models.link.get_from_entity_factory",
+                new_callable=AsyncMock,
+            ) as mocked_get_entity_factory,
+        ):
 
             async def fill_link(synapse_id_or_path, entity_to_update, synapse_client):
                 entity_to_update.fill_from_dict(self.get_example_rest_api_response())
@@ -369,14 +382,17 @@ class TestLink:
         parent = Project(id=PARENT_ID)
 
         # WHEN we call get_async with the parent
-        with patch(
-            "synapseclient.models.link.get_id",
-            new_callable=AsyncMock,
-            return_value=LINK_ID,
-        ), patch(
-            "synapseclient.models.link.get_from_entity_factory",
-            new_callable=AsyncMock,
-        ) as mocked_get_entity_factory:
+        with (
+            patch(
+                "synapseclient.models.link.get_id",
+                new_callable=AsyncMock,
+                return_value=LINK_ID,
+            ),
+            patch(
+                "synapseclient.models.link.get_from_entity_factory",
+                new_callable=AsyncMock,
+            ) as mocked_get_entity_factory,
+        ):
 
             async def fill_link(synapse_id_or_path, entity_to_update, synapse_client):
                 entity_to_update.fill_from_dict(self.get_example_rest_api_response())
@@ -424,18 +440,22 @@ class TestLink:
         mock_file_options = object()
 
         # WHEN we call get_async with follow_link=True and file_options
-        with patch(
-            "synapseclient.models.link.get_id",
-            new_callable=AsyncMock,
-            return_value=LINK_ID,
-        ), patch(
-            "synapseclient.models.link.get_from_entity_factory",
-            new_callable=AsyncMock,
-        ) as mocked_get_entity_factory, patch(
-            "synapseclient.operations.factory_operations.get_async",
-            new_callable=AsyncMock,
-            return_value="followed_file_entity",
-        ) as mocked_factory_get_async:
+        with (
+            patch(
+                "synapseclient.models.link.get_id",
+                new_callable=AsyncMock,
+                return_value=LINK_ID,
+            ),
+            patch(
+                "synapseclient.models.link.get_from_entity_factory",
+                new_callable=AsyncMock,
+            ) as mocked_get_entity_factory,
+            patch(
+                "synapseclient.operations.factory_operations.get_async",
+                new_callable=AsyncMock,
+                return_value="followed_file_entity",
+            ) as mocked_factory_get_async,
+        ):
 
             async def fill_link(synapse_id_or_path, entity_to_update, synapse_client):
                 entity_to_update.fill_from_dict(self.get_example_rest_api_response())
@@ -464,14 +484,17 @@ class TestLink:
         link = Link(id=LINK_ID)
 
         # WHEN we call get_async with follow_link=False
-        with patch(
-            "synapseclient.models.link.get_id",
-            new_callable=AsyncMock,
-            return_value=LINK_ID,
-        ), patch(
-            "synapseclient.models.link.get_from_entity_factory",
-            new_callable=AsyncMock,
-        ) as mocked_get_entity_factory:
+        with (
+            patch(
+                "synapseclient.models.link.get_id",
+                new_callable=AsyncMock,
+                return_value=LINK_ID,
+            ),
+            patch(
+                "synapseclient.models.link.get_from_entity_factory",
+                new_callable=AsyncMock,
+            ) as mocked_get_entity_factory,
+        ):
 
             async def fill_link(synapse_id_or_path, entity_to_update, synapse_client):
                 entity_to_update.fill_from_dict(self.get_example_rest_api_response())
@@ -498,19 +521,23 @@ class TestLink:
         )
 
         # WHEN we call store_async
-        with patch(
-            "synapseclient.models.link.get_id",
-            new_callable=AsyncMock,
-            return_value=None,
-        ), patch(
-            "synapseclient.models.link.store_entity",
-            new_callable=AsyncMock,
-            return_value=self.get_example_rest_api_response(),
-        ) as mocked_store_entity, patch(
-            "synapseclient.models.link.store_entity_components",
-            new_callable=AsyncMock,
-            return_value=False,
-        ) as mocked_store_components:
+        with (
+            patch(
+                "synapseclient.models.link.get_id",
+                new_callable=AsyncMock,
+                return_value=None,
+            ),
+            patch(
+                "synapseclient.models.link.store_entity",
+                new_callable=AsyncMock,
+                return_value=self.get_example_rest_api_response(),
+            ) as mocked_store_entity,
+            patch(
+                "synapseclient.models.link.store_entity_components",
+                new_callable=AsyncMock,
+                return_value=False,
+            ) as mocked_store_components,
+        ):
             result = await link.store_async(synapse_client=self.syn)
 
             # THEN store_entity should have been called
@@ -550,21 +577,26 @@ class TestLink:
         )
 
         # WHEN we call store_async
-        with patch(
-            "synapseclient.models.link.get_id",
-            new_callable=AsyncMock,
-            return_value=LINK_ID,
-        ), patch(
-            "synapseclient.models.link.get_from_entity_factory",
-            new_callable=AsyncMock,
-        ) as mocked_get_entity_factory, patch(
-            "synapseclient.models.link.store_entity",
-            new_callable=AsyncMock,
-            return_value=self.get_example_rest_api_response(),
-        ) as mocked_store_entity, patch(
-            "synapseclient.models.link.store_entity_components",
-            new_callable=AsyncMock,
-            return_value=False,
+        with (
+            patch(
+                "synapseclient.models.link.get_id",
+                new_callable=AsyncMock,
+                return_value=LINK_ID,
+            ),
+            patch(
+                "synapseclient.models.link.get_from_entity_factory",
+                new_callable=AsyncMock,
+            ) as mocked_get_entity_factory,
+            patch(
+                "synapseclient.models.link.store_entity",
+                new_callable=AsyncMock,
+                return_value=self.get_example_rest_api_response(),
+            ) as mocked_store_entity,
+            patch(
+                "synapseclient.models.link.store_entity_components",
+                new_callable=AsyncMock,
+                return_value=False,
+            ),
         ):
             # Set up get_from_entity_factory to populate the link copy in
             # _find_existing_entity
@@ -593,18 +625,22 @@ class TestLink:
         parent = Folder(id=PARENT_ID)
 
         # WHEN we call store_async with the parent argument
-        with patch(
-            "synapseclient.models.link.get_id",
-            new_callable=AsyncMock,
-            return_value=None,
-        ), patch(
-            "synapseclient.models.link.store_entity",
-            new_callable=AsyncMock,
-            return_value=self.get_example_rest_api_response(),
-        ) as mocked_store_entity, patch(
-            "synapseclient.models.link.store_entity_components",
-            new_callable=AsyncMock,
-            return_value=False,
+        with (
+            patch(
+                "synapseclient.models.link.get_id",
+                new_callable=AsyncMock,
+                return_value=None,
+            ),
+            patch(
+                "synapseclient.models.link.store_entity",
+                new_callable=AsyncMock,
+                return_value=self.get_example_rest_api_response(),
+            ) as mocked_store_entity,
+            patch(
+                "synapseclient.models.link.store_entity_components",
+                new_callable=AsyncMock,
+                return_value=False,
+            ),
         ):
             result = await link.store_async(parent=parent, synapse_client=self.syn)
 
@@ -627,18 +663,22 @@ class TestLink:
         parent = Project(id=PARENT_ID)
 
         # WHEN we call store_async with the parent argument
-        with patch(
-            "synapseclient.models.link.get_id",
-            new_callable=AsyncMock,
-            return_value=None,
-        ), patch(
-            "synapseclient.models.link.store_entity",
-            new_callable=AsyncMock,
-            return_value=self.get_example_rest_api_response(),
-        ), patch(
-            "synapseclient.models.link.store_entity_components",
-            new_callable=AsyncMock,
-            return_value=False,
+        with (
+            patch(
+                "synapseclient.models.link.get_id",
+                new_callable=AsyncMock,
+                return_value=None,
+            ),
+            patch(
+                "synapseclient.models.link.store_entity",
+                new_callable=AsyncMock,
+                return_value=self.get_example_rest_api_response(),
+            ),
+            patch(
+                "synapseclient.models.link.store_entity_components",
+                new_callable=AsyncMock,
+                return_value=False,
+            ),
         ):
             result = await link.store_async(parent=parent, synapse_client=self.syn)
 
@@ -677,21 +717,26 @@ class TestLink:
         link = Link(id=LINK_ID)
 
         # WHEN we call store_async, it should NOT raise ValueError
-        with patch(
-            "synapseclient.models.link.get_id",
-            new_callable=AsyncMock,
-            return_value=LINK_ID,
-        ), patch(
-            "synapseclient.models.link.get_from_entity_factory",
-            new_callable=AsyncMock,
-        ) as mocked_get_entity_factory, patch(
-            "synapseclient.models.link.store_entity",
-            new_callable=AsyncMock,
-            return_value=self.get_example_rest_api_response(),
-        ), patch(
-            "synapseclient.models.link.store_entity_components",
-            new_callable=AsyncMock,
-            return_value=False,
+        with (
+            patch(
+                "synapseclient.models.link.get_id",
+                new_callable=AsyncMock,
+                return_value=LINK_ID,
+            ),
+            patch(
+                "synapseclient.models.link.get_from_entity_factory",
+                new_callable=AsyncMock,
+            ) as mocked_get_entity_factory,
+            patch(
+                "synapseclient.models.link.store_entity",
+                new_callable=AsyncMock,
+                return_value=self.get_example_rest_api_response(),
+            ),
+            patch(
+                "synapseclient.models.link.store_entity_components",
+                new_callable=AsyncMock,
+                return_value=False,
+            ),
         ):
 
             async def fill_link(synapse_id_or_path, entity_to_update, synapse_client):
@@ -713,14 +758,17 @@ class TestLink:
         )
 
         # AND get_async has been called (which sets _last_persistent_instance)
-        with patch(
-            "synapseclient.models.link.get_id",
-            new_callable=AsyncMock,
-            return_value=LINK_ID,
-        ), patch(
-            "synapseclient.models.link.get_from_entity_factory",
-            new_callable=AsyncMock,
-        ) as mocked_get_entity_factory:
+        with (
+            patch(
+                "synapseclient.models.link.get_id",
+                new_callable=AsyncMock,
+                return_value=LINK_ID,
+            ),
+            patch(
+                "synapseclient.models.link.get_from_entity_factory",
+                new_callable=AsyncMock,
+            ) as mocked_get_entity_factory,
+        ):
 
             async def fill_link(synapse_id_or_path, entity_to_update, synapse_client):
                 entity_to_update.fill_from_dict(self.get_example_rest_api_response())
@@ -729,13 +777,16 @@ class TestLink:
             await link.get_async(follow_link=False, synapse_client=self.syn)
 
         # WHEN we call store_async without making changes
-        with patch(
-            "synapseclient.models.link.store_entity",
-            new_callable=AsyncMock,
-        ) as mocked_store_entity, patch(
-            "synapseclient.models.link.store_entity_components",
-            new_callable=AsyncMock,
-            return_value=False,
+        with (
+            patch(
+                "synapseclient.models.link.store_entity",
+                new_callable=AsyncMock,
+            ) as mocked_store_entity,
+            patch(
+                "synapseclient.models.link.store_entity_components",
+                new_callable=AsyncMock,
+                return_value=False,
+            ),
         ):
             result = await link.store_async(synapse_client=self.syn)
 
@@ -749,14 +800,17 @@ class TestLink:
         # GIVEN a Link that was previously retrieved from Synapse
         link = Link(id=LINK_ID)
 
-        with patch(
-            "synapseclient.models.link.get_id",
-            new_callable=AsyncMock,
-            return_value=LINK_ID,
-        ), patch(
-            "synapseclient.models.link.get_from_entity_factory",
-            new_callable=AsyncMock,
-        ) as mocked_get_entity_factory:
+        with (
+            patch(
+                "synapseclient.models.link.get_id",
+                new_callable=AsyncMock,
+                return_value=LINK_ID,
+            ),
+            patch(
+                "synapseclient.models.link.get_from_entity_factory",
+                new_callable=AsyncMock,
+            ) as mocked_get_entity_factory,
+        ):
 
             async def fill_link(synapse_id_or_path, entity_to_update, synapse_client):
                 entity_to_update.fill_from_dict(self.get_example_rest_api_response())
@@ -771,14 +825,17 @@ class TestLink:
         updated_response = self.get_example_rest_api_response()
         updated_response["description"] = "New description"
 
-        with patch(
-            "synapseclient.models.link.store_entity",
-            new_callable=AsyncMock,
-            return_value=updated_response,
-        ) as mocked_store_entity, patch(
-            "synapseclient.models.link.store_entity_components",
-            new_callable=AsyncMock,
-            return_value=False,
+        with (
+            patch(
+                "synapseclient.models.link.store_entity",
+                new_callable=AsyncMock,
+                return_value=updated_response,
+            ) as mocked_store_entity,
+            patch(
+                "synapseclient.models.link.store_entity_components",
+                new_callable=AsyncMock,
+                return_value=False,
+            ),
         ):
             result = await link.store_async(synapse_client=self.syn)
 
@@ -797,23 +854,28 @@ class TestLink:
         )
 
         # WHEN we call store_async and store_entity_components returns True
-        with patch(
-            "synapseclient.models.link.get_id",
-            new_callable=AsyncMock,
-            return_value=None,
-        ), patch(
-            "synapseclient.models.link.store_entity",
-            new_callable=AsyncMock,
-            return_value=self.get_example_rest_api_response(),
-        ), patch(
-            "synapseclient.models.link.store_entity_components",
-            new_callable=AsyncMock,
-            return_value=True,
-        ), patch.object(
-            link,
-            "get_async",
-            new_callable=AsyncMock,
-        ) as mocked_get_async:
+        with (
+            patch(
+                "synapseclient.models.link.get_id",
+                new_callable=AsyncMock,
+                return_value=None,
+            ),
+            patch(
+                "synapseclient.models.link.store_entity",
+                new_callable=AsyncMock,
+                return_value=self.get_example_rest_api_response(),
+            ),
+            patch(
+                "synapseclient.models.link.store_entity_components",
+                new_callable=AsyncMock,
+                return_value=True,
+            ),
+            patch.object(
+                link,
+                "get_async",
+                new_callable=AsyncMock,
+            ) as mocked_get_async,
+        ):
             result = await link.store_async(synapse_client=self.syn)
 
             # THEN get_async should have been called for a re-read
@@ -830,23 +892,28 @@ class TestLink:
         )
 
         # WHEN we call store_async and store_entity_components returns False
-        with patch(
-            "synapseclient.models.link.get_id",
-            new_callable=AsyncMock,
-            return_value=None,
-        ), patch(
-            "synapseclient.models.link.store_entity",
-            new_callable=AsyncMock,
-            return_value=self.get_example_rest_api_response(),
-        ), patch(
-            "synapseclient.models.link.store_entity_components",
-            new_callable=AsyncMock,
-            return_value=False,
-        ), patch.object(
-            link,
-            "get_async",
-            new_callable=AsyncMock,
-        ) as mocked_get_async:
+        with (
+            patch(
+                "synapseclient.models.link.get_id",
+                new_callable=AsyncMock,
+                return_value=None,
+            ),
+            patch(
+                "synapseclient.models.link.store_entity",
+                new_callable=AsyncMock,
+                return_value=self.get_example_rest_api_response(),
+            ),
+            patch(
+                "synapseclient.models.link.store_entity_components",
+                new_callable=AsyncMock,
+                return_value=False,
+            ),
+            patch.object(
+                link,
+                "get_async",
+                new_callable=AsyncMock,
+            ) as mocked_get_async,
+        ):
             result = await link.store_async(synapse_client=self.syn)
 
             # THEN get_async should NOT have been called for a re-read
@@ -864,14 +931,17 @@ class TestLink:
         )
 
         # WHEN we call _find_existing_entity and an entity is found
-        with patch(
-            "synapseclient.models.link.get_id",
-            new_callable=AsyncMock,
-            return_value=LINK_ID,
-        ), patch(
-            "synapseclient.models.link.get_from_entity_factory",
-            new_callable=AsyncMock,
-        ) as mocked_get_entity_factory:
+        with (
+            patch(
+                "synapseclient.models.link.get_id",
+                new_callable=AsyncMock,
+                return_value=LINK_ID,
+            ),
+            patch(
+                "synapseclient.models.link.get_from_entity_factory",
+                new_callable=AsyncMock,
+            ) as mocked_get_entity_factory,
+        ):
 
             async def fill_link(synapse_id_or_path, entity_to_update, synapse_client):
                 entity_to_update.fill_from_dict(self.get_example_rest_api_response())

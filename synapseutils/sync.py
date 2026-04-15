@@ -1056,12 +1056,12 @@ async def readManifestFile_async(syn: Synapse, manifestFile: str) -> DATA_FRAME_
     df = pd.read_csv(manifestFile, sep="\t")
     if "synapseStore" not in df:
         df = df.assign(synapseStore=None)
-    df.loc[
-        df["path"].apply(is_url), "synapseStore"
-    ] = False  # override synapseStore values to False when path is a url
-    df.loc[
-        df["synapseStore"].isnull(), "synapseStore"
-    ] = True  # remaining unset values default to True
+    df.loc[df["path"].apply(is_url), "synapseStore"] = (
+        False  # override synapseStore values to False when path is a url
+    )
+    df.loc[df["synapseStore"].isnull(), "synapseStore"] = (
+        True  # remaining unset values default to True
+    )
     df.synapseStore = df.synapseStore.astype(bool)
     df = df.fillna("")
 
@@ -1335,9 +1335,9 @@ def _build_annotations_for_file(
         if annotation_value is None or annotation_value == "":
             continue
         if isinstance(annotation_value, str):
-            file_annotations[
-                annotation_key
-            ] = _convert_cell_in_manifest_to_python_types(cell=annotation_value)
+            file_annotations[annotation_key] = (
+                _convert_cell_in_manifest_to_python_types(cell=annotation_value)
+            )
         else:
             file_annotations[annotation_key] = annotation_value
     return file_annotations

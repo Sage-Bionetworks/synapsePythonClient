@@ -287,16 +287,20 @@ class TestFormData:
         form_data = FormData(form_data_id="67890", data_file_handle_id="54321")
 
         # WHEN downloading the form data
-        with patch(
-            "synapseclient.core.download.download_functions.download_by_file_handle",
-            new_callable=AsyncMock,
-        ) as mock_download_file_handle, patch.object(syn, "cache") as mock_cache, patch(
-            "synapseclient.core.download.download_functions.ensure_download_location_is_directory",
-        ) as mock_ensure_dir:
+        with (
+            patch(
+                "synapseclient.core.download.download_functions.download_by_file_handle",
+                new_callable=AsyncMock,
+            ) as mock_download_file_handle,
+            patch.object(syn, "cache") as mock_cache,
+            patch(
+                "synapseclient.core.download.download_functions.ensure_download_location_is_directory",
+            ) as mock_ensure_dir,
+        ):
             mock_cache.get.side_effect = "/tmp/foo"
-            mock_ensure_dir.return_value = (
-                mock_cache.get_cache_dir.return_value
-            ) = "/tmp/download"
+            mock_ensure_dir.return_value = mock_cache.get_cache_dir.return_value = (
+                "/tmp/download"
+            )
             mock_file_name = f"SYNAPSE_FORM_{form_data.data_file_handle_id}.csv"
 
             await form_data.download_async(

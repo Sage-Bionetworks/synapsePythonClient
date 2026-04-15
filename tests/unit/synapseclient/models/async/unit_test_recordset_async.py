@@ -297,24 +297,30 @@ class TestRecordSet:
         self.syn._get_parallel_file_transfer_semaphore = mock_semaphore_ctx
 
         # WHEN I call store_async
-        with patch(
-            "synapseclient.models.recordset.get_id",
-            new_callable=AsyncMock,
-            return_value=None,
-        ), patch(
-            "synapseclient.models.file._upload_file",
-            new_callable=AsyncMock,
-        ) as mock_upload, patch(
-            "synapseclient.models.recordset.store_entity",
-            new_callable=AsyncMock,
-            return_value=entity_response,
-        ) as mock_store_entity, patch(
-            "synapseclient.models.recordset.store_entity_components",
-            new_callable=AsyncMock,
-            return_value=False,
-        ), patch(
-            "os.path.expanduser",
-            return_value=PATH,
+        with (
+            patch(
+                "synapseclient.models.recordset.get_id",
+                new_callable=AsyncMock,
+                return_value=None,
+            ),
+            patch(
+                "synapseclient.models.file._upload_file",
+                new_callable=AsyncMock,
+            ) as mock_upload,
+            patch(
+                "synapseclient.models.recordset.store_entity",
+                new_callable=AsyncMock,
+                return_value=entity_response,
+            ) as mock_store_entity,
+            patch(
+                "synapseclient.models.recordset.store_entity_components",
+                new_callable=AsyncMock,
+                return_value=False,
+            ),
+            patch(
+                "os.path.expanduser",
+                return_value=PATH,
+            ),
         ):
             result = await record_set.store_async(synapse_client=self.syn)
 
@@ -343,18 +349,22 @@ class TestRecordSet:
         self.syn.cache.get.return_value = None
 
         # WHEN I call store_async
-        with patch(
-            "synapseclient.models.recordset.get_id",
-            new_callable=AsyncMock,
-            return_value=None,
-        ), patch(
-            "synapseclient.models.recordset.store_entity",
-            new_callable=AsyncMock,
-            return_value=entity_response,
-        ) as mock_store_entity, patch(
-            "synapseclient.models.recordset.store_entity_components",
-            new_callable=AsyncMock,
-            return_value=False,
+        with (
+            patch(
+                "synapseclient.models.recordset.get_id",
+                new_callable=AsyncMock,
+                return_value=None,
+            ),
+            patch(
+                "synapseclient.models.recordset.store_entity",
+                new_callable=AsyncMock,
+                return_value=entity_response,
+            ) as mock_store_entity,
+            patch(
+                "synapseclient.models.recordset.store_entity_components",
+                new_callable=AsyncMock,
+                return_value=False,
+            ),
         ):
             result = await record_set.store_async(synapse_client=self.syn)
 
@@ -388,24 +398,30 @@ class TestRecordSet:
         self.syn._get_parallel_file_transfer_semaphore = mock_semaphore_ctx
 
         # WHEN I call store_async with a parent object
-        with patch(
-            "synapseclient.models.recordset.get_id",
-            new_callable=AsyncMock,
-            return_value=None,
-        ), patch(
-            "synapseclient.models.file._upload_file",
-            new_callable=AsyncMock,
-        ), patch(
-            "synapseclient.models.recordset.store_entity",
-            new_callable=AsyncMock,
-            return_value=entity_response,
-        ), patch(
-            "synapseclient.models.recordset.store_entity_components",
-            new_callable=AsyncMock,
-            return_value=False,
-        ), patch(
-            "os.path.expanduser",
-            return_value=PATH,
+        with (
+            patch(
+                "synapseclient.models.recordset.get_id",
+                new_callable=AsyncMock,
+                return_value=None,
+            ),
+            patch(
+                "synapseclient.models.file._upload_file",
+                new_callable=AsyncMock,
+            ),
+            patch(
+                "synapseclient.models.recordset.store_entity",
+                new_callable=AsyncMock,
+                return_value=entity_response,
+            ),
+            patch(
+                "synapseclient.models.recordset.store_entity_components",
+                new_callable=AsyncMock,
+                return_value=False,
+            ),
+            patch(
+                "os.path.expanduser",
+                return_value=PATH,
+            ),
         ):
             result = await record_set.store_async(
                 parent=parent, synapse_client=self.syn
@@ -449,28 +465,35 @@ class TestRecordSet:
         self.syn._get_parallel_file_transfer_semaphore = mock_semaphore_ctx
 
         # WHEN I call store_async and an existing entity is found
-        with patch(
-            "synapseclient.models.recordset.get_id",
-            new_callable=AsyncMock,
-            return_value=SYN_123,
-        ), patch(
-            "synapseclient.api.entity_factory.get_entity_id_bundle2",
-            new_callable=AsyncMock,
-            return_value={"entity": existing_entity_response, "fileHandles": []},
-        ), patch(
-            "synapseclient.models.file._upload_file",
-            new_callable=AsyncMock,
-        ), patch(
-            "synapseclient.models.recordset.store_entity",
-            new_callable=AsyncMock,
-            return_value=updated_entity_response,
-        ), patch(
-            "synapseclient.models.recordset.store_entity_components",
-            new_callable=AsyncMock,
-            return_value=False,
-        ), patch(
-            "os.path.expanduser",
-            return_value=PATH,
+        with (
+            patch(
+                "synapseclient.models.recordset.get_id",
+                new_callable=AsyncMock,
+                return_value=SYN_123,
+            ),
+            patch(
+                "synapseclient.api.entity_factory.get_entity_id_bundle2",
+                new_callable=AsyncMock,
+                return_value={"entity": existing_entity_response, "fileHandles": []},
+            ),
+            patch(
+                "synapseclient.models.file._upload_file",
+                new_callable=AsyncMock,
+            ),
+            patch(
+                "synapseclient.models.recordset.store_entity",
+                new_callable=AsyncMock,
+                return_value=updated_entity_response,
+            ),
+            patch(
+                "synapseclient.models.recordset.store_entity_components",
+                new_callable=AsyncMock,
+                return_value=False,
+            ),
+            patch(
+                "os.path.expanduser",
+                return_value=PATH,
+            ),
         ):
             result = await record_set.store_async(synapse_client=self.syn)
 
@@ -491,24 +514,29 @@ class TestRecordSet:
         self.syn.cache.get.return_value = None
 
         # WHEN I call store_async and store_entity_components returns True
-        with patch(
-            "synapseclient.models.recordset.get_id",
-            new_callable=AsyncMock,
-            return_value=None,
-        ), patch(
-            "synapseclient.models.recordset.store_entity",
-            new_callable=AsyncMock,
-            return_value=entity_response,
-        ), patch(
-            "synapseclient.models.recordset.store_entity_components",
-            new_callable=AsyncMock,
-            return_value=True,
-        ), patch.object(
-            RecordSet,
-            "get_async",
-            new_callable=AsyncMock,
-            return_value=record_set,
-        ) as mock_get:
+        with (
+            patch(
+                "synapseclient.models.recordset.get_id",
+                new_callable=AsyncMock,
+                return_value=None,
+            ),
+            patch(
+                "synapseclient.models.recordset.store_entity",
+                new_callable=AsyncMock,
+                return_value=entity_response,
+            ),
+            patch(
+                "synapseclient.models.recordset.store_entity_components",
+                new_callable=AsyncMock,
+                return_value=True,
+            ),
+            patch.object(
+                RecordSet,
+                "get_async",
+                new_callable=AsyncMock,
+                return_value=record_set,
+            ) as mock_get,
+        ):
             result = await record_set.store_async(synapse_client=self.syn)
 
             # THEN get_async should be called again to re-read the entity
@@ -551,12 +579,15 @@ class TestRecordSet:
         entity_response = _get_record_set_entity_response()
 
         # WHEN I call get_async
-        with patch(
-            "synapseclient.models.recordset.get_from_entity_factory",
-            new_callable=AsyncMock,
-        ) as mock_factory, patch(
-            "os.path.isfile",
-            return_value=False,
+        with (
+            patch(
+                "synapseclient.models.recordset.get_from_entity_factory",
+                new_callable=AsyncMock,
+            ) as mock_factory,
+            patch(
+                "os.path.isfile",
+                return_value=False,
+            ),
         ):
 
             async def side_effect(**kwargs):
@@ -596,14 +627,17 @@ class TestRecordSet:
         )
 
         # WHEN I call get_async with include_activity=True
-        with patch(
-            "synapseclient.models.recordset.get_from_entity_factory",
-            new_callable=AsyncMock,
-        ) as mock_factory, patch(
-            "synapseclient.models.Activity.from_parent_async",
-            new_callable=AsyncMock,
-            return_value=activity_response,
-        ) as mock_from_parent:
+        with (
+            patch(
+                "synapseclient.models.recordset.get_from_entity_factory",
+                new_callable=AsyncMock,
+            ) as mock_factory,
+            patch(
+                "synapseclient.models.Activity.from_parent_async",
+                new_callable=AsyncMock,
+                return_value=activity_response,
+            ) as mock_from_parent,
+        ):
 
             async def side_effect(**kwargs):
                 entity_to_update = kwargs["entity_to_update"]
@@ -726,16 +760,20 @@ class TestRecordSet:
         self.syn.cache.get_cache_dir.return_value = "/syn_cache_dir"
 
         # WHEN I call get_detailed_validation_results_async
-        with patch(
-            "synapseclient.models.recordset.test_import_pandas",
-        ), patch(
-            "synapseclient.models.recordset.download_by_file_handle",
-            new_callable=AsyncMock,
-            return_value="/cached/validation_results.csv",
-        ) as mock_download, patch(
-            "pandas.read_csv",
-            return_value=mock_df,
-        ) as mock_read_csv:
+        with (
+            patch(
+                "synapseclient.models.recordset.test_import_pandas",
+            ),
+            patch(
+                "synapseclient.models.recordset.download_by_file_handle",
+                new_callable=AsyncMock,
+                return_value="/cached/validation_results.csv",
+            ) as mock_download,
+            patch(
+                "pandas.read_csv",
+                return_value=mock_df,
+            ) as mock_read_csv,
+        ):
             result = await record_set.get_detailed_validation_results_async(
                 synapse_client=self.syn
             )
@@ -754,10 +792,13 @@ class TestRecordSet:
         record_set = RecordSet(id=SYN_123)
 
         # WHEN I call get_detailed_validation_results_async
-        with patch(
-            "synapseclient.models.recordset.test_import_pandas",
-        ), patch(
-            "pandas.read_csv",
+        with (
+            patch(
+                "synapseclient.models.recordset.test_import_pandas",
+            ),
+            patch(
+                "pandas.read_csv",
+            ),
         ):
             result = await record_set.get_detailed_validation_results_async(
                 synapse_client=self.syn
@@ -782,18 +823,23 @@ class TestRecordSet:
         self.syn.cache.get_cache_dir.return_value = "/syn_cache_dir"
 
         # WHEN I call get_detailed_validation_results_async with a download_location
-        with patch(
-            "synapseclient.models.recordset.test_import_pandas",
-        ), patch(
-            "synapseclient.models.recordset.ensure_download_location_is_directory",
-            return_value=download_location,
-        ), patch(
-            "synapseclient.models.recordset.download_by_file_handle",
-            new_callable=AsyncMock,
-            return_value=f"{download_location}/SYNAPSE_RECORDSET_VALIDATION_{VALIDATION_FILE_HANDLE_ID}.csv",
-        ) as mock_download, patch(
-            "pandas.read_csv",
-            return_value=mock_df,
+        with (
+            patch(
+                "synapseclient.models.recordset.test_import_pandas",
+            ),
+            patch(
+                "synapseclient.models.recordset.ensure_download_location_is_directory",
+                return_value=download_location,
+            ),
+            patch(
+                "synapseclient.models.recordset.download_by_file_handle",
+                new_callable=AsyncMock,
+                return_value=f"{download_location}/SYNAPSE_RECORDSET_VALIDATION_{VALIDATION_FILE_HANDLE_ID}.csv",
+            ) as mock_download,
+            patch(
+                "pandas.read_csv",
+                return_value=mock_df,
+            ),
         ):
             result = await record_set.get_detailed_validation_results_async(
                 download_location=download_location, synapse_client=self.syn

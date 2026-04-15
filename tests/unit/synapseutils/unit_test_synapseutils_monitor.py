@@ -8,9 +8,12 @@ def test_notifyMe__successful_call(syn):
     subject = "some message subject"
     owner_id = "12434"
     user_profile = {"ownerId": owner_id}
-    with patch.object(syn, "sendMessage") as mocked_send_message, patch.object(
-        syn, "getUserProfile", return_value=user_profile
-    ) as mocked_get_user_profile:
+    with (
+        patch.object(syn, "sendMessage") as mocked_send_message,
+        patch.object(
+            syn, "getUserProfile", return_value=user_profile
+        ) as mocked_get_user_profile,
+    ):
         mocked_func = MagicMock()
 
         @notifyMe(syn, messageSubject=subject)
@@ -30,8 +33,9 @@ def test_notifyMe__exception_thrown_and_retry_fail(syn):
     subject = "some message subject"
     owner_id = "12434"
     user_profile = {"ownerId": owner_id}
-    with patch.object(syn, "sendMessage") as mocked_send_message, patch.object(
-        syn, "getUserProfile", return_value=user_profile
+    with (
+        patch.object(syn, "sendMessage") as mocked_send_message,
+        patch.object(syn, "getUserProfile", return_value=user_profile),
     ):
         mocked_func = MagicMock(
             side_effect=[Exception("first time fails"), "second time is Fine"]

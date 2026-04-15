@@ -343,18 +343,18 @@ def find_and_convert_ints(
     if (
         dataframe.size < large_manifest_cutoff_size
     ):  # If small manifest, iterate as normal for improved performance
-        ints = dataframe.map(  # type:ignore
+        ints = dataframe.map(  # type: ignore
             lambda cell: convert_ints(cell), na_action="ignore"
         ).fillna(False)
 
     else:  # parallelize iterations for large manifests
         pandarallel.initialize(verbose=1)
-        ints = dataframe.parallel_applymap(  # type:ignore
+        ints = dataframe.parallel_applymap(  # type: ignore
             lambda cell: convert_ints(cell), na_action="ignore"
         ).fillna(False)
 
     # Identify cells converted to integers
-    is_int = ints.map(is_integer)  # type:ignore
+    is_int = ints.map(is_integer)  # type: ignore
 
     assert isinstance(ints, DataFrame)
     assert isinstance(is_int, DataFrame)
@@ -2049,6 +2049,7 @@ class PropertyTemplate:
 @dataclass
 class ClassTemplate:
     "Class Template"
+
     magic_id: str = field(default="", metadata=config(field_name="@id"))
     magic_type: str = field(default="rdfs:Class", metadata=config(field_name="@type"))
     magic_comment: str = field(default="", metadata=config(field_name="rdfs:comment"))
@@ -3876,7 +3877,7 @@ def match_node_names_with_reserved_names(
 
 
 def create_reserve_name_error_messages(
-    reserved_names_found: list[Tuple[str, str]]
+    reserved_names_found: list[Tuple[str, str]],
 ) -> list[str]:
     """Creates the error messages when a reserved name is used
 
@@ -3943,7 +3944,7 @@ def get_missing_fields_from(
 
 
 def create_missing_fields_error_messages(
-    missing_fields: list[Tuple[str, str]]
+    missing_fields: list[Tuple[str, str]],
 ) -> list[str]:
     """Creates the error message for when a node is missing a required field
 
@@ -4113,13 +4114,13 @@ def export_schema(schema: dict, file_path: str, logger: Logger) -> None:
         if json_schema_dirname != "":
             os.makedirs(json_schema_dirname, exist_ok=True)
     with open(file_path, "w", encoding="utf-8") as json_file:
-        json.dump(schema, json_file, sort_keys=True, indent=4, ensure_ascii=False)
+        json.dump(schema, json_file, sort_keys=False, indent=4, ensure_ascii=False)
 
     logger.info(f"The Data Model was created and saved to '{file_path}' location.")
 
 
 def parsed_model_as_dataframe(
-    parsed_model: dict[str, dict[str, Any]]
+    parsed_model: dict[str, dict[str, Any]],
 ) -> DATA_FRAME_TYPE:
     """Convert parsed model dictionary to an unpacked pandas DataFrame.
     Args:
@@ -5168,7 +5169,7 @@ class JSONSchema:
 
     @staticmethod
     def _convert_conditional_properties_to_all_of(
-        conditional_dependencies: dict[tuple[str, str], list[str]]
+        conditional_dependencies: dict[tuple[str, str], list[str]],
     ) -> list[AllOf]:
         """
         Converts the conditional dependencies dict to a list of JSON Schema allOf conditions
@@ -5521,7 +5522,7 @@ def get_json_schema_log_file_path(data_model_path: str, source_node: str) -> str
 def export_json(json_doc: Any, file_path: str, indent: Optional[int] = 4) -> None:
     """Export JSON doc to file"""
     with open(file_path, "w", encoding="utf8") as fle:
-        json.dump(json_doc, fle, sort_keys=True, indent=indent, ensure_ascii=False)
+        json.dump(json_doc, fle, sort_keys=False, indent=indent, ensure_ascii=False)
 
 
 def create_json_schema(  # pylint: disable=too-many-arguments

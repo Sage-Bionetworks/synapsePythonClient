@@ -790,15 +790,21 @@ class EntityView(
             "versionLabel": self.version_label,
             "versionComment": self.version_comment,
             "isLatestVersion": self.is_latest_version,
-            "columnIds": [
-                column.id for column in self._last_persistent_instance.columns.values()
-            ]
-            if self._last_persistent_instance and self._last_persistent_instance.columns
-            else [],
+            "columnIds": (
+                [
+                    column.id
+                    for column in self._last_persistent_instance.columns.values()
+                ]
+                if self._last_persistent_instance
+                and self._last_persistent_instance.columns
+                else []
+            ),
             "isSearchEnabled": self.is_search_enabled,
-            "viewTypeMask": self.view_type_mask.value
-            if isinstance(self.view_type_mask, ViewTypeMask)
-            else self.view_type_mask,
+            "viewTypeMask": (
+                self.view_type_mask.value
+                if isinstance(self.view_type_mask, ViewTypeMask)
+                else self.view_type_mask
+            ),
             "scopeIds": list(scopes_without_syn) if scopes_without_syn else None,
         }
         delete_none_keys(entity)

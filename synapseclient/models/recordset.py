@@ -1031,19 +1031,23 @@ class RecordSet(RecordSetSynchronousProtocol, AccessControllable, BaseJSONSchema
             "isLatestVersion": self.is_latest_version,
             "dataFileHandleId": self.data_file_handle_id,
             "upsertKey": self.upsert_keys,
-            "csvDescriptor": self.csv_descriptor.to_synapse_request()
-            if self.csv_descriptor
-            else None,
-            "validationSummary": {
-                "containerId": self.validation_summary.container_id,
-                "totalNumberOfChildren": self.validation_summary.total_number_of_children,
-                "numberOfValidChildren": self.validation_summary.number_of_valid_children,
-                "numberOfInvalidChildren": self.validation_summary.number_of_invalid_children,
-                "numberOfUnknownChildren": self.validation_summary.number_of_unknown_children,
-                "generatedOn": self.validation_summary.generated_on,
-            }
-            if self.validation_summary
-            else None,
+            "csvDescriptor": (
+                self.csv_descriptor.to_synapse_request()
+                if self.csv_descriptor
+                else None
+            ),
+            "validationSummary": (
+                {
+                    "containerId": self.validation_summary.container_id,
+                    "totalNumberOfChildren": self.validation_summary.total_number_of_children,
+                    "numberOfValidChildren": self.validation_summary.number_of_valid_children,
+                    "numberOfInvalidChildren": self.validation_summary.number_of_invalid_children,
+                    "numberOfUnknownChildren": self.validation_summary.number_of_unknown_children,
+                    "generatedOn": self.validation_summary.generated_on,
+                }
+                if self.validation_summary
+                else None
+            ),
             "fileNameOverride": self.file_name_override,
         }
         delete_none_keys(entity)
@@ -1280,9 +1284,11 @@ class RecordSet(RecordSetSynchronousProtocol, AccessControllable, BaseJSONSchema
             if_collision=self.if_collision,
             limit_search=self.synapse_container_limit or self.parent_id,
             download_file=self.download_file,
-            download_location=os.path.dirname(self.path)
-            if self.path and os.path.isfile(self.path)
-            else self.path,
+            download_location=(
+                os.path.dirname(self.path)
+                if self.path and os.path.isfile(self.path)
+                else self.path
+            ),
             md5=self.content_md5,
             synapse_client=syn,
         )

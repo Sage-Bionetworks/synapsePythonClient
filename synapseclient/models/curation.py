@@ -132,7 +132,7 @@ class RecordBasedMetadataTaskProperties:
 
 
 def _create_task_properties_from_dict(
-    properties_dict: Dict[str, Any]
+    properties_dict: Dict[str, Any],
 ) -> Union[FileBasedMetadataTaskProperties, RecordBasedMetadataTaskProperties]:
     """
     Factory method to create the appropriate FileBasedMetadataTaskProperties/RecordBasedMetadataTaskProperties
