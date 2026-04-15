@@ -275,21 +275,8 @@ class DownloadList(DownloadListSynchronousProtocol):
         finally:
             os.remove(manifest_path)
 
-        # 2. Validate manifest columns
-        if columns is None:
-            raise SynapseError(
-                "Manifest job succeeded but the downloaded CSV has no headers. "
-                "This is unexpected — the Synapse server may have returned an empty file."
-            )
-
-        if _PATH_COLUMN in columns or _ERROR_COLUMN in columns:
-            raise SynapseError(
-                "The downloaded manifest CSV contains reserved column names 'path' or 'error'. "
-                "This is unexpected and may indicate a malformed manifest from the server, "
-                "or Synapse has added these columns."
-            )
-
-        columns = list(columns) + [_PATH_COLUMN, _ERROR_COLUMN]
+        # 2. Validate manifest columns and append result columns
+        columns = DownloadList._validate_and_extend_columns(columns)
 
         # 3. Download each file in the manifest
         downloaded_files = await DownloadList._download_all_rows(
@@ -341,6 +328,42 @@ class DownloadList(DownloadListSynchronousProtocol):
         if not columns:
             return None, []
         return list(columns), rows
+
+    @staticmethod
+    def _validate_and_extend_columns(
+        columns: Optional[list[str]],
+    ) -> list[str]:
+        """Validate server manifest columns and append the result columns.
+
+        Ensures the server-generated manifest has headers and does not already
+        contain the reserved "path" or "error" column names that are appended
+        to the output manifest.
+
+        Arguments:
+            columns: Column names from the server manifest, or None if the
+                CSV had no headers.
+
+        Raises:
+            SynapseError: If columns is None (empty manifest) or contains
+                reserved column names.
+
+        Returns:
+            The original columns with "path" and "error" appended.
+        """
+        if columns is None:
+            raise SynapseError(
+                "Manifest job succeeded but the downloaded CSV has no headers. "
+                "This is unexpected — the Synapse server may have returned an empty file."
+            )
+
+        if _PATH_COLUMN in columns or _ERROR_COLUMN in columns:
+            raise SynapseError(
+                "The downloaded manifest CSV contains reserved column names 'path' or 'error'. "
+                "This is unexpected and may indicate a malformed manifest from the server, "
+                "or Synapse has added these columns."
+            )
+
+        return list(columns) + [_PATH_COLUMN, _ERROR_COLUMN]
 
     @staticmethod
     def _write_result_manifest(
