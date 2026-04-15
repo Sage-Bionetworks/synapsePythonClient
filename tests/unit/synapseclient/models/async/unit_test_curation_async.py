@@ -862,15 +862,11 @@ class TestGrid:
             updated_count=1,
         )
 
-        # Set up mock preview class: constructor returns a mock whose
-        # send_job_and_wait_async returns the mock_preview_response
         mock_preview_instance = MagicMock()
         mock_preview_instance.send_job_and_wait_async = AsyncMock(
             return_value=mock_preview_response
         )
 
-        # Set up mock import class: constructor returns a mock whose
-        # send_job_and_wait_async returns the mock_import_response
         mock_import_instance = MagicMock()
         mock_import_instance.send_job_and_wait_async = AsyncMock(
             return_value=mock_import_response

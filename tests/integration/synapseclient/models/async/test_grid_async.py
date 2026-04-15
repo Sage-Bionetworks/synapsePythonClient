@@ -188,7 +188,6 @@ class TestGridAsync:
         self,
         project_model,
         record_set_fixture: RecordSet,
-        schedule_for_cleanup: Callable[..., None],
     ) -> None:
         """Test importing a CSV file into a grid session."""
 
@@ -220,7 +219,7 @@ class TestGridAsync:
                 path=temp_csv.name, parent_id=project_model.id
             ).store_async(synapse_client=self.syn)
 
-            schedule_for_cleanup(file.id)
+            self.schedule_for_cleanup(file.id)
 
         # WHEN: Importing the CSV into the grid session
         imported_grid = await created_grid.import_csv_async(
