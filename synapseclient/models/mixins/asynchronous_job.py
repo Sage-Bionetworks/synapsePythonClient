@@ -37,7 +37,7 @@ ASYNC_JOB_URIS = {
     CREATE_SCHEMA_REQUEST: "/schema/type/create/async",
     QUERY_TABLE_CSV_REQUEST: "/entity/{entityId}/table/download/csv/async",
     QUERY_BUNDLE_REQUEST: "/entity/{entityId}/table/query/async",
-    GRID_CSV_IMPORT_REQUEST: "/grid/import/csv/async/",
+    GRID_CSV_IMPORT_REQUEST: "/grid/import/csv/async",
     UPLOAD_TO_TABLE_PREVIEW_REQUEST: "/table/upload/csv/preview/async",
 }
 
