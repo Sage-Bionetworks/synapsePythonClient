@@ -68,11 +68,11 @@ class DownloadListManifestRequest(AsynchronousCommunicator):
         stores it in self.result_file_handle_id.
 
     **Phase 4 — Download** (_post_exchange_async)
-        Exchanges the file handle ID for a pre-signed S3 URL via
-        get_file_handle_for_download_async(), then streams the CSV to disk
-        via download_from_url() (run in a thread pool via
-        asyncio.to_thread since it is a blocking sync method). Stores the
-        local path in self.manifest_path.
+        Retrieves file handle metadata via get_file_handle() and a
+        pre-signed S3 URL via get_file_handle_presigned_url(), then
+        streams the CSV to disk via download_from_url() (run in a thread
+        pool via asyncio.to_thread since it is a blocking sync method).
+        Stores the local path in self.manifest_path.
 
     After send_job_and_wait_async() returns, manifest_path holds the
     local path to the downloaded CSV and is ready to use.
