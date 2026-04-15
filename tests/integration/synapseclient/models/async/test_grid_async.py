@@ -185,7 +185,10 @@ class TestGridAsync:
             await grid.delete_async(synapse_client=self.syn)
 
     async def test_import_csv_to_grid_session_async(
-        self, record_set_fixture: RecordSet, schedule_for_cleanup: Callable[..., None]
+        self,
+        project_model,
+        record_set_fixture: RecordSet,
+        schedule_for_cleanup: Callable[..., None],
     ) -> None:
         """Test importing a CSV file into a grid session."""
 
@@ -208,18 +211,16 @@ class TestGridAsync:
             }
         )
 
-        project_name = str(uuid.uuid4())
-        project = Project(name=project_name)
-        project = await project.store_async(synapse_client=self.syn)
-
         # Create a temporary CSV file
         with tempfile.NamedTemporaryFile("w", suffix=".csv", delete=False) as temp_csv:
             test_data.to_csv(temp_csv.name, index=False)
             self.schedule_for_cleanup(temp_csv.name)
 
-            file = await File(path=temp_csv.name, parent_id=project.id).store_async(
-                synapse_client=self.syn
-            )
+            file = await File(
+                path=temp_csv.name, parent_id=project_model.id
+            ).store_async(synapse_client=self.syn)
+
+            schedule_for_cleanup(file.id)
 
         # WHEN: Importing the CSV into the grid session
         imported_grid = await created_grid.import_csv_async(
@@ -227,9 +228,6 @@ class TestGridAsync:
             timeout=ASYNC_JOB_TIMEOUT_SEC,
             synapse_client=self.syn,
         )
-
-        schedule_for_cleanup(file.id)
-        schedule_for_cleanup(project.id)
 
         # THEN: The import should complete and return the Grid with the same session
         assert imported_grid.session_id == created_grid.session_id

@@ -1,7 +1,7 @@
 """Unit tests for the CurationTask and Grid models."""
 
 import os
-from unittest.mock import AsyncMock, patch
+from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
 
@@ -838,7 +838,6 @@ class TestGrid:
         # GIVEN a Grid with a session_id
         grid = Grid(session_id=SESSION_ID)
 
-        # Mock the CreateGridRequest's send_job_and_wait_async
         csv_table_descriptor = CsvTableDescriptor(
             separator=",",
             quote_character='"',
@@ -846,47 +845,72 @@ class TestGrid:
             line_end=os.linesep,
             is_first_line_header=True,
         )
-        mock_preview = UploadToTablePreviewRequest(
+        expected_columns = [Column(name="col1", column_type="STRING", maximum_size=50)]
+
+        # Mock preview response with suggested columns
+        mock_preview_response = UploadToTablePreviewRequest(
             csv_table_descriptor=csv_table_descriptor,
-            suggested_columns=[
-                Column(name="col1", column_type="STRING", maximum_size=50)
-            ],
+            suggested_columns=expected_columns,
             sample_rows=[["value1"]],
             rows_scanned=1,
         )
-        mock_import = GridCsvImportRequest(
+        # Mock import response with row counts
+        mock_import_response = GridCsvImportRequest(
             file_handle_id="1234567",
-            csv_descriptor=csv_table_descriptor,
-            schema=UploadToTablePreviewRequest.suggested_columns,
             total_count=1,
             created_count=1,
             updated_count=1,
         )
 
+        # Set up mock preview class: constructor returns a mock whose
+        # send_job_and_wait_async returns the mock_preview_response
+        mock_preview_instance = MagicMock()
+        mock_preview_instance.send_job_and_wait_async = AsyncMock(
+            return_value=mock_preview_response
+        )
+
+        # Set up mock import class: constructor returns a mock whose
+        # send_job_and_wait_async returns the mock_import_response
+        mock_import_instance = MagicMock()
+        mock_import_instance.send_job_and_wait_async = AsyncMock(
+            return_value=mock_import_response
+        )
+
         # WHEN I call import_csv_async
         with (
-            patch.object(
-                UploadToTablePreviewRequest,
-                "send_job_and_wait_async",
-                new_callable=AsyncMock,
-                return_value=mock_preview,
-            ),
-            patch.object(
-                GridCsvImportRequest,
-                "send_job_and_wait_async",
-                new_callable=AsyncMock,
-                return_value=mock_import,
-            ),
+            patch(
+                "synapseclient.models.curation.UploadToTablePreviewRequest",
+                return_value=mock_preview_instance,
+            ) as MockPreview,
+            patch(
+                "synapseclient.models.curation.GridCsvImportRequest",
+                return_value=mock_import_instance,
+            ) as MockImport,
             patch.object(self.syn, "logger") as mock_logger,
         ):
             result = await grid.import_csv_async(
-                synapse_client=self.syn, file_handle_id="1234567"
+                synapse_client=self.syn,
+                file_handle_id="1234567",
+                csv_table_descriptor=csv_table_descriptor,
             )
 
-        # THEN the grid should be populated with session data
+        # THEN the grid is returned with the same session
         assert result.session_id == SESSION_ID
 
-        # AND the log message should contain the import counts
+        # AND UploadToTablePreviewRequest was constructed with the right arguments
+        MockPreview.assert_called_once_with(
+            csv_table_descriptor=csv_table_descriptor,
+            upload_file_handle_id="1234567",
+        )
+
+        # AND GridCsvImportRequest was constructed with the schema from the preview
+        MockImport.assert_called_once_with(
+            session_id=SESSION_ID,
+            file_handle_id="1234567",
+            schema=expected_columns,
+        )
+
+        # AND the log message contains the import counts
         mock_logger.info.assert_called_once()
         log_message = mock_logger.info.call_args[0][0]
         assert "total count: 1" in log_message

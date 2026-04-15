@@ -1013,7 +1013,7 @@ class GridCsvImportRequest(AsynchronousCommunicator):
     """The description of a csv for upload or download."""
 
     schema: Optional[List[Column]] = None
-    """The list of ColumnModel that describe the CSV file. Currently this is is required."""
+    """The list of ColumnModel that describe the CSV file. Currently this is required."""
 
     # Response fields (populated by fill_from_dict)
     total_count: Optional[int] = field(default=None, compare=False)
@@ -2110,13 +2110,15 @@ class Grid(GridSynchronousProtocol):
             file_handle_id=file_handle_id,
             schema=all_columns,
         )
-        if csv_table_descriptor:
-            import_request.csv_descriptor = csv_table_descriptor
         import_response = await import_request.send_job_and_wait_async(
             timeout=timeout, synapse_client=synapse_client
         )
         client = Synapse.get_client(synapse_client=synapse_client)
         client.logger.info(
-            f"CSV import to grid session {self.session_id} completed successfully, total count: {import_response.total_count}, total created: {import_response.created_count}, total updated: {import_response.updated_count}"
+            f"CSV import to grid session {self.session_id} completed successfully, "
+            f"total count: {import_response.total_count}, "
+            f"total created: {import_response.created_count}, "
+            f"total updated: {import_response.updated_count}"
         )
+
         return self
