@@ -592,7 +592,9 @@ class DownloadList(DownloadListSynchronousProtocol):
         *,
         synapse_client: Optional["Synapse"] = None,
     ) -> int:
-        """Add specific file versions to the Synapse download list.
+        """
+        Add files to the Synapse download list.
+        If a file is added with no version specified, the latest version will be downloaded.
 
         Arguments:
             files: List of DownloadListItem objects identifying the file
@@ -615,7 +617,10 @@ class DownloadList(DownloadListSynchronousProtocol):
         *,
         synapse_client: Optional["Synapse"] = None,
     ) -> int:
-        """Remove specific file versions from the Synapse download list.
+        """
+        Remove files from the Synapse download list.
+        If a file was added with a version specified, then that version must be specified to remove it.
+        If a file was added with no version specified, then no version must be specified to remove it.
 
         Arguments:
             files: List of DownloadListItem objects identifying the file versions to remove.
