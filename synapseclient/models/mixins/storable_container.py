@@ -554,6 +554,7 @@ class StorableContainer(StorableContainerSynchronousProtocol):
             upload.
 
         Example: Using this function
+            &nbsp;
 
             ```python
             import asyncio
