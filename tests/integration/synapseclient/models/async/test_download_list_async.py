@@ -25,7 +25,9 @@ class TestDownloadList:
 
     remove_files_async:
         - remove_files_removes_only_specified_files: selective version removal
-        - remove_files_mismatched_version_leaves_file_in_cart: wrong/omitted version is a no-op
+        - remove_files_wrong_version_leaves_file_in_cart: wrong version is a no-op
+        - remove_files_no_version_leaves_file_in_cart: omitted version does not match explicit version
+        - remove_files_no_version_matches_no_version_entry: omitted version removes no-version entry
 
     clear_async:
         - clear_empties_cart: empties the cart
@@ -140,9 +142,17 @@ class TestDownloadList:
         schedule_for_cleanup: Callable[..., None],
     ) -> None:
         """add_files_async() with version_number=None adds the latest version."""
-        # GIVEN an empty cart and a file in Synapse
+        # GIVEN an empty cart and a file with two versions
         await DownloadList.clear_async(synapse_client=syn)
         file = await self._create_test_file(project, syn, schedule_for_cleanup)
+        v1 = file.version_number
+
+        new_path = utils.make_bogus_uuid_file()
+        schedule_for_cleanup(new_path)
+        file.path = new_path
+        await file.store_async(synapse_client=syn)
+        v2 = file.version_number
+        assert v2 != v1, "Expected a new version number"
 
         # WHEN I add the file without specifying a version number
         count = await DownloadList.add_files_async(
@@ -152,17 +162,20 @@ class TestDownloadList:
             synapse_client=syn,
         )
 
-        # THEN the file is added to the cart
+        # THEN the file is added to the cart with the latest version
         assert count == 1, f"Expected 1 file added, got {count}"
 
         manifest_path = await DownloadList.get_manifest_async(synapse_client=syn)
         schedule_for_cleanup(manifest_path)
         with open(manifest_path, newline="") as f:
             reader = csv.DictReader(f)
-            ids_in_cart = {row["ID"] for row in reader}
+            rows = list(reader)
         await DownloadList.clear_async(synapse_client=syn)
 
-        assert file.id in ids_in_cart, f"Expected {file.id} in the cart"
+        file_row = next(r for r in rows if r["ID"] == file.id)
+        assert (
+            int(file_row["versionNumber"]) == v2
+        ), f"Expected latest version {v2}, got {file_row['versionNumber']}"
 
     async def test_remove_files_removes_only_specified_files(
         self,
@@ -228,35 +241,26 @@ class TestDownloadList:
         assert (file_b.id, file_b_v1) in cart_entries, "file_b v1 should remain"
         assert (file_b.id, file_b_v2) not in cart_entries, "file_b v2 should be removed"
 
-    @pytest.mark.parametrize(
-        "use_wrong_version", [True, False], ids=["wrong_version", "no_version"]
-    )
-    async def test_remove_files_mismatched_version_leaves_file_in_cart(
+    async def test_remove_files_wrong_version_leaves_file_in_cart(
         self,
-        use_wrong_version: bool,
         project: Synapse_Project,
         syn: Synapse,
         schedule_for_cleanup: Callable[..., None],
     ) -> None:
-        """remove_files() with a wrong or omitted version is a no-op -- the file
-        stays in the cart because the API requires an exact
-        (fileEntityId, versionNumber) pair."""
+        """remove_files() with a wrong version is a no-op -- the file stays in the cart."""
         # GIVEN a cart with one file (added with an explicit version)
         await DownloadList.clear_async(synapse_client=syn)
         file = await self._create_test_file(project, syn, schedule_for_cleanup)
         await self._add_to_cart(file, syn)
 
-        # WHEN I try to remove the file with a mismatched version
-        if use_wrong_version:
-            mismatch_item = DownloadListItem(
-                file_entity_id=file.id,
-                version_number=(file.version_number or 1) + 99,
-            )
-        else:
-            mismatch_item = DownloadListItem(file_entity_id=file.id)
-
+        # WHEN I try to remove the file with a wrong version number
         removed = await DownloadList.remove_files_async(
-            files=[mismatch_item],
+            files=[
+                DownloadListItem(
+                    file_entity_id=file.id,
+                    version_number=(file.version_number or 1) + 99,
+                )
+            ],
             synapse_client=syn,
         )
 
@@ -273,6 +277,68 @@ class TestDownloadList:
         await DownloadList.clear_async(synapse_client=syn)
 
         assert file.id in ids_in_cart, f"Expected {file.id} to remain in the cart"
+
+    async def test_remove_files_no_version_leaves_file_in_cart(
+        self,
+        project: Synapse_Project,
+        syn: Synapse,
+        schedule_for_cleanup: Callable[..., None],
+    ) -> None:
+        """remove_files() with no version does not match a cart entry that was
+        added with an explicit version -- the API requires an exact
+        (fileEntityId, versionNumber) pair."""
+        # GIVEN a cart with one file (added with an explicit version)
+        await DownloadList.clear_async(synapse_client=syn)
+        file = await self._create_test_file(project, syn, schedule_for_cleanup)
+        await self._add_to_cart(file, syn)
+
+        # WHEN I try to remove the file without specifying a version
+        removed = await DownloadList.remove_files_async(
+            files=[DownloadListItem(file_entity_id=file.id)],
+            synapse_client=syn,
+        )
+
+        # THEN no files are removed and the file remains in the cart
+        assert removed == 0, f"Expected 0 files removed, got {removed}"
+
+        manifest_path = await DownloadList.get_manifest_async(synapse_client=syn)
+        schedule_for_cleanup(manifest_path)
+
+        with open(manifest_path, newline="") as f:
+            reader = csv.DictReader(f)
+            ids_in_cart = {row["ID"] for row in reader}
+
+        await DownloadList.clear_async(synapse_client=syn)
+
+        assert file.id in ids_in_cart, f"Expected {file.id} to remain in the cart"
+
+    async def test_remove_files_no_version_matches_no_version_entry(
+        self,
+        project: Synapse_Project,
+        syn: Synapse,
+        schedule_for_cleanup: Callable[..., None],
+    ) -> None:
+        """remove_files() with no version removes a cart entry that was also
+        added without a version."""
+        # GIVEN a cart with one file added without a version number
+        await DownloadList.clear_async(synapse_client=syn)
+        file = await self._create_test_file(project, syn, schedule_for_cleanup)
+        await DownloadList.add_files_async(
+            files=[DownloadListItem(file_entity_id=file.id)],
+            synapse_client=syn,
+        )
+
+        # WHEN I remove the file without specifying a version
+        removed = await DownloadList.remove_files_async(
+            files=[DownloadListItem(file_entity_id=file.id)],
+            synapse_client=syn,
+        )
+
+        # THEN the file is removed from the cart
+        assert removed == 1, f"Expected 1 file removed, got {removed}"
+
+        with pytest.raises(SynapseHTTPError, match="No files available for download"):
+            await DownloadList.get_manifest_async(synapse_client=syn)
 
     async def test_clear_empties_cart(
         self,
