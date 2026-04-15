@@ -2110,6 +2110,8 @@ class Grid(GridSynchronousProtocol):
             file_handle_id=file_handle_id,
             schema=all_columns,
         )
+        if csv_table_descriptor:
+            import_request.csv_descriptor = csv_table_descriptor
         import_response = await import_request.send_job_and_wait_async(
             timeout=timeout, synapse_client=synapse_client
         )
