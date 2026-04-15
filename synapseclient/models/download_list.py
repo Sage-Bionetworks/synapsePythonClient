@@ -338,58 +338,59 @@ class DownloadList(DownloadListSynchronousProtocol):
         return list(columns), rows
 
     @staticmethod
-    async def _download_row(
+    async def _download_manifest_entry(
         row: dict[str, Any],
         download_location: Optional[str] = None,
         *,
         synapse_client: Optional["Synapse"] = None,
     ) -> Optional[DownloadListItem]:
-        """
-        Attempt to download a single file from the manifest.
+        """Download a manifest entry from a manifest row and record the result in place.
 
-        Mutates row in place, setting "path" and "error" columns.
-        Each call must receive exclusive ownership of its row dict — do not
-        pass the same row to multiple concurrent calls.
-        Files in the cart that the user cannot access are caught here so that a
-        single failure does not abort the entire run.
+        On success, sets row["path"] to the local file path and row["error"]
+        to "". On failure, sets row["path"] to "" and row["error"] to the
+        error message. Failures are logged but never raised, so one bad file
+        does not abort the entire batch.
 
         Arguments:
-            row: A dict representing one row from the server-generated manifest.
-                Must contain "ID" and "versionNumber" keys.
+            row: A manifest row dict. Must contain "ID" and "versionNumber"
+                keys. Modified in place to add "path" and "error" entries.
             download_location: Directory to download the file to. Defaults to
                 the Synapse cache location if None.
             synapse_client: Optional Synapse client. Uses cached singleton if omitted.
 
         Returns:
-            A DownloadListItem identifying the file on success, or
-            None on failure. The caller collects successful items for batch
-            removal from the cart after all downloads complete.
+            A DownloadListItem on success, or None on failure.
         """
         from synapseclient import Synapse
 
         client = Synapse.get_client(synapse_client=synapse_client)
+        entity_id = row["ID"]
+        version_str = row.get("versionNumber")
+        version_number = int(version_str) if version_str else None
+
+        if version_number is None:
+            msg = f"Manifest row for {entity_id} is missing versionNumber"
+            row[_PATH_COLUMN] = ""
+            row[_ERROR_COLUMN] = msg
+            client.logger.warning(msg)
+            return None
+
         try:
-            kwargs: dict[str, Any] = {}
-            if download_location is not None:
-                kwargs["downloadLocation"] = download_location
-            version_str = row.get("versionNumber")
-            version_number = int(version_str) if version_str else None
-            if version_number is None:
-                raise ValueError(
-                    f"Manifest row for {row['ID']} is missing versionNumber"
-                )
-            kwargs["version"] = version_number
-            entity = await client.get_async(row["ID"], **kwargs)
+            entity = await client.get_async(
+                entity_id,
+                version=version_number,
+                downloadLocation=download_location,
+            )
             row[_PATH_COLUMN] = entity.path or ""
             row[_ERROR_COLUMN] = ""
             return DownloadListItem(
-                file_entity_id=row["ID"],
+                file_entity_id=entity_id,
                 version_number=version_number,
             )
         except Exception as e:
             row[_PATH_COLUMN] = ""
             row[_ERROR_COLUMN] = str(e)
-            client.logger.exception("Unable to download file")
+            client.logger.exception(f"Unable to download {entity_id} v{version_number}")
             return None
 
     @staticmethod
@@ -407,7 +408,7 @@ class DownloadList(DownloadListSynchronousProtocol):
             path: Destination path for the output manifest CSV.
             columns: Field names for the CSV header, including "path" and
                 "error".
-            rows: List of row dicts, each mutated by _download_row to
+            rows: List of row dicts, each mutated by _download_manifest_entry to
                 include "path" and "error" values.
         """
         with open(path, "w", newline="") as f:
@@ -428,7 +429,7 @@ class DownloadList(DownloadListSynchronousProtocol):
 
         Arguments:
             rows: List of row dicts from the manifest. Each row is mutated in
-                place by _download_row to include "path" and
+                place by _download_manifest_entry to include "path" and
                 "error" values.
             download_location: Directory to download files to.
             parallel: If True, rows are downloaded concurrently (bounded by
@@ -464,7 +465,7 @@ class DownloadList(DownloadListSynchronousProtocol):
                 row: dict[str, Any],
             ) -> Optional[DownloadListItem]:
                 async with sem:
-                    return await DownloadList._download_row(
+                    return await DownloadList._download_manifest_entry(
                         row,
                         download_location=download_location,
                         synapse_client=synapse_client,
@@ -475,7 +476,7 @@ class DownloadList(DownloadListSynchronousProtocol):
         else:
             downloaded: list[DownloadListItem] = []
             for row in rows:
-                item = await DownloadList._download_row(
+                item = await DownloadList._download_manifest_entry(
                     row,
                     download_location=download_location,
                     synapse_client=synapse_client,
@@ -493,7 +494,7 @@ class DownloadList(DownloadListSynchronousProtocol):
         """Write the annotated rows to a new result manifest CSV and return its path.
 
         Arguments:
-            rows: List of row dicts, each mutated by _download_row to
+            rows: List of row dicts, each mutated by _download_manifest_entry to
                 include "path" and "error" values.
             columns: Field names for the CSV header, including "path" and
                 "error".
