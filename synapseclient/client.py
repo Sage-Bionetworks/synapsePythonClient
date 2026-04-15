@@ -3150,7 +3150,7 @@ class Synapse(object):
     @deprecated(
         version="4.13.0",
         reason=(
-            "Use `DownloadList().clear()` instead. "
+            "Use `DownloadList.clear()` instead. "
             "See synapseclient.models.DownloadList for the new OOP interface."
         ),
     )
@@ -3172,7 +3172,7 @@ class Synapse(object):
             syn.login()
 
             # Clear all files from the download list
-            DownloadList().clear()
+            DownloadList.clear()
             ```
         """
         self.restDELETE("/download/list")
@@ -3180,7 +3180,7 @@ class Synapse(object):
     @deprecated(
         version="4.13.0",
         reason=(
-            "Use `DownloadList().remove_files(files)` instead. "
+            "Use `DownloadList.remove_files(files)` instead. "
             "See synapseclient.models.DownloadList for the new OOP interface."
         ),
     )
@@ -3204,7 +3204,7 @@ class Synapse(object):
             syn.login()
 
             # Remove specific file versions from the download list
-            DownloadList().remove_files([
+            DownloadList.remove_files([
                 DownloadListItem(file_entity_id="syn123", version_number=1),
             ])
             ```
@@ -3224,7 +3224,7 @@ class Synapse(object):
     @deprecated(
         version="4.13.0",
         reason=(
-            "Use `DownloadList().get_manifest()` instead. "
+            "Use `DownloadList.get_manifest()` instead. "
             "See synapseclient.models.DownloadList for the new OOP interface."
         ),
     )
@@ -3253,7 +3253,7 @@ class Synapse(object):
             syn.login()
 
             # Generate and download the manifest CSV
-            manifest_path = DownloadList().get_manifest()
+            manifest_path = DownloadList.get_manifest()
             ```
 
         Arguments:
@@ -3283,7 +3283,7 @@ class Synapse(object):
     @deprecated(
         version="4.13.0",
         reason=(
-            "Use `DownloadList().get_manifest()` instead. "
+            "Use `DownloadList.get_manifest()` instead. "
             "See synapseclient.models.DownloadList for the new OOP interface."
         ),
     )
@@ -3305,7 +3305,7 @@ class Synapse(object):
             syn.login()
 
             # Generate and download the manifest CSV
-            manifest_path = DownloadList().get_manifest()
+            manifest_path = DownloadList.get_manifest()
             ```
 
         Returns:
@@ -3334,7 +3334,7 @@ class Synapse(object):
     @deprecated(
         version="4.13.0",
         reason=(
-            "Use `DownloadList().download_files(download_location=...)` instead. "
+            "Use `DownloadList.download_files(download_location=...)` instead. "
             "See synapseclient.models.DownloadList for the new OOP interface."
         ),
     )
@@ -3356,7 +3356,7 @@ class Synapse(object):
             syn.login()
 
             # Download all files in the cart and get the result manifest path
-            manifest_path = DownloadList().download_files(download_location="./downloads")
+            manifest_path = DownloadList.download_files(download_location="./downloads")
             ```
 
         Arguments:

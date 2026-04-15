@@ -16,7 +16,7 @@ syn = Synapse()
 syn.login()
 
 # Download all files in the cart to a local directory
-manifest_path = DownloadList().download_files(download_location="./downloads")
+manifest_path = DownloadList.download_files(download_location="./downloads")
 ```
 
 ## API Reference

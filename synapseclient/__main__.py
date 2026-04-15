@@ -678,7 +678,7 @@ def get_download_list(args, syn: synapseclient.Synapse) -> None:
     """Download files from the Synapse download cart"""
     from synapseclient.models import DownloadList
 
-    manifest_path = DownloadList().download_files(
+    manifest_path = DownloadList.download_files(
         download_location=args.downloadLocation,
         synapse_client=syn,
     )
