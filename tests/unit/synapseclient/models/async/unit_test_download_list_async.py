@@ -51,7 +51,7 @@ class TestDownloadListServices:
         assert result == 1
 
     async def test_add_to_download_list_async_raises_on_missing_key(self):
-        """add_to_download_list_async raises ValueError when numberOfFilesAdded is missing."""
+        """add_to_download_list_async raises KeyError when numberOfFilesAdded is missing."""
         files = [DownloadListItem(file_entity_id="syn123", version_number=1)]
         with (
             patch(
@@ -65,7 +65,7 @@ class TestDownloadListServices:
                 return_value={},
             ),
         ):
-            with pytest.raises(ValueError, match="numberOfFilesAdded"):
+            with pytest.raises(KeyError, match="numberOfFilesAdded"):
                 await add_to_download_list_async(files=files, synapse_client=self.syn)
 
     async def test_remove_from_download_list_async_returns_count(self):
@@ -89,7 +89,7 @@ class TestDownloadListServices:
         assert result == 1
 
     async def test_remove_from_download_list_async_raises_on_missing_key(self):
-        """remove_from_download_list_async raises ValueError when numberOfFilesRemoved is missing."""
+        """remove_from_download_list_async raises KeyError when numberOfFilesRemoved is missing."""
         files = [DownloadListItem(file_entity_id="syn123", version_number=1)]
         with (
             patch(
@@ -103,7 +103,7 @@ class TestDownloadListServices:
                 return_value={},
             ),
         ):
-            with pytest.raises(ValueError, match="numberOfFilesRemoved"):
+            with pytest.raises(KeyError, match="numberOfFilesRemoved"):
                 await remove_from_download_list_async(
                     files=files, synapse_client=self.syn
                 )
