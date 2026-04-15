@@ -71,8 +71,6 @@ class TestReadManifestForUpload:
         with pytest.raises(ValueError, match="'parentId'"):
             await read_manifest_for_upload(str(manifest), self.syn, True, False)
 
-    # -- error column handling ---------------------------------------------
-
     async def test_rows_with_error_are_skipped(self, tmp_path: Path) -> None:
         """Rows with a non-empty 'error' cell are excluded from the returned items list."""
         f = tmp_path / "file.txt"
@@ -96,8 +94,6 @@ class TestReadManifestForUpload:
         )
         assert items == []
         assert total == 0
-
-    # -- path validation ---------------------------------------------------
 
     async def test_duplicate_paths_raise(self, tmp_path: Path) -> None:
         """Two rows referencing the same file path raise ValueError about unique file paths."""
@@ -124,8 +120,6 @@ class TestReadManifestForUpload:
         manifest.write_text(csv)
         with pytest.raises(ValueError, match="empty"):
             await read_manifest_for_upload(str(manifest), self.syn, True, False)
-
-    # -- successful upload items -------------------------------------------
 
     async def test_valid_manifest_returns_items_and_size(self, tmp_path: Path) -> None:
         """A valid manifest returns one upload item and the correct total file size."""
@@ -552,7 +546,7 @@ class TestCheckFileNameNewFormat:
                 "parentId": ["syn1", "syn1"],
             }
         )
-        _check_file_names(df)  # should not raise
+        _check_file_names(df)
 
     def test_invalid_name_raises(self) -> None:
         """A file name containing characters not permitted by Synapse raises ValueError."""
@@ -587,7 +581,7 @@ class TestCheckFileNameNewFormat:
                 "parentId": ["syn1", "syn2"],
             }
         )
-        _check_file_names(df)  # should not raise
+        _check_file_names(df)
 
     @pytest.mark.parametrize(
         "name",
@@ -608,7 +602,7 @@ class TestCheckFileNameNewFormat:
                 "parentId": ["syn1"],
             }
         )
-        _check_file_names(df)  # should not raise
+        _check_file_names(df)
 
 
 class TestSortAndFixProvenance:
