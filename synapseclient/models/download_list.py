@@ -338,13 +338,13 @@ class DownloadList(DownloadListSynchronousProtocol):
         return list(columns), rows
 
     @staticmethod
-    async def _download_manifest_entry(
+    async def _download_row(
         row: dict[str, Any],
         download_location: Optional[str] = None,
         *,
         synapse_client: Optional["Synapse"] = None,
     ) -> Optional[DownloadListItem]:
-        """Download a manifest entry from a manifest row and record the result in place.
+        """Download the file described by a manifest row and record the result in place.
 
         On success, sets row["path"] to the local file path and row["error"]
         to "". On failure, sets row["path"] to "" and row["error"] to the
@@ -362,6 +362,7 @@ class DownloadList(DownloadListSynchronousProtocol):
             A DownloadListItem on success, or None on failure.
         """
         from synapseclient import Synapse
+        from synapseclient.models.file import File
 
         client = Synapse.get_client(synapse_client=synapse_client)
         entity_id = row["ID"]
@@ -376,12 +377,12 @@ class DownloadList(DownloadListSynchronousProtocol):
             return None
 
         try:
-            entity = await client.get_async(
-                entity_id,
-                version=version_number,
-                downloadLocation=download_location,
-            )
-            row[_PATH_COLUMN] = entity.path or ""
+            file = await File(
+                id=entity_id,
+                version_number=version_number,
+                path=download_location,
+            ).get_async(synapse_client=client)
+            row[_PATH_COLUMN] = file.path or ""
             row[_ERROR_COLUMN] = ""
             return DownloadListItem(
                 file_entity_id=entity_id,
@@ -408,7 +409,7 @@ class DownloadList(DownloadListSynchronousProtocol):
             path: Destination path for the output manifest CSV.
             columns: Field names for the CSV header, including "path" and
                 "error".
-            rows: List of row dicts, each mutated by _download_manifest_entry to
+            rows: List of row dicts, each mutated by _download_row to
                 include "path" and "error" values.
         """
         with open(path, "w", newline="") as f:
@@ -421,7 +422,7 @@ class DownloadList(DownloadListSynchronousProtocol):
         rows: list[dict[str, Any]],
         download_location: Optional[str],
         parallel: bool = False,
-        max_concurrent: Optional[int] = None,
+        max_concurrent: int = 10,
         *,
         synapse_client: Optional["Synapse"] = None,
     ) -> list[DownloadListItem]:
@@ -429,16 +430,15 @@ class DownloadList(DownloadListSynchronousProtocol):
 
         Arguments:
             rows: List of row dicts from the manifest. Each row is mutated in
-                place by _download_manifest_entry to include "path" and
+                place by _download_row to include "path" and
                 "error" values.
             download_location: Directory to download files to.
             parallel: If True, rows are downloaded concurrently (bounded by
                 max_concurrent) via asyncio.gather. If False, rows are
                 downloaded one at a time.
             max_concurrent: Maximum number of concurrent downloads when
-                parallel=True. Defaults to None, which is treated as
-                10. Must be at least 1. Has no effect when parallel=False;
-                a UserWarning is emitted if set explicitly in that case.
+                parallel=True. Defaults to 10. Must be at least 1. Has no
+                effect when parallel=False.
             synapse_client: Optional Synapse client.
 
         Raises:
@@ -447,11 +447,10 @@ class DownloadList(DownloadListSynchronousProtocol):
         Returns:
             List of DownloadListItem for each successfully downloaded file.
         """
-        if max_concurrent is not None and max_concurrent < 1:
+        if max_concurrent < 1:
             raise ValueError(
                 f"max_concurrent must be at least 1, got {max_concurrent}."
             )
-        max_concurrent = max_concurrent if max_concurrent is not None else 10
         if parallel:
             # asyncio.gather schedules all coroutines immediately, so without a
             # semaphore a large cart would fire hundreds of concurrent HTTP requests
@@ -465,7 +464,7 @@ class DownloadList(DownloadListSynchronousProtocol):
                 row: dict[str, Any],
             ) -> Optional[DownloadListItem]:
                 async with sem:
-                    return await DownloadList._download_manifest_entry(
+                    return await DownloadList._download_row(
                         row,
                         download_location=download_location,
                         synapse_client=synapse_client,
@@ -476,7 +475,7 @@ class DownloadList(DownloadListSynchronousProtocol):
         else:
             downloaded: list[DownloadListItem] = []
             for row in rows:
-                item = await DownloadList._download_manifest_entry(
+                item = await DownloadList._download_row(
                     row,
                     download_location=download_location,
                     synapse_client=synapse_client,
@@ -494,7 +493,7 @@ class DownloadList(DownloadListSynchronousProtocol):
         """Write the annotated rows to a new result manifest CSV and return its path.
 
         Arguments:
-            rows: List of row dicts, each mutated by _download_manifest_entry to
+            rows: List of row dicts, each mutated by _download_row to
                 include "path" and "error" values.
             columns: Field names for the CSV header, including "path" and
                 "error".
