@@ -4114,7 +4114,7 @@ def export_schema(schema: dict, file_path: str, logger: Logger) -> None:
         if json_schema_dirname != "":
             os.makedirs(json_schema_dirname, exist_ok=True)
     with open(file_path, "w", encoding="utf-8") as json_file:
-        json.dump(schema, json_file, sort_keys=True, indent=4, ensure_ascii=False)
+        json.dump(schema, json_file, sort_keys=False, indent=4, ensure_ascii=False)
 
     logger.info(f"The Data Model was created and saved to '{file_path}' location.")
 
@@ -5522,7 +5522,7 @@ def get_json_schema_log_file_path(data_model_path: str, source_node: str) -> str
 def export_json(json_doc: Any, file_path: str, indent: Optional[int] = 4) -> None:
     """Export JSON doc to file"""
     with open(file_path, "w", encoding="utf8") as fle:
-        json.dump(json_doc, fle, sort_keys=True, indent=indent, ensure_ascii=False)
+        json.dump(json_doc, fle, sort_keys=False, indent=indent, ensure_ascii=False)
 
 
 def create_json_schema(  # pylint: disable=too-many-arguments
