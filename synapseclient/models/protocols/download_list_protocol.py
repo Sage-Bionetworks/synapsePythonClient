@@ -87,6 +87,7 @@ class DownloadListSynchronousProtocol(Protocol):
         self,
         *,
         csv_table_descriptor: Optional["CsvTableDescriptor"] = None,
+        destination: str = ".",
         synapse_client: Optional["Synapse"] = None,
     ) -> str:
         """Generate and download the download list manifest CSV without downloading files.
@@ -96,6 +97,8 @@ class DownloadListSynchronousProtocol(Protocol):
                 format of the generated CSV (separator, quote character, escape
                 character, line ending, and whether the first line is a header).
                 When omitted the Synapse defaults are used.
+            destination: Directory to download the manifest CSV to. Defaults to
+                the current working directory.
             synapse_client: If not passed in and caching was not disabled by
                 Synapse.allow_client_caching(False) this will use the last created
                 instance from the Synapse class constructor.

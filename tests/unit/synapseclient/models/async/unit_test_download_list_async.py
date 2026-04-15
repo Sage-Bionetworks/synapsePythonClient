@@ -315,7 +315,8 @@ class TestDownloadListGetManifest:
             result = await DownloadList.get_manifest_async(synapse_client=self.syn)
             # THEN send_job_and_wait_async is called and the path is returned
             mock_request.send_job_and_wait_async.assert_called_once_with(
-                synapse_client=self.syn
+                post_exchange_args={"destination": "."},
+                synapse_client=self.syn,
             )
             assert result == "/tmp/manifest.csv"
 
@@ -335,6 +336,25 @@ class TestDownloadListGetManifest:
             )
             mock_cls.assert_called_once_with(csv_table_descriptor=descriptor)
             assert result == "/tmp/manifest.csv"
+
+    async def test_get_manifest_async_forwards_destination(self):
+        """get_manifest_async passes destination through post_exchange_args."""
+        mock_request = MagicMock()
+        mock_request.manifest_path = "/custom/dir/manifest.csv"
+        mock_request.send_job_and_wait_async = AsyncMock(return_value=mock_request)
+
+        with patch(
+            "synapseclient.models.download_list.DownloadListManifestRequest",
+            return_value=mock_request,
+        ):
+            result = await DownloadList.get_manifest_async(
+                destination="/custom/dir", synapse_client=self.syn
+            )
+            mock_request.send_job_and_wait_async.assert_called_once_with(
+                post_exchange_args={"destination": "/custom/dir"},
+                synapse_client=self.syn,
+            )
+            assert result == "/custom/dir/manifest.csv"
 
     async def test_get_manifest_async_raises_when_no_path(self):
         """get_manifest_async raises SynapseError when the job produces no local file."""

@@ -123,7 +123,7 @@ class DownloadListManifestRequest(AsynchronousCommunicator):
         self, synapse_response: dict[str, Any]
     ) -> "DownloadListManifestRequest":
         """Converts the data coming from the Synapse async job response into
-        this datamodel.
+        this data class.
 
         Extracts the resultFileHandleId from the completed job response and
         stores it in result_file_handle_id.
@@ -520,6 +520,7 @@ class DownloadList(DownloadListSynchronousProtocol):
     async def get_manifest_async(
         *,
         csv_table_descriptor: Optional[CsvTableDescriptor] = None,
+        destination: str = ".",
         synapse_client: Optional["Synapse"] = None,
     ) -> str:
         """
@@ -533,6 +534,8 @@ class DownloadList(DownloadListSynchronousProtocol):
                 format of the generated CSV (separator, quote character, escape
                 character, line ending, and whether the first line is a header).
                 When omitted the Synapse defaults are used.
+            destination: Directory to download the manifest CSV to. Defaults to
+                the current working directory.
             synapse_client: Optional Synapse client. Uses cached singleton if omitted.
         Raises:
             SynapseError: If the async job completes without producing a manifest
@@ -543,6 +546,7 @@ class DownloadList(DownloadListSynchronousProtocol):
             csv_table_descriptor=csv_table_descriptor or CsvTableDescriptor(),
         )
         await manifest_request.send_job_and_wait_async(
+            post_exchange_args={"destination": destination},
             synapse_client=synapse_client,
         )
         if manifest_request.manifest_path is None:
