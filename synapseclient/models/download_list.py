@@ -264,6 +264,7 @@ class DownloadList(DownloadListSynchronousProtocol):
                 os.path.expanduser(download_location)
             )
 
+        # 1. Fetch the server-generated manifest and read it into memory
         manifest_path = await DownloadList.get_manifest_async(
             synapse_client=client,
         )
@@ -274,6 +275,7 @@ class DownloadList(DownloadListSynchronousProtocol):
         finally:
             os.remove(manifest_path)
 
+        # 2. Validate manifest columns
         if columns is None:
             raise SynapseError(
                 "Manifest job succeeded but the downloaded CSV has no headers. "
@@ -289,6 +291,7 @@ class DownloadList(DownloadListSynchronousProtocol):
 
         columns = list(columns) + [_PATH_COLUMN, _ERROR_COLUMN]
 
+        # 3. Download each file in the manifest
         downloaded_files = await DownloadList._download_all_rows(
             rows=rows,
             download_location=download_location,
@@ -297,12 +300,14 @@ class DownloadList(DownloadListSynchronousProtocol):
             synapse_client=client,
         )
 
+        # 4. Write the result manifest with path/error columns
         new_manifest_path = await DownloadList._save_result_manifest(
             rows=rows,
             columns=columns,
             download_location=download_location,
         )
 
+        # 5. Remove successfully downloaded files from the cart
         if downloaded_files:
             await remove_from_download_list_async(
                 files=downloaded_files,
@@ -336,63 +341,6 @@ class DownloadList(DownloadListSynchronousProtocol):
         if not columns:
             return None, []
         return list(columns), rows
-
-    @staticmethod
-    async def _download_row(
-        row: dict[str, Any],
-        download_location: Optional[str] = None,
-        *,
-        synapse_client: Optional["Synapse"] = None,
-    ) -> Optional[DownloadListItem]:
-        """Download the file described by a manifest row and record the result in place.
-
-        On success, sets row["path"] to the local file path and row["error"]
-        to "". On failure, sets row["path"] to "" and row["error"] to the
-        error message. Failures are logged but never raised, so one bad file
-        does not abort the entire batch.
-
-        Arguments:
-            row: A manifest row dict. Must contain "ID" and "versionNumber"
-                keys. Modified in place to add "path" and "error" entries.
-            download_location: Directory to download the file to. Defaults to
-                the Synapse cache location if None.
-            synapse_client: Optional Synapse client. Uses cached singleton if omitted.
-
-        Returns:
-            A DownloadListItem on success, or None on failure.
-        """
-        from synapseclient import Synapse
-        from synapseclient.models.file import File
-
-        client = Synapse.get_client(synapse_client=synapse_client)
-        entity_id = row["ID"]
-        version_str = row.get("versionNumber")
-        version_number = int(version_str) if version_str else None
-
-        if version_number is None:
-            msg = f"Manifest row for {entity_id} is missing versionNumber"
-            row[_PATH_COLUMN] = ""
-            row[_ERROR_COLUMN] = msg
-            client.logger.warning(msg)
-            return None
-
-        try:
-            file = await File(
-                id=entity_id,
-                version_number=version_number,
-                path=download_location,
-            ).get_async(synapse_client=client)
-            row[_PATH_COLUMN] = file.path or ""
-            row[_ERROR_COLUMN] = ""
-            return DownloadListItem(
-                file_entity_id=entity_id,
-                version_number=version_number,
-            )
-        except Exception as e:
-            row[_PATH_COLUMN] = ""
-            row[_ERROR_COLUMN] = str(e)
-            client.logger.exception(f"Unable to download {entity_id} v{version_number}")
-            return None
 
     @staticmethod
     def _write_result_manifest(
@@ -483,6 +431,63 @@ class DownloadList(DownloadListSynchronousProtocol):
                 if item is not None:
                     downloaded.append(item)
             return downloaded
+
+    @staticmethod
+    async def _download_row(
+        row: dict[str, Any],
+        download_location: Optional[str] = None,
+        *,
+        synapse_client: Optional["Synapse"] = None,
+    ) -> Optional[DownloadListItem]:
+        """Download the file described by a manifest row and record the result in place.
+
+        On success, sets row["path"] to the local file path and row["error"]
+        to "". On failure, sets row["path"] to "" and row["error"] to the
+        error message. Failures are logged but never raised, so one bad file
+        does not abort the entire batch.
+
+        Arguments:
+            row: A manifest row dict. Must contain "ID" and "versionNumber"
+                keys. Modified in place to add "path" and "error" entries.
+            download_location: Directory to download the file to. Defaults to
+                the Synapse cache location if None.
+            synapse_client: Optional Synapse client. Uses cached singleton if omitted.
+
+        Returns:
+            A DownloadListItem on success, or None on failure.
+        """
+        from synapseclient import Synapse
+        from synapseclient.models.file import File
+
+        client = Synapse.get_client(synapse_client=synapse_client)
+        entity_id = row["ID"]
+        version_str = row.get("versionNumber")
+        version_number = int(version_str) if version_str else None
+
+        if version_number is None:
+            msg = f"Manifest row for {entity_id} is missing versionNumber"
+            row[_PATH_COLUMN] = ""
+            row[_ERROR_COLUMN] = msg
+            client.logger.warning(msg)
+            return None
+
+        try:
+            file = await File(
+                id=entity_id,
+                version_number=version_number,
+                path=download_location,
+            ).get_async(synapse_client=client)
+            row[_PATH_COLUMN] = file.path or ""
+            row[_ERROR_COLUMN] = ""
+            return DownloadListItem(
+                file_entity_id=entity_id,
+                version_number=version_number,
+            )
+        except Exception as e:
+            row[_PATH_COLUMN] = ""
+            row[_ERROR_COLUMN] = str(e)
+            client.logger.exception(f"Unable to download {entity_id} v{version_number}")
+            return None
 
     @staticmethod
     async def _save_result_manifest(
