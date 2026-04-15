@@ -246,6 +246,7 @@ def _make_mock_client():
     client.rest_get_async = AsyncMock()
     client.rest_put_async = AsyncMock()
     client.logger = MagicMock()
+    client._get_parallel_file_transfer_semaphore.return_value = asyncio.Semaphore(10)
     return client
 
 
@@ -1185,17 +1186,23 @@ class TestVerifyStorageLocationOwnershipAsync:
     @pytest.mark.asyncio
     async def test_success(self):
         client = _make_mock_client()
-        client.rest_get_async.return_value = {"storageLocationId": "99"}
-        # Should not raise
-        await _verify_storage_location_ownership_async("99", synapse_client=client)
-        client.rest_get_async.assert_awaited_once_with("/storageLocation/99")
+        mock_get = AsyncMock(return_value={"storageLocationId": "99"})
+        with patch(f"{MODULE}.get_storage_location_setting", mock_get):
+            # Should not raise
+            await _verify_storage_location_ownership_async("99", synapse_client=client)
+            mock_get.assert_awaited_once_with(
+                storage_location_id="99", synapse_client=client
+            )
 
     @pytest.mark.asyncio
     async def test_synapse_error_raises_value_error(self):
         client = _make_mock_client()
-        client.rest_get_async.side_effect = SynapseError("forbidden")
-        with pytest.raises(ValueError, match="Unable to verify ownership"):
-            await _verify_storage_location_ownership_async("99", synapse_client=client)
+        mock_get = AsyncMock(side_effect=SynapseError("forbidden"))
+        with patch(f"{MODULE}.get_storage_location_setting", mock_get):
+            with pytest.raises(ValueError, match="Unable to verify ownership"):
+                await _verify_storage_location_ownership_async(
+                    "99", synapse_client=client
+                )
 
 
 # =============================================================================
@@ -2176,7 +2183,7 @@ class TestMigrateTableAttachedFileAsync:
 
 class TestTrackMigrationResultsAsync:
     def _make_db(self, from_fh="fh_src", entity_id="syn3", version=1):
-        conn = sqlite3.connect(":memory:")
+        conn = sqlite3.connect(":memory:", check_same_thread=False)
         cursor = conn.cursor()
         _ensure_schema(cursor)
         cursor.execute(
@@ -2375,7 +2382,7 @@ class TestMigrateIndexedFilesAsync:
 
 class TestExecuteMigrationAsync:
     def _make_db_with_indexed_file(self, from_fh="fh_src", entity_id="syn3", version=1):
-        conn = sqlite3.connect(":memory:")
+        conn = sqlite3.connect(":memory:", check_same_thread=False)
         cursor = conn.cursor()
         _ensure_schema(cursor)
         cursor.execute(
@@ -2431,7 +2438,7 @@ class TestExecuteMigrationAsync:
 
     @pytest.mark.asyncio
     async def test_empty_db_completes_without_error(self):
-        conn = sqlite3.connect(":memory:")
+        conn = sqlite3.connect(":memory:", check_same_thread=False)
         cursor = conn.cursor()
         _ensure_schema(cursor)
         conn.commit()
