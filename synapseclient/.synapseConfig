@@ -80,7 +80,7 @@
 
 ## max_threads: number of concurrent threads/connections used for file transfers.
 ## Applies to AWS S3 transfers (uploads and downloads).
-## Default: cpu_count + 4. Maximum: 128. Minimum: 1.
+## Default: min(cpu_count + 4, 128). Maximum: 128. Minimum: 1.
 ## Can also be set programmatically: syn.max_threads = 16
 #max_threads = 16
 
