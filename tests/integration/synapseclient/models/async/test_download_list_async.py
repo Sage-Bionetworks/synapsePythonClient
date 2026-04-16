@@ -509,8 +509,11 @@ class TestDownloadList:
                 # THEN the manifest is written under the CWD
                 abs_manifest = os.path.abspath(manifest_path)
                 assert os.path.exists(abs_manifest)
-                assert abs_manifest.startswith(
-                    tmpdir
+                # Normalize both paths with realpath — on macOS /var is a
+                # symlink to /private/var, so tmpdir and the resolved manifest
+                # path can differ even when the manifest is under tmpdir.
+                assert os.path.realpath(abs_manifest).startswith(
+                    os.path.realpath(tmpdir)
                 ), f"Expected manifest under {tmpdir}, got {abs_manifest}"
 
                 with open(manifest_path, newline="") as f:
