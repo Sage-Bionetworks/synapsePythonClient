@@ -6,7 +6,7 @@ data or metadata in Synapse.
 """
 
 from dataclasses import dataclass, field, replace
-from typing import Any, AsyncGenerator, Dict, Generator, List, Optional, Protocol, Union
+from typing import Any, AsyncGenerator, Dict, Generator, Optional, Protocol, Union
 
 from opentelemetry import trace
 
@@ -1093,10 +1093,10 @@ class UploadToTablePreviewRequest(AsynchronousCommunicator):
     """When set to true the full file will be scanned for a schema suggestions. A full scan is more accurate but can take more time. When set to false only a sub-set of the first rows will be scanned, which can be faster but is less accurate. The default value is false."""
 
     # Response fields (populated by fill_from_dict)
-    suggested_columns: Optional[List[Column]] = field(default=None, compare=False)
+    suggested_columns: Optional[list[Column]] = field(default=None, compare=False)
     """The suggested columns for the table based on the file scan."""
 
-    sample_rows: Optional[List[List[Optional[str]]]] = field(
+    sample_rows: Optional[list[list[Optional[str]]]] = field(
         default=None, compare=False
     )
     """A sample of the rows in the file."""
