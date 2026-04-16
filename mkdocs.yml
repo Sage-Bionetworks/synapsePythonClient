@@ -260,6 +260,9 @@ markdown_extensions:
 
   - markdown_include.include:
 
+  - pymdownx.snippets:
+      base_path: ["."]
+
   - toc:
       permalink: true
   - attr_list

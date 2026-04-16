@@ -22,7 +22,7 @@ In this tutorial you will:
 #### First retrieve the project, folder, and file we want to track provenance for
 
 ```python
-{!docs/tutorials/python/tutorial_scripts/activity.py!lines=6-24}
+--8<-- "docs/tutorials/python/tutorial_scripts/activity.py:retrieve_project_folder_file"
 ```
 
 #### Create an Activity and attach it to the file
@@ -30,7 +30,7 @@ In this tutorial you will:
 An `Activity` captures what was **used** (input data and reference URLs) and **executed** (code and software) to produce a file. Here we record a QC pipeline run on the biospecimen data:
 
 ```python
-{!docs/tutorials/python/tutorial_scripts/activity.py!lines=26-53}
+--8<-- "docs/tutorials/python/tutorial_scripts/activity.py:create_activity"
 ```
 
 <details class="example">
@@ -47,7 +47,7 @@ Stored file: fileA.txt (version 1) with activity: Quality Control Analysis
 Each time you store an updated file, Synapse creates a new version. You can associate a distinct activity with each version to capture the full history of how the data evolved. Here we record a downstream analysis step that used the QC-passed data from version 1:
 
 ```python
-{!docs/tutorials/python/tutorial_scripts/activity.py!lines=55-88}
+--8<-- "docs/tutorials/python/tutorial_scripts/activity.py:add_activity_to_version"
 ```
 
 <details class="example">
@@ -64,7 +64,7 @@ Stored activity 'Downstream Analysis' on file fileA.txt (version 1)
 Use `Activity.from_parent()` to retrieve the provenance for any version of a file. Pass a `parent_version_number` to retrieve the activity for a specific older version:
 
 ```python
-{!docs/tutorials/python/tutorial_scripts/activity.py!lines=90-108}
+--8<-- "docs/tutorials/python/tutorial_scripts/activity.py:print_activities"
 ```
 
 <details class="example">
@@ -90,7 +90,7 @@ Activity on version 1:
 Deleting an activity disassociates it from the entity. Once the activity is no longer referenced by any entity, Synapse removes it entirely. If the same activity is shared across multiple entities you will need to call `Activity.delete()` on each of them:
 
 ```python
-{!docs/tutorials/python/tutorial_scripts/activity.py!lines=110-118}
+--8<-- "docs/tutorials/python/tutorial_scripts/activity.py:delete_activity"
 ```
 
 <details class="example">
@@ -109,7 +109,7 @@ Activity after deletion: None
   <summary>Click to show me</summary>
 
 ```python
-{!docs/tutorials/python/tutorial_scripts/activity.py!}
+--8<-- "docs/tutorials/python/tutorial_scripts/activity.py"
 ```
 </details>
 

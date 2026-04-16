@@ -3,6 +3,7 @@ Here is where you'll find the code for the Activity/Provenance tutorial.
 """
 
 # Step 1: Add a new Activity to your File
+# --8<-- [start:retrieve_project_folder_file]
 import synapseclient
 from synapseclient.models import Activity, File, Folder, Project, UsedEntity, UsedURL
 
@@ -22,7 +23,9 @@ my_file = File(
     name="fileA.txt",
     parent_id=biospecimen_experiment_1_folder.id,
 ).get()
+# --8<-- [end:retrieve_project_folder_file]
 
+# --8<-- [start:create_activity]
 # Create an Activity describing the analysis step that produced this file
 analysis_activity = Activity(
     name="Quality Control Analysis",
@@ -51,7 +54,9 @@ print(
     f"Stored file: {my_file.name} (version {first_version_number}) "
     f"with activity: {my_file.activity.name}"
 )
+# --8<-- [end:create_activity]
 
+# --8<-- [start:add_activity_to_version]
 # Step 2: Add a new Activity to a specific version of your File
 # Each time you store an updated file, Synapse creates a new version.
 # You can track a different activity for each version to capture the
@@ -86,7 +91,9 @@ print(
     f"Stored activity '{downstream_activity.name}' on file "
     f"{second_version_file.name} (version {second_version_number})"
 )
+# --8<-- [end:add_activity_to_version]
 
+# --8<-- [start:print_activities]
 # Step 3: Print stored activities on your File
 # Retrieve and print the activity on the latest version of the file
 current_activity = Activity.from_parent(parent=my_file)
@@ -106,7 +113,9 @@ first_activity = Activity.from_parent(
 print(f"\nActivity on version {first_version_number}:")
 print(f"  Name: {first_activity.name}")
 print(f"  Description: {first_activity.description}")
+# --8<-- [end:print_activities]
 
+# --8<-- [start:delete_activity]
 # Step 4: Delete an activity
 # Deleting an activity disassociates it from the entity and removes it from
 # Synapse once it is no longer referenced by any entity.
@@ -116,3 +125,4 @@ print(f"\nDeleted activity from: {my_file.name} (version {my_file.version_number
 # Verify the activity was removed
 deleted_activity = Activity.from_parent(parent=my_file)
 print(f"Activity after deletion: {deleted_activity}")
+# --8<-- [end:delete_activity]
