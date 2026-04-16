@@ -840,7 +840,7 @@ class TestGrid:
         grid = Grid(session_id=SESSION_ID)
 
         csv_table_descriptor = CsvTableDescriptor(
-            separator=",",
+            separator=";",
             quote_character='"',
             escape_character="\\",
             line_end=os.linesep,
@@ -907,6 +907,7 @@ class TestGrid:
             session_id=SESSION_ID,
             file_handle_id=FILE_HANDLE_ID,
             schema=expected_columns,
+            csv_descriptor=csv_table_descriptor,
         )
 
         # AND the log message contains the import counts
@@ -985,7 +986,7 @@ class TestUploadToTablePreviewRequest:
         }
 
         # WHEN I fill an UploadToTablePreviewRequest from the response
-        preview_req = UploadToTablePreviewRequest()
+        preview_req = UploadToTablePreviewRequest(upload_file_handle_id=FILE_HANDLE_ID)
         preview_response = preview_req.fill_from_dict(raw_synapse_response)
 
         # THEN the fields should be populated correctly
@@ -1010,7 +1011,21 @@ class TestUploadToTablePreviewRequest:
         ]
         assert preview_response.rows_scanned == 1
 
-    def test_to_synapse_request(self) -> None:
+    def test_to_synapse_request_with_minimal_fields(self) -> None:
+        # GIVEN an UploadToTablePreviewRequest with only required fields set
+        preview_req = UploadToTablePreviewRequest(
+            upload_file_handle_id=FILE_HANDLE_ID,
+        )
+
+        # WHEN I convert it to a synapse request
+        result = preview_req.to_synapse_request()
+
+        # THEN it should contain the correct fields and defaults
+        assert result["concreteType"] == UPLOAD_TO_TABLE_PREVIEW_REQUEST
+        assert result["uploadFileHandleId"] == FILE_HANDLE_ID
+        assert result["csvTableDescriptor"] == CsvTableDescriptor().to_synapse_request()
+
+    def test_to_synapse_request_with_all_fields(self) -> None:
         # GIVEN an UploadToTablePreviewRequest
         preview_req = UploadToTablePreviewRequest(
             upload_file_handle_id=FILE_HANDLE_ID,
@@ -1068,16 +1083,38 @@ class TestGridCsvImportRequest:
         assert result.created_count == 1
         assert result.updated_count == 2
 
-    def test_to_synapse_request(self) -> None:
+    def test_to_synapse_request_with_minimal_fields(self) -> None:
+        # GIVEN a GridCsvImportRequest with only required fields set
+        import_req = GridCsvImportRequest(
+            session_id=SESSION_ID,
+            file_handle_id=FILE_HANDLE_ID,
+            schema=[Column(name="col1", column_type="STRING")],
+        )
+
+        # WHEN I convert it to a synapse request
+        result = import_req.to_synapse_request()
+
+        # THEN it should contain the correct fields and defaults
+        assert result["concreteType"] == GRID_CSV_IMPORT_REQUEST
+        assert result["sessionId"] == SESSION_ID
+        assert result["fileHandleId"] == FILE_HANDLE_ID
+        assert result["csvDescriptor"] == CsvTableDescriptor().to_synapse_request()
+        assert len(result["schema"]) == 1
+        assert (
+            result["schema"][0]
+            == Column(name="col1", column_type="STRING").to_synapse_request()
+        )
+
+    def test_to_synapse_request_with_all_fields(self) -> None:
         # GIVEN a GridCsvImportRequest with all fields set
         import_req = GridCsvImportRequest(
             session_id=SESSION_ID,
             file_handle_id=FILE_HANDLE_ID,
             csv_descriptor=CsvTableDescriptor(
-                separator=",",
+                separator=";",
                 quote_character='"',
                 escape_character="\\",
-                line_end="\n",
+                line_end="\t",
                 is_first_line_header=True,
             ),
             schema=[
@@ -1095,10 +1132,10 @@ class TestGridCsvImportRequest:
         assert result["concreteType"] == GRID_CSV_IMPORT_REQUEST
         assert result["sessionId"] == SESSION_ID
         assert result["fileHandleId"] == FILE_HANDLE_ID
-        assert result["csvDescriptor"]["separator"] == ","
+        assert result["csvDescriptor"]["separator"] == ";"
         assert result["csvDescriptor"]["quoteCharacter"] == '"'
         assert result["csvDescriptor"]["escapeCharacter"] == "\\"
-        assert result["csvDescriptor"]["lineEnd"] == "\n"
+        assert result["csvDescriptor"]["lineEnd"] == "\t"
         assert result["csvDescriptor"]["isFirstLineHeader"] is True
         assert len(result["schema"]) == 4
         assert (
