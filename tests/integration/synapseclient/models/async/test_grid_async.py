@@ -193,52 +193,58 @@ class TestGridAsync:
 
         # GIVEN: Create a grid session first
         grid = Grid(record_set_id=record_set_fixture.id)
-        created_grid = await grid.create_async(
-            timeout=ASYNC_JOB_TIMEOUT_SEC, synapse_client=self.syn
-        )
+        try:
+            created_grid = await grid.create_async(
+                timeout=ASYNC_JOB_TIMEOUT_SEC, synapse_client=self.syn
+            )
 
-        assert created_grid.session_id is not None
+            assert created_grid.session_id is not None
 
-        # AND a CSV file uploaded to Synapse
-        test_data = pd.DataFrame(
-            {
-                "id": [6, 7, 8, 9, 10],
-                "name": ["Alpha", "Beta", "Gamma", "Delta", "Epsilon"],
-                "value": [10.5, 20.3, 30.7, 40.1, 50.9],
-                "category": ["A", "B", "A", "C", "B"],
-                "active": [True, False, False, True, True],
-            }
-        )
+            # AND a CSV file uploaded to Synapse
+            test_data = pd.DataFrame(
+                {
+                    "id": [6, 7, 8, 9, 10],
+                    "name": ["Alpha", "Beta", "Gamma", "Delta", "Epsilon"],
+                    "value": [10.5, 20.3, 30.7, 40.1, 50.9],
+                    "category": ["A", "B", "A", "C", "B"],
+                    "active": [True, False, False, True, True],
+                }
+            )
 
-        # Create a temporary CSV file
-        with tempfile.NamedTemporaryFile("w", suffix=".csv", delete=False) as temp_csv:
-            test_data.to_csv(temp_csv.name, index=False)
-            self.schedule_for_cleanup(temp_csv.name)
+            # Create a temporary CSV file
+            with tempfile.NamedTemporaryFile(
+                "w", suffix=".csv", delete=False
+            ) as temp_csv:
+                test_data.to_csv(temp_csv.name, index=False)
+                self.schedule_for_cleanup(temp_csv.name)
 
-            file = await File(
-                path=temp_csv.name, parent_id=project_model.id
-            ).store_async(synapse_client=self.syn)
+                file = await File(
+                    path=temp_csv.name, parent_id=project_model.id
+                ).store_async(synapse_client=self.syn)
 
-            self.schedule_for_cleanup(file.id)
+                self.schedule_for_cleanup(file.id)
 
-        # WHEN: Importing the CSV into the grid session
-        imported_grid = await created_grid.import_csv_async(
-            file_handle_id=file.file_handle.id,
-            timeout=ASYNC_JOB_TIMEOUT_SEC,
-            synapse_client=self.syn,
-        )
+            # WHEN: Importing the CSV into the grid session
+            imported_grid = await created_grid.import_csv_async(
+                file_handle_id=file.file_handle.id,
+                timeout=ASYNC_JOB_TIMEOUT_SEC,
+                synapse_client=self.syn,
+            )
 
-        # THEN: The import should complete and return the Grid with the same session
-        assert imported_grid.session_id == created_grid.session_id
+            # THEN: The import should complete and return the Grid with the same session
+            assert imported_grid.session_id == created_grid.session_id
 
-        # WHEN: Exporting the grid back to the record set
-        exported_grid = await imported_grid.export_to_record_set_async(
-            timeout=ASYNC_JOB_TIMEOUT_SEC, synapse_client=self.syn
-        )
+            # WHEN: Exporting the grid back to the record set
+            exported_grid = await imported_grid.export_to_record_set_async(
+                timeout=ASYNC_JOB_TIMEOUT_SEC, synapse_client=self.syn
+            )
 
-        # THEN: The export should contain 10 total rows
-        # (5 from the original record set + 5 imported)
-        assert exported_grid.validation_summary_statistics is not None
-        assert (
-            exported_grid.validation_summary_statistics.total_number_of_children == 10
-        )
+            # THEN: The export should contain 10 total rows
+            # (5 from the original record set + 5 imported)
+            assert exported_grid.validation_summary_statistics is not None
+            assert (
+                exported_grid.validation_summary_statistics.total_number_of_children
+                == 10
+            )
+        finally:
+            await created_grid.delete_async(synapse_client=self.syn)
