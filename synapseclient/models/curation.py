@@ -1057,11 +1057,7 @@ class GridCsvImportRequest(AsynchronousCommunicator):
             "sessionId": self.session_id,
             "fileHandleId": self.file_handle_id,
             "csvDescriptor": self.csv_descriptor.to_synapse_request(),
-            "schema": (
-                [col.to_synapse_request() for col in self.schema]
-                if self.schema
-                else None
-            ),
+            "schema": [col.to_synapse_request() for col in self.schema],
         }
         delete_none_keys(request_dict)
         return request_dict
