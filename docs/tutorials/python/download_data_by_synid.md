@@ -1,4 +1,4 @@
-[](){ #tutorial-downloading-a-file }
+[](){ #tutorial-downloading-data-by-synapse-id }
 # Downloading data by Synapse ID
 
 This tutorial shows how to download any set of files from Synapse using their
