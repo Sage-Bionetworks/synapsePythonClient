@@ -850,6 +850,7 @@ class TestGrid:
 
         # Mock preview response with suggested columns
         mock_preview_response = UploadToTablePreviewRequest(
+            upload_file_handle_id=FILE_HANDLE_ID,
             csv_table_descriptor=csv_table_descriptor,
             suggested_columns=expected_columns,
             sample_rows=[["value1"]],
