@@ -231,19 +231,19 @@ class TestSyncToSynapse:
         )
 
         # WHEN I sync to Synapse
-        await project_model.sync_to_synapse_async(
+        uploaded_files = await project_model.sync_to_synapse_async(
             manifest_path=str(manifest_path),
             send_messages=False,
             synapse_client=self.syn,
         )
 
-        # THEN the file has activity with the expected provenance
-        synced = await Project(id=project_model.id).sync_from_synapse_async(
-            recursive=False, download_file=False, synapse_client=self.syn
-        )
-        uploaded = next((f for f in synced.files if f.name == unique_name), None)
-        assert uploaded is not None
-        self.schedule_for_cleanup(uploaded.id)
+        for f in uploaded_files:
+            self.schedule_for_cleanup(f.id)
+
+        # THEN the file is returned with the expected provenance
+        assert len(uploaded_files) == 1
+        uploaded = uploaded_files[0]
+        assert uploaded.name == unique_name
 
         refreshed = await File(id=uploaded.id).get_async(
             include_activity=True, synapse_client=self.syn
@@ -274,19 +274,15 @@ class TestSyncToSynapse:
         )
 
         # WHEN I sync with dry_run=True
-        await project_model.sync_to_synapse_async(
+        uploaded_files = await project_model.sync_to_synapse_async(
             manifest_path=str(manifest_path),
             dry_run=True,
             send_messages=False,
             synapse_client=self.syn,
         )
 
-        # THEN no file with that name should exist in the project
-        synced = await Project(id=project_model.id).sync_from_synapse_async(
-            recursive=False, download_file=False, synapse_client=self.syn
-        )
-        names = {f.name for f in synced.files}
-        assert unique_name not in names
+        # THEN no files were uploaded
+        assert uploaded_files == []
 
     async def test_upload_into_subfolder(
         self, project_model: Project, tmp_path: Path
@@ -312,20 +308,23 @@ class TestSyncToSynapse:
         )
 
         # WHEN I sync to Synapse
-        await project_model.sync_to_synapse_async(
+        uploaded_files = await project_model.sync_to_synapse_async(
             manifest_path=str(manifest_path),
             send_messages=False,
             synapse_client=self.syn,
         )
 
-        # THEN the file exists inside the folder, not at the project root
-        synced_folder = await Folder(id=folder.id).sync_from_synapse_async(
-            recursive=False, download_file=False, synapse_client=self.syn
-        )
-        names = {f.name for f in synced_folder.files}
-        assert "in_folder.txt" in names
-        for f in synced_folder.files:
+        for f in uploaded_files:
             self.schedule_for_cleanup(f.id)
+
+        # THEN the file exists inside the folder, not at the project root
+        assert len(uploaded_files) == 1
+        assert uploaded_files[0].name == "in_folder.txt"
+
+        file_entity = await File(id=uploaded_files[0].id).get_async(
+            synapse_client=self.syn
+        )
+        assert file_entity.parent_id == folder.id
 
     async def test_non_container_parent_id_raises(
         self, project_model: Project, tmp_path: Path
@@ -385,20 +384,15 @@ class TestSyncToSynapse:
         )
 
         # WHEN I sync to Synapse
-        await project_model.sync_to_synapse_async(
+        uploaded_files = await project_model.sync_to_synapse_async(
             manifest_path=str(manifest_path),
             send_messages=False,
             synapse_client=self.syn,
         )
 
-        # THEN only the valid row was uploaded
-        synced = await Project(id=project_model.id).sync_from_synapse_async(
-            recursive=False, download_file=False, synapse_client=self.syn
-        )
-        names = {f.name for f in synced.files}
-        assert unique_name in names
-        assert "should_not_appear.txt" not in names
+        for f in uploaded_files:
+            self.schedule_for_cleanup(f.id)
 
-        for f in synced.files:
-            if f.name == unique_name:
-                self.schedule_for_cleanup(f.id)
+        # THEN only the valid row was uploaded
+        assert len(uploaded_files) == 1
+        assert uploaded_files[0].name == unique_name
