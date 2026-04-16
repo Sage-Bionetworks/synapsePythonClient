@@ -1584,7 +1584,7 @@ class GridSynchronousProtocol(Protocol):
     def import_csv(
         self,
         file_handle_id: str,
-        csv_table_descriptor: Optional[CsvTableDescriptor] = None,
+        csv_table_descriptor: Optional[CsvTableDescriptor] = CsvTableDescriptor(),
         *,
         timeout: int = 120,
         synapse_client: Optional[Synapse] = None,
