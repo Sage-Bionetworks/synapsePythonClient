@@ -1077,11 +1077,11 @@ class UploadToTablePreviewRequest(AsynchronousCommunicator):
     This response is modeled from: <https://rest-docs.synapse.org/rest/org/sagebionetworks/repo/model/table/UploadToTablePreviewResult.html>
     """
 
+    upload_file_handle_id: str
+    """The ID of the file handle for a type of UPLOAD"""
+
     concrete_type: str = UPLOAD_TO_TABLE_PREVIEW_REQUEST
     """The concrete type for this request."""
-
-    upload_file_handle_id: Optional[str] = None
-    """The ID of the file handle for a type of UPLOAD"""
 
     lines_to_skip: Optional[int] = None
     """The number of lines to skip from the start of the file. The default value of 0 will be used if this is not provided by the caller."""
@@ -1089,7 +1089,7 @@ class UploadToTablePreviewRequest(AsynchronousCommunicator):
     csv_table_descriptor: CsvTableDescriptor = field(default_factory=CsvTableDescriptor)
     """The description of a csv for upload or download."""
 
-    do_full_file_scan: Optional[bool] = False
+    do_full_file_scan: Optional[bool] = None
     """When set to true the full file will be scanned for a schema suggestions. A full scan is more accurate but can take more time. When set to false only a sub-set of the first rows will be scanned, which can be faster but is less accurate. The default value is false."""
 
     # Response fields (populated by fill_from_dict)
@@ -1141,11 +1141,8 @@ class UploadToTablePreviewRequest(AsynchronousCommunicator):
             "uploadFileHandleId": self.upload_file_handle_id,
             "linesToSkip": self.lines_to_skip,
             "doFullFileScan": self.do_full_file_scan,
+            "csvTableDescriptor": self.csv_table_descriptor.to_synapse_request(),
         }
-        if self.csv_table_descriptor is not None:
-            request_dict["csvTableDescriptor"] = (
-                self.csv_table_descriptor.to_synapse_request()
-            )
         delete_none_keys(request_dict)
         return request_dict
 
@@ -2050,7 +2047,7 @@ class Grid(GridSynchronousProtocol):
     async def import_csv_async(
         self,
         file_handle_id: str,
-        csv_table_descriptor: Optional[CsvTableDescriptor] = None,
+        csv_table_descriptor: Optional[CsvTableDescriptor] = CsvTableDescriptor(),
         *,
         timeout: int = 120,
         synapse_client: Optional[Synapse] = None,
@@ -2102,6 +2099,12 @@ class Grid(GridSynchronousProtocol):
                 "session_id is required to import a CSV into a GridSession"
             )
 
+        trace.get_current_span().set_attributes(
+            {
+                "synapse.session_id": self.session_id or "",
+            }
+        )
+
         upload_to_table_preview = UploadToTablePreviewRequest(
             csv_table_descriptor=csv_table_descriptor,
             upload_file_handle_id=file_handle_id,
@@ -2116,9 +2119,8 @@ class Grid(GridSynchronousProtocol):
             session_id=self.session_id,
             file_handle_id=file_handle_id,
             schema=all_columns,
+            csv_descriptor=csv_table_descriptor,
         )
-        if csv_table_descriptor:
-            import_request.csv_descriptor = csv_table_descriptor
         import_response = await import_request.send_job_and_wait_async(
             timeout=timeout, synapse_client=synapse_client
         )
