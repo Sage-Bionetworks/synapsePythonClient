@@ -4,13 +4,19 @@ Here is where you'll find the code for the Activity/Provenance tutorial.
 
 # Step 1: Add a new Activity to your File
 # --8<-- [start:retrieve_project_folder_file]
+import os
+import tempfile
+
 import synapseclient
 from synapseclient.models import Activity, File, Folder, Project, UsedEntity, UsedURL
 
 syn = synapseclient.login()
 
+# Set project and folder name that exists within the project
 PROJECT_NAME = "My uniquely named project about Alzheimer's Disease"
 FOLDER_NAME = "biospecimen_experiment_1"
+# Set the file id that exists within the folder
+FILE_A_SYN_ID = "synNNNNN"
 
 # Retrieve the project and folder IDs
 my_project_id = Project(name=PROJECT_NAME).get().id
@@ -20,10 +26,7 @@ biospecimen_experiment_1_folder = Folder(
 ).get()
 
 # Retrieve an existing file from the project
-my_file = File(
-    name="fileA.txt",
-    parent_id=biospecimen_experiment_1_folder.id,
-).get()
+my_file = File(id=FILE_A_SYN_ID).get()
 # --8<-- [end:retrieve_project_folder_file]
 
 # --8<-- [start:create_activity]
@@ -62,6 +65,16 @@ print(
 # Each time you store an updated file, Synapse creates a new version.
 # You can track a different activity for each version to capture the
 # full history of what was done to produce each version of the file.
+
+# Create a dummy file and upload it as a new version
+with tempfile.NamedTemporaryFile(mode="w", suffix=".txt", delete=False) as tmp:
+    tmp.write("Updated biospecimen data - post-QC analysis results")
+    tmp_path = tmp.name
+
+updated_file = File(path=tmp_path, id=my_file.id).store()
+second_version_number = updated_file.version_number
+os.unlink(tmp_path)
+
 downstream_activity = Activity(
     name="Downstream Analysis",
     description="Downstream analysis of QC-passed biospecimen samples.",
@@ -83,8 +96,12 @@ downstream_activity = Activity(
     ],
 )
 
-# Store the activity directly on the file using Activity.store()
-downstream_activity.store(parent=my_file)
+# Store the activity on the new version using Activity.store()
+downstream_activity.store(parent=updated_file)
+print(
+    f"Stored activity '{downstream_activity.name}' on file "
+    f"{updated_file.name} (version {second_version_number})"
+)
 # --8<-- [end:add_activity_to_version]
 
 # --8<-- [start:print_activities]
@@ -113,10 +130,16 @@ print(f"  Description: {first_activity.description}")
 # Step 4: Delete an activity
 # Deleting an activity disassociates it from the entity and removes it from
 # Synapse once it is no longer referenced by any entity.
-Activity.delete(parent=my_file)
-print(f"\nDeleted activity from: {my_file.name} (version {my_file.version_number})")
+
+current_activity.disassociate_from_entity(parent=updated_file)
+current_activity.delete(parent=updated_file)
+print(
+    f"\nDeleted activity from: {updated_file.name} (version {updated_file.version_number})"
+)
 
 # Verify the activity was removed
-deleted_activity = Activity.from_parent(parent=my_file)
+deleted_activity = Activity.from_parent(
+    parent=updated_file, parent_version_number=updated_file.version_number
+)
 print(f"Activity after deletion: {deleted_activity}")
 # --8<-- [end:delete_activity]

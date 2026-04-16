@@ -4,7 +4,6 @@ Provenance is a concept describing the origin of something. In Synapse, it is us
 
 The model Synapse uses for provenance is based on the [W3C provenance spec](https://www.w3.org/TR/prov-n/) where items are derived from an activity which has components that were **used** and components that were **executed**. Think of the **used** items as input files and **executed** items as software or code. Both **used** and **executed** items can reside in Synapse or in URLs such as a link to a GitHub commit or a link to a specific version of a software tool.
 
-[Dive into Activity/Provenance further here](../../explanations/domain_models_of_synapse.md#activityprovenance)
 
 ## Tutorial Purpose
 In this tutorial you will:
@@ -15,7 +14,7 @@ In this tutorial you will:
 1. Delete an activity
 
 ## Prerequisites
-- In order to follow this tutorial you will need to have a [Project](./project.md) created with at least one [File](./file.md) stored in a Folder named `biospecimen_experiment_1`.
+- In order to follow this tutorial you will need to have a [Project](./project.md) created with a Folder named `biospecimen_experiment_1` containing at least one [File](./file.md). You will also need the Synapse ID of that file (e.g. `synNNNNN`).
 
 ## 1. Add a new Activity to your File
 
@@ -54,7 +53,7 @@ Each time you store an updated file, Synapse creates a new version. You can asso
   <summary>You'll notice the output looks like:</summary>
 
 ```
-Stored activity 'Downstream Analysis' on file fileA.txt (version 1)
+Stored activity 'Downstream Analysis' on file fileA.txt (version 2)
 ```
 </details>
 
@@ -87,7 +86,7 @@ Activity on version 1:
 
 ## 4. Delete an activity
 
-Deleting an activity disassociates it from the entity. Once the activity is no longer referenced by any entity, Synapse removes it entirely. If the same activity is shared across multiple entities you will need to call `Activity.delete()` on each of them:
+Deleting an activity is a two-step process: first call `disassociate_from_entity()` to remove the link between the activity and the file version, then call `delete()` to remove the activity record from Synapse entirely:
 
 ```python
 --8<-- "docs/tutorials/python/tutorial_scripts/activity.py:delete_activity"
@@ -97,7 +96,7 @@ Deleting an activity disassociates it from the entity. Once the activity is no l
   <summary>You'll notice the output looks like:</summary>
 
 ```
-Deleted activity from: fileA.txt (version 1)
+Deleted activity from: fileA.txt (version 2)
 Activity after deletion: None
 ```
 </details>
