@@ -90,7 +90,7 @@ Settings to configure how Synapse uploads and downloads data.
 
 | Key | Description |
 | --- | --- |
-| `max_threads` | Number of concurrent threads/connections for file transfers. Applies to AWS S3 transfers (uploads and downloads). Default: `cpu_count + 4`. Maximum: `128`. Minimum: `1`. |
+| `max_threads` | Number of concurrent threads/connections for file transfers. Applies to AWS S3 transfers (uploads and downloads). Default: `min(cpu_count + 4, 128)`. Maximum: `128`. Minimum: `1`. |
 | `use_boto_sts` | If `true`, use AWS STS (Security Token Service) to obtain temporary credentials for S3 transfers instead of using stored AWS credentials directly. Valid values: `true` or `false` (case-insensitive). Default: `false`. |
 
 ```ini
