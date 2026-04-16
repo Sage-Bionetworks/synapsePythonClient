@@ -105,23 +105,25 @@ class TestSyncToSynapse:
         )
 
         # WHEN I sync to Synapse
-        await project_model.sync_to_synapse_async(
+        uploaded_files = await project_model.sync_to_synapse_async(
             manifest_path=str(manifest_path),
             send_messages=False,
             synapse_client=self.syn,
         )
 
-        # THEN both files should exist in Synapse
-        synced = await Project(id=project_model.id).sync_from_synapse_async(
-            recursive=False, download_file=False, synapse_client=self.syn
-        )
-        names = {f.name for f in synced.files}
-        assert name_a in names
-        assert name_b in names
+        for f in uploaded_files:
+            self.schedule_for_cleanup(f.id)
 
-        for f in synced.files:
-            if f.name in (name_a, name_b):
-                self.schedule_for_cleanup(f.id)
+        # THEN both files are returned and exist in Synapse
+        assert len(uploaded_files) == 2
+        uploaded_names = {f.name for f in uploaded_files}
+        assert name_a in uploaded_names
+        assert name_b in uploaded_names
+
+        for f in uploaded_files:
+            file_entity = await File(id=f.id).get_async(synapse_client=self.syn)
+            assert file_entity.id is not None
+            assert file_entity.parent_id == project_model.id
 
     async def test_annotations_written_to_synapse(
         self, project_model: Project, tmp_path: Path
@@ -145,24 +147,28 @@ class TestSyncToSynapse:
         )
 
         # WHEN I sync to Synapse
-        await project_model.sync_to_synapse_async(
+        uploaded_files = await project_model.sync_to_synapse_async(
             manifest_path=str(manifest_path),
             send_messages=False,
             synapse_client=self.syn,
         )
 
-        # THEN the file exists with the correct annotations
-        synced = await Project(id=project_model.id).sync_from_synapse_async(
-            recursive=False, download_file=False, synapse_client=self.syn
-        )
-        uploaded = next((f for f in synced.files if f.name == unique_name), None)
-        assert uploaded is not None
-        self.schedule_for_cleanup(uploaded.id)
+        for f in uploaded_files:
+            self.schedule_for_cleanup(f.id)
 
-        refreshed = await File(id=uploaded.id).get_async(synapse_client=self.syn)
-        assert refreshed.annotations.get("my_string") == ["hello"]
-        # "42" in the CSV is parsed by ast.literal_eval into the integer 42
-        assert refreshed.annotations.get("my_number") == [42]
+        # THEN the file is returned and exists in Synapse
+        # AND the file exists with the correct annotations
+        assert len(uploaded_files) == 1
+        uploaded_names = {f.name for f in uploaded_files}
+        assert unique_name in uploaded_names
+
+        for f in uploaded_files:
+            file_entity = await File(id=f.id).get_async(synapse_client=self.syn)
+            assert file_entity.id is not None
+            assert file_entity.parent_id == project_model.id
+            assert file_entity.annotations.get("my_string") == ["hello"]
+            # "42" in the CSV is parsed by ast.literal_eval into the integer 42
+            assert file_entity.annotations.get("my_number") == [42]
 
     async def test_update_existing_file_creates_new_version(
         self, project_model: Project, tmp_path: Path
