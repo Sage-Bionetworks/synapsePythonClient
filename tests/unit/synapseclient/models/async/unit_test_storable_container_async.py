@@ -10,8 +10,6 @@ import pytest
 from synapseclient import Synapse
 from synapseclient.models import Project
 
-_TEST_PROJECT = Project(id="test", name="test")
-
 
 def _write_manifest(rows: list[dict], tmp_path: Path) -> Path:
     """Write a minimal CSV manifest to a unique path under *tmp_path*."""
@@ -38,13 +36,14 @@ class TestSyncToSynapse:
     async def test_missing_path_column_raises(self, tmp_path: Path) -> None:
         """A manifest without a 'path' column raises ValueError immediately."""
         manifest_path = _write_manifest([{"parentId": "syn123", "name": "x"}], tmp_path)
+        project = Project(id="test", name="test")
 
         with pytest.raises(ValueError, match="'path'"):
-            await _TEST_PROJECT.sync_to_synapse_async(
+            await project.sync_to_synapse_async(
                 manifest_path=str(manifest_path), synapse_client=self.syn
             )
 
-    async def test_missing_parentid_column_raises(self, tmp_path: Path) -> None:
+    async def test_missing_parent_id_column_raises(self, tmp_path: Path) -> None:
         """A manifest without a 'parentId' column raises ValueError immediately."""
         local_file = tmp_path / "f.txt"
         local_file.write_text("x")
@@ -52,9 +51,10 @@ class TestSyncToSynapse:
         manifest_path = _write_manifest(
             [{"path": str(local_file), "name": "f.txt"}], tmp_path
         )
+        project = Project(id="test", name="test")
 
         with pytest.raises(ValueError, match="'parentId'"):
-            await _TEST_PROJECT.sync_to_synapse_async(
+            await project.sync_to_synapse_async(
                 manifest_path=str(manifest_path), synapse_client=self.syn
             )
 
@@ -71,11 +71,12 @@ class TestSyncToSynapse:
             ],
             tmp_path,
         )
+        project = Project(id="test", name="test")
 
         with patch(
             "synapseclient.models.mixins.storable_container.upload_sync_files"
         ) as mock_upload:
-            result = await _TEST_PROJECT.sync_to_synapse_async(
+            result = await project.sync_to_synapse_async(
                 manifest_path=str(manifest_path), synapse_client=self.syn
             )
             mock_upload.assert_not_called()
