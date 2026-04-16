@@ -9,13 +9,14 @@ from synapseclient.models import Activity, File, Folder, Project, UsedEntity, Us
 
 syn = synapseclient.login()
 
+PROJECT_NAME = "My uniquely named project about Alzheimer's Disease"
+FOLDER_NAME = "biospecimen_experiment_1"
+
 # Retrieve the project and folder IDs
-my_project_id = (
-    Project(name="My uniquely named project about Alzheimer's Disease").get().id
-)
+my_project_id = Project(name=PROJECT_NAME).get().id
 
 biospecimen_experiment_1_folder = Folder(
-    name="biospecimen_experiment_1", parent_id=my_project_id
+    name=FOLDER_NAME, parent_id=my_project_id
 ).get()
 
 # Retrieve an existing file from the project
@@ -83,14 +84,7 @@ downstream_activity = Activity(
 )
 
 # Store the activity directly on the file using Activity.store()
-second_version_file = File(id=my_file.id).get()
-downstream_activity.store(parent=second_version_file)
-
-second_version_number = second_version_file.version_number
-print(
-    f"Stored activity '{downstream_activity.name}' on file "
-    f"{second_version_file.name} (version {second_version_number})"
-)
+downstream_activity.store(parent=my_file)
 # --8<-- [end:add_activity_to_version]
 
 # --8<-- [start:print_activities]
