@@ -2,7 +2,8 @@
 
 The Synapse Python client can be configured either programmatically or by using a configuration file.
 
-**The default configuration file does not need to be modified for most use-cases**.
+!!! note "Default Configuration"
+    The default configuration file does not need to be modified for most use-cases
 
 When installing the Synapse Python client, the `.synapseConfig` file is added to your home directory if it doesn't exist already. This file stores configuration options including your Synapse auth token, cache location, multi-threading settings, and storage credentials.
 
