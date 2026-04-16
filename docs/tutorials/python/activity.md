@@ -18,7 +18,7 @@ In this tutorial you will:
 
 ## 1. Add a new Activity to your File
 
-#### First retrieve the project, folder, and file we want to track provenance for
+#### First retrieve the project, folder and a file is created within that folder to track provenance
 
 ```python
 --8<-- "docs/tutorials/python/tutorial_scripts/activity.py:retrieve_project_folder_file"
