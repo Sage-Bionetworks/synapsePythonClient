@@ -1008,14 +1008,14 @@ class GridCsvImportRequest(AsynchronousCommunicator):
     file_handle_id: str
     """The id of the file handle that contains the CSV data."""
 
+    schema: list[Column]
+    """The list of ColumnModel that describe the CSV file. Currently this is required."""
+
     concrete_type: str = GRID_CSV_IMPORT_REQUEST
     """The concrete type for this request."""
 
     csv_descriptor: CsvTableDescriptor = field(default_factory=CsvTableDescriptor)
     """The description of a csv for upload or download."""
-
-    schema: Optional[List[Column]] = None
-    """The list of ColumnModel that describe the CSV file. Currently this is required."""
 
     # Response fields (populated by fill_from_dict)
     total_count: Optional[int] = field(default=None, compare=False)
@@ -1089,7 +1089,7 @@ class UploadToTablePreviewRequest(AsynchronousCommunicator):
     csv_table_descriptor: CsvTableDescriptor = field(default_factory=CsvTableDescriptor)
     """The description of a csv for upload or download."""
 
-    do_full_file_scan: Optional[bool] = None
+    do_full_file_scan: Optional[bool] = False
     """When set to true the full file will be scanned for a schema suggestions. A full scan is more accurate but can take more time. When set to false only a sub-set of the first rows will be scanned, which can be faster but is less accurate. The default value is false."""
 
     # Response fields (populated by fill_from_dict)
@@ -1140,9 +1140,12 @@ class UploadToTablePreviewRequest(AsynchronousCommunicator):
             "concreteType": self.concrete_type,
             "uploadFileHandleId": self.upload_file_handle_id,
             "linesToSkip": self.lines_to_skip,
-            "csvTableDescriptor": self.csv_table_descriptor.to_synapse_request(),
             "doFullFileScan": self.do_full_file_scan,
         }
+        if self.csv_table_descriptor is not None:
+            request_dict["csvTableDescriptor"] = (
+                self.csv_table_descriptor.to_synapse_request()
+            )
         delete_none_keys(request_dict)
         return request_dict
 

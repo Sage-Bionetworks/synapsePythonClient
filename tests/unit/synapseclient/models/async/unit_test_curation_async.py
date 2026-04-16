@@ -859,6 +859,7 @@ class TestGrid:
         mock_import_response = GridCsvImportRequest(
             session_id=SESSION_ID,
             file_handle_id=FILE_HANDLE_ID,
+            schema=expected_columns,
             total_count=1,
             created_count=1,
             updated_count=1,
@@ -1055,7 +1056,9 @@ class TestGridCsvImportRequest:
 
         # WHEN I fill a GridCsvImportRequest from the response
         import_req = GridCsvImportRequest(
-            session_id=SESSION_ID, file_handle_id=FILE_HANDLE_ID
+            session_id=SESSION_ID,
+            file_handle_id=FILE_HANDLE_ID,
+            schema=[Column(name="col1", column_type="STRING")],
         )
         result = import_req.fill_from_dict(raw_synapse_response)
 
