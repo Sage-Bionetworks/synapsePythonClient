@@ -1072,7 +1072,9 @@ class UploadToTablePreviewRequest(AsynchronousCommunicator):
     """
     Request for a preview of an upload to a Table.
 
-    This result is modeled from: <https://rest-docs.synapse.org/rest/org/sagebionetworks/repo/model/table/UploadToTablePreviewRequest.html>
+    This request is modeled from: <https://rest-docs.synapse.org/rest/org/sagebionetworks/repo/model/table/UploadToTablePreviewRequest.html>
+
+    This response is modeled from: <https://rest-docs.synapse.org/rest/org/sagebionetworks/repo/model/table/UploadToTablePreviewResult.html>
     """
 
     concrete_type: str = UPLOAD_TO_TABLE_PREVIEW_REQUEST
@@ -1134,17 +1136,14 @@ class UploadToTablePreviewRequest(AsynchronousCommunicator):
         Returns:
             A dictionary representation of this object for API requests.
         """
-        request_dict: Dict[str, Any] = {"concreteType": self.concrete_type}
-        if self.upload_file_handle_id is not None:
-            request_dict["uploadFileHandleId"] = self.upload_file_handle_id
-        if self.lines_to_skip is not None:
-            request_dict["linesToSkip"] = self.lines_to_skip
-        if self.csv_table_descriptor is not None:
-            request_dict["csvTableDescriptor"] = (
-                self.csv_table_descriptor.to_synapse_request()
-            )
-        if self.do_full_file_scan is not None:
-            request_dict["doFullFileScan"] = self.do_full_file_scan
+        request_dict = {
+            "concreteType": self.concrete_type,
+            "uploadFileHandleId": self.upload_file_handle_id,
+            "linesToSkip": self.lines_to_skip,
+            "csvTableDescriptor": self.csv_table_descriptor.to_synapse_request(),
+            "doFullFileScan": self.do_full_file_scan,
+        }
+        delete_none_keys(request_dict)
         return request_dict
 
 
