@@ -997,7 +997,9 @@ class GridCsvImportRequest(AsynchronousCommunicator):
     A request to import a CSV file into a grid. Currently supports only grid
     created from a record set.
 
-    This result is modeled from: <https://rest-docs.synapse.org/rest/org/sagebionetworks/repo/model/grid/GridCsvImportRequest.html>
+    This request is modeled from: <https://rest-docs.synapse.org/rest/org/sagebionetworks/repo/model/grid/GridCsvImportRequest.html>
+
+    The response is modeled from: <https://rest-docs.synapse.org/rest/org/sagebionetworks/repo/model/grid/GridCsvImportResponse.html>
     """
 
     concrete_type: str = GRID_CSV_IMPORT_REQUEST
