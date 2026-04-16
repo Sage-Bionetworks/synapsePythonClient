@@ -13,10 +13,8 @@ from synapseclient.models import Activity, File, Folder, Project, UsedEntity, Us
 syn = synapseclient.login()
 
 # Set project and folder name that exists within the project
-PROJECT_NAME = "My uniquely named project about Alzheimer's Disease"
+PROJECT_NAME = "Dark Side Of The Moon"
 FOLDER_NAME = "biospecimen_experiment_1"
-# Set the file id that exists within the folder
-FILE_A_SYN_ID = "synNNNNN"
 
 # Retrieve the project and folder IDs
 my_project_id = Project(name=PROJECT_NAME).get().id
@@ -25,8 +23,17 @@ biospecimen_experiment_1_folder = Folder(
     name=FOLDER_NAME, parent_id=my_project_id
 ).get()
 
-# Retrieve an existing file from the project
-my_file = File(id=FILE_A_SYN_ID).get()
+with tempfile.NamedTemporaryFile(mode="w", suffix=".txt", delete=False) as tmp:
+    tmp.write("First biospecimen data - post-QC analysis results")
+    tmp_path = tmp.name
+# Store a first version of the file in Synapse
+my_file = File(
+    path=tmp_path,
+    name="biospecimen_data.txt",
+    parent_id=biospecimen_experiment_1_folder.id,
+)
+my_file.store()
+
 # --8<-- [end:retrieve_project_folder_file]
 
 # --8<-- [start:create_activity]
@@ -71,9 +78,13 @@ with tempfile.NamedTemporaryFile(mode="w", suffix=".txt", delete=False) as tmp:
     tmp.write("Updated biospecimen data - post-QC analysis results")
     tmp_path = tmp.name
 
-updated_file = File(path=tmp_path, id=my_file.id).store()
+updated_file = File(
+    path=tmp_path,
+    name="biospecimen_data.txt",
+    parent_id=biospecimen_experiment_1_folder.id,
+)
+updated_file.store()
 second_version_number = updated_file.version_number
-os.unlink(tmp_path)
 
 downstream_activity = Activity(
     name="Downstream Analysis",
