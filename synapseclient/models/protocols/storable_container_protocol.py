@@ -2,13 +2,19 @@
 generated at runtime."""
 
 import asyncio
-from typing import List, Optional, Protocol
+from typing import TYPE_CHECKING, List, Optional, Protocol
 
 from typing_extensions import Self
 
 from synapseclient import Synapse
 from synapseclient.core.constants.method_flags import COLLISION_OVERWRITE_LOCAL
-from synapseclient.models.services.storable_entity_components import FailureStrategy
+from synapseclient.models.services.storable_entity_components import (
+    MANIFEST_UPLOAD_MAX_RETRIES,
+    FailureStrategy,
+)
+
+if TYPE_CHECKING:
+    from synapseclient.models.file import File
 
 
 class StorableContainerSynchronousProtocol(Protocol):
@@ -224,3 +230,64 @@ class StorableContainerSynchronousProtocol(Protocol):
 
         """
         return self
+
+    def sync_to_synapse(
+        self: Self,
+        manifest_path: str,
+        dry_run: bool = False,
+        send_messages: bool = True,
+        retries: int = MANIFEST_UPLOAD_MAX_RETRIES,
+        merge_existing_annotations: bool = True,
+        associate_activity_to_new_version: bool = False,
+        *,
+        synapse_client: Synapse | None = None,
+    ) -> list["File"]:
+        """Upload files to Synapse using a manifest CSV file.
+
+        Accepts manifests produced by sync_from_synapse, the
+        synapse get-download-list CLI, or the Synapse UI download cart.
+        The manifest must have at minimum a path and parentId column.
+        All other columns that are not part of the standard manifest column set
+        are treated as file annotations.
+
+        Standard manifest columns:
+        [ID, name, parentId, contentType, path, synapseStore, activityName,
+        activityDescription, forceVersion, used, executed]
+
+        Arguments:
+            manifest_path: Path to the CSV manifest file.
+            dry_run: If True, perform full validation of the manifest
+                (including verifying that all parent containers exist in
+                Synapse) but skip the actual file upload.
+            send_messages: If True, send a Synapse notification message on
+                completion.
+            retries: Number of notification retries (only relevant when
+                send_messages=True).
+            merge_existing_annotations: If True, merge manifest annotations
+                with existing annotations on Synapse. If False, overwrite them.
+            associate_activity_to_new_version: If True and a version update
+                occurs, the existing Synapse activity is associated with the new
+                version.
+            synapse_client: If not passed in and caching was not disabled by
+                Synapse.allow_client_caching(False) this will use the last
+                created instance from the Synapse class constructor.
+
+        Returns:
+            List of File entities that were created or updated. Returns an
+            empty list if dry_run=True or if no rows were eligible for
+            upload.
+
+        Example: Using this function
+
+            ```python
+            from synapseclient import Synapse
+            from synapseclient.models import Project
+
+            syn = Synapse()
+            syn.login()
+
+            project = Project(id="syn12345")
+            uploaded = project.sync_to_synapse(manifest_path="/path/to/manifest.csv")
+            ```
+        """
+        return []
