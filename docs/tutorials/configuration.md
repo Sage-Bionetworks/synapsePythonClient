@@ -4,7 +4,7 @@ The Synapse Python client can be configured either programmatically or by using 
 
 **The default configuration file does not need to be modified for most use-cases**.
 
-When installing the Synapse Python client, the `.synapseConfig` file is added to your home directory. This file stores configuration options including your Synapse auth token, cache location, multi-threading settings, and storage credentials.
+When installing the Synapse Python client, the `.synapseConfig` file is added to your home directory if it doesn't exist already. This file stores configuration options including your Synapse auth token, cache location, multi-threading settings, and storage credentials.
 
 A full annotated example `.synapseConfig` can be found in the [GitHub repository](https://github.com/Sage-Bionetworks/synapsePythonClient/blob/develop/synapseclient/.synapseConfig).
 
@@ -75,6 +75,8 @@ Override the default Synapse production service endpoints. Useful for testing ag
 | `authEndpoint` | Synapse authentication service endpoint. |
 | `fileHandleEndpoint` | Synapse file service endpoint. |
 | `portalEndpoint` | Synapse web portal URL. |
+
+Note: The following are the default endpoints.
 
 ```ini
 [endpoints]
