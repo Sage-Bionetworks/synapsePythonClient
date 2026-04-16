@@ -1002,14 +1002,14 @@ class GridCsvImportRequest(AsynchronousCommunicator):
     The response is modeled from: <https://rest-docs.synapse.org/rest/org/sagebionetworks/repo/model/grid/GridCsvImportResponse.html>
     """
 
-    concrete_type: str = GRID_CSV_IMPORT_REQUEST
-    """The concrete type for this request."""
-
-    session_id: Optional[str] = None
+    session_id: str
     """The grid session ID."""
 
-    file_handle_id: Optional[str] = None
+    file_handle_id: str
     """The id of the file handle that contains the CSV data."""
+
+    concrete_type: str = GRID_CSV_IMPORT_REQUEST
+    """The concrete type for this request."""
 
     csv_descriptor: CsvTableDescriptor = field(default_factory=CsvTableDescriptor)
     """The description of a csv for upload or download."""
@@ -1052,15 +1052,18 @@ class GridCsvImportRequest(AsynchronousCommunicator):
         Returns:
             A dictionary representation of this object for API requests.
         """
-        request_dict: Dict[str, Any] = {"concreteType": self.concrete_type}
-        if self.session_id is not None:
-            request_dict["sessionId"] = self.session_id
-        if self.file_handle_id is not None:
-            request_dict["fileHandleId"] = self.file_handle_id
-        if self.csv_descriptor is not None:
-            request_dict["csvDescriptor"] = self.csv_descriptor.to_synapse_request()
-        if self.schema is not None:
-            request_dict["schema"] = [col.to_synapse_request() for col in self.schema]
+        request_dict = {
+            "concreteType": self.concrete_type,
+            "sessionId": self.session_id,
+            "fileHandleId": self.file_handle_id,
+            "csvDescriptor": self.csv_descriptor.to_synapse_request(),
+            "schema": (
+                [col.to_synapse_request() for col in self.schema]
+                if self.schema
+                else None
+            ),
+        }
+        delete_none_keys(request_dict)
         return request_dict
 
 

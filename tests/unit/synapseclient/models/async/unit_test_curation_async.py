@@ -45,6 +45,7 @@ SOURCE_ENTITY_ID = "syn5555555"
 GRID_ETAG = "grid-etag-456"
 STARTED_BY = "user-1"
 STARTED_ON = "2024-03-01T00:00:00.000Z"
+FILE_HANDLE_ID = "1234567"
 
 
 def _get_file_based_task_api_response():
@@ -830,7 +831,7 @@ class TestGrid:
             match="session_id is required to import a CSV into a GridSession",
         ):
             await grid.import_csv_async(
-                synapse_client=self.syn, file_handle_id="1234567"
+                synapse_client=self.syn, file_handle_id=FILE_HANDLE_ID
             )
 
     async def test_import_csv_async(self) -> None:
@@ -856,7 +857,8 @@ class TestGrid:
         )
         # Mock import response with row counts
         mock_import_response = GridCsvImportRequest(
-            file_handle_id="1234567",
+            session_id=SESSION_ID,
+            file_handle_id=FILE_HANDLE_ID,
             total_count=1,
             created_count=1,
             updated_count=1,
@@ -886,7 +888,7 @@ class TestGrid:
         ):
             result = await grid.import_csv_async(
                 synapse_client=self.syn,
-                file_handle_id="1234567",
+                file_handle_id=FILE_HANDLE_ID,
                 csv_table_descriptor=csv_table_descriptor,
             )
 
@@ -896,13 +898,13 @@ class TestGrid:
         # AND UploadToTablePreviewRequest was constructed with the right arguments
         MockPreview.assert_called_once_with(
             csv_table_descriptor=csv_table_descriptor,
-            upload_file_handle_id="1234567",
+            upload_file_handle_id=FILE_HANDLE_ID,
         )
 
         # AND GridCsvImportRequest was constructed with the schema from the preview
         MockImport.assert_called_once_with(
             session_id=SESSION_ID,
-            file_handle_id="1234567",
+            file_handle_id=FILE_HANDLE_ID,
             schema=expected_columns,
         )
 
@@ -1010,7 +1012,7 @@ class TestUploadToTablePreviewRequest:
     def test_to_synapse_request(self) -> None:
         # GIVEN an UploadToTablePreviewRequest
         preview_req = UploadToTablePreviewRequest(
-            upload_file_handle_id="1234567",
+            upload_file_handle_id=FILE_HANDLE_ID,
             lines_to_skip=1,
             do_full_file_scan=True,
             csv_table_descriptor=CsvTableDescriptor(
@@ -1027,7 +1029,7 @@ class TestUploadToTablePreviewRequest:
 
         # THEN it should contain the correct fields
         assert result["concreteType"] == UPLOAD_TO_TABLE_PREVIEW_REQUEST
-        assert result["uploadFileHandleId"] == "1234567"
+        assert result["uploadFileHandleId"] == FILE_HANDLE_ID
         assert result["linesToSkip"] == 1
         assert result["doFullFileScan"] is True
         assert result["csvTableDescriptor"]["separator"] == ";"
@@ -1052,7 +1054,9 @@ class TestGridCsvImportRequest:
         }
 
         # WHEN I fill a GridCsvImportRequest from the response
-        import_req = GridCsvImportRequest(session_id=SESSION_ID)
+        import_req = GridCsvImportRequest(
+            session_id=SESSION_ID, file_handle_id=FILE_HANDLE_ID
+        )
         result = import_req.fill_from_dict(raw_synapse_response)
 
         # THEN the response fields should be populated correctly
@@ -1065,7 +1069,7 @@ class TestGridCsvImportRequest:
         # GIVEN a GridCsvImportRequest with all fields set
         import_req = GridCsvImportRequest(
             session_id=SESSION_ID,
-            file_handle_id="1234567",
+            file_handle_id=FILE_HANDLE_ID,
             csv_descriptor=CsvTableDescriptor(
                 separator=",",
                 quote_character='"',
@@ -1087,7 +1091,7 @@ class TestGridCsvImportRequest:
         # THEN it should contain the correct fields
         assert result["concreteType"] == GRID_CSV_IMPORT_REQUEST
         assert result["sessionId"] == SESSION_ID
-        assert result["fileHandleId"] == "1234567"
+        assert result["fileHandleId"] == FILE_HANDLE_ID
         assert result["csvDescriptor"]["separator"] == ","
         assert result["csvDescriptor"]["quoteCharacter"] == '"'
         assert result["csvDescriptor"]["escapeCharacter"] == "\\"
