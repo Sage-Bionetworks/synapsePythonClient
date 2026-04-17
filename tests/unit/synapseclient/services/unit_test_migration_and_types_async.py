@@ -2348,13 +2348,16 @@ class TestMigrateIndexedFilesAsync:
     ):
         path, _ = db_file_with_settings
         # Add an indexed row so there's something to confirm
-        with sqlite3.connect(path) as conn:
+        conn = sqlite3.connect(path)
+        try:
             cursor = conn.cursor()
             cursor.execute(
                 "INSERT INTO migrations (id, type, status) VALUES (?, ?, ?)",
                 ("syn3", MigrationType.FILE.value, MigrationStatus.INDEXED.value),
             )
             conn.commit()
+        finally:
+            conn.close()
 
         client = _make_mock_client()
         with (

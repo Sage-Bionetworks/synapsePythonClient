@@ -1406,8 +1406,9 @@ async def migrate_indexed_files_async(
     client = Synapse.get_client(synapse_client=synapse_client)
 
     # Retrieve settings
-    with sqlite3.connect(db_path, check_same_thread=False) as conn:
-        cursor = conn.cursor()
+    conn = sqlite3.connect(db_path, check_same_thread=False)
+    cursor = conn.cursor()
+    try:
         _ensure_schema(cursor)
         existing_settings = _retrieve_index_settings(cursor)
         if existing_settings is None:
@@ -1436,6 +1437,8 @@ async def migrate_indexed_files_async(
             synapse_client=client,
         )
         return MigrationResult(db_path=db_path, synapse_client=client)
+    finally:
+        conn.close()
 
 
 async def _execute_migration_async(
