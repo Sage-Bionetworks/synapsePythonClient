@@ -92,11 +92,12 @@ classDiagram
     }
 
     class StorageLocationType {
-        <<enumeration>>
+        <<dataclass frozen>>
         SYNAPSE_S3
         EXTERNAL_S3
         EXTERNAL_GOOGLE_CLOUD
         EXTERNAL_SFTP
+        EXTERNAL_HTTPS
         EXTERNAL_OBJECT_STORE
         PROXY
     }
@@ -107,17 +108,22 @@ classDiagram
         GOOGLE_CLOUD_STORAGE
         SFTP
         HTTPS
+        PROXYLOCAL
         NONE
     }
 
     class StorageLocationConfigurable {
         <<mixin>>
-        +set_storage_location(storage_location_id) ProjectSetting
-        +get_project_setting(setting_type) ProjectSetting
-        +delete_project_setting(setting_id)
         +get_sts_storage_token(permission, output_format) dict
         +index_files_for_migration(dest_storage_location_id, db_path) MigrationResult
         +migrate_indexed_files(db_path) MigrationResult
+    }
+
+    class ProjectSettingsMixin {
+        <<mixin>>
+        +set_storage_location(storage_location_id) ProjectSetting
+        +get_project_setting(setting_type) ProjectSetting
+        +delete_project_setting(setting_id)
     }
 
     class Project {
@@ -132,31 +138,25 @@ classDiagram
         +str parent_id
     }
 
-    class UploadDestinationListSetting {
-        <<enumeration>>
-        concreteType
-        id
-        projectId
-        settingsType
-        etag
-        locations
-    }
-
     class ProjectSetting {
-        <<enumeration>>
-        concreteType
-        id
-        projectId
-        settingsType
-        etag
-
+        <<dataclass>>
+        +str id
+        +str project_id
+        +str settings_type
+        +List~int~ locations
+        +str concrete_type
+        +str etag
+        +store() ProjectSetting
+        +get() ProjectSetting
+        +delete()
     }
+
     StorageLocation --> StorageLocationType : storage_type
     StorageLocation --> UploadType : upload_type
-    StorageLocationConfigurable <|-- Project : implements
-    StorageLocationConfigurable <|-- Folder : implements
-    StorageLocationConfigurable ..> ProjectSetting : returns
-    StorageLocationConfigurable ..> UploadDestinationListSetting : uses
+    StorageLocationConfigurable <|-- ProjectSettingsMixin : extends
+    ProjectSettingsMixin <|-- Project : implements
+    ProjectSettingsMixin <|-- Folder : implements
+    ProjectSettingsMixin ..> ProjectSetting : returns
 
 ```
 
@@ -170,9 +170,9 @@ classDiagram
 | [synapseclient.models.StorageLocation] | The model representing a storage location setting in Synapse |
 | [synapseclient.models.StorageLocationType] | Enumeration defining the supported storage backend types |
 | [synapseclient.models.UploadType] | Enumeration defining the upload protocol for each storage type |
-| [synapseclient.models.mixins.StorageLocationConfigurable] | Mixin providing storage management methods to entities |
-| [synapseclient.models.mixins.UploadDestinationListSetting] | Dataclass defining the upload destination list setting containing storage location IDs |
-| [synapseclient.models.mixins.ProjectSetting] | Dataclass defining the base project setting structure |
+| [synapseclient.models.mixins.StorageLocationConfigurable] | Mixin providing STS token and file migration methods |
+| [synapseclient.models.mixins.ProjectSettingsMixin] | Mixin extending `StorageLocationConfigurable` with storage location and project settings management |
+| [synapseclient.models.ProjectSetting] | Dataclass representing a project's upload destination configuration, backed by `UploadDestinationListSetting` in the REST API |
 
 ---
 
@@ -305,22 +305,27 @@ flowchart TB
 
 ## Entity Inheritance Hierarchy
 
-Projects and Folders inherit storage configuration capabilities through the
-`StorageLocation` mixin. This pattern allows consistent storage
-management across container entities.
+Projects and Folders inherit storage configuration capabilities through two
+cooperating mixins: `StorageLocationConfigurable` (STS tokens and file migration)
+and `ProjectSettingsMixin` (storage location and project settings management).
+This pattern allows consistent storage management across container entities.
 
 ```mermaid
 classDiagram
     direction TB
 
-    class StorageLocation {
+    class StorageLocationConfigurable {
+        <<mixin>>
+        +get_sts_storage_token()
+        +index_files_for_migration()
+        +migrate_indexed_files()
+    }
+
+    class ProjectSettingsMixin {
         <<mixin>>
         +set_storage_location()
         +get_project_setting()
         +delete_project_setting()
-        +get_sts_storage_token()
-        +index_files_for_migration()
-        +migrate_indexed_files()
     }
 
     class Project {
@@ -337,13 +342,14 @@ classDiagram
         +str etag
     }
 
-    StorageLocation <|-- Project
-    StorageLocation <|-- Folder
+    StorageLocationConfigurable <|-- ProjectSettingsMixin
+    ProjectSettingsMixin <|-- Project
+    ProjectSettingsMixin <|-- Folder
 ```
 
 The mixin pattern allows `Project` and `Folder` to share storage location
-functionality without code duplication. Both classes inherit the same
-methods from `StorageLocation`.
+functionality without code duplication. Both classes inherit all methods
+from `ProjectSettingsMixin`, which itself extends `StorageLocationConfigurable`.
 
 ---
 
@@ -415,8 +421,6 @@ STS (AWS Security Token Service) enables direct S3 access using temporary creden
 When a Synapse client is constructed (`Synapse.__init__`), it creates an in-memory token cache:
 
 - `self._sts_token_store = sts_transfer.StsTokenStore()` (see `synapseclient/client.py`)
-
-The store caches STS tokens per entity and permission so repeated access to the same storage location can reuse credentials without a round-trip to the REST API.
 
 ```mermaid
 sequenceDiagram
@@ -682,116 +686,47 @@ File migration is a two-phase process that first indexes all candidate files and
 ```mermaid
 sequenceDiagram
     participant User
-    participant Entity as Project/Folder
     participant IndexFn as index_files_for_migration
     participant DB as SQLite Database
     participant MigrateFn as migrate_indexed_files
     participant Synapse as Synapse REST API
 
-    Note over User,Synapse: === Phase 1: Index Files ===
-    User->>Entity: index_files_for_migration_async
-    activate Entity
+    Note over User,Synapse: Phase 1: Index Files
+    User->>IndexFn: index_files_for_migration_async(dest_id, source_ids, ...)
+    IndexFn->>Synapse: Verify ownership of destination storage location
+    IndexFn->>DB: Initialize DB and store migration settings
 
-    Entity->>IndexFn: index_files_for_migration_async(dest_id, source_ids, file_version_strategy, include_table_files)
-    activate IndexFn
-
-    IndexFn->>Synapse: Verify user owns destination storage location
-    Synapse-->>IndexFn: OK / error
-
-    IndexFn->>DB: Create/open DB + ensure schema
-    IndexFn->>DB: Store migration settings (root_id, dest_id, source_ids, file_version_strategy, include_table_files)
-
-    alt Entity is Project/Folder (container)
-        IndexFn->>Synapse: get_children(parent, include_types)
-        Synapse-->>IndexFn: Child references (folders/files/tables)
-
-        loop For each child (bounded concurrency)
-            IndexFn->>Synapse: get_async(child, downloadFile=false)
-            Synapse-->>IndexFn: Child entity
-            IndexFn->>IndexFn: _index_entity_async(child)
-        end
-
-        IndexFn->>DB: Mark container as indexed (PROJECT/FOLDER)
-
-    else Entity is File
-        alt file_version_strategy = new / latest / all
-            IndexFn->>Synapse: Get file handle metadata (and versions if needed)
-            Synapse-->>IndexFn: File handle(s)
-            IndexFn->>DB: Insert/append FILE migration rows (INDEXED and ALREADY_MIGRATED)
-        else file_version_strategy = skip
-            Note over IndexFn: Skip file entities
-        end
-
-    else Entity is Table (include_table_files=true)
-        IndexFn->>Synapse: get_columns(table_id)
-        Synapse-->>IndexFn: Column list
-        IndexFn->>Synapse: Query rows for FILEHANDLEID columns (+ rowId,rowVersion)
-        Synapse-->>IndexFn: Row results (fileHandleId values)
-        loop For each row + file-handle cell (bounded concurrency)
-            IndexFn->>Synapse: get_file_handle_for_download(fileHandleId, objectType=TableEntity)
-            Synapse-->>IndexFn: File handle
-            IndexFn->>DB: Insert TABLE_ATTACHED_FILE migration row (or ALREADY_MIGRATED)
-        end
+    alt Project/Folder
+        IndexFn->>Synapse: get_children() → recurse into each child
+        IndexFn->>DB: Insert FILE / TABLE_ATTACHED_FILE rows per entity
+    else File
+        IndexFn->>Synapse: Get file handle(s) per version strategy
+        IndexFn->>DB: Insert FILE migration rows
+    else Table (include_table_files=true)
+        IndexFn->>Synapse: Query FILEHANDLEID columns + fetch handles
+        IndexFn->>DB: Insert TABLE_ATTACHED_FILE rows
     end
 
-    opt continue_on_error=true
-        Note over IndexFn,DB: Indexing errors are recorded in DB instead of aborting
-    end
+    IndexFn-->>User: MigrationResult (db_path)
 
-    IndexFn-->>Entity: MigrationResult (db_path)
-    deactivate IndexFn
+    Note over User,Synapse: Phase 2: Migrate Files
+    User->>MigrateFn: migrate_indexed_files_async(db_path)
+    MigrateFn->>User: Confirm migration (skipped if force=True)
 
-    Entity-->>User: MigrationResult
-    deactivate Entity
-
-    Note over User,Synapse: === Phase 2: Migrate Files ===
-    User->>Entity: migrate_indexed_files / migrate_indexed_files_async (db_path)
-    activate Entity
-
-    Entity->>MigrateFn: Start migration
-    activate MigrateFn
-
-    MigrateFn->>DB: Open DB, ensure schema, load settings
-    MigrateFn->>User: Confirm migration (unless force=True)
-    Note over MigrateFn,DB: If not confirmed, abort and return
-
-    loop While there are indexed items
-        MigrateFn->>DB: Query next batch (respecting pending/completed handles & concurrency)
-
-        loop For each item in batch
-            MigrateFn->>MigrateFn: Skip if key or file handle already pending
-
-            MigrateFn->>DB: Check if destination file handle already exists
-            alt Existing copy found
-                Note over MigrateFn,DB: Reuse existing to_file_handle_id
-            else No existing copy
-                MigrateFn->>Synapse: Copy file to new storage (bounded concurrency)
-                Synapse-->>MigrateFn: New to_file_handle_id
-            end
-
-            alt Item is FILE (entity)
-                alt file_version_strategy = new (version is None)
-                    MigrateFn->>Synapse: Create new file version with new file handle
-                else specific version
-                    MigrateFn->>Synapse: Update existing version's file handle
-                end
-            else Item is TABLE_ATTACHED_FILE
-                alt create_table_snapshots=True
-                    MigrateFn->>Synapse: Create table snapshot
-                end
-                MigrateFn->>Synapse: Update table cell via transactional table update (PartialRowSet/TableUpdateTransaction)
-            end
-
-            MigrateFn->>DB: Update row status to MIGRATED/ERRORED
+    loop Batches of indexed items
+        MigrateFn->>DB: Check for existing destination file handle
+        alt Not already copied
+            MigrateFn->>Synapse: Copy file to new storage location
         end
-
+        alt FILE entity
+            MigrateFn->>Synapse: Create new version or update existing file handle
+        else TABLE_ATTACHED_FILE
+            MigrateFn->>Synapse: Snapshot table (if enabled) + update cell via PartialRowSet
+        end
+        MigrateFn->>DB: Mark row MIGRATED / ERRORED
     end
 
-    MigrateFn-->>Entity: MigrationResult (migrated counts)
-    deactivate MigrateFn
-
-    Entity-->>User: MigrationResult
-    deactivate Entity
+    MigrateFn-->>User: MigrationResult (counts)
 ```
 
 <br>
@@ -816,5 +751,5 @@ sequenceDiagram
 |----------|-------------|
 | [Storage Location Tutorial](../tutorials/python/storage_location.md) | Step-by-step guide to using storage locations |
 | [StorageLocation API Reference][synapseclient.models.StorageLocation] | Complete API documentation |
-| [StorageLocation Mixin][synapseclient.models.mixins.StorageLocation] | Mixin methods for Projects and Folders |
+| [ProjectSettingsMixin][synapseclient.models.mixins.ProjectSettingsMixin] | Mixin methods for Projects and Folders |
 | [Custom Storage Locations (Synapse Docs)](https://help.synapse.org/docs/Custom-Storage-Locations.2048327803.html) | Official Synapse documentation |
