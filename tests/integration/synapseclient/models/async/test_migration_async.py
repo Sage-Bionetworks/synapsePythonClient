@@ -26,7 +26,7 @@ from synapseclient.models import (
 
 @pytest_asyncio.fixture(loop_scope="session", scope="session")
 async def migration_storage_location(syn: Synapse) -> StorageLocation:
-    """Create a SYNAPSE_S3 storage location to migrate files into."""
+    """Create a EXTERNAL_S3 storage location to migrate files into."""
     storage_location = await StorageLocation(
         storage_type=StorageLocationType.EXTERNAL_S3,
         bucket="test-storage-location-python-client-us-east-1",
@@ -56,7 +56,7 @@ class TestMigrateProjectWithStorageLocation:
         self.project = project_model
 
     async def test_migrate_project(self) -> None:
-        """Test migrating a project's files and table file handles to a new SYNAPSE_S3
+        """Test migrating a project's files and table file handles to a new EXTERNAL_S3
         storage location created via the StorageLocation model."""
         # Create files to migrate
         file_0_path = syn_utils.make_bogus_uuid_file()
