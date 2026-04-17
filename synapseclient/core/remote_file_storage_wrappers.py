@@ -316,6 +316,7 @@ class SFTPWrapper:
             progress_bar.update(args[0] - progress_bar.n)
 
         parsedURL = SFTPWrapper._parse_for_sftp(url)
+        # If the port is not specified, it will default to 22
         port_kwargs = {"port": parsedURL.port} if parsedURL.port else {}
         with _retry_pysftp_connection(
             parsedURL.hostname, username=username, password=password, **port_kwargs
