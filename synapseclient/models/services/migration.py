@@ -754,8 +754,9 @@ async def index_files_for_migration_async(
         db_path = _get_default_db_path(entity_id)
 
     # Initialize database
-    with sqlite3.connect(db_path) as conn:
-        cursor = conn.cursor()
+    conn = sqlite3.connect(db_path)
+    cursor = conn.cursor()
+    try:
         _ensure_schema(cursor)
         _prepare_migration_db(
             conn=conn,
@@ -767,25 +768,27 @@ async def index_files_for_migration_async(
             file_version_strategy=file_version_strategy,
             include_table_files=include_table_files,
         )
-    try:
-        await _index_entity_async(
-            conn=conn,
-            cursor=cursor,
-            entity=entity,
-            parent_id=None,
-            dest_storage_location_id=dest_storage_location_id,
-            source_storage_location_ids=source_storage_location_ids,
-            file_version_strategy=file_version_strategy,
-            include_table_files=include_table_files,
-            continue_on_error=continue_on_error,
-            synapse_client=client,
-        )
-    except IndexingError as ex:
-        client.logger.exception(
-            f"Aborted due to failure to index entity {ex.entity_id} of type {ex.concrete_type}. "
-            "Use continue_on_error=True to skip individual failures."
-        )
-        raise ex.__cause__
+        try:
+            await _index_entity_async(
+                conn=conn,
+                cursor=cursor,
+                entity=entity,
+                parent_id=None,
+                dest_storage_location_id=dest_storage_location_id,
+                source_storage_location_ids=source_storage_location_ids,
+                file_version_strategy=file_version_strategy,
+                include_table_files=include_table_files,
+                continue_on_error=continue_on_error,
+                synapse_client=client,
+            )
+        except IndexingError as ex:
+            client.logger.exception(
+                f"Aborted due to failure to index entity {ex.entity_id} of type {ex.concrete_type}. "
+                "Use continue_on_error=True to skip individual failures."
+            )
+            raise ex.__cause__
+    finally:
+        conn.close()
 
     return MigrationResult(db_path=db_path, synapse_client=client)
 
