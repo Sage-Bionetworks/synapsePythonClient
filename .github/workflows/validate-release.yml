@@ -1,0 +1,39 @@
+# GitHub Action workflow for validating releases against the Synapse backendname: validate-release
+
+on:
+  workflow_dispatch:
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  validate-release:
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.14'
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -e ".[boto3,pandas,pysftp,tests,curator]"
+      - name: Run unit tests
+        run: pytest -sv tests/unit
+      - name: Check for Secret availability
+        id: secret-check
+        run: |
+          if [ -z "${{ secrets.encrypted_d17283647768_key }}" ]  || [ -z "${{ secrets.encrypted_d17283647768_iv }}" ]; then
+            echo "secrets_available=false" >> $GITHUB_OUTPUT;
+          else
+            echo "secrets_available=true" >> $GITHUB_OUTPUT;
+          fi
+      - name: Run integration tests (if secrets available)
+        if: steps.secret-check.outputs.secrets_available == 'true'
+        run: |
+          # decrypt the encrypted test synapse configuration
+          openssl aes-256-cbc -K ${{ secrets.encrypted_d17283647768_key }} -iv ${{ secrets.encrypted_d17283647768_iv }} -in test.synapseConfig.enc -out test.synapseConfig -d
+          mv test.synapseConfig ~/.synapseConfig
+          pytest -sv tests/integration
