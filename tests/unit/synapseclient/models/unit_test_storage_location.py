@@ -1,7 +1,7 @@
 """Unit tests for the synapseclient.models.StorageLocation class."""
 
 import re
-from unittest.mock import AsyncMock, patch
+from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
 
@@ -444,6 +444,49 @@ class TestStorageLocation:
         # THEN the storage location should be populated correctly
         for attr, value in expected_attrs.items():
             assert getattr(storage, attr) == value
+
+    def test_fill_from_dict_unknown_concrete_type_logs_warning(self):
+        """Test that fill_from_dict logs a warning for an unrecognized concreteType/uploadType pair
+        instead of raising an exception, and still populates common fields."""
+        # GIVEN a response with an unrecognized concreteType paired with a valid uploadType.
+        # "FutureStorageLocationSetting" is not in _CONCRETE_UPLOAD_TO_STORAGE_TYPE,
+        # so the (suffix, uploadType) key won't match any known storage type.
+        response = {
+            "storageLocationId": 99999,
+            "concreteType": "org.sagebionetworks.repo.model.project.FutureStorageLocationSetting",
+            "uploadType": "S3",
+            "banner": "some banner",
+            "description": "some description",
+            "etag": "xyz",
+            "createdOn": "2024-01-01T00:00:00.000Z",
+            "createdBy": 111,
+        }
+        storage = StorageLocation()
+        mock_client = MagicMock()
+
+        # WHEN we fill from the response
+        with patch(
+            "synapseclient.models.storage_location.Synapse.get_client",
+            return_value=mock_client,
+        ):
+            storage.fill_from_dict(response)
+
+        # THEN a warning is logged
+        mock_client.logger.warning.assert_called_once_with(
+            "Unrecognized concreteType/uploadType pair "
+            "(org.sagebionetworks.repo.model.project.FutureStorageLocationSetting, S3); "
+            "storage_type will not be set and type-specific fields will be empty."
+        )
+        # AND common fields are still populated
+        assert storage.storage_location_id == 99999
+        assert storage.banner == "some banner"
+        assert storage.description == "some description"
+        assert storage.etag == "xyz"
+        assert storage.created_on == "2024-01-01T00:00:00.000Z"
+        assert storage.created_by == 111
+
+        # AND storage_type is not set
+        assert storage.storage_type is None
 
     def test_fill_from_dict_type_isolation(self):
         """Test that fill_from_dict only populates fields relevant to the storage type."""
