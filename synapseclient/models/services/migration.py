@@ -1499,9 +1499,7 @@ async def _execute_migration_async(
             pending_keys.add(key)
 
             # Check for existing copy — run in a thread to avoid blocking the event loop.
-            to_file_handle_id = await asyncio.to_thread(
-                _check_file_handle_exists, cursor, from_file_handle_id
-            )
+            to_file_handle_id = _check_file_handle_exists(cursor, from_file_handle_id)
 
             if not to_file_handle_id:
                 pending_file_handles.add(from_file_handle_id)
@@ -1512,9 +1510,7 @@ async def _execute_migration_async(
                 and create_table_snapshots
                 and last_key.id != key.id
             ):
-                await asyncio.to_thread(
-                    Table(id=key.id).snapshot_async, synapse_client=synapse_client
-                )
+                await Table(id=key.id).snapshot_async(synapse_client=synapse_client)
 
             # Create migration task
             task = asyncio.create_task(
