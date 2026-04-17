@@ -21,7 +21,11 @@ from synapseclient.models.mixins.json_schema import (
     ValidationException,
 )
 from synapseclient.models.mixins.storable_container import StorableContainer
-
+from synapseclient.models.mixins.manifest import (
+    DEFAULT_GENERATED_MANIFEST_KEYS,
+    MANIFEST_FILENAME,
+    ManifestGeneratable,
+)
 __all__ = [
     "AccessControllable",
     "StorableContainer",
@@ -40,4 +44,7 @@ __all__ = [
     "FormChangeRequest",
     "FormSubmissionStatus",
     "StateEnum",
+    "ManifestGeneratable",
+    "MANIFEST_FILENAME",
+    "DEFAULT_GENERATED_MANIFEST_KEYS",
 ]
