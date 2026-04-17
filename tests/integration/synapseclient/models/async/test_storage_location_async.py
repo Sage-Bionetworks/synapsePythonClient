@@ -1,5 +1,8 @@
 """Integration tests for the synapseclient.models.StorageLocation class."""
 
+from __future__ import annotations
+
+import importlib
 import os
 import uuid
 from typing import Callable
@@ -7,7 +10,11 @@ from typing import Callable
 import boto3
 import pytest
 from botocore.exceptions import ClientError
-from google.cloud import storage as gcs_storage
+
+try:
+    gcs_storage = importlib.import_module("google.cloud.storage")
+except ImportError:
+    gcs_storage = None
 
 from synapseclient import Synapse
 from synapseclient.core import utils as syn_utils
