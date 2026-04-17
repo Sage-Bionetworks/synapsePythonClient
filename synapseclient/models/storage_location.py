@@ -128,17 +128,6 @@ _STORAGE_TYPE_SPECIFIC_FIELDS: Dict[StorageLocationType, Dict[str, str]] = {
     },
 }
 
-# Subset of _STORAGE_TYPE_SPECIFIC_FIELDS that are required (no default value).
-# Fields with defaults (e.g. base_key=None, sts_enabled=False) are omitted.
-_REQUIRED_STORAGE_TYPE_SPECIFIC_FIELDS: Dict[str, set] = {
-    StorageLocationType.EXTERNAL_S3: {"bucket", "endpoint_url"},
-    StorageLocationType.EXTERNAL_GOOGLE_CLOUD: {"bucket"},
-    StorageLocationType.EXTERNAL_OBJECT_STORE: {"bucket", "endpoint_url"},
-    StorageLocationType.EXTERNAL_SFTP: {"url"},
-    StorageLocationType.EXTERNAL_HTTPS: {"url"},
-    StorageLocationType.PROXY: {"proxy_url", "secret_key", "benefactor_id"},
-}
-
 
 @dataclass()
 @async_to_sync
@@ -161,31 +150,32 @@ class StorageLocation(EnumCoercionMixin, StorageLocationSynchronousProtocol):
 
     Attributes:
         bucket: The name of the S3 or Google Cloud Storage bucket. Applicable to
-            SYNAPSE_S3, EXTERNAL_S3, EXTERNAL_GOOGLE_CLOUD, and
-            EXTERNAL_OBJECT_STORE types.
+            `SYNAPSE_S3`, `EXTERNAL_S3`, `EXTERNAL_GOOGLE_CLOUD`, and
+            `EXTERNAL_OBJECT_STORE` types.
         base_key: The optional base key (prefix/folder) within the bucket.
-            Applicable to SYNAPSE_S3, EXTERNAL_S3, and EXTERNAL_GOOGLE_CLOUD types.
+            Applicable to `SYNAPSE_S3`, `EXTERNAL_S3`, and `EXTERNAL_GOOGLE_CLOUD`
+            types.
         sts_enabled: Whether STS (AWS Security Token Service) is enabled on this
-            storage location. Applicable to SYNAPSE_S3 and EXTERNAL_S3 types.
+            storage location. Applicable to `SYNAPSE_S3` and `EXTERNAL_S3` types.
         endpoint_url: The endpoint URL of the S3 service. Applicable to
-            EXTERNAL_S3 (default: https://s3.amazonaws.com) and
-            EXTERNAL_OBJECT_STORE types.
+            `EXTERNAL_S3` (default: https://s3.amazonaws.com) and
+            `EXTERNAL_OBJECT_STORE` types.
 
     Attributes:
         url: The base URL for uploading to the external destination. Applicable to
-            EXTERNAL_SFTP type.
+            `EXTERNAL_SFTP` type.
         supports_subfolders: Whether the destination supports creating subfolders
-            under the base url. Applicable to EXTERNAL_SFTP type. Default: False.
+            under the base url. Applicable to `EXTERNAL_SFTP` type. Default: False.
 
     Attributes:
         proxy_url: The HTTPS URL of the proxy used for upload and download.
-            Applicable to PROXY type.
+            Applicable to `PROXY` type.
         secret_key: The encryption key used to sign all pre-signed URLs used to
-            communicate with the proxy. Applicable to PROXY type.
+            communicate with the proxy. Applicable to `PROXY` type.
         benefactor_id: An Entity ID (such as a Project ID). When set, any user with
             the 'create' permission on the given benefactorId will be allowed to
             create ProxyFileHandle using its storage location ID. Applicable to
-            PROXY type.
+            `PROXY` type.
 
     Attributes:
         upload_type: (Read Only) The upload type for this storage location.
@@ -261,43 +251,43 @@ class StorageLocation(EnumCoercionMixin, StorageLocationSynchronousProtocol):
 
     # S3/GCS specific fields
     bucket: Optional[str] = None
-    """The name of the S3 or Google Cloud Storage bucket. Applicable to SYNAPSE_S3,
-    EXTERNAL_S3, EXTERNAL_GOOGLE_CLOUD, and EXTERNAL_OBJECT_STORE types."""
+    """The name of the S3 or Google Cloud Storage bucket. Applicable to `SYNAPSE_S3`,
+    `EXTERNAL_S3`, `EXTERNAL_GOOGLE_CLOUD`, and `EXTERNAL_OBJECT_STORE` types."""
 
     base_key: Optional[str] = None
     """The optional base key (prefix/folder) within the bucket. Applicable to
-    SYNAPSE_S3, EXTERNAL_S3, and EXTERNAL_GOOGLE_CLOUD types."""
+    `SYNAPSE_S3`, `EXTERNAL_S3`, and `EXTERNAL_GOOGLE_CLOUD` types."""
 
     sts_enabled: Optional[bool] = False
     """Whether STS (AWS Security Token Service) is enabled on this storage location.
-    Applicable to SYNAPSE_S3 and EXTERNAL_S3 types. Default: False."""
+    Applicable to `SYNAPSE_S3` and `EXTERNAL_S3` types. Default: False."""
 
     endpoint_url: Optional[str] = "https://s3.amazonaws.com"
-    """The endpoint URL of the S3 service. Applicable to EXTERNAL_S3
-    (default: https://s3.amazonaws.com) and EXTERNAL_OBJECT_STORE types."""
+    """The endpoint URL of the S3 service. Applicable to `EXTERNAL_S3`
+    (default: https://s3.amazonaws.com) and `EXTERNAL_OBJECT_STORE` types."""
 
     # SFTP specific fields
     url: Optional[str] = None
     """The base URL for uploading to the external destination. Applicable to
-    EXTERNAL_SFTP type."""
+    `EXTERNAL_SFTP` type."""
 
     supports_subfolders: Optional[bool] = False
     """Whether the destination supports creating subfolders under the base url.
-    Applicable to EXTERNAL_SFTP type. Default: False."""
+    Applicable to `EXTERNAL_SFTP` type. Default: False."""
 
     # Proxy specific fields
     proxy_url: Optional[str] = None
     """The HTTPS URL of the proxy used for upload and download. Applicable to
-    PROXY type."""
+    `PROXY` type."""
 
     secret_key: Optional[str] = None
     """The encryption key used to sign all pre-signed URLs used to communicate
-    with the proxy. Applicable to PROXY type."""
+    with the proxy. Applicable to `PROXY` type."""
 
     benefactor_id: Optional[str] = None
     """An Entity ID (such as a Project ID). When set, any user with the 'create'
     permission on the given benefactorId will be allowed to create ProxyFileHandle
-    using its storage location ID. Applicable to PROXY type."""
+    using its storage location ID. Applicable to `PROXY` type."""
 
     # Read-only fields
     upload_type: Optional[UploadType] = field(default=None, compare=False)
@@ -343,45 +333,17 @@ class StorageLocation(EnumCoercionMixin, StorageLocationSynchronousProtocol):
             The StorageLocation object.
         """
         self.storage_location_id = synapse_response.get("storageLocationId", None)
-        self.banner = (
-            synapse_response.get("banner", None)
-            if synapse_response.get("banner", None) is not None
-            else None
-        )
-        self.description = (
-            synapse_response.get("description", None)
-            if synapse_response.get("description", None) is not None
-            else None
-        )
-        self.etag = (
-            synapse_response.get("etag", None)
-            if synapse_response.get("etag", None) is not None
-            else None
-        )
-        self.created_on = (
-            synapse_response.get("createdOn", None)
-            if synapse_response.get("createdOn", None) is not None
-            else None
-        )
-        self.created_by = (
-            synapse_response.get("createdBy", None)
-            if synapse_response.get("createdBy", None) is not None
-            else None
-        )
+        self.banner = synapse_response.get("banner", None)
+        self.description = synapse_response.get("description", None)
+        self.etag = synapse_response.get("etag", None)
+        self.created_on = synapse_response.get("createdOn", None)
+        self.created_by = synapse_response.get("createdBy", None)
 
-        self.upload_type = (
-            synapse_response.get("uploadType", None)
-            if synapse_response.get("uploadType", None) is not None
-            else None
-        )
+        self.upload_type = synapse_response.get("uploadType", None)
 
         # Parse storage type from concreteType + uploadType.
         # Both are needed to distinguish EXTERNAL_SFTP from EXTERNAL_HTTPS.
-        self.concrete_type = (
-            synapse_response.get("concreteType", "")
-            if synapse_response.get("concreteType", "") is not None
-            else None
-        )
+        self.concrete_type = synapse_response.get("concreteType", "")
         if self.concrete_type:
             type_suffix = (
                 self.concrete_type.split(".")[-1] if "." in self.concrete_type else ""
@@ -389,12 +351,17 @@ class StorageLocation(EnumCoercionMixin, StorageLocationSynchronousProtocol):
             key = (type_suffix, self.upload_type)
             if key in _CONCRETE_UPLOAD_TO_STORAGE_TYPE:
                 self.storage_type = _CONCRETE_UPLOAD_TO_STORAGE_TYPE[key]
-        # Type-specific fields — only populate attributes relevant to this storage type
-        if self.storage_type:
-            for field_name, api_key in _STORAGE_TYPE_SPECIFIC_FIELDS.get(
-                self.storage_type, {}
-            ).items():
-                setattr(self, field_name, synapse_response.get(api_key, None))
+                # Type-specific fields — only populate attributes relevant to this storage type
+                for field_name, api_key in _STORAGE_TYPE_SPECIFIC_FIELDS.get(
+                    self.storage_type, {}
+                ).items():
+                    setattr(self, field_name, synapse_response.get(api_key, None))
+            else:
+                Synapse.get_client().logger.warning(
+                    f"Unrecognized concreteType/uploadType pair "
+                    f"({self.concrete_type}, {self.upload_type.value}); "
+                    "storage_type will not be set and type-specific fields will be empty."
+                )
         return self
 
     def _to_synapse_request(self) -> Dict[str, Any]:
