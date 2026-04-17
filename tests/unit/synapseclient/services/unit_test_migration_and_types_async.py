@@ -81,12 +81,15 @@ def in_memory_db():
 @pytest.fixture
 def db_file():
     """Return a path to a temporary SQLite file with schema applied."""
-    with tempfile.NamedTemporaryFile(suffix=".db", delete=False) as f:
-        path = f.name
-    with sqlite3.connect(path) as conn:
+    fd, path = tempfile.mkstemp(suffix=".db")
+    os.close(fd)
+    conn = sqlite3.connect(path)
+    try:
         cursor = conn.cursor()
         _ensure_schema(cursor)
         conn.commit()
+    finally:
+        conn.close()
     yield path
     os.unlink(path)
 
@@ -94,8 +97,8 @@ def db_file():
 @pytest.fixture
 def db_file_with_settings():
     """A temp db file with MigrationSettings already populated."""
-    with tempfile.NamedTemporaryFile(suffix=".db", delete=False) as f:
-        path = f.name
+    fd, path = tempfile.mkstemp(suffix=".db")
+    os.close(fd)
     settings = MigrationSettings(
         root_id="syn1",
         dest_storage_location_id="99",
@@ -103,7 +106,8 @@ def db_file_with_settings():
         file_version_strategy="new",
         include_table_files=False,
     )
-    with sqlite3.connect(path) as conn:
+    conn = sqlite3.connect(path)
+    try:
         cursor = conn.cursor()
         _ensure_schema(cursor)
         cursor.execute(
@@ -111,6 +115,8 @@ def db_file_with_settings():
             (json.dumps(settings.to_dict()),),
         )
         conn.commit()
+    finally:
+        conn.close()
     yield path, settings
     os.unlink(path)
 
@@ -1290,9 +1296,9 @@ class TestIndexFilesForMigrationAsyncValidation:
         client = _make_mock_client()
         entity = _make_entity("syn3")
 
-        with tempfile.TemporaryDirectory() as tmpdir:
-            db_path = os.path.join(tmpdir, "test.db")
-
+        fd, db_path = tempfile.mkstemp(suffix=".db")
+        os.close(fd)
+        try:
             with (
                 patch(f"{MODULE}.Synapse.get_client", return_value=client),
                 patch(f"{MODULE}.utils.id_of", return_value="syn3"),
@@ -1308,6 +1314,8 @@ class TestIndexFilesForMigrationAsyncValidation:
                     db_path=db_path,
                     synapse_client=client,
                 )
+        finally:
+            os.unlink(db_path)
 
         assert isinstance(result, MigrationResult)
         assert result.db_path == db_path
@@ -1320,8 +1328,9 @@ class TestIndexFilesForMigrationAsyncValidation:
         indexing_err = IndexingError("syn3", concrete_types.FILE_ENTITY)
         indexing_err.__cause__ = underlying
 
-        with tempfile.TemporaryDirectory() as tmpdir:
-            db_path = os.path.join(tmpdir, "test.db")
+        fd, db_path = tempfile.mkstemp(suffix=".db")
+        os.close(fd)
+        try:
             with (
                 patch(f"{MODULE}.Synapse.get_client", return_value=client),
                 patch(f"{MODULE}.utils.id_of", return_value="syn3"),
@@ -1338,6 +1347,8 @@ class TestIndexFilesForMigrationAsyncValidation:
                         db_path=db_path,
                         synapse_client=client,
                     )
+        finally:
+            os.unlink(db_path)
 
 
 # =============================================================================
@@ -2309,13 +2320,16 @@ class TestTrackMigrationResultsAsync:
 class TestMigrateIndexedFilesAsync:
     @pytest.mark.asyncio
     async def test_raises_if_no_settings_in_db(self):
-        with tempfile.NamedTemporaryFile(suffix=".db", delete=False) as f:
-            path = f.name
+        fd, path = tempfile.mkstemp(suffix=".db")
+        os.close(fd)
         try:
-            with sqlite3.connect(path) as conn:
+            conn = sqlite3.connect(path)
+            try:
                 cursor = conn.cursor()
                 _ensure_schema(cursor)
                 conn.commit()
+            finally:
+                conn.close()
 
             client = _make_mock_client()
             with patch(f"{MODULE}.Synapse.get_client", return_value=client):
