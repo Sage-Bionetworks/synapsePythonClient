@@ -72,28 +72,10 @@ relevant to its type are populated:
 
 Common attributes are:  `concrete_type`, `storage_location_id`, `storage_type`, `upload_type`, `banner`, `description`, `etag`, `created_on`, `created_by`
 
-## Data Migration Between Storage Locations
-
-Files in a project or folder can be migrated from one storage location to another using
-`index_files_for_migration` followed by `migrate_indexed_files`. Migration is
-currently supported **only** between S3 storage locations (both Synapse-managed
-`SYNAPSE_S3` and external `EXTERNAL_S3`) that reside in the **same AWS
-region**.
-
-Migration is a two-phase process:
-
-1. **Index** — scan the project/folder and record every file that needs to move into a
-   local SQLite database.
-2. **Migrate** — read the index database and move each file to the destination
-   storage location.
-
-Separating the phases lets you review what will be migrated before committing
-to the move.
-
 ## 1. Set up and get project
 
 ```python
-{!docs/tutorials/python/tutorial_scripts/storage_location.py!lines=4-18}
+{!docs/tutorials/python/tutorial_scripts/storage_location.py!lines:"start:setup":"end:setup"}
 ```
 
 ## 2. Create an external S3 storage location
@@ -103,7 +85,7 @@ properly configured with an `owner.txt` file. Synapse will transfer data
 directly to and from this bucket on the user's behalf.
 
 ```python
-{!docs/tutorials/python/tutorial_scripts/storage_location.py!lines=20-33}
+{!docs/tutorials/python/tutorial_scripts/storage_location.py!lines:"start:create_s3_storage_location":"end:create_s3_storage_location"}
 ```
 
 <details class="example">
@@ -121,8 +103,16 @@ Create a folder and assign it the S3 storage location. All files uploaded into
 this folder will be stored in your S3 bucket.
 
 ```python
-{!docs/tutorials/python/tutorial_scripts/storage_location.py!lines=39-51}
+{!docs/tutorials/python/tutorial_scripts/storage_location.py!lines:"start:create_folder_with_s3_storage_location":"end:create_folder_with_s3_storage_location]"}
 ```
+
+<details class="example">
+  <summary>You'll notice the output looks like:</summary>
+
+```
+ProjectSetting(id=..., project_id=..., settings_type='upload', locations=[...], concrete_type='org.sagebionetworks.repo.model.project.UploadDestinationListSetting', etag='...')
+```
+</details>
 
 ## 4. Create a Google Cloud Storage location
 
@@ -130,7 +120,7 @@ Create a storage location backed by a Google Cloud Storage bucket and assign it
 to a folder.
 
 ```python
-{!docs/tutorials/python/tutorial_scripts/storage_location.py!lines=54-75}
+{!docs/tutorials/python/tutorial_scripts/storage_location.py!lines:"start:create_gcs_storage_location":"end:create_gcs_storage_location"}
 ```
 
 ## 5. Create an SFTP storage location
@@ -138,7 +128,7 @@ to a folder.
 SFTP storage locations point to an external SFTP server, where files are stored outside of Synapse. Synapse only manages the metadata and does not handle the file transfer itself. This setup requires the pysftp package, and files must be uploaded separately through the **client** once configured.
 
 ```python
-{!docs/tutorials/python/tutorial_scripts/storage_location.py!lines=78-102}
+{!docs/tutorials/python/tutorial_scripts/storage_location.py!lines:"start:create_sftp_storage_location":"end:create_sftp_storage_location"}
 ```
 
 ## 6. Create an HTTPS storage location
@@ -148,7 +138,7 @@ used when the external server is accessed over HTTPS. Note that the Python
 client does NOT support uploading files to HTTPS storage locations directly yet. To add files, use the Synapse REST API directly.
 
 ```python
-{!docs/tutorials/python/tutorial_scripts/storage_location.py!lines=107-128}
+{!docs/tutorials/python/tutorial_scripts/storage_location.py!lines:"start:create_https_storage_location":"end:create_https_storage_location"}
 ```
 
 ## 7. Create an External Object Store storage location
@@ -158,23 +148,21 @@ accessed by Synapse. Unlike `EXTERNAL_S3`, the Python client transfers data
 directly to the object store using locally configured AWS credentials —
 Synapse is never involved in the data transfer, only in storing the metadata.
 
-You can add a profile to work with s3 in `~/.synapseConfig`
+Configure your AWS credentials using any method supported by the AWS SDK
+(environment variables, `~/.aws/credentials`, IAM roles, etc.). See the
+[AWS documentation on credential configuration](https://docs.aws.amazon.com/cli/latest/userguide/cli-configure-files.html)
+for details.
 
-Add a section matching your endpoint+bucket URL:
+Once credentials are configured, add a matching profile section to `~/.synapseConfig`
+so the client knows which profile to use for a given endpoint and bucket:
+
 ```
 [https://s3.us-east-1.amazonaws.com/test-external-object-store]
 profile_name = my-s3-profile
 ```
-Then ensure my-s3-profile exists in `~/.aws/config` with valid keys:
-
-```
-[my-s3-profile]
-aws_access_key_id = ...
-aws_secret_access_key = ...
-```
 
 ```python
-{!docs/tutorials/python/tutorial_scripts/storage_location.py!lines=135-164}
+{!docs/tutorials/python/tutorial_scripts/storage_location.py!lines:"start:create_object_store_storage_location":"end:create_object_store_storage_location"}
 ```
 
 ## 8. Create a Proxy storage location
@@ -184,7 +172,7 @@ authentication and access to the underlying storage. Files are registered by
 creating a `ProxyFileHandle` via the REST API. Then, files can be uploaded via store function with data_file_handle_id.
 
 ```python
-{!docs/tutorials/python/tutorial_scripts/storage_location.py!lines=168-226}
+{!docs/tutorials/python/tutorial_scripts/storage_location.py!lines:"start:create_proxy_storage_location":"end:create_proxy_storage_location"}
 ```
 
 ## 9. Retrieve and inspect storage location settings
@@ -193,7 +181,7 @@ You can retrieve a storage location by ID. Only fields relevant to the storage
 type are populated.
 
 ```python
-{!docs/tutorials/python/tutorial_scripts/storage_location.py!lines=230-236}
+{!docs/tutorials/python/tutorial_scripts/storage_location.py!lines:"start:retrieve_storage_location":"end:retrieve_storage_location"}
 ```
 
 <details class="example">
@@ -214,41 +202,8 @@ creation. To "update" a storage location, create a new one with the desired
 settings and reassign it to the folder or project.
 
 ```python
-{!docs/tutorials/python/tutorial_scripts/storage_location.py!lines=245-280}
+{!docs/tutorials/python/tutorial_scripts/storage_location.py!lines:"start:update_storage_location":"end:update_storage_location"}
 ```
-
-## 11. Index and migrate files to a new storage location
-
-> **Warning:** This will migrate files associated with the folder. Run against a
-> test project first and review the index result before migrating production data.
-
-Phase 1. indexes all files that need to move into a local SQLite database. This will return a MigrationResults object. You can use the `as_csv` to check the details of indexing status.
-
-```python
-{!docs/tutorials/python/tutorial_scripts/storage_location.py!lines=288-298}
-```
-
-Index results can be checked in the index results csv
-![indexresults](./tutorial_screenshots/index_results.png)
-
-Phase 2. reads that database and performs the actual migration. This will return a MigrationResults object. You can use the `as_csv` to check the details of migration status and errors if any.
-
-```python
-{!docs/tutorials/python/tutorial_scripts/storage_location.py!lines=300-310}
-```
-
-Currently, detailed Traceback is saved in the exception columns of the csv.
-![migrationresults](./tutorial_screenshots/migration_results.png)
-
-## Source code for this tutorial
-
-<details class="quote">
-  <summary>Click to show me</summary>
-
-```python
-{!docs/tutorials/python/tutorial_scripts/storage_location.py!}
-```
-</details>
 
 ## References used in this tutorial
 

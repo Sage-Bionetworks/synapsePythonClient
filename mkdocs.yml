@@ -48,8 +48,9 @@ nav:
           # - Creating JSON Schema: tutorials/python/schema_operations.md
           - Working with JSON Schema: tutorials/python/json_schema.md
           - Storage Location: tutorials/python/storage_location.md
+          - Proxy Storage Location: tutorials/python/proxy_storage_location.md
+          - Migration: tutorials/python/migration.md
         # - Move Files and Folders: tutorials/python/move_files_and_folders.md
-        # - Migrate data to other storage locations: tutorials/python/migrate_data_to_other_storage_locations.md
       - Working with the Command Line Client: tutorials/command_line_client.md
       # - Working with file versioning: tutorials/file_versioning.md
       # - Working with tables: tutorials/tables.md
@@ -146,7 +147,6 @@ nav:
           - Mixins:
               - AccessControllable: reference/experimental/mixins/access_controllable.md
               - StorableContainer: reference/experimental/mixins/storable_container.md
-              - ManifestGeneratable: reference/experimental/mixins/manifest_generatable.md
               - AsynchronousCommunicator: reference/experimental/mixins/asynchronous_communicator.md
               - FailureStrategy: reference/experimental/mixins/failure_strategy.md
               - BaseJSONSchema: reference/experimental/mixins/base_json_schema.md
