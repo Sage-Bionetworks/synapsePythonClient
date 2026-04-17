@@ -37,10 +37,40 @@ class ProjectSetting(ProjectSettingSynchronousProtocol):
             is supported. Default: ``"upload"``.
         locations: The list of storage location IDs for upload. The first ID is the
             default upload destination. A project may have at most 10 storage locations.
+            To obtain a storage location ID, create a
+            [StorageLocation][synapseclient.models.StorageLocation] and use its
+            `storage_location_id`. See
+            [StorageLocationType][synapseclient.models.StorageLocationType] for the
+            available storage backend types.
         concrete_type: (Read Only) The concrete type returned by the Synapse REST API.
         etag: (Read Only) Synapse employs an Optimistic Concurrency Control (OCC)
             scheme. The etag changes every time the setting is updated; it must be
             included on updates.
+
+    Example: Creating a project setting from a new storage location:
+        Create a StorageLocation first, then use its ID when creating the
+        project setting:
+
+            from synapseclient.models import (
+                ProjectSetting,
+                StorageLocation,
+                StorageLocationType,
+            )
+
+            import synapseclient
+            synapseclient.login()
+
+            storage = StorageLocation(
+                storage_type=StorageLocationType.EXTERNAL_S3,
+                bucket="my-bucket",
+                base_key="my/prefix",
+            ).store()
+
+            setting = ProjectSetting(
+                project_id="syn123",
+                locations=[storage.storage_location_id],
+            ).store()
+            print(f"Created setting ID: {setting.id}")
 
     Example: Creating a project setting:
 
@@ -95,7 +125,11 @@ class ProjectSetting(ProjectSettingSynchronousProtocol):
 
     locations: List[int] = field(default_factory=list)
     """The list of storage location IDs for upload. The first ID is the default upload
-    destination. A project may have at most 10 storage locations."""
+    destination. A project may have at most 10 storage locations. To obtain a storage
+    location ID, create a [StorageLocation][synapseclient.models.StorageLocation] and
+    use its `storage_location_id`. See
+    [StorageLocationType][synapseclient.models.StorageLocationType] for the available
+    storage backend types."""
 
     concrete_type: Optional[str] = field(default=None, compare=False)
     """(Read Only) The concrete type returned by the Synapse REST API."""

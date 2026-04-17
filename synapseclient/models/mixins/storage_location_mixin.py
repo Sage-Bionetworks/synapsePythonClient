@@ -293,6 +293,12 @@ class ProjectSettingsMixin(StorageLocationConfigurable):
         To add a storage location without removing existing ones, first retrieve the
         current setting via `get_project_setting_async`, append to its `locations`
         list, and call `store_async` on the returned `ProjectSetting` directly.
+        The first ID in the list is the default upload destination.
+        To obtain a storage location ID, create a
+        [StorageLocation][synapseclient.models.StorageLocation] and use its
+        `storage_location_id`. See
+        [StorageLocationType][synapseclient.models.StorageLocationType] for the
+        available storage backend types.
 
         Arguments:
             storage_location_id: The storage location ID(s) to set. Can be a single
