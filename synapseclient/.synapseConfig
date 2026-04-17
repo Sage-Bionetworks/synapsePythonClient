@@ -5,9 +5,15 @@
 ## Used for logging in to Synapse. See https://python-docs.synapse.org/tutorials/authentication/
 ## for information on retrieving an auth token.
 
+## The [default] section is used when no profile is specified.
+## username is optional; if both username and authtoken are provided, they must match.
+
 #[default]
 #username = default_user
 #authtoken = default_auth_token
+
+## Named profiles can be selected via syn.login(profile="user1"),
+## the SYNAPSE_PROFILE environment variable, or the --profile CLI flag.
 
 #[profile user1]
 #username = user1
@@ -17,30 +23,37 @@
 #username = user2
 #authtoken = user2_auth_token
 
-## If you have projects with file stored on SFTP servers, you can specify your credentials here
-## You can specify multiple sftp credentials
+## If you have projects with files stored on SFTP servers, you can specify your credentials here.
+## You can specify multiple SFTP credentials — use one section per server.
+
 #[sftp://some.sftp.url.com]
-#username= <sftpuser>
-#password= <sftppwd>
+#username = <sftpuser>
+#password = <sftppwd>
 #[sftp://a.different.sftp.url.com]
-#username= <sftpuser>
-#password= <sftppwd>
+#username = <sftpuser>
+#password = <sftppwd>
 
 
-## If you have projects that need to be stored in an S3-like (e.g. AWS S3, Openstack) storage but cannot allow Synapse
-## to manage access your storage you may put your credentials here.
-## To avoid duplicating credentials with that used by the AWS Command Line Client,
-## simply put the profile name form your ~/.aws/credentials file
-## more information about aws credentials can be found here http://docs.aws.amazon.com/cli/latest/userguide/cli-config-files.html
-#[https://s3.amazonaws.com/bucket_name] # this is the bucket's endpoint
-#profile_name=local_credential_profile_name
+## If you have projects that need to be stored in an S3-like (e.g. AWS S3, OpenStack) storage
+## but cannot allow Synapse to manage access to your storage, you may put your credentials here.
+## To avoid duplicating credentials already used by the AWS CLI, specify the profile name from
+## your ~/.aws/credentials file. If profile_name is omitted, the "default" AWS profile is used.
+## More information about AWS credentials: https://docs.aws.amazon.com/cli/latest/userguide/cli-configure-files.html
+## Use one section per bucket; the section name is the full endpoint URL including the bucket name.
+
+#[https://s3.amazonaws.com/bucket_name]
+#profile_name = local_credential_profile_name
 
 
 ###########################
 # Caching                 #
 ###########################
 
-## your downloaded files are cached to avoid repeat downloads of the same file. change 'location' to use a different folder on your computer as the cache location
+## Downloaded files are cached to avoid repeat downloads of the same file.
+## Change 'location' to use a different folder on your computer as the cache location.
+## Supports ~ for the home directory and environment variable expansion.
+## Default: ~/.synapseCache
+
 #[cache]
 #location = ~/.synapseCache
 
@@ -49,20 +62,30 @@
 # Advanced Configurations #
 ###########################
 
-## If this section is specified, then the synapseclient will print out debug information
+## If this section is present, the synapseclient will print debug-level log output.
 #[debug]
 
 
-## Configuring these will cause the Python client to use these as Synapse service endpoints instead of the default prod endpoints.
+## Configuring these will cause the Python client to use these as Synapse service endpoints
+## instead of the default production endpoints. Useful for testing against staging environments.
 #[endpoints]
-#repoEndpoint=<repoEndpoint>
-#authEndpoint=<authEndpoint>
-#fileHandleEndpoint=<fileHandleEndpoint>
-#portalEndpoint=<portalEndpoint>
+#repoEndpoint = <repoEndpoint>
+#authEndpoint = <authEndpoint>
+#fileHandleEndpoint = <fileHandleEndpoint>
+#portalEndpoint = <portalEndpoint>
 
-## Settings to configure how Synapse uploads/downloads data
+
+## Settings to configure how Synapse uploads/downloads data.
 #[transfer]
 
-# use this to configure the default for how many threads/connections Synapse will use to perform file transfers.
-# Currently this applies only to files whose underlying storage is AWS S3.
-# max_threads=16
+## max_threads: number of concurrent threads/connections used for file transfers.
+## Applies to AWS S3 transfers (uploads and downloads).
+## Default: min(cpu_count + 4, 128). Maximum: 128. Minimum: 1.
+## Can also be set programmatically: syn.max_threads = 16
+#max_threads = 16
+
+## use_boto_sts: if true, use AWS STS (Security Token Service) to obtain temporary
+## credentials for S3 transfers instead of using stored AWS credentials directly.
+## Useful when your storage location is configured with STS-based access.
+## Valid values: true or false (case-insensitive). Default: false.
+#use_boto_sts = false

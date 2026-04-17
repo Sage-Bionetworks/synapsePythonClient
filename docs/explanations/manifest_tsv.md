@@ -1,5 +1,8 @@
-# Manifest
+# Manifest TSV (Legacy)
 The manifest is a tsv file with file locations and metadata to be pushed to Synapse. The purpose is to allow bulk actions through a TSV without the need to manually execute commands for every requested action.
+
+!!! warning "Deprecated"
+    This TSV manifest format is produced by [synapseutils.syncFromSynapse][] and consumed by [synapseutils.syncToSynapse][], both of which are deprecated and will be removed in v5.0.0. Use `Project.sync_from_synapse` / `Folder.sync_from_synapse` and `Project.sync_to_synapse` / `Folder.sync_to_synapse` instead, which use the [CSV manifest format](manifest_csv.md).
 
 ## Manifest file format
 
@@ -19,6 +22,9 @@ Any additional columns will be added as annotations.
 |--------|------------------------|-------------------------|
 | path   | local file path or URL | /path/to/local/file.txt |
 | parent | synapse id             | syn1235                 |
+
+!!! note "Column renamed in CSV format"
+    The CSV manifest format uses `parentId` instead of `parent`. If you are migrating to the new [CSV manifest format](manifest_csv.md), rename the `parent` column to `parentId`.
 
 ### Common fields:
 

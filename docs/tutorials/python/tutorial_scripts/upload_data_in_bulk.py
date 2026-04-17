@@ -2,62 +2,64 @@
 Here is where you'll find the code for the uploading data in bulk tutorial.
 """
 
-import os
+import pandas as pd
 
 import synapseclient
-import synapseutils
+from synapseclient.models import Project
 
 syn = synapseclient.Synapse()
 syn.login()
 
-# Create some constants to store the paths to the data
-DIRECTORY_FOR_MY_PROJECT = os.path.expanduser(os.path.join("~", "my_ad_project"))
-PATH_TO_MANIFEST_FILE = os.path.expanduser(os.path.join("~", "manifest-for-upload.tsv"))
+# Step 1: Create some constants to store the paths to the data
+DIRECTORY_FOR_MY_PROJECT = "test_folder"  # This should exist with your files in it
+PATH_TO_MANIFEST_FILE = "test_manifest.csv"  # This doesn't need to exist yet
+SYNAPSE_PROJECT_ID = ""  # Put your Synapse project ID here. This is the project where you want to upload your data.
 
-# Step 1: Let's find the synapse ID of our project:
-my_project_id = syn.findEntityId(
-    name="My uniquely named project about Alzheimer's Disease"
-)
+# TODO switch to using new version of synapseutils/sync.py.generate_sync_manifest
+# https://sagebionetworks.jira.com/browse/SYNPY-1809
 
-# Step 2: Create a manifest TSV file to upload data in bulk
+# Step 2: Create a manifest CSV file with the paths to the files and their parent folders
 # Note: When this command is run it will re-create your directory structure within
 # Synapse. Be aware of this before running this command.
 # If folders with the exact names already exists in Synapse, those folders will be used.
-synapseutils.generate_sync_manifest(
+
+
+# old function generates a TSV
+from synapseutils import generate_sync_manifest
+
+generate_sync_manifest(
     syn=syn,
     directory_path=DIRECTORY_FOR_MY_PROJECT,
-    parent_id=my_project_id,
+    parent_id=SYNAPSE_PROJECT_ID,
     manifest_path=PATH_TO_MANIFEST_FILE,
 )
+# reformat the manifest file to work with sync_to_synapse
+manifest_df = pd.read_csv(PATH_TO_MANIFEST_FILE, sep="\t")
+manifest_df.rename(columns={"parent": "parentId"}, inplace=True)
+manifest_df.to_csv(PATH_TO_MANIFEST_FILE, index=False)
 
 # Step 3: After generating the manifest file, we can upload the data in bulk
-synapseutils.syncToSynapse(
-    syn=syn, manifestFile=PATH_TO_MANIFEST_FILE, sendMessages=False
-)
+project = Project(id=SYNAPSE_PROJECT_ID)
+project.sync_to_synapse(manifest_path=PATH_TO_MANIFEST_FILE, send_messages=False)
 
 # Step 4: Let's add an annotation to our manifest file
 # Pandas is a powerful data manipulation library in Python, although it is not required
 # for this tutorial, it is used here to demonstrate how you can manipulate the manifest
 # file before uploading it to Synapse.
-import pandas as pd
 
-# Read TSV file into a pandas DataFrame
-df = pd.read_csv(PATH_TO_MANIFEST_FILE, sep="\t")
+# Read CSV file into a pandas DataFrame
+df = pd.read_csv(PATH_TO_MANIFEST_FILE)
 
 # Add a new column to the DataFrame
 df["species"] = "Homo sapiens"
 
 # Write the DataFrame back to the manifest file
-df.to_csv(PATH_TO_MANIFEST_FILE, sep="\t", index=False)
+df.to_csv(PATH_TO_MANIFEST_FILE, index=False)
 
-synapseutils.syncToSynapse(
-    syn=syn,
-    manifestFile=PATH_TO_MANIFEST_FILE,
-    sendMessages=False,
-)
+project.sync_to_synapse(manifest_path=PATH_TO_MANIFEST_FILE, send_messages=False)
 
 # Step 5: Let's create an Activity/Provenance
-# First let's find the row in the TSV we want to update. This code finds the row number
+# First let's find the row in the CSV we want to update. This code finds the row number
 # that we would like to update.
 row_index = df[
     df["path"] == f"{DIRECTORY_FOR_MY_PROJECT}/biospecimen_experiment_1/fileA.txt"
@@ -81,10 +83,6 @@ df.loc[row_index, "activityDescription"] = (
 )
 
 # Write the DataFrame back to the manifest file
-df.to_csv(PATH_TO_MANIFEST_FILE, sep="\t", index=False)
+df.to_csv(PATH_TO_MANIFEST_FILE, index=False)
 
-synapseutils.syncToSynapse(
-    syn=syn,
-    manifestFile=PATH_TO_MANIFEST_FILE,
-    sendMessages=False,
-)
+project.sync_to_synapse(manifest_path=PATH_TO_MANIFEST_FILE, send_messages=False)
