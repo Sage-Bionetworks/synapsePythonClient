@@ -5,6 +5,7 @@ from typing import Any, ClassVar, Dict
 
 class EnumCoercionMixin:
     """Mixin for dataclasses that auto-coerces string values to enum types.
+    This allows strings or enums to be used interchangeably for the same field.
 
     Subclasses declare a class-level ``_ENUM_FIELDS`` dict mapping field names
     to their enum classes. On every ``__setattr__`` call the mixin checks
