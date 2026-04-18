@@ -196,7 +196,8 @@ class MigrationResult:
         """
         import sqlite3
 
-        with sqlite3.connect(self.db_path) as conn:
+        conn = sqlite3.connect(self.db_path)
+        try:
             cursor = conn.cursor()
 
             # Only count FILE and TABLE_ATTACHED_FILE entries
@@ -213,6 +214,8 @@ class MigrationResult:
                 counts[MigrationStatus(status_value).name] = count
 
             return counts
+        finally:
+            conn.close()
 
     async def get_counts_by_status_async(self) -> Dict[str, int]:
         """Get counts by migration status (asynchronous).
@@ -232,7 +235,8 @@ class MigrationResult:
         """
         import sqlite3
 
-        with sqlite3.connect(self.db_path) as conn:
+        conn = sqlite3.connect(self.db_path)
+        try:
             cursor = conn.cursor()
 
             batch_size = 500
@@ -306,6 +310,8 @@ class MigrationResult:
                         "status": MigrationStatus(row[10]).name,
                         "exception": row[11],
                     }
+        finally:
+            conn.close()
 
     async def get_migrations_async(self) -> List[Dict[str, Any]]:
         """Get all migration entries (asynchronous).
