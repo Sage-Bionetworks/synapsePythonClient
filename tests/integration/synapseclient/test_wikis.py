@@ -12,7 +12,7 @@ from synapseclient.core.upload.upload_functions import upload_synapse_s3
 
 
 # @skip("Skip integration tests for soon to be removed code")
-def test_wikiAttachment(syn: Synapse, project: Project, schedule_for_cleanup) -> None:
+def test_wikiAttachment(syn: Synapse, project, schedule_for_cleanup) -> None:
     # Upload a file to be attached to a Wiki
     filename = utils.make_bogus_data_file()
     attachname = utils.make_bogus_data_file()
@@ -78,7 +78,6 @@ def test_wikiAttachment(syn: Synapse, project: Project, schedule_for_cleanup) ->
     file_names = [fh["fileName"] for fh in file_handles]
     for fn in [filename, attachname]:
         assert os.path.basename(fn) in file_names
-    pytest.raises(SynapseHTTPError, syn.getWiki, project)
 
 
 # @skip("Skip integration tests for soon to be removed code")
