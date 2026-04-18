@@ -75,7 +75,7 @@ Common attributes are:  `concrete_type`, `storage_location_id`, `storage_type`, 
 ## 1. Set up and get project
 
 ```python
-{!docs/tutorials/python/tutorial_scripts/storage_location.py!lines:"start:setup":"end:setup"}
+--8<-- "docs/tutorials/python/tutorial_scripts/storage_location.py!lines:setup"
 ```
 
 ## 2. Create an external S3 storage location
@@ -85,7 +85,7 @@ properly configured with an `owner.txt` file. Synapse will transfer data
 directly to and from this bucket on the user's behalf.
 
 ```python
-{!docs/tutorials/python/tutorial_scripts/storage_location.py!lines:"start:create_s3_storage_location":"end:create_s3_storage_location"}
+--8<-- "docs/tutorials/python/tutorial_scripts/storage_location.py!lines:create_s3_storage_location"
 ```
 
 <details class="example">
@@ -103,7 +103,7 @@ Create a folder and assign it the S3 storage location. All files uploaded into
 this folder will be stored in your S3 bucket.
 
 ```python
-{!docs/tutorials/python/tutorial_scripts/storage_location.py!lines:"start:create_folder_with_s3_storage_location":"end:create_folder_with_s3_storage_location]"}
+--8<-- "docs/tutorials/python/tutorial_scripts/storage_location.py!lines:create_folder_with_s3_storage_location"
 ```
 
 <details class="example">
@@ -120,7 +120,7 @@ Create a storage location backed by a Google Cloud Storage bucket and assign it
 to a folder.
 
 ```python
-{!docs/tutorials/python/tutorial_scripts/storage_location.py!lines:"start:create_gcs_storage_location":"end:create_gcs_storage_location"}
+--8<-- "docs/tutorials/python/tutorial_scripts/storage_location.py!lines:create_gcs_storage_location"
 ```
 
 ## 5. Create an SFTP storage location
@@ -128,9 +128,8 @@ to a folder.
 SFTP storage locations point to an external SFTP server, where files are stored outside of Synapse. Synapse only manages the metadata and does not handle the file transfer itself. This setup requires the pysftp package, and files must be uploaded separately through the **client** once configured.
 
 ```python
-{!docs/tutorials/python/tutorial_scripts/storage_location.py!lines:"start:create_sftp_storage_location":"end:create_sftp_storage_location"}
+--8<-- "docs/tutorials/python/tutorial_scripts/storage_location.py!lines:create_sftp_storage_location"
 ```
-
 ## 6. Create an HTTPS storage location
 
 `EXTERNAL_HTTPS` uses the same underlying API type as `EXTERNAL_SFTP` but is
@@ -138,7 +137,7 @@ used when the external server is accessed over HTTPS. Note that the Python
 client does NOT support uploading files to HTTPS storage locations directly yet. To add files, use the Synapse REST API directly.
 
 ```python
-{!docs/tutorials/python/tutorial_scripts/storage_location.py!lines:"start:create_https_storage_location":"end:create_https_storage_location"}
+--8<-- "docs/tutorials/python/tutorial_scripts/storage_location.py!lines:create_https_storage_location"
 ```
 
 ## 7. Create an External Object Store storage location
@@ -162,7 +161,7 @@ profile_name = my-s3-profile
 ```
 
 ```python
-{!docs/tutorials/python/tutorial_scripts/storage_location.py!lines:"start:create_object_store_storage_location":"end:create_object_store_storage_location"}
+--8<-- "docs/tutorials/python/tutorial_scripts/storage_location.py!lines:create_object_store_storage_location"
 ```
 
 ## 8. Create a Proxy storage location
@@ -172,7 +171,7 @@ authentication and access to the underlying storage. Files are registered by
 creating a `ProxyFileHandle` via the REST API. Then, files can be uploaded via store function with data_file_handle_id.
 
 ```python
-{!docs/tutorials/python/tutorial_scripts/storage_location.py!lines:"start:create_proxy_storage_location":"end:create_proxy_storage_location"}
+--8<-- "docs/tutorials/python/tutorial_scripts/storage_location.py!lines:create_proxy_storage_location"
 ```
 
 ## 9. Retrieve and inspect storage location settings
@@ -181,7 +180,7 @@ You can retrieve a storage location by ID. Only fields relevant to the storage
 type are populated.
 
 ```python
-{!docs/tutorials/python/tutorial_scripts/storage_location.py!lines:"start:retrieve_storage_location":"end:retrieve_storage_location"}
+--8<-- "docs/tutorials/python/tutorial_scripts/storage_location.py!lines:retrieve_storage_location"
 ```
 
 <details class="example">
@@ -202,7 +201,7 @@ creation. To "update" a storage location, create a new one with the desired
 settings and reassign it to the folder or project.
 
 ```python
-{!docs/tutorials/python/tutorial_scripts/storage_location.py!lines:"start:update_storage_location":"end:update_storage_location"}
+--8<-- "docs/tutorials/python/tutorial_scripts/storage_location.py!lines:update_storage_location"
 ```
 
 ## References used in this tutorial

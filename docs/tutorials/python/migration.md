@@ -48,7 +48,7 @@ to the move.
 ## 1. Set up and get project
 
 ```python
-{!docs/tutorials/python/tutorial_scripts/migration.py!lines:"start:setup":"end:setup"}
+--8<-- "docs/tutorials/python/tutorial_scripts/migration.py!lines:setup"
 ```
 
 ## 2. Index and migrate files
@@ -63,7 +63,7 @@ the database rather than aborting. Set `force=True` to skip the interactive
 confirmation prompt.
 
 ```python
-{!docs/tutorials/python/tutorial_scripts/migration.py!lines:"start:index_and_migrate_files":"end:migrate_indexed_files"}
+--8<-- "docs/tutorials/python/tutorial_scripts/migration.py!lines:index_and_migrate_files"
 ```
 
 Review the index CSV to confirm what was discovered before migration runs:

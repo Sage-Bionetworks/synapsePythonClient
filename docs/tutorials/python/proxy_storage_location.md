@@ -31,7 +31,7 @@ In this tutorial you will:
 ## 1. Set up and get project
 
 ```python
-{!docs/tutorials/python/tutorial_scripts/proxy_storage_location.py!lines:"start:setup":"end:setup"}
+--8<-- "docs/tutorials/python/tutorial_scripts/proxy_storage_location.py!lines:setup"
 ```
 
 ## 2. Create a proxy storage location
@@ -42,7 +42,7 @@ access control is inherited from the project or folder. Assign it to a folder so
 files uploaded there are served through the proxy.
 
 ```python
-{!docs/tutorials/python/tutorial_scripts/proxy_storage_location.py!lines:"start:create_proxy_storage_location":"end:create_proxy_storage_location"}
+--8<-- "docs/tutorials/python/tutorial_scripts/proxy_storage_location.py!lines:create_proxy_storage_location"
 ```
 
 <details class="example">
@@ -63,7 +63,7 @@ register a file that already exists on the proxy server by posting a
 size, and the relative path used by the proxy to serve it.
 
 ```python
-{!docs/tutorials/python/tutorial_scripts/proxy_storage_location.py!lines:"start:create_proxy_file_handle":"end:create_proxy_file_handle"}
+--8<-- "docs/tutorials/python/tutorial_scripts/proxy_storage_location.py!lines:create_proxy_file_handle"
 ```
 
 <details class="example">
@@ -81,7 +81,7 @@ stores the metadata and uses the `ProxyFileHandle` to serve downloads through
 your proxy server.
 
 ```python
-{!docs/tutorials/python/tutorial_scripts/proxy_storage_location.py!lines:"start:associate_proxy_file_handle":"end:associate_proxy_file_handle"}
+--8<-- "docs/tutorials/python/tutorial_scripts/proxy_storage_location.py!lines:associate_proxy_file_handle"
 ```
 
 ## Source code for this tutorial
