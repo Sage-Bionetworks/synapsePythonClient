@@ -36,6 +36,7 @@ def test_wikiAttachment(syn: Synapse, project: Project, schedule_for_cleanup) ->
         attachments=[attachname],
     )
     wiki = syn.store(wiki)
+    schedule_for_cleanup(wiki.id)
 
     # Create a Wiki sub-page
     subwiki = Wiki(
@@ -45,6 +46,7 @@ def test_wikiAttachment(syn: Synapse, project: Project, schedule_for_cleanup) ->
         parentWikiId=wiki.id,
     )
     subwiki = syn.store(subwiki)
+    schedule_for_cleanup(subwiki.id)
 
     # Retrieve the root Wiki from Synapse
     wiki2 = syn.getWiki(project)
@@ -76,9 +78,6 @@ def test_wikiAttachment(syn: Synapse, project: Project, schedule_for_cleanup) ->
     file_names = [fh["fileName"] for fh in file_handles]
     for fn in [filename, attachname]:
         assert os.path.basename(fn) in file_names
-
-    syn.delete(subwiki)
-    syn.delete(wiki)
     pytest.raises(SynapseHTTPError, syn.getWiki, project)
 
 
