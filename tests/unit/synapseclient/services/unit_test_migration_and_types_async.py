@@ -224,7 +224,8 @@ def _populate_db(db_path: str) -> None:
             128,
         ),
     ]
-    with sqlite3.connect(db_path) as conn:
+    conn = sqlite3.connect(db_path)
+    try:
         cursor = conn.cursor()
         _ensure_schema(cursor)
         cursor.executemany(
@@ -236,12 +237,14 @@ def _populate_db(db_path: str) -> None:
             rows,
         )
         conn.commit()
+    finally:
+        conn.close()
 
 
 @pytest.fixture
 def result_db():
-    with tempfile.NamedTemporaryFile(suffix=".db", delete=False) as f:
-        path = f.name
+    fd, path = tempfile.mkstemp(suffix=".db")
+    os.close(fd)
     _populate_db(path)
     yield path
     os.unlink(path)
