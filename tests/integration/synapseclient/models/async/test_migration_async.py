@@ -24,6 +24,10 @@ from synapseclient.models import (
 )
 
 
+@pytest.mark.skipif(
+    os.getenv("GITHUB_ACTIONS") == "true",
+    reason="This test runs only locally, not in CI/CD environments.",
+)
 @pytest_asyncio.fixture(loop_scope="session", scope="session")
 async def migration_storage_location(syn: Synapse) -> StorageLocation:
     """Create a EXTERNAL_S3 storage location to migrate files into."""
