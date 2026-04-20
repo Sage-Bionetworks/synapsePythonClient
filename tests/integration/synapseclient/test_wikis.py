@@ -5,7 +5,6 @@ import pytest
 
 import synapseclient.core.utils as utils
 from synapseclient import Project, Synapse, Wiki
-from synapseclient.core.exceptions import SynapseHTTPError
 from synapseclient.core.upload.upload_functions import upload_synapse_s3
 
 # from unittest import skip
