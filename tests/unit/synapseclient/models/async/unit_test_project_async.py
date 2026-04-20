@@ -1,4 +1,5 @@
 """Tests for the synapseclient.models.Project class."""
+
 import uuid
 from typing import Dict
 from unittest.mock import AsyncMock, MagicMock, patch
@@ -90,22 +91,25 @@ class TestProject:
         project.description = description
 
         # WHEN I call `store` with the Project object
-        with patch(
-            "synapseclient.models.services.storable_entity.put_entity",
-            new_callable=AsyncMock,
-            return_value=(self.get_example_synapse_project_output()),
-        ) as mocked_client_call, patch(
-            "synapseclient.api.entity_factory.get_entity_id_bundle2",
-            new_callable=AsyncMock,
-            return_value=(
-                {
-                    "entity": {
-                        "concreteType": concrete_types.PROJECT_ENTITY,
-                        "id": project.id,
+        with (
+            patch(
+                "synapseclient.models.services.storable_entity.put_entity",
+                new_callable=AsyncMock,
+                return_value=(self.get_example_synapse_project_output()),
+            ) as mocked_client_call,
+            patch(
+                "synapseclient.api.entity_factory.get_entity_id_bundle2",
+                new_callable=AsyncMock,
+                return_value=(
+                    {
+                        "entity": {
+                            "concreteType": concrete_types.PROJECT_ENTITY,
+                            "id": project.id,
+                        }
                     }
-                }
-            ),
-        ) as mocked_get:
+                ),
+            ) as mocked_get,
+        ):
             result = await project.store_async(synapse_client=self.syn)
 
             # THEN we should call the method with this data
@@ -143,21 +147,24 @@ class TestProject:
         )
 
         # WHEN I call `store` with the Project object
-        with patch.object(
-            self.syn,
-            "store",
-        ) as mocked_store, patch(
-            "synapseclient.api.entity_factory.get_entity_id_bundle2",
-            new_callable=AsyncMock,
-            return_value=(
-                {
-                    "entity": {
-                        "concreteType": concrete_types.PROJECT_ENTITY,
-                        "id": project.id,
+        with (
+            patch.object(
+                self.syn,
+                "store",
+            ) as mocked_store,
+            patch(
+                "synapseclient.api.entity_factory.get_entity_id_bundle2",
+                new_callable=AsyncMock,
+                return_value=(
+                    {
+                        "entity": {
+                            "concreteType": concrete_types.PROJECT_ENTITY,
+                            "id": project.id,
+                        }
                     }
-                }
-            ),
-        ) as mocked_get:
+                ),
+            ) as mocked_get,
+        ):
             result = await project.store_async(synapse_client=self.syn)
 
             # THEN we should not call store because there are no changes
@@ -196,21 +203,24 @@ class TestProject:
             assert project.id == PROJECT_ID
 
         # WHEN I call `store` with the Project object
-        with patch.object(
-            self.syn,
-            "store",
-        ) as mocked_store, patch(
-            "synapseclient.api.entity_factory.get_entity_id_bundle2",
-            new_callable=AsyncMock,
-            return_value=(
-                {
-                    "entity": {
-                        "concreteType": concrete_types.PROJECT_ENTITY,
-                        "id": project.id,
+        with (
+            patch.object(
+                self.syn,
+                "store",
+            ) as mocked_store,
+            patch(
+                "synapseclient.api.entity_factory.get_entity_id_bundle2",
+                new_callable=AsyncMock,
+                return_value=(
+                    {
+                        "entity": {
+                            "concreteType": concrete_types.PROJECT_ENTITY,
+                            "id": project.id,
+                        }
                     }
-                }
-            ),
-        ) as mocked_get:
+                ),
+            ) as mocked_get,
+        ):
             result = await project.store_async(synapse_client=self.syn)
 
             # THEN we should not call store because there are no changes
@@ -253,13 +263,16 @@ class TestProject:
         project.description = description
 
         # WHEN I call `store` with the Project object
-        with patch(
-            "synapseclient.models.services.storable_entity.put_entity",
-            new_callable=AsyncMock,
-            return_value=(self.get_example_synapse_project_output()),
-        ) as mocked_store, patch(
-            "synapseclient.api.entity_factory.get_entity_id_bundle2",
-        ) as mocked_get:
+        with (
+            patch(
+                "synapseclient.models.services.storable_entity.put_entity",
+                new_callable=AsyncMock,
+                return_value=(self.get_example_synapse_project_output()),
+            ) as mocked_store,
+            patch(
+                "synapseclient.api.entity_factory.get_entity_id_bundle2",
+            ) as mocked_get,
+        ):
             result = await project.store_async(synapse_client=self.syn)
 
             # THEN we should  call store because there are changes
@@ -308,25 +321,29 @@ class TestProject:
         project.description = description
 
         # WHEN I call `store` with the Project object
-        with patch(
-            "synapseclient.models.project.store_entity_components",
-            return_value=(None),
-        ) as mocked_store_entity_components, patch(
-            "synapseclient.models.services.storable_entity.put_entity",
-            new_callable=AsyncMock,
-            return_value=(self.get_example_synapse_project_output()),
-        ) as mocked_client_call, patch(
-            "synapseclient.api.entity_factory.get_entity_id_bundle2",
-            new_callable=AsyncMock,
-            return_value=(
-                {
-                    "entity": {
-                        "concreteType": concrete_types.PROJECT_ENTITY,
-                        "id": project.id,
+        with (
+            patch(
+                "synapseclient.models.project.store_entity_components",
+                return_value=(None),
+            ) as mocked_store_entity_components,
+            patch(
+                "synapseclient.models.services.storable_entity.put_entity",
+                new_callable=AsyncMock,
+                return_value=(self.get_example_synapse_project_output()),
+            ) as mocked_client_call,
+            patch(
+                "synapseclient.api.entity_factory.get_entity_id_bundle2",
+                new_callable=AsyncMock,
+                return_value=(
+                    {
+                        "entity": {
+                            "concreteType": concrete_types.PROJECT_ENTITY,
+                            "id": project.id,
+                        }
                     }
-                }
-            ),
-        ) as mocked_get:
+                ),
+            ) as mocked_get,
+        ):
             result = await project.store_async(synapse_client=self.syn)
 
             # THEN we should call the method with this data
@@ -376,26 +393,30 @@ class TestProject:
         project.description = description
 
         # WHEN I call `store` with the Project object
-        with patch(
-            "synapseclient.models.services.storable_entity.put_entity",
-            new_callable=AsyncMock,
-            return_value=(self.get_example_synapse_project_output()),
-        ) as mocked_client_call, patch.object(
-            self.syn,
-            "findEntityId",
-            return_value=PROJECT_ID,
-        ) as mocked_get, patch(
-            "synapseclient.api.entity_factory.get_entity_id_bundle2",
-            new_callable=AsyncMock,
-            return_value=(
-                {
-                    "entity": {
-                        "concreteType": concrete_types.PROJECT_ENTITY,
-                        "id": project.id,
+        with (
+            patch(
+                "synapseclient.models.services.storable_entity.put_entity",
+                new_callable=AsyncMock,
+                return_value=(self.get_example_synapse_project_output()),
+            ) as mocked_client_call,
+            patch.object(
+                self.syn,
+                "findEntityId",
+                return_value=PROJECT_ID,
+            ) as mocked_get,
+            patch(
+                "synapseclient.api.entity_factory.get_entity_id_bundle2",
+                new_callable=AsyncMock,
+                return_value=(
+                    {
+                        "entity": {
+                            "concreteType": concrete_types.PROJECT_ENTITY,
+                            "id": project.id,
+                        }
                     }
-                }
-            ),
-        ) as mocked_get:
+                ),
+            ) as mocked_get,
+        ):
             result = await project.store_async(synapse_client=self.syn)
 
             # THEN we should call the method with this data
@@ -478,15 +499,18 @@ class TestProject:
         )
 
         # WHEN I call `get` with the Project object
-        with patch.object(
-            self.syn,
-            "findEntityId",
-            return_value=(PROJECT_ID),
-        ) as mocked_client_search, patch(
-            "synapseclient.api.entity_factory.get_entity_id_bundle2",
-            new_callable=AsyncMock,
-            return_value=(self.get_example_rest_api_project_output()),
-        ) as mocked_client_call:
+        with (
+            patch.object(
+                self.syn,
+                "findEntityId",
+                return_value=(PROJECT_ID),
+            ) as mocked_client_search,
+            patch(
+                "synapseclient.api.entity_factory.get_entity_id_bundle2",
+                new_callable=AsyncMock,
+                return_value=(self.get_example_rest_api_project_output()),
+            ) as mocked_client_call,
+        ):
             result = await project.get_async(synapse_client=self.syn)
 
             # THEN we should call the method with this data
@@ -581,16 +605,20 @@ class TestProject:
         }
 
         # WHEN I call `copy` with the Project object
-        with patch(
-            "synapseclient.models.project.copy",
-            return_value=(copy_mapping),
-        ) as mocked_copy, patch(
-            "synapseclient.models.project.Project.get_async",
-            return_value=(returned_project),
-        ) as mocked_get, patch(
-            "synapseclient.models.project.Project.sync_from_synapse_async",
-            return_value=(returned_project),
-        ) as mocked_sync:
+        with (
+            patch(
+                "synapseclient.models.project.copy",
+                return_value=(copy_mapping),
+            ) as mocked_copy,
+            patch(
+                "synapseclient.models.project.Project.get_async",
+                return_value=(returned_project),
+            ) as mocked_get,
+            patch(
+                "synapseclient.models.project.Project.sync_from_synapse_async",
+                return_value=(returned_project),
+            ) as mocked_sync,
+        ):
             result = await project.copy_async(
                 destination_id="destination_id", synapse_client=self.syn
             )
@@ -663,16 +691,20 @@ class TestProject:
             for child in children:
                 yield child
 
-        with patch(
-            "synapseclient.models.mixins.storable_container.get_children",
-            side_effect=mock_get_children,
-        ) as mocked_children_call, patch(
-            "synapseclient.api.entity_factory.get_entity_id_bundle2",
-            new_callable=AsyncMock,
-            return_value=(self.get_example_rest_api_project_output()),
-        ) as mocked_project_get, patch(
-            "synapseclient.models.file.File.get_async",
-            return_value=(File(id="syn456", name="example_file_1")),
+        with (
+            patch(
+                "synapseclient.models.mixins.storable_container.get_children",
+                side_effect=mock_get_children,
+            ) as mocked_children_call,
+            patch(
+                "synapseclient.api.entity_factory.get_entity_id_bundle2",
+                new_callable=AsyncMock,
+                return_value=(self.get_example_rest_api_project_output()),
+            ) as mocked_project_get,
+            patch(
+                "synapseclient.models.file.File.get_async",
+                return_value=(File(id="syn456", name="example_file_1")),
+            ),
         ):
             result = await project.sync_from_synapse_async(synapse_client=self.syn)
 

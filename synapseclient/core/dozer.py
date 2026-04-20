@@ -5,6 +5,7 @@ Created on Sep 21, 2017
 
 sleep while checking registered _listeners
 """
+
 import time
 
 from opentelemetry import trace

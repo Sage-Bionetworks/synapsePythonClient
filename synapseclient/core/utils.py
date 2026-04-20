@@ -278,7 +278,7 @@ def id_of(obj: typing.Union[str, collections.abc.Mapping, numbers.Number]) -> st
 
 
 def validate_submission_id(
-    submission_id: typing.Union[str, int, collections.abc.Mapping]
+    submission_id: typing.Union[str, int, collections.abc.Mapping],
 ) -> str:
     """
     Ensures that a given submission ID is either an integer or a string that
@@ -354,7 +354,7 @@ def get_properties(entity):
     return entity.properties if hasattr(entity, "properties") else entity
 
 
-def is_url(s):
+def is_url(s) -> bool:
     """Return True if the string appears to be a valid URL."""
     if isinstance(s, str):
         try:
@@ -462,7 +462,7 @@ def is_synapse_id_str(obj: str) -> typing.Union[str, None]:
 
 
 def get_synid_and_version(
-    obj: typing.Union[str, collections.abc.Mapping]
+    obj: typing.Union[str, collections.abc.Mapping],
 ) -> typing.Tuple[str, typing.Union[int, None]]:
     """Extract the Synapse ID and version number from input entity
 
@@ -698,7 +698,7 @@ def to_unix_epoch_time(dt: typing.Union[datetime.date, datetime.datetime, str]) 
 
 
 def to_unix_epoch_time_secs(
-    dt: typing.Union[datetime.date, datetime.datetime]
+    dt: typing.Union[datetime.date, datetime.datetime],
 ) -> float:
     """
     Convert either [datetime.date or datetime.datetime objects](http://docs.python.org/2/library/datetime.html) to UNIX time.

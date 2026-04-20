@@ -22,6 +22,10 @@ if TYPE_CHECKING:
     )
 
 
+MANIFEST_UPLOAD_MAX_RETRIES: int = 4
+"""Maximum number of notification retries for manifest-based uploads."""
+
+
 class FailureStrategy(Enum):
     """
     When storing a large number of items through bulk actions like

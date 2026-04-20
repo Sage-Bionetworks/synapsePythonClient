@@ -75,12 +75,14 @@ class TestGetStsCredentials:
                 )
             ),
             _getDefaultUploadDestination=mock.Mock(
-                return_value=upload_destination
-                if upload_destination is not None
-                else {
-                    "bucket": "bucket1",
-                    "baseKey": "key1",
-                }
+                return_value=(
+                    upload_destination
+                    if upload_destination is not None
+                    else {
+                        "bucket": "bucket1",
+                        "baseKey": "key1",
+                    }
+                )
             ),
         )
 

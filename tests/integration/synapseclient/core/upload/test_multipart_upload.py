@@ -31,7 +31,7 @@ async def test_round_trip(syn: Synapse, project: Project, schedule_for_cleanup):
         # Download the file and compare it with the original
         junk = File(parent=project, dataFileHandleId=fhid)
         junk.properties.update(syn._createEntity(junk.properties))
-        (_, tmp_path) = tempfile.mkstemp()
+        _, tmp_path = tempfile.mkstemp()
         schedule_for_cleanup(tmp_path)
 
         junk["path"] = await download_by_file_handle(
@@ -107,7 +107,7 @@ async def test_randomly_failing_parts(
             # Download the file and compare it with the original
             junk = File(parent=project, dataFileHandleId=fhid)
             junk.properties.update(syn._createEntity(junk.properties))
-            (tmp_f, tmp_path) = tempfile.mkstemp()
+            tmp_f, tmp_path = tempfile.mkstemp()
             schedule_for_cleanup(tmp_path)
 
             junk["path"] = await download_by_file_handle(
@@ -181,7 +181,7 @@ async def test_multipart_upload_big_string(
     # Download the file and compare it with the original
     junk = File(parent=project, dataFileHandleId=fhid)
     junk.properties.update(syn._createEntity(junk.properties))
-    (_, tmp_path) = tempfile.mkstemp()
+    _, tmp_path = tempfile.mkstemp()
     schedule_for_cleanup(tmp_path)
 
     junk["path"] = await download_by_file_handle(

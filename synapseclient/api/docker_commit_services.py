@@ -1,6 +1,7 @@
 """This module is responsible for exposing the services defined at:
 <https://rest-docs.synapse.org/rest/#org.sagebionetworks.repo.web.controller.DockerCommitController>
 """
+
 from typing import TYPE_CHECKING, Optional
 
 if TYPE_CHECKING:
