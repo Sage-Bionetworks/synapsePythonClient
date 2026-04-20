@@ -1,6 +1,7 @@
 """
 Tutorial code for the Storage Location and project settings.
 """
+
 # --8<-- [start:setup]
 import synapseclient
 from synapseclient.models import Folder, Project, StorageLocation, StorageLocationType

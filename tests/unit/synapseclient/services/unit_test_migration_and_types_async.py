@@ -1,4 +1,5 @@
 """Unit tests for synapseclient.models.services.migration and migration_types (sync and async)."""
+
 import asyncio
 import csv
 import json
@@ -1092,8 +1093,9 @@ class TestConfirmMigration:
             ("syn1", MigrationType.FILE.value, MigrationStatus.INDEXED.value),
         )
         conn.commit()
-        with mock.patch("sys.stdout") as mock_stdout, mock.patch(
-            "builtins.input", return_value="y"
+        with (
+            mock.patch("sys.stdout") as mock_stdout,
+            mock.patch("builtins.input", return_value="y"),
         ):
             mock_stdout.isatty.return_value = True
             result = _confirm_migration(cursor, "99", force=False)
@@ -1106,8 +1108,9 @@ class TestConfirmMigration:
             ("syn1", MigrationType.FILE.value, MigrationStatus.INDEXED.value),
         )
         conn.commit()
-        with mock.patch("sys.stdout") as mock_stdout, mock.patch(
-            "builtins.input", return_value="n"
+        with (
+            mock.patch("sys.stdout") as mock_stdout,
+            mock.patch("builtins.input", return_value="n"),
         ):
             mock_stdout.isatty.return_value = True
             result = _confirm_migration(cursor, "99", force=False)
@@ -1284,8 +1287,9 @@ class TestIndexFilesForMigrationAsyncValidation:
         client = _make_mock_client()
         client.rest_get_async.side_effect = SynapseError("forbidden")
 
-        with patch(f"{MODULE}.Synapse.get_client", return_value=client), patch(
-            f"{MODULE}.utils.id_of", return_value="syn1"
+        with (
+            patch(f"{MODULE}.Synapse.get_client", return_value=client),
+            patch(f"{MODULE}.utils.id_of", return_value="syn1"),
         ):
             with pytest.raises(ValueError, match="Unable to verify ownership"):
                 await index_files_for_migration_async(

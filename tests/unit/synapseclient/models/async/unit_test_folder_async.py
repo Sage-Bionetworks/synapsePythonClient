@@ -854,11 +854,17 @@ class TestStorageLocationMixin:
         """Test that when there is no existing project setting and we set a storage location, a new project setting is created."""
         folder = Folder(id=SYN_123)
 
-        with patch.object(
-            ProjectSetting, "get_async", new_callable=AsyncMock, return_value=None
-        ), patch.object(
-            ProjectSetting, "store_async", autospec=True, return_value=example_setting
-        ) as mocked_store:
+        with (
+            patch.object(
+                ProjectSetting, "get_async", new_callable=AsyncMock, return_value=None
+            ),
+            patch.object(
+                ProjectSetting,
+                "store_async",
+                autospec=True,
+                return_value=example_setting,
+            ) as mocked_store,
+        ):
             result = await folder.set_storage_location_async(
                 storage_location_id=self.STORAGE_LOCATION_ID,
                 synapse_client=self.syn,
@@ -883,14 +889,20 @@ class TestStorageLocationMixin:
             locations=[99999],
         )
 
-        with patch.object(
-            ProjectSetting,
-            "get_async",
-            new_callable=AsyncMock,
-            return_value=example_setting,
-        ), patch.object(
-            ProjectSetting, "store_async", autospec=True, return_value=updated_setting
-        ) as mocked_store:
+        with (
+            patch.object(
+                ProjectSetting,
+                "get_async",
+                new_callable=AsyncMock,
+                return_value=example_setting,
+            ),
+            patch.object(
+                ProjectSetting,
+                "store_async",
+                autospec=True,
+                return_value=updated_setting,
+            ) as mocked_store,
+        ):
             result = await folder.set_storage_location_async(
                 storage_location_id=99999,
                 synapse_client=self.syn,
@@ -919,16 +931,19 @@ class TestStorageLocationMixin:
             locations=[333],
         )
 
-        with patch.object(
-            ProjectSetting,
-            "get_async",
-            new_callable=AsyncMock,
-            return_value=existing_setting,
-        ), patch.object(
-            ProjectSetting,
-            "store_async",
-            new_callable=AsyncMock,
-            return_value=updated_setting,
+        with (
+            patch.object(
+                ProjectSetting,
+                "get_async",
+                new_callable=AsyncMock,
+                return_value=existing_setting,
+            ),
+            patch.object(
+                ProjectSetting,
+                "store_async",
+                new_callable=AsyncMock,
+                return_value=updated_setting,
+            ),
         ):
             result = await folder.set_storage_location_async(
                 storage_location_id=333,
@@ -955,14 +970,20 @@ class TestStorageLocationMixin:
             locations=[DEFAULT_STORAGE_LOCATION_ID],
         )
 
-        with patch.object(
-            ProjectSetting,
-            "get_async",
-            new_callable=AsyncMock,
-            return_value=example_setting,
-        ), patch.object(
-            ProjectSetting, "store_async", autospec=True, return_value=default_setting
-        ) as mocked_store:
+        with (
+            patch.object(
+                ProjectSetting,
+                "get_async",
+                new_callable=AsyncMock,
+                return_value=example_setting,
+            ),
+            patch.object(
+                ProjectSetting,
+                "store_async",
+                autospec=True,
+                return_value=default_setting,
+            ) as mocked_store,
+        ):
             result = await folder.set_storage_location_async(
                 synapse_client=self.syn,
             )
@@ -988,14 +1009,20 @@ class TestStorageLocationMixin:
             locations=[DEFAULT_STORAGE_LOCATION_ID],
         )
 
-        with patch.object(
-            ProjectSetting,
-            "get_async",
-            new_callable=AsyncMock,
-            return_value=example_setting,
-        ), patch.object(
-            ProjectSetting, "store_async", autospec=True, return_value=default_setting
-        ) as mocked_store:
+        with (
+            patch.object(
+                ProjectSetting,
+                "get_async",
+                new_callable=AsyncMock,
+                return_value=example_setting,
+            ),
+            patch.object(
+                ProjectSetting,
+                "store_async",
+                autospec=True,
+                return_value=default_setting,
+            ) as mocked_store,
+        ):
             result = await folder.set_storage_location_async(
                 storage_location_id=None,
                 synapse_client=self.syn,
@@ -1011,11 +1038,17 @@ class TestStorageLocationMixin:
         """Test that when storage_location_id is a list of integers, all are stored as-is."""
         folder = Folder(id=SYN_123)
 
-        with patch.object(
-            ProjectSetting, "get_async", new_callable=AsyncMock, return_value=None
-        ), patch.object(
-            ProjectSetting, "store_async", autospec=True, return_value=example_setting
-        ) as mocked_store:
+        with (
+            patch.object(
+                ProjectSetting, "get_async", new_callable=AsyncMock, return_value=None
+            ),
+            patch.object(
+                ProjectSetting,
+                "store_async",
+                autospec=True,
+                return_value=example_setting,
+            ) as mocked_store,
+        ):
             await folder.set_storage_location_async(
                 storage_location_id=[111, 222, 333],
                 synapse_client=self.syn,
@@ -1030,11 +1063,17 @@ class TestStorageLocationMixin:
         """Test that when storage_location_id is a single integer, it is wrapped in a list."""
         folder = Folder(id=SYN_123)
 
-        with patch.object(
-            ProjectSetting, "get_async", new_callable=AsyncMock, return_value=None
-        ), patch.object(
-            ProjectSetting, "store_async", autospec=True, return_value=example_setting
-        ) as mocked_store:
+        with (
+            patch.object(
+                ProjectSetting, "get_async", new_callable=AsyncMock, return_value=None
+            ),
+            patch.object(
+                ProjectSetting,
+                "store_async",
+                autospec=True,
+                return_value=example_setting,
+            ) as mocked_store,
+        ):
             await folder.set_storage_location_async(
                 storage_location_id=111,
                 synapse_client=self.syn,
@@ -1061,17 +1100,20 @@ class TestStorageLocationMixin:
             locations=[111, 222, 333],
         )
 
-        with patch.object(
-            ProjectSetting,
-            "get_async",
-            new_callable=AsyncMock,
-            return_value=existing_setting,
-        ), patch.object(
-            ProjectSetting,
-            "store_async",
-            new_callable=AsyncMock,
-            return_value=updated_setting,
-        ) as mocked_store:
+        with (
+            patch.object(
+                ProjectSetting,
+                "get_async",
+                new_callable=AsyncMock,
+                return_value=existing_setting,
+            ),
+            patch.object(
+                ProjectSetting,
+                "store_async",
+                new_callable=AsyncMock,
+                return_value=updated_setting,
+            ) as mocked_store,
+        ):
             setting = await folder.get_project_setting_async(
                 setting_type="upload",
                 synapse_client=self.syn,

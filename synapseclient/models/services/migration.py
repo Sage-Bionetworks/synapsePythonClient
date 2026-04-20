@@ -148,9 +148,7 @@ def _escape_column_name(column: Union[str, collections.abc.Mapping]) -> str:
     col_name = (
         column["name"]
         if isinstance(column, collections.abc.Mapping)
-        else column.name
-        if isinstance(column, Column)
-        else str(column)
+        else column.name if isinstance(column, Column) else str(column)
     )
     escaped_name = col_name.replace('"', '""')
     return f'"{escaped_name}"'
@@ -213,8 +211,7 @@ def _ensure_schema(cursor: sqlite3.Cursor) -> None:
     # The representation of migratable file handles is flat including both file entities
     # and table attached files, so not all columns are applicable to both. row id and col id
     # are only used by table attached files.
-    cursor.execute(
-        """
+    cursor.execute("""
         CREATE TABLE IF NOT EXISTS migrations (
             id TEXT NOT NULL,
             type INTEGER NOT NULL,
@@ -230,8 +227,7 @@ def _ensure_schema(cursor: sqlite3.Cursor) -> None:
             file_size INTEGER NULL,
             PRIMARY KEY (id, type, row_id, col_id, version)
         )
-        """
-    )
+        """)
 
     # Index the status column for faster status-based lookups
     cursor.execute("CREATE INDEX IF NOT EXISTS ix_status ON migrations(status)")

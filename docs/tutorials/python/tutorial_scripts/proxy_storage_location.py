@@ -1,4 +1,5 @@
 """Tutorial code for creating a Proxy storage location and uploading a file via ProxyFileHandle."""
+
 # --8<-- [start:setup]
 import asyncio
 import hashlib

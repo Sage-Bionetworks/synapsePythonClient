@@ -1,5 +1,5 @@
-"""Tutorial code for Index and migrate files to the new storage location
-"""
+"""Tutorial code for Index and migrate files to the new storage location"""
+
 # --8<-- [start:setup]
 import synapseclient
 from synapseclient.models import Folder, Project
