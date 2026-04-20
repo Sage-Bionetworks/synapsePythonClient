@@ -36,7 +36,7 @@ def test_wikiAttachment(syn: Synapse, project: Project, schedule_for_cleanup) ->
         attachments=[attachname],
     )
     wiki = syn.store(wiki)
-    schedule_for_cleanup(wiki.id)
+    schedule_for_cleanup(wiki)
 
     # Create a Wiki sub-page
     subwiki = Wiki(
@@ -46,7 +46,7 @@ def test_wikiAttachment(syn: Synapse, project: Project, schedule_for_cleanup) ->
         parentWikiId=wiki.id,
     )
     subwiki = syn.store(subwiki)
-    schedule_for_cleanup(subwiki.id)
+    schedule_for_cleanup(subwiki)
 
     # Retrieve the root Wiki from Synapse
     wiki2 = syn.getWiki(project)
