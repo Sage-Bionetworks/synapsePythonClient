@@ -11,8 +11,18 @@ from synapseclient.core.upload.upload_functions import upload_synapse_s3
 # from unittest import skip
 
 
+@pytest.fixture
+def wiki_project(syn: Synapse, schedule_for_cleanup) -> Project:
+    """Function-scoped project so each wiki test gets a clean, isolated project."""
+    project = syn.store(Project(name=str(uuid.uuid4())))
+    schedule_for_cleanup(project)
+    return project
+
+
 # @skip("Skip integration tests for soon to be removed code")
-def test_wikiAttachment(syn: Synapse, project: Project, schedule_for_cleanup) -> None:
+def test_wikiAttachment(
+    syn: Synapse, wiki_project: Project, schedule_for_cleanup
+) -> None:
     # Upload a file to be attached to a Wiki
     filename = utils.make_bogus_data_file()
     attachname = utils.make_bogus_data_file()
@@ -29,27 +39,25 @@ def test_wikiAttachment(syn: Synapse, project: Project, schedule_for_cleanup) ->
     Blabber jabber blah blah boo.
     """
     wiki = Wiki(
-        owner=project,
+        owner=wiki_project,
         title="A Test Wiki",
         markdown=md,
         fileHandles=[fileHandle["id"]],
         attachments=[attachname],
     )
     wiki = syn.store(wiki)
-    schedule_for_cleanup(wiki)
 
     # Create a Wiki sub-page
     subwiki = Wiki(
-        owner=project,
+        owner=wiki_project,
         title="A sub-wiki",
         markdown="nothing",
         parentWikiId=wiki.id,
     )
     subwiki = syn.store(subwiki)
-    schedule_for_cleanup(subwiki)
 
     # Retrieve the root Wiki from Synapse
-    wiki2 = syn.getWiki(project)
+    wiki2 = syn.getWiki(wiki_project)
     # due to the new wiki api, we'll get back some new properties,
     # namely markdownFileHandleId and markdown_path, so only compare
     # properties that are in the first object
@@ -57,7 +65,7 @@ def test_wikiAttachment(syn: Synapse, project: Project, schedule_for_cleanup) ->
         assert wiki[property_name] == wiki2[property_name]
 
     # Retrieve the sub Wiki from Synapse
-    wiki2 = syn.getWiki(project, subpageId=subwiki.id)
+    wiki2 = syn.getWiki(wiki_project, subpageId=subwiki.id)
     for property_name in wiki:
         assert subwiki[property_name] == wiki2[property_name]
 
@@ -65,12 +73,12 @@ def test_wikiAttachment(syn: Synapse, project: Project, schedule_for_cleanup) ->
     wiki["title"] = "A New Title"
     wiki["markdown"] = wiki["markdown"] + "\nNew stuff here!!!\n"
     syn.store(wiki)
-    wiki = syn.getWiki(project)
+    wiki = syn.getWiki(wiki_project)
     assert wiki["title"] == "A New Title"
     assert wiki["markdown"].endswith("\nNew stuff here!!!\n")
 
     # Check the Wiki's metadata
-    headers = syn.getWikiHeaders(project)
+    headers = syn.getWikiHeaders(wiki_project)
     assert len(headers) == 2
     assert headers[0]["title"] in (wiki["title"], subwiki["title"])
 
@@ -81,12 +89,12 @@ def test_wikiAttachment(syn: Synapse, project: Project, schedule_for_cleanup) ->
 
 
 # @skip("Skip integration tests for soon to be removed code")
-def test_create_or_update_wiki(syn: Synapse, project: Project) -> None:
+def test_create_or_update_wiki(syn: Synapse, wiki_project: Project) -> None:
     # create wiki once
     syn.store(
         Wiki(
             title="This is the title",
-            owner=project,
+            owner=wiki_project,
             markdown="#Wikis are OK\n\nBlabber jabber blah blah blither blather bonk!",
         )
     )
@@ -96,7 +104,7 @@ def test_create_or_update_wiki(syn: Synapse, project: Project) -> None:
     wiki = syn.store(
         Wiki(
             title=new_title,
-            owner=project,
+            owner=wiki_project,
             markdown="#Wikis are awesome\n\nNew babble boo flabble gibber wiggle sproing!",
         ),
         createOrUpdate=True,
@@ -105,13 +113,11 @@ def test_create_or_update_wiki(syn: Synapse, project: Project) -> None:
 
 
 # @skip("Skip integration tests for soon to be removed code")
-def test_wiki_version(syn: Synapse, project: Project) -> None:
-    # create a new project to avoid artifacts from previous tests
-    project = syn.store(Project(name=str(uuid.uuid4())))
+def test_wiki_version(syn: Synapse, wiki_project: Project) -> None:
     wiki = syn.store(
         Wiki(
             title="Title version 1",
-            owner=project,
+            owner=wiki_project,
             markdown="##A heading\n\nThis is version 1 of the wiki page!\n",
         )
     )
@@ -131,13 +137,15 @@ def test_wiki_version(syn: Synapse, project: Project) -> None:
 
 
 # @skip("Skip integration tests for soon to be removed code")
-def test_wiki_with_empty_string_parent_wiki_id(syn: Synapse, project: Project) -> None:
+def test_wiki_with_empty_string_parent_wiki_id(
+    syn: Synapse, wiki_project: Project
+) -> None:
     # GIVEN a wiki is created with an empty string parentWikiId
     # WHEN it is stored
     wiki_stored = syn.store(
         Wiki(
             title="This is the title",
-            owner=project,
+            owner=wiki_project,
             markdown="#Wikis are OK\n\nBlabber jabber blah blah blither blather bonk!",
             parentWikiId="",
         )
