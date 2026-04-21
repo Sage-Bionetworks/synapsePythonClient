@@ -200,9 +200,7 @@ class TestAddFilesAsync:
             return_value={"numberOfFilesAdded": 2},
         ) as mocked_post:
             # WHEN I call add_files_async with an explicit client
-            result = await DownloadList.add_files_async(
-                files=files, synapse_client=syn
-            )
+            result = await DownloadList.add_files_async(files=files, synapse_client=syn)
 
             # THEN the client POSTs the batch to /download/list/add
             mocked_post.assert_awaited_once()
@@ -304,9 +302,7 @@ class TestGetManifestAsync:
 class TestDownloadFilesAsync:
     """Tests for DownloadList.download_files_async."""
 
-    async def test_empty_cart_propagates_synapse_http_error(
-        self, syn: Synapse
-    ) -> None:
+    async def test_empty_cart_propagates_synapse_http_error(self, syn: Synapse) -> None:
         """download_files_async propagates the server's 'No files available for
         download' error when the cart is empty.
 
@@ -406,9 +402,7 @@ class TestDownloadManifestFile:
         assert row["path"] == "/tmp/downloads/latest.txt"
         assert row["error"] == ""
         # AND the returned DownloadListItem also carries version_number=None
-        assert result == DownloadListItem(
-            file_entity_id="syn111", version_number=None
-        )
+        assert result == DownloadListItem(file_entity_id="syn111", version_number=None)
 
     async def test_get_async_failure_annotates_row_and_returns_none(
         self, syn: Synapse
@@ -429,9 +423,7 @@ class TestDownloadManifestFile:
             mock_file_cls,
         ):
             # WHEN I call _download_manifest_file
-            result = await DownloadList._download_manifest_file(
-                row, synapse_client=syn
-            )
+            result = await DownloadList._download_manifest_file(row, synapse_client=syn)
 
         # THEN the row is annotated with the error message and empty path
         assert row["path"] == ""
@@ -454,9 +446,7 @@ class TestDownloadManifestFile:
             mock_file_cls,
         ):
             # WHEN I call _download_manifest_file
-            result = await DownloadList._download_manifest_file(
-                row, synapse_client=syn
-            )
+            result = await DownloadList._download_manifest_file(row, synapse_client=syn)
 
         # THEN the row's path is an empty string (not None)
         assert row["path"] == ""

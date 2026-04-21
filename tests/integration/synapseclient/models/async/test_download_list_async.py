@@ -100,10 +100,7 @@ async def _cart_entries(
         raise
     schedule_for_cleanup(manifest_path)
     with open(manifest_path, newline="") as f:
-        return {
-            (row["ID"], int(row["versionNumber"]))
-            for row in csv.DictReader(f)
-        }
+        return {(row["ID"], int(row["versionNumber"])) for row in csv.DictReader(f)}
 
 
 class TestAddFilesAsync:
@@ -138,7 +135,8 @@ class TestAddFilesAsync:
         count = await DownloadList.add_files_async(files=items, synapse_client=syn)
         scheduled_for_cart_removal.extend(items)
         cart_entries = {
-            e for e in await _cart_entries(syn, schedule_for_cleanup)
+            e
+            for e in await _cart_entries(syn, schedule_for_cleanup)
             if e[0] in {file_a.id, file_b.id}
         }
 
@@ -172,8 +170,7 @@ class TestAddFilesAsync:
         )
         scheduled_for_cart_removal.append(item_no_version)
         cart_entries = {
-            e for e in await _cart_entries(syn, schedule_for_cleanup)
-            if e[0] == file.id
+            e for e in await _cart_entries(syn, schedule_for_cleanup) if e[0] == file.id
         }
 
         # THEN the file is added to the cart with the latest version
@@ -231,8 +228,7 @@ class TestRemoveFilesAsync:
         )
         our_ids = {file_a.id, file_b.id}
         cart_entries = {
-            e for e in await _cart_entries(syn, schedule_for_cleanup)
-            if e[0] in our_ids
+            e for e in await _cart_entries(syn, schedule_for_cleanup) if e[0] in our_ids
         }
 
         # THEN exactly 2 items were removed
@@ -321,9 +317,7 @@ class TestRemoveFilesAsync:
         # THEN the file is reported as removed and no longer appears in the cart
         assert removed == 1, f"Expected 1 file removed, got {removed}"
         cart_ids = {id_ for id_, _ in await _cart_entries(syn, schedule_for_cleanup)}
-        assert (
-            file.id not in cart_ids
-        ), f"Expected {file.id} to be absent from the cart"
+        assert file.id not in cart_ids, f"Expected {file.id} to be absent from the cart"
 
 
 class TestDownloadFilesAsync:
@@ -485,8 +479,7 @@ class TestDownloadFilesAsync:
 
 
 class TestGetManifestAsync:
-    """Integration tests for DownloadList.get_manifest_async.
-    """
+    """Integration tests for DownloadList.get_manifest_async."""
 
     async def test_get_manifest_with_custom_csv_descriptor(
         self,
@@ -552,9 +545,9 @@ class TestGetManifestAsync:
         # because it contains the quote character)
         fields = lines[0].split("\t")
         name_field = next((f for f in fields if uuid_suffix in f), None)
-        assert name_field is not None, (
-            f"Name field containing {uuid_suffix!r} not found in {lines[0]!r}"
-        )
-        assert name_field.startswith("'") and name_field.endswith("'"), (
-            f"Expected name field wrapped in single quotes, got: {name_field!r}"
-        )
+        assert (
+            name_field is not None
+        ), f"Name field containing {uuid_suffix!r} not found in {lines[0]!r}"
+        assert name_field.startswith("'") and name_field.endswith(
+            "'"
+        ), f"Expected name field wrapped in single quotes, got: {name_field!r}"
