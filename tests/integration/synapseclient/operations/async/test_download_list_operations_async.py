@@ -524,9 +524,9 @@ class TestDownloadListFilesAsync:
         # AND the file is removed from the cart after a successful download,
         # even though it was added without a version number
         cart_ids = {id_ for id_, _ in await _cart_entries(syn, schedule_for_cleanup)}
-        assert file.id not in cart_ids, (
-            f"Expected {file.id} to be removed from cart after download."
-        )
+        assert (
+            file.id not in cart_ids
+        ), f"Expected {file.id} to be removed from cart after download."
 
 
 class TestDownloadListManifestAsync:
