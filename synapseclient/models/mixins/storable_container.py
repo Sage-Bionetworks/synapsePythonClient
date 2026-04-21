@@ -8,6 +8,7 @@ from typing import (
     Dict,
     Generator,
     List,
+    Literal,
     NoReturn,
     Optional,
     Tuple,
@@ -161,7 +162,7 @@ class StorableContainer(StorableContainerSynchronousProtocol):
         link_hops: int = 1,
         queue: asyncio.Queue = None,
         include_types: Optional[List[str]] = None,
-        manifest: str = "all",
+        manifest: Literal["all", "suppress", "root"] = "all",
         *,
         synapse_client: Optional[Synapse] = None,
     ) -> Self:
@@ -321,8 +322,38 @@ class StorableContainer(StorableContainerSynchronousProtocol):
 
             asyncio.run(my_function())
             ```
+            Suppose I want to download all the children of a Project and all sub-folders and files and generate a manifest file:
 
+            ```python
+            import asyncio
+            from synapseclient import Synapse
+            from synapseclient.models import Project
 
+            async def my_function():
+                syn = Synapse()
+                syn.login()
+
+                my_project = Project(id="syn12345")
+                await my_project.sync_from_synapse_async(path="/path/to/folder", manifest="all")
+
+            asyncio.run(my_function())
+            ```
+            Suppose I want to download a manifest file at the root path:
+
+            ```python
+            import asyncio
+            from synapseclient import Synapse
+            from synapseclient.models import Project
+
+            async def my_function():
+                syn = Synapse()
+                syn.login()
+
+                my_project = Project(id="syn12345")
+                await my_project.sync_from_synapse_async(path="/path/to/folder", manifest="root", download_file=False)
+
+            asyncio.run(my_function())
+            ```
         Raises:
             ValueError: If the folder does not have an id set.
 
@@ -434,7 +465,7 @@ class StorableContainer(StorableContainerSynchronousProtocol):
         link_hops: int = 1,
         queue: asyncio.Queue = None,
         include_types: Optional[List[str]] = None,
-        manifest: str = "all",
+        manifest: Literal["all", "suppress", "root"] = "all",
         *,
         synapse_client: Optional[Synapse] = None,
     ) -> Self:
@@ -451,8 +482,9 @@ class StorableContainer(StorableContainerSynchronousProtocol):
         )
 
         if manifest not in ("all", "root", "suppress"):
-            syn.logger.error(
-                f"[{self.id}:{self.name}]: Invalid manifest value: {manifest}"
+            raise ValueError(
+                f"[{self.id}:{self.name}]: Invalid manifest value: {manifest}. "
+                "Must be one of: 'all', 'root', 'suppress'."
             )
 
         path = os.path.expanduser(path) if path else None
@@ -517,9 +549,12 @@ class StorableContainer(StorableContainerSynchronousProtocol):
 
         if create_workers:
             try:
-                # Wait until the queue is fully processed.
+                # Blocks until every queued item has been picked up and
+                # task_done() called by a worker.
                 await queue.join()
             finally:
+                # Workers are now blocked waiting on an empty queue; cancel
+                # them so they don't hang the event loop.
                 for task in worker_tasks:
                     task.cancel()
 
