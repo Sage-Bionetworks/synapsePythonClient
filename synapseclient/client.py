@@ -5853,11 +5853,7 @@ class Synapse(object):
             min_remaining_life=min_remaining_life,
         )
 
-    @deprecated(
-        version="4.12.0",
-        reason="To be removed in 5.0.0. "
-        "Use `StorageLocation.setup_s3(...)` from synapseclient.models instead.",
-    )
+    @deprecated(version="4.12.0", reason="To be removed in 5.0.0. ")
     def create_s3_storage_location(
         self,
         *,
@@ -5901,8 +5897,7 @@ class Synapse(object):
 
     @deprecated(
         version="4.12.0",
-        reason="To be removed in 5.0.0. "
-        "Use `StorageLocation.setup_s3_async(...)` from synapseclient.models instead.",
+        reason="To be removed in 5.0.0. ",
     )
     async def create_s3_storage_location_async(
         self,
