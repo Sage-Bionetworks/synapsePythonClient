@@ -486,8 +486,6 @@ class TestDownloadFilesAsync:
 
 class TestGetManifestAsync:
     """Integration tests for DownloadList.get_manifest_async.
-
-    - test_get_manifest_with_custom_csv_descriptor: tab-separated descriptor produces TSV
     """
 
     async def test_get_manifest_with_custom_csv_descriptor(
@@ -498,8 +496,19 @@ class TestGetManifestAsync:
         scheduled_for_cart_removal: list,
     ) -> None:
         """get_manifest_async() respects a custom CsvTableDescriptor."""
-        # GIVEN a cart containing one of our files
-        file = await _create_test_file(project, syn, schedule_for_cleanup)
+        # GIVEN a cart containing a file whose name contains the quote
+        # character, so the writer must emit the escape character
+        path = utils.make_bogus_uuid_file()
+        schedule_for_cleanup(path)
+        uuid_suffix = str(uuid.uuid4())
+        file_name = f"it's_{uuid_suffix}"
+        file = File(
+            parent_id=project["id"],
+            path=path,
+            name=file_name,
+        )
+        await file.store_async(synapse_client=syn)
+        schedule_for_cleanup(file.id)
         await _add_to_cart(file, syn, scheduled_for_cart_removal)
 
         # WHEN I request a manifest with all non-default descriptor options
@@ -516,24 +525,36 @@ class TestGetManifestAsync:
         )
         schedule_for_cleanup(manifest_path)
 
-        # THEN the downloaded file uses the custom descriptor settings
         with open(manifest_path, newline="") as f:
             content = f.read()
 
-        # AND tab separator is used
+        # THEN tab separator is used
         assert "\t" in content, "Expected tab separators in manifest"
 
-        # AND lines end with \n (not \r\n or other)
-        lines = content.split("\n")
-        lines = [line for line in lines if line]
+        # AND the escape character was used for the embedded quote in the file name
+        assert "/'" in content, (
+            f"Expected escape sequence /' in manifest (from escaping ' in file name), "
+            f"got: {content!r}"
+        )
 
-        # AND our file appears in the raw content (no header row)
-        assert len(lines) >= 1, "Expected at least one row in the manifest"
-        assert any(
-            file.id in line for line in lines
-        ), f"Expected {file.id} in manifest content"
+        # AND line endings are LF only (no CR)
+        assert "\r" not in content, "Expected LF-only line endings; found CR"
 
-        # AND the single-quote character is used for quoting
-        assert (
-            '"' not in content
-        ), "Expected single-quote quoting, but found double quotes in manifest"
+        # AND there is no header row -- the first non-empty line is the data row
+        lines = [line for line in content.split("\n") if line]
+        assert lines, "Expected at least one row in the manifest"
+        assert file.id in lines[0], (
+            f"Expected first line to be the data row containing {file.id} "
+            f"(no header), got: {lines[0]!r}"
+        )
+
+        # AND the name field is wrapped in single quotes (the writer quoted it
+        # because it contains the quote character)
+        fields = lines[0].split("\t")
+        name_field = next((f for f in fields if uuid_suffix in f), None)
+        assert name_field is not None, (
+            f"Name field containing {uuid_suffix!r} not found in {lines[0]!r}"
+        )
+        assert name_field.startswith("'") and name_field.endswith("'"), (
+            f"Expected name field wrapped in single quotes, got: {name_field!r}"
+        )
