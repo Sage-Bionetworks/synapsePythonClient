@@ -326,3 +326,140 @@ class TestDownloadFilesAsync:
                 SynapseHTTPError, match="No files available for download"
             ):
                 await DownloadList.download_files_async(synapse_client=syn)
+
+
+class TestDownloadManifestFile:
+    """Tests for DownloadList._download_manifest_file."""
+
+    async def test_success_annotates_row_and_returns_item(self, syn: Synapse) -> None:
+        """On success, the row is annotated with path/error and a DownloadListItem
+        is returned with the resolved entity id and version."""
+        # GIVEN a manifest row with a version and a mocked File whose
+        # get_async returns a file with a local path
+        row = {"ID": "syn111", "versionNumber": "2"}
+        mock_file = MagicMock()
+        mock_file.path = "/tmp/downloads/file_a.txt"
+        mock_file_cls = MagicMock(
+            return_value=MagicMock(get_async=AsyncMock(return_value=mock_file))
+        )
+        with patch(
+            "synapseclient.models.file.File",
+            mock_file_cls,
+        ):
+            # WHEN I call _download_manifest_file
+            result = await DownloadList._download_manifest_file(
+                row,
+                download_location="/tmp/downloads",
+                synapse_client=syn,
+            )
+
+        # THEN the File is constructed with the coerced int version and
+        # download_location as path
+        mock_file_cls.assert_called_once_with(
+            id="syn111",
+            version_number=2,
+            path="/tmp/downloads",
+        )
+        # AND the row is annotated with the local path and empty error
+        assert row["path"] == "/tmp/downloads/file_a.txt"
+        assert row["error"] == ""
+        # AND the returned DownloadListItem carries the entity id and version
+        assert result == DownloadListItem(file_entity_id="syn111", version_number=2)
+
+    @pytest.mark.parametrize(
+        "row",
+        [
+            pytest.param({"ID": "syn111"}, id="no_version_key"),
+            pytest.param({"ID": "syn111", "versionNumber": ""}, id="blank_version"),
+            pytest.param({"ID": "syn111", "versionNumber": None}, id="none_version"),
+        ],
+    )
+    async def test_missing_version_fetches_latest(
+        self, syn: Synapse, row: dict
+    ) -> None:
+        """A missing or blank versionNumber is passed through as None so
+        File.get_async fetches the latest version."""
+        # GIVEN a manifest row without a usable version and a mocked File
+        mock_file = MagicMock()
+        mock_file.path = "/tmp/downloads/latest.txt"
+        mock_file_cls = MagicMock(
+            return_value=MagicMock(get_async=AsyncMock(return_value=mock_file))
+        )
+        with patch(
+            "synapseclient.models.file.File",
+            mock_file_cls,
+        ):
+            # WHEN I call _download_manifest_file
+            result = await DownloadList._download_manifest_file(
+                row,
+                download_location="/tmp/downloads",
+                synapse_client=syn,
+            )
+
+        # THEN File is constructed with version_number=None (meaning latest)
+        mock_file_cls.assert_called_once_with(
+            id="syn111",
+            version_number=None,
+            path="/tmp/downloads",
+        )
+        # AND the row is annotated for success
+        assert row["path"] == "/tmp/downloads/latest.txt"
+        assert row["error"] == ""
+        # AND the returned DownloadListItem also carries version_number=None
+        assert result == DownloadListItem(
+            file_entity_id="syn111", version_number=None
+        )
+
+    async def test_get_async_failure_annotates_row_and_returns_none(
+        self, syn: Synapse
+    ) -> None:
+        """When File.get_async raises, the exception is swallowed, the row is
+        annotated with the error message, and None is returned so the batch
+        continues."""
+        # GIVEN a manifest row and a File whose get_async raises
+        row = {"ID": "syn999", "versionNumber": "1"}
+        error_message = "boom"
+        mock_file_cls = MagicMock(
+            return_value=MagicMock(
+                get_async=AsyncMock(side_effect=RuntimeError(error_message))
+            )
+        )
+        with patch(
+            "synapseclient.models.file.File",
+            mock_file_cls,
+        ):
+            # WHEN I call _download_manifest_file
+            result = await DownloadList._download_manifest_file(
+                row, synapse_client=syn
+            )
+
+        # THEN the row is annotated with the error message and empty path
+        assert row["path"] == ""
+        assert row["error"] == error_message
+        # AND None is returned (so the caller skips this row)
+        assert result is None
+
+    async def test_file_with_no_path_sets_row_path_empty(self, syn: Synapse) -> None:
+        """If get_async returns a file whose path is None, the row's path is
+        normalized to an empty string rather than the literal None."""
+        # GIVEN a mocked File whose returned instance has path=None
+        row = {"ID": "syn111", "versionNumber": "1"}
+        mock_file = MagicMock()
+        mock_file.path = None
+        mock_file_cls = MagicMock(
+            return_value=MagicMock(get_async=AsyncMock(return_value=mock_file))
+        )
+        with patch(
+            "synapseclient.models.file.File",
+            mock_file_cls,
+        ):
+            # WHEN I call _download_manifest_file
+            result = await DownloadList._download_manifest_file(
+                row, synapse_client=syn
+            )
+
+        # THEN the row's path is an empty string (not None)
+        assert row["path"] == ""
+        assert row["error"] == ""
+        # AND a DownloadListItem is still returned for the successful call
+        assert result == DownloadListItem(file_entity_id="syn111", version_number=1)

@@ -36,9 +36,6 @@ pip install -e ".[docs]" && mkdocs serve
 
 ## Conventions
 
-### Docstring style
-Do not use backticks (single or double) in docstrings. Write parameter names, method names, and values as plain text.
-
 ### Docstring examples format
 Use mkdocstrings admonition syntax. Start with a description line, then wrap code in a fenced python block. Examples should use sync methods (not async) and include login boilerplate. See evaluation.py for reference.
 

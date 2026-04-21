@@ -449,8 +449,9 @@ class DownloadList(DownloadListSynchronousProtocol):
         does not abort the entire batch.
 
         Arguments:
-            row: A manifest row dict. Must contain "ID" and "versionNumber"
-                keys. Modified in place to add "path" and "error" entries.
+            row: A manifest row dict. Must contain an "ID" key; "versionNumber"
+                is optional and defaults to the latest version when missing or
+                blank. Modified in place to add "path" and "error" entries.
             download_location: Directory to download the file to. Defaults to
                 the Synapse cache location if None.
             synapse_client: Optional Synapse client. Uses cached singleton if omitted.
@@ -465,13 +466,6 @@ class DownloadList(DownloadListSynchronousProtocol):
         entity_id = row[_ID_COLUMN]
         version_str = row.get(_VERSION_COLUMN)
         version_number = int(version_str) if version_str else None
-
-        if version_number is None:
-            msg = f"Manifest row for {entity_id} is missing versionNumber"
-            row[_PATH_COLUMN] = ""
-            row[_ERROR_COLUMN] = msg
-            client.logger.warning(msg)
-            return None
 
         try:
             file = await File(

@@ -18,8 +18,7 @@ import pytest
 import pytest_asyncio
 
 import synapseclient.core.utils as utils
-from synapseclient import Project as Synapse_Project
-from synapseclient import Synapse
+from synapseclient import Project, Synapse
 from synapseclient.core.exceptions import SynapseHTTPError
 from synapseclient.models import DownloadList, DownloadListItem, File
 from synapseclient.models.table_components import CsvTableDescriptor
@@ -35,7 +34,7 @@ async def scheduled_for_cart_removal(syn: Synapse):
 
 
 async def _create_test_file(
-    project: Synapse_Project,
+    project: Project,
     syn: Synapse,
     schedule_for_cleanup: Callable[..., None],
 ) -> File:
@@ -50,6 +49,19 @@ async def _create_test_file(
     await file.store_async(synapse_client=syn)
     schedule_for_cleanup(file.id)
     return file
+
+
+async def _upload_new_version(
+    file: File,
+    syn: Synapse,
+    schedule_for_cleanup: Callable[..., None],
+) -> int:
+    """Upload a new version of an existing file and return the new version number."""
+    new_path = utils.make_bogus_uuid_file()
+    schedule_for_cleanup(new_path)
+    file.path = new_path
+    await file.store_async(synapse_client=syn)
+    return file.version_number
 
 
 async def _add_to_cart(
@@ -67,84 +79,73 @@ async def _add_to_cart(
     scheduled_for_cart_removal.append(item)
 
 
-async def _cart_file_ids(
+async def _cart_entries(
     syn: Synapse,
     schedule_for_cleanup: Callable[..., None],
-) -> set[str]:
-    """Return the set of file ids currently in the user's cart.
+) -> set[tuple[str, int]]:
+    """Return all (file_id, version_number) pairs currently in the user's cart.
 
-    An empty cart (which makes get_manifest_async raise with
-    'No files available for download') returns an empty set.
+    Returns an empty set when the cart is empty. Synapse returns HTTP 400 with
+    the message 'No files available for download' in that case rather than
+    producing an empty CSV. If this string changes server-side, update it here
+    and in DownloadList.download_files_async's documented 'Raises' section.
+    See POST /download/list/manifest/async/start in the Synapse REST docs
+    (DownloadListController).
     """
     try:
         manifest_path = await DownloadList.get_manifest_async(synapse_client=syn)
     except SynapseHTTPError as e:
-        # Synapse returns HTTP 400 with this exact message when the cart is
-        # empty: the manifest async job fails rather than producing an empty
-        # CSV. If this string changes server-side, update it here and in
-        # DownloadList.download_files_async's documented "Raises" section.
-        # See POST /download/list/manifest/async/start in the Synapse REST
-        # docs (DownloadListController).
         if "No files available for download" in str(e):
             return set()
         raise
     schedule_for_cleanup(manifest_path)
     with open(manifest_path, newline="") as f:
-        return {row["ID"] for row in csv.DictReader(f)}
+        return {
+            (row["ID"], int(row["versionNumber"]))
+            for row in csv.DictReader(f)
+        }
 
 
 class TestAddFilesAsync:
     """Integration tests for DownloadList.add_files_async.
 
-    - test_add_files_multiple_files_and_versions: multiple files and versions added in one call
+    - test_adds_specific_version_of_each_file_in_one_call: multiple files and versions added in one call
     - test_add_files_with_no_version_number: version_number=None adds latest version
     """
 
-    async def test_add_files_multiple_files_and_versions(
+    async def test_adds_specific_version_of_each_file_in_one_call(
         self,
-        project: Synapse_Project,
+        project: Project,
         syn: Synapse,
         schedule_for_cleanup: Callable[..., None],
         scheduled_for_cart_removal: list,
     ) -> None:
         """add_files_async() adds multiple files with multiple versions in a single call."""
-        # GIVEN two files, each with two versions
+        # GIVEN two files, each with two versions; we'll select v1 of file_a and v2 of file_b
         file_a = await _create_test_file(project, syn, schedule_for_cleanup)
         file_a_v1 = file_a.version_number
-        new_path = utils.make_bogus_uuid_file()
-        schedule_for_cleanup(new_path)
-        file_a.path = new_path
-        await file_a.store_async(synapse_client=syn)
+        await _upload_new_version(file_a, syn, schedule_for_cleanup)
 
         file_b = await _create_test_file(project, syn, schedule_for_cleanup)
-        new_path = utils.make_bogus_uuid_file()
-        schedule_for_cleanup(new_path)
-        file_b.path = new_path
-        await file_b.store_async(synapse_client=syn)
+        await _upload_new_version(file_b, syn, schedule_for_cleanup)
         file_b_v2 = file_b.version_number
 
-        # WHEN I add one version of each file in one call
+        # WHEN I add file_a v1 and file_b v2 in one call
         items = [
             DownloadListItem(file_entity_id=file_a.id, version_number=file_a_v1),
             DownloadListItem(file_entity_id=file_b.id, version_number=file_b_v2),
         ]
         count = await DownloadList.add_files_async(files=items, synapse_client=syn)
         scheduled_for_cart_removal.extend(items)
+        cart_entries = {
+            e for e in await _cart_entries(syn, schedule_for_cleanup)
+            if e[0] in {file_a.id, file_b.id}
+        }
 
         # THEN the returned count is 2
         assert count == 2, f"Expected 2 files added, got {count}"
 
         # AND only the added versions appear in the manifest for these file ids
-        manifest_path = await DownloadList.get_manifest_async(synapse_client=syn)
-        schedule_for_cleanup(manifest_path)
-        with open(manifest_path, newline="") as f:
-            reader = csv.DictReader(f)
-            cart_entries = {
-                (row["ID"], int(row["versionNumber"]))
-                for row in reader
-                if row["ID"] in {file_a.id, file_b.id}
-            }
-
         assert cart_entries == {
             (file_a.id, file_a_v1),
             (file_b.id, file_b_v2),
@@ -152,7 +153,7 @@ class TestAddFilesAsync:
 
     async def test_add_files_with_no_version_number(
         self,
-        project: Synapse_Project,
+        project: Project,
         syn: Synapse,
         schedule_for_cleanup: Callable[..., None],
         scheduled_for_cart_removal: list,
@@ -161,12 +162,7 @@ class TestAddFilesAsync:
         # GIVEN a file with two versions
         file = await _create_test_file(project, syn, schedule_for_cleanup)
         v1 = file.version_number
-
-        new_path = utils.make_bogus_uuid_file()
-        schedule_for_cleanup(new_path)
-        file.path = new_path
-        await file.store_async(synapse_client=syn)
-        v2 = file.version_number
+        v2 = await _upload_new_version(file, syn, schedule_for_cleanup)
         assert v2 != v1, "Expected a new version number"
 
         # WHEN I add the file without specifying a version number
@@ -175,20 +171,18 @@ class TestAddFilesAsync:
             files=[item_no_version], synapse_client=syn
         )
         scheduled_for_cart_removal.append(item_no_version)
+        cart_entries = {
+            e for e in await _cart_entries(syn, schedule_for_cleanup)
+            if e[0] == file.id
+        }
 
         # THEN the file is added to the cart with the latest version
         assert count == 1, f"Expected 1 file added, got {count}"
 
-        manifest_path = await DownloadList.get_manifest_async(synapse_client=syn)
-        schedule_for_cleanup(manifest_path)
-        with open(manifest_path, newline="") as f:
-            reader = csv.DictReader(f)
-            rows = [r for r in reader if r["ID"] == file.id]
-
-        assert len(rows) == 1, f"Expected one row for {file.id}, got {len(rows)}"
-        assert (
-            int(rows[0]["versionNumber"]) == v2
-        ), f"Expected latest version {v2}, got {rows[0]['versionNumber']}"
+        # AND the file appears in the manifest at the latest version
+        assert cart_entries == {
+            (file.id, v2)
+        }, f"Expected one row for {file.id} at v{v2}, got {cart_entries}"
 
 
 class TestRemoveFilesAsync:
@@ -202,7 +196,7 @@ class TestRemoveFilesAsync:
 
     async def test_remove_files_removes_only_specified_files(
         self,
-        project: Synapse_Project,
+        project: Project,
         syn: Synapse,
         schedule_for_cleanup: Callable[..., None],
         scheduled_for_cart_removal: list,
@@ -211,19 +205,11 @@ class TestRemoveFilesAsync:
         # GIVEN two files, each with two versions
         file_a = await _create_test_file(project, syn, schedule_for_cleanup)
         file_a_v1 = file_a.version_number
-        new_path = utils.make_bogus_uuid_file()
-        schedule_for_cleanup(new_path)
-        file_a.path = new_path
-        await file_a.store_async(synapse_client=syn)
-        file_a_v2 = file_a.version_number
+        file_a_v2 = await _upload_new_version(file_a, syn, schedule_for_cleanup)
 
         file_b = await _create_test_file(project, syn, schedule_for_cleanup)
         file_b_v1 = file_b.version_number
-        new_path = utils.make_bogus_uuid_file()
-        schedule_for_cleanup(new_path)
-        file_b.path = new_path
-        await file_b.store_async(synapse_client=syn)
-        file_b_v2 = file_b.version_number
+        file_b_v2 = await _upload_new_version(file_b, syn, schedule_for_cleanup)
 
         # AND all four versions are added to the cart
         added = [
@@ -243,22 +229,16 @@ class TestRemoveFilesAsync:
             ],
             synapse_client=syn,
         )
+        our_ids = {file_a.id, file_b.id}
+        cart_entries = {
+            e for e in await _cart_entries(syn, schedule_for_cleanup)
+            if e[0] in our_ids
+        }
 
         # THEN exactly 2 items were removed
         assert removed == 2, f"Expected 2 files removed, got {removed}"
 
         # AND the manifest (filtered to our file ids) contains only file_a v2 and file_b v1
-        manifest_path = await DownloadList.get_manifest_async(synapse_client=syn)
-        schedule_for_cleanup(manifest_path)
-
-        with open(manifest_path, newline="") as f:
-            reader = csv.DictReader(f)
-            cart_entries = {
-                (row["ID"], int(row["versionNumber"]))
-                for row in reader
-                if row["ID"] in {file_a.id, file_b.id}
-            }
-
         assert cart_entries == {
             (file_a.id, file_a_v2),
             (file_b.id, file_b_v1),
@@ -266,7 +246,7 @@ class TestRemoveFilesAsync:
 
     async def test_remove_files_wrong_version_leaves_file_in_cart(
         self,
-        project: Synapse_Project,
+        project: Project,
         syn: Synapse,
         schedule_for_cleanup: Callable[..., None],
         scheduled_for_cart_removal: list,
@@ -289,12 +269,12 @@ class TestRemoveFilesAsync:
 
         # THEN no files are removed and the file remains in the cart
         assert removed == 0, f"Expected 0 files removed, got {removed}"
-        cart_ids = await _cart_file_ids(syn, schedule_for_cleanup)
+        cart_ids = {id_ for id_, _ in await _cart_entries(syn, schedule_for_cleanup)}
         assert file.id in cart_ids, f"Expected {file.id} to remain in the cart"
 
     async def test_remove_files_no_version_leaves_file_in_cart(
         self,
-        project: Synapse_Project,
+        project: Project,
         syn: Synapse,
         schedule_for_cleanup: Callable[..., None],
         scheduled_for_cart_removal: list,
@@ -314,12 +294,12 @@ class TestRemoveFilesAsync:
 
         # THEN no files are removed and the file remains in the cart
         assert removed == 0, f"Expected 0 files removed, got {removed}"
-        cart_ids = await _cart_file_ids(syn, schedule_for_cleanup)
+        cart_ids = {id_ for id_, _ in await _cart_entries(syn, schedule_for_cleanup)}
         assert file.id in cart_ids, f"Expected {file.id} to remain in the cart"
 
     async def test_remove_files_no_version_matches_no_version_entry(
         self,
-        project: Synapse_Project,
+        project: Project,
         syn: Synapse,
         schedule_for_cleanup: Callable[..., None],
         scheduled_for_cart_removal: list,
@@ -340,7 +320,7 @@ class TestRemoveFilesAsync:
 
         # THEN the file is reported as removed and no longer appears in the cart
         assert removed == 1, f"Expected 1 file removed, got {removed}"
-        cart_ids = await _cart_file_ids(syn, schedule_for_cleanup)
+        cart_ids = {id_ for id_, _ in await _cart_entries(syn, schedule_for_cleanup)}
         assert (
             file.id not in cart_ids
         ), f"Expected {file.id} to be absent from the cart"
@@ -358,7 +338,7 @@ class TestDownloadFilesAsync:
     async def test_download_files_downloads_and_removes_from_cart(
         self,
         parallel: bool,
-        project: Synapse_Project,
+        project: Project,
         syn: Synapse,
         schedule_for_cleanup: Callable[..., None],
         scheduled_for_cart_removal: list,
@@ -399,7 +379,7 @@ class TestDownloadFilesAsync:
                 ), f"File not downloaded: {row['path']}"
 
         # AND our files are no longer in the cart after successful downloads
-        cart_ids = await _cart_file_ids(syn, schedule_for_cleanup)
+        cart_ids = {id_ for id_, _ in await _cart_entries(syn, schedule_for_cleanup)}
         assert (
             file_a.id not in cart_ids
         ), f"Expected {file_a.id} to be removed from cart after download"
@@ -409,7 +389,7 @@ class TestDownloadFilesAsync:
 
     async def test_download_files_multiple_versions_of_same_file(
         self,
-        project: Synapse_Project,
+        project: Project,
         syn: Synapse,
         schedule_for_cleanup: Callable[..., None],
         scheduled_for_cart_removal: list,
@@ -419,13 +399,7 @@ class TestDownloadFilesAsync:
         file = await _create_test_file(project, syn, schedule_for_cleanup)
         v1_id = file.id
         v1_version = file.version_number
-
-        # Upload a new version of the same file
-        new_path = utils.make_bogus_uuid_file()
-        schedule_for_cleanup(new_path)
-        file.path = new_path
-        await file.store_async(synapse_client=syn)
-        v2_version = file.version_number
+        v2_version = await _upload_new_version(file, syn, schedule_for_cleanup)
         assert v2_version != v1_version, "Expected a new version number"
 
         items = [
@@ -463,14 +437,14 @@ class TestDownloadFilesAsync:
                 ), f"Error for version {row['versionNumber']}: {row['error']}"
 
         # AND our file is no longer in the cart
-        cart_ids = await _cart_file_ids(syn, schedule_for_cleanup)
+        cart_ids = {id_ for id_, _ in await _cart_entries(syn, schedule_for_cleanup)}
         assert (
             v1_id not in cart_ids
         ), f"Expected {v1_id} to be removed from cart after download"
 
     async def test_download_files_default_location(
         self,
-        project: Synapse_Project,
+        project: Project,
         syn: Synapse,
         schedule_for_cleanup: Callable[..., None],
         scheduled_for_cart_removal: list,
@@ -518,7 +492,7 @@ class TestGetManifestAsync:
 
     async def test_get_manifest_with_custom_csv_descriptor(
         self,
-        project: Synapse_Project,
+        project: Project,
         syn: Synapse,
         schedule_for_cleanup: Callable[..., None],
         scheduled_for_cart_removal: list,
