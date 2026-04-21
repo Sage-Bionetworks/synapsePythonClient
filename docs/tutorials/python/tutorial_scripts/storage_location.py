@@ -85,9 +85,6 @@ sftp_folder.set_storage_location(storage_location_id=sftp_storage.storage_locati
 # EXTERNAL_HTTPS shares the same underlying API type as EXTERNAL_SFTP but is used
 # when the external server is accessed over HTTPS rather than SFTP.
 # --8<-- [start:create_https_storage_location]
-my_https_folder = Folder(name="my-folder-for-https", parent_id=my_project.id)
-my_https_folder = my_https_folder.store()
-
 MY_HTTPS_URL = "https://my-https-server.example.com"
 
 https_storage = StorageLocation(
@@ -99,6 +96,10 @@ https_storage = StorageLocation(
 print(f"Created HTTPS storage location: {https_storage.storage_location_id}")
 print(f"storage location type: {https_storage.storage_type}")
 
+my_https_folder = Folder(name="my-folder-for-https", parent_id=my_project.id)
+my_https_folder = my_https_folder.store()
+
+# Set the storage location for the folder
 my_https_folder.set_storage_location(
     storage_location_id=https_storage.storage_location_id
 )
@@ -127,6 +128,7 @@ print(f"storage location type: {object_store_storage.storage_type}")
 object_store_folder = Folder(name="my-folder-for-object-store", parent_id=my_project.id)
 object_store_folder = object_store_folder.store()
 
+# Set the storage location for the folder
 object_store_folder.set_storage_location(
     storage_location_id=object_store_storage.storage_location_id
 )
@@ -135,8 +137,7 @@ object_store_folder.set_storage_location(
 # Step 8: Create a Proxy storage location
 # Use this when a proxy server controls access to the underlying storage.
 # --8<-- [start:create_proxy_storage_location]
-my_proxy_folder = Folder(name="my-folder-for-proxy", parent_id=my_project.id)
-my_proxy_folder = my_proxy_folder.store()
+
 MY_PROXY_URL = "https://my-proxy-server.example.com"
 proxy_storage = StorageLocation(
     storage_type=StorageLocationType.PROXY,
@@ -150,6 +151,10 @@ print(f"Created proxy storage location: {proxy_storage.storage_location_id}")
 print(f"  Proxy URL: {proxy_storage.proxy_url}")
 print(f"  Benefactor ID: {proxy_storage.benefactor_id}")
 
+my_proxy_folder = Folder(name="my-folder-for-proxy", parent_id=my_project.id)
+my_proxy_folder = my_proxy_folder.store()
+
+# Set the storage location for the folder
 my_proxy_folder.set_storage_location(
     storage_location_id=proxy_storage.storage_location_id
 )
@@ -165,7 +170,7 @@ print(f"Retrieved storage location ID: {retrieved_storage.storage_location_id}")
 print(f"Storage type: {retrieved_storage.storage_type}")
 print(f"Bucket: {retrieved_storage.bucket}")
 print(f"Base key: {retrieved_storage.base_key}")
-
+# --8<-- [end:retrieve_storage_location]
 
 # Step 10: Update a storage location
 
