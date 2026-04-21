@@ -1,12 +1,16 @@
 """Unit tests for DownloadList helper methods."""
 
 import csv
+import json
 from pathlib import Path
+from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
 
-from synapseclient.core.exceptions import SynapseError
-from synapseclient.models.download_list import DownloadList
+from synapseclient import Synapse
+from synapseclient.core.exceptions import SynapseError, SynapseHTTPError
+from synapseclient.models.download_list import DownloadList, DownloadListItem
+from synapseclient.models.table_components import CsvTableDescriptor
 
 
 class TestReadManifestRows:
@@ -156,3 +160,169 @@ class TestValidateAndExtendColumns:
         """Columns containing reserved names 'path' or 'error' raise SynapseError."""
         with pytest.raises(SynapseError, match="reserved column names"):
             DownloadList._validate_and_extend_columns(columns)
+
+
+class TestClearAsync:
+    """Tests for DownloadList.clear_async."""
+
+    async def test_clear_async(self, syn: Synapse) -> None:
+        """clear_async issues a DELETE to /download/list via the client."""
+        # GIVEN a mocked rest_delete_async on the client
+        with patch.object(
+            syn,
+            "rest_delete_async",
+            new_callable=AsyncMock,
+            return_value=None,
+        ) as mocked_delete:
+            # WHEN I call clear_async with an explicit client
+            result = await DownloadList.clear_async(synapse_client=syn)
+
+            # THEN the client issues a DELETE to /download/list
+            mocked_delete.assert_awaited_once_with("/download/list")
+            # AND the method returns None
+            assert result is None
+
+
+class TestAddFilesAsync:
+    """Tests for DownloadList.add_files_async."""
+
+    async def test_add_files_async(self, syn: Synapse) -> None:
+        """add_files_async POSTs the batch to /download/list/add and returns the count."""
+        # GIVEN a list of files to add and a mocked rest_post_async on the client
+        files = [
+            DownloadListItem(file_entity_id="syn111", version_number=1),
+            DownloadListItem(file_entity_id="syn222", version_number=None),
+        ]
+        with patch.object(
+            syn,
+            "rest_post_async",
+            new_callable=AsyncMock,
+            return_value={"numberOfFilesAdded": 2},
+        ) as mocked_post:
+            # WHEN I call add_files_async with an explicit client
+            result = await DownloadList.add_files_async(
+                files=files, synapse_client=syn
+            )
+
+            # THEN the client POSTs the batch to /download/list/add
+            mocked_post.assert_awaited_once()
+            call = mocked_post.await_args
+            assert call.args == ("/download/list/add",)
+            assert json.loads(call.kwargs["body"]) == {
+                "batchToAdd": [
+                    {"fileEntityId": "syn111", "versionNumber": 1},
+                    {"fileEntityId": "syn222", "versionNumber": None},
+                ]
+            }
+            # AND the method returns the number of files added
+            assert result == 2
+
+
+class TestRemoveFilesAsync:
+    """Tests for DownloadList.remove_files_async."""
+
+    async def test_remove_files_async(self, syn: Synapse) -> None:
+        """remove_files_async POSTs the batch to /download/list/remove and returns the count."""
+        # GIVEN a list of files to remove and a mocked rest_post_async on the client
+        files = [
+            DownloadListItem(file_entity_id="syn111", version_number=1),
+            DownloadListItem(file_entity_id="syn222", version_number=None),
+        ]
+        with patch.object(
+            syn,
+            "rest_post_async",
+            new_callable=AsyncMock,
+            return_value={"numberOfFilesRemoved": 2},
+        ) as mocked_post:
+            # WHEN I call remove_files_async with an explicit client
+            result = await DownloadList.remove_files_async(
+                files=files, synapse_client=syn
+            )
+
+            # THEN the client POSTs the batch to /download/list/remove
+            mocked_post.assert_awaited_once()
+            call = mocked_post.await_args
+            assert call.args == ("/download/list/remove",)
+            assert json.loads(call.kwargs["body"]) == {
+                "batchToRemove": [
+                    {"fileEntityId": "syn111", "versionNumber": 1},
+                    {"fileEntityId": "syn222", "versionNumber": None},
+                ]
+            }
+            # AND the method returns the number of files removed
+            assert result == 2
+
+
+class TestGetManifestAsync:
+    """Tests for DownloadList.get_manifest_async."""
+
+    async def test_get_manifest_async(self, syn: Synapse) -> None:
+        """get_manifest_async submits the request and returns the downloaded manifest path."""
+        # GIVEN a mocked DownloadListManifestRequest whose job populates manifest_path
+        manifest_path = "/tmp/manifest.csv"
+        mock_instance = MagicMock()
+        mock_instance.send_job_and_wait_async = AsyncMock(return_value=None)
+        mock_instance.manifest_path = manifest_path
+        descriptor = CsvTableDescriptor()
+        with patch(
+            "synapseclient.models.download_list.DownloadListManifestRequest",
+            return_value=mock_instance,
+        ) as mocked_request_cls:
+            # WHEN I call get_manifest_async with an explicit descriptor and destination
+            result = await DownloadList.get_manifest_async(
+                csv_table_descriptor=descriptor,
+                destination="/tmp/out",
+                synapse_client=syn,
+            )
+
+            # THEN the request is built with the provided descriptor
+            mocked_request_cls.assert_called_once_with(csv_table_descriptor=descriptor)
+            # AND the job is awaited once with the destination and client
+            mock_instance.send_job_and_wait_async.assert_awaited_once_with(
+                post_exchange_args={"destination": "/tmp/out"},
+                synapse_client=syn,
+            )
+            # AND the method returns the manifest path set by the job
+            assert result == manifest_path
+
+    async def test_get_manifest_async_no_file_produced(self, syn: Synapse) -> None:
+        """get_manifest_async raises SynapseError when the job finishes without a file."""
+        # GIVEN a mocked DownloadListManifestRequest whose job leaves manifest_path None
+        mock_instance = MagicMock()
+        mock_instance.send_job_and_wait_async = AsyncMock(return_value=None)
+        mock_instance.manifest_path = None
+        with patch(
+            "synapseclient.models.download_list.DownloadListManifestRequest",
+            return_value=mock_instance,
+        ):
+            # WHEN I call get_manifest_async
+            # THEN a SynapseError is raised
+            with pytest.raises(SynapseError, match="no local file was produced"):
+                await DownloadList.get_manifest_async(synapse_client=syn)
+
+
+class TestDownloadFilesAsync:
+    """Tests for DownloadList.download_files_async."""
+
+    async def test_empty_cart_propagates_synapse_http_error(
+        self, syn: Synapse
+    ) -> None:
+        """download_files_async propagates the server's 'No files available for
+        download' error when the cart is empty.
+
+        Synapse returns this error from the manifest async job rather than
+        returning an empty manifest, and the method must not swallow it.
+        """
+        # GIVEN get_manifest_async raises SynapseHTTPError (simulating an empty cart)
+        with patch.object(
+            DownloadList,
+            "get_manifest_async",
+            new_callable=AsyncMock,
+            side_effect=SynapseHTTPError("No files available for download"),
+        ):
+            # WHEN I call download_files_async
+            # THEN the error propagates to the caller unchanged
+            with pytest.raises(
+                SynapseHTTPError, match="No files available for download"
+            ):
+                await DownloadList.download_files_async(synapse_client=syn)
