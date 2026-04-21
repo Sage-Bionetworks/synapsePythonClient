@@ -172,7 +172,9 @@ class TestDownloadListAddAsync:
 
         # WHEN I add the file without specifying a version number
         item_no_version = DownloadListItem(file_entity_id=file.id)
-        count = await download_list_add_async(files=[item_no_version], synapse_client=syn)
+        count = await download_list_add_async(
+            files=[item_no_version], synapse_client=syn
+        )
         scheduled_for_cart_removal.append(item_no_version)
         cart_entries = {
             e for e in await _cart_entries(syn, schedule_for_cleanup) if e[0] == file.id

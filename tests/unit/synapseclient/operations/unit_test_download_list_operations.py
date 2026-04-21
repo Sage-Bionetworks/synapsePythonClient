@@ -291,7 +291,9 @@ class TestDownloadListManifestAsync:
             # AND the method returns the manifest path set by the job
             assert result == manifest_path
 
-    async def test_download_list_manifest_async_no_file_produced(self, syn: Synapse) -> None:
+    async def test_download_list_manifest_async_no_file_produced(
+        self, syn: Synapse
+    ) -> None:
         """download_list_manifest_async raises SynapseError when the job finishes without a file."""
         # GIVEN a mocked DownloadListManifestRequest whose job leaves manifest_path None
         mock_instance = MagicMock()
