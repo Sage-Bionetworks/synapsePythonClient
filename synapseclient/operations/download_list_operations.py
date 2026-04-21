@@ -348,12 +348,24 @@ async def download_list_files_async(
         download_location=download_location,
     )
 
-    # 5. Remove successfully downloaded files from the cart
+    # 5. Remove successfully downloaded files from the cart. The Synapse API
+    #    requires the (fileEntityId, versionNumber) pair at removal to match
+    #    exactly what was used at add time -- a no-version add is only matched
+    #    by a no-version remove. The manifest always carries a resolved
+    #    versionNumber, so a versioned remove silently fails (returns 0) for
+    #    entries that were added without a version. When that happens, retry
+    #    the same entity with version_number=None to match the no-version add.
     if downloaded_files:
-        await remove_from_download_list_async(
-            files=downloaded_files,
-            synapse_client=client,
-        )
+        for item in downloaded_files:
+            removed = await remove_from_download_list_async(
+                files=[item],
+                synapse_client=client,
+            )
+            if removed == 0:
+                await remove_from_download_list_async(
+                    files=[DownloadListItem(file_entity_id=item.file_entity_id)],
+                    synapse_client=client,
+                )
     else:
         client.logger.warning("A manifest was created, but no files were downloaded")
 

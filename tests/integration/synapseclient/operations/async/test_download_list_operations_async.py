@@ -333,6 +333,8 @@ class TestDownloadListFilesAsync:
     - test_download_list_files_downloads_and_removes_from_cart: sequential and parallel download
     - test_download_list_files_multiple_versions_of_same_file: two versions both download
     - test_download_list_files_default_location: omitting download_location writes to CWD
+    - test_download_list_files_no_version_add_is_removed_from_cart:
+      no-version add is downloaded and removed from the cart
     """
 
     @pytest.mark.parametrize("parallel", [False, True])
@@ -483,6 +485,48 @@ class TestDownloadListFilesAsync:
                 assert file_row["error"] == ""
             finally:
                 os.chdir(original_cwd)
+
+    async def test_download_list_files_no_version_add_is_removed_from_cart(
+        self,
+        project: Project,
+        syn: Synapse,
+        schedule_for_cleanup: Callable[..., None],
+        scheduled_for_cart_removal: list,
+    ) -> None:
+        """A file added to the cart without a version is downloaded
+        successfully and removed from the cart.
+        """
+        # GIVEN a file added to the cart without a version number
+        file = await _create_test_file(project, syn, schedule_for_cleanup)
+        item_no_version = DownloadListItem(file_entity_id=file.id)
+        await download_list_add_async(files=[item_no_version], synapse_client=syn)
+        scheduled_for_cart_removal.append(item_no_version)
+
+        # WHEN I download the cart contents
+        with tempfile.TemporaryDirectory() as tmpdir:
+            manifest_path = await download_list_files_async(
+                download_location=tmpdir,
+                synapse_client=syn,
+            )
+            schedule_for_cleanup(manifest_path)
+
+            # THEN the file is downloaded successfully (no error in the manifest)
+            with open(manifest_path, newline="") as f:
+                rows = [r for r in csv.DictReader(f) if r["ID"] == file.id]
+            assert len(rows) == 1, f"Expected 1 row for {file.id}, got {len(rows)}"
+            assert (
+                rows[0]["error"] == ""
+            ), f"Unexpected error for {file.id}: {rows[0]['error']}"
+            assert os.path.exists(
+                rows[0]["path"]
+            ), f"File not downloaded: {rows[0]['path']}"
+
+        # AND the file is removed from the cart after a successful download,
+        # even though it was added without a version number
+        cart_ids = {id_ for id_, _ in await _cart_entries(syn, schedule_for_cleanup)}
+        assert file.id not in cart_ids, (
+            f"Expected {file.id} to be removed from cart after download."
+        )
 
 
 class TestDownloadListManifestAsync:
