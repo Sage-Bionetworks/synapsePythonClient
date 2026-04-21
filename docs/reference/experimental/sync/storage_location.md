@@ -13,7 +13,6 @@ at your own risk.
         members:
         - store
         - get
-        - setup_s3
 
 ---
 

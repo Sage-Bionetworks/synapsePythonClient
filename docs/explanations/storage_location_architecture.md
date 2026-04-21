@@ -660,7 +660,6 @@ flowchart LR
 |-------------|--------------|
 | `StorageLocation.store()` | `StorageLocation.store_async()` |
 | `StorageLocation.get()` | `StorageLocation.get_async()` |
-| `StorageLocation.setup_s3()` | `StorageLocation.setup_s3_async()` |
 | `folder.set_storage_location()` | `folder.set_storage_location_async()` |
 | `folder.get_project_setting()` | `folder.get_project_setting_async()` |
 | `folder.delete_project_setting()` | `folder.delete_project_setting_async()` |
