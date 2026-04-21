@@ -1,4 +1,4 @@
-"""Unit tests for DownloadList helper methods."""
+"""Unit tests for download_list operation functions."""
 
 import csv
 import json
@@ -9,12 +9,22 @@ import pytest
 
 from synapseclient import Synapse
 from synapseclient.core.exceptions import SynapseError, SynapseHTTPError
-from synapseclient.models.download_list import DownloadList, DownloadListItem
 from synapseclient.models.table_components import CsvTableDescriptor
+from synapseclient.operations import DownloadListItem
+from synapseclient.operations.download_list_operations import (
+    _download_manifest_file,
+    _read_manifest_rows,
+    _validate_and_extend_columns,
+    download_list_add_async,
+    download_list_clear_async,
+    download_list_files_async,
+    download_list_manifest_async,
+    download_list_remove_async,
+)
 
 
 class TestReadManifestRows:
-    """Tests for DownloadList._read_manifest_rows."""
+    """Tests for _read_manifest_rows."""
 
     def _write_csv(self, tmp_path: Path, header: list[str], rows: list[dict]) -> str:
         path = str(tmp_path / "manifest.csv")
@@ -86,7 +96,7 @@ class TestReadManifestRows:
             f.write(csv_content)
 
         # WHEN I read the manifest
-        columns, rows = DownloadList._read_manifest_rows(path)
+        columns, rows = _read_manifest_rows(path)
 
         # THEN columns and row count match expectations
         assert columns == expected_columns
@@ -105,7 +115,7 @@ class TestReadManifestRows:
         path = self._write_csv(tmp_path, header, data)
 
         # WHEN I read the manifest
-        columns, rows = DownloadList._read_manifest_rows(path)
+        columns, rows = _read_manifest_rows(path)
 
         # THEN all 500 rows are returned
         assert columns == header
@@ -115,7 +125,7 @@ class TestReadManifestRows:
 
 
 class TestValidateAndExtendColumns:
-    """Tests for DownloadList._validate_and_extend_columns."""
+    """Tests for _validate_and_extend_columns."""
 
     @pytest.mark.parametrize(
         "columns, expected",
@@ -141,12 +151,12 @@ class TestValidateAndExtendColumns:
         self, columns: list[str], expected: list[str]
     ) -> None:
         """Valid columns are returned with path and error appended."""
-        assert DownloadList._validate_and_extend_columns(columns) == expected
+        assert _validate_and_extend_columns(columns) == expected
 
     def test_none_columns_raises(self) -> None:
         """None columns (empty manifest) raises SynapseError."""
         with pytest.raises(SynapseError, match="no headers"):
-            DownloadList._validate_and_extend_columns(None)
+            _validate_and_extend_columns(None)
 
     @pytest.mark.parametrize(
         "columns",
@@ -159,14 +169,14 @@ class TestValidateAndExtendColumns:
     def test_reserved_column_names_raise(self, columns: list[str]) -> None:
         """Columns containing reserved names 'path' or 'error' raise SynapseError."""
         with pytest.raises(SynapseError, match="reserved column names"):
-            DownloadList._validate_and_extend_columns(columns)
+            _validate_and_extend_columns(columns)
 
 
-class TestClearAsync:
-    """Tests for DownloadList.clear_async."""
+class TestDownloadListClearAsync:
+    """Tests for download_list_clear_async."""
 
-    async def test_clear_async(self, syn: Synapse) -> None:
-        """clear_async issues a DELETE to /download/list via the client."""
+    async def test_download_list_clear_async(self, syn: Synapse) -> None:
+        """download_list_clear_async issues a DELETE to /download/list via the client."""
         # GIVEN a mocked rest_delete_async on the client
         with patch.object(
             syn,
@@ -174,8 +184,8 @@ class TestClearAsync:
             new_callable=AsyncMock,
             return_value=None,
         ) as mocked_delete:
-            # WHEN I call clear_async with an explicit client
-            result = await DownloadList.clear_async(synapse_client=syn)
+            # WHEN I call download_list_clear_async with an explicit client
+            result = await download_list_clear_async(synapse_client=syn)
 
             # THEN the client issues a DELETE to /download/list
             mocked_delete.assert_awaited_once_with("/download/list")
@@ -183,11 +193,11 @@ class TestClearAsync:
             assert result is None
 
 
-class TestAddFilesAsync:
-    """Tests for DownloadList.add_files_async."""
+class TestDownloadListAddAsync:
+    """Tests for download_list_add_async."""
 
-    async def test_add_files_async(self, syn: Synapse) -> None:
-        """add_files_async POSTs the batch to /download/list/add and returns the count."""
+    async def test_download_list_add_async(self, syn: Synapse) -> None:
+        """download_list_add_async POSTs the batch to /download/list/add and returns the count."""
         # GIVEN a list of files to add and a mocked rest_post_async on the client
         files = [
             DownloadListItem(file_entity_id="syn111", version_number=1),
@@ -199,8 +209,8 @@ class TestAddFilesAsync:
             new_callable=AsyncMock,
             return_value={"numberOfFilesAdded": 2},
         ) as mocked_post:
-            # WHEN I call add_files_async with an explicit client
-            result = await DownloadList.add_files_async(files=files, synapse_client=syn)
+            # WHEN I call download_list_add_async with an explicit client
+            result = await download_list_add_async(files=files, synapse_client=syn)
 
             # THEN the client POSTs the batch to /download/list/add
             mocked_post.assert_awaited_once()
@@ -216,11 +226,11 @@ class TestAddFilesAsync:
             assert result == 2
 
 
-class TestRemoveFilesAsync:
-    """Tests for DownloadList.remove_files_async."""
+class TestDownloadListRemoveAsync:
+    """Tests for download_list_remove_async."""
 
-    async def test_remove_files_async(self, syn: Synapse) -> None:
-        """remove_files_async POSTs the batch to /download/list/remove and returns the count."""
+    async def test_download_list_remove_async(self, syn: Synapse) -> None:
+        """download_list_remove_async POSTs the batch to /download/list/remove and returns the count."""
         # GIVEN a list of files to remove and a mocked rest_post_async on the client
         files = [
             DownloadListItem(file_entity_id="syn111", version_number=1),
@@ -232,10 +242,8 @@ class TestRemoveFilesAsync:
             new_callable=AsyncMock,
             return_value={"numberOfFilesRemoved": 2},
         ) as mocked_post:
-            # WHEN I call remove_files_async with an explicit client
-            result = await DownloadList.remove_files_async(
-                files=files, synapse_client=syn
-            )
+            # WHEN I call download_list_remove_async with an explicit client
+            result = await download_list_remove_async(files=files, synapse_client=syn)
 
             # THEN the client POSTs the batch to /download/list/remove
             mocked_post.assert_awaited_once()
@@ -251,11 +259,11 @@ class TestRemoveFilesAsync:
             assert result == 2
 
 
-class TestGetManifestAsync:
-    """Tests for DownloadList.get_manifest_async."""
+class TestDownloadListManifestAsync:
+    """Tests for download_list_manifest_async."""
 
-    async def test_get_manifest_async(self, syn: Synapse) -> None:
-        """get_manifest_async submits the request and returns the downloaded manifest path."""
+    async def test_download_list_manifest_async(self, syn: Synapse) -> None:
+        """download_list_manifest_async submits the request and returns the downloaded manifest path."""
         # GIVEN a mocked DownloadListManifestRequest whose job populates manifest_path
         manifest_path = "/tmp/manifest.csv"
         mock_instance = MagicMock()
@@ -263,11 +271,11 @@ class TestGetManifestAsync:
         mock_instance.manifest_path = manifest_path
         descriptor = CsvTableDescriptor()
         with patch(
-            "synapseclient.models.download_list.DownloadListManifestRequest",
+            "synapseclient.operations.download_list_operations._DownloadListManifestRequest",
             return_value=mock_instance,
         ) as mocked_request_cls:
-            # WHEN I call get_manifest_async with an explicit descriptor and destination
-            result = await DownloadList.get_manifest_async(
+            # WHEN I call download_list_manifest_async with an explicit descriptor and destination
+            result = await download_list_manifest_async(
                 csv_table_descriptor=descriptor,
                 destination="/tmp/out",
                 synapse_client=syn,
@@ -283,49 +291,48 @@ class TestGetManifestAsync:
             # AND the method returns the manifest path set by the job
             assert result == manifest_path
 
-    async def test_get_manifest_async_no_file_produced(self, syn: Synapse) -> None:
-        """get_manifest_async raises SynapseError when the job finishes without a file."""
+    async def test_download_list_manifest_async_no_file_produced(self, syn: Synapse) -> None:
+        """download_list_manifest_async raises SynapseError when the job finishes without a file."""
         # GIVEN a mocked DownloadListManifestRequest whose job leaves manifest_path None
         mock_instance = MagicMock()
         mock_instance.send_job_and_wait_async = AsyncMock(return_value=None)
         mock_instance.manifest_path = None
         with patch(
-            "synapseclient.models.download_list.DownloadListManifestRequest",
+            "synapseclient.operations.download_list_operations._DownloadListManifestRequest",
             return_value=mock_instance,
         ):
-            # WHEN I call get_manifest_async
+            # WHEN I call download_list_manifest_async
             # THEN a SynapseError is raised
             with pytest.raises(SynapseError, match="no local file was produced"):
-                await DownloadList.get_manifest_async(synapse_client=syn)
+                await download_list_manifest_async(synapse_client=syn)
 
 
-class TestDownloadFilesAsync:
-    """Tests for DownloadList.download_files_async."""
+class TestDownloadListFilesAsync:
+    """Tests for download_list_files_async."""
 
     async def test_empty_cart_propagates_synapse_http_error(self, syn: Synapse) -> None:
-        """download_files_async propagates the server's 'No files available for
+        """download_list_files_async propagates the server's 'No files available for
         download' error when the cart is empty.
 
         Synapse returns this error from the manifest async job rather than
         returning an empty manifest, and the method must not swallow it.
         """
-        # GIVEN get_manifest_async raises SynapseHTTPError (simulating an empty cart)
-        with patch.object(
-            DownloadList,
-            "get_manifest_async",
+        # GIVEN download_list_manifest_async raises SynapseHTTPError (simulating an empty cart)
+        with patch(
+            "synapseclient.operations.download_list_operations.download_list_manifest_async",
             new_callable=AsyncMock,
             side_effect=SynapseHTTPError("No files available for download"),
         ):
-            # WHEN I call download_files_async
+            # WHEN I call download_list_files_async
             # THEN the error propagates to the caller unchanged
             with pytest.raises(
                 SynapseHTTPError, match="No files available for download"
             ):
-                await DownloadList.download_files_async(synapse_client=syn)
+                await download_list_files_async(synapse_client=syn)
 
 
 class TestDownloadManifestFile:
-    """Tests for DownloadList._download_manifest_file."""
+    """Tests for _download_manifest_file."""
 
     async def test_success_annotates_row_and_returns_item(self, syn: Synapse) -> None:
         """On success, the row is annotated with path/error and a DownloadListItem
@@ -343,7 +350,7 @@ class TestDownloadManifestFile:
             mock_file_cls,
         ):
             # WHEN I call _download_manifest_file
-            result = await DownloadList._download_manifest_file(
+            result = await _download_manifest_file(
                 row,
                 download_location="/tmp/downloads",
                 synapse_client=syn,
@@ -386,7 +393,7 @@ class TestDownloadManifestFile:
             mock_file_cls,
         ):
             # WHEN I call _download_manifest_file
-            result = await DownloadList._download_manifest_file(
+            result = await _download_manifest_file(
                 row,
                 download_location="/tmp/downloads",
                 synapse_client=syn,
@@ -423,7 +430,7 @@ class TestDownloadManifestFile:
             mock_file_cls,
         ):
             # WHEN I call _download_manifest_file
-            result = await DownloadList._download_manifest_file(row, synapse_client=syn)
+            result = await _download_manifest_file(row, synapse_client=syn)
 
         # THEN the row is annotated with the error message and empty path
         assert row["path"] == ""
@@ -446,7 +453,7 @@ class TestDownloadManifestFile:
             mock_file_cls,
         ):
             # WHEN I call _download_manifest_file
-            result = await DownloadList._download_manifest_file(row, synapse_client=syn)
+            result = await _download_manifest_file(row, synapse_client=syn)
 
         # THEN the row's path is an empty string (not None)
         assert row["path"] == ""

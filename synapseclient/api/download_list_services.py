@@ -7,7 +7,7 @@ from typing import TYPE_CHECKING, Optional
 
 if TYPE_CHECKING:
     from synapseclient import Synapse
-    from synapseclient.models.download_list import DownloadListItem
+    from synapseclient.operations.download_list_operations import DownloadListItem
 
 
 async def clear_download_list_async(

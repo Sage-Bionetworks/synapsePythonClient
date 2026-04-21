@@ -8,15 +8,16 @@ automatically, so interrupted runs are safely resumable.
 ## API Reference
 
 [](){ #download-list-reference-async }
-::: synapseclient.models.DownloadList
-    options:
-        inherited_members: true
-        members:
-        - download_files_async
-        - get_manifest_async
-        - add_files_async
-        - remove_files_async
-        - clear_async
+
+::: synapseclient.operations.download_list_files_async
+
+::: synapseclient.operations.download_list_manifest_async
+
+::: synapseclient.operations.download_list_add_async
+
+::: synapseclient.operations.download_list_remove_async
+
+::: synapseclient.operations.download_list_clear_async
 
 ---
 
@@ -24,6 +25,6 @@ automatically, so interrupted runs are safely resumable.
 ## DownloadListItem
 
 Identifies a specific file version in the download list. Used as input to
-add_files_async and remove_files_async.
+download_list_add_async and download_list_remove_async.
 
-::: synapseclient.models.DownloadListItem
+::: synapseclient.operations.DownloadListItem

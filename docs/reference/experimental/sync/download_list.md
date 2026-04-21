@@ -10,26 +10,26 @@ automatically, so interrupted runs are safely resumable.
 
 ```python
 from synapseclient import Synapse
-from synapseclient.models import DownloadList
+from synapseclient.operations import download_list_files
 
 syn = Synapse()
 syn.login()
 
 # Download all files in the cart to a local directory
-manifest_path = DownloadList.download_files(download_location="./downloads")
+manifest_path = download_list_files(download_location="./downloads")
 ```
 
 ## API Reference
 
-::: synapseclient.models.DownloadList
-    options:
-        inherited_members: true
-        members:
-        - download_files
-        - get_manifest
-        - add_files
-        - remove_files
-        - clear
+::: synapseclient.operations.download_list_files
+
+::: synapseclient.operations.download_list_manifest
+
+::: synapseclient.operations.download_list_add
+
+::: synapseclient.operations.download_list_remove
+
+::: synapseclient.operations.download_list_clear
 
 ---
 
@@ -37,6 +37,6 @@ manifest_path = DownloadList.download_files(download_location="./downloads")
 ## DownloadListItem
 
 Identifies a specific file version in the download list. Used as input to
-add_files and remove_files.
+download_list_add and download_list_remove.
 
-::: synapseclient.models.DownloadListItem
+::: synapseclient.operations.DownloadListItem

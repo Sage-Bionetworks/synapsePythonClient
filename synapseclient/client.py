@@ -3150,8 +3150,8 @@ class Synapse(object):
     @deprecated(
         version="4.13.0",
         reason=(
-            "Use `DownloadList.clear()` instead. "
-            "See synapseclient.models.DownloadList for the new OOP interface."
+            "Use `synapseclient.operations.download_list_clear()` instead. "
+            "See synapseclient.operations.download_list_operations for the new interface."
         ),
     )
     def clear_download_list(self):
@@ -3166,13 +3166,13 @@ class Synapse(object):
 
             # New approach (RECOMMENDED)
             from synapseclient import Synapse
-            from synapseclient.models import DownloadList
+            from synapseclient.operations import download_list_clear
 
             syn = Synapse()
             syn.login()
 
             # Clear all files from the download list
-            DownloadList.clear()
+            download_list_clear()
             ```
         """
         self.restDELETE("/download/list")
@@ -3180,8 +3180,8 @@ class Synapse(object):
     @deprecated(
         version="4.13.0",
         reason=(
-            "Use `DownloadList.remove_files(files)` instead. "
-            "See synapseclient.models.DownloadList for the new OOP interface."
+            "Use `synapseclient.operations.download_list_remove(files)` instead. "
+            "See synapseclient.operations.download_list_operations for the new interface."
         ),
     )
     def remove_from_download_list(self, list_of_files: typing.List[typing.Dict]) -> int:
@@ -3198,13 +3198,13 @@ class Synapse(object):
 
             # New approach (RECOMMENDED)
             from synapseclient import Synapse
-            from synapseclient.models import DownloadList, DownloadListItem
+            from synapseclient.operations import download_list_remove, DownloadListItem
 
             syn = Synapse()
             syn.login()
 
             # Remove specific file versions from the download list
-            DownloadList.remove_files([
+            download_list_remove([
                 DownloadListItem(file_entity_id="syn123", version_number=1),
             ])
             ```
@@ -3224,8 +3224,8 @@ class Synapse(object):
     @deprecated(
         version="4.13.0",
         reason=(
-            "Use `DownloadList.get_manifest()` instead. "
-            "See synapseclient.models.DownloadList for the new OOP interface."
+            "Use `synapseclient.operations.download_list_manifest()` instead. "
+            "See synapseclient.operations.download_list_operations for the new interface."
         ),
     )
     def _generate_manifest_from_download_list(
@@ -3247,13 +3247,13 @@ class Synapse(object):
 
             # New approach (RECOMMENDED)
             from synapseclient import Synapse
-            from synapseclient.models import DownloadList
+            from synapseclient.operations import download_list_manifest
 
             syn = Synapse()
             syn.login()
 
             # Generate and download the manifest CSV
-            manifest_path = DownloadList.get_manifest()
+            manifest_path = download_list_manifest()
             ```
 
         Arguments:
@@ -3283,8 +3283,8 @@ class Synapse(object):
     @deprecated(
         version="4.13.0",
         reason=(
-            "Use `DownloadList.get_manifest()` instead. "
-            "See synapseclient.models.DownloadList for the new OOP interface."
+            "Use `synapseclient.operations.download_list_manifest()` instead. "
+            "See synapseclient.operations.download_list_operations for the new interface."
         ),
     )
     def get_download_list_manifest(self):
@@ -3299,13 +3299,13 @@ class Synapse(object):
 
             # New approach (RECOMMENDED)
             from synapseclient import Synapse
-            from synapseclient.models import DownloadList
+            from synapseclient.operations import download_list_manifest
 
             syn = Synapse()
             syn.login()
 
             # Generate and download the manifest CSV
-            manifest_path = DownloadList.get_manifest()
+            manifest_path = download_list_manifest()
             ```
 
         Returns:
@@ -3334,8 +3334,8 @@ class Synapse(object):
     @deprecated(
         version="4.13.0",
         reason=(
-            "Use `DownloadList.download_files(download_location=...)` instead. "
-            "See synapseclient.models.DownloadList for the new OOP interface."
+            "Use `synapseclient.operations.download_list_files(download_location=...)` instead. "
+            "See synapseclient.operations.download_list_operations for the new interface."
         ),
     )
     def get_download_list(self, downloadLocation: str = None) -> str:
@@ -3350,13 +3350,13 @@ class Synapse(object):
 
             # New approach (RECOMMENDED)
             from synapseclient import Synapse
-            from synapseclient.models import DownloadList
+            from synapseclient.operations import download_list_files
 
             syn = Synapse()
             syn.login()
 
             # Download all files in the cart and get the result manifest path
-            manifest_path = DownloadList.download_files(download_location="./downloads")
+            manifest_path = download_list_files(download_location="./downloads")
             ```
 
         Arguments:

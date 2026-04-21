@@ -1,9 +1,9 @@
-"""Integration tests for DownloadList OOP model.
+"""Integration tests for download_list operation functions.
 
 The Synapse download list is a user-scoped resource: every test run against
 the same Synapse account shares one cart. To coexist with other tests and
 concurrent CI runs, these tests track the items they add and remove only
-those items on teardown, instead of calling clear_async() as a global
+those items on teardown, instead of calling download_list_clear_async() as a global
 reset. Assertions reason only about the test's own file ids, never about
 the cart being globally empty.
 """
@@ -20,8 +20,15 @@ import pytest_asyncio
 import synapseclient.core.utils as utils
 from synapseclient import Project, Synapse
 from synapseclient.core.exceptions import SynapseHTTPError
-from synapseclient.models import DownloadList, DownloadListItem, File
+from synapseclient.models import File
 from synapseclient.models.table_components import CsvTableDescriptor
+from synapseclient.operations import (
+    DownloadListItem,
+    download_list_add_async,
+    download_list_files_async,
+    download_list_manifest_async,
+    download_list_remove_async,
+)
 
 
 @pytest_asyncio.fixture
@@ -30,7 +37,7 @@ async def scheduled_for_cart_removal(syn: Synapse):
     scheduled: list[DownloadListItem] = []
     yield scheduled
     if scheduled:
-        await DownloadList.remove_files_async(files=scheduled, synapse_client=syn)
+        await download_list_remove_async(files=scheduled, synapse_client=syn)
 
 
 async def _create_test_file(
@@ -75,7 +82,7 @@ async def _add_to_cart(
         file_entity_id=file.id,
         version_number=file.version_number,
     )
-    await DownloadList.add_files_async(files=[item], synapse_client=syn)
+    await download_list_add_async(files=[item], synapse_client=syn)
     scheduled_for_cart_removal.append(item)
 
 
@@ -88,12 +95,12 @@ async def _cart_entries(
     Returns an empty set when the cart is empty. Synapse returns HTTP 400 with
     the message 'No files available for download' in that case rather than
     producing an empty CSV. If this string changes server-side, update it here
-    and in DownloadList.download_files_async's documented 'Raises' section.
+    and in download_list_files_async's documented 'Raises' section.
     See POST /download/list/manifest/async/start in the Synapse REST docs
     (DownloadListController).
     """
     try:
-        manifest_path = await DownloadList.get_manifest_async(synapse_client=syn)
+        manifest_path = await download_list_manifest_async(synapse_client=syn)
     except SynapseHTTPError as e:
         if "No files available for download" in str(e):
             return set()
@@ -103,11 +110,11 @@ async def _cart_entries(
         return {(row["ID"], int(row["versionNumber"])) for row in csv.DictReader(f)}
 
 
-class TestAddFilesAsync:
-    """Integration tests for DownloadList.add_files_async.
+class TestDownloadListAddAsync:
+    """Integration tests for download_list_add_async.
 
     - test_adds_specific_version_of_each_file_in_one_call: multiple files and versions added in one call
-    - test_add_files_with_no_version_number: version_number=None adds latest version
+    - test_download_list_add_with_no_version_number: version_number=None adds latest version
     """
 
     async def test_adds_specific_version_of_each_file_in_one_call(
@@ -117,7 +124,7 @@ class TestAddFilesAsync:
         schedule_for_cleanup: Callable[..., None],
         scheduled_for_cart_removal: list,
     ) -> None:
-        """add_files_async() adds multiple files with multiple versions in a single call."""
+        """download_list_add_async() adds multiple files with multiple versions in a single call."""
         # GIVEN two files, each with two versions; we'll select v1 of file_a and v2 of file_b
         file_a = await _create_test_file(project, syn, schedule_for_cleanup)
         file_a_v1 = file_a.version_number
@@ -132,7 +139,7 @@ class TestAddFilesAsync:
             DownloadListItem(file_entity_id=file_a.id, version_number=file_a_v1),
             DownloadListItem(file_entity_id=file_b.id, version_number=file_b_v2),
         ]
-        count = await DownloadList.add_files_async(files=items, synapse_client=syn)
+        count = await download_list_add_async(files=items, synapse_client=syn)
         scheduled_for_cart_removal.extend(items)
         cart_entries = {
             e
@@ -149,14 +156,14 @@ class TestAddFilesAsync:
             (file_b.id, file_b_v2),
         }, f"Unexpected cart contents for test files: {cart_entries}"
 
-    async def test_add_files_with_no_version_number(
+    async def test_download_list_add_with_no_version_number(
         self,
         project: Project,
         syn: Synapse,
         schedule_for_cleanup: Callable[..., None],
         scheduled_for_cart_removal: list,
     ) -> None:
-        """add_files_async() with version_number=None adds the latest version."""
+        """download_list_add_async() with version_number=None adds the latest version."""
         # GIVEN a file with two versions
         file = await _create_test_file(project, syn, schedule_for_cleanup)
         v1 = file.version_number
@@ -165,9 +172,7 @@ class TestAddFilesAsync:
 
         # WHEN I add the file without specifying a version number
         item_no_version = DownloadListItem(file_entity_id=file.id)
-        count = await DownloadList.add_files_async(
-            files=[item_no_version], synapse_client=syn
-        )
+        count = await download_list_add_async(files=[item_no_version], synapse_client=syn)
         scheduled_for_cart_removal.append(item_no_version)
         cart_entries = {
             e for e in await _cart_entries(syn, schedule_for_cleanup) if e[0] == file.id
@@ -182,23 +187,23 @@ class TestAddFilesAsync:
         }, f"Expected one row for {file.id} at v{v2}, got {cart_entries}"
 
 
-class TestRemoveFilesAsync:
-    """Integration tests for DownloadList.remove_files_async.
+class TestDownloadListRemoveAsync:
+    """Integration tests for download_list_remove_async.
 
-    - test_remove_files_removes_only_specified_files: selective version removal
-    - test_remove_files_wrong_version_leaves_file_in_cart: wrong version is a no-op
-    - test_remove_files_no_version_leaves_file_in_cart: omitted version does not match explicit version
-    - test_remove_files_no_version_matches_no_version_entry: omitted version removes no-version entry
+    - test_download_list_remove_removes_only_specified_files: selective version removal
+    - test_download_list_remove_wrong_version_leaves_file_in_cart: wrong version is a no-op
+    - test_download_list_remove_no_version_leaves_file_in_cart: omitted version does not match explicit version
+    - test_download_list_remove_no_version_matches_no_version_entry: omitted version removes no-version entry
     """
 
-    async def test_remove_files_removes_only_specified_files(
+    async def test_download_list_remove_removes_only_specified_files(
         self,
         project: Project,
         syn: Synapse,
         schedule_for_cleanup: Callable[..., None],
         scheduled_for_cart_removal: list,
     ) -> None:
-        """remove_files() removes only the specified file versions, not others."""
+        """download_list_remove_async() removes only the specified file versions, not others."""
         # GIVEN two files, each with two versions
         file_a = await _create_test_file(project, syn, schedule_for_cleanup)
         file_a_v1 = file_a.version_number
@@ -215,11 +220,11 @@ class TestRemoveFilesAsync:
             DownloadListItem(file_entity_id=file_b.id, version_number=file_b_v1),
             DownloadListItem(file_entity_id=file_b.id, version_number=file_b_v2),
         ]
-        await DownloadList.add_files_async(files=added, synapse_client=syn)
+        await download_list_add_async(files=added, synapse_client=syn)
         scheduled_for_cart_removal.extend(added)
 
         # WHEN I remove file_a v1 and file_b v2
-        removed = await DownloadList.remove_files_async(
+        removed = await download_list_remove_async(
             files=[
                 DownloadListItem(file_entity_id=file_a.id, version_number=file_a_v1),
                 DownloadListItem(file_entity_id=file_b.id, version_number=file_b_v2),
@@ -240,20 +245,20 @@ class TestRemoveFilesAsync:
             (file_b.id, file_b_v1),
         }, f"Unexpected cart contents for test files: {cart_entries}"
 
-    async def test_remove_files_wrong_version_leaves_file_in_cart(
+    async def test_download_list_remove_wrong_version_leaves_file_in_cart(
         self,
         project: Project,
         syn: Synapse,
         schedule_for_cleanup: Callable[..., None],
         scheduled_for_cart_removal: list,
     ) -> None:
-        """remove_files() with a wrong version is a no-op -- the file stays in the cart."""
+        """download_list_remove_async() with a wrong version is a no-op -- the file stays in the cart."""
         # GIVEN a cart entry for a file (added with an explicit version)
         file = await _create_test_file(project, syn, schedule_for_cleanup)
         await _add_to_cart(file, syn, scheduled_for_cart_removal)
 
         # WHEN I try to remove the file with a wrong version number
-        removed = await DownloadList.remove_files_async(
+        removed = await download_list_remove_async(
             files=[
                 DownloadListItem(
                     file_entity_id=file.id,
@@ -268,14 +273,14 @@ class TestRemoveFilesAsync:
         cart_ids = {id_ for id_, _ in await _cart_entries(syn, schedule_for_cleanup)}
         assert file.id in cart_ids, f"Expected {file.id} to remain in the cart"
 
-    async def test_remove_files_no_version_leaves_file_in_cart(
+    async def test_download_list_remove_no_version_leaves_file_in_cart(
         self,
         project: Project,
         syn: Synapse,
         schedule_for_cleanup: Callable[..., None],
         scheduled_for_cart_removal: list,
     ) -> None:
-        """remove_files() with no version does not match a cart entry that was
+        """download_list_remove_async() with no version does not match a cart entry that was
         added with an explicit version -- the API requires an exact
         (fileEntityId, versionNumber) pair."""
         # GIVEN a cart entry for a file (added with an explicit version)
@@ -283,7 +288,7 @@ class TestRemoveFilesAsync:
         await _add_to_cart(file, syn, scheduled_for_cart_removal)
 
         # WHEN I try to remove the file without specifying a version
-        removed = await DownloadList.remove_files_async(
+        removed = await download_list_remove_async(
             files=[DownloadListItem(file_entity_id=file.id)],
             synapse_client=syn,
         )
@@ -293,23 +298,23 @@ class TestRemoveFilesAsync:
         cart_ids = {id_ for id_, _ in await _cart_entries(syn, schedule_for_cleanup)}
         assert file.id in cart_ids, f"Expected {file.id} to remain in the cart"
 
-    async def test_remove_files_no_version_matches_no_version_entry(
+    async def test_download_list_remove_no_version_matches_no_version_entry(
         self,
         project: Project,
         syn: Synapse,
         schedule_for_cleanup: Callable[..., None],
         scheduled_for_cart_removal: list,
     ) -> None:
-        """remove_files() with no version removes a cart entry that was also
+        """download_list_remove_async() with no version removes a cart entry that was also
         added without a version."""
         # GIVEN a cart entry for a file added without a version number
         file = await _create_test_file(project, syn, schedule_for_cleanup)
         item_no_version = DownloadListItem(file_entity_id=file.id)
-        await DownloadList.add_files_async(files=[item_no_version], synapse_client=syn)
+        await download_list_add_async(files=[item_no_version], synapse_client=syn)
         scheduled_for_cart_removal.append(item_no_version)
 
         # WHEN I remove the file without specifying a version
-        removed = await DownloadList.remove_files_async(
+        removed = await download_list_remove_async(
             files=[DownloadListItem(file_entity_id=file.id)],
             synapse_client=syn,
         )
@@ -320,16 +325,16 @@ class TestRemoveFilesAsync:
         assert file.id not in cart_ids, f"Expected {file.id} to be absent from the cart"
 
 
-class TestDownloadFilesAsync:
-    """Integration tests for DownloadList.download_files_async.
+class TestDownloadListFilesAsync:
+    """Integration tests for download_list_files_async.
 
-    - test_download_files_downloads_and_removes_from_cart: sequential and parallel download
-    - test_download_files_multiple_versions_of_same_file: two versions both download
-    - test_download_files_default_location: omitting download_location writes to CWD
+    - test_download_list_files_downloads_and_removes_from_cart: sequential and parallel download
+    - test_download_list_files_multiple_versions_of_same_file: two versions both download
+    - test_download_list_files_default_location: omitting download_location writes to CWD
     """
 
     @pytest.mark.parametrize("parallel", [False, True])
-    async def test_download_files_downloads_and_removes_from_cart(
+    async def test_download_list_files_downloads_and_removes_from_cart(
         self,
         parallel: bool,
         project: Project,
@@ -346,7 +351,7 @@ class TestDownloadFilesAsync:
 
         # WHEN I download the files
         with tempfile.TemporaryDirectory() as tmpdir:
-            manifest_path = await DownloadList.download_files_async(
+            manifest_path = await download_list_files_async(
                 download_location=tmpdir,
                 parallel=parallel,
                 synapse_client=syn,
@@ -381,7 +386,7 @@ class TestDownloadFilesAsync:
             file_b.id not in cart_ids
         ), f"Expected {file_b.id} to be removed from cart after download"
 
-    async def test_download_files_multiple_versions_of_same_file(
+    async def test_download_list_files_multiple_versions_of_same_file(
         self,
         project: Project,
         syn: Synapse,
@@ -400,12 +405,12 @@ class TestDownloadFilesAsync:
             DownloadListItem(file_entity_id=v1_id, version_number=v1_version),
             DownloadListItem(file_entity_id=v1_id, version_number=v2_version),
         ]
-        await DownloadList.add_files_async(files=items, synapse_client=syn)
+        await download_list_add_async(files=items, synapse_client=syn)
         scheduled_for_cart_removal.extend(items)
 
         # WHEN I download the cart
         with tempfile.TemporaryDirectory() as tmpdir:
-            manifest_path = await DownloadList.download_files_async(
+            manifest_path = await download_list_files_async(
                 download_location=tmpdir,
                 synapse_client=syn,
             )
@@ -436,14 +441,14 @@ class TestDownloadFilesAsync:
             v1_id not in cart_ids
         ), f"Expected {v1_id} to be removed from cart after download"
 
-    async def test_download_files_default_location(
+    async def test_download_list_files_default_location(
         self,
         project: Project,
         syn: Synapse,
         schedule_for_cleanup: Callable[..., None],
         scheduled_for_cart_removal: list,
     ) -> None:
-        """download_files_async() with download_location=None writes to CWD."""
+        """download_list_files_async() with download_location=None writes to CWD."""
         # GIVEN a cart containing one of our files
         file = await _create_test_file(project, syn, schedule_for_cleanup)
         await _add_to_cart(file, syn, scheduled_for_cart_removal)
@@ -453,7 +458,7 @@ class TestDownloadFilesAsync:
             original_cwd = os.getcwd()
             try:
                 os.chdir(tmpdir)
-                manifest_path = await DownloadList.download_files_async(
+                manifest_path = await download_list_files_async(
                     synapse_client=syn,
                 )
                 schedule_for_cleanup(manifest_path)
@@ -478,17 +483,17 @@ class TestDownloadFilesAsync:
                 os.chdir(original_cwd)
 
 
-class TestGetManifestAsync:
-    """Integration tests for DownloadList.get_manifest_async."""
+class TestDownloadListManifestAsync:
+    """Integration tests for download_list_manifest_async."""
 
-    async def test_get_manifest_with_custom_csv_descriptor(
+    async def test_download_list_manifest_with_custom_csv_descriptor(
         self,
         project: Project,
         syn: Synapse,
         schedule_for_cleanup: Callable[..., None],
         scheduled_for_cart_removal: list,
     ) -> None:
-        """get_manifest_async() respects a custom CsvTableDescriptor."""
+        """download_list_manifest_async() respects a custom CsvTableDescriptor."""
         # GIVEN a cart containing a file whose name contains the quote
         # character, so the writer must emit the escape character
         path = utils.make_bogus_uuid_file()
@@ -512,7 +517,7 @@ class TestGetManifestAsync:
             line_end="\n",
             is_first_line_header=False,
         )
-        manifest_path = await DownloadList.get_manifest_async(
+        manifest_path = await download_list_manifest_async(
             csv_table_descriptor=descriptor,
             synapse_client=syn,
         )

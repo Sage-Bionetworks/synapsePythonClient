@@ -15,7 +15,6 @@ from synapseclient.models.curation import (
 )
 from synapseclient.models.dataset import Dataset, DatasetCollection, EntityRef
 from synapseclient.models.docker import DockerRepository
-from synapseclient.models.download_list import DownloadList, DownloadListItem
 from synapseclient.models.entityview import EntityView, ViewTypeMask
 from synapseclient.models.evaluation import Evaluation
 from synapseclient.models.file import File, FileHandle
@@ -136,19 +135,6 @@ __all__ = [
     "Row",
     "RowSet",
     "SelectColumn",
-    # Download List models
-    "DownloadList",
-    "DownloadListItem",
-    "download_files_async",
-    "download_files",
-    "get_manifest_async",
-    "get_manifest",
-    "add_files_async",
-    "add_files",
-    "remove_files_async",
-    "remove_files",
-    "clear_async",
-    "clear",
     # Dataset models
     "Dataset",
     "EntityRef",
@@ -176,13 +162,3 @@ query_async = QueryMixin.query_async
 query = QueryMixin.query
 query_part_mask_async = QueryMixin.query_part_mask_async
 query_part_mask = QueryMixin.query_part_mask
-download_files_async = DownloadList.download_files_async
-download_files = DownloadList.download_files
-get_manifest_async = DownloadList.get_manifest_async
-get_manifest = DownloadList.get_manifest
-add_files_async = DownloadList.add_files_async
-add_files = DownloadList.add_files
-remove_files_async = DownloadList.remove_files_async
-remove_files = DownloadList.remove_files
-clear_async = DownloadList.clear_async
-clear = DownloadList.clear
