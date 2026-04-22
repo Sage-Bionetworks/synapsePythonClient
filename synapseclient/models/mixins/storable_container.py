@@ -558,7 +558,7 @@ class StorableContainer(StorableContainerSynchronousProtocol):
                 for task in worker_tasks:
                     task.cancel()
 
-        if create_workers and path and manifest != "suppress":
+        if path and manifest != "suppress":
             if manifest == "all":
                 for (
                     directory_path,
@@ -1186,6 +1186,7 @@ class StorableContainer(StorableContainerSynchronousProtocol):
             synapse_client=synapse_client,
             queue=queue,
             include_types=include_types,
+            manifest="suppress",  # suppress manifest generation for recursive calls since the root covers the path already in map_directory_to_all_contained_files
         )
 
     def _create_task_for_child(
