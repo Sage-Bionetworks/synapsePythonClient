@@ -22,6 +22,7 @@ from synapseclient.api import (
 )
 from synapseclient.core.async_utils import (
     async_to_sync,
+    otel_trace_method,
     skip_async_to_sync,
     wrap_async_generator_to_sync_generator,
 )
@@ -1990,6 +1991,9 @@ class Grid(GridSynchronousProtocol):
             synapse_client=synapse_client,
         )
 
+    @otel_trace_method(
+        method_to_trace_name=lambda self, **kwargs: f"Grid_Delete: ID: {self.session_id}"
+    )
     async def delete_async(self, *, synapse_client: Optional[Synapse] = None) -> None:
         """
         Delete the grid session.
@@ -2040,6 +2044,9 @@ class Grid(GridSynchronousProtocol):
             session_id=self.session_id, synapse_client=synapse_client
         )
 
+    @otel_trace_method(
+        method_to_trace_name=lambda self, **kwargs: f"Grid_ImportCsv: ID: {self.session_id}"
+    )
     async def import_csv_async(
         self,
         file_handle_id: str,
