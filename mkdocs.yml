@@ -117,6 +117,7 @@ nav:
           - Wiki: reference/experimental/sync/wiki.md
           - FormGroup and Form: reference/experimental/sync/form.md
           - StorageLocation: reference/experimental/sync/storage_location.md
+          - Download List: reference/experimental/sync/download_list.md
           - Extensions:
               - Curator: reference/extensions/curator.md
           - Asynchronous:
@@ -146,6 +147,7 @@ nav:
               - Wiki: reference/experimental/async/wiki.md
               - FormGroup and Form: reference/experimental/async/form.md
               - StorageLocation: reference/experimental/async/storage_location.md
+              - Download List: reference/experimental/async/download_list.md
           - Mixins:
               - AccessControllable: reference/experimental/mixins/access_controllable.md
               - StorableContainer: reference/experimental/mixins/storable_container.md

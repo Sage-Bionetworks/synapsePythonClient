@@ -133,12 +133,9 @@ RECORD_BASED_METADATA_TASK_PROPERTIES = (
     "org.sagebionetworks.repo.model.curation.metadata.RecordBasedMetadataTaskProperties"
 )
 
-# Download List Types
+# Download List
 DOWNLOAD_LIST_MANIFEST_REQUEST = (
     "org.sagebionetworks.repo.model.download.DownloadListManifestRequest"
-)
-DOWNLOAD_LIST_MANIFEST_RESPONSE = (
-    "org.sagebionetworks.repo.model.download.DownloadListManifestResponse"
 )
 
 # Grid Session Types
