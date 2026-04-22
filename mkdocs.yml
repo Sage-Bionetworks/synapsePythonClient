@@ -114,6 +114,7 @@ nav:
           - JSONSchema: reference/experimental/sync/json_schema.md
           - Wiki: reference/experimental/sync/wiki.md
           - FormGroup and Form: reference/experimental/sync/form.md
+          - Download List: reference/experimental/sync/download_list.md
           - Extensions:
               - Curator: reference/extensions/curator.md
           - Asynchronous:
@@ -142,6 +143,7 @@ nav:
               - JSONSchema: reference/experimental/async/json_schema.md
               - Wiki: reference/experimental/async/wiki.md
               - FormGroup and Form: reference/experimental/async/form.md
+              - Download List: reference/experimental/async/download_list.md
           - Mixins:
               - AccessControllable: reference/experimental/mixins/access_controllable.md
               - StorableContainer: reference/experimental/mixins/storable_container.md
