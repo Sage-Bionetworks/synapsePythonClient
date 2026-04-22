@@ -953,7 +953,7 @@ class TestGrid:
         ):
             with pytest.raises(
                 ValueError,
-                match="No columns were detected in the CSV file when previewing for import.",
+                match=rf"CSV preview for file handle {FILE_HANDLE_ID} returned no suggested columns \(rows scanned: 0\).*separator=';'",
             ):
                 await grid.import_csv_async(
                     synapse_client=self.syn,
