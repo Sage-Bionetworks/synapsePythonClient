@@ -1028,7 +1028,7 @@ class GridCsvImportRequest(AsynchronousCommunicator):
     """The number of rows that were updated."""
 
     def fill_from_dict(
-        self, synapse_response: Union[Dict[str, Any], Any]
+        self, synapse_response: Dict[str, Any]
     ) -> "GridCsvImportRequest":
         """
         Converts a response from the REST API into this dataclass.
@@ -1101,7 +1101,7 @@ class UploadToTablePreviewRequest(AsynchronousCommunicator):
     """The number of rows scanned from the file."""
 
     def fill_from_dict(
-        self, synapse_response: Union[Dict[str, Any], Any]
+        self, synapse_response: Dict[str, Any]
     ) -> "UploadToTablePreviewRequest":
         """
         Converts a response from the REST API into this dataclass.
@@ -2101,11 +2101,10 @@ class Grid(GridSynchronousProtocol):
             }
         )
 
-        if not csv_table_descriptor:
-            csv_table_descriptor = CsvTableDescriptor()
+        effective_descriptor = csv_table_descriptor or CsvTableDescriptor()
 
         upload_to_table_preview = UploadToTablePreviewRequest(
-            csv_table_descriptor=csv_table_descriptor,
+            csv_table_descriptor=effective_descriptor,
             upload_file_handle_id=file_handle_id,
         )
 
@@ -2114,14 +2113,18 @@ class Grid(GridSynchronousProtocol):
         )
         if not preview_response.suggested_columns:
             raise ValueError(
-                "No columns were detected in the CSV file when previewing for import. Please check that the file handle id is correct and that the file contains valid CSV data."
+                f"CSV preview for file handle {file_handle_id} returned no suggested "
+                f"columns (rows scanned: {preview_response.rows_scanned}). The file may "
+                f"be empty, contain only a header row, or use a separator different "
+                f"from the configured csv_table_descriptor "
+                f"(separator={repr(effective_descriptor.separator)})."
             )
 
         import_request = GridCsvImportRequest(
             session_id=self.session_id,
             file_handle_id=file_handle_id,
             schema=preview_response.suggested_columns,
-            csv_descriptor=csv_table_descriptor,
+            csv_descriptor=effective_descriptor,
         )
         import_response = await import_request.send_job_and_wait_async(
             timeout=timeout, synapse_client=synapse_client
