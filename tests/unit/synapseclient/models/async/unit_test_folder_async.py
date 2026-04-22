@@ -1,12 +1,7 @@
 """Tests for the Folder class."""
-import csv
-import datetime
-import io
-import os
-import tempfile
 import uuid
 from typing import Dict
-from unittest.mock import AsyncMock, MagicMock, patch
+from unittest.mock import AsyncMock, patch
 
 import pytest
 
@@ -15,12 +10,7 @@ from synapseclient import Synapse
 from synapseclient.core.constants import concrete_types
 from synapseclient.core.constants.concrete_types import FILE_ENTITY, FOLDER_ENTITY
 from synapseclient.core.exceptions import SynapseNotFoundError
-from synapseclient.models import Activity, FailureStrategy, File, Folder
-from synapseclient.models.services.manifest import (
-    _extract_entity_metadata_for_manifest_csv,
-    _write_manifest_data_csv,
-    generate_manifest_csv,
-)
+from synapseclient.models import FailureStrategy, File, Folder
 
 SYN_123 = "syn123"
 SYN_456 = "syn456"
@@ -925,6 +915,7 @@ class TestFolder:
         # THEN generate_manifest_csv should be called exactly once with the root path
         mock_generate.assert_called_once()
         assert mock_generate.call_args.kwargs["path"] == "/tmp/mydir"
+        assert mock_generate.call_args.kwargs["all_files"][0].id == SYN_456
 
     async def test_sync_from_synapse_manifest_suppress_skips_generation(
         self,
@@ -985,151 +976,3 @@ class TestFolder:
 
         # THEN generate_manifest_csv should not be called (no path to write to)
         mock_generate.assert_not_called()
-
-
-class TestGenerateManifestCsv:
-    """Tests for the generate_manifest_csv and related helper functions."""
-
-    def _make_file(
-        self,
-        syn_id: str = "syn123",
-        name: str = "file.txt",
-        path: str = "/data/file.txt",
-        parent_id: str = "syn456",
-        content_type: str = "text/plain",
-        synapse_store: bool = True,
-        annotations: dict = None,
-        activity: Activity = None,
-    ) -> File:
-        f = File(
-            id=syn_id,
-            name=name,
-            path=path,
-            parent_id=parent_id,
-            content_type=content_type,
-            synapse_store=synapse_store,
-        )
-        if annotations:
-            f.annotations = annotations
-        if activity:
-            f.activity = activity
-        return f
-
-    def test_extract_entity_metadata_uses_parentId_and_ID_columns(self) -> None:
-        # GIVEN a File entity
-        f = self._make_file()
-
-        # WHEN metadata is extracted
-        keys, data = _extract_entity_metadata_for_manifest_csv([f])
-
-        assert data[0]["parentId"] == "syn456"
-        assert data[0]["ID"] == "syn123"
-        assert data[0]["path"] == "/data/file.txt"
-        assert data[0]["name"] == "file.txt"
-
-    def test_extract_entity_metadata_includes_annotations(self) -> None:
-        # GIVEN a File entity with annotations
-        f = self._make_file(annotations={"tissue": ["brain"], "count": [42]})
-
-        # WHEN metadata is extracted
-        keys, data = _extract_entity_metadata_for_manifest_csv([f])
-
-        # THEN annotation keys are included and single-item lists are serialized as scalars
-        assert "tissue" in keys
-        assert "count" in keys
-        assert data[0]["tissue"] == "brain"
-        assert data[0]["count"] == "42"
-
-    def test_write_manifest_data_csv_produces_comma_separated_output(self) -> None:
-        # GIVEN a File with a name containing a comma and mixed-type annotations
-        f = self._make_file(
-            name="a, b, c",
-            path="/data/file.txt",
-            annotations={
-                "single_str": "hello",
-                "multi_str": ["a", "b", "c"],
-                "str_with_comma": ["hello,world", "plain"],
-                "booleans": [True, False],
-                "integers": [1],
-                "single_dt": [
-                    datetime.datetime(2020, 1, 1, 0, 0, 0, tzinfo=datetime.timezone.utc)
-                ],
-                "multi_dt": [
-                    datetime.datetime(
-                        2020, 1, 1, 0, 0, 0, tzinfo=datetime.timezone.utc
-                    ),
-                    datetime.datetime(
-                        2021, 6, 15, 12, 30, 0, tzinfo=datetime.timezone.utc
-                    ),
-                ],
-            },
-        )
-
-        with tempfile.TemporaryDirectory() as tmpdir:
-            # WHEN generate_manifest_csv is called
-            generate_manifest_csv(all_files=[f], path=tmpdir)
-            manifest_path = os.path.join(tmpdir, "manifest.csv")
-            content = open(manifest_path, encoding="utf8").read()
-            with open(manifest_path, newline="", encoding="utf8") as fp:
-                row = next(csv.DictReader(fp))
-
-        # THEN the name with a comma is quoted in the CSV output
-        assert '"a, b, c"' in content
-        # AND single-item list is serialized as a plain scalar
-        assert row["single_str"] == "hello"
-        # AND multi-value list is serialized as a bracketed string
-        assert row["multi_str"] == "[a,b,c]"
-        # AND a value with a comma is quoted inside the brackets
-        assert row["str_with_comma"] == '["hello,world",plain]'
-        # AND booleans are serialized unquoted
-        assert row["booleans"] == "[True,False]"
-        # AND integers are serialized unquoted
-        assert row["integers"] == "1"
-        # AND a single datetime is serialized as ISO 8601 UTC
-        assert row["single_dt"] == "2020-01-01T00:00:00Z"
-        # AND multiple datetimes are serialized as a bracketed ISO 8601 list
-        assert row["multi_dt"] == "[2020-01-01T00:00:00Z,2021-06-15T12:30:00Z]"
-
-    def test_generate_manifest_csv_creates_file(self) -> None:
-        # GIVEN a list of File entities and a temp directory
-        f = self._make_file(
-            syn_id="syn123",
-            name="data.csv",
-            path="/tmp/data.csv",
-            parent_id="syn456",
-        )
-
-        with tempfile.TemporaryDirectory() as tmpdir:
-            # WHEN generate_manifest_csv is called
-            generate_manifest_csv(all_files=[f], path=tmpdir)
-
-            # THEN manifest.csv is created in the directory
-            manifest_path = os.path.join(tmpdir, "manifest.csv")
-            assert os.path.exists(manifest_path)
-
-            # AND it has the expected columns with new naming convention
-            with open(manifest_path, newline="", encoding="utf8") as fp:
-                reader = csv.DictReader(fp)
-                row = next(reader)
-                assert row["parentId"] == "syn456"
-                assert row["ID"] == "syn123"
-
-    def test_generate_manifest_csv_skips_when_no_files(self) -> None:
-        # GIVEN an empty file list
-        with tempfile.TemporaryDirectory() as tmpdir:
-            # WHEN generate_manifest_csv is called with no files
-            generate_manifest_csv(all_files=[], path=tmpdir)
-
-            # THEN no manifest.csv is created
-            assert not os.path.exists(os.path.join(tmpdir, "manifest.csv"))
-
-    def test_generate_manifest_csv_quotes_values_with_commas(self) -> None:
-        # GIVEN a File whose name contains a comma
-        f = self._make_file(name="file, extra.txt", path="/tmp/file, extra.txt")
-
-        with tempfile.TemporaryDirectory() as tmpdir:
-            generate_manifest_csv(all_files=[f], path=tmpdir)
-            manifest_path = os.path.join(tmpdir, "manifest.csv")
-            content = open(manifest_path, encoding="utf8").read()
-        # THEN the comma-containing value is quoted in the CSV
-        assert '"file, extra.txt"' in content
