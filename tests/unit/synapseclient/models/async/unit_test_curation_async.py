@@ -918,6 +918,49 @@ class TestGrid:
         assert "total created: 1" in log_message
         assert "total updated: 1" in log_message
 
+    async def test_import_csv_no_suggested_columns_async(self) -> None:
+        """Raises ValueError when the CSV preview returns no suggested columns."""
+        # GIVEN a Grid with a session_id
+        grid = Grid(session_id=SESSION_ID)
+
+        csv_table_descriptor = CsvTableDescriptor(
+            separator=";",
+            quote_character='"',
+            escape_character="\\",
+            line_end=os.linesep,
+            is_first_line_header=True,
+        )
+
+        # AND a preview response with no columns (e.g. empty CSV file)
+        mock_preview_response = UploadToTablePreviewRequest(
+            upload_file_handle_id=FILE_HANDLE_ID,
+            csv_table_descriptor=csv_table_descriptor,
+            suggested_columns=[],
+            sample_rows=[],
+            rows_scanned=0,
+        )
+
+        mock_preview_instance = MagicMock()
+        mock_preview_instance.send_job_and_wait_async = AsyncMock(
+            return_value=mock_preview_response
+        )
+
+        # WHEN I call import_csv_async
+        # THEN a ValueError is raised before the import is attempted
+        with patch(
+            "synapseclient.models.curation.UploadToTablePreviewRequest",
+            return_value=mock_preview_instance,
+        ):
+            with pytest.raises(
+                ValueError,
+                match="No columns were detected in the CSV file when previewing for import.",
+            ):
+                await grid.import_csv_async(
+                    synapse_client=self.syn,
+                    file_handle_id=FILE_HANDLE_ID,
+                    csv_table_descriptor=csv_table_descriptor,
+                )
+
 
 class TestCreateGridRequest:
     """Tests for the CreateGridRequest helper dataclass."""

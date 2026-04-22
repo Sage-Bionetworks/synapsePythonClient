@@ -1113,13 +1113,13 @@ class UploadToTablePreviewRequest(AsynchronousCommunicator):
             The UploadToTablePreviewRequest object.
         """
         suggested_columns_data = synapse_response.get("suggestedColumns", None)
-        if suggested_columns_data:
+        if suggested_columns_data is not None:
             self.suggested_columns = [
                 Column().fill_from_dict(col) for col in suggested_columns_data
             ]
 
         sample_rows_data = synapse_response.get("sampleRows", None)
-        if sample_rows_data:
+        if sample_rows_data is not None:
             self.sample_rows = [row.get("values", []) for row in sample_rows_data]
 
         self.rows_scanned = synapse_response.get("rowsScanned", None)
@@ -2109,6 +2109,10 @@ class Grid(GridSynchronousProtocol):
         preview_response = await upload_to_table_preview.send_job_and_wait_async(
             timeout=timeout, synapse_client=synapse_client
         )
+        if not preview_response.suggested_columns:
+            raise ValueError(
+                "No columns were detected in the CSV file when previewing for import. Please check that the file handle id is correct and that the file contains valid CSV data."
+            )
 
         all_columns = preview_response.suggested_columns
         import_request = GridCsvImportRequest(
