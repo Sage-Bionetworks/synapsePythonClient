@@ -2045,8 +2045,8 @@ class Grid(GridSynchronousProtocol):
         file_handle_id: str,
         *,
         timeout: int = 120,
-        synapse_client: Optional[Synapse] = None,
         csv_table_descriptor: Optional[CsvTableDescriptor] = None,
+        synapse_client: Optional[Synapse] = None,
     ) -> "Grid":
         """
         Import a CSV file into this grid session. Previews the file to determine
@@ -2101,8 +2101,11 @@ class Grid(GridSynchronousProtocol):
             }
         )
 
+        if not csv_table_descriptor:
+            csv_table_descriptor = CsvTableDescriptor()
+
         upload_to_table_preview = UploadToTablePreviewRequest(
-            csv_table_descriptor=csv_table_descriptor or CsvTableDescriptor(),
+            csv_table_descriptor=csv_table_descriptor,
             upload_file_handle_id=file_handle_id,
         )
 
@@ -2119,7 +2122,7 @@ class Grid(GridSynchronousProtocol):
             session_id=self.session_id,
             file_handle_id=file_handle_id,
             schema=all_columns,
-            csv_descriptor=csv_table_descriptor or CsvTableDescriptor(),
+            csv_descriptor=csv_table_descriptor,
         )
         import_response = await import_request.send_job_and_wait_async(
             timeout=timeout, synapse_client=synapse_client
