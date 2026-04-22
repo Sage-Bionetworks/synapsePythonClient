@@ -37,7 +37,7 @@ pip install -e ".[docs]" && mkdocs serve
 ## Conventions
 
 ### Docstring examples format
-Use mkdocstrings admonition syntax. Start with a description line, then wrap code in a fenced python block. Examples should use sync methods (not async) and include login boilerplate. See evaluation.py for reference.
+Use mkdocstrings admonition syntax. Start with a description line, then wrap code in a fenced python block. Examples should include login boilerplate.
 
     Example: Short title
         &nbsp;

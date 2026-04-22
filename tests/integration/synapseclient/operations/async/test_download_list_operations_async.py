@@ -37,7 +37,13 @@ async def scheduled_for_cart_removal(syn: Synapse):
     scheduled: list[DownloadListItem] = []
     yield scheduled
     if scheduled:
-        await download_list_remove_async(files=scheduled, synapse_client=syn)
+        try:
+            await download_list_remove_async(files=scheduled, synapse_client=syn)
+        except Exception as e:
+            pytest.fail(
+                f"Cart teardown failed — {len(scheduled)} item(s) may remain in "
+                f"the cart and affect subsequent tests: {e}"
+            )
 
 
 async def _create_test_file(
@@ -74,7 +80,7 @@ async def _upload_new_version(
 async def _add_to_cart(
     file: File,
     syn: Synapse,
-    scheduled_for_cart_removal: list,
+    scheduled_for_cart_removal: list[DownloadListItem],
 ) -> None:
     """Add a single file to the Synapse download list cart and register it
     for teardown removal."""
@@ -122,7 +128,7 @@ class TestDownloadListAddAsync:
         project: Project,
         syn: Synapse,
         schedule_for_cleanup: Callable[..., None],
-        scheduled_for_cart_removal: list,
+        scheduled_for_cart_removal: list[DownloadListItem],
     ) -> None:
         """download_list_add_async() adds multiple files with multiple versions in a single call."""
         # GIVEN two files, each with two versions; we'll select v1 of file_a and v2 of file_b
@@ -161,7 +167,7 @@ class TestDownloadListAddAsync:
         project: Project,
         syn: Synapse,
         schedule_for_cleanup: Callable[..., None],
-        scheduled_for_cart_removal: list,
+        scheduled_for_cart_removal: list[DownloadListItem],
     ) -> None:
         """download_list_add_async() with version_number=None adds the latest version."""
         # GIVEN a file with two versions
@@ -203,7 +209,7 @@ class TestDownloadListRemoveAsync:
         project: Project,
         syn: Synapse,
         schedule_for_cleanup: Callable[..., None],
-        scheduled_for_cart_removal: list,
+        scheduled_for_cart_removal: list[DownloadListItem],
     ) -> None:
         """download_list_remove_async() removes only the specified file versions, not others."""
         # GIVEN two files, each with two versions
@@ -252,7 +258,7 @@ class TestDownloadListRemoveAsync:
         project: Project,
         syn: Synapse,
         schedule_for_cleanup: Callable[..., None],
-        scheduled_for_cart_removal: list,
+        scheduled_for_cart_removal: list[DownloadListItem],
     ) -> None:
         """download_list_remove_async() with a wrong version is a no-op -- the file stays in the cart."""
         # GIVEN a cart entry for a file (added with an explicit version)
@@ -280,7 +286,7 @@ class TestDownloadListRemoveAsync:
         project: Project,
         syn: Synapse,
         schedule_for_cleanup: Callable[..., None],
-        scheduled_for_cart_removal: list,
+        scheduled_for_cart_removal: list[DownloadListItem],
     ) -> None:
         """download_list_remove_async() with no version does not match a cart entry that was
         added with an explicit version -- the API requires an exact
@@ -305,7 +311,7 @@ class TestDownloadListRemoveAsync:
         project: Project,
         syn: Synapse,
         schedule_for_cleanup: Callable[..., None],
-        scheduled_for_cart_removal: list,
+        scheduled_for_cart_removal: list[DownloadListItem],
     ) -> None:
         """download_list_remove_async() with no version removes a cart entry that was also
         added without a version."""
@@ -344,7 +350,7 @@ class TestDownloadListFilesAsync:
         project: Project,
         syn: Synapse,
         schedule_for_cleanup: Callable[..., None],
-        scheduled_for_cart_removal: list,
+        scheduled_for_cart_removal: list[DownloadListItem],
     ) -> None:
         """Downloaded files are present in the manifest and removed from cart."""
         # GIVEN two files added to the cart
@@ -395,7 +401,7 @@ class TestDownloadListFilesAsync:
         project: Project,
         syn: Synapse,
         schedule_for_cleanup: Callable[..., None],
-        scheduled_for_cart_removal: list,
+        scheduled_for_cart_removal: list[DownloadListItem],
     ) -> None:
         """Cart can hold two versions of the same file and both are downloaded."""
         # GIVEN a file with two versions, both added to the cart
@@ -450,7 +456,7 @@ class TestDownloadListFilesAsync:
         project: Project,
         syn: Synapse,
         schedule_for_cleanup: Callable[..., None],
-        scheduled_for_cart_removal: list,
+        scheduled_for_cart_removal: list[DownloadListItem],
     ) -> None:
         """download_list_files_async() with download_location=None writes to CWD."""
         # GIVEN a cart containing one of our files
@@ -491,7 +497,7 @@ class TestDownloadListFilesAsync:
         project: Project,
         syn: Synapse,
         schedule_for_cleanup: Callable[..., None],
-        scheduled_for_cart_removal: list,
+        scheduled_for_cart_removal: list[DownloadListItem],
     ) -> None:
         """A file added to the cart without a version is downloaded
         successfully and removed from the cart.
@@ -537,7 +543,7 @@ class TestDownloadListManifestAsync:
         project: Project,
         syn: Synapse,
         schedule_for_cleanup: Callable[..., None],
-        scheduled_for_cart_removal: list,
+        scheduled_for_cart_removal: list[DownloadListItem],
     ) -> None:
         """download_list_manifest_async() respects a custom CsvTableDescriptor."""
         # GIVEN a cart containing a file whose name contains the quote
