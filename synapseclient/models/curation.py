@@ -2117,11 +2117,10 @@ class Grid(GridSynchronousProtocol):
                 "No columns were detected in the CSV file when previewing for import. Please check that the file handle id is correct and that the file contains valid CSV data."
             )
 
-        all_columns = preview_response.suggested_columns
         import_request = GridCsvImportRequest(
             session_id=self.session_id,
             file_handle_id=file_handle_id,
-            schema=all_columns,
+            schema=preview_response.suggested_columns,
             csv_descriptor=csv_table_descriptor,
         )
         import_response = await import_request.send_job_and_wait_async(
