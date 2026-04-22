@@ -137,6 +137,16 @@ from .json_schema_services import (
     update_organization_acl,
     validate_entity_with_json_schema,
 )
+from .project_setting_services import (
+    create_project_setting,
+    delete_project_setting,
+    get_project_setting,
+    update_project_setting,
+)
+from .storage_location_services import (
+    create_storage_location_setting,
+    get_storage_location_setting,
+)
 from .table_services import (
     ViewEntityType,
     ViewTypeMask,
@@ -371,4 +381,11 @@ __all__ = [
     "create_form_data",
     "list_form_data",
     "list_form_data_sync",
+    # storage_location_services
+    "create_storage_location_setting",
+    "get_storage_location_setting",
+    "get_project_setting",
+    "create_project_setting",
+    "update_project_setting",
+    "delete_project_setting",
 ]
