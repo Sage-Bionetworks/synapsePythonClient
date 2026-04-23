@@ -5,6 +5,7 @@ Curation tasks are used to guide data contributors through the process of contri
 data or metadata in Synapse.
 """
 
+import os
 from dataclasses import dataclass, field, replace
 from typing import Any, AsyncGenerator, Dict, Generator, Optional, Protocol, Union
 
@@ -1449,7 +1450,7 @@ class GridSynchronousProtocol(Protocol):
     def download_csv(
         self,
         *,
-        destination: str = ".",
+        destination: Optional[str] = None,
         write_header: bool = True,
         include_row_id_and_row_version: bool = True,
         include_etag: bool = True,
@@ -1466,7 +1467,7 @@ class GridSynchronousProtocol(Protocol):
 
         Arguments:
             destination: Local directory path where the CSV will be saved.
-                Defaults to the current working directory.
+                If not provided, defaults to the current working directory.
             write_header: Whether the first line should contain column names
                 as a header. Defaults to True.
             include_row_id_and_row_version: Whether the first two columns
@@ -1979,8 +1980,8 @@ class Grid(GridSynchronousProtocol):
     )
     async def download_csv_async(
         self,
-        destination: str = ".",
         *,
+        destination: Optional[str] = None,
         write_header: bool = True,
         include_row_id_and_row_version: bool = True,
         include_etag: bool = True,
@@ -1997,7 +1998,7 @@ class Grid(GridSynchronousProtocol):
 
         Arguments:
             destination: Local directory path where the CSV will be saved.
-                Defaults to the current working directory.
+                If not provided, defaults to the current working directory.
             write_header: Whether the first line should contain column names
                 as a header. Defaults to True.
             include_row_id_and_row_version: Whether the first two columns
@@ -2044,9 +2045,13 @@ class Grid(GridSynchronousProtocol):
         if not self.session_id:
             raise ValueError("session_id is required to download a GridSession as CSV")
 
-        trace.get_current_span().set_attributes(
-            {"synapse.session_id": self.session_id or ""}
-        )
+        if not destination:
+            destination = os.getcwd()
+
+        if not os.path.isdir(destination):
+            raise ValueError(f"Destination {destination} is not a valid directory.")
+
+        trace.get_current_span().set_attributes({"synapse.session_id": self.session_id})
 
         effective_descriptor = csv_table_descriptor or CsvTableDescriptor()
         request = DownloadFromGridRequest(

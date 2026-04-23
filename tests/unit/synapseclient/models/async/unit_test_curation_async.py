@@ -959,19 +959,32 @@ class TestGridDownnloadCsv:
             ) as mock_download,
         ):
             result = await grid.download_csv_async(synapse_client=self.syn)
+            current_dir = os.getcwd()
 
             # # THEN the download request should be sent
             mock_send.assert_called_once()
             mock_download.assert_called_once_with(
                 synapse_client=self.syn,
                 file_handle_id=FILE_HANDLE_ID,
-                destination=".",
                 entity_type="FileEntity",
                 synapse_id=FILE_HANDLE_ID,
+                destination=current_dir,
             )
 
             # AND the result should be the file handle ID
             assert result == "test.csv"
+
+    async def test_download_csv_async_with_invalid_dir(self):
+        # GIVEN a Grid with a session_id
+        grid = Grid(session_id=SESSION_ID)
+
+        # WHEN I call download_csv_async with an invalid destination
+        with pytest.raises(
+            ValueError, match=f"Destination ./nonexistent_dir is not a valid directory."
+        ):
+            await grid.download_csv_async(
+                synapse_client=self.syn, destination="./nonexistent_dir"
+            )
 
 
 class TestGridRecordSetExportRequest:
