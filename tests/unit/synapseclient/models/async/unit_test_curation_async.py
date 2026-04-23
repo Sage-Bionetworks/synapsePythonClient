@@ -935,7 +935,7 @@ class TestGridDownnloadCsv:
         # WHEN I call download_csv
         # THEN it should raise ValueError
         with pytest.raises(ValueError, match="session_id is required to download"):
-            grid.download_csv(synapse_client=self.syn)
+            await grid.download_csv_async(synapse_client=self.syn)
 
     async def test_download_csv_async(self):
         # GIVEN a Grid with a session_id
