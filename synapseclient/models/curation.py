@@ -1586,7 +1586,7 @@ class GridSynchronousProtocol(Protocol):
 
     def import_csv(
         self,
-        file_handle_id: str,
+        path: str,
         *,
         timeout: int = 120,
         csv_table_descriptor: Optional[CsvTableDescriptor] = None,
@@ -1598,7 +1598,7 @@ class GridSynchronousProtocol(Protocol):
         created from a record set.
 
         Arguments:
-            file_handle_id: The id of the file handle that contains the CSV data.
+            path: Local path to the CSV file to import.
             csv_table_descriptor: The description of the CSV format (delimiter,
                 quote character, etc.). If not provided, the default CSV format
                 will be used.
@@ -1625,7 +1625,7 @@ class GridSynchronousProtocol(Protocol):
             syn.login()
 
             grid = Grid(session_id="abc-123-def")
-            grid = grid.import_csv(file_handle_id="123456")
+            grid = grid.import_csv(path="/local/path/to/data.csv")
             print(f"Import complete for session: {grid.session_id}")
             ```
         """
