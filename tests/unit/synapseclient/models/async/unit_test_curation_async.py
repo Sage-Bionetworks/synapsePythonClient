@@ -1,5 +1,6 @@
 """Unit tests for the CurationTask and Grid models."""
 
+import os
 from unittest.mock import AsyncMock, patch
 
 import pytest
@@ -12,6 +13,7 @@ from synapseclient.core.constants.concrete_types import (
 from synapseclient.models.curation import (
     CreateGridRequest,
     CurationTask,
+    DownloadFromGridRequest,
     FileBasedMetadataTaskProperties,
     Grid,
     GridRecordSetExportRequest,
@@ -19,6 +21,7 @@ from synapseclient.models.curation import (
     _create_task_properties_from_dict,
 )
 from synapseclient.models.recordset import ValidationSummary
+from synapseclient.models.table_components import CsvTableDescriptor
 
 TASK_ID = 42
 TASK_ID_2 = 99
@@ -854,6 +857,54 @@ class TestCreateGridRequest:
         assert "concreteType" in result
         assert result["recordSetId"] == RECORD_SET_ID
         assert "initialQuery" not in result
+
+
+class TestDownloadFromGridRequest:
+    """Tests for the DownloadFromGridRequest helper dataclass."""
+
+    def test_to_synapse_request(self) -> None:
+        # GIVEN a DownloadFromGridRequest with a session_id
+        request = DownloadFromGridRequest(session_id=SESSION_ID)
+
+        # WHEN I convert it to a synapse request
+        result = request.to_synapse_request()
+
+        # THEN it should contain the correct fields
+        assert "concreteType" in result
+        assert result["sessionId"] == SESSION_ID
+
+    def test_to_synapse_request_all_fields(self) -> None:
+        # GIVEN a DownloadFromGridRequest with all fields set
+        table_descriptor = CsvTableDescriptor(
+            quote_character='"',
+            escape_character="\\",
+            line_end=os.linesep,
+            separator=";",
+            is_first_line_header=False,
+        )
+        request = DownloadFromGridRequest(
+            session_id=SESSION_ID,
+            write_header=False,
+            include_row_id_and_row_version=False,
+            include_etag=False,
+            csv_table_descriptor=table_descriptor,
+            file_name="my_grid_data.csv",
+        )
+
+        # WHEN I convert it to a synapse request
+        result = request.to_synapse_request()
+
+        # THEN it should contain all the correct fields
+        assert "concreteType" in result
+        assert result["sessionId"] == SESSION_ID
+        assert result["includeRowIdAndRowVersion"] is False
+        assert result["includeEtag"] is False
+        assert result["fileName"] == "my_grid_data.csv"
+        assert result["csvTableDescriptor"]["quoteCharacter"] == '"'
+        assert result["csvTableDescriptor"]["escapeCharacter"] == "\\"
+        assert result["csvTableDescriptor"]["lineEnd"] == os.linesep
+        assert result["csvTableDescriptor"]["separator"] == ";"
+        assert result["csvTableDescriptor"]["isFirstLineHeader"] is False
 
 
 class TestGridRecordSetExportRequest:
