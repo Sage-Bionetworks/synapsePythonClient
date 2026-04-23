@@ -228,7 +228,7 @@ class TestGridAsync:
 
             # WHEN: Importing the CSV into the grid session
             imported_grid = await created_grid.import_csv_async(
-                file_handle_id=file.file_handle.id,
+                path=temp_csv_path,
                 timeout=ASYNC_JOB_TIMEOUT_SEC,
                 synapse_client=self.syn,
             )

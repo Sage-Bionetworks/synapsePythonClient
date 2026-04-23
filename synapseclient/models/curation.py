@@ -5,6 +5,7 @@ Curation tasks are used to guide data contributors through the process of contri
 data or metadata in Synapse.
 """
 
+import os
 from dataclasses import dataclass, field, replace
 from typing import Any, AsyncGenerator, Dict, Generator, Optional, Protocol, Union
 
@@ -36,6 +37,7 @@ from synapseclient.core.constants.concrete_types import (
     RECORD_BASED_METADATA_TASK_PROPERTIES,
     UPLOAD_TO_TABLE_PREVIEW_REQUEST,
 )
+from synapseclient.core.upload.upload_functions_async import upload_synapse_s3
 from synapseclient.core.utils import delete_none_keys, merge_dataclass_entities
 from synapseclient.models.mixins.asynchronous_job import AsynchronousCommunicator
 from synapseclient.models.recordset import ValidationSummary
@@ -2049,7 +2051,7 @@ class Grid(GridSynchronousProtocol):
     )
     async def import_csv_async(
         self,
-        file_handle_id: str,
+        path: str,
         *,
         timeout: int = 120,
         csv_table_descriptor: Optional[CsvTableDescriptor] = None,
@@ -2061,7 +2063,7 @@ class Grid(GridSynchronousProtocol):
         created from a record set.
 
         Arguments:
-            file_handle_id: The id of the file handle that contains the CSV data.
+            path: Local path to the CSV file to import.
             csv_table_descriptor: The description of the CSV format (delimiter,
                 quote character, etc.). If not provided, the default CSV format
                 will be used.
@@ -2090,7 +2092,7 @@ class Grid(GridSynchronousProtocol):
 
             async def main():
                 grid = Grid(session_id="abc-123-def")
-                grid = await grid.import_csv_async(file_handle_id="123456")
+                grid = await grid.import_csv_async(path="/local/path/to/data.csv")
                 print(f"Import complete for session: {grid.session_id}")
 
             asyncio.run(main())
@@ -2102,11 +2104,18 @@ class Grid(GridSynchronousProtocol):
                 "session_id is required to import a CSV into a GridSession"
             )
 
+        if not os.path.isfile(path):
+            raise ValueError(f"Path '{path}' is not a valid file.")
+
         trace.get_current_span().set_attributes(
             {
-                "synapse.session_id": self.session_id or "",
+                "synapse.session_id": self.session_id,
             }
         )
+
+        client = Synapse.get_client(synapse_client=synapse_client)
+        file_handle = await upload_synapse_s3(syn=client, file_path=path)
+        file_handle_id = file_handle["id"]
 
         effective_descriptor = csv_table_descriptor or CsvTableDescriptor()
 
@@ -2136,7 +2145,6 @@ class Grid(GridSynchronousProtocol):
         import_response = await import_request.send_job_and_wait_async(
             timeout=timeout, synapse_client=synapse_client
         )
-        client = Synapse.get_client(synapse_client=synapse_client)
         client.logger.info(
             f"CSV import to grid session {self.session_id} completed successfully, "
             f"total count: {import_response.total_count}, "

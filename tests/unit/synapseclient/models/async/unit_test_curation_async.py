@@ -826,13 +826,14 @@ class TestGrid:
 
         # WHEN I call import_csv_async
         # THEN it should raise ValueError
-        with pytest.raises(
-            ValueError,
-            match="session_id is required to import a CSV into a GridSession",
+        with (
+            patch("synapseclient.models.curation.os.path.isfile", return_value=True),
+            pytest.raises(
+                ValueError,
+                match="session_id is required to import a CSV into a GridSession",
+            ),
         ):
-            await grid.import_csv_async(
-                synapse_client=self.syn, file_handle_id=FILE_HANDLE_ID
-            )
+            await grid.import_csv_async(synapse_client=self.syn, path="test.csv")
 
     async def test_import_csv_async(self) -> None:
         """Test the import_csv_async method of the Grid class, ensuring it correctly calls the preview and import requests and logs the results."""
@@ -878,6 +879,12 @@ class TestGrid:
 
         # WHEN I call import_csv_async
         with (
+            patch("synapseclient.models.curation.os.path.isfile", return_value=True),
+            patch(
+                "synapseclient.models.curation.upload_synapse_s3",
+                new_callable=AsyncMock,
+                return_value={"id": FILE_HANDLE_ID},
+            ),
             patch(
                 "synapseclient.models.curation.UploadToTablePreviewRequest",
                 return_value=mock_preview_instance,
@@ -890,7 +897,7 @@ class TestGrid:
         ):
             result = await grid.import_csv_async(
                 synapse_client=self.syn,
-                file_handle_id=FILE_HANDLE_ID,
+                path="test.csv",
                 csv_table_descriptor=csv_table_descriptor,
             )
 
@@ -947,9 +954,17 @@ class TestGrid:
 
         # WHEN I call import_csv_async
         # THEN a ValueError is raised before the import is attempted
-        with patch(
-            "synapseclient.models.curation.UploadToTablePreviewRequest",
-            return_value=mock_preview_instance,
+        with (
+            patch("synapseclient.models.curation.os.path.isfile", return_value=True),
+            patch(
+                "synapseclient.models.curation.upload_synapse_s3",
+                new_callable=AsyncMock,
+                return_value={"id": FILE_HANDLE_ID},
+            ),
+            patch(
+                "synapseclient.models.curation.UploadToTablePreviewRequest",
+                return_value=mock_preview_instance,
+            ),
         ):
             with pytest.raises(
                 ValueError,
@@ -957,7 +972,7 @@ class TestGrid:
             ):
                 await grid.import_csv_async(
                     synapse_client=self.syn,
-                    file_handle_id=FILE_HANDLE_ID,
+                    path="test.csv",
                     csv_table_descriptor=csv_table_descriptor,
                 )
 
