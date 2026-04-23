@@ -1,6 +1,7 @@
 """Integration tests for the synapseclient.models.Folder class."""
 
 import csv
+import datetime
 import os
 import tempfile
 import uuid
@@ -868,22 +869,28 @@ class TestFolderManifestCSV:
             root_manifest = os.path.join(tmpdir, "manifest.csv")
             sub_manifest = os.path.join(tmpdir, sub_folder.name, "manifest.csv")
 
-            # THEN manifest.csv exists in the root directory
             assert os.path.isfile(root_manifest)
-
-            # AND manifest.csv exists in the subfolder directory
             assert os.path.isfile(sub_manifest)
 
-            # AND the root manifest contains the expected columns and the root file row
             with open(root_manifest, newline="", encoding="utf8") as f:
                 reader = csv.DictReader(f)
                 rows = list(reader)
+            assert len(rows) == 2
+            rows_by_id = {row["ID"]: row for row in rows}
+            root_row = rows_by_id[root_file.id]
+            assert root_row["name"] == root_file.name
+            assert root_row["parentId"] == root_folder.id
+            sub_row = rows_by_id[sub_file.id]
+            assert sub_row["name"] == sub_file.name
+            assert sub_row["parentId"] == sub_folder.id
 
-        assert len(rows) == 1
-        row = rows[0]
-        assert row["name"] == root_file.name
-        assert row["parentId"] == root_folder.id
-        assert row["ID"] == root_file.id
+            with open(sub_manifest, newline="", encoding="utf8") as f:
+                reader = csv.DictReader(f)
+                rows = list(reader)
+            assert len(rows) == 1
+            sub_row = rows[0]
+            assert sub_row["name"] == sub_file.name
+            assert sub_row["parentId"] == sub_folder.id
 
     async def test_manifest_root_creates_csv_only_at_root(
         self, project_model: Project
@@ -921,6 +928,17 @@ class TestFolderManifestCSV:
             # THEN manifest.csv exists only at the root
             assert os.path.isfile(root_manifest)
             assert not os.path.isfile(sub_manifest)
+            with open(root_manifest, newline="", encoding="utf8") as f:
+                reader = csv.DictReader(f)
+                rows = list(reader)
+            assert len(rows) == 2
+            rows_by_id = {row["ID"]: row for row in rows}
+            root_row = rows[0]
+            assert root_row["name"] == root_file.name
+            assert root_row["parentId"] == root_folder.id
+            sub_row = rows_by_id[sub_file.id]
+            assert sub_row["name"] == sub_file.name
+            assert sub_row["parentId"] == sub_folder.id
 
     async def test_manifest_suppress_creates_no_csv(
         self, project_model: Project
@@ -957,9 +975,13 @@ class TestFolderManifestCSV:
         f.annotations = {
             "single_str": ["hello"],
             "multi_str": ["a", "b", "c"],
-            "str_with_comma": ["hello,world"],
+            "str_with_comma": ["hello,world", "plain text"],
             "booleans": [True, False],
             "integers": [1, 2, 3],
+            "floats": [1.0],
+            "datetimes": [
+                datetime.datetime(2020, 1, 1, 0, 0, 0, 0, tzinfo=datetime.timezone.utc)
+            ],
         }
         f = await f.store_async(synapse_client=self.syn)
         self.schedule_for_cleanup(f.id)
@@ -984,9 +1006,11 @@ class TestFolderManifestCSV:
         row = rows[0]
         assert row["single_str"] == "hello"
         assert row["multi_str"] == "[a,b,c]"
-        assert row["str_with_comma"] == "hello,world"
+        assert row["str_with_comma"] == '["hello,world",plain text]'
         assert row["booleans"] == "[True,False]"
         assert row["integers"] == "[1,2,3]"
+        assert row["floats"] == "1.0"
+        assert row["datetimes"] == "2020-01-01T00:00:00Z"
 
     async def test_manifest_includes_provenance(self, project_model: Project) -> None:
         # GIVEN a file with activity (provenance)
