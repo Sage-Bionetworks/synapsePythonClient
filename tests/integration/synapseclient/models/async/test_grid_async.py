@@ -220,12 +220,6 @@ class TestGridAsync:
             test_data.to_csv(temp_csv_path, index=False)
             self.schedule_for_cleanup(temp_csv_path)
 
-            file = await File(
-                path=temp_csv_path, parent_id=project_model.id
-            ).store_async(synapse_client=self.syn)
-
-            self.schedule_for_cleanup(file.id)
-
             # WHEN: Importing the CSV into the grid session
             imported_grid = await created_grid.import_csv_async(
                 path=temp_csv_path,
