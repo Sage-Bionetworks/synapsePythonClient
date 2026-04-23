@@ -79,7 +79,7 @@ COMMAS_OUTSIDE_DOUBLE_QUOTES_PATTERN = re.compile(r",(?=(?:[^\"]*\"[^\"]*\")*[^\
 
 
 @deprecated(
-    version="4.11.0",
+    version="4.12.0",
     reason=(
         "To be removed in 5.0.0. Use StorableContainer.sync_from_synapse instead, "
         "which generates a manifest.csv file interoperable with the Synapse UI download cart."
