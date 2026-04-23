@@ -42,6 +42,7 @@ SOURCE_ENTITY_ID = "syn5555555"
 GRID_ETAG = "grid-etag-456"
 STARTED_BY = "user-1"
 STARTED_ON = "2024-03-01T00:00:00.000Z"
+FILE_HANDLE_ID = "1234567"
 
 
 def _get_file_based_task_api_response():
@@ -905,6 +906,20 @@ class TestDownloadFromGridRequest:
         assert result["csvTableDescriptor"]["lineEnd"] == os.linesep
         assert result["csvTableDescriptor"]["separator"] == ";"
         assert result["csvTableDescriptor"]["isFirstLineHeader"] is False
+
+    def test_fill_from_dict(self) -> None:
+        # GIVEN a response with download data
+        raw_synapse_response = {
+            "jobId": "123",
+            "concreteType": "org.sagebionetworks.repo.model.grid.DownloadFromGridResult",
+            "sessionId": SESSION_ID,
+            "resultsFileHandleId": FILE_HANDLE_ID,
+        }
+        response = DownloadFromGridRequest(session_id=SESSION_ID).fill_from_dict(
+            raw_synapse_response
+        )
+        assert response.session_id == SESSION_ID
+        assert response.results_file_handle_id == FILE_HANDLE_ID
 
 
 class TestGridRecordSetExportRequest:
