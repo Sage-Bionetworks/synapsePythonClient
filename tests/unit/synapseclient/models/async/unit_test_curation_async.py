@@ -922,6 +922,58 @@ class TestDownloadFromGridRequest:
         assert response.results_file_handle_id == FILE_HANDLE_ID
 
 
+class TestGridDownnloadCsv:
+
+    @pytest.fixture(autouse=True, scope="function")
+    def init_syn(self, syn: Synapse) -> None:
+        self.syn = syn
+
+    async def test_download_csv_without_session_id(self) -> None:
+        # GIVEN a Grid without a session_id
+        grid = Grid()
+
+        # WHEN I call download_csv
+        # THEN it should raise ValueError
+        with pytest.raises(ValueError, match="session_id is required to download"):
+            grid.download_csv(synapse_client=self.syn)
+
+    async def test_download_csv_async(self):
+        # GIVEN a Grid with a session_id
+        grid = Grid(session_id=SESSION_ID)
+
+        # Mock the DownloadFromGridRequest's send_job_and_wait_async
+        mock_download_request = DownloadFromGridRequest(session_id=SESSION_ID)
+        mock_download_request.results_file_handle_id = FILE_HANDLE_ID
+
+        with (
+            patch.object(
+                DownloadFromGridRequest,
+                "send_job_and_wait_async",
+                new_callable=AsyncMock,
+                return_value=mock_download_request,
+            ) as mock_send,
+            patch(
+                "synapseclient.models.curation.download_by_file_handle",
+                new_callable=AsyncMock,
+                return_value="test.csv",
+            ) as mock_download,
+        ):
+            result = await grid.download_csv_async(synapse_client=self.syn)
+
+            # # THEN the download request should be sent
+            mock_send.assert_called_once()
+            mock_download.assert_called_once_with(
+                synapse_client=self.syn,
+                file_handle_id=FILE_HANDLE_ID,
+                destination=".",
+                entity_type="FileEntity",
+                synapse_id=FILE_HANDLE_ID,
+            )
+
+            # AND the result should be the file handle ID
+            assert result == "test.csv"
+
+
 class TestGridRecordSetExportRequest:
     """Tests for the GridRecordSetExportRequest helper dataclass."""
 
