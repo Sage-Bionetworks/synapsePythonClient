@@ -186,13 +186,13 @@ class TestGridAsync:
 
     async def test_import_csv_to_grid_session_async(
         self,
-        project_model,
         record_set_fixture: RecordSet,
     ) -> None:
         """Test importing a CSV file into a grid session."""
 
         # GIVEN: Create a grid session first
         grid = Grid(record_set_id=record_set_fixture.id)
+        created_grid = None
         try:
             created_grid = await grid.create_async(
                 timeout=ASYNC_JOB_TIMEOUT_SEC, synapse_client=self.syn
@@ -243,4 +243,5 @@ class TestGridAsync:
                 == 10
             )
         finally:
-            await created_grid.delete_async(synapse_client=self.syn)
+            if created_grid is not None and created_grid.session_id:
+                await created_grid.delete_async(synapse_client=self.syn)
