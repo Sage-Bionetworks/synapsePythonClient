@@ -19,6 +19,7 @@ from synapseclient.core.constants.concrete_types import (
     GRID_RECORD_SET_EXPORT_REQUEST,
     QUERY_BUNDLE_REQUEST,
     QUERY_TABLE_CSV_REQUEST,
+    SYNCHRONIZE_GRID_REQUEST,
     TABLE_UPDATE_TRANSACTION_REQUEST,
 )
 from synapseclient.core.exceptions import (
@@ -32,6 +33,7 @@ ASYNC_JOB_URIS = {
     CREATE_GRID_REQUEST: "/grid/session/async",
     DOWNLOAD_LIST_MANIFEST_REQUEST: "/download/list/manifest/async",
     GRID_RECORD_SET_EXPORT_REQUEST: "/grid/export/recordset/async",
+    SYNCHRONIZE_GRID_REQUEST: "/grid/synchronize/async",
     TABLE_UPDATE_TRANSACTION_REQUEST: "/entity/{entityId}/table/transaction/async",
     GET_VALIDATION_SCHEMA_REQUEST: "/schema/type/validation/async",
     CREATE_SCHEMA_REQUEST: "/schema/type/create/async",

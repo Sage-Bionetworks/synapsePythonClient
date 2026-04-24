@@ -16,6 +16,7 @@ from synapseclient.models.curation import (
     Grid,
     GridRecordSetExportRequest,
     RecordBasedMetadataTaskProperties,
+    SynchronizeGridRequest,
     _create_task_properties_from_dict,
 )
 from synapseclient.models.recordset import ValidationSummary
