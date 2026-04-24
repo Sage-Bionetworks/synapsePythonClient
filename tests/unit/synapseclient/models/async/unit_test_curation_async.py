@@ -916,3 +916,33 @@ class TestGridRecordSetExportRequest:
         # THEN it should contain the correct fields
         assert "concreteType" in result
         assert result["sessionId"] == SESSION_ID
+
+
+class TestSynchronizeGridRequest:
+    def test_to_synapse_request(self) -> None:
+        # GIVEN a SynchronizeGridRequest with all fields set
+        sync_req = SynchronizeGridRequest(
+            session_id=SESSION_ID,
+        )
+
+        # WHEN I convert it to a synapse request
+        result = sync_req.to_synapse_request()
+
+        # THEN it should contain the correct fields
+        assert "concreteType" in result
+        assert result["gridSessionId"] == SESSION_ID
+
+    def test_fill_from_dict(self) -> None:
+        # GIVEN a response with synchronize grid session data
+        raw_response = {
+            "jobId": "1234",
+            "concreteType": "org.sagebionetworks.repo.model.grid.SynchronizeGridResponse",
+            "gridSessionId": SESSION_ID,
+            "errorMessages": ["test_error"],
+        }
+
+        # WHEN I fill a SynchronizeGridRequest from the response
+        sync_req = SynchronizeGridRequest(session_id=SESSION_ID)
+        response = sync_req.fill_from_dict(raw_response)
+        assert "test_error" in response.error_messages
+        assert response.session_id == SESSION_ID
