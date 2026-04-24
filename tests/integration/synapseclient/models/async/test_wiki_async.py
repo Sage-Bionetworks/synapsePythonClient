@@ -746,7 +746,8 @@ class TestWikiHeader:
         self.schedule_for_cleanup = schedule_for_cleanup
 
     async def test_get_wiki_header_tree(
-        self, wiki_page_fixture: WikiPage, schedule_for_cleanup: Callable[..., None]
+        self,
+        wiki_page_fixture: WikiPage,
     ) -> None:
         await asyncio.sleep(5)
         # WHEN getting the wiki header tree
@@ -758,7 +759,6 @@ class TestWikiHeader:
 
         # THEN headers should be returned
         assert len(headers) >= 1
-        schedule_for_cleanup(headers)
 
 
 class TestWikiOrderHint:
@@ -804,7 +804,8 @@ class TestWikiOrderHint:
         schedule_for_cleanup(order_hint)
 
     async def test_store_wiki_order_hint(
-        self, wiki_page_fixture: WikiPage, schedule_for_cleanup: Callable[..., None]
+        self,
+        wiki_page_fixture: WikiPage,
     ) -> None:
         await asyncio.sleep(5)
         # Get headers
@@ -819,23 +820,14 @@ class TestWikiOrderHint:
         order_hint = await WikiOrderHint(owner_id=wiki_page_fixture.owner_id).get_async(
             synapse_client=self.syn
         )
-        schedule_for_cleanup(order_hint)
         # WHEN setting a custom order
         order_hint.id_list = header_ids
         updated_order_hint = await order_hint.store_async(synapse_client=self.syn)
-        schedule_for_cleanup(updated_order_hint)
         await asyncio.sleep(5)
         # THEN the order hint should be updated
         # Retrieve the updated order hint
         retrieved_order_hint = await WikiOrderHint(
             owner_id=wiki_page_fixture.owner_id
         ).get_async(synapse_client=self.syn)
-        schedule_for_cleanup(retrieved_order_hint)
         assert retrieved_order_hint.id_list == header_ids
         assert len(retrieved_order_hint.id_list) >= 1
-
-    # clean up the wiki pages for other tests in the same session
-    async def test_cleanup_wiki_pages(self, wiki_page_fixture: WikiPage):
-        root_wiki = wiki_page_fixture
-        await root_wiki.delete_async(synapse_client=self.syn)
-        assert True
