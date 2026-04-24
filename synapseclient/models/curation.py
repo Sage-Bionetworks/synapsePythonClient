@@ -1393,6 +1393,9 @@ class GridSynchronousProtocol(Protocol):
         """
         Synchronizes the grid session's schema and row data against its source entity.
 
+        This is intended for grid sessions created from a file view via `initial_query`.
+        Grid sessions backed by a RecordSet should use `export_to_record_set` instead.
+
         Arguments:
             timeout: The number of seconds to wait for the job to complete or progress
                 before raising a SynapseTimeoutError. Defaults to 120.
@@ -1406,17 +1409,23 @@ class GridSynchronousProtocol(Protocol):
         Raises:
             ValueError: If session_id is not provided.
 
-        Example: Synchronize a grid session
+        Example: Synchronize a grid session created from a file view
             &nbsp;
 
             ```python
             from synapseclient import Synapse
             from synapseclient.models import Grid
+            from synapseclient.models.table_components import Query
 
             syn = Synapse()
             syn.login()
 
-            grid = Grid(session_id="abc-123-def")
+            # First create a grid session from a file view
+            query = Query(sql="SELECT * FROM syn1234567")
+            grid = Grid(initial_query=query)
+            grid = grid.create()
+
+            # Synchronize the grid with the latest state of the file view
             grid = grid.synchronize()
             ```
         """
@@ -1928,6 +1937,9 @@ class Grid(GridSynchronousProtocol):
         """
         Synchronizes the grid session's schema and row data against its source entity.
 
+        This is intended for grid sessions created from a file view via `initial_query`.
+        Grid sessions backed by a RecordSet should use `export_to_record_set` instead.
+
         Arguments:
             timeout: The number of seconds to wait for the job to complete or progress
                 before raising a SynapseTimeoutError. Defaults to 120.
@@ -1941,19 +1953,25 @@ class Grid(GridSynchronousProtocol):
         Raises:
             ValueError: If session_id is not provided.
 
-        Example: Synchronize a grid session asynchronously
+        Example: Synchronize a grid session created from a file view
             &nbsp;
 
             ```python
             import asyncio
             from synapseclient import Synapse
             from synapseclient.models import Grid
+            from synapseclient.models.table_components import Query
 
             syn = Synapse()
             syn.login()
 
             async def main():
-                grid = Grid(session_id="abc-123-def")
+                # First create a grid session from a file view
+                query = Query(sql="SELECT * FROM syn1234567")
+                grid = Grid(initial_query=query)
+                grid = await grid.create_async()
+
+                # Synchronize the grid with the latest state of the file view
                 grid = await grid.synchronize_async()
 
             asyncio.run(main())
