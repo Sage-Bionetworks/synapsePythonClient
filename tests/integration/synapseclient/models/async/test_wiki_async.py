@@ -531,7 +531,6 @@ class TestWikiPageMarkdown:
     async def test_get_markdown_url(
         self,
         wiki_page_with_markdown: WikiPage,
-        schedule_for_cleanup: Callable[..., None],
     ) -> None:
         # GIVEN a wiki page with markdown
         root_wiki = wiki_page_with_markdown
@@ -540,14 +539,12 @@ class TestWikiPageMarkdown:
         markdown_url = await WikiPage(
             owner_id=root_wiki.owner_id, id=root_wiki.id
         ).get_markdown_file_async(download_file=False, synapse_client=self.syn)
-        schedule_for_cleanup(markdown_url)
         # THEN a URL should be returned
         assert len(markdown_url) > 0
 
     async def test_download_markdown_file(
         self,
         wiki_page_with_markdown: WikiPage,
-        schedule_for_cleanup: Callable[..., None],
     ) -> None:
         # GIVEN a wiki page with markdown
         root_wiki = wiki_page_with_markdown
@@ -567,7 +564,6 @@ class TestWikiPageMarkdown:
         with open(downloaded_path, "r", encoding="utf-8") as f:
             content = f.read()
             assert "Sub Wiki Markdown" in content
-        schedule_for_cleanup(download_dir)
 
     @pytest.fixture(scope="function")
     async def wiki_page_with_markdown_gz(
@@ -584,7 +580,6 @@ class TestWikiPageMarkdown:
         os.rename(filename, md_gz_filename)
         with gzip.open(md_gz_filename, "wt") as f:
             f.write("# Test Wiki\n\nThis is test content.")
-        schedule_for_cleanup(md_gz_filename)
 
         # Create wiki page with markdown gz
         wiki_page = WikiPage(
@@ -600,7 +595,6 @@ class TestWikiPageMarkdown:
     async def test_get_markdown_url_gz_file(
         self,
         wiki_page_with_markdown_gz: WikiPage,
-        schedule_for_cleanup: Callable[..., None],
     ) -> None:
         # GIVEN a wiki page with markdown gz
         root_wiki = wiki_page_with_markdown_gz
@@ -609,14 +603,12 @@ class TestWikiPageMarkdown:
         markdown_url = await WikiPage(
             owner_id=root_wiki.owner_id, id=root_wiki.id
         ).get_markdown_file_async(download_file=False, synapse_client=self.syn)
-        schedule_for_cleanup(markdown_url)
         # THEN a URL should be returned
         assert len(markdown_url) > 0
 
     async def test_download_markdown_file_gz_file(
         self,
         wiki_page_with_markdown_gz: WikiPage,
-        schedule_for_cleanup: Callable[..., None],
     ) -> None:
         # GIVEN a wiki page with markdown gz
         root_wiki = wiki_page_with_markdown_gz
@@ -630,14 +622,12 @@ class TestWikiPageMarkdown:
         ).get_markdown_file_async(
             download_file=True, download_location=download_dir, synapse_client=self.syn
         )
-        schedule_for_cleanup(downloaded_path)
         # THEN the file should be downloaded and unzipped
         assert os.path.exists(downloaded_path)
         # Verify content
         with open(downloaded_path, "r", encoding="utf-8") as f:
             content = f.read()
             assert "Test Wiki" in content
-        schedule_for_cleanup(download_dir)
 
 
 class TestWikiPageVersioning:
