@@ -1989,7 +1989,7 @@ class Grid(GridSynchronousProtocol):
 
         if result.error_messages:
             client = Synapse.get_client(synapse_client=synapse_client)
-            client.logger.warning(
+            client.logger.error(
                 f"Grid session '{self.session_id}' synchronization completed with "
                 f"error messages: {result.error_messages}"
             )
