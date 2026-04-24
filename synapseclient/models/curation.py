@@ -2067,7 +2067,9 @@ class Grid(GridSynchronousProtocol):
         )
         if not download_response.results_file_handle_id:
             raise ValueError(
-                "Download job did not return a file handle ID for the CSV result"
+                f"Download job for grid session '{self.session_id}' completed but "
+                "did not return a file handle ID. The CSV result may be empty or "
+                "the job may have failed silently."
             )
 
         return await download_by_file_handle(

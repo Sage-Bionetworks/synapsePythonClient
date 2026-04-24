@@ -986,6 +986,30 @@ class TestGridDownloadCsv:
                 synapse_client=self.syn, destination="./nonexistent_dir"
             )
 
+    async def test_download_csv_async_empty_file_handle_id(self):
+        # GIVEN a Grid with a session_id
+        grid = Grid(session_id=SESSION_ID)
+
+        # Mock the DownloadFromGridRequest's send_job_and_wait_async to return an empty file handle ID
+        mock_download_request = DownloadFromGridRequest(session_id=SESSION_ID)
+        mock_download_request.results_file_handle_id = ""
+
+        with patch.object(
+            DownloadFromGridRequest,
+            "send_job_and_wait_async",
+            new_callable=AsyncMock,
+            return_value=mock_download_request,
+        ):
+            # WHEN I call download_csv_async
+            # THEN it should raise ValueError for empty file handle ID
+            with pytest.raises(
+                ValueError,
+                match=f"Download job for grid session '{SESSION_ID}' completed but "
+                "did not return a file handle ID. The CSV result may be empty or "
+                "the job may have failed silently.",
+            ):
+                await grid.download_csv_async(synapse_client=self.syn)
+
 
 class TestGridRecordSetExportRequest:
     """Tests for the GridRecordSetExportRequest helper dataclass."""
