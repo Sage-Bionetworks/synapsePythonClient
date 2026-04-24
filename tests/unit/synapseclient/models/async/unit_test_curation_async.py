@@ -922,7 +922,7 @@ class TestDownloadFromGridRequest:
         assert response.results_file_handle_id == FILE_HANDLE_ID
 
 
-class TestGridDownnloadCsv:
+class TestGridDownloadCsv:
 
     @pytest.fixture(autouse=True, scope="function")
     def init_syn(self, syn: Synapse) -> None:
