@@ -56,6 +56,7 @@ at your own risk.
         members:
             - create
             - export_to_record_set
+            - synchronize
 ---
 [](){ #query-reference }
 ::: synapseclient.models.Query

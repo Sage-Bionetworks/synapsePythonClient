@@ -32,6 +32,7 @@ from synapseclient.core.constants.concrete_types import (
     LIST_GRID_SESSIONS_REQUEST,
     LIST_GRID_SESSIONS_RESPONSE,
     RECORD_BASED_METADATA_TASK_PROPERTIES,
+    SYNCHRONIZE_GRID_REQUEST,
 )
 from synapseclient.core.utils import delete_none_keys, merge_dataclass_entities
 from synapseclient.models.mixins.asynchronous_job import AsynchronousCommunicator
@@ -1079,6 +1080,53 @@ class GridRecordSetExportRequest(AsynchronousCommunicator):
 
 
 @dataclass
+class SynchronizeGridRequest(AsynchronousCommunicator):
+    """
+    A request to synchronize a grid session.
+
+    The request is modeled from: <https://rest-docs.synapse.org/rest/org/sagebionetworks/repo/model/grid/SynchronizeGridRequest.html>
+
+    The response is modeled from: <https://rest-docs.synapse.org/rest/org/sagebionetworks/repo/model/grid/SynchronizeGridResponse.html>
+    """
+
+    session_id: str = ""
+    """The ID of the grid session to synchronize."""
+
+    concrete_type: str = field(default=SYNCHRONIZE_GRID_REQUEST)
+    """The concrete type for this request."""
+
+    error_messages: Optional[list[str]] = field(default=None, compare=False)
+    """Any error messages generated during the synchronization process."""
+
+    def fill_from_dict(
+        self, synapse_response: Dict[str, Any]
+    ) -> "SynchronizeGridRequest":
+        """
+        Converts a response from the REST API into this dataclass.
+
+        Arguments:
+            synapse_response: The response from the REST API.
+
+        Returns:
+            The SynchronizeGridRequest object.
+        """
+        self.error_messages = synapse_response.get("errorMessages", None)
+        return self
+
+    def to_synapse_request(self) -> Dict[str, Any]:
+        """
+        Converts this dataclass to a dictionary suitable for a Synapse REST API request.
+
+        Returns:
+            A dictionary representation of this object for API requests.
+        """
+        return {
+            "concreteType": self.concrete_type,
+            "gridSessionId": self.session_id,
+        }
+
+
+@dataclass
 class GridSession:
     """
     Basic information about a grid session.
@@ -1335,6 +1383,50 @@ class GridSynchronousProtocol(Protocol):
             print(f"Version number: {grid.record_set_version_number}")
             if grid.validation_summary_statistics:
                 print(f"Valid records: {grid.validation_summary_statistics.number_of_valid_children}")
+            ```
+        """
+        return self
+
+    def synchronize(
+        self, *, timeout: int = 120, synapse_client: Optional[Synapse] = None
+    ) -> "Grid":
+        """
+        Synchronizes the grid session's schema and row data against its source entity.
+
+        This is intended for grid sessions created from a file view via `initial_query`.
+        Grid sessions backed by a RecordSet should use `export_to_record_set` instead.
+
+        Arguments:
+            timeout: The number of seconds to wait for the job to complete or progress
+                before raising a SynapseTimeoutError. Defaults to 120.
+            synapse_client: If not passed in and caching was not disabled by
+                `Synapse.allow_client_caching(False)` this will use the last created
+                instance from the Synapse class constructor.
+
+        Returns:
+            Grid: The Grid object.
+
+        Raises:
+            ValueError: If session_id is not provided.
+
+        Example: Synchronize a grid session created from a file view
+            &nbsp;
+
+            ```python
+            from synapseclient import Synapse
+            from synapseclient.models import Grid
+            from synapseclient.models.table_components import Query
+
+            syn = Synapse()
+            syn.login()
+
+            # First create a grid session from a file view
+            query = Query(sql="SELECT * FROM syn1234567")
+            grid = Grid(initial_query=query)
+            grid = grid.create()
+
+            # Synchronize the grid with the latest state of the file view
+            grid = grid.synchronize()
             ```
         """
         return self
@@ -1838,3 +1930,68 @@ class Grid(GridSynchronousProtocol):
         await delete_grid_session(
             session_id=self.session_id, synapse_client=synapse_client
         )
+
+    async def synchronize_async(
+        self, *, timeout: int = 120, synapse_client: Optional[Synapse] = None
+    ) -> "Grid":
+        """
+        Synchronizes the grid session's schema and row data against its source entity.
+
+        This is intended for grid sessions created from a file view via `initial_query`.
+        Grid sessions backed by a RecordSet should use `export_to_record_set` instead.
+
+        Arguments:
+            timeout: The number of seconds to wait for the job to complete or progress
+                before raising a SynapseTimeoutError. Defaults to 120.
+            synapse_client: If not passed in and caching was not disabled by
+                `Synapse.allow_client_caching(False)` this will use the last created
+                instance from the Synapse class constructor.
+
+        Returns:
+            Grid: The Grid object.
+
+        Raises:
+            ValueError: If session_id is not provided.
+
+        Example: Synchronize a grid session created from a file view
+            &nbsp;
+
+            ```python
+            import asyncio
+            from synapseclient import Synapse
+            from synapseclient.models import Grid
+            from synapseclient.models.table_components import Query
+
+            syn = Synapse()
+            syn.login()
+
+            async def main():
+                # First create a grid session from a file view
+                query = Query(sql="SELECT * FROM syn1234567")
+                grid = Grid(initial_query=query)
+                grid = await grid.create_async()
+
+                # Synchronize the grid with the latest state of the file view
+                grid = await grid.synchronize_async()
+
+            asyncio.run(main())
+            ```
+        """
+        if not self.session_id:
+            raise ValueError("session_id is required to synchronize a GridSession")
+
+        trace.get_current_span().set_attributes({"synapse.session_id": self.session_id})
+
+        request = SynchronizeGridRequest(session_id=self.session_id)
+        result = await request.send_job_and_wait_async(
+            timeout=timeout, synapse_client=synapse_client
+        )
+
+        if result.error_messages:
+            client = Synapse.get_client(synapse_client=synapse_client)
+            client.logger.error(
+                f"Grid session '{self.session_id}' synchronization completed with "
+                f"error messages: {result.error_messages}"
+            )
+
+        return self
