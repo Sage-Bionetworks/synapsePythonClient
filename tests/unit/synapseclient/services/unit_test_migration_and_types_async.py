@@ -1664,7 +1664,9 @@ class TestIndexFileEntityAsync:
         with (
             patch(f"{MODULE}.utils.id_of", return_value="syn3"),
             patch(f"{MODULE}._get_version_numbers_async", _mock_versions),
-            patch(f"{MODULE}.get_async", new=AsyncMock(return_value=entity)),
+            patch(
+                "synapseclient.operations.get_async", new=AsyncMock(return_value=entity)
+            ),
         ):
             await _index_file_entity_async(
                 cursor=cursor,
@@ -1885,7 +1887,10 @@ class TestIndexContainerAsync:
         with (
             patch(f"{MODULE}.get_entity_type", new=AsyncMock(return_value=et)),
             patch(f"{MODULE}.get_children", _mock_get_children),
-            patch(f"{MODULE}.get_async", new=AsyncMock(return_value=child_entity)),
+            patch(
+                "synapseclient.operations.get_async",
+                new=AsyncMock(return_value=child_entity),
+            ),
             patch(f"{MODULE}._index_entity_async", new=AsyncMock()) as mock_index,
         ):
             await _index_container_async(
@@ -2130,7 +2135,9 @@ class TestCreateNewFileVersionAsync:
 
         with (
             patch(f"{MODULE}.Synapse.get_client", return_value=client),
-            patch(f"{MODULE}.get_async", new=AsyncMock(return_value=entity)),
+            patch(
+                "synapseclient.operations.get_async", new=AsyncMock(return_value=entity)
+            ),
         ):
             await _create_new_file_version_async(
                 entity_id="syn3",

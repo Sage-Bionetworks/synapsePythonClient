@@ -50,7 +50,6 @@ from synapseclient.models.table_components import (
     PartialRowSet,
     TableUpdateTransaction,
 )
-from synapseclient.operations import FileOptions, get_async
 
 from .migration_types import (
     IndexingError,
@@ -918,6 +917,8 @@ async def _index_file_entity_async(
         entity_versions.append((entity, None))
 
     elif file_version_strategy == "all":
+        from synapseclient.operations import FileOptions, get_async
+
         async for version in _get_version_numbers_async(entity_id, synapse_client):
             entity = await get_async(
                 synapse_id=entity_id,
@@ -1101,6 +1102,8 @@ async def _index_container_async(
         children.append(child)
 
     async def index_child(child: Dict[str, Any]) -> None:
+        from synapseclient.operations import get_async
+
         async with synapse_client._get_parallel_file_transfer_semaphore(
             asyncio_event_loop=asyncio.get_running_loop()
         ):
@@ -1230,6 +1233,8 @@ async def _create_new_file_version_async(
         to_file_handle_id: The new file handle ID.
         synapse_client: If not passed in and caching was not disabled by `Synapse.allow_client_caching(False)` this will use the last created instance from the Synapse class constructor.
     """
+    from synapseclient.operations import FileOptions, get_async
+
     synapse_client.logger.info(f"Creating new version for file entity {entity_id}")
 
     entity = await get_async(
