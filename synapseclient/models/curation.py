@@ -1467,7 +1467,7 @@ class GridSynchronousProtocol(Protocol):
 
         Arguments:
             destination: Local directory path where the CSV will be saved.
-                If not provided, defaults to the current working directory.
+                If not provided, defaults to the current working directory. The directory must already exist.
             write_header: Whether the first line should contain column names
                 as a header. Defaults to True.
             include_row_id_and_row_version: Whether the first two columns
@@ -1997,7 +1997,7 @@ class Grid(GridSynchronousProtocol):
         then downloads the resulting CSV to the local filesystem.
 
         Arguments:
-            destination: Local directory path where the CSV will be saved.
+            destination: Local directory path where the CSV will be saved. The directory must already exist.
                 If not provided, defaults to the current working directory.
             write_header: Whether the first line should contain column names
                 as a header. Defaults to True.
