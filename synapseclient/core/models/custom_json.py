@@ -1,6 +1,7 @@
 """
 When imported, monkey-patches the 'json' module's encoder with a custom json encoding function.
 """
+
 import datetime
 import json
 

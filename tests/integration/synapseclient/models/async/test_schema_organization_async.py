@@ -1,4 +1,5 @@
 """Integration tests for SchemaOrganization and JSONSchema classes"""
+
 import asyncio
 import uuid
 from typing import Any, Optional

@@ -121,11 +121,10 @@ def test_subsecond_timestamps():
 
     my_cache.add(file_handle_id=1234, path=path)
 
-    with patch.object(
-        cache, "_get_modified_time"
-    ) as _get_modified_time_mock, patch.object(
-        cache.Cache, "_read_cache_map"
-    ) as _read_cache_map_mock:
+    with (
+        patch.object(cache, "_get_modified_time") as _get_modified_time_mock,
+        patch.object(cache.Cache, "_read_cache_map") as _read_cache_map_mock,
+    ):
         # this should be a match, 'cause we round microseconds to milliseconds
         _read_cache_map_mock.return_value = {path: "2015-05-05T21:34:55.001Z"}
         _get_modified_time_mock.return_value = 1430861695.001111

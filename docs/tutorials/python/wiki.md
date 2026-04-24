@@ -31,7 +31,7 @@ In this tutorial you will:
 ## 1. Create a Wiki page
 ### Initial setup
 ```python
-{!docs/tutorials/python/tutorial_scripts/wiki.py!lines=15-31}
+{!docs/tutorials/python/tutorial_scripts/wiki.py!lines=16-31}
 ```
 A Wiki page requires an owner object, a title, and markdown. Here is an example to create a new root Wiki page for your project with plain text markdown:
 ```python

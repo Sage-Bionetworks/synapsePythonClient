@@ -1,4 +1,5 @@
 """Async unit tests for the synapseclient.models.Submission class."""
+
 import uuid
 from typing import Dict, List, Union
 from unittest.mock import AsyncMock, MagicMock, call, patch
@@ -200,15 +201,18 @@ class TestSubmissionAsync:
         submission = Submission(entity_id=ENTITY_ID, evaluation_id=EVALUATION_ID)
 
         # WHEN I call _fetch_latest_entity with mocked Docker repository responses
-        with patch(
-            "synapseclient.api.entity_services.get_entity",
-            new_callable=AsyncMock,
-            return_value=self.get_example_docker_entity_response(),
-        ) as mock_get_entity, patch(
-            "synapseclient.api.docker_commit_services.get_docker_tag",
-            new_callable=AsyncMock,
-            return_value=self.get_example_docker_tag_response(),
-        ) as mock_get_docker_tag:
+        with (
+            patch(
+                "synapseclient.api.entity_services.get_entity",
+                new_callable=AsyncMock,
+                return_value=self.get_example_docker_entity_response(),
+            ) as mock_get_entity,
+            patch(
+                "synapseclient.api.docker_commit_services.get_docker_tag",
+                new_callable=AsyncMock,
+                return_value=self.get_example_docker_tag_response(),
+            ) as mock_get_docker_tag,
+        ):
             entity_info = await submission._fetch_latest_entity(synapse_client=self.syn)
 
             # THEN it should return the entity information with latest docker tag info
@@ -234,15 +238,18 @@ class TestSubmissionAsync:
         submission = Submission(entity_id=ENTITY_ID, evaluation_id=EVALUATION_ID)
 
         # WHEN I call _fetch_latest_entity with empty docker tag results
-        with patch(
-            "synapseclient.api.entity_services.get_entity",
-            new_callable=AsyncMock,
-            return_value=self.get_example_docker_entity_response(),
-        ) as mock_get_entity, patch(
-            "synapseclient.api.docker_commit_services.get_docker_tag",
-            new_callable=AsyncMock,
-            return_value={"totalNumberOfResults": 0, "results": []},
-        ) as mock_get_docker_tag:
+        with (
+            patch(
+                "synapseclient.api.entity_services.get_entity",
+                new_callable=AsyncMock,
+                return_value=self.get_example_docker_entity_response(),
+            ) as mock_get_entity,
+            patch(
+                "synapseclient.api.docker_commit_services.get_docker_tag",
+                new_callable=AsyncMock,
+                return_value={"totalNumberOfResults": 0, "results": []},
+            ) as mock_get_docker_tag,
+        ):
             entity_info = await submission._fetch_latest_entity(synapse_client=self.syn)
 
             # THEN it should return the entity information without docker tag info
@@ -268,15 +275,18 @@ class TestSubmissionAsync:
         submission = Submission(entity_id=ENTITY_ID, evaluation_id=EVALUATION_ID)
 
         # WHEN I call _fetch_latest_entity with multiple docker tags with different dates
-        with patch(
-            "synapseclient.api.entity_services.get_entity",
-            new_callable=AsyncMock,
-            return_value=self.get_example_docker_entity_response(),
-        ) as mock_get_entity, patch(
-            "synapseclient.api.docker_commit_services.get_docker_tag",
-            new_callable=AsyncMock,
-            return_value=self.get_complex_docker_tag_response(),
-        ) as mock_get_docker_tag:
+        with (
+            patch(
+                "synapseclient.api.entity_services.get_entity",
+                new_callable=AsyncMock,
+                return_value=self.get_example_docker_entity_response(),
+            ) as mock_get_entity,
+            patch(
+                "synapseclient.api.docker_commit_services.get_docker_tag",
+                new_callable=AsyncMock,
+                return_value=self.get_complex_docker_tag_response(),
+            ) as mock_get_docker_tag,
+        ):
             entity_info = await submission._fetch_latest_entity(synapse_client=self.syn)
 
             # THEN it should select the tag with the latest createdOn timestamp (v3.0)
@@ -302,16 +312,19 @@ class TestSubmissionAsync:
         )
 
         # WHEN I call store_async with mocked dependencies
-        with patch.object(
-            submission,
-            "_fetch_latest_entity",
-            new_callable=AsyncMock,
-            return_value=self.get_example_entity_response(),
-        ) as mock_fetch_entity, patch(
-            "synapseclient.api.evaluation_services.create_submission",
-            new_callable=AsyncMock,
-            return_value=self.get_example_submission_response(),
-        ) as mock_create_submission:
+        with (
+            patch.object(
+                submission,
+                "_fetch_latest_entity",
+                new_callable=AsyncMock,
+                return_value=self.get_example_entity_response(),
+            ) as mock_fetch_entity,
+            patch(
+                "synapseclient.api.evaluation_services.create_submission",
+                new_callable=AsyncMock,
+                return_value=self.get_example_submission_response(),
+            ) as mock_create_submission,
+        ):
             stored_submission = await submission.store_async(synapse_client=self.syn)
 
             # THEN it should fetch entity information, create the submission, and fill the object
@@ -342,16 +355,19 @@ class TestSubmissionAsync:
             }
         )
 
-        with patch.object(
-            submission,
-            "_fetch_latest_entity",
-            new_callable=AsyncMock,
-            return_value=docker_entity_with_tag,
-        ) as mock_fetch_entity, patch(
-            "synapseclient.api.evaluation_services.create_submission",
-            new_callable=AsyncMock,
-            return_value=self.get_example_submission_response(),
-        ) as mock_create_submission:
+        with (
+            patch.object(
+                submission,
+                "_fetch_latest_entity",
+                new_callable=AsyncMock,
+                return_value=docker_entity_with_tag,
+            ) as mock_fetch_entity,
+            patch(
+                "synapseclient.api.evaluation_services.create_submission",
+                new_callable=AsyncMock,
+                return_value=self.get_example_submission_response(),
+            ) as mock_create_submission,
+        ):
             stored_submission = await submission.store_async(synapse_client=self.syn)
 
             # THEN it should handle Docker repository specific logic
@@ -375,16 +391,19 @@ class TestSubmissionAsync:
         )
 
         # WHEN I call store_async with mocked dependencies
-        with patch.object(
-            submission,
-            "_fetch_latest_entity",
-            new_callable=AsyncMock,
-            return_value=self.get_example_entity_response(),
-        ) as mock_fetch_entity, patch(
-            "synapseclient.api.evaluation_services.create_submission",
-            new_callable=AsyncMock,
-            return_value=self.get_example_submission_response(),
-        ) as mock_create_submission:
+        with (
+            patch.object(
+                submission,
+                "_fetch_latest_entity",
+                new_callable=AsyncMock,
+                return_value=self.get_example_entity_response(),
+            ) as mock_fetch_entity,
+            patch(
+                "synapseclient.api.evaluation_services.create_submission",
+                new_callable=AsyncMock,
+                return_value=self.get_example_submission_response(),
+            ) as mock_create_submission,
+        ):
             stored_submission = await submission.store_async(synapse_client=self.syn)
 
             # THEN it should preserve team information in the stored submission
@@ -426,12 +445,15 @@ class TestSubmissionAsync:
         submission = Submission(id=SUBMISSION_ID)
 
         # WHEN I call delete_async with mocked dependencies
-        with patch(
-            "synapseclient.api.evaluation_services.delete_submission",
-            new_callable=AsyncMock,
-        ) as mock_delete_submission, patch(
-            "synapseclient.Synapse.get_client",
-            return_value=self.syn,
+        with (
+            patch(
+                "synapseclient.api.evaluation_services.delete_submission",
+                new_callable=AsyncMock,
+            ) as mock_delete_submission,
+            patch(
+                "synapseclient.Synapse.get_client",
+                return_value=self.syn,
+            ),
         ):
             # Mock the logger
             self.syn.logger = MagicMock()
@@ -453,13 +475,16 @@ class TestSubmissionAsync:
         submission = Submission(id=SUBMISSION_ID)
 
         # WHEN I call cancel_async with mocked dependencies
-        with patch(
-            "synapseclient.api.evaluation_services.cancel_submission",
-            new_callable=AsyncMock,
-            return_value=self.get_example_submission_response(),
-        ) as mock_cancel_submission, patch(
-            "synapseclient.Synapse.get_client",
-            return_value=self.syn,
+        with (
+            patch(
+                "synapseclient.api.evaluation_services.cancel_submission",
+                new_callable=AsyncMock,
+                return_value=self.get_example_submission_response(),
+            ) as mock_cancel_submission,
+            patch(
+                "synapseclient.Synapse.get_client",
+                return_value=self.syn,
+            ),
         ):
             # Mock the logger
             self.syn.logger = MagicMock()

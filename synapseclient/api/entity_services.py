@@ -1726,3 +1726,37 @@ async def is_synapse_id(
             return True
         raise
     return True
+
+
+async def update_entity_file_handle_version(
+    entity_id: str,
+    version: int,
+    old_file_handle_id: str,
+    new_file_handle_id: str,
+    *,
+    synapse_client: Optional["Synapse"] = None,
+) -> None:
+    """Update the file handle for a specific version of an entity.
+
+    Arguments:
+        entity_id: The Synapse ID of the entity.
+        version: The version number to update.
+        old_file_handle_id: The file handle ID being replaced.
+        new_file_handle_id: The new file handle ID to assign.
+        synapse_client: If not passed in and caching was not disabled by
+            `Synapse.allow_client_caching(False)` this will use the last created
+            instance from the Synapse class constructor.
+    """
+    from synapseclient import Synapse
+
+    client = Synapse.get_client(synapse_client=synapse_client)
+    client.logger.info(f"Updating file handle for {entity_id} version {version}")
+    await client.rest_put_async(
+        f"/entity/{entity_id}/version/{version}/filehandle",
+        body=json.dumps(
+            {
+                "oldFileHandleId": old_file_handle_id,
+                "newFileHandleId": new_file_handle_id,
+            }
+        ),
+    )

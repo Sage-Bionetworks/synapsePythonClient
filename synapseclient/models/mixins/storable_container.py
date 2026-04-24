@@ -42,10 +42,18 @@ from synapseclient.core.constants.concrete_types import (
 from synapseclient.core.constants.method_flags import COLLISION_OVERWRITE_LOCAL
 from synapseclient.core.exceptions import SynapseError
 from synapseclient.core.transfer_bar import shared_download_progress_bar
+from synapseclient.core.upload.multipart_upload_async import (
+    shared_progress_bar as upload_shared_progress_bar,
+)
 from synapseclient.models.protocols.storable_container_protocol import (
     StorableContainerSynchronousProtocol,
 )
+from synapseclient.models.services.manifest import (
+    read_manifest_for_upload,
+    upload_sync_files,
+)
 from synapseclient.models.services.storable_entity_components import (
+    MANIFEST_UPLOAD_MAX_RETRIES,
     FailureStrategy,
     wrap_coroutine,
 )
@@ -575,6 +583,124 @@ class StorableContainer(StorableContainerSynchronousProtocol):
                 )
 
         return self
+
+    @otel_trace_method(
+        method_to_trace_name=lambda self, **kwargs: f"{self.__class__.__name__}_sync_to_synapse: {self.id}"
+    )
+    async def sync_to_synapse_async(
+        self: Self,
+        manifest_path: str,
+        dry_run: bool = False,
+        send_messages: bool = True,
+        retries: int = MANIFEST_UPLOAD_MAX_RETRIES,
+        merge_existing_annotations: bool = True,
+        associate_activity_to_new_version: bool = False,
+        *,
+        synapse_client: Synapse | None = None,
+    ) -> list["File"]:
+        """Upload files to Synapse using a manifest CSV file.
+
+        Accepts manifests produced by sync_from_synapse, the
+        synapse get-download-list CLI, or the Synapse UI download cart.
+        The manifest must have at minimum a path and parentId column.
+        All other columns that are not part of the standard manifest column set
+        are treated as file annotations.
+
+        Standard manifest columns:
+        [ID, name, parentId, contentType, path, synapseStore, activityName,
+        activityDescription, forceVersion, used, executed]
+
+        Arguments:
+            manifest_path: Path to the CSV manifest file.
+            dry_run: If True, perform full validation of the manifest
+                (including verifying that all parent containers exist in
+                Synapse) but skip the actual file upload.
+            send_messages: If True, send a Synapse notification message on
+                completion.
+            retries: Number of notification retries (only relevant when
+                send_messages=True).
+            merge_existing_annotations: If True, merge manifest annotations
+                with existing annotations on Synapse. If False, overwrite them.
+            associate_activity_to_new_version: If True and a version update
+                occurs, the existing Synapse activity is associated with the new
+                version.
+            synapse_client: If not passed in and caching was not disabled by
+                Synapse.allow_client_caching(False) this will use the last
+                created instance from the Synapse class constructor.
+
+        Returns:
+            List of File entities that were created or updated. Returns an
+            empty list if dry_run=True or if no rows were eligible for
+            upload.
+
+        Example: Using this function
+            &nbsp;
+
+            ```python
+            import asyncio
+            from synapseclient import Synapse
+            from synapseclient.models import Project
+
+            async def main():
+                syn = Synapse()
+                syn.login()
+
+                project = Project(id="syn12345")
+                await project.sync_to_synapse_async(
+                    manifest_path="/path/to/manifest.csv"
+                )
+
+            asyncio.run(main())
+            ```
+        """
+        from tqdm import tqdm
+
+        from synapseutils.monitor import notify_me_async
+
+        syn = Synapse.get_client(synapse_client=synapse_client)
+
+        items, total_size = await read_manifest_for_upload(
+            manifest_path=manifest_path,
+            syn=syn,
+            merge_existing_annotations=merge_existing_annotations,
+            associate_activity_to_new_version=associate_activity_to_new_version,
+        )
+
+        syn.logger.info(
+            f"About to upload {len(items)} files with a total size of {total_size} bytes."
+        )
+
+        if dry_run:
+            syn.logger.info("Returning due to dry run.")
+            return []
+
+        if not items:
+            return []
+
+        progress_bar = tqdm(
+            total=total_size,
+            desc=f"Uploading {len(items)} files",
+            unit="B",
+            unit_scale=True,
+            smoothing=0,
+            leave=None,
+        )
+        with upload_shared_progress_bar(progress_bar):
+            try:
+                if send_messages:
+                    notify_decorator = notify_me_async(
+                        syn, f"Upload from {manifest_path}", retries=retries
+                    )
+                    wrapped = notify_decorator(
+                        lambda items: upload_sync_files(items, syn=syn)
+                    )
+                    uploaded_files = await wrapped(items)
+                else:
+                    uploaded_files = await upload_sync_files(items, syn=syn)
+                progress_bar.update(total_size - progress_bar.n)
+            finally:
+                progress_bar.close()
+        return uploaded_files
 
     def flatten_file_list(self) -> List["File"]:
         """

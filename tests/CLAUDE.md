@@ -19,6 +19,7 @@ Use `pytest.mark.parametrize` when possible to merge similar tests into one test
 - Use `AsyncMock` for async method mocking, `create_autospec` for type-safe mocks
 - Class-based test organization with `@pytest.fixture(scope="function", autouse=True)` for setup
 - Test file naming: `unit_test_*.py` (legacy) or `test_*.py` (newer) — both patterns are discovered by pytest
+- Mock isolation: when mocking fixture/instance attributes (e.g., `self.syn.rest_post_async`), always wrap in `patch.object()` context managers instead of direct assignment. This prevents the mock from leaking to other tests: `with patch.object(self.syn, "method_name", new_callable=AsyncMock, return_value=...):`. Direct assignment leaves the mock in place after the test, polluting subsequent tests in the class.
 
 ### Integration tests (`tests/integration/`)
 - All async tests share one event loop: `asyncio_default_fixture_loop_scope = session`

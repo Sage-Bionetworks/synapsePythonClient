@@ -36,6 +36,16 @@ pip install -e ".[docs]" && mkdocs serve
 
 ## Conventions
 
+### Docstring examples format
+Use mkdocstrings admonition syntax. Start with a description line, then wrap code in a fenced python block. Examples should include login boilerplate.
+
+    Example: Short title
+        &nbsp;
+        Description of what the example does.
+        ```python
+        <example code here>
+        ```
+
 ### Async-first with generated sync wrappers
 All new methods must be async with `_async` suffix. The `@async_to_sync` class decorator (`core/async_utils.py`) auto-generates sync counterparts at class definition time. Never write sync methods manually on model classes — the decorator handles it.
 

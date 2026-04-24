@@ -32,11 +32,14 @@ class TestPresignedUrlProvider:
             expiration_utc=utc_now + datetime.timedelta(seconds=6),
         )
 
-        with mock.patch.object(
-            PresignedUrlProvider, "_get_pre_signed_info", return_value=info
-        ) as mock_get_presigned_info, mock.patch.object(
-            download_async, "datetime", wraps=datetime
-        ) as mock_datetime:
+        with (
+            mock.patch.object(
+                PresignedUrlProvider, "_get_pre_signed_info", return_value=info
+            ) as mock_get_presigned_info,
+            mock.patch.object(
+                download_async, "datetime", wraps=datetime
+            ) as mock_datetime,
+        ):
             mock_datetime.datetime.now.return_value = utc_now
 
             presigned_url_provider = PresignedUrlProvider(
@@ -64,16 +67,19 @@ class TestPresignedUrlProvider:
             expiration_utc=unexpired_date,
         )
 
-        with mock.patch.object(
-            PresignedUrlProvider,
-            "_get_pre_signed_info",
-            side_effect=[unexpired_info],
-        ) as mock_get_presigned_info, mock.patch(
-            "synapseclient.core.download.download_async.get_file_handle_for_download",
-            return_value={
-                "fileHandle": {"fileName": "myFile.txt"},
-                "preSignedURL": f"https://synapse.org?X-Amz-Date={unexpired_date.strftime('%Y%m%dT%H%M%SZ')}&X-Amz-Expires=5&X-Amz-Signature=123456",
-            },
+        with (
+            mock.patch.object(
+                PresignedUrlProvider,
+                "_get_pre_signed_info",
+                side_effect=[unexpired_info],
+            ) as mock_get_presigned_info,
+            mock.patch(
+                "synapseclient.core.download.download_async.get_file_handle_for_download",
+                return_value={
+                    "fileHandle": {"fileName": "myFile.txt"},
+                    "preSignedURL": f"https://synapse.org?X-Amz-Date={unexpired_date.strftime('%Y%m%dT%H%M%SZ')}&X-Amz-Expires=5&X-Amz-Signature=123456",
+                },
+            ),
         ):
             presigned_url_provider = PresignedUrlProvider(
                 self.mock_synapse_client, request=self.download_request
@@ -89,17 +95,20 @@ class TestPresignedUrlProvider:
         fake_url = "https://synapse.org/foo.txt"
         fake_file_name = "foo.txt"
 
-        with mock.patch.object(
-            download_async,
-            "_pre_signed_url_expiration_time",
-            return_value=fake_exp_time,
-        ) as mock_pre_signed_url_expiration_time, mock.patch(
-            "synapseclient.core.download.download_async.get_file_handle_for_download",
-            return_value={
-                "fileHandle": {"fileName": "myFile.txt"},
-                "preSignedURL": f"https://synapse.org?X-Amz-Date={fake_exp_time.strftime('%Y%m%dT%H%M%SZ')}&X-Amz-Expires=5&X-Amz-Signature=123456",
-            },
-        ) as mock_file_handle_download:
+        with (
+            mock.patch.object(
+                download_async,
+                "_pre_signed_url_expiration_time",
+                return_value=fake_exp_time,
+            ) as mock_pre_signed_url_expiration_time,
+            mock.patch(
+                "synapseclient.core.download.download_async.get_file_handle_for_download",
+                return_value={
+                    "fileHandle": {"fileName": "myFile.txt"},
+                    "preSignedURL": f"https://synapse.org?X-Amz-Date={fake_exp_time.strftime('%Y%m%dT%H%M%SZ')}&X-Amz-Expires=5&X-Amz-Signature=123456",
+                },
+            ) as mock_file_handle_download,
+        ):
             fake_file_handle_response = {
                 "fileHandle": {"fileName": fake_file_name},
                 "preSignedURL": fake_url,

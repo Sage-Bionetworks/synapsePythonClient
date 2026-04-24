@@ -1,4 +1,5 @@
 """Integration tests for delete operations async."""
+
 import uuid
 from typing import Callable
 
