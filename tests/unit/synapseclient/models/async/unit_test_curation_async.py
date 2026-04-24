@@ -961,7 +961,7 @@ class TestGridDownloadCsv:
             result = await grid.download_csv_async(synapse_client=self.syn)
             current_dir = os.getcwd()
 
-            # # THEN the download request should be sent
+            # THEN the download request should be sent
             mock_send.assert_called_once()
             mock_download.assert_called_once_with(
                 synapse_client=self.syn,
