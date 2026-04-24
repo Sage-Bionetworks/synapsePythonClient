@@ -686,7 +686,6 @@ class TestWikiPageVersioning:
     async def test_wiki_page_history(
         self,
         wiki_page_with_multiple_versions,
-        schedule_for_cleanup: Callable[..., None],
     ) -> None:
         # GIVEN a wiki page with multiple versions
         sub_wiki = wiki_page_with_multiple_versions
@@ -698,7 +697,6 @@ class TestWikiPageVersioning:
             history.append(item)
         # THEN history should be returned
         assert len(history) == 3
-        schedule_for_cleanup(history)
 
     async def test_restore_wiki_page_version(
         self,
