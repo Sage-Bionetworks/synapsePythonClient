@@ -9,6 +9,7 @@ from unittest.mock import MagicMock, patch
 import numpy as np
 import pandas as pd
 import pytest
+from pandas.api.types import is_integer_dtype, is_object_dtype
 
 from synapseclient import Synapse
 from synapseclient.api import ViewEntityType, ViewTypeMask
@@ -37,6 +38,7 @@ from synapseclient.models.mixins.table_components import (
     _query_table_csv,
     _query_table_next_page,
     _query_table_row_set,
+    convert_dtypes_to_json_serializable,
     csv_to_pandas_df,
 )
 from synapseclient.models.table_components import (
@@ -3968,3 +3970,208 @@ class TestCsvToPandasDf:
         ).convert_dtypes()  # resolve datatype issue such as StringDtype vs object
         # THEN assert the dataframe is equal to the expected dataframe
         pd.testing.assert_frame_equal(df, expected_df)
+
+
+class TestConvertDtypesToJsonSerializable:
+    """Tests for convert_dtypes_to_json_serializable function"""
+
+    def test_no_conversion_when_no_na_in_column(self):
+        """Test that int64 and float64 columns are not converted to object dtype when no NA is present"""
+        df = pd.DataFrame({"int_col": [1, 2, 3, 4], "float_col": [1.1, 2.2, 3.3, 4.4]})
+        assert df["int_col"].dtype == "int64"
+        assert df["float_col"].dtype == "float64"
+
+        result = convert_dtypes_to_json_serializable(df)
+        assert is_object_dtype(result.int_col)
+        assert is_object_dtype(result.float_col)
+        assert list(result["int_col"]) == [1, 2, 3, 4]
+        assert list(result["float_col"]) == [1.1, 2.2, 3.3, 4.4]
+
+    def test_convert_na_and_columns_to_object(self):
+        """Test that pd.NA values are converted to None for int64 and float64 columns by _serialize_json_value"""
+        df = pd.DataFrame(
+            {
+                "int_col": pd.array([1, 2, pd.NA, 4], dtype="Int64"),
+                "float_col": pd.array([1.1, 2.2, pd.NA, 4.4], dtype="Float64"),
+            }
+        )
+        result = convert_dtypes_to_json_serializable(df)
+        assert is_object_dtype(result.int_col)
+        assert is_object_dtype(result.float_col)
+        assert list(result["int_col"]) == [1, 2, None, 4]
+        assert list(result["float_col"]) == [1.1, 2.2, None, 4.4]
+
+    def test_row_columns_remain_int(self):
+        """Test that ROW_ID, ROW_VERSION, and ROW_ID.1 columns remain as int while other columns become object"""
+        # GIVEN a dataframe with special columns (ROW_ID, ROW_VERSION, ROW_ID.1) and a regular column
+        df = pd.DataFrame(
+            {
+                "ROW_ID": pd.array([1, 2, 3, 4], dtype="Int64"),
+                "ROW_VERSION": pd.array([5, 6, 7, 8], dtype="Int64"),
+                "ROW_ID.1": pd.array([9, 10, 11, 12], dtype="Int64"),
+                "other_col": [10, 20, 30, 40],  # Use regular list without pd.NA
+            }
+        )
+
+        # WHEN convert_dtypes_to_json_serializable is called
+        result = convert_dtypes_to_json_serializable(df)
+
+        # THEN all special columns should remain as int while other_col should become object
+        assert is_integer_dtype(result.ROW_ID), "ROW_ID should remain integer dtype"
+        assert is_integer_dtype(
+            result.ROW_VERSION
+        ), "ROW_VERSION should remain int64 dtype"
+        assert is_integer_dtype(
+            result["ROW_ID.1"]
+        ), "ROW_ID.1 should remain int64 dtype"
+        assert is_object_dtype(result.other_col), "other_col should become object dtype"
+
+    def test_ellipsis_handling_in_list(self):
+        """Test that Ellipsis (...) objects in lists are converted to '...' strings"""
+        # GIVEN a dataframe with Ellipsis in a list
+        df = pd.DataFrame({"list_with_ellipsis": [[1, 2, ...], [4, ..., 6]]})
+
+        # WHEN convert_dtypes_to_json_serializable is called
+        result = convert_dtypes_to_json_serializable(df)
+
+        # THEN Ellipsis should be converted to "..." in JSON string
+        assert result["list_with_ellipsis"].iloc[0] == [1, 2, "..."]
+        assert result["list_with_ellipsis"].iloc[1] == [4, "...", 6]
+        assert is_object_dtype(result.list_with_ellipsis)
+
+    def test_ellipsis_handling_in_dict(self):
+        """Test that Ellipsis (...) objects in dicts are converted to '...' strings"""
+        # GIVEN a dataframe with Ellipsis in a dict
+        df = pd.DataFrame(
+            {
+                "dict_with_ellipsis": [
+                    {"id": 1, "data": ...},
+                    {"id": 2, "items": [1, ...]},
+                ]
+            }
+        )
+
+        # WHEN convert_dtypes_to_json_serializable is called
+        result = convert_dtypes_to_json_serializable(df)
+
+        # THEN Ellipsis should be converted to "..." in JSON string
+        assert result.dict_with_ellipsis.iloc[0] == {"id": 1, "data": "..."}
+        assert result.dict_with_ellipsis.iloc[1] == {"id": 2, "items": [1, "..."]}
+        assert is_object_dtype(result.dict_with_ellipsis)
+
+    def test_standalone_ellipsis(self):
+        """Test that standalone Ellipsis objects are converted to '...' strings"""
+        # GIVEN a dataframe with standalone Ellipsis
+        df = pd.DataFrame({"ellipsis_col": [1, ..., 3]})
+
+        # WHEN convert_dtypes_to_json_serializable is called
+        result = convert_dtypes_to_json_serializable(df)
+
+        # THEN Ellipsis should be converted to "..."
+        assert result["ellipsis_col"].iloc[0] == 1
+        assert result["ellipsis_col"].iloc[1] == "..."
+        assert result["ellipsis_col"].iloc[2] == 3
+
+    def test_none_in_list_serialized_to_empty_list(self):
+        """Test that None values in list columns are serialized to '[]'"""
+        # GIVEN a dataframe with None in list column
+        df = pd.DataFrame({"list_col": [[1, 2, 3], pd.NA, [7, 8, 9]]})
+
+        # WHEN convert_dtypes_to_json_serializable is called
+        result = convert_dtypes_to_json_serializable(df)
+
+        # THEN None should be converted to "[]"
+        assert result["list_col"].iloc[0] == [1, 2, 3]
+        assert result["list_col"].iloc[1] == None
+        assert result["list_col"].iloc[2] == [7, 8, 9]
+
+    def test_dict_with_quotes_in_values(self):
+        """Test that dicts with quotes in string values are properly handled"""
+        # GIVEN a dataframe with dict containing quotes
+        df = pd.DataFrame(
+            {
+                "dict_col": [
+                    {"description": 'Text with "quotes" here'},
+                    {"description": 'Another "quoted" text'},
+                ]
+            }
+        )
+
+        # WHEN convert_dtypes_to_json_serializable is called
+        result = convert_dtypes_to_json_serializable(df)
+
+        # THEN the JSON string should be properly formatted
+        assert result["dict_col"].iloc[0] == {"description": 'Text with "quotes" here'}
+        assert result["dict_col"].iloc[1] == {"description": 'Another "quoted" text'}
+        assert is_object_dtype(result.dict_col)
+
+    def test_empty_dataframe(self):
+        """Test that empty dataframe is handled correctly"""
+        # GIVEN an empty dataframe
+        df = pd.DataFrame()
+
+        # WHEN convert_dtypes_to_json_serializable is called
+        result = convert_dtypes_to_json_serializable(df)
+
+        # THEN it should return an empty dataframe
+        assert len(result) == 0
+        assert len(result.columns) == 0
+
+    def test_mixed_column_types_no_conversion_needed(self):
+        """Test that multiple column types are handled correctly together"""
+        # GIVEN a dataframe with mixed column types
+        df = pd.DataFrame(
+            {
+                "ROW_ID": pd.array([1, 2, 3], dtype="Int64"),
+                "ROW_VERSION": pd.array([1, 1, 1], dtype="Int64"),
+                "int_col": [10, 20, 30],  # Use regular list without pd.NA
+                "float_col": [1.1, 2.2, 3.3],
+                "string_col": ["a", "b", "c"],
+                "list_col": [[1, 2], [3, 4], None],
+                "dict_col": [{"id": 1}, {"id": 2}, {"id": 3}],
+                "bool_col": [True, False, True],
+            }
+        )
+
+        # WHEN convert_dtypes_to_json_serializable is called
+        result = convert_dtypes_to_json_serializable(df)
+
+        # THEN verify all conversions
+        pd.testing.assert_frame_equal(result, df)
+
+    def test_nested_dict_with_ellipsis(self):
+        """Test that nested dicts with Ellipsis are properly handled"""
+        # GIVEN a dataframe with nested dict containing Ellipsis
+        df = pd.DataFrame(
+            {
+                "nested_dict": [
+                    {"outer": {"inner": ...}},
+                    {"data": {"list": [1, 2, ...]}},
+                ]
+            }
+        )
+
+        # WHEN convert_dtypes_to_json_serializable is called
+        result = convert_dtypes_to_json_serializable(df)
+
+        # THEN Ellipsis should be converted in nested structures
+        assert result["nested_dict"].iloc[0] == {"outer": {"inner": "..."}}
+        assert result["nested_dict"].iloc[1] == {"data": {"list": [1, 2, "..."]}}
+
+    def test_nullable_int64_with_pd_na(self):
+        """Test that Int64 columns with pd.NA get pd.NA converted to None by _serialize_json_value"""
+        # GIVEN a dataframe with nullable Int64 column containing pd.NA
+        df = pd.DataFrame(
+            {"nullable_int_col": pd.array([1, 2, pd.NA, 4, pd.NA], dtype="Int64")}
+        )
+
+        # WHEN convert_dtypes_to_json_serializable is called
+        result = convert_dtypes_to_json_serializable(df)
+
+        # THEN the column should be object type and pd.NA should be converted to None
+        assert is_object_dtype(result.nullable_int_col)
+        expected_result = pd.DataFrame(
+            {"nullable_int_col": [1, 2, None, 4, None]}
+        ).convert_dtypes()
+        pd.testing.assert_frame_equal(result, expected_result, check_dtype=False)
+        assert is_object_dtype(result.nullable_int_col)
