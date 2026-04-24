@@ -5,6 +5,7 @@ Curation tasks are used to guide data contributors through the process of contri
 data or metadata in Synapse.
 """
 
+import os
 from dataclasses import dataclass, field, replace
 from typing import Any, AsyncGenerator, Dict, Generator, Optional, Protocol, Union
 
@@ -22,21 +23,24 @@ from synapseclient.api import (
 )
 from synapseclient.core.async_utils import (
     async_to_sync,
+    otel_trace_method,
     skip_async_to_sync,
     wrap_async_generator_to_sync_generator,
 )
 from synapseclient.core.constants.concrete_types import (
     CREATE_GRID_REQUEST,
+    DOWNLOAD_FROM_GRID_REQUEST,
     FILE_BASED_METADATA_TASK_PROPERTIES,
     GRID_RECORD_SET_EXPORT_REQUEST,
     LIST_GRID_SESSIONS_REQUEST,
     LIST_GRID_SESSIONS_RESPONSE,
     RECORD_BASED_METADATA_TASK_PROPERTIES,
 )
+from synapseclient.core.download.download_functions import download_by_file_handle
 from synapseclient.core.utils import delete_none_keys, merge_dataclass_entities
 from synapseclient.models.mixins.asynchronous_job import AsynchronousCommunicator
 from synapseclient.models.recordset import ValidationSummary
-from synapseclient.models.table_components import Query
+from synapseclient.models.table_components import CsvTableDescriptor, Query
 
 
 @dataclass
@@ -990,6 +994,76 @@ class CreateGridRequest(AsynchronousCommunicator):
 
 
 @dataclass
+class DownloadFromGridRequest(AsynchronousCommunicator):
+    """
+    A CSV Grid download request.
+
+    This request is modeled from: <https://rest-docs.synapse.org/rest/org/sagebionetworks/repo/model/grid/DownloadFromGridRequest.html>
+
+    The response is modeled from: <https://rest-docs.synapse.org/rest/org/sagebionetworks/repo/model/grid/DownloadFromGridResponse.html>
+    """
+
+    session_id: str
+    """The grid session ID."""
+
+    concrete_type: str = field(default=DOWNLOAD_FROM_GRID_REQUEST)
+    """The concrete type for this request."""
+
+    write_header: Optional[bool] = True
+    """Should the first line contain the columns names as a header in the resulting file? Set to 'true' to include the headers else, 'false'."""
+
+    include_row_id_and_row_version: Optional[bool] = True
+    """Should the first two columns contain the row ID and row version?"""
+
+    include_etag: Optional[bool] = True
+    """Should the first (or third if includeRowIdAndRowVersion is true) column contain the row etag?"""
+
+    csv_table_descriptor: CsvTableDescriptor = field(default_factory=CsvTableDescriptor)
+    """The description of a csv for upload or download."""
+
+    file_name: Optional[str] = None
+    """The optional name for the downloaded table."""
+
+    # Response fields (populated by fill_from_dict)
+    results_file_handle_id: Optional[str] = None
+    """The file handle ID of the generated CSV. Populated from the async job response."""
+
+    def fill_from_dict(
+        self, synapse_response: Dict[str, Any]
+    ) -> "DownloadFromGridRequest":
+        """
+        Converts a response from the REST API into this dataclass.
+
+        Arguments:
+            synapse_response: The response from the REST API.
+
+        Returns:
+            The DownloadFromGridRequest object.
+        """
+        self.results_file_handle_id = synapse_response.get("resultsFileHandleId")
+        return self
+
+    def to_synapse_request(self) -> Dict[str, Any]:
+        """
+        Converts this dataclass to a dictionary suitable for a Synapse REST API request.
+
+        Returns:
+            A dictionary representation of this object for API requests.
+        """
+        request_dict = {
+            "concreteType": self.concrete_type,
+            "sessionId": self.session_id,
+            "writeHeader": self.write_header,
+            "includeRowIdAndRowVersion": self.include_row_id_and_row_version,
+            "includeEtag": self.include_etag,
+            "csvTableDescriptor": self.csv_table_descriptor.to_synapse_request(),
+            "fileName": self.file_name,
+        }
+        delete_none_keys(request_dict)
+        return request_dict
+
+
+@dataclass
 class GridRecordSetExportRequest(AsynchronousCommunicator):
     """
     A request to export a grid created from a record set back to the original record set.
@@ -1372,6 +1446,68 @@ class GridSynchronousProtocol(Protocol):
             ```
         """
         return None
+
+    def download_csv(
+        self,
+        *,
+        destination: Optional[str] = None,
+        write_header: bool = True,
+        include_row_id_and_row_version: bool = True,
+        include_etag: bool = True,
+        csv_table_descriptor: Optional[CsvTableDescriptor] = None,
+        file_name: Optional[str] = None,
+        timeout: int = 120,
+        synapse_client: Optional[Synapse] = None,
+    ) -> str:
+        """
+        Download the current state of this grid session as a CSV file.
+
+        Submits a DownloadFromGridRequest async job, waits for it to complete,
+        then downloads the resulting CSV to the local filesystem.
+
+        Arguments:
+            destination: Local directory path where the CSV will be saved.
+                If not provided, defaults to the current working directory. The directory must already exist.
+            write_header: Whether the first line should contain column names
+                as a header. Defaults to True.
+            include_row_id_and_row_version: Whether the first two columns
+                should contain row ID and version. Defaults to True.
+            include_etag: Whether a column should contain the row etag.
+                Defaults to True.
+            csv_table_descriptor: The description of the CSV format (delimiter,
+                quote character, etc.). If not provided, the default CSV format
+                will be used.
+            file_name: The optional name for the downloaded file. If not
+                provided, Synapse will generate a name.
+            timeout: The number of seconds to wait for the async job to
+                complete or progress before raising a SynapseTimeoutError.
+                Defaults to 120.
+            synapse_client: If not passed in and caching was not disabled by
+                `Synapse.allow_client_caching(False)` this will use the last
+                created instance from the Synapse class constructor.
+
+        Returns:
+            The local path to the downloaded CSV file.
+
+        Raises:
+            ValueError: If session_id is not provided.
+
+        Example: Download a grid session as a CSV
+            &nbsp;
+
+            ```python
+            from synapseclient import Synapse
+            from synapseclient.models import Grid
+
+            syn = Synapse()
+            syn.login()
+
+            grid = Grid(session_id="abc-123-def")
+            path = grid.download_csv(destination="./downloads")
+            print(f"Downloaded CSV to: {path}")
+            ```
+        """
+        return ""
 
     @classmethod
     def list(
@@ -1837,4 +1973,109 @@ class Grid(GridSynchronousProtocol):
 
         await delete_grid_session(
             session_id=self.session_id, synapse_client=synapse_client
+        )
+
+    @otel_trace_method(
+        method_to_trace_name=lambda self, *args, **kwargs: f"Grid_DownloadCsv: ID: {self.session_id}"
+    )
+    async def download_csv_async(
+        self,
+        *,
+        destination: Optional[str] = None,
+        write_header: bool = True,
+        include_row_id_and_row_version: bool = True,
+        include_etag: bool = True,
+        csv_table_descriptor: Optional[CsvTableDescriptor] = None,
+        file_name: Optional[str] = None,
+        timeout: int = 120,
+        synapse_client: Optional[Synapse] = None,
+    ) -> str:
+        """
+        Asynchronously download the current state of this grid session as a CSV file.
+
+        Submits a DownloadFromGridRequest async job, waits for it to complete,
+        then downloads the resulting CSV to the local filesystem.
+
+        Arguments:
+            destination: Local directory path where the CSV will be saved. The directory must already exist.
+                If not provided, defaults to the current working directory.
+            write_header: Whether the first line should contain column names
+                as a header. Defaults to True.
+            include_row_id_and_row_version: Whether the first two columns
+                should contain row ID and version. Defaults to True.
+            include_etag: Whether a column should contain the row etag.
+                Defaults to True.
+            csv_table_descriptor: The description of the CSV format (delimiter,
+                quote character, etc.). If not provided, the default CSV format
+                will be used.
+            file_name: The optional name for the downloaded file. If not
+                provided, Synapse will generate a name.
+            timeout: The number of seconds to wait for the async job to
+                complete or progress before raising a SynapseTimeoutError.
+                Defaults to 120.
+            synapse_client: If not passed in and caching was not disabled by
+                `Synapse.allow_client_caching(False)` this will use the last
+                created instance from the Synapse class constructor.
+
+        Returns:
+            The local path to the downloaded CSV file.
+
+        Raises:
+            ValueError: If session_id is not provided.
+
+        Example: Download a grid session as a CSV asynchronously
+            &nbsp;
+
+            ```python
+            import asyncio
+            from synapseclient import Synapse
+            from synapseclient.models import Grid
+
+            syn = Synapse()
+            syn.login()
+
+            async def main():
+                grid = Grid(session_id="abc-123-def")
+                path = await grid.download_csv_async(destination="./downloads")
+                print(f"Downloaded CSV to: {path}")
+
+            asyncio.run(main())
+            ```
+        """
+        if not self.session_id:
+            raise ValueError("session_id is required to download a GridSession as CSV")
+
+        if not destination:
+            destination = os.getcwd()
+
+        if not os.path.isdir(destination):
+            raise ValueError(f"Destination {destination} is not a valid directory.")
+
+        trace.get_current_span().set_attributes({"synapse.session_id": self.session_id})
+
+        effective_descriptor = csv_table_descriptor or CsvTableDescriptor()
+        request = DownloadFromGridRequest(
+            session_id=self.session_id,
+            write_header=write_header,
+            include_row_id_and_row_version=include_row_id_and_row_version,
+            include_etag=include_etag,
+            csv_table_descriptor=effective_descriptor,
+            file_name=file_name,
+        )
+        download_response = await request.send_job_and_wait_async(
+            timeout=timeout, synapse_client=synapse_client
+        )
+        if not download_response.results_file_handle_id:
+            raise ValueError(
+                f"Download job for grid session '{self.session_id}' completed but "
+                "did not return a file handle ID. The CSV result may be empty or "
+                "the job may have failed silently."
+            )
+
+        return await download_by_file_handle(
+            file_handle_id=download_response.results_file_handle_id,
+            synapse_id=download_response.results_file_handle_id,
+            entity_type="FileEntity",
+            destination=destination,
+            synapse_client=synapse_client,
         )

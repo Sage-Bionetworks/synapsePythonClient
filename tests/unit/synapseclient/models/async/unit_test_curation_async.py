@@ -1,5 +1,6 @@
 """Unit tests for the CurationTask and Grid models."""
 
+import os
 from unittest.mock import AsyncMock, patch
 
 import pytest
@@ -12,6 +13,7 @@ from synapseclient.core.constants.concrete_types import (
 from synapseclient.models.curation import (
     CreateGridRequest,
     CurationTask,
+    DownloadFromGridRequest,
     FileBasedMetadataTaskProperties,
     Grid,
     GridRecordSetExportRequest,
@@ -19,6 +21,7 @@ from synapseclient.models.curation import (
     _create_task_properties_from_dict,
 )
 from synapseclient.models.recordset import ValidationSummary
+from synapseclient.models.table_components import CsvTableDescriptor
 
 TASK_ID = 42
 TASK_ID_2 = 99
@@ -39,6 +42,7 @@ SOURCE_ENTITY_ID = "syn5555555"
 GRID_ETAG = "grid-etag-456"
 STARTED_BY = "user-1"
 STARTED_ON = "2024-03-01T00:00:00.000Z"
+FILE_HANDLE_ID = "1234567"
 
 
 def _get_file_based_task_api_response():
@@ -854,6 +858,157 @@ class TestCreateGridRequest:
         assert "concreteType" in result
         assert result["recordSetId"] == RECORD_SET_ID
         assert "initialQuery" not in result
+
+
+class TestDownloadFromGridRequest:
+    """Tests for the DownloadFromGridRequest helper dataclass."""
+
+    def test_to_synapse_request(self) -> None:
+        # GIVEN a DownloadFromGridRequest with a session_id
+        request = DownloadFromGridRequest(session_id=SESSION_ID)
+
+        # WHEN I convert it to a synapse request
+        result = request.to_synapse_request()
+
+        # THEN it should contain the correct fields
+        assert "concreteType" in result
+        assert result["sessionId"] == SESSION_ID
+
+    def test_to_synapse_request_all_fields(self) -> None:
+        # GIVEN a DownloadFromGridRequest with all fields set
+        table_descriptor = CsvTableDescriptor(
+            quote_character='"',
+            escape_character="\\",
+            line_end=os.linesep,
+            separator=";",
+            is_first_line_header=False,
+        )
+        request = DownloadFromGridRequest(
+            session_id=SESSION_ID,
+            write_header=False,
+            include_row_id_and_row_version=False,
+            include_etag=False,
+            csv_table_descriptor=table_descriptor,
+            file_name="my_grid_data.csv",
+        )
+
+        # WHEN I convert it to a synapse request
+        result = request.to_synapse_request()
+
+        # THEN it should contain all the correct fields
+        assert "concreteType" in result
+        assert result["sessionId"] == SESSION_ID
+        assert result["includeRowIdAndRowVersion"] is False
+        assert result["includeEtag"] is False
+        assert result["fileName"] == "my_grid_data.csv"
+        assert result["csvTableDescriptor"]["quoteCharacter"] == '"'
+        assert result["csvTableDescriptor"]["escapeCharacter"] == "\\"
+        assert result["csvTableDescriptor"]["lineEnd"] == os.linesep
+        assert result["csvTableDescriptor"]["separator"] == ";"
+        assert result["csvTableDescriptor"]["isFirstLineHeader"] is False
+
+    def test_fill_from_dict(self) -> None:
+        # GIVEN a response with download data
+        raw_synapse_response = {
+            "jobId": "123",
+            "concreteType": "org.sagebionetworks.repo.model.grid.DownloadFromGridResult",
+            "sessionId": SESSION_ID,
+            "resultsFileHandleId": FILE_HANDLE_ID,
+        }
+        response = DownloadFromGridRequest(session_id=SESSION_ID).fill_from_dict(
+            raw_synapse_response
+        )
+        assert response.session_id == SESSION_ID
+        assert response.results_file_handle_id == FILE_HANDLE_ID
+
+
+class TestGridDownloadCsv:
+
+    @pytest.fixture(autouse=True, scope="function")
+    def init_syn(self, syn: Synapse) -> None:
+        self.syn = syn
+
+    async def test_download_csv_without_session_id(self) -> None:
+        # GIVEN a Grid without a session_id
+        grid = Grid()
+
+        # WHEN I call download_csv
+        # THEN it should raise ValueError
+        with pytest.raises(ValueError, match="session_id is required to download"):
+            await grid.download_csv_async(synapse_client=self.syn)
+
+    async def test_download_csv_async(self):
+        # GIVEN a Grid with a session_id
+        grid = Grid(session_id=SESSION_ID)
+
+        # Mock the DownloadFromGridRequest's send_job_and_wait_async
+        mock_download_request = DownloadFromGridRequest(session_id=SESSION_ID)
+        mock_download_request.results_file_handle_id = FILE_HANDLE_ID
+
+        with (
+            patch.object(
+                DownloadFromGridRequest,
+                "send_job_and_wait_async",
+                new_callable=AsyncMock,
+                return_value=mock_download_request,
+            ) as mock_send,
+            patch(
+                "synapseclient.models.curation.download_by_file_handle",
+                new_callable=AsyncMock,
+                return_value="test.csv",
+            ) as mock_download,
+        ):
+            result = await grid.download_csv_async(synapse_client=self.syn)
+            current_dir = os.getcwd()
+
+            # THEN the download request should be sent
+            mock_send.assert_called_once()
+            mock_download.assert_called_once_with(
+                synapse_client=self.syn,
+                file_handle_id=FILE_HANDLE_ID,
+                entity_type="FileEntity",
+                synapse_id=FILE_HANDLE_ID,
+                destination=current_dir,
+            )
+
+            # AND the result should be the file handle ID
+            assert result == "test.csv"
+
+    async def test_download_csv_async_with_invalid_dir(self):
+        # GIVEN a Grid with a session_id
+        grid = Grid(session_id=SESSION_ID)
+
+        # WHEN I call download_csv_async with an invalid destination
+        with pytest.raises(
+            ValueError, match=f"Destination ./nonexistent_dir is not a valid directory."
+        ):
+            await grid.download_csv_async(
+                synapse_client=self.syn, destination="./nonexistent_dir"
+            )
+
+    async def test_download_csv_async_empty_file_handle_id(self):
+        # GIVEN a Grid with a session_id
+        grid = Grid(session_id=SESSION_ID)
+
+        # Mock the DownloadFromGridRequest's send_job_and_wait_async to return an empty file handle ID
+        mock_download_request = DownloadFromGridRequest(session_id=SESSION_ID)
+        mock_download_request.results_file_handle_id = ""
+
+        with patch.object(
+            DownloadFromGridRequest,
+            "send_job_and_wait_async",
+            new_callable=AsyncMock,
+            return_value=mock_download_request,
+        ):
+            # WHEN I call download_csv_async
+            # THEN it should raise ValueError for empty file handle ID
+            with pytest.raises(
+                ValueError,
+                match=f"Download job for grid session '{SESSION_ID}' completed but "
+                "did not return a file handle ID. The CSV result may be empty or "
+                "the job may have failed silently.",
+            ):
+                await grid.download_csv_async(synapse_client=self.syn)
 
 
 class TestGridRecordSetExportRequest:
