@@ -61,7 +61,7 @@ class TestWikiPageBasicOperations:
         retrieved_wiki = await WikiPage(
             owner_id=root_wiki.owner_id, id=root_wiki.id
         ).get_async(synapse_client=self.syn)
-        schedule_for_cleanup(retrieved_wiki.id)
+        schedule_for_cleanup(retrieved_wiki)
 
         # THEN the retrieved wiki should match the created one
         assert retrieved_wiki.id == root_wiki.id
@@ -81,7 +81,7 @@ class TestWikiPageBasicOperations:
         retrieved_wiki = await WikiPage(
             owner_id=root_wiki.owner_id, title=root_wiki.title
         ).get_async(synapse_client=self.syn)
-        schedule_for_cleanup(retrieved_wiki.id)
+        schedule_for_cleanup(retrieved_wiki)
         # THEN the retrieved wiki should match the created one
         assert retrieved_wiki.id == root_wiki.id
         assert retrieved_wiki.title == root_wiki.title
@@ -102,7 +102,7 @@ class TestWikiPageBasicOperations:
             title=f"Wiki Page to be deleted {str(uuid.uuid4())}",
             markdown="# Wiki Page to be deleted\n\nThis is a wiki page to be deleted.",
         ).store_async(synapse_client=self.syn)
-        schedule_for_cleanup(wiki_page_to_delete.id)
+        schedule_for_cleanup(wiki_page_to_delete)
         # WHEN deleting the wiki page
         await wiki_page_to_delete.delete_async(synapse_client=self.syn)
 
@@ -129,7 +129,7 @@ class TestWikiPageBasicOperations:
             title=title,
             markdown="# Sub Wiki Basic Operations\n\nThis is a sub wiki basic operations page.",
         ).store_async(synapse_client=self.syn)
-        schedule_for_cleanup(sub_wiki.id)
+        schedule_for_cleanup(sub_wiki)
         # THEN the sub-wiki page should be created
         assert sub_wiki.id is not None
         assert sub_wiki.title == title
@@ -185,7 +185,7 @@ class TestWikiPageAttachments:
             attachments=[filename],
         )
         wiki_page = await wiki_page.store_async(synapse_client=syn)
-        schedule_for_cleanup(wiki_page.id)
+        schedule_for_cleanup(wiki_page)
         attachment_name = os.path.basename(filename)
         return wiki_page, attachment_name
 
@@ -337,7 +337,7 @@ class TestWikiPageAttachments:
             attachments=[filename],
         )
         wiki_page = await wiki_page.store_async(synapse_client=self.syn)
-        schedule_for_cleanup(wiki_page.id)
+        schedule_for_cleanup(wiki_page)
         # WHEN downloading the attachment
         downloaded_path = await wiki_page.get_attachment_async(
             file_name=os.path.basename(filename),
@@ -378,7 +378,7 @@ class TestWikiPageAttachments:
             attachments=[gz_filename],
         )
         sub_wiki = await wiki_page.store_async(synapse_client=syn)
-        schedule_for_cleanup(sub_wiki.id)
+        schedule_for_cleanup(sub_wiki)
         attachment_name = os.path.basename(gz_filename)
         return sub_wiki, attachment_name
 
@@ -553,7 +553,7 @@ class TestWikiPageMarkdown:
             parent_id=root_wiki.id,
         )
         sub_wiki = await wiki_page.store_async(synapse_client=syn)
-        schedule_for_cleanup(sub_wiki.id)
+        schedule_for_cleanup(sub_wiki)
         return sub_wiki
 
     async def test_get_markdown_url(
@@ -622,7 +622,7 @@ class TestWikiPageMarkdown:
             parent_id=root_wiki.id,
         )
         sub_wiki = await wiki_page.store_async(synapse_client=syn)
-        schedule_for_cleanup(sub_wiki.id)
+        schedule_for_cleanup(sub_wiki)
         return sub_wiki
 
     async def test_get_markdown_url_gz_file(
@@ -718,7 +718,7 @@ class TestWikiPageVersioning:
         updated_wiki = await WikiPage(
             owner_id=root_wiki.owner_id, id=updated_wiki.id, title="Version 2"
         ).store_async(synapse_client=syn)
-        schedule_for_cleanup(updated_wiki.id)
+        schedule_for_cleanup(updated_wiki)
         return updated_wiki
 
     async def test_wiki_page_history(
