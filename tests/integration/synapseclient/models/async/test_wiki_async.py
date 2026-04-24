@@ -173,7 +173,6 @@ class TestWikiPageAttachments:
         """Create a wiki page with an attachment."""
         # Create a temporary file for attachment
         filename = utils.make_bogus_uuid_file()
-        schedule_for_cleanup(filename)
         # GIVEN a root wiki page
         root_wiki = wiki_page_fixture
         # Create wiki page with attachment
@@ -192,10 +191,9 @@ class TestWikiPageAttachments:
     async def test_get_attachment_handles(
         self,
         wiki_page_with_attachment: tuple[WikiPage, str],
-        schedule_for_cleanup: Callable[..., None],
     ) -> None:
         # GIVEN a wiki page with an attachment
-        wiki_page, attachment_name = wiki_page_with_attachment
+        wiki_page, _ = wiki_page_with_attachment
 
         # WHEN getting attachment handles
         attachment_handles = await wiki_page.get_attachment_handles_async(
@@ -204,12 +202,10 @@ class TestWikiPageAttachments:
 
         # THEN attachment handles should be returned
         assert len(attachment_handles["list"]) > 0
-        schedule_for_cleanup(attachment_handles)
 
     async def test_get_attachment_url(
         self,
         wiki_page_with_attachment: tuple[WikiPage, str],
-        schedule_for_cleanup: Callable[..., None],
     ) -> None:
         # GIVEN a wiki page with an attachment
         wiki_page, attachment_name = wiki_page_with_attachment
@@ -221,12 +217,10 @@ class TestWikiPageAttachments:
 
         # THEN a URL should be returned
         assert len(attachment_url) > 0
-        schedule_for_cleanup(attachment_url)
 
     async def test_download_attachment(
         self,
         wiki_page_with_attachment: tuple[WikiPage, str],
-        schedule_for_cleanup: Callable[..., None],
     ) -> None:
         # GIVEN a wiki page with an attachment
         wiki_page, attachment_name = wiki_page_with_attachment
@@ -242,14 +236,12 @@ class TestWikiPageAttachments:
             download_location=download_dir,
             synapse_client=self.syn,
         )
-        schedule_for_cleanup(downloaded_path)
         # THEN the file should be downloaded
         assert os.path.exists(downloaded_path)
 
     async def test_get_attachment_preview_url(
         self,
         wiki_page_with_attachment: tuple[WikiPage, str],
-        schedule_for_cleanup: Callable[..., None],
     ) -> None:
         # GIVEN a wiki page with an attachment
         wiki_page, attachment_name = wiki_page_with_attachment
@@ -268,19 +260,16 @@ class TestWikiPageAttachments:
 
         # THEN a URL should be returned
         assert len(preview_url) > 0
-        schedule_for_cleanup(preview_url)
 
     async def test_download_attachment_preview(
         self,
         wiki_page_with_attachment: tuple[WikiPage, str],
-        schedule_for_cleanup: Callable[..., None],
     ) -> None:
         # GIVEN a wiki page with an attachment
         wiki_page, attachment_name = wiki_page_with_attachment
 
         # AND a download location
         download_dir = tempfile.mkdtemp()
-        self.schedule_for_cleanup(download_dir)
 
         # Poll until attachment preview is available for download
         await wait_for_condition(
@@ -301,7 +290,6 @@ class TestWikiPageAttachments:
             download_location=download_dir,
             synapse_client=self.syn,
         )
-        schedule_for_cleanup(downloaded_path)
         # THEN the file should be downloaded
         assert os.path.exists(downloaded_path)
         assert os.path.basename(downloaded_path) == "preview.txt"
@@ -312,7 +300,6 @@ class TestWikiPageAttachments:
     )
     async def test_download_attachment_large_file(
         self,
-        syn: Synapse,
         schedule_for_cleanup: Callable[..., None],
         wiki_page_fixture: WikiPage,
     ) -> None:
@@ -326,7 +313,6 @@ class TestWikiPageAttachments:
 
         # AND a download location
         download_dir = tempfile.mkdtemp()
-        schedule_for_cleanup(download_dir)
 
         # Create wiki page with attachment
         wiki_page = WikiPage(
@@ -345,7 +331,6 @@ class TestWikiPageAttachments:
             download_location=download_dir,
             synapse_client=self.syn,
         )
-        schedule_for_cleanup(downloaded_path)
         # THEN the file should be downloaded
         assert os.path.exists(downloaded_path)
         assert os.path.basename(downloaded_path) == os.path.basename(filename)
@@ -365,7 +350,6 @@ class TestWikiPageAttachments:
         os.rename(filename, gz_filename)
         with gzip.open(gz_filename, "wt") as f:
             f.write("hello world\n")
-        schedule_for_cleanup(gz_filename)
 
         # GIVEN a root wiki page
         root_wiki = wiki_page_fixture
@@ -385,11 +369,10 @@ class TestWikiPageAttachments:
     async def test_get_attachment_handles_gz_file(
         self,
         wiki_page_with_gz_attachment: tuple[WikiPage, str],
-        schedule_for_cleanup: Callable[..., None],
     ) -> None:
         """Test getting attachment handles for a gz file."""
         # GIVEN a wiki page with a gz attachment
-        wiki_page, attachment_name = wiki_page_with_gz_attachment
+        wiki_page, _ = wiki_page_with_gz_attachment
         # WHEN getting attachment handles
         attachment_handles = await wiki_page.get_attachment_handles_async(
             synapse_client=self.syn
@@ -402,12 +385,10 @@ class TestWikiPageAttachments:
             handle.get("fileName", "").endswith(".gz")
             for handle in attachment_handles["list"]
         )
-        schedule_for_cleanup(attachment_handles)
 
     async def test_get_attachment_url_gz_file(
         self,
         wiki_page_with_gz_attachment: tuple[WikiPage, str],
-        schedule_for_cleanup: Callable[..., None],
     ) -> None:
         """Test getting attachment URL for a gz file."""
         # GIVEN a wiki page with a gz attachment
@@ -419,12 +400,10 @@ class TestWikiPageAttachments:
         )
         # THEN a URL should be returned
         assert len(attachment_url) > 0
-        schedule_for_cleanup(attachment_url)
 
     async def test_download_attachment_gz_file(
         self,
         wiki_page_with_gz_attachment: tuple[WikiPage, str],
-        schedule_for_cleanup: Callable[..., None],
     ) -> None:
         """Test downloading a gz attachment file."""
         # GIVEN a wiki page with a gz attachment
@@ -432,7 +411,6 @@ class TestWikiPageAttachments:
 
         # AND a download location
         download_dir = tempfile.mkdtemp()
-        schedule_for_cleanup(download_dir)
 
         # WHEN downloading the gz attachment
         downloaded_path = await wiki_page.get_attachment_async(
@@ -441,7 +419,6 @@ class TestWikiPageAttachments:
             download_location=download_dir,
             synapse_client=self.syn,
         )
-        schedule_for_cleanup(downloaded_path)
 
         # THEN the file should be downloaded
         assert os.path.exists(downloaded_path)
@@ -450,7 +427,6 @@ class TestWikiPageAttachments:
     async def test_get_attachment_preview_url_gz_file(
         self,
         wiki_page_with_gz_attachment: tuple[WikiPage, str],
-        schedule_for_cleanup: Callable[..., None],
     ) -> None:
         """Test getting attachment preview URL for a gz file."""
         # GIVEN a wiki page with a gz attachment
@@ -470,12 +446,10 @@ class TestWikiPageAttachments:
 
         # THEN a URL should be returned
         assert len(preview_url) > 0
-        schedule_for_cleanup(preview_url)
 
     async def test_download_attachment_preview_gz_file(
         self,
         wiki_page_with_gz_attachment: tuple[WikiPage, str],
-        schedule_for_cleanup: Callable[..., None],
     ) -> None:
         """Test downloading attachment preview for a gz file."""
         # GIVEN a wiki page with a gz attachment
@@ -495,7 +469,6 @@ class TestWikiPageAttachments:
 
         # AND a download location
         download_dir = tempfile.mkdtemp()
-        self.schedule_for_cleanup(download_dir)
 
         # WHEN downloading the attachment preview
         downloaded_path = await wiki_page.get_attachment_preview_async(
@@ -504,7 +477,6 @@ class TestWikiPageAttachments:
             download_location=download_dir,
             synapse_client=self.syn,
         )
-        schedule_for_cleanup(downloaded_path)
 
         # THEN the file should be downloaded
         assert os.path.exists(downloaded_path)
