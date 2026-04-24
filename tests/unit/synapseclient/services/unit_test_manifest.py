@@ -3,11 +3,16 @@ import datetime
 import os
 import tempfile
 
-from synapseclient.models import Activity, FailureStrategy, File, Folder
+import pytest
+
+from synapseclient.models import Activity, File
 from synapseclient.models.activity import UsedEntity, UsedURL
 from synapseclient.models.services.manifest import (
     MANIFEST_CSV_FILENAME,
+    _convert_manifest_data_items_to_string_list,
+    _convert_manifest_data_row_to_dict,
     _extract_entity_metadata_for_manifest_csv,
+    _get_entity_provenance_dict_for_manifest,
     _manifest_csv_filename,
     _write_manifest_data_csv,
     generate_manifest_csv,
@@ -298,3 +303,146 @@ class TestWriteManifestDataCsv:
         # THEN all rows are present and in order
         assert len(rows) == 3
         assert [r["name"] for r in rows] == ["a.txt", "b.txt", "c.txt"]
+
+
+class TestGetEntityProvenanceDictForManifest:
+    """Tests for _get_entity_provenance_dict_for_manifest."""
+
+    def _make_file_with_activity(self, activity: Activity = None) -> File:
+        f = File(id="syn1", name="f.txt", path="/f.txt", parent_id="syn2")
+        if activity:
+            f.activity = activity
+        return f
+
+    def test_returns_empty_dict_when_no_activity(self) -> None:
+        f = self._make_file_with_activity()
+        result = _get_entity_provenance_dict_for_manifest(f)
+        assert result == {}
+
+    def test_returns_all_provenance_keys_with_activity(self) -> None:
+        activity = Activity(
+            name="Pipeline",
+            description="Runs analysis",
+            used=[UsedEntity(target_id="syn10", target_version_number=2)],
+            executed=[UsedURL(url="https://github.com/example/run")],
+        )
+        f = self._make_file_with_activity(activity)
+
+        result = _get_entity_provenance_dict_for_manifest(f)
+        assert result["used"] == "syn10.2"
+        assert result["executed"] == "https://github.com/example/run"
+        assert result["activityName"] == "Pipeline"
+        assert result["activityDescription"] == "Runs analysis"
+
+    def test_activity_name_and_description_default_to_empty_string(self) -> None:
+        activity = Activity(name=None, description=None)
+        f = self._make_file_with_activity(activity)
+
+        result = _get_entity_provenance_dict_for_manifest(f)
+        assert result["activityName"] == ""
+        assert result["activityDescription"] == ""
+
+    def test_empty_used_and_executed_lists(self) -> None:
+        activity = Activity(name="minimal", used=[], executed=[])
+        f = self._make_file_with_activity(activity)
+
+        result = _get_entity_provenance_dict_for_manifest(f)
+
+        assert result["activityName"] == "minimal"
+        assert result["used"] == ""
+        assert result["executed"] == ""
+
+    def test_multiple_used_and_executed_are_semicolon_joined(self) -> None:
+        # GIVEN an activity with multiple used and executed entries
+        activity = Activity(
+            name="multi",
+            used=[
+                UsedEntity(target_id="syn1", target_version_number=1),
+                UsedEntity(target_id="syn2", target_version_number=3),
+            ],
+            executed=[
+                UsedURL(url="https://github.com/a"),
+                UsedURL(url="https://github.com/b"),
+            ],
+        )
+        f = self._make_file_with_activity(activity)
+
+        result = _get_entity_provenance_dict_for_manifest(f)
+
+        assert result["activityName"] == "multi"
+        assert result["used"] == "syn1.1;syn2.3"
+        assert result["executed"] == "https://github.com/a;https://github.com/b"
+
+
+_UTC = datetime.timezone.utc
+
+
+class TestConvertManifestDataItemsToStringList:
+    """Tests for _convert_manifest_data_items_to_string_list."""
+
+    @pytest.mark.parametrize(
+        "items,expected",
+        [
+            ([], ""),
+            (["hello"], "hello"),
+            # single item with comma is NOT quoted — quoting only applies in multi-item lists
+            (["hello,world"], "hello,world"),
+            (["a", "b", "c"], "[a,b,c]"),
+            (["hello,world", "plain"], '["hello,world",plain]'),
+            ([True], "True"),
+            ([True, False], "[True,False]"),
+            ([42], "42"),
+            ([1, 2, 3], "[1,2,3]"),
+            ([1.5], "1.5"),
+            (
+                [datetime.datetime(2020, 1, 1, tzinfo=_UTC)],
+                "2020-01-01T00:00:00Z",
+            ),
+            (
+                [
+                    datetime.datetime(2020, 1, 1, tzinfo=_UTC),
+                    datetime.datetime(2021, 6, 15, 12, 30, tzinfo=_UTC),
+                ],
+                "[2020-01-01T00:00:00Z,2021-06-15T12:30:00Z]",
+            ),
+        ],
+    )
+    def test_converts_items(self, items: list, expected: str) -> None:
+        assert _convert_manifest_data_items_to_string_list(items) == expected
+
+
+class TestConvertManifestDataRowToDict:
+    """Tests for _convert_manifest_data_row_to_dict."""
+
+    def test_all_keys_present_passes_through(self) -> None:
+        row = {"path": "/f.txt", "parentId": "syn1", "name": "f.txt"}
+        keys = ["path", "parentId", "name"]
+
+        result = _convert_manifest_data_row_to_dict(row, keys)
+
+        assert result == {"path": "/f.txt", "parentId": "syn1", "name": "f.txt"}
+
+    def test_missing_key_defaults_to_empty_string(self) -> None:
+        row = {"path": "/f.txt", "parentId": "syn1"}
+        keys = ["path", "parentId", "name"]
+
+        result = _convert_manifest_data_row_to_dict(row, keys)
+
+        assert result["name"] == ""
+
+    def test_list_value_converted_to_string(self) -> None:
+        row = {"tags": ["a", "b", "c"]}
+        keys = ["tags"]
+
+        result = _convert_manifest_data_row_to_dict(row, keys)
+
+        assert result["tags"] == "[a,b,c]"
+
+    def test_extra_keys_in_row_are_not_included_in_output(self) -> None:
+        row = {"path": "/f.txt", "extra": "ignored"}
+        keys = ["path"]
+
+        result = _convert_manifest_data_row_to_dict(row, keys)
+
+        assert "extra" not in result
+        assert result == {"path": "/f.txt"}
