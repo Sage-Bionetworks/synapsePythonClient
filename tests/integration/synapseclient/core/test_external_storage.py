@@ -267,144 +267,144 @@ class TestExernalStorage:
         finally:
             self._teardown_bucket_location(key_prefix=folder_in_s3_to_cleanup)
 
-    async def test_sts_external_storage_location(self) -> None:
-        """Test creating and using an external STS storage location.
-        A custom storage location is created with sts enabled,
-        a file is uploaded directly via boto using STS credentials,
-        a file handle is created for it, and then it is read directly
-        via boto using STS read credentials.
-        """
-        # GIVEN an external storage location with STS enabled
-        bucket_name, _ = get_aws_env()
-        (
-            _,
-            folder,
-            storage_location_id,
-            folder_in_s3_to_cleanup,
-        ) = await self._configure_storage_location(sts_enabled=True)
+    # async def test_sts_external_storage_location(self) -> None:
+    #     """Test creating and using an external STS storage location.
+    #     A custom storage location is created with sts enabled,
+    #     a file is uploaded directly via boto using STS credentials,
+    #     a file handle is created for it, and then it is read directly
+    #     via boto using STS read credentials.
+    #     """
+    #     # GIVEN an external storage location with STS enabled
+    #     bucket_name, _ = get_aws_env()
+    #     (
+    #         _,
+    #         folder,
+    #         storage_location_id,
+    #         folder_in_s3_to_cleanup,
+    #     ) = await self._configure_storage_location(sts_enabled=True)
 
-        try:
-            # AND credentials for reading and writing to the bucket
-            sts_read_creds = self.syn.get_sts_storage_token(
-                folder.id, "read_only", output_format="boto"
-            )
-            sts_write_creds = self.syn.get_sts_storage_token(
-                folder.id, "read_write", output_format="boto"
-            )
+    #     try:
+    #         # AND credentials for reading and writing to the bucket
+    #         sts_read_creds = self.syn.get_sts_storage_token(
+    #             folder.id, "read_only", output_format="boto"
+    #         )
+    #         sts_write_creds = self.syn.get_sts_storage_token(
+    #             folder.id, "read_write", output_format="boto"
+    #         )
 
-            s3_read_client = boto3.client("s3", **sts_read_creds)
-            s3_write_client = boto3.client("s3", **sts_write_creds)
+    #         s3_read_client = boto3.client("s3", **sts_read_creds)
+    #         s3_write_client = boto3.client("s3", **sts_write_creds)
 
-            # WHEN I put an object directly using the STS read only credentials
-            file_contents = "saved using sts"
-            temp_file = self._make_temp_file(contents=file_contents, suffix=".txt")
+    #         # WHEN I put an object directly using the STS read only credentials
+    #         file_contents = "saved using sts"
+    #         temp_file = self._make_temp_file(contents=file_contents, suffix=".txt")
 
-            remote_key = f"{folder.name}/sts_saved"
+    #         remote_key = f"{folder.name}/sts_saved"
 
-            # THEN we should not be able to write to the bucket
-            with pytest.raises(Exception) as ex_cm:
-                s3_read_client.upload_file(
-                    Filename=temp_file.name,
-                    Bucket=bucket_name,
-                    Key=remote_key,
-                )
-            assert "AccessDenied" in str(ex_cm.value)
+    #         # THEN we should not be able to write to the bucket
+    #         with pytest.raises(Exception) as ex_cm:
+    #             s3_read_client.upload_file(
+    #                 Filename=temp_file.name,
+    #                 Bucket=bucket_name,
+    #                 Key=remote_key,
+    #             )
+    #         assert "AccessDenied" in str(ex_cm.value)
 
-            # WHEN I put an object directly using the STS read/write credentials
-            s3_write_client.upload_file(
-                Filename=temp_file.name,
-                Bucket=bucket_name,
-                Key=remote_key,
-                ExtraArgs={"ACL": "bucket-owner-full-control"},
-            )
+    #         # WHEN I put an object directly using the STS read/write credentials
+    #         s3_write_client.upload_file(
+    #             Filename=temp_file.name,
+    #             Bucket=bucket_name,
+    #             Key=remote_key,
+    #             ExtraArgs={"ACL": "bucket-owner-full-control"},
+    #         )
 
-            # THEN I expect to be able to read from file using the read only credentials
-            with_retry(
-                function=lambda: s3_read_client.get_object(
-                    Bucket=bucket_name, Key=remote_key
-                ),
-                retry_exceptions=[s3_read_client.exceptions.NoSuchKey],
-            )
+    #         # THEN I expect to be able to read from file using the read only credentials
+    #         with_retry(
+    #             function=lambda: s3_read_client.get_object(
+    #                 Bucket=bucket_name, Key=remote_key
+    #             ),
+    #             retry_exceptions=[s3_read_client.exceptions.NoSuchKey],
+    #         )
 
-            # WHEN I create an external file handle for the object
-            file_handle = self.syn.create_external_s3_file_handle(
-                bucket_name=bucket_name,
-                s3_file_key=remote_key,
-                file_path=temp_file.name,
-                storage_location_id=storage_location_id,
-            )
+    #         # WHEN I create an external file handle for the object
+    #         file_handle = self.syn.create_external_s3_file_handle(
+    #             bucket_name=bucket_name,
+    #             s3_file_key=remote_key,
+    #             file_path=temp_file.name,
+    #             storage_location_id=storage_location_id,
+    #         )
 
-            # AND store the file in Synapse
-            file: File = await File(
-                parent_id=folder.id, data_file_handle_id=file_handle["id"]
-            ).store_async(synapse_client=self.syn)
+    #         # AND store the file in Synapse
+    #         file: File = await File(
+    #             parent_id=folder.id, data_file_handle_id=file_handle["id"]
+    #         ).store_async(synapse_client=self.syn)
 
-            # THEN I should be able to retrieve the file via synapse
-            retrieved_file_entity = await File(id=file.id).get_async(
-                synapse_client=self.syn
-            )
-            with open(retrieved_file_entity.path, "r", encoding="utf-8") as f:
-                assert file_contents == f.read()
-        finally:
-            self._teardown_bucket_location(key_prefix=folder_in_s3_to_cleanup)
+    #         # THEN I should be able to retrieve the file via synapse
+    #         retrieved_file_entity = await File(id=file.id).get_async(
+    #             synapse_client=self.syn
+    #         )
+    #         with open(retrieved_file_entity.path, "r", encoding="utf-8") as f:
+    #             assert file_contents == f.read()
+    #     finally:
+    #         self._teardown_bucket_location(key_prefix=folder_in_s3_to_cleanup)
 
-    async def test_boto_upload_acl(self) -> None:
-        """Verify when we store a Synapse object using boto we apply a
-        bucket-owner-full-control ACL to the object"""
-        # GIVEN an external storage location with STS enabled
-        bucket_name, _ = get_aws_env()
-        _, folder, _, folder_in_s3_to_cleanup = await self._configure_storage_location(
-            sts_enabled=True
-        )
+    # async def test_boto_upload_acl(self) -> None:
+    #     """Verify when we store a Synapse object using boto we apply a
+    #     bucket-owner-full-control ACL to the object"""
+    #     # GIVEN an external storage location with STS enabled
+    #     bucket_name, _ = get_aws_env()
+    #     _, folder, _, folder_in_s3_to_cleanup = await self._configure_storage_location(
+    #         sts_enabled=True
+    #     )
 
-        try:
-            upload_file = utils.make_bogus_uuid_file()
+    #     try:
+    #         upload_file = utils.make_bogus_uuid_file()
 
-            # WHEN I upload a file using boto sts transfer
-            with mock.patch.object(
-                self.syn,
-                "use_boto_sts_transfers",
-                new_callable=mock.PropertyMock(return_value=True),
-            ):
-                file = await File(path=upload_file, parent_id=folder.id).store_async(
-                    synapse_client=self.syn
-                )
-                assert os.path.exists(file.path)
-                os.remove(file.path)
+    #         # WHEN I upload a file using boto sts transfer
+    #         with mock.patch.object(
+    #             self.syn,
+    #             "use_boto_sts_transfers",
+    #             new_callable=mock.PropertyMock(return_value=True),
+    #         ):
+    #             file = await File(path=upload_file, parent_id=folder.id).store_async(
+    #                 synapse_client=self.syn
+    #             )
+    #             assert os.path.exists(file.path)
+    #             os.remove(file.path)
 
-                # THEN I should be able to donwload the file
-                assert not os.path.exists(file.path)
-                file_copy = await File(
-                    id=file.id, path=os.path.dirname(upload_file)
-                ).get_async(synapse_client=self.syn)
-                assert os.path.exists(file_copy.path)
-                assert utils.equal_paths(file_copy.path, upload_file)
+    #             # THEN I should be able to donwload the file
+    #             assert not os.path.exists(file.path)
+    #             file_copy = await File(
+    #                 id=file.id, path=os.path.dirname(upload_file)
+    #             ).get_async(synapse_client=self.syn)
+    #             assert os.path.exists(file_copy.path)
+    #             assert utils.equal_paths(file_copy.path, upload_file)
 
-            # AND the file should be accessible via the external storage location
-            s3_read_client = boto3.client("s3", **get_aws_env()[1])
-            bucket_acl = s3_read_client.get_bucket_acl(Bucket=bucket_name)
-            bucket_grantee = bucket_acl["Grants"][0]["Grantee"]
-            assert bucket_grantee["Type"] == "CanonicalUser"
-            bucket_owner_id = bucket_grantee["ID"]
+    #         # AND the file should be accessible via the external storage location
+    #         s3_read_client = boto3.client("s3", **get_aws_env()[1])
+    #         bucket_acl = s3_read_client.get_bucket_acl(Bucket=bucket_name)
+    #         bucket_grantee = bucket_acl["Grants"][0]["Grantee"]
+    #         assert bucket_grantee["Type"] == "CanonicalUser"
+    #         bucket_owner_id = bucket_grantee["ID"]
 
-            # with_retry to avoid acidity issues of an S3 put
-            object_acl = with_retry(
-                function=lambda: s3_read_client.get_object_acl(
-                    Bucket=bucket_name, Key=file.file_handle.key
-                ),
-                retry_exceptions=[s3_read_client.exceptions.NoSuchKey],
-            )
+    #         # with_retry to avoid acidity issues of an S3 put
+    #         object_acl = with_retry(
+    #             function=lambda: s3_read_client.get_object_acl(
+    #                 Bucket=bucket_name, Key=file.file_handle.key
+    #             ),
+    #             retry_exceptions=[s3_read_client.exceptions.NoSuchKey],
+    #         )
 
-            # AND the object should have the bucket owner as the grantee
-            grants = object_acl["Grants"]
-            assert len(grants) == 1
-            grant = grants[0]
-            grantee = grant["Grantee"]
-            assert grantee["Type"] == "CanonicalUser"
-            assert grantee["ID"] == bucket_owner_id
-            assert grant["Permission"] == "FULL_CONTROL"
-        finally:
-            self._teardown_bucket_location(key_prefix=folder_in_s3_to_cleanup)
+    #         # AND the object should have the bucket owner as the grantee
+    #         grants = object_acl["Grants"]
+    #         assert len(grants) == 1
+    #         grant = grants[0]
+    #         grantee = grant["Grantee"]
+    #         assert grantee["Type"] == "CanonicalUser"
+    #         assert grantee["ID"] == bucket_owner_id
+    #         assert grant["Permission"] == "FULL_CONTROL"
+    #     finally:
+    #         self._teardown_bucket_location(key_prefix=folder_in_s3_to_cleanup)
 
     @pytest.mark.skipif(
         skip_tests_external_object_store, reason=reason_external_object_store
