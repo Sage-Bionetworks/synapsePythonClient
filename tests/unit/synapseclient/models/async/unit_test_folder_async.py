@@ -1,5 +1,6 @@
 """Tests for the Folder class."""
 
+import os
 import uuid
 from typing import Dict
 from unittest.mock import AsyncMock, MagicMock, patch
@@ -917,7 +918,8 @@ class TestFolder:
         }
         assert any(f.id == SYN_456 for f in calls_by_path["/tmp/mydir"])
         assert any(
-            f.id == FILE_2_ID for f in calls_by_path[f"/tmp/mydir/{SUB_FOLDER_NAME}"]
+            f.id == FILE_2_ID
+            for f in calls_by_path[os.path.join("/tmp/mydir", SUB_FOLDER_NAME)]
         )
 
     async def test_sync_from_synapse_manifest_root_generates_only_at_root(
