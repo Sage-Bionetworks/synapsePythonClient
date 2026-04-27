@@ -2,6 +2,7 @@
 Here is where you'll find the code for the downloading data in bulk tutorial.
 """
 
+# --8<-- [start:setup]
 import os
 
 import synapseclient
@@ -16,32 +17,55 @@ FOLDER_NAME_TO_SYNC = "biospecimen_experiment_1"
 DIRECTORY_TO_SYNC_FOLDER_TO = os.path.join(
     DIRECTORY_TO_SYNC_PROJECT_TO, FOLDER_NAME_TO_SYNC
 )
+# --8<-- [end:setup]
 
-# Step 1: Create an instance of the container I want to sync the data from and sync
-project = Project(name="My uniquely named project about Alzheimer's Disease")
 
-# We'll set the `if_collision` to `keep.local` so that we don't overwrite any files
+# Step 1: Get an instance of the container I want to sync the data from and sync
+# --8<-- [start:get_project]
+project = Project(name="My uniquely named project about Alzheimer's Disease").get()
+# --8<-- [end:get_project]
+
+# By default, sync_from_synapse generates a manifest.csv in each synced directory.
+# The manifest.csv is interoperable with sync_to_synapse, the Synapse
+# UI download cart, and `download_list_files`.
+# --8<-- [start:sync_project]
+# We'll set the `if_collision` to `keep.local` so that we don't overwrite any files.
 project.sync_from_synapse(path=DIRECTORY_TO_SYNC_PROJECT_TO, if_collision="keep.local")
 
 # Print out the contents of the directory where the data was synced to
 # Explore the directory to see the contents have been recursively synced.
 print(os.listdir(DIRECTORY_TO_SYNC_PROJECT_TO))
+# --8<-- [end:sync_project]
+# Or, use `manifest="root"` to generate a single manifest.csv at the root directory
+# instead of one in each sub-directory. Use `manifest="suppress"` to skip
+# manifest generation entirely.
 
-# Step 2: The same as step 1, but for a single folder
+# --8<-- [start:sync_project_with_root_manifest]
+project.sync_from_synapse(
+    path=DIRECTORY_TO_SYNC_PROJECT_TO,
+    if_collision="keep.local",
+    manifest="root",
+)
+print(os.listdir(DIRECTORY_TO_SYNC_PROJECT_TO))
+# --8<-- [end:sync_project_with_root_manifest]
+
+# Step 3: The same as step 1, but for a single folder
+# --8<-- [start:sync_folder]
 folder = Folder(name=FOLDER_NAME_TO_SYNC, parent_id=project.id)
 
 folder.sync_from_synapse(path=DIRECTORY_TO_SYNC_FOLDER_TO, if_collision="keep.local")
 
 print(os.listdir(os.path.expanduser(DIRECTORY_TO_SYNC_FOLDER_TO)))
+# --8<-- [end:sync_folder]
 
-# Step 3: Loop over all files/folders on the project/folder object instances
+# Step 4: Loop over all files/folders on the project/folder object instances
+# --8<-- [start:loop_over_project_folder]
 for folder_at_root in project.folders:
     print(f"Folder at root: {folder_at_root.name}")
-
     for file_in_root_folder in folder_at_root.files:
         print(f"File in {folder_at_root.name}: {file_in_root_folder.name}")
-
     for folder_in_folder in folder_at_root.folders:
         print(f"Folder in {folder_at_root.name}: {folder_in_folder.name}")
         for file_in_folder in folder_in_folder.files:
             print(f"File in {folder_in_folder.name}: {file_in_folder.name}")
+# --8<-- [end:loop_over_project_folder]

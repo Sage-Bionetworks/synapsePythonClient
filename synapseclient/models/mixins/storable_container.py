@@ -8,6 +8,7 @@ from typing import (
     Dict,
     Generator,
     List,
+    Literal,
     NoReturn,
     Optional,
     Tuple,
@@ -70,6 +71,8 @@ if TYPE_CHECKING:
         Table,
         VirtualTable,
     )
+
+from synapseclient.models.services.manifest import generate_manifest_csv
 
 
 @async_to_sync
@@ -167,6 +170,7 @@ class StorableContainer(StorableContainerSynchronousProtocol):
         link_hops: int = 1,
         queue: asyncio.Queue = None,
         include_types: Optional[List[str]] = None,
+        manifest: Literal["all", "suppress", "root"] = "all",
         *,
         synapse_client: Optional[Synapse] = None,
     ) -> Self:
@@ -178,9 +182,10 @@ class StorableContainer(StorableContainerSynchronousProtocol):
         If you only want to retrieve the full tree of metadata about your
         container specify `download_file` as False.
 
-        This works similar to [synapseutils.syncFromSynapse][], however, this does not
-        currently support the writing of data to a manifest TSV file. This will be a
-        future enhancement.
+        This works similar to [synapseutils.syncFromSynapse][], and generates a
+        `manifest.csv` file in each synced directory. The manifest uses CSV format
+        with `parentId` and `ID` columns, interoperable with the Synapse UI download
+        cart and `synapse get-download-list` CLI output.
 
         Supports syncing Files, Folders, Tables, EntityViews, SubmissionViews, Datasets,
         DatasetCollections, MaterializedViews, and VirtualTables from Synapse. The
@@ -216,6 +221,11 @@ class StorableContainer(StorableContainerSynchronousProtocol):
                 `["folder", "file", "table", "entityview", "dockerrepo",
                 "submissionview", "dataset", "datasetcollection", "materializedview",
                 "virtualtable"]`.
+            manifest: Determines whether to generate a manifest CSV file. Options are:
+
+                - `all` (default): generate `manifest.csv` in every synced directory
+                - `root`: generate `manifest.csv` only in the root `path` directory
+                - `suppress`: do not generate any manifest file
             synapse_client: If not passed in and caching was not disabled by
                 `Synapse.allow_client_caching(False)` this will use the last created
                 instance from the Synapse class constructor.
@@ -320,8 +330,38 @@ class StorableContainer(StorableContainerSynchronousProtocol):
 
             asyncio.run(my_function())
             ```
+            Suppose I want to download all the children of a Project and all sub-folders and files and generate a manifest file:
 
+            ```python
+            import asyncio
+            from synapseclient import Synapse
+            from synapseclient.models import Project
 
+            async def my_function():
+                syn = Synapse()
+                syn.login()
+
+                my_project = Project(id="syn12345")
+                await my_project.sync_from_synapse_async(path="/path/to/folder", manifest="all")
+
+            asyncio.run(my_function())
+            ```
+            Suppose I want to download a manifest file at the root path:
+
+            ```python
+            import asyncio
+            from synapseclient import Synapse
+            from synapseclient.models import Project
+
+            async def my_function():
+                syn = Synapse()
+                syn.login()
+
+                my_project = Project(id="syn12345")
+                await my_project.sync_from_synapse_async(path="/path/to/folder", manifest="root", download_file=False)
+
+            asyncio.run(my_function())
+            ```
         Raises:
             ValueError: If the folder does not have an id set.
 
@@ -383,6 +423,18 @@ class StorableContainer(StorableContainerSynchronousProtocol):
                     end
                 end
 
+                opt manifest != "suppress" and path is set
+                    alt manifest == "all"
+                        loop For each directory path
+                            sync_from_synapse->>manifest: call `generate_manifest_csv(files, dir_path)`
+                            manifest-->>sync_from_synapse: manifest.csv written to dir_path
+                        end
+                    else manifest == "root"
+                        sync_from_synapse->>manifest: call `generate_manifest_csv(all_files, root_path)`
+                        manifest-->>sync_from_synapse: manifest.csv written to root_path
+                    end
+                end
+
             deactivate sync_from_synapse
             deactivate project_or_folder
         ```
@@ -405,6 +457,7 @@ class StorableContainer(StorableContainerSynchronousProtocol):
                 link_hops=link_hops,
                 queue=queue,
                 include_types=include_types,
+                manifest=manifest,
                 synapse_client=syn,
             )
 
@@ -420,6 +473,7 @@ class StorableContainer(StorableContainerSynchronousProtocol):
         link_hops: int = 1,
         queue: asyncio.Queue = None,
         include_types: Optional[List[str]] = None,
+        manifest: Literal["all", "suppress", "root"] = "all",
         *,
         synapse_client: Optional[Synapse] = None,
     ) -> Self:
@@ -434,6 +488,13 @@ class StorableContainer(StorableContainerSynchronousProtocol):
         syn.logger.info(
             f"[{self.id}:{self.name}]: Syncing {self.__class__.__name__} from Synapse."
         )
+
+        if manifest not in ("all", "root", "suppress"):
+            raise ValueError(
+                f"[{self.id}:{self.name}]: Invalid manifest value: {manifest}. "
+                "Must be one of: 'all', 'root', 'suppress'."
+            )
+
         path = os.path.expanduser(path) if path else None
 
         children = await self._retrieve_children(
@@ -496,11 +557,30 @@ class StorableContainer(StorableContainerSynchronousProtocol):
 
         if create_workers:
             try:
-                # Wait until the queue is fully processed.
+                # Blocks until every queued item has been picked up and
+                # task_done() called by a worker.
                 await queue.join()
             finally:
+                # Workers are now blocked waiting on an empty queue; cancel
+                # them so they don't hang the event loop.
                 for task in worker_tasks:
                     task.cancel()
+
+        if path and manifest != "suppress":
+            if manifest == "all":
+                for (
+                    directory_path,
+                    file_entities,
+                ) in self.map_directory_to_all_contained_files(root_path=path).items():
+                    generate_manifest_csv(
+                        all_files=file_entities,
+                        path=directory_path,
+                    )
+            elif manifest == "root":
+                generate_manifest_csv(
+                    all_files=self.flatten_file_list(),
+                    path=path,
+                )
 
         return self
 
@@ -1232,6 +1312,7 @@ class StorableContainer(StorableContainerSynchronousProtocol):
             synapse_client=synapse_client,
             queue=queue,
             include_types=include_types,
+            manifest="suppress",  # suppress manifest generation for recursive calls since the root covers the path already in map_directory_to_all_contained_files
         )
 
     def _create_task_for_child(

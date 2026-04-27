@@ -1,6 +1,9 @@
 """Integration tests for the synapseclient.models.Folder class."""
 
+import csv
+import datetime
 import os
+import tempfile
 import uuid
 from typing import Callable, List
 
@@ -10,6 +13,7 @@ from synapseclient import Synapse
 from synapseclient.core import utils
 from synapseclient.core.exceptions import SynapseHTTPError
 from synapseclient.models import (
+    Activity,
     Column,
     ColumnType,
     Dataset,
@@ -25,6 +29,7 @@ from synapseclient.models import (
     ViewTypeMask,
     VirtualTable,
 )
+from synapseclient.models.activity import UsedURL
 
 DESCRIPTION_FOLDER = "This is an example folder."
 DESCRIPTION_FILE = "This is an example file."
@@ -811,3 +816,237 @@ class TestFolderWalk:
         assert hasattr(nondirs[0], "name")
         assert hasattr(nondirs[0], "id")
         assert hasattr(nondirs[0], "type")
+
+
+class TestFolderManifestCSV:
+    """Integration tests for manifest CSV generation during sync_from_synapse_async."""
+
+    BOGUS_URL = "https://example.com"
+
+    @pytest.fixture(autouse=True, scope="function")
+    def init(self, syn: Synapse, schedule_for_cleanup: Callable[..., None]) -> None:
+        self.syn = syn
+        self.schedule_for_cleanup = schedule_for_cleanup
+
+    def create_file_instance(self) -> File:
+        filename = utils.make_bogus_uuid_file()
+        self.schedule_for_cleanup(filename)
+        return File(
+            path=filename,
+            content_type="text/plain",
+        )
+
+    async def test_manifest_all_creates_csv_per_directory(
+        self, project_model: Project
+    ) -> None:
+        # GIVEN a root folder with a file and a nested subfolder with its own file
+        root_folder = Folder(name=str(uuid.uuid4()), parent_id=project_model.id)
+        root_folder = await root_folder.store_async(synapse_client=self.syn)
+        self.schedule_for_cleanup(root_folder.id)
+
+        root_file = self.create_file_instance()
+        root_file.parent_id = root_folder.id
+        root_file = await root_file.store_async(synapse_client=self.syn)
+        self.schedule_for_cleanup(root_file.id)
+
+        sub_folder = Folder(name=str(uuid.uuid4()), parent_id=root_folder.id)
+        sub_folder = await sub_folder.store_async(synapse_client=self.syn)
+        self.schedule_for_cleanup(sub_folder.id)
+
+        sub_file = self.create_file_instance()
+        sub_file.parent_id = sub_folder.id
+        sub_file = await sub_file.store_async(synapse_client=self.syn)
+        self.schedule_for_cleanup(sub_file.id)
+
+        # WHEN I sync the root folder with manifest="all"
+        with tempfile.TemporaryDirectory() as tmpdir:
+            await root_folder.sync_from_synapse_async(
+                path=tmpdir,
+                manifest="all",
+                synapse_client=self.syn,
+            )
+
+            root_manifest = os.path.join(tmpdir, "manifest.csv")
+            sub_manifest = os.path.join(tmpdir, sub_folder.name, "manifest.csv")
+
+            assert os.path.isfile(root_manifest)
+            assert os.path.isfile(sub_manifest)
+
+            with open(root_manifest, newline="", encoding="utf8") as f:
+                reader = csv.DictReader(f)
+                rows = list(reader)
+            assert len(rows) == 2
+            rows_by_id = {row["ID"]: row for row in rows}
+            root_row = rows_by_id[root_file.id]
+            assert root_row["name"] == root_file.name
+            assert root_row["parentId"] == root_folder.id
+            sub_row = rows_by_id[sub_file.id]
+            assert sub_row["name"] == sub_file.name
+            assert sub_row["parentId"] == sub_folder.id
+
+            with open(sub_manifest, newline="", encoding="utf8") as f:
+                reader = csv.DictReader(f)
+                rows = list(reader)
+            assert len(rows) == 1
+            sub_row = rows[0]
+            assert sub_row["name"] == sub_file.name
+            assert sub_row["parentId"] == sub_folder.id
+
+    async def test_manifest_root_creates_csv_only_at_root(
+        self, project_model: Project
+    ) -> None:
+        # GIVEN a root folder with a file and a nested subfolder with its own file
+        root_folder = Folder(name=str(uuid.uuid4()), parent_id=project_model.id)
+        root_folder = await root_folder.store_async(synapse_client=self.syn)
+        self.schedule_for_cleanup(root_folder.id)
+
+        root_file = self.create_file_instance()
+        root_file.parent_id = root_folder.id
+        root_file = await root_file.store_async(synapse_client=self.syn)
+        self.schedule_for_cleanup(root_file.id)
+
+        sub_folder = Folder(name=str(uuid.uuid4()), parent_id=root_folder.id)
+        sub_folder = await sub_folder.store_async(synapse_client=self.syn)
+        self.schedule_for_cleanup(sub_folder.id)
+
+        sub_file = self.create_file_instance()
+        sub_file.parent_id = sub_folder.id
+        sub_file = await sub_file.store_async(synapse_client=self.syn)
+        self.schedule_for_cleanup(sub_file.id)
+
+        # WHEN I sync with manifest="root"
+        with tempfile.TemporaryDirectory() as tmpdir:
+            await root_folder.sync_from_synapse_async(
+                path=tmpdir,
+                manifest="root",
+                synapse_client=self.syn,
+            )
+
+            root_manifest = os.path.join(tmpdir, "manifest.csv")
+            sub_manifest = os.path.join(tmpdir, sub_folder.name, "manifest.csv")
+
+            # THEN manifest.csv exists only at the root
+            assert os.path.isfile(root_manifest)
+            assert not os.path.isfile(sub_manifest)
+            with open(root_manifest, newline="", encoding="utf8") as f:
+                reader = csv.DictReader(f)
+                rows = list(reader)
+            assert len(rows) == 2
+            rows_by_id = {row["ID"]: row for row in rows}
+            root_row = rows[0]
+            assert root_row["name"] == root_file.name
+            assert root_row["parentId"] == root_folder.id
+            sub_row = rows_by_id[sub_file.id]
+            assert sub_row["name"] == sub_file.name
+            assert sub_row["parentId"] == sub_folder.id
+
+    async def test_manifest_suppress_creates_no_csv(
+        self, project_model: Project
+    ) -> None:
+        # GIVEN a folder with a file
+        folder = Folder(name=str(uuid.uuid4()), parent_id=project_model.id)
+        folder = await folder.store_async(synapse_client=self.syn)
+        self.schedule_for_cleanup(folder.id)
+
+        f = self.create_file_instance()
+        f.parent_id = folder.id
+        f = await f.store_async(synapse_client=self.syn)
+        self.schedule_for_cleanup(f.id)
+
+        # WHEN I sync with manifest="suppress"
+        with tempfile.TemporaryDirectory() as tmpdir:
+            await folder.sync_from_synapse_async(
+                path=tmpdir,
+                manifest="suppress",
+                synapse_client=self.syn,
+            )
+
+            # THEN no manifest.csv is created
+            assert not os.path.isfile(os.path.join(tmpdir, "manifest.csv"))
+
+    async def test_manifest_includes_annotations(self, project_model: Project) -> None:
+        # GIVEN a file with mixed-type annotations
+        folder = Folder(name=str(uuid.uuid4()), parent_id=project_model.id)
+        folder = await folder.store_async(synapse_client=self.syn)
+        self.schedule_for_cleanup(folder.id)
+
+        f = self.create_file_instance()
+        f.parent_id = folder.id
+        f.annotations = {
+            "single_str": ["hello"],
+            "multi_str": ["a", "b", "c"],
+            "str_with_comma": ["hello,world", "plain text"],
+            "booleans": [True, False],
+            "integers": [1, 2, 3],
+            "floats": [1.0],
+            "datetimes": [
+                datetime.datetime(2020, 1, 1, 0, 0, 0, 0, tzinfo=datetime.timezone.utc)
+            ],
+        }
+        f = await f.store_async(synapse_client=self.syn)
+        self.schedule_for_cleanup(f.id)
+
+        # WHEN I sync with manifest generation
+        with tempfile.TemporaryDirectory() as tmpdir:
+            await folder.sync_from_synapse_async(
+                path=tmpdir,
+                manifest="root",
+                synapse_client=self.syn,
+            )
+
+            manifest_path = os.path.join(tmpdir, "manifest.csv")
+            assert os.path.isfile(manifest_path)
+
+            with open(manifest_path, newline="", encoding="utf8") as mf:
+                reader = csv.DictReader(mf)
+                rows = list(reader)
+
+        # THEN annotation columns are present and correctly serialized
+        assert len(rows) == 1
+        row = rows[0]
+        assert row["single_str"] == "hello"
+        assert row["multi_str"] == "[a,b,c]"
+        assert row["str_with_comma"] == '["hello,world",plain text]'
+        assert row["booleans"] == "[True,False]"
+        assert row["integers"] == "[1,2,3]"
+        assert row["floats"] == "1.0"
+        assert row["datetimes"] == "2020-01-01T00:00:00Z"
+
+    async def test_manifest_includes_provenance(self, project_model: Project) -> None:
+        # GIVEN a file with activity (provenance)
+        folder = Folder(name=str(uuid.uuid4()), parent_id=project_model.id)
+        folder = await folder.store_async(synapse_client=self.syn)
+        self.schedule_for_cleanup(folder.id)
+
+        f = self.create_file_instance()
+        f.parent_id = folder.id
+        f.activity = Activity(
+            name="my_activity",
+            description="my_description",
+            used=[UsedURL(name="my_source", url=self.BOGUS_URL)],
+        )
+        f = await f.store_async(synapse_client=self.syn)
+        self.schedule_for_cleanup(f.id)
+
+        # WHEN I sync with manifest generation and include_activity=True
+        with tempfile.TemporaryDirectory() as tmpdir:
+            await folder.sync_from_synapse_async(
+                path=tmpdir,
+                manifest="root",
+                include_activity=True,
+                synapse_client=self.syn,
+            )
+
+            manifest_path = os.path.join(tmpdir, "manifest.csv")
+            assert os.path.isfile(manifest_path)
+
+            with open(manifest_path, newline="", encoding="utf8") as mf:
+                reader = csv.DictReader(mf)
+                rows = list(reader)
+
+        # THEN provenance columns are populated
+        assert len(rows) == 1
+        row = rows[0]
+        assert row["activityName"] == "my_activity"
+        assert row["activityDescription"] == "my_description"
+        assert row["used"] == "my_source"
