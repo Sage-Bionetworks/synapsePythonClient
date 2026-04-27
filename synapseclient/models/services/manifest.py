@@ -1,15 +1,46 @@
-"""Functions for generating manifest CSV files from File entities."""
+"""Services for reading and writing Synapse manifest CSV files.
 
+This includes reading a manifest CSV file and preparing it for upload, as well
+as writing a manifest CSV file from a list of File entities.
+"""
+
+from __future__ import annotations
+
+import ast
+import asyncio
 import csv
 import datetime
 import io
 import os
-from typing import TYPE_CHECKING, Any, Union
+import re
+from dataclasses import dataclass
+from typing import TYPE_CHECKING, Any, Iterable, NamedTuple, Union
 
+from synapseclient import Synapse
 from synapseclient.core import utils
+from synapseclient.core.exceptions import (
+    SynapseFileNotFoundError,
+    SynapseHTTPError,
+    SynapseProvenanceError,
+)
+from synapseclient.core.utils import (
+    bool_or_none,
+    datetime_or_none,
+    get_synid_and_version,
+    is_synapse_id_str,
+    is_url,
+    test_import_pandas,
+    topolgical_sort,
+)
+from synapseclient.operations.factory_operations import FileOptions
+from synapseclient.operations.factory_operations import get_async as factory_get_async
 
 if TYPE_CHECKING:
-    from synapseclient.models import File
+    from pandas import DataFrame, Series
+
+    from synapseclient.models import UsedEntity, UsedURL
+    from synapseclient.models.file import File
+
 
 MANIFEST_CSV_FILENAME = "manifest.csv"
 DEFAULT_GENERATED_MANIFEST_CSV_KEYS = [
@@ -24,6 +55,47 @@ DEFAULT_GENERATED_MANIFEST_CSV_KEYS = [
     "activityName",
     "activityDescription",
 ]
+#: Scalar types that Synapse supports as annotation values.
+SynapseAnnotationType = datetime.datetime | float | int | bool | str
+
+# Columns that are NOT annotations — stripped before building File.annotations.
+# Covers the standard manifest columns plus the extra metadata columns produced
+# by the Synapse UI download cart and synapse get-download-list CLI.
+NON_ANNOTATION_COLUMNS = frozenset(
+    [
+        # Standard manifest columns used directly during upload
+        "path",
+        "parentId",
+        "ID",
+        "name",
+        "synapseStore",
+        "contentType",
+        "activityName",
+        "activityDescription",
+        "forceVersion",
+        "used",
+        "executed",
+        # Download-list / Synapse UI informational columns — ignore for upload
+        "error",
+        "versionNumber",
+        "dataFileSizeBytes",
+        "createdBy",
+        "createdOn",
+        "modifiedBy",
+        "modifiedOn",
+        "synapseURL",
+        "dataFileMD5Hex",
+    ]
+)
+
+# Regex patterns used when parsing annotation cell values.
+# Matches a cell that is a bracket-delimited list, e.g. "[a, b, c]".
+# Disallows ']' inside to avoid matching adjacent lists like "[a][b]".
+_ARRAY_BRACKET_PATTERN = re.compile(r"^\[[^\]]*\]$")
+# https://stackoverflow.com/questions/18893390/splitting-on-comma-outside-quotes
+_COMMAS_OUTSIDE_DOUBLE_QUOTES_PATTERN = re.compile(r",(?=(?:[^\"]*\"[^\"]*\")*[^\"]*$)")
+# Valid Synapse file name characters (1–256 chars).
+_FILE_NAME_PATTERN = re.compile(r"^[`\w \-\+\.\(\)]{1,256}$")
 
 
 def _manifest_csv_filename(path: str) -> str:
@@ -218,7 +290,7 @@ def _write_manifest_data_csv(path: str, keys: list[str], data: list[dict]) -> No
             writer.writerow(_convert_manifest_data_row_to_dict(row, keys))
 
 
-def generate_manifest_csv(all_files: list["File"], path: str) -> None:
+def generate_manifest_csv(all_files: list[File], path: str) -> None:
     """Generates a manifest.csv file based on a list of File entities.
 
     The generated file uses CSV format with comma delimiter and is interoperable
@@ -233,83 +305,6 @@ def generate_manifest_csv(all_files: list["File"], path: str) -> None:
         filename = _manifest_csv_filename(path=path)
         keys, data = _extract_entity_metadata_for_manifest_csv(all_files=all_files)
         _write_manifest_data_csv(filename, keys, data)
-"""Services for reading a Synapse manifest CSV file and preparing it for upload."""
-
-from __future__ import annotations
-
-import ast
-import asyncio
-import datetime
-import os
-import re
-from dataclasses import dataclass
-from typing import TYPE_CHECKING, Iterable, NamedTuple
-
-from synapseclient import Synapse
-from synapseclient.core.exceptions import (
-    SynapseFileNotFoundError,
-    SynapseHTTPError,
-    SynapseProvenanceError,
-)
-from synapseclient.core.utils import (
-    bool_or_none,
-    datetime_or_none,
-    get_synid_and_version,
-    is_synapse_id_str,
-    is_url,
-    test_import_pandas,
-    topolgical_sort,
-)
-from synapseclient.operations.factory_operations import FileOptions
-from synapseclient.operations.factory_operations import get_async as factory_get_async
-
-if TYPE_CHECKING:
-    from pandas import DataFrame, Series
-
-    from synapseclient.models import UsedEntity, UsedURL
-    from synapseclient.models.file import File
-
-#: Scalar types that Synapse supports as annotation values.
-SynapseAnnotationType = datetime.datetime | float | int | bool | str
-
-# Columns that are NOT annotations — stripped before building File.annotations.
-# Covers the standard manifest columns plus the extra metadata columns produced
-# by the Synapse UI download cart and synapse get-download-list CLI.
-NON_ANNOTATION_COLUMNS = frozenset(
-    [
-        # Standard manifest columns used directly during upload
-        "path",
-        "parentId",
-        "ID",
-        "name",
-        "synapseStore",
-        "contentType",
-        "activityName",
-        "activityDescription",
-        "forceVersion",
-        "used",
-        "executed",
-        # Download-list / Synapse UI informational columns — ignore for upload
-        "error",
-        "versionNumber",
-        "dataFileSizeBytes",
-        "createdBy",
-        "createdOn",
-        "modifiedBy",
-        "modifiedOn",
-        "synapseURL",
-        "dataFileMD5Hex",
-    ]
-)
-
-# Regex patterns used when parsing annotation cell values.
-# Matches a cell that is a bracket-delimited list, e.g. "[a, b, c]".
-# Disallows ']' inside to avoid matching adjacent lists like "[a][b]".
-_ARRAY_BRACKET_PATTERN = re.compile(r"^\[[^\]]*\]$")
-# https://stackoverflow.com/questions/18893390/splitting-on-comma-outside-quotes
-_COMMAS_OUTSIDE_DOUBLE_QUOTES_PATTERN = re.compile(r",(?=(?:[^\"]*\"[^\"]*\")*[^\"]*$)")
-# Valid Synapse file name characters (1–256 chars).
-_FILE_NAME_PATTERN = re.compile(r"^[`\w \-\+\.\(\)]{1,256}$")
 
 
 class UploadSyncFile(NamedTuple):
