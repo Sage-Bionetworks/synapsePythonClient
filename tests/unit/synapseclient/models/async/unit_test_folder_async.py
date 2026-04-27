@@ -884,21 +884,27 @@ class TestFolder:
             return self.get_example_rest_api_folder_output()
 
         # WHEN I call sync_from_synapse with manifest="all" and a path
-        with patch(
-            "synapseclient.models.mixins.storable_container.get_children",
-            side_effect=mock_get_children,
-        ), patch(
-            "synapseclient.api.entity_factory.get_entity_id_bundle2",
-            side_effect=mock_get_entity_bundle,
-        ), patch(
-            "synapseclient.models.file.File.get_async",
-            side_effect=mock_file_get,
-        ), patch(
-            "synapseclient.models.mixins.storable_container.os.path.exists",
-            return_value=True,
-        ), patch(
-            "synapseclient.models.mixins.storable_container.generate_manifest_csv",
-        ) as mock_generate:
+        with (
+            patch(
+                "synapseclient.models.mixins.storable_container.get_children",
+                side_effect=mock_get_children,
+            ),
+            patch(
+                "synapseclient.api.entity_factory.get_entity_id_bundle2",
+                side_effect=mock_get_entity_bundle,
+            ),
+            patch(
+                "synapseclient.models.file.File.get_async",
+                side_effect=mock_file_get,
+            ),
+            patch(
+                "synapseclient.models.mixins.storable_container.os.path.exists",
+                return_value=True,
+            ),
+            patch(
+                "synapseclient.models.mixins.storable_container.generate_manifest_csv",
+            ) as mock_generate,
+        ):
             await folder.sync_from_synapse_async(
                 path="/tmp/mydir", manifest="all", synapse_client=self.syn
             )
@@ -933,19 +939,24 @@ class TestFolder:
         )
 
         # WHEN I call sync_from_synapse with manifest="root" and a path
-        with patch(
-            "synapseclient.models.mixins.storable_container.get_children",
-            side_effect=mock_get_children,
-        ), patch(
-            "synapseclient.api.entity_factory.get_entity_id_bundle2",
-            new_callable=AsyncMock,
-            return_value=self.get_example_rest_api_folder_output(),
-        ), patch(
-            "synapseclient.models.file.File.get_async",
-            return_value=downloaded_file,
-        ), patch(
-            "synapseclient.models.mixins.storable_container.generate_manifest_csv",
-        ) as mock_generate:
+        with (
+            patch(
+                "synapseclient.models.mixins.storable_container.get_children",
+                side_effect=mock_get_children,
+            ),
+            patch(
+                "synapseclient.api.entity_factory.get_entity_id_bundle2",
+                new_callable=AsyncMock,
+                return_value=self.get_example_rest_api_folder_output(),
+            ),
+            patch(
+                "synapseclient.models.file.File.get_async",
+                return_value=downloaded_file,
+            ),
+            patch(
+                "synapseclient.models.mixins.storable_container.generate_manifest_csv",
+            ) as mock_generate,
+        ):
             await folder.sync_from_synapse_async(
                 path="/tmp/mydir", manifest="root", synapse_client=self.syn
             )
@@ -967,19 +978,24 @@ class TestFolder:
                 yield child
 
         # WHEN I call sync_from_synapse with manifest="suppress"
-        with patch(
-            "synapseclient.models.mixins.storable_container.get_children",
-            side_effect=mock_get_children,
-        ), patch(
-            "synapseclient.api.entity_factory.get_entity_id_bundle2",
-            new_callable=AsyncMock,
-            return_value=self.get_example_rest_api_folder_output(),
-        ), patch(
-            "synapseclient.models.file.File.get_async",
-            return_value=(File(id=SYN_456, name="example_file_1")),
-        ), patch(
-            "synapseclient.models.mixins.storable_container.generate_manifest_csv",
-        ) as mock_generate:
+        with (
+            patch(
+                "synapseclient.models.mixins.storable_container.get_children",
+                side_effect=mock_get_children,
+            ),
+            patch(
+                "synapseclient.api.entity_factory.get_entity_id_bundle2",
+                new_callable=AsyncMock,
+                return_value=self.get_example_rest_api_folder_output(),
+            ),
+            patch(
+                "synapseclient.models.file.File.get_async",
+                return_value=(File(id=SYN_456, name="example_file_1")),
+            ),
+            patch(
+                "synapseclient.models.mixins.storable_container.generate_manifest_csv",
+            ) as mock_generate,
+        ):
             await folder.sync_from_synapse_async(
                 path="/tmp/mydir", manifest="suppress", synapse_client=self.syn
             )
@@ -997,23 +1013,29 @@ class TestFolder:
                 yield child
 
         # WHEN I call sync_from_synapse with no path (default manifest="all")
-        with patch(
-            "synapseclient.models.mixins.storable_container.get_children",
-            side_effect=mock_get_children,
-        ), patch(
-            "synapseclient.api.entity_factory.get_entity_id_bundle2",
-            new_callable=AsyncMock,
-            return_value=self.get_example_rest_api_folder_output(),
-        ), patch(
-            "synapseclient.models.file.File.get_async",
-            return_value=(File(id=SYN_456, name="example_file_1")),
-        ), patch(
-            "synapseclient.models.mixins.storable_container.generate_manifest_csv",
-        ) as mock_generate:
+        with (
+            patch(
+                "synapseclient.models.mixins.storable_container.get_children",
+                side_effect=mock_get_children,
+            ),
+            patch(
+                "synapseclient.api.entity_factory.get_entity_id_bundle2",
+                new_callable=AsyncMock,
+                return_value=self.get_example_rest_api_folder_output(),
+            ),
+            patch(
+                "synapseclient.models.file.File.get_async",
+                return_value=(File(id=SYN_456, name="example_file_1")),
+            ),
+            patch(
+                "synapseclient.models.mixins.storable_container.generate_manifest_csv",
+            ) as mock_generate,
+        ):
             await folder.sync_from_synapse_async(synapse_client=self.syn)
 
         # THEN generate_manifest_csv should not be called (no path to write to)
         mock_generate.assert_not_called()
+
 
 class TestStorageLocationMixin:
     """Tests for ProjectSettingsMixin methods on Folder."""
