@@ -20,7 +20,7 @@ import pytest_asyncio
 import synapseclient.core.utils as utils
 from synapseclient import Project, Synapse
 from synapseclient.core.exceptions import SynapseHTTPError
-from synapseclient.models import File, file
+from synapseclient.models import File
 from synapseclient.models.table_components import CsvTableDescriptor
 from synapseclient.operations import (
     DownloadListItem,
