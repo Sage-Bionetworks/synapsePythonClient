@@ -4,7 +4,7 @@ from typing import Any, Callable, Coroutine
 
 
 def spy_for_async_function(
-    original_func: Callable[..., Any]
+    original_func: Callable[..., Any],
 ) -> Callable[..., Coroutine[Any, Any, Any]]:
     """This function is used to create a spy for async functions."""
 

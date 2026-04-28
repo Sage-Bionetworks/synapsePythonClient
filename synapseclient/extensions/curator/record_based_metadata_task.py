@@ -5,6 +5,7 @@ CurationTask, and also create a Grid to bootstrap the ValidationStatistics.
 This module provides library functions for creating record-based metadata curation tasks
 in Synapse, including RecordSet creation, CurationTask setup, and Grid view initialization.
 """
+
 import tempfile
 from typing import Any, Dict, List, Optional, Tuple, Union
 

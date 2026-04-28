@@ -1,4 +1,5 @@
 """Unit tests for web_services functions."""
+
 from unittest.mock import AsyncMock, MagicMock, patch
 
 import synapseclient.api.web_services as web_services

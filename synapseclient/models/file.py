@@ -1053,9 +1053,11 @@ class File(FileSynchronousProtocol, AccessControllable, BaseJSONSchema):
             if_collision=self.if_collision,
             limit_search=self.synapse_container_limit or self.parent_id,
             download_file=self.download_file,
-            download_location=os.path.dirname(self.path)
-            if self.path and os.path.isfile(self.path)
-            else self.path,
+            download_location=(
+                os.path.dirname(self.path)
+                if self.path and os.path.isfile(self.path)
+                else self.path
+            ),
             md5=self.content_md5,
             synapse_client=syn,
         )

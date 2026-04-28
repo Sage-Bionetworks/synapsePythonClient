@@ -31,7 +31,7 @@ nav:
           - Submission: tutorials/python/submission.md
           - Annotation: tutorials/python/annotation.md
           # - Versions: tutorials/python/versions.md
-          # - Activity/Provenance: tutorials/python/activity.md
+          - Activity/Provenance: tutorials/python/activity.md
           - Entity View: tutorials/python/entityview.md
           - Table: tutorials/python/table.md
           # - Using a Table: tutorials/python/table_crud.md
@@ -45,10 +45,13 @@ nav:
           # - Team: tutorials/python/team.md
           - Upload data in bulk: tutorials/python/upload_data_in_bulk.md
           - Download data in bulk: tutorials/python/download_data_in_bulk.md
+          - Download data by Synapse ID: tutorials/python/download_data_by_synid.md
           # - Creating JSON Schema: tutorials/python/schema_operations.md
           - Working with JSON Schema: tutorials/python/json_schema.md
+          - Storage Location: tutorials/python/storage_location.md
+          - Proxy Storage Location: tutorials/python/proxy_storage_location.md
+          - Migration: tutorials/python/migration.md
         # - Move Files and Folders: tutorials/python/move_files_and_folders.md
-        # - Migrate data to other storage locations: tutorials/python/migrate_data_to_other_storage_locations.md
       - Working with the Command Line Client: tutorials/command_line_client.md
       # - Working with file versioning: tutorials/file_versioning.md
       # - Working with tables: tutorials/tables.md
@@ -58,6 +61,7 @@ nav:
       # - Using Entity Views: guides/views.md
       - Data Storage: guides/data_storage.md
       - Access the REST API: guides/accessing_the_rest_api.md
+      - Synapse MCP Server: guides/synapse_mcp.md
       - Extensions:
           - Curator JSONschemas: guides/extensions/curator/schema_operations.md
           - Curator: guides/extensions/curator/metadata_curation.md
@@ -112,6 +116,8 @@ nav:
           - JSONSchema: reference/experimental/sync/json_schema.md
           - Wiki: reference/experimental/sync/wiki.md
           - FormGroup and Form: reference/experimental/sync/form.md
+          - StorageLocation: reference/experimental/sync/storage_location.md
+          - Download List: reference/experimental/sync/download_list.md
           - Extensions:
               - Curator: reference/extensions/curator.md
           - Asynchronous:
@@ -140,6 +146,8 @@ nav:
               - JSONSchema: reference/experimental/async/json_schema.md
               - Wiki: reference/experimental/async/wiki.md
               - FormGroup and Form: reference/experimental/async/form.md
+              - StorageLocation: reference/experimental/async/storage_location.md
+              - Download List: reference/experimental/async/download_list.md
           - Mixins:
               - AccessControllable: reference/experimental/mixins/access_controllable.md
               - StorableContainer: reference/experimental/mixins/storable_container.md
@@ -149,6 +157,7 @@ nav:
               - ContainerEntityJSONSchema: reference/experimental/mixins/container_json_schema.md
               - FormData: reference/experimental/mixins/form_data.md
               - FormGroup: reference/experimental/mixins/form_group.md
+              - StorageLocationConfigurable: reference/experimental/mixins/storage_location_configurable.md
 
   - Further Reading:
       - Home: explanations/home.md
@@ -160,6 +169,7 @@ nav:
       - Structuring Your Project: explanations/structuring_your_project.md
       - Asyncio Changes in Python 3.14: explanations/asyncio_in_python_3_14.md
       - Curator Data model: explanations/curator_data_model.md
+      - Storage Location Architecture: explanations/storage_location_architecture.md
   - News:
       - news.md
   - Contact Us: https://sagebionetworks.jira.com/servicedesk/customer/portal/9/group/16/create/206
@@ -258,6 +268,9 @@ markdown_extensions:
 
 
   - markdown_include.include:
+
+  - pymdownx.snippets:
+      base_path: ["."]
 
   - toc:
       permalink: true
