@@ -5,11 +5,11 @@ on:
   workflow_dispatch:
 
 concurrency:
-  group: validate-release-${{ github.ref }}
+  group: validate-synapse-release-${{ github.ref }}
   cancel-in-progress: true
 
 jobs:
-  validate-release:
+  validate-synapse-release:
     runs-on: ubuntu-latest
     timeout-minutes: 180
     steps:
