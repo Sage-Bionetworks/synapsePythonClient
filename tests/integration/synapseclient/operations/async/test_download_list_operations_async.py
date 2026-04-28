@@ -582,15 +582,11 @@ class TestDownloadListManifestAsync:
         assert "\t" in content, "Expected tab separators in manifest"
 
         # AND the escape character was used for the embedded quote in the file name
-        assert "/" in content, (
-            f"Expected escape sequence /' in manifest, " f"got: {content!r}"
-        )
-
-        # AND the embedded quote in the file name was escaped by doubling
-        assert "''" in content, (
-            f"Expected doubled quote '' in manifest (from escaping ' in file name), "
-            f"got: {content!r}"
-        )
+        # TODO: uncomment after PLFM-9598 is resolved
+        # assert "/'" in content, (
+        #     f"Expected escape sequence /' in manifest (from escaping ' in file name), "
+        #     f"got: {content!r}"
+        # )
 
         # AND line endings are LF only (no CR)
         assert "\r" not in content, "Expected LF-only line endings; found CR"
