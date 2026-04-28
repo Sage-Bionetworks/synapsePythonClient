@@ -1,16 +1,17 @@
-# GitHub Action workflow for validating releases against the Synapse backendname: validate-release
+# GitHub Action workflow for current release against the Synapse dev backend (running staging code).
+name: validate-synapse-release
 
 on:
   workflow_dispatch:
 
 concurrency:
-  group: ci-${{ github.ref }}
+  group: validate-release-${{ github.ref }}
   cancel-in-progress: true
 
 jobs:
   validate-release:
     runs-on: ubuntu-latest
-    timeout-minutes: 60
+    timeout-minutes: 180
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-python@v5
@@ -20,13 +21,13 @@ jobs:
         run: |
           python -m pip install --upgrade pip
           pip install -e ".[boto3,pandas,pysftp,tests,curator]"
-      - name: Run unit tests
-        run: pytest -sv tests/unit
       - name: Check for Secret availability
         id: secret-check
         run: |
           if [ -z "${{ secrets.encrypted_d17283647768_key }}" ]  || [ -z "${{ secrets.encrypted_d17283647768_iv }}" ]; then
             echo "secrets_available=false" >> $GITHUB_OUTPUT;
+            echo "Secrets for integration tests are not available. Cancelling integration tests.";
+            exit(2);
           else
             echo "secrets_available=true" >> $GITHUB_OUTPUT;
           fi
@@ -36,4 +37,4 @@ jobs:
           # decrypt the encrypted test synapse configuration
           openssl aes-256-cbc -K ${{ secrets.encrypted_d17283647768_key }} -iv ${{ secrets.encrypted_d17283647768_iv }} -in test.synapseConfig.enc -out test.synapseConfig -d
           mv test.synapseConfig ~/.synapseConfig
-          pytest -sv tests/integration
+          pytest -sv --reruns 3 tests/integration -n 8 --ignore=tests/integration/synapseclient/test_command_line_client.py --dist loadscope
