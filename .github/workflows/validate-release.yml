@@ -27,12 +27,11 @@ jobs:
           if [ -z "${{ secrets.encrypted_d17283647768_key }}" ]  || [ -z "${{ secrets.encrypted_d17283647768_iv }}" ]; then
             echo "secrets_available=false" >> $GITHUB_OUTPUT;
             echo "Secrets for integration tests are not available. Cancelling integration tests.";
-            exit(2);
+            exit 1;
           else
             echo "secrets_available=true" >> $GITHUB_OUTPUT;
           fi
       - name: Run integration tests (if secrets available)
-        if: steps.secret-check.outputs.secrets_available == 'true'
         run: |
           # decrypt the encrypted test synapse configuration
           openssl aes-256-cbc -K ${{ secrets.encrypted_d17283647768_key }} -iv ${{ secrets.encrypted_d17283647768_iv }} -in test.synapseConfig.enc -out test.synapseConfig -d
