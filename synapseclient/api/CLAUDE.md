@@ -4,6 +4,10 @@
 
 REST API service layer — thin async functions that map to Synapse REST endpoints. One file per resource type. Called by model layer, never by end users directly.
 
+## Reference
+
+- [Synapse REST API docs](https://rest-docs.synapse.org/rest/)
+
 ## Conventions
 
 ### Function signature pattern
