@@ -16,6 +16,7 @@ from synapseclient.models.curation import (
     Grid,
     GridRecordSetExportRequest,
     RecordBasedMetadataTaskProperties,
+    SynchronizeGridRequest,
     _create_task_properties_from_dict,
 )
 from synapseclient.models.recordset import ValidationSummary
@@ -915,3 +916,90 @@ class TestGridRecordSetExportRequest:
         # THEN it should contain the correct fields
         assert "concreteType" in result
         assert result["sessionId"] == SESSION_ID
+
+
+class TestSynchronizeGridRequest:
+    def test_to_synapse_request(self) -> None:
+        # GIVEN a SynchronizeGridRequest with all fields set
+        sync_req = SynchronizeGridRequest(
+            session_id=SESSION_ID,
+        )
+
+        # WHEN I convert it to a synapse request
+        result = sync_req.to_synapse_request()
+
+        # THEN it should contain the correct fields
+        assert "concreteType" in result
+        assert result["gridSessionId"] == SESSION_ID
+
+    def test_fill_from_dict(self) -> None:
+        # GIVEN a response with synchronize grid session data
+        raw_response = {
+            "jobId": "1234",
+            "concreteType": "org.sagebionetworks.repo.model.grid.SynchronizeGridResponse",
+            "gridSessionId": SESSION_ID,
+            "errorMessages": ["test_error"],
+        }
+
+        # WHEN I fill a SynchronizeGridRequest from the response
+        sync_req = SynchronizeGridRequest(session_id=SESSION_ID)
+        response = sync_req.fill_from_dict(raw_response)
+        assert "test_error" in response.error_messages
+        assert response.session_id == SESSION_ID
+
+
+class TestSynchronizeGrid:
+    @pytest.fixture(autouse=True, scope="function")
+    def init_syn(self, syn: Synapse) -> None:
+        self.syn = syn
+
+    async def test_synchronize_grid_async_without_session_id_raises(self) -> None:
+        # GIVEN a Grid without a session_id
+        grid = Grid()
+
+        # WHEN I call synchronize_async
+        # THEN it should raise ValueError
+        with pytest.raises(ValueError, match="session_id is required to synchronize"):
+            await grid.synchronize_async(synapse_client=self.syn)
+
+    async def test_synchronize_grid_async_empty_error(self) -> None:
+        # GIVEN a Grid with a session_id
+        grid = Grid(session_id=SESSION_ID)
+        mock_sync_response = SynchronizeGridRequest(
+            session_id=SESSION_ID,
+            error_messages=[],
+        )
+
+        # WHEN I call synchronize_async
+        with patch(
+            "synapseclient.models.curation.SynchronizeGridRequest.send_job_and_wait_async",
+            new_callable=AsyncMock,
+            return_value=mock_sync_response,
+        ) as mock_sync:
+            await grid.synchronize_async(synapse_client=self.syn)
+
+            # THEN the API should be called with the session_id
+            mock_sync.assert_called_once_with(synapse_client=self.syn, timeout=120)
+
+    async def test_synchronize_grid_async_with_errors(self) -> None:
+        # GIVEN a Grid with a session_id
+        grid = Grid(session_id=SESSION_ID)
+        mock_sync_response = SynchronizeGridRequest(
+            session_id=SESSION_ID,
+            error_messages=["sync_error_1", "sync_error_2"],
+        )
+
+        # WHEN I call synchronize_async
+        with patch(
+            "synapseclient.models.curation.SynchronizeGridRequest.send_job_and_wait_async",
+            new_callable=AsyncMock,
+            return_value=mock_sync_response,
+        ):
+            with patch.object(self.syn, "logger") as mock_logger:
+                await grid.synchronize_async(synapse_client=self.syn)
+
+                # THEN the error messages should be logged as an error
+                mock_logger.error.assert_called_once()
+                error_message = mock_logger.error.call_args[0][0]
+                assert "sync_error_1" in error_message
+                assert "sync_error_2" in error_message

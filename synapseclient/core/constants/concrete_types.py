@@ -149,3 +149,4 @@ LIST_GRID_SESSIONS_REQUEST = (
 LIST_GRID_SESSIONS_RESPONSE = (
     "org.sagebionetworks.repo.model.grid.ListGridSessionsResponse"
 )
+SYNCHRONIZE_GRID_REQUEST = "org.sagebionetworks.repo.model.grid.SynchronizeGridRequest"

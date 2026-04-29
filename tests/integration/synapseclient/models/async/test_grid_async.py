@@ -9,7 +9,16 @@ import pandas as pd
 import pytest
 
 from synapseclient import Synapse
-from synapseclient.models import Grid, Project, RecordSet
+from synapseclient.extensions.curator.file_based_metadata_task import EntityView
+from synapseclient.models import (
+    EntityView,
+    Folder,
+    Grid,
+    Project,
+    RecordSet,
+    ViewTypeMask,
+)
+from synapseclient.models.table_components import Query
 from tests.integration import ASYNC_JOB_TIMEOUT_SEC
 
 
@@ -20,6 +29,31 @@ class TestGridAsync:
     def init(self, syn: Synapse, schedule_for_cleanup: Callable[..., None]) -> None:
         self.syn = syn
         self.schedule_for_cleanup = schedule_for_cleanup
+
+    @pytest.fixture(scope="class")
+    async def entity_view(
+        self,
+        project_model: Project,
+        syn: Synapse,
+        schedule_for_cleanup: Callable[..., None],
+    ) -> tuple[Folder, EntityView]:
+        """Create a folder with an associated EntityView for file-based testing."""
+        # Create a folder
+        folder = await Folder(
+            name=str(uuid.uuid4()),
+            parent_id=project_model.id,
+        ).store_async(synapse_client=syn)
+        schedule_for_cleanup(folder.id)
+
+        entity_view = await EntityView(
+            name=str(uuid.uuid4()),
+            parent_id=project_model.id,
+            scope_ids=[folder.id],
+            view_type_mask=ViewTypeMask.FILE.value,
+        ).store_async(synapse_client=syn)
+        schedule_for_cleanup(entity_view.id)
+
+        return entity_view
 
     @pytest.fixture(scope="function")
     async def record_set_fixture(self, project_model: Project) -> RecordSet:
@@ -183,3 +217,19 @@ class TestGridAsync:
             match="session_id is required to delete a GridSession",
         ):
             await grid.delete_async(synapse_client=self.syn)
+
+    async def test_synchronize_grid_async(
+        self,
+        entity_view: EntityView,
+    ) -> None:
+
+        # GIVEN: A Grid with a session_id
+        query = Query(sql=f"SELECT * FROM {entity_view.id}")
+        grid = Grid(initial_query=query)
+        created_grid = await grid.create_async(synapse_client=self.syn)
+
+        # WHEN: Synchronizing the grid session
+        grid = await created_grid.synchronize_async(synapse_client=self.syn)
+        assert grid.source_entity_id == entity_view.id
+        assert grid.session_id == created_grid.session_id
+        assert grid.source_entity_id == entity_view.id
