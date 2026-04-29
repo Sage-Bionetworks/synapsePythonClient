@@ -267,6 +267,10 @@ class TestExernalStorage:
         finally:
             self._teardown_bucket_location(key_prefix=folder_in_s3_to_cleanup)
 
+    @pytest.mark.skip(
+        reason="Server-side error: STS storage token endpoint is returning errors. "
+        "Re-enable once PLFM-9604 is resolved on the server side."
+    )
     async def test_sts_external_storage_location(self) -> None:
         """Test creating and using an external STS storage location.
         A custom storage location is created with sts enabled,
@@ -348,6 +352,10 @@ class TestExernalStorage:
         finally:
             self._teardown_bucket_location(key_prefix=folder_in_s3_to_cleanup)
 
+    @pytest.mark.skip(
+        reason="Server-side error: STS storage token endpoint is returning errors. "
+        "Re-enable once PLFM-9604 is resolved on the server side."
+    )
     async def test_boto_upload_acl(self) -> None:
         """Verify when we store a Synapse object using boto we apply a
         bucket-owner-full-control ACL to the object"""
