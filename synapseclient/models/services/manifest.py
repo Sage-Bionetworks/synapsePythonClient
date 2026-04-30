@@ -139,29 +139,34 @@ def _convert_manifest_data_items_to_string_list(
 
     When working with non strings we are printing the non-quoted version of the object.
 
-    Example: Examples
-        Several examples of how this function works.
+    Example: Single-element lists are unwrapped
+        A list with one item returns the item directly, not wrapped in brackets.
+        ```python
+        _convert_manifest_data_items_to_string_list(["string,with,commas"])  # 'string,with,commas'
+        _convert_manifest_data_items_to_string_list([True])                  # 'True'
+        _convert_manifest_data_items_to_string_list([1])                     # '1'
+        _convert_manifest_data_items_to_string_list([1.0])                   # '1.0'
+        _convert_manifest_data_items_to_string_list(
+            [datetime.datetime(2020, 1, 1, tzinfo=datetime.timezone.utc)]
+        )                                                                     # '2020-01-01T00:00:00Z'
+        ```
 
-            >>> _convert_manifest_data_items_to_string_list(["a", "b", "c"])
-            '[a,b,c]'
-            >>> _convert_manifest_data_items_to_string_list(["string,with,commas", "string without commas"])
-            '["string,with,commas",string without commas]'
-            >>> _convert_manifest_data_items_to_string_list(["string,with,commas"])
-            'string,with,commas'
-            >>> _convert_manifest_data_items_to_string_list
-                ([datetime.datetime(2020, 1, 1, 0, 0, 0, 0, tzinfo=datetime.timezone.utc)])
-            '2020-01-01T00:00:00Z'
-            >>> _convert_manifest_data_items_to_string_list([True])
-            'True'
-            >>> _convert_manifest_data_items_to_string_list([1])
-            '1'
-            >>> _convert_manifest_data_items_to_string_list([1.0])
-            '1.0'
-            >>> _convert_manifest_data_items_to_string_list
-                ([datetime.datetime(2020, 1, 1, 0, 0, 0, 0, tzinfo=datetime.timezone.utc),
-                datetime.datetime(2021, 1, 1, 0, 0, 0, 0, tzinfo=datetime.timezone.utc)])
-            '[2020-01-01T00:00:00Z,2021-01-01T00:00:00Z]'
-
+    Example: Multi-element lists are bracket-wrapped
+        Multiple items are joined with commas inside `[...]`. String items containing
+        commas are individually quoted.
+        ```python
+        _convert_manifest_data_items_to_string_list(["a", "b", "c"])
+        # '[a,b,c]'
+        _convert_manifest_data_items_to_string_list([True, False])
+        # '[True,False]'
+        _convert_manifest_data_items_to_string_list(["string,with,commas", "string without commas"])
+        # '["string,with,commas",string without commas]'
+        _convert_manifest_data_items_to_string_list(
+            [datetime.datetime(2020, 1, 1, tzinfo=datetime.timezone.utc),
+             datetime.datetime(2021, 1, 1, tzinfo=datetime.timezone.utc)]
+        )
+        # '[2020-01-01T00:00:00Z,2021-01-01T00:00:00Z]'
+        ```
 
     Args:
         items: The list of items to convert.
