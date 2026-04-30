@@ -1084,7 +1084,7 @@ class DownloadFromGridRequest(AsynchronousCommunicator):
     session_id: str
     """The grid session ID."""
 
-    concrete_type: str = field(default=DOWNLOAD_FROM_GRID_REQUEST)
+    concrete_type: str = DOWNLOAD_FROM_GRID_REQUEST
     """The concrete type for this request."""
 
     write_header: Optional[bool] = True
