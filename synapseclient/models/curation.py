@@ -8,6 +8,7 @@ data or metadata in Synapse.
 import asyncio
 import os
 from dataclasses import dataclass, field, replace
+from datetime import datetime, timezone
 from typing import Any, AsyncGenerator, Dict, Generator, Optional, Protocol, Union
 
 from opentelemetry import trace
@@ -1090,10 +1091,10 @@ class DownloadFromGridRequest(AsynchronousCommunicator):
     write_header: Optional[bool] = True
     """Should the first line contain the columns names as a header in the resulting file? Set to 'true' to include the headers else, 'false'."""
 
-    include_row_id_and_row_version: Optional[bool] = True
+    include_row_id_and_row_version: Optional[bool] = False
     """Should the first two columns contain the row ID and row version?"""
 
-    include_etag: Optional[bool] = True
+    include_etag: Optional[bool] = False
     """Should the first (or third if includeRowIdAndRowVersion is true) column contain the row etag?"""
 
     csv_table_descriptor: CsvTableDescriptor = field(default_factory=CsvTableDescriptor)
@@ -1610,8 +1611,8 @@ class GridSynchronousProtocol(Protocol):
         *,
         destination: Optional[str] = None,
         write_header: bool = True,
-        include_row_id_and_row_version: bool = True,
-        include_etag: bool = True,
+        include_row_id_and_row_version: bool = False,
+        include_etag: bool = False,
         csv_table_descriptor: Optional[CsvTableDescriptor] = None,
         file_name: Optional[str] = None,
         timeout: int = 120,
@@ -1662,6 +1663,21 @@ class GridSynchronousProtocol(Protocol):
 
             grid = Grid(session_id="abc-123-def")
             path = grid.download_csv(destination="./downloads")
+            print(f"Downloaded CSV to: {path}")
+            ```
+
+        Example: Download a grid session as a CSV with a custom file name
+            &nbsp;
+
+            ```python
+            from synapseclient import Synapse
+            from synapseclient.models import Grid
+
+            syn = Synapse()
+            syn.login()
+
+            grid = Grid(session_id="abc-123-def")
+            path = grid.download_csv(destination="./downloads", file_name="my_export.csv")
             print(f"Downloaded CSV to: {path}")
             ```
         """
@@ -2299,8 +2315,8 @@ class Grid(GridSynchronousProtocol):
         *,
         destination: Optional[str] = None,
         write_header: bool = True,
-        include_row_id_and_row_version: bool = True,
-        include_etag: bool = True,
+        include_row_id_and_row_version: bool = False,
+        include_etag: bool = False,
         csv_table_descriptor: Optional[CsvTableDescriptor] = None,
         file_name: Optional[str] = None,
         timeout: int = 120,
@@ -2357,6 +2373,27 @@ class Grid(GridSynchronousProtocol):
 
             asyncio.run(main())
             ```
+
+        Example: Download a grid session as a CSV with a custom file name asynchronously
+            &nbsp;
+
+            ```python
+            import asyncio
+            from synapseclient import Synapse
+            from synapseclient.models import Grid
+
+            syn = Synapse()
+            syn.login()
+
+            async def main():
+                grid = Grid(session_id="abc-123-def")
+                path = await grid.download_csv_async(
+                    destination="./downloads", file_name="my_export.csv"
+                )
+                print(f"Downloaded CSV to: {path}")
+
+            asyncio.run(main())
+            ```
         """
         if not self.session_id:
             raise ValueError("session_id is required to download a GridSession as CSV")
@@ -2396,9 +2433,9 @@ class Grid(GridSynchronousProtocol):
             file_handle_id=download_response.results_file_handle_id,
             synapse_client=synapse_client,
         )
-        file_name = (
-            file_name or file_handle.get("fileName") or f"grid_{self.session_id}.csv"
-        )
+        if not file_name:
+            timestamp = datetime.now(tz=timezone.utc).strftime("%Y%m%d%H%M%S")
+            file_name = f"grid_{self.session_id}-{timestamp}.csv"
         file_path = os.path.join(destination, file_name)
         return await asyncio.to_thread(
             download_from_url,
