@@ -5,6 +5,7 @@ Curation tasks are used to guide data contributors through the process of contri
 data or metadata in Synapse.
 """
 
+import asyncio
 import os
 from dataclasses import dataclass, field, replace
 from typing import Any, AsyncGenerator, Dict, Generator, Optional, Protocol, Union
@@ -17,6 +18,8 @@ from synapseclient.api import (
     delete_curation_task,
     delete_grid_session,
     get_curation_task,
+    get_file_handle,
+    get_file_handle_presigned_url,
     list_curation_tasks,
     list_grid_sessions,
     update_curation_task,
@@ -38,7 +41,7 @@ from synapseclient.core.constants.concrete_types import (
     RECORD_BASED_METADATA_TASK_PROPERTIES,
     UPLOAD_TO_TABLE_PREVIEW_REQUEST,
 )
-from synapseclient.core.download.download_functions import download_by_file_handle
+from synapseclient.core.download.download_functions import download_from_url
 from synapseclient.core.upload.upload_functions_async import upload_synapse_s3
 from synapseclient.core.utils import delete_none_keys, merge_dataclass_entities
 from synapseclient.models.mixins.asynchronous_job import AsynchronousCommunicator
@@ -2385,10 +2388,24 @@ class Grid(GridSynchronousProtocol):
                 "the job may have failed silently."
             )
 
-        return await download_by_file_handle(
+        file_handle = await get_file_handle(
             file_handle_id=download_response.results_file_handle_id,
-            synapse_id=download_response.results_file_handle_id,
-            entity_type="FileEntity",
-            destination=destination,
+            synapse_client=synapse_client,
+        )
+        presigned_url = await get_file_handle_presigned_url(
+            file_handle_id=download_response.results_file_handle_id,
+            synapse_client=synapse_client,
+        )
+        file_name = (
+            file_name or file_handle.get("fileName") or f"grid_{self.session_id}.csv"
+        )
+        file_path = os.path.join(destination, file_name)
+        return await asyncio.to_thread(
+            download_from_url,
+            url=presigned_url,
+            destination=file_path,
+            file_handle_id=file_handle["id"],
+            expected_md5=file_handle.get("contentMd5"),
+            url_is_presigned=True,
             synapse_client=synapse_client,
         )
