@@ -2,7 +2,7 @@
 generated at runtime."""
 
 import asyncio
-from typing import TYPE_CHECKING, List, Optional, Protocol
+from typing import TYPE_CHECKING, List, Literal, Optional, Protocol
 
 from typing_extensions import Self
 
@@ -35,7 +35,7 @@ class StorableContainerSynchronousProtocol(Protocol):
         link_hops: int = 1,
         queue: asyncio.Queue = None,
         include_types: Optional[List[str]] = None,
-        manifest: str = "all",
+        manifest: Literal["all", "root", "suppress"] = "all",
         *,
         synapse_client: Optional[Synapse] = None,
     ) -> Self:

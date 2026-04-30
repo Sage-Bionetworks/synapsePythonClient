@@ -49,6 +49,7 @@ from synapseclient.models.protocols.storable_container_protocol import (
     StorableContainerSynchronousProtocol,
 )
 from synapseclient.models.services.manifest import (
+    generate_manifest_csv,
     read_manifest_for_upload,
     upload_sync_files,
 )
@@ -71,8 +72,6 @@ if TYPE_CHECKING:
         Table,
         VirtualTable,
     )
-
-from synapseclient.models.services.manifest import generate_manifest_csv
 
 
 @async_to_sync
@@ -482,18 +481,17 @@ class StorableContainer(StorableContainerSynchronousProtocol):
 
         All arguments are passed through from the wrapper function.
         """
+        if manifest not in ("all", "root", "suppress"):
+            raise ValueError(
+                f"Invalid manifest value: {manifest}. Must be one of: 'all', 'root', 'suppress'."
+            )
+
         syn = Synapse.get_client(synapse_client=synapse_client)
         if not self._last_persistent_instance:
             await self.get_async(synapse_client=syn)
         syn.logger.info(
             f"[{self.id}:{self.name}]: Syncing {self.__class__.__name__} from Synapse."
         )
-
-        if manifest not in ("all", "root", "suppress"):
-            raise ValueError(
-                f"[{self.id}:{self.name}]: Invalid manifest value: {manifest}. "
-                "Must be one of: 'all', 'root', 'suppress'."
-            )
 
         path = os.path.expanduser(path) if path else None
 
@@ -1312,7 +1310,7 @@ class StorableContainer(StorableContainerSynchronousProtocol):
             synapse_client=synapse_client,
             queue=queue,
             include_types=include_types,
-            manifest="suppress",  # suppress manifest generation for recursive calls since the root covers the path already in map_directory_to_all_contained_files
+            manifest="suppress",  # The manifest is suppressed for child folders because they’re already accounted for when iterating through their parent folder. This is handled in the map_directory_to_all_contained_files function, which returns all files in the directory, including those in its child directories.
         )
 
     def _create_task_for_child(
