@@ -17,10 +17,12 @@ from synapseclient.core.constants.concrete_types import (
     DOWNLOAD_FROM_GRID_REQUEST,
     DOWNLOAD_LIST_MANIFEST_REQUEST,
     GET_VALIDATION_SCHEMA_REQUEST,
+    GRID_CSV_IMPORT_REQUEST,
     GRID_RECORD_SET_EXPORT_REQUEST,
     QUERY_BUNDLE_REQUEST,
     QUERY_TABLE_CSV_REQUEST,
     TABLE_UPDATE_TRANSACTION_REQUEST,
+    UPLOAD_TO_TABLE_PREVIEW_REQUEST,
 )
 from synapseclient.core.exceptions import (
     SynapseError,
@@ -39,6 +41,8 @@ ASYNC_JOB_URIS = {
     CREATE_SCHEMA_REQUEST: "/schema/type/create/async",
     QUERY_TABLE_CSV_REQUEST: "/entity/{entityId}/table/download/csv/async",
     QUERY_BUNDLE_REQUEST: "/entity/{entityId}/table/query/async",
+    GRID_CSV_IMPORT_REQUEST: "/grid/import/csv/async",
+    UPLOAD_TO_TABLE_PREVIEW_REQUEST: "/table/upload/csv/preview/async",
 }
 
 
