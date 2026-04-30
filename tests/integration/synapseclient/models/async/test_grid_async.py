@@ -268,9 +268,6 @@ class TestGridAsync:
             df = pd.read_csv(csv_path)
             expected_df = pd.DataFrame(
                 {
-                    "ROW_ID": [float("nan")] * 5,
-                    "ROW_VERSION": [float("nan")] * 5,
-                    "etag": [None] * 5,
                     "id": [1, 2, 3, 4, 5],
                     "name": ["Alpha", "Beta", "Gamma", "Delta", "Epsilon"],
                     "value": [10.5, 20.3, 30.7, 40.1, 50.9],
