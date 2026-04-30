@@ -1393,7 +1393,7 @@ class TestGridDownloadCsv:
 
         # WHEN I call download_csv_async with an invalid destination
         with pytest.raises(
-            ValueError, match=f"Destination ./nonexistent_dir is not a valid directory."
+            ValueError, match="Destination ./nonexistent_dir is not a valid directory."
         ):
             await grid.download_csv_async(
                 synapse_client=self.syn, destination="./nonexistent_dir"
