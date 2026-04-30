@@ -158,14 +158,40 @@ class TestGenerateManifestCsv:
         assert row["single_dt"] == "2020-01-01T00:00:00Z"
         assert row["multi_dt"] == "[2020-01-01T00:00:00Z,2021-06-15T12:30:00Z]"
 
-    def test_generate_manifest_csv_skips_when_no_files(self) -> None:
+    def test_generate_manifest_csv_with_only_header_row(self) -> None:
         # GIVEN an empty file list
         with tempfile.TemporaryDirectory() as tmpdir:
             # WHEN generate_manifest_csv is called with no files
             generate_manifest_csv(all_files=[], path=tmpdir)
 
-            # THEN no manifest.csv is created
-            assert not os.path.exists(os.path.join(tmpdir, "manifest.csv"))
+            # THEN the manifest.csv file is created with only the header row and no data rows
+            manifest_path = os.path.join(tmpdir, "manifest.csv")
+            with open(manifest_path, newline="", encoding="utf8") as fp:
+                reader = csv.DictReader(fp)
+                rows = list(reader)
+                assert reader.fieldnames == [
+                    "path",
+                    "parentId",
+                    "name",
+                    "ID",
+                    "synapseStore",
+                    "contentType",
+                    "used",
+                    "executed",
+                    "activityName",
+                    "activityDescription",
+                ]
+            assert rows == []
+
+    def test_generate_manifest_csv_with_path_None_raises_ValueError(self) -> None:
+        # GIVEN an empty file list
+        with tempfile.TemporaryDirectory() as tmpdir:
+            # WHEN generate_manifest_csv is called with path=None
+            with pytest.raises(
+                ValueError,
+                match="The path argument is required to generate a manifest.csv file.",
+            ):
+                generate_manifest_csv(all_files=[], path=None)
 
     def test_generate_manifest_csv_quotes_values_with_commas(self) -> None:
         # GIVEN a File whose name contains a comma

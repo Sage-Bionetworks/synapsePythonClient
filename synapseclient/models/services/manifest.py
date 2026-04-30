@@ -289,6 +289,9 @@ def _write_manifest_data_csv(path: str, keys: list[str], data: list[dict]) -> No
         for row in data:
             writer.writerow(_convert_manifest_data_row_to_dict(row, keys))
 
+        # add a log message to the console
+        print(f"Manifest file {path} has been generated.")
+
 
 def generate_manifest_csv(all_files: list[File], path: str) -> None:
     """Generates a manifest.csv file based on a list of File entities.
@@ -296,12 +299,21 @@ def generate_manifest_csv(all_files: list[File], path: str) -> None:
     The generated file uses CSV format with comma delimiter and is interoperable
     with the Synapse UI download cart. Column names follow the new convention:
     `parentId` (instead of `parent`) and `ID` (instead of `id`).
+    If all_files is empty, a manifest.csv with only the header row will be generated.
+    If path is None, a ValueError will be raised.
 
-    Arguments:
+    Args:
         all_files: A list of File model objects.
         path: The directory path where manifest.csv will be written.
+
+    raises:
+        ValueError: If path is None.
     """
-    if path and all_files:
+    if not path:
+        raise ValueError(
+            "The path argument is required to generate a manifest.csv file."
+        )
+    if path:
         filename = _manifest_csv_filename(path=path)
         keys, data = _extract_entity_metadata_for_manifest_csv(all_files=all_files)
         _write_manifest_data_csv(filename, keys, data)
