@@ -1358,6 +1358,25 @@ class TestGridDownloadCsv:
         mock_download_request = DownloadFromGridRequest(session_id=SESSION_ID)
         mock_download_request.results_file_handle_id = FILE_HANDLE_ID
 
+        mock_file_handle = {
+            "id": "172705303",
+            "etag": "mock-etag",
+            "createdBy": "3443707",
+            "createdOn": "2026-04-30T21:21:40.000Z",
+            "modifiedOn": "2026-04-30T21:21:40.000Z",
+            "concreteType": "org.sagebionetworks.repo.model.file.S3FileHandle",
+            "contentType": "text/csv",
+            "contentMd5": "mock-med5",
+            "fileName": "Job-1234.csv",
+            "contentSize": 100,
+            "status": "AVAILABLE",
+            "bucketName": "proddata.sagebase.org",
+            "key": "1234/5678/Job-1234.csv",
+            "isPreview": False,
+        }
+        mock_presigned_url = "https://presigned.example.com/file.csv"
+        expected_download_path = "/tmp/downloaded.csv"
+
         with (
             patch.object(
                 DownloadFromGridRequest,
@@ -1366,26 +1385,102 @@ class TestGridDownloadCsv:
                 return_value=mock_download_request,
             ) as mock_send,
             patch(
-                "synapseclient.models.curation.download_by_file_handle",
+                "synapseclient.models.curation.get_file_handle",
                 new_callable=AsyncMock,
-                return_value="test.csv",
-            ) as mock_download,
+                return_value=mock_file_handle,
+            ) as mock_get_file_handle,
+            patch(
+                "synapseclient.models.curation.get_file_handle_presigned_url",
+                new_callable=AsyncMock,
+                return_value=mock_presigned_url,
+            ) as mock_get_presigned_url,
+            patch(
+                "synapseclient.models.curation.download_from_url",
+                return_value=expected_download_path,
+            ) as mock_download_from_url,
         ):
             result = await grid.download_csv_async(synapse_client=self.syn)
             current_dir = os.getcwd()
 
-            # THEN the download request should be sent
+            # THEN the async job should be submitted
             mock_send.assert_called_once()
-            mock_download.assert_called_once_with(
-                synapse_client=self.syn,
+
+            # AND the file handle metadata should be fetched
+            mock_get_file_handle.assert_called_once_with(
                 file_handle_id=FILE_HANDLE_ID,
-                entity_type="FileEntity",
-                synapse_id=FILE_HANDLE_ID,
-                destination=current_dir,
+                synapse_client=self.syn,
             )
 
-            # AND the result should be the file handle ID
-            assert result == "test.csv"
+            # AND a presigned URL should be fetched
+            mock_get_presigned_url.assert_called_once_with(
+                file_handle_id=FILE_HANDLE_ID,
+                synapse_client=self.syn,
+            )
+
+            # AND download_from_url should be called with the presigned URL and MD5
+            call_kwargs = mock_download_from_url.call_args
+            assert call_kwargs.kwargs["url"] == mock_presigned_url
+            assert call_kwargs.kwargs["file_handle_id"] == mock_file_handle["id"]
+            assert call_kwargs.kwargs["expected_md5"] == mock_file_handle["contentMd5"]
+            assert call_kwargs.kwargs["url_is_presigned"] is True
+            # AND the destination filename follows the grid_{session_id}-{timestamp}.csv convention
+            assert call_kwargs.kwargs["destination"].startswith(current_dir)
+            assert f"grid_{SESSION_ID}-" in call_kwargs.kwargs["destination"]
+            assert call_kwargs.kwargs["destination"].endswith(".csv")
+
+            # AND the result is the path returned by download_from_url
+            assert result == expected_download_path
+
+    async def test_download_csv_async_with_custom_file_name(self):
+        # GIVEN a Grid with a session_id and a caller-supplied file_name
+        grid = Grid(session_id=SESSION_ID)
+        custom_file_name = "my_export.csv"
+
+        mock_download_request = DownloadFromGridRequest(session_id=SESSION_ID)
+        mock_download_request.results_file_handle_id = FILE_HANDLE_ID
+
+        mock_file_handle = {
+            "id": "172705303",
+            "contentMd5": "mock-md5",
+            "fileName": "Job-1234.csv",
+        }
+        expected_download_path = "/tmp/my_export.csv"
+
+        with (
+            patch.object(
+                DownloadFromGridRequest,
+                "send_job_and_wait_async",
+                new_callable=AsyncMock,
+                return_value=mock_download_request,
+            ),
+            patch(
+                "synapseclient.models.curation.get_file_handle",
+                new_callable=AsyncMock,
+                return_value=mock_file_handle,
+            ),
+            patch(
+                "synapseclient.models.curation.get_file_handle_presigned_url",
+                new_callable=AsyncMock,
+                return_value="https://presigned.example.com/file.csv",
+            ),
+            patch(
+                "synapseclient.models.curation.download_from_url",
+                return_value=expected_download_path,
+            ) as mock_download_from_url,
+        ):
+            result = await grid.download_csv_async(
+                file_name=custom_file_name, synapse_client=self.syn
+            )
+            current_dir = os.getcwd()
+
+            # THEN the destination uses exactly the caller-supplied file_name
+            call_kwargs = mock_download_from_url.call_args
+            assert call_kwargs.kwargs["destination"] == os.path.join(
+                current_dir, custom_file_name
+            )
+
+            # AND the result is the path returned by download_from_url
+            assert result == expected_download_path
 
     async def test_download_csv_async_with_invalid_dir(self):
         # GIVEN a Grid with a session_id
