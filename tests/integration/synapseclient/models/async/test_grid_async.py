@@ -249,30 +249,36 @@ class TestGridAsync:
     async def test_download_csv_async(self, record_set_fixture: RecordSet) -> None:
         # GIVEN: Create a grid session first
         grid = Grid(record_set_id=record_set_fixture.id)
-        created_grid = await grid.create_async(
-            timeout=ASYNC_JOB_TIMEOUT_SEC, synapse_client=self.syn
-        )
+        try:
+            created_grid = await grid.create_async(
+                timeout=ASYNC_JOB_TIMEOUT_SEC, synapse_client=self.syn
+            )
 
-        # WHEN: Downloading the grid results as CSV
-        temp_dir = tempfile.mkdtemp()
-        self.schedule_for_cleanup(temp_dir)
-        csv_path = await created_grid.download_csv_async(
-            synapse_client=self.syn, timeout=ASYNC_JOB_TIMEOUT_SEC, destination=temp_dir
-        )
+            # WHEN: Downloading the grid results as CSV
+            temp_dir = tempfile.mkdtemp()
+            self.schedule_for_cleanup(temp_dir)
+            csv_path = await created_grid.download_csv_async(
+                synapse_client=self.syn,
+                timeout=ASYNC_JOB_TIMEOUT_SEC,
+                destination=temp_dir,
+            )
 
-        # THEN: The CSV content should be returned and match the original data
-        assert os.path.exists(csv_path)
-        df = pd.read_csv(csv_path)
-        expected_df = pd.DataFrame(
-            {
-                "ROW_ID": [float("nan")] * 5,
-                "ROW_VERSION": [float("nan")] * 5,
-                "etag": [None] * 5,
-                "id": [1, 2, 3, 4, 5],
-                "name": ["Alpha", "Beta", "Gamma", "Delta", "Epsilon"],
-                "value": [10.5, 20.3, 30.7, 40.1, 50.9],
-                "category": ["A", "B", "A", "C", "B"],
-                "active": [True, False, True, True, False],
-            }
-        )
-        pd.testing.assert_frame_equal(df, expected_df, check_dtype=False)
+            # THEN: The CSV content should be returned and match the original data
+            assert os.path.exists(csv_path)
+            df = pd.read_csv(csv_path)
+            expected_df = pd.DataFrame(
+                {
+                    "ROW_ID": [float("nan")] * 5,
+                    "ROW_VERSION": [float("nan")] * 5,
+                    "etag": [None] * 5,
+                    "id": [1, 2, 3, 4, 5],
+                    "name": ["Alpha", "Beta", "Gamma", "Delta", "Epsilon"],
+                    "value": [10.5, 20.3, 30.7, 40.1, 50.9],
+                    "category": ["A", "B", "A", "C", "B"],
+                    "active": [True, False, True, True, False],
+                }
+            )
+            pd.testing.assert_frame_equal(df, expected_df, check_dtype=False)
+        finally:
+            if created_grid is not None and created_grid.session_id:
+                await created_grid.delete_async(synapse_client=self.syn)

@@ -1078,7 +1078,7 @@ class DownloadFromGridRequest(AsynchronousCommunicator):
 
     This request is modeled from: <https://rest-docs.synapse.org/rest/org/sagebionetworks/repo/model/grid/DownloadFromGridRequest.html>
 
-    The response is modeled from: <https://rest-docs.synapse.org/rest/org/sagebionetworks/repo/model/grid/DownloadFromGridResponse.html>
+    The response is modeled from: <https://rest-docs.synapse.org/rest/org/sagebionetworks/repo/model/grid/DownloadFromGridResult.html>
     """
 
     session_id: str
