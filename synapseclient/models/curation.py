@@ -1088,13 +1088,13 @@ class DownloadFromGridRequest(AsynchronousCommunicator):
     concrete_type: str = DOWNLOAD_FROM_GRID_REQUEST
     """The concrete type for this request."""
 
-    write_header: Optional[bool] = True
+    write_header: bool = True
     """Should the first line contain the columns names as a header in the resulting file? Set to 'true' to include the headers else, 'false'."""
 
-    include_row_id_and_row_version: Optional[bool] = False
+    include_row_id_and_row_version: bool = False
     """Should the first two columns contain the row ID and row version?"""
 
-    include_etag: Optional[bool] = False
+    include_etag: bool = False
     """Should the first (or third if includeRowIdAndRowVersion is true) column contain the row etag?"""
 
     csv_table_descriptor: CsvTableDescriptor = field(default_factory=CsvTableDescriptor)
