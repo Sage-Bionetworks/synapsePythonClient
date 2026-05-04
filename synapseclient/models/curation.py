@@ -2424,14 +2424,15 @@ class Grid(GridSynchronousProtocol):
                 "did not return a file handle ID. The CSV result may be empty or "
                 "the job may have failed silently."
             )
-
-        file_handle = await get_file_handle(
-            file_handle_id=download_response.results_file_handle_id,
-            synapse_client=synapse_client,
-        )
-        presigned_url = await get_file_handle_presigned_url(
-            file_handle_id=download_response.results_file_handle_id,
-            synapse_client=synapse_client,
+        file_handle, presigned_url = await asyncio.gather(
+            get_file_handle(
+                file_handle_id=download_response.results_file_handle_id,
+                synapse_client=synapse_client,
+            ),
+            get_file_handle_presigned_url(
+                file_handle_id=download_response.results_file_handle_id,
+                synapse_client=synapse_client,
+            ),
         )
         if not file_name:
             timestamp = datetime.now(tz=timezone.utc).strftime("%Y%m%d%H%M%S")
