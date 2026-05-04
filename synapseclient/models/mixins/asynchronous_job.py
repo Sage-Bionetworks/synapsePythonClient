@@ -14,6 +14,7 @@ from synapseclient.core.constants.concrete_types import (
     AGENT_CHAT_REQUEST,
     CREATE_GRID_REQUEST,
     CREATE_SCHEMA_REQUEST,
+    DOWNLOAD_FROM_GRID_REQUEST,
     DOWNLOAD_LIST_MANIFEST_REQUEST,
     GET_VALIDATION_SCHEMA_REQUEST,
     GRID_CSV_IMPORT_REQUEST,
@@ -32,6 +33,7 @@ from synapseclient.core.exceptions import (
 ASYNC_JOB_URIS = {
     AGENT_CHAT_REQUEST: "/agent/chat/async",
     CREATE_GRID_REQUEST: "/grid/session/async",
+    DOWNLOAD_FROM_GRID_REQUEST: "/grid/download/csv/async",
     DOWNLOAD_LIST_MANIFEST_REQUEST: "/download/list/manifest/async",
     GRID_RECORD_SET_EXPORT_REQUEST: "/grid/export/recordset/async",
     TABLE_UPDATE_TRANSACTION_REQUEST: "/entity/{entityId}/table/transaction/async",
