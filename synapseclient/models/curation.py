@@ -1637,7 +1637,7 @@ class GridSynchronousProtocol(Protocol):
                 quote character, etc.). If not provided, the default CSV format
                 will be used.
             file_name: The optional name for the downloaded file. If not
-                provided, Synapse will generate a name.
+                provided, defaults to `grid_{session_id}-{timestamp}.csv`.
             timeout: The number of seconds to wait for the async job to
                 complete or progress before raising a SynapseTimeoutError.
                 Defaults to 120.
@@ -2341,7 +2341,7 @@ class Grid(GridSynchronousProtocol):
                 quote character, etc.). If not provided, the default CSV format
                 will be used.
             file_name: The optional name for the downloaded file. If not
-                provided, Synapse will generate a name.
+                provided, defaults to `grid_{session_id}-{timestamp}.csv`.
             timeout: The number of seconds to wait for the async job to
                 complete or progress before raising a SynapseTimeoutError.
                 Defaults to 120.
