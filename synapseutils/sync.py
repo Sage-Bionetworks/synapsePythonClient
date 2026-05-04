@@ -1552,10 +1552,27 @@ def _check_size_each_file(df):
                 )
 
 
+@deprecated(
+    version="4.13.0",
+    reason=(
+        "To be removed in 5.0.0. Use Project.generate_sync_manifest or "
+        "Folder.generate_sync_manifest instead, which write a CSV manifest "
+        "compatible with the OOP Project.sync_to_synapse / "
+        "Folder.sync_to_synapse methods."
+    ),
+)
 def generate_sync_manifest(syn, directory_path, parent_id, manifest_path) -> None:
     """Generate manifest for [syncToSynapse][synapseutils.sync.syncToSynapse] from a local directory.
 
     [Read more about the manifest file format](../../explanations/manifest_tsv/)
+
+    .. deprecated:: 4.13.0
+        To be removed in 5.0.0. Use
+        [Project.generate_sync_manifest][synapseclient.models.mixins.StorableContainer.generate_sync_manifest]
+        or
+        [Folder.generate_sync_manifest][synapseclient.models.mixins.StorableContainer.generate_sync_manifest]
+        instead, which produce a CSV manifest (with a parentId column) that
+        works directly with Project.sync_to_synapse and Folder.sync_to_synapse.
 
     Arguments:
         syn: A Synapse object with user's login, e.g. syn = synapseclient.login()

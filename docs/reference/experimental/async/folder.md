@@ -17,6 +17,7 @@ at your own risk.
         - walk_async
         - sync_from_synapse_async
         - sync_to_synapse_async
+        - generate_sync_manifest_async
         - flatten_file_list
         - map_directory_to_all_contained_files
         - get_permissions_async
