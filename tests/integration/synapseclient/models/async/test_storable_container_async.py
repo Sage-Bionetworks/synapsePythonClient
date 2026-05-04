@@ -1,14 +1,19 @@
 """Integration tests for StorableContainer"""
 
 import csv
+import os
+import platform
 import uuid
 from pathlib import Path
 from typing import Callable
 
+import pandas as pd
 import pytest
+import pytest_asyncio
 
 import synapseclient.core.utils as utils
 from synapseclient import Synapse
+from synapseclient.core.exceptions import SynapseHTTPError
 from synapseclient.models import File, Folder, Project
 from synapseclient.models.activity import UsedURL
 
@@ -396,3 +401,317 @@ class TestSyncToSynapse:
         # THEN only the valid row was uploaded
         assert len(uploaded_files) == 1
         assert uploaded_files[0].name == unique_name
+
+
+class TestGenerateSyncManifest:
+    """Integration tests for StorableContainer.generate_sync_manifest_async
+    against the live Synapse API.
+
+    These tests walk a local temporary directory and verify that the method
+    creates matching Synapse folders under a real container and writes a
+    manifest CSV that references the newly-created folder IDs.
+    """
+
+    @pytest_asyncio.fixture(loop_scope="session", scope="function")
+    async def scope_folder(
+        self,
+        syn: Synapse,
+        project_model: Project,
+        schedule_for_cleanup: Callable[..., None],
+        request: pytest.FixtureRequest,
+    ) -> Folder:
+        """A fresh Folder under the worker-scoped project per test, so
+        assertions can reference the folder's full child state without
+        interference from sibling tests. A Folder is cheaper to create than
+        a Project while providing equivalent isolation for these tests.
+        """
+        folder = await Folder(
+            name=f"{request.node.name}_{uuid.uuid4()}",
+            parent_id=project_model.id,
+        ).store_async(synapse_client=syn)
+        schedule_for_cleanup(folder)
+        return folder
+
+    async def test_flat_directory_uses_parent_id(
+        self,
+        syn: Synapse,
+        scope_folder: Folder,
+        tmp_path: Path,
+    ) -> None:
+        """Flat directories should produce a manifest where every file points
+        directly at the container's id, and empty files should be skipped.
+        No Synapse folders should be created when there are no subdirectories
+        to mirror.
+        """
+        # GIVEN a flat directory of non-empty files plus one empty file
+        src = tmp_path / "flat"
+        src.mkdir()
+        (src / "a.txt").write_text("alpha")
+        (src / "b.txt").write_text("bravo")
+        (src / "empty.txt").write_text("")
+        manifest = tmp_path / "manifest.csv"
+
+        # WHEN I generate a sync manifest on the scope folder
+        await scope_folder.generate_sync_manifest_async(
+            directory_path=str(src),
+            manifest_path=str(manifest),
+            synapse_client=syn,
+        )
+
+        # THEN the manifest only contains the non-empty files, all pointing
+        # at the scope folder as their parent, and paths are absolute
+        df = pd.read_csv(manifest)
+        assert list(df.columns) == ["path", "parentId"]
+        assert sorted(os.path.basename(p) for p in df["path"]) == ["a.txt", "b.txt"]
+        assert (df["parentId"] == scope_folder.id).all()
+        for path in df["path"]:
+            assert os.path.isabs(path)
+
+        # AND no folders were created under the scope folder
+        await scope_folder.sync_from_synapse_async(
+            download_file=False, recursive=False, synapse_client=syn
+        )
+        assert scope_folder.folders == []
+
+    async def test_nested_directory_creates_folders(
+        self,
+        syn: Synapse,
+        scope_folder: Folder,
+        tmp_path: Path,
+    ) -> None:
+        """Nested directory trees should create matching Synapse folders at
+        each level, and the manifest parentId for each file should be the ID
+        of the Synapse folder corresponding to the file's on-disk directory.
+        """
+        # GIVEN a nested directory tree with sibling folders at the root and a
+        # deeper leaf folder
+        src = tmp_path / "root"
+        sibling_a = src / "sibling_a"
+        sibling_b = src / "sibling_b"
+        deep = sibling_a / "deep"
+        deep.mkdir(parents=True)
+        sibling_b.mkdir()
+
+        (src / "root.txt").write_text("at root")
+        (sibling_a / "a.txt").write_text("sibling a")
+        (sibling_b / "b.txt").write_text("sibling b")
+        (deep / "deep.txt").write_text("deep file")
+        manifest = tmp_path / "manifest.csv"
+
+        # WHEN I generate a sync manifest on the scope folder
+        await scope_folder.generate_sync_manifest_async(
+            directory_path=str(src),
+            manifest_path=str(manifest),
+            synapse_client=syn,
+        )
+
+        # THEN each manifest row's parentId identifies the Synapse folder that
+        # contains the file on disk
+        df = pd.read_csv(manifest)
+        by_basename = {
+            os.path.basename(p): pid for p, pid in zip(df["path"], df["parentId"])
+        }
+        assert by_basename["root.txt"] == scope_folder.id
+        sibling_a_id = by_basename["a.txt"]
+        sibling_b_id = by_basename["b.txt"]
+        deep_id = by_basename["deep.txt"]
+
+        for path in df["path"]:
+            assert os.path.isabs(path)
+
+        # AND the Synapse tree matches the local layout
+        await scope_folder.sync_from_synapse_async(
+            download_file=False, recursive=True, synapse_client=syn
+        )
+        top_level = {f.name: f for f in scope_folder.folders}
+        assert sorted(top_level) == ["sibling_a", "sibling_b"]
+        assert top_level["sibling_a"].id == sibling_a_id
+        assert top_level["sibling_b"].id == sibling_b_id
+        assert [(f.name, f.id) for f in top_level["sibling_a"].folders] == [
+            ("deep", deep_id)
+        ]
+        assert top_level["sibling_b"].folders == []
+
+    async def test_existing_folders_are_reused(
+        self,
+        syn: Synapse,
+        scope_folder: Folder,
+        tmp_path: Path,
+    ) -> None:
+        """When a Synapse folder with a matching name already exists under
+        the container, the method should reuse its ID instead of creating a
+        new folder or raising a conflict.
+        """
+        # GIVEN a folder that already exists in Synapse under the scope folder
+        folder_name = "preexisting"
+        existing = await Folder(
+            name=folder_name, parent_id=scope_folder.id
+        ).store_async(synapse_client=syn)
+
+        # AND a local directory that mirrors that folder's name with a file inside
+        src = tmp_path / "root"
+        child = src / folder_name
+        child.mkdir(parents=True)
+        (child / "payload.txt").write_text("payload")
+        manifest = tmp_path / "manifest.csv"
+
+        # WHEN I generate a sync manifest
+        await scope_folder.generate_sync_manifest_async(
+            directory_path=str(src),
+            manifest_path=str(manifest),
+            synapse_client=syn,
+        )
+
+        # THEN the manifest reuses the existing folder's Synapse ID
+        df = pd.read_csv(manifest)
+        assert len(df) == 1
+        assert df["parentId"].iloc[0] == existing.id
+
+        # AND the scope folder has exactly the one pre-existing child folder
+        await scope_folder.sync_from_synapse_async(
+            download_file=False, recursive=False, synapse_client=syn
+        )
+        assert len(scope_folder.folders) == 1
+        assert scope_folder.folders[0].id == existing.id
+
+    async def test_empty_directory_writes_header_only(
+        self, syn: Synapse, scope_folder: Folder, tmp_path: Path
+    ) -> None:
+        """An empty source directory should produce a manifest containing
+        only the CSV header row."""
+        empty = tmp_path / "empty"
+        empty.mkdir()
+        manifest = tmp_path / "manifest.csv"
+
+        await scope_folder.generate_sync_manifest_async(
+            directory_path=str(empty),
+            manifest_path=str(manifest),
+            synapse_client=syn,
+        )
+
+        assert manifest.read_text().strip().splitlines() == ["path,parentId"]
+
+    async def test_missing_directory_raises(
+        self, syn: Synapse, project_model: Project, tmp_path: Path
+    ) -> None:
+        """A directory_path that does not exist on disk should raise
+        ValueError before any manifest file is written."""
+        missing = tmp_path / "does_not_exist"
+        manifest = tmp_path / "manifest.csv"
+
+        with pytest.raises(ValueError, match="is not a directory or does not exist"):
+            await project_model.generate_sync_manifest_async(
+                directory_path=str(missing),
+                manifest_path=str(manifest),
+                synapse_client=syn,
+            )
+        assert not manifest.exists()
+
+    async def test_invalid_parent_id_raises_http_error(
+        self, syn: Synapse, tmp_path: Path
+    ) -> None:
+        """A container whose id does not resolve to any Synapse entity should
+        surface as a SynapseHTTPError from the server, and no manifest file
+        should be written.
+        """
+        src = tmp_path / "src"
+        src.mkdir()
+        (src / "a.txt").write_text("hello")
+        manifest = tmp_path / "manifest.csv"
+
+        with pytest.raises(SynapseHTTPError):
+            await Folder(id="syn00000000").generate_sync_manifest_async(
+                directory_path=str(src),
+                manifest_path=str(manifest),
+                synapse_client=syn,
+            )
+        assert not manifest.exists()
+
+    async def test_output_is_sorted_deterministically(
+        self,
+        syn: Synapse,
+        scope_folder: Folder,
+        tmp_path: Path,
+    ) -> None:
+        """Directories and files should be traversed in sorted order so the
+        generated manifest is deterministic regardless of filesystem
+        iteration order.
+        """
+        # GIVEN subdirs and files created in non-alphabetical order
+        src = tmp_path / "root"
+        for dirname in ["charlie", "alpha", "bravo"]:
+            subdir = src / dirname
+            subdir.mkdir(parents=True)
+            for filename in ["z.txt", "a.txt", "m.txt"]:
+                (subdir / filename).write_text("payload")
+        manifest = tmp_path / "manifest.csv"
+
+        await scope_folder.generate_sync_manifest_async(
+            directory_path=str(src),
+            manifest_path=str(manifest),
+            synapse_client=syn,
+        )
+
+        # THEN manifest rows are sorted first by directory name, then by file
+        # name within each directory
+        df = pd.read_csv(manifest)
+        ordered = [
+            (os.path.basename(os.path.dirname(p)), os.path.basename(p))
+            for p in df["path"]
+        ]
+        assert ordered == [
+            ("alpha", "a.txt"),
+            ("alpha", "m.txt"),
+            ("alpha", "z.txt"),
+            ("bravo", "a.txt"),
+            ("bravo", "m.txt"),
+            ("bravo", "z.txt"),
+            ("charlie", "a.txt"),
+            ("charlie", "m.txt"),
+            ("charlie", "z.txt"),
+        ]
+
+    @pytest.mark.skipif(
+        platform.system() == "Windows",
+        reason="Creating symlinks on Windows requires elevated privileges.",
+    )
+    async def test_directory_symlinks_are_not_followed(
+        self,
+        syn: Synapse,
+        scope_folder: Folder,
+        tmp_path: Path,
+    ) -> None:
+        """Symlinks to directories should not be recursed into — files under
+        a symlinked directory must not appear in the generated manifest, and
+        no Synapse folder should be created for the symlinked directory.
+        """
+        # GIVEN a tree where a sibling directory is a symlink to a real
+        # directory that contains a file
+        src = tmp_path / "root"
+        real = src / "real"
+        real.mkdir(parents=True)
+        (real / "real_file.txt").write_text("real")
+        os.symlink(real, src / "link", target_is_directory=True)
+        manifest = tmp_path / "manifest.csv"
+
+        await scope_folder.generate_sync_manifest_async(
+            directory_path=str(src),
+            manifest_path=str(manifest),
+            synapse_client=syn,
+        )
+
+        # THEN only the file in the real directory appears in the manifest
+        df = pd.read_csv(manifest)
+        parents_and_names = [
+            (os.path.basename(os.path.dirname(p)), os.path.basename(p))
+            for p in df["path"]
+        ]
+        assert parents_and_names == [("real", "real_file.txt")]
+
+        # AND no Synapse folder is created for the symlinked directory:
+        # only the on-disk "real" sibling is mirrored; the "link" symlink
+        # was pruned during the walk and produced no Synapse folder.
+        await scope_folder.sync_from_synapse_async(
+            download_file=False, recursive=False, synapse_client=syn
+        )
+        assert sorted(f.name for f in scope_folder.folders) == ["real"]

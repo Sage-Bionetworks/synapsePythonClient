@@ -291,3 +291,79 @@ class StorableContainerSynchronousProtocol(Protocol):
             ```
         """
         return []
+
+    def generate_sync_manifest(
+        self: Self,
+        directory_path: str,
+        manifest_path: str,
+        *,
+        synapse_client: Synapse | None = None,
+    ) -> None:
+        """Walk a local directory, mirror its folder hierarchy under this
+        container in Synapse, and write a CSV manifest ready for
+        [sync_to_synapse][synapseclient.models.mixins.StorableContainer.sync_to_synapse].
+
+        The generated manifest has two columns: path (always an absolute,
+        symlink-resolved path — the input directory_path is resolved via
+        os.path.realpath before walking, so the manifest can be consumed
+        from any working directory and remains valid even if the original
+        symlink is later removed or repointed) and parentId (the Synapse ID
+        of the file's containing folder). Folders that already exist in
+        Synapse with the same name and parent are reused rather than
+        re-created.
+
+        Sibling folders at the same depth are created concurrently to reduce
+        latency on wide trees. Directories and files are traversed in sorted
+        order so manifest output is deterministic across runs and platforms.
+        Directory symlinks encountered inside directory_path are not
+        followed. File symlinks are not pruned: the symlink's path is
+        recorded in the manifest, and the underlying target's contents
+        are uploaded when the manifest is consumed. The root
+        directory_path itself may be a symlink; if so, it is resolved to
+        its target and the target is walked. Zero-byte files are skipped with a
+        warning, since Synapse rejects empty files. I/O errors raised by
+        os.walk (for example, unreadable subdirectories) are logged and
+        skipped. If no uploadable files are found under directory_path, a
+        warning is logged and a header-only manifest is written. If a
+        folder store call fails, the exception propagates and no manifest
+        is written; any folders already created remain in Synapse and will
+        be reused on a retry.
+
+        Arguments:
+            directory_path: Path to the local directory to be pushed to
+                Synapse.
+            manifest_path: Path where the generated manifest CSV will be
+                written.
+            synapse_client: If not passed in and caching was not disabled by
+                Synapse.allow_client_caching(False) this will use the last
+                created instance from the Synapse class constructor.
+
+        Returns:
+            None
+
+        Raises:
+            ValueError: If this container's id is None, or if directory_path
+                does not exist or is not a directory, or if this container's
+                id exists in Synapse but is not a Folder or Project.
+            SynapseHTTPError: If this container's id does not exist in
+                Synapse.
+
+        Example: Generate a manifest and upload the files
+            Mirror ./my_data under a Synapse project and then upload it.
+
+            ```python
+            from synapseclient import Synapse
+            from synapseclient.models import Project
+
+            syn = Synapse()
+            syn.login()
+
+            project = Project(id="syn12345")
+            project.generate_sync_manifest(
+                directory_path="./my_data",
+                manifest_path="manifest.csv",
+            )
+            project.sync_to_synapse(manifest_path="manifest.csv")
+            ```
+        """
+        return None

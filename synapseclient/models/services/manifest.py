@@ -1,10 +1,13 @@
-"""Services for reading a Synapse manifest CSV file and preparing it for upload."""
+"""Services for reading and generating Synapse manifest CSV files used to
+drive bulk upload via Project.sync_to_synapse / Folder.sync_to_synapse."""
 
 from __future__ import annotations
 
 import ast
 import asyncio
+import csv
 import datetime
+import functools
 import os
 import re
 from dataclasses import dataclass
@@ -33,6 +36,7 @@ if TYPE_CHECKING:
 
     from synapseclient.models import UsedEntity, UsedURL
     from synapseclient.models.file import File
+    from synapseclient.models.folder import Folder
 
 #: Scalar types that Synapse supports as annotation values.
 SynapseAnnotationType = datetime.datetime | float | int | bool | str
@@ -1281,3 +1285,169 @@ async def _resolve_local_file_provenance(
             f"The provenance record for file: {owner_path} is incorrect.\n"
             f"Specifically {absolute_path} is not being uploaded and is not in Synapse."
         ) from e
+
+
+GENERATED_MANIFEST_COLUMNS = ["path", "parentId"]
+
+
+async def _generate_sync_manifest_async(
+    directory_path: str,
+    parent_id: str,
+    manifest_path: str,
+    *,
+    synapse_client: Synapse | None = None,
+) -> None:
+    """Implementation backing
+    [StorableContainer.generate_sync_manifest_async][synapseclient.models.mixins.StorableContainer.generate_sync_manifest_async].
+
+    See the mixin method docstring for behavior, arguments, and examples.
+    """
+    client = Synapse.get_client(synapse_client=synapse_client)
+    # realpath (not abspath) so that if directory_path is itself a symlink,
+    # the manifest records paths under the resolved target. That keeps the
+    # manifest valid if the original symlink is later removed or repointed.
+    directory_path = os.path.realpath(directory_path)
+    if not os.path.isdir(directory_path):
+        raise ValueError(f"{directory_path} is not a directory or does not exist")
+    await _validate_target_container_async(parent_id, client=client)
+    rows: list[dict[str, str]] = []
+    # os.walk descends top-down, so a directory's parent is always registered
+    # here before the directory itself is visited.
+    local_to_synapse_parent: dict[str, str] = {directory_path: parent_id}
+
+    for dirpath, dirnames, filenames in os.walk(
+        directory_path, onerror=functools.partial(_log_walk_error, client)
+    ):
+        # Drop symlinked dirs so we don't create Synapse folders for
+        # directories whose contents os.walk (followlinks=False) won't
+        # visit. Mutating dirnames in place is the documented os.walk hook
+        # for pruning the traversal.
+        dirnames[:] = [
+            d for d in dirnames if not os.path.islink(os.path.join(dirpath, d))
+        ]
+        # Sort in place so os.walk also descends in deterministic order.
+        dirnames.sort()
+        current_parent_id = local_to_synapse_parent[dirpath]
+
+        created = await _create_child_folders_async(
+            parent_id=current_parent_id, dirnames=dirnames, client=client
+        )
+        for dirname, folder in zip(dirnames, created):
+            local_to_synapse_parent[os.path.join(dirpath, dirname)] = folder.id
+
+        rows.extend(
+            _collect_uploadable_rows(dirpath, filenames, current_parent_id, client)
+        )
+
+    if not rows:
+        client.logger.warning(
+            f"No uploadable files found under {directory_path};"
+            " generated manifest contains only the header row."
+        )
+    _write_manifest_csv(manifest_path, rows)
+
+
+async def _validate_target_container_async(parent_id: str, client: Synapse) -> None:
+    """Verify that parent_id resolves to a Folder or Project in Synapse.
+
+    Dedicated to manifest generation so error messages reference the
+    container the user is writing into, not a manifest parentId column.
+
+    Raises:
+        SynapseHTTPError: If parent_id does not exist in Synapse.
+        ValueError: If parent_id exists but is not a Folder or Project.
+    """
+    try:
+        container = await factory_get_async(
+            synapse_id=parent_id,
+            file_options=FileOptions(download_file=False),
+            synapse_client=client,
+        )
+    except SynapseHTTPError as err:
+        if getattr(err.response, "status_code", None) == 404:
+            client.logger.warning(f"{parent_id} is not a valid Synapse Id")
+        raise
+
+    from synapseclient.models.folder import Folder
+    from synapseclient.models.project import Project
+
+    if not isinstance(container, (Folder, Project)):
+        raise ValueError(f"Container {parent_id} is not a Folder or Project")
+
+
+def _log_walk_error(client: Synapse, err: OSError) -> None:
+    """Log and skip an os.walk I/O error during manifest generation."""
+    client.logger.warning(
+        f"Skipping unreadable path during manifest generation:"
+        f" {err.filename} ({err})"
+    )
+
+
+async def _create_child_folders_async(
+    parent_id: str, dirnames: list[str], client: Synapse
+) -> list[Folder]:
+    """Create sibling folders concurrently under a shared Synapse parent.
+
+    Sibling folders have no ordering dependency on each other, so they are
+    gathered in a single batch rather than awaited one at a time.
+    """
+    from synapseclient.models.folder import Folder
+
+    return await asyncio.gather(
+        *[
+            Folder(name=dirname, parent_id=parent_id).store_async(synapse_client=client)
+            for dirname in dirnames
+        ]
+    )
+
+
+def _collect_uploadable_rows(
+    dirpath: str,
+    filenames: Iterable[str],
+    parent_id: str,
+    client: Synapse,
+) -> list[dict[str, str]]:
+    """Build manifest rows for the uploadable files in a single directory.
+
+    Files are visited in sorted order so manifest output is deterministic.
+    Unreadable and zero-byte files are logged and dropped by
+    _is_uploadable_file.
+    """
+    rows: list[dict[str, str]] = []
+    for filename in sorted(filenames):
+        filepath = os.path.join(dirpath, filename)
+        if _is_uploadable_file(filepath, client):
+            rows.append({"path": filepath, "parentId": parent_id})
+    return rows
+
+
+def _write_manifest_csv(manifest_path: str, rows: list[dict[str, str]]) -> None:
+    """Write generated manifest rows to a CSV at manifest_path."""
+    with open(manifest_path, "w", encoding="utf-8", newline="") as fp:
+        writer = csv.DictWriter(fp, fieldnames=GENERATED_MANIFEST_COLUMNS)
+        writer.writeheader()
+        writer.writerows(rows)
+
+
+def _is_uploadable_file(filepath: str, client: Synapse) -> bool:
+    """Return True if filepath can be included in a generated manifest.
+
+    Logs a warning and returns False for files that cannot be uploaded:
+    unreadable files (broken symlinks, permission errors, races) and
+    zero-byte files (rejected by Synapse).
+    """
+    try:
+        size = os.stat(filepath).st_size
+    except OSError as err:
+        client.logger.warning(
+            f"Skipping unreadable file during manifest generation:"
+            f" {filepath} ({err})"
+        )
+        return False
+    if size == 0:
+        client.logger.warning(
+            f"Skipping zero-byte file (empty files cannot be"
+            f" uploaded to Synapse): {filepath}"
+        )
+        return False
+    return True
