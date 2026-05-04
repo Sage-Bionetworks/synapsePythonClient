@@ -1630,9 +1630,9 @@ class GridSynchronousProtocol(Protocol):
             write_header: Whether the first line should contain column names
                 as a header. Defaults to True.
             include_row_id_and_row_version: Whether the first two columns
-                should contain row ID and version. Defaults to True.
+                should contain row ID and version. Defaults to False.
             include_etag: Whether a column should contain the row etag.
-                Defaults to True.
+                Defaults to False.
             csv_table_descriptor: The description of the CSV format (delimiter,
                 quote character, etc.). If not provided, the default CSV format
                 will be used.
