@@ -43,3 +43,9 @@ at your own risk.
         - get_schema_derived_keys
         - get_schema_validation_statistics
         - get_invalid_validation
+        - set_storage_location
+        - get_project_setting
+        - delete_project_setting
+        - get_sts_storage_token
+        - index_files_for_migration
+        - migrate_indexed_files

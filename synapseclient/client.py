@@ -3147,14 +3147,67 @@ class Synapse(object):
     ############################################################
     #                  Download List                           #
     ############################################################
-    # TODO: Deprecate method in https://sagebionetworks.jira.com/browse/SYNPY-1439
+    @deprecated(
+        version="4.13.0",
+        reason=(
+            "Use `synapseclient.operations.download_list_clear()` instead. "
+            "See synapseclient.operations.download_list_operations for the new interface."
+        ),
+    )
     def clear_download_list(self):
-        """Clear all files from download list"""
+        """Clear all files from download list
+
+        Example: Migration to new method
+            &nbsp;
+
+            ```python
+            # Old approach (DEPRECATED)
+            # syn.clear_download_list()
+
+            # New approach (RECOMMENDED)
+            from synapseclient import Synapse
+            from synapseclient.operations import download_list_clear
+
+            syn = Synapse()
+            syn.login()
+
+            # Clear all files from the download list
+            download_list_clear()
+            ```
+        """
         self.restDELETE("/download/list")
 
-    # TODO: Deprecate method in https://sagebionetworks.jira.com/browse/SYNPY-1439
+    @deprecated(
+        version="4.13.0",
+        reason=(
+            "Use `synapseclient.operations.download_list_remove(files)` instead. "
+            "See synapseclient.operations.download_list_operations for the new interface."
+        ),
+    )
     def remove_from_download_list(self, list_of_files: typing.List[typing.Dict]) -> int:
         """Remove a batch of files from download list
+
+        Example: Migration to new method
+            &nbsp;
+
+            ```python
+            # Old approach (DEPRECATED)
+            # syn.remove_from_download_list([
+            #     {"fileEntityId": "syn123", "versionNumber": 1},
+            # ])
+
+            # New approach (RECOMMENDED)
+            from synapseclient import Synapse
+            from synapseclient.operations import download_list_remove, DownloadListItem
+
+            syn = Synapse()
+            syn.login()
+
+            # Remove specific file versions from the download list
+            download_list_remove([
+                DownloadListItem(file_entity_id="syn123", version_number=1),
+            ])
+            ```
 
         Arguments:
             list_of_files: Array of files in the format of a mapping {fileEntityId: synid, versionNumber: version}
@@ -3168,7 +3221,13 @@ class Synapse(object):
         )
         return num_files_removed
 
-    # TODO: Deprecate method in https://sagebionetworks.jira.com/browse/SYNPY-1439
+    @deprecated(
+        version="4.13.0",
+        reason=(
+            "Use `synapseclient.operations.download_list_manifest()` instead. "
+            "See synapseclient.operations.download_list_operations for the new interface."
+        ),
+    )
     def _generate_manifest_from_download_list(
         self,
         quoteCharacter: str = '"',
@@ -3177,8 +3236,25 @@ class Synapse(object):
         separator: str = ",",
         header: bool = True,
     ):
-        """
-        Creates a download list manifest generation request
+        """Creates a download list manifest generation request
+
+        Example: Migration to new method
+            &nbsp;
+
+            ```python
+            # Old approach (DEPRECATED)
+            # manifest_handle = syn._generate_manifest_from_download_list()
+
+            # New approach (RECOMMENDED)
+            from synapseclient import Synapse
+            from synapseclient.operations import download_list_manifest
+
+            syn = Synapse()
+            syn.login()
+
+            # Generate and download the manifest CSV
+            manifest_path = download_list_manifest()
+            ```
 
         Arguments:
             quoteCharacter:  The character to be used for quoted elements in the resulting file.
@@ -3204,9 +3280,33 @@ class Synapse(object):
             uri="/download/list/manifest/async", request=request_body
         )
 
-    # TODO: Deprecate method in https://sagebionetworks.jira.com/browse/SYNPY-1439
+    @deprecated(
+        version="4.13.0",
+        reason=(
+            "Use `synapseclient.operations.download_list_manifest()` instead. "
+            "See synapseclient.operations.download_list_operations for the new interface."
+        ),
+    )
     def get_download_list_manifest(self):
         """Get the path of the download list manifest file
+
+        Example: Migration to new method
+            &nbsp;
+
+            ```python
+            # Old approach (DEPRECATED)
+            # manifest_path = syn.get_download_list_manifest()
+
+            # New approach (RECOMMENDED)
+            from synapseclient import Synapse
+            from synapseclient.operations import download_list_manifest
+
+            syn = Synapse()
+            syn.login()
+
+            # Generate and download the manifest CSV
+            manifest_path = download_list_manifest()
+            ```
 
         Returns:
             Path of download list manifest file
@@ -3231,9 +3331,33 @@ class Synapse(object):
         )
         return downloaded_path
 
-    # TODO: Deprecate method in https://sagebionetworks.jira.com/browse/SYNPY-1439
+    @deprecated(
+        version="4.13.0",
+        reason=(
+            "Use `synapseclient.operations.download_list_files(download_location=...)` instead. "
+            "See synapseclient.operations.download_list_operations for the new interface."
+        ),
+    )
     def get_download_list(self, downloadLocation: str = None) -> str:
         """Download all files from your Synapse download list
+
+        Example: Migration to new method
+            &nbsp;
+
+            ```python
+            # Old approach (DEPRECATED)
+            # manifest_path = syn.get_download_list(downloadLocation="./downloads")
+
+            # New approach (RECOMMENDED)
+            from synapseclient import Synapse
+            from synapseclient.operations import download_list_files
+
+            syn = Synapse()
+            syn.login()
+
+            # Download all files in the cart and get the result manifest path
+            manifest_path = download_list_files(download_location="./downloads")
+            ```
 
         Arguments:
             downloadLocation: Directory to download files to.
@@ -5516,6 +5640,11 @@ class Synapse(object):
             "/externalFileHandle", json.dumps(file_handle), self.fileHandleEndpoint
         )
 
+    @deprecated(
+        version="4.12.0",
+        reason="To be removed in 5.0.0. "
+        "Use `synapseclient.api.post_external_s3_file_handle()` instead.",
+    )
     def create_external_s3_file_handle(
         self,
         bucket_name,
@@ -5654,7 +5783,11 @@ class Synapse(object):
     # Project/Folder storage location settings #
     ############################################
 
-    # TODO: Deprecate method in https://sagebionetworks.jira.com/browse/SYNPY-1441
+    @deprecated(
+        version="4.12.0",
+        reason="To be removed in 5.0.0. "
+        "Use `StorageLocation(...).store()` from synapseclient.models instead.",
+    )
     def createStorageLocationSetting(self, storage_type, **kwargs):
         """
         Creates an IMMUTABLE storage location based on the specified type.
@@ -5711,7 +5844,12 @@ class Synapse(object):
 
         return self.restPOST("/storageLocation", body=json.dumps(kwargs))
 
-    # TODO: Deprecate method in https://sagebionetworks.jira.com/browse/SYNPY-1441
+    @deprecated(
+        version="4.12.0",
+        reason="To be removed in 5.0.0. "
+        "Use `StorageLocation(storage_location_id=id).get()` from "
+        "synapseclient.models instead.",
+    )
     def getMyStorageLocationSetting(self, storage_location_id):
         """
         Get a StorageLocationSetting by its id.
@@ -5725,7 +5863,12 @@ class Synapse(object):
         """
         return self.restGET("/storageLocation/%s" % storage_location_id)
 
-    # TODO: Deprecate method in https://sagebionetworks.jira.com/browse/SYNPY-1441
+    @deprecated(
+        version="4.12.0",
+        reason="To be removed in 5.0.0. "
+        "Use `Folder(id=...).set_storage_location(...)` or "
+        "`Project(id=...).set_storage_location(...)` from synapseclient.models instead.",
+    )
     def setStorageLocation(self, entity, storage_location_id):
         """
         Sets the storage location for a Project or Folder
@@ -5763,7 +5906,12 @@ class Synapse(object):
                 "/projectSettings", body=json.dumps(project_destination)
             )
 
-    # TODO: Deprecate method in https://sagebionetworks.jira.com/browse/SYNPY-1441
+    @deprecated(
+        version="4.12.0",
+        reason="To be removed in 5.0.0. "
+        "Use `Folder(id=...).get_project_setting(...)` or "
+        "`Project(id=...).get_project_setting(...)` from synapseclient.models instead.",
+    )
     def getProjectSetting(self, project, setting_type):
         """
         Gets the ProjectSetting for a project.
@@ -5791,7 +5939,12 @@ class Synapse(object):
             response if response else None
         )  # if no project setting, a empty string is returned as the response
 
-    # TODO: Deprecate method in https://sagebionetworks.jira.com/browse/SYNPY-1441
+    @deprecated(
+        version="4.12.0",
+        reason="To be removed in 5.0.0. "
+        "Use `Folder(id=...).get_sts_storage_token(...)` or "
+        "`Project(id=...).get_sts_storage_token(...)` from synapseclient.models instead.",
+    )
     def get_sts_storage_token(
         self, entity, permission, *, output_format="json", min_remaining_life=None
     ):
@@ -5824,7 +5977,7 @@ class Synapse(object):
             min_remaining_life=min_remaining_life,
         )
 
-    # TODO: Deprecate method in https://sagebionetworks.jira.com/browse/SYNPY-1441
+    @deprecated(version="4.12.0", reason="To be removed in 5.0.0. ")
     def create_s3_storage_location(
         self,
         *,
@@ -5866,7 +6019,10 @@ class Synapse(object):
             )
         )
 
-    # TODO: Deprecate method in https://sagebionetworks.jira.com/browse/SYNPY-1441
+    @deprecated(
+        version="4.12.0",
+        reason="To be removed in 5.0.0. ",
+    )
     async def create_s3_storage_location_async(
         self,
         *,

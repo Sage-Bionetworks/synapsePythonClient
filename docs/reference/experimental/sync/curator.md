@@ -56,6 +56,7 @@ at your own risk.
         members:
             - create
             - export_to_record_set
+            - import_csv
 ---
 [](){ #query-reference }
 ::: synapseclient.models.Query
