@@ -13,7 +13,7 @@ from synapseclient.models import Activity, File, Folder, Project, UsedEntity, Us
 syn = synapseclient.login()
 
 # Set project and folder name that exists within the project
-PROJECT_NAME = "Dark Side Of The Moon"
+PROJECT_NAME = "My uniquely named project about Alzheimer's Disease"
 FOLDER_NAME = "biospecimen_experiment_1"
 
 # Retrieve the project and folder IDs

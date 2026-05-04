@@ -9,7 +9,7 @@ import pandas as pd
 import pytest
 
 from synapseclient import Synapse
-from synapseclient.models import Grid, Project, RecordSet
+from synapseclient.models import File, Grid, Project, RecordSet
 from tests.integration import ASYNC_JOB_TIMEOUT_SEC
 
 
@@ -183,3 +183,65 @@ class TestGridAsync:
             match="session_id is required to delete a GridSession",
         ):
             await grid.delete_async(synapse_client=self.syn)
+
+    async def test_import_csv_to_grid_session_async(
+        self,
+        record_set_fixture: RecordSet,
+    ) -> None:
+        """Test importing a CSV file into a grid session."""
+
+        # GIVEN: Create a grid session first
+        grid = Grid(record_set_id=record_set_fixture.id)
+        created_grid = None
+        try:
+            created_grid = await grid.create_async(
+                timeout=ASYNC_JOB_TIMEOUT_SEC, synapse_client=self.syn
+            )
+
+            assert created_grid.session_id is not None
+
+            # AND a CSV file uploaded to Synapse
+            test_data = pd.DataFrame(
+                {
+                    "id": [6, 7, 8, 9, 10],
+                    "name": ["Alpha", "Beta", "Gamma", "Delta", "Epsilon"],
+                    "value": [10.5, 20.3, 30.7, 40.1, 50.9],
+                    "category": ["A", "B", "A", "C", "B"],
+                    "active": [True, False, False, True, True],
+                }
+            )
+
+            # Create a temporary CSV file.
+            with tempfile.NamedTemporaryFile(
+                "w", suffix=".csv", delete=False
+            ) as temp_csv:
+                temp_csv_path = temp_csv.name
+
+            test_data.to_csv(temp_csv_path, index=False)
+            self.schedule_for_cleanup(temp_csv_path)
+
+            # WHEN: Importing the CSV into the grid session
+            imported_grid = await created_grid.import_csv_async(
+                path=temp_csv_path,
+                timeout=ASYNC_JOB_TIMEOUT_SEC,
+                synapse_client=self.syn,
+            )
+
+            # THEN: The import should complete and return the Grid with the same session
+            assert imported_grid.session_id == created_grid.session_id
+
+            # WHEN: Exporting the grid back to the record set
+            exported_grid = await imported_grid.export_to_record_set_async(
+                timeout=ASYNC_JOB_TIMEOUT_SEC, synapse_client=self.syn
+            )
+
+            # THEN: The export should contain 10 total rows
+            # (5 from the original record set + 5 imported)
+            assert exported_grid.validation_summary_statistics is not None
+            assert (
+                exported_grid.validation_summary_statistics.total_number_of_children
+                == 10
+            )
+        finally:
+            if created_grid is not None and created_grid.session_id:
+                await created_grid.delete_async(synapse_client=self.syn)
