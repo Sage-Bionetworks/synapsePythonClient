@@ -61,7 +61,7 @@ class TestWikiPageBasicOperations:
         retrieved_wiki = await WikiPage(
             owner_id=root_wiki.owner_id, id=root_wiki.id
         ).get_async(synapse_client=self.syn)
-        schedule_for_cleanup(retrieved_wiki.id)
+        schedule_for_cleanup(retrieved_wiki)
 
         # THEN the retrieved wiki should match the created one
         assert retrieved_wiki.id == root_wiki.id
@@ -81,7 +81,7 @@ class TestWikiPageBasicOperations:
         retrieved_wiki = await WikiPage(
             owner_id=root_wiki.owner_id, title=root_wiki.title
         ).get_async(synapse_client=self.syn)
-        schedule_for_cleanup(retrieved_wiki.id)
+        schedule_for_cleanup(retrieved_wiki)
         # THEN the retrieved wiki should match the created one
         assert retrieved_wiki.id == root_wiki.id
         assert retrieved_wiki.title == root_wiki.title
@@ -102,7 +102,7 @@ class TestWikiPageBasicOperations:
             title=f"Wiki Page to be deleted {str(uuid.uuid4())}",
             markdown="# Wiki Page to be deleted\n\nThis is a wiki page to be deleted.",
         ).store_async(synapse_client=self.syn)
-        schedule_for_cleanup(wiki_page_to_delete.id)
+        schedule_for_cleanup(wiki_page_to_delete)
         # WHEN deleting the wiki page
         await wiki_page_to_delete.delete_async(synapse_client=self.syn)
 
@@ -129,7 +129,7 @@ class TestWikiPageBasicOperations:
             title=title,
             markdown="# Sub Wiki Basic Operations\n\nThis is a sub wiki basic operations page.",
         ).store_async(synapse_client=self.syn)
-        schedule_for_cleanup(sub_wiki.id)
+        schedule_for_cleanup(sub_wiki)
         # THEN the sub-wiki page should be created
         assert sub_wiki.id is not None
         assert sub_wiki.title == title
@@ -173,7 +173,6 @@ class TestWikiPageAttachments:
         """Create a wiki page with an attachment."""
         # Create a temporary file for attachment
         filename = utils.make_bogus_uuid_file()
-        schedule_for_cleanup(filename)
         # GIVEN a root wiki page
         root_wiki = wiki_page_fixture
         # Create wiki page with attachment
@@ -185,17 +184,16 @@ class TestWikiPageAttachments:
             attachments=[filename],
         )
         wiki_page = await wiki_page.store_async(synapse_client=syn)
-        schedule_for_cleanup(wiki_page.id)
+        schedule_for_cleanup(wiki_page)
         attachment_name = os.path.basename(filename)
         return wiki_page, attachment_name
 
     async def test_get_attachment_handles(
         self,
         wiki_page_with_attachment: tuple[WikiPage, str],
-        schedule_for_cleanup: Callable[..., None],
     ) -> None:
         # GIVEN a wiki page with an attachment
-        wiki_page, attachment_name = wiki_page_with_attachment
+        wiki_page, _ = wiki_page_with_attachment
 
         # WHEN getting attachment handles
         attachment_handles = await wiki_page.get_attachment_handles_async(
@@ -204,12 +202,10 @@ class TestWikiPageAttachments:
 
         # THEN attachment handles should be returned
         assert len(attachment_handles["list"]) > 0
-        schedule_for_cleanup(attachment_handles)
 
     async def test_get_attachment_url(
         self,
         wiki_page_with_attachment: tuple[WikiPage, str],
-        schedule_for_cleanup: Callable[..., None],
     ) -> None:
         # GIVEN a wiki page with an attachment
         wiki_page, attachment_name = wiki_page_with_attachment
@@ -221,12 +217,10 @@ class TestWikiPageAttachments:
 
         # THEN a URL should be returned
         assert len(attachment_url) > 0
-        schedule_for_cleanup(attachment_url)
 
     async def test_download_attachment(
         self,
         wiki_page_with_attachment: tuple[WikiPage, str],
-        schedule_for_cleanup: Callable[..., None],
     ) -> None:
         # GIVEN a wiki page with an attachment
         wiki_page, attachment_name = wiki_page_with_attachment
@@ -242,14 +236,12 @@ class TestWikiPageAttachments:
             download_location=download_dir,
             synapse_client=self.syn,
         )
-        schedule_for_cleanup(downloaded_path)
         # THEN the file should be downloaded
         assert os.path.exists(downloaded_path)
 
     async def test_get_attachment_preview_url(
         self,
         wiki_page_with_attachment: tuple[WikiPage, str],
-        schedule_for_cleanup: Callable[..., None],
     ) -> None:
         # GIVEN a wiki page with an attachment
         wiki_page, attachment_name = wiki_page_with_attachment
@@ -268,19 +260,16 @@ class TestWikiPageAttachments:
 
         # THEN a URL should be returned
         assert len(preview_url) > 0
-        schedule_for_cleanup(preview_url)
 
     async def test_download_attachment_preview(
         self,
         wiki_page_with_attachment: tuple[WikiPage, str],
-        schedule_for_cleanup: Callable[..., None],
     ) -> None:
         # GIVEN a wiki page with an attachment
         wiki_page, attachment_name = wiki_page_with_attachment
 
         # AND a download location
         download_dir = tempfile.mkdtemp()
-        self.schedule_for_cleanup(download_dir)
 
         # Poll until attachment preview is available for download
         await wait_for_condition(
@@ -301,7 +290,6 @@ class TestWikiPageAttachments:
             download_location=download_dir,
             synapse_client=self.syn,
         )
-        schedule_for_cleanup(downloaded_path)
         # THEN the file should be downloaded
         assert os.path.exists(downloaded_path)
         assert os.path.basename(downloaded_path) == "preview.txt"
@@ -312,7 +300,6 @@ class TestWikiPageAttachments:
     )
     async def test_download_attachment_large_file(
         self,
-        syn: Synapse,
         schedule_for_cleanup: Callable[..., None],
         wiki_page_fixture: WikiPage,
     ) -> None:
@@ -326,7 +313,6 @@ class TestWikiPageAttachments:
 
         # AND a download location
         download_dir = tempfile.mkdtemp()
-        schedule_for_cleanup(download_dir)
 
         # Create wiki page with attachment
         wiki_page = WikiPage(
@@ -337,7 +323,7 @@ class TestWikiPageAttachments:
             attachments=[filename],
         )
         wiki_page = await wiki_page.store_async(synapse_client=self.syn)
-        schedule_for_cleanup(wiki_page.id)
+        schedule_for_cleanup(wiki_page)
         # WHEN downloading the attachment
         downloaded_path = await wiki_page.get_attachment_async(
             file_name=os.path.basename(filename),
@@ -345,7 +331,6 @@ class TestWikiPageAttachments:
             download_location=download_dir,
             synapse_client=self.syn,
         )
-        schedule_for_cleanup(downloaded_path)
         # THEN the file should be downloaded
         assert os.path.exists(downloaded_path)
         assert os.path.basename(downloaded_path) == os.path.basename(filename)
@@ -365,7 +350,6 @@ class TestWikiPageAttachments:
         os.rename(filename, gz_filename)
         with gzip.open(gz_filename, "wt") as f:
             f.write("hello world\n")
-        schedule_for_cleanup(gz_filename)
 
         # GIVEN a root wiki page
         root_wiki = wiki_page_fixture
@@ -378,18 +362,17 @@ class TestWikiPageAttachments:
             attachments=[gz_filename],
         )
         sub_wiki = await wiki_page.store_async(synapse_client=syn)
-        schedule_for_cleanup(sub_wiki.id)
+        schedule_for_cleanup(sub_wiki)
         attachment_name = os.path.basename(gz_filename)
         return sub_wiki, attachment_name
 
     async def test_get_attachment_handles_gz_file(
         self,
         wiki_page_with_gz_attachment: tuple[WikiPage, str],
-        schedule_for_cleanup: Callable[..., None],
     ) -> None:
         """Test getting attachment handles for a gz file."""
         # GIVEN a wiki page with a gz attachment
-        wiki_page, attachment_name = wiki_page_with_gz_attachment
+        wiki_page, _ = wiki_page_with_gz_attachment
         # WHEN getting attachment handles
         attachment_handles = await wiki_page.get_attachment_handles_async(
             synapse_client=self.syn
@@ -402,12 +385,10 @@ class TestWikiPageAttachments:
             handle.get("fileName", "").endswith(".gz")
             for handle in attachment_handles["list"]
         )
-        schedule_for_cleanup(attachment_handles)
 
     async def test_get_attachment_url_gz_file(
         self,
         wiki_page_with_gz_attachment: tuple[WikiPage, str],
-        schedule_for_cleanup: Callable[..., None],
     ) -> None:
         """Test getting attachment URL for a gz file."""
         # GIVEN a wiki page with a gz attachment
@@ -419,12 +400,10 @@ class TestWikiPageAttachments:
         )
         # THEN a URL should be returned
         assert len(attachment_url) > 0
-        schedule_for_cleanup(attachment_url)
 
     async def test_download_attachment_gz_file(
         self,
         wiki_page_with_gz_attachment: tuple[WikiPage, str],
-        schedule_for_cleanup: Callable[..., None],
     ) -> None:
         """Test downloading a gz attachment file."""
         # GIVEN a wiki page with a gz attachment
@@ -432,7 +411,6 @@ class TestWikiPageAttachments:
 
         # AND a download location
         download_dir = tempfile.mkdtemp()
-        schedule_for_cleanup(download_dir)
 
         # WHEN downloading the gz attachment
         downloaded_path = await wiki_page.get_attachment_async(
@@ -441,7 +419,6 @@ class TestWikiPageAttachments:
             download_location=download_dir,
             synapse_client=self.syn,
         )
-        schedule_for_cleanup(downloaded_path)
 
         # THEN the file should be downloaded
         assert os.path.exists(downloaded_path)
@@ -450,7 +427,6 @@ class TestWikiPageAttachments:
     async def test_get_attachment_preview_url_gz_file(
         self,
         wiki_page_with_gz_attachment: tuple[WikiPage, str],
-        schedule_for_cleanup: Callable[..., None],
     ) -> None:
         """Test getting attachment preview URL for a gz file."""
         # GIVEN a wiki page with a gz attachment
@@ -470,12 +446,10 @@ class TestWikiPageAttachments:
 
         # THEN a URL should be returned
         assert len(preview_url) > 0
-        schedule_for_cleanup(preview_url)
 
     async def test_download_attachment_preview_gz_file(
         self,
         wiki_page_with_gz_attachment: tuple[WikiPage, str],
-        schedule_for_cleanup: Callable[..., None],
     ) -> None:
         """Test downloading attachment preview for a gz file."""
         # GIVEN a wiki page with a gz attachment
@@ -495,7 +469,6 @@ class TestWikiPageAttachments:
 
         # AND a download location
         download_dir = tempfile.mkdtemp()
-        self.schedule_for_cleanup(download_dir)
 
         # WHEN downloading the attachment preview
         downloaded_path = await wiki_page.get_attachment_preview_async(
@@ -504,7 +477,6 @@ class TestWikiPageAttachments:
             download_location=download_dir,
             synapse_client=self.syn,
         )
-        schedule_for_cleanup(downloaded_path)
 
         # THEN the file should be downloaded
         assert os.path.exists(downloaded_path)
@@ -553,13 +525,12 @@ class TestWikiPageMarkdown:
             parent_id=root_wiki.id,
         )
         sub_wiki = await wiki_page.store_async(synapse_client=syn)
-        schedule_for_cleanup(sub_wiki.id)
+        schedule_for_cleanup(sub_wiki)
         return sub_wiki
 
     async def test_get_markdown_url(
         self,
         wiki_page_with_markdown: WikiPage,
-        schedule_for_cleanup: Callable[..., None],
     ) -> None:
         # GIVEN a wiki page with markdown
         root_wiki = wiki_page_with_markdown
@@ -568,14 +539,12 @@ class TestWikiPageMarkdown:
         markdown_url = await WikiPage(
             owner_id=root_wiki.owner_id, id=root_wiki.id
         ).get_markdown_file_async(download_file=False, synapse_client=self.syn)
-        schedule_for_cleanup(markdown_url)
         # THEN a URL should be returned
         assert len(markdown_url) > 0
 
     async def test_download_markdown_file(
         self,
         wiki_page_with_markdown: WikiPage,
-        schedule_for_cleanup: Callable[..., None],
     ) -> None:
         # GIVEN a wiki page with markdown
         root_wiki = wiki_page_with_markdown
@@ -595,7 +564,6 @@ class TestWikiPageMarkdown:
         with open(downloaded_path, "r", encoding="utf-8") as f:
             content = f.read()
             assert "Sub Wiki Markdown" in content
-        schedule_for_cleanup(download_dir)
 
     @pytest.fixture(scope="function")
     async def wiki_page_with_markdown_gz(
@@ -612,7 +580,6 @@ class TestWikiPageMarkdown:
         os.rename(filename, md_gz_filename)
         with gzip.open(md_gz_filename, "wt") as f:
             f.write("# Test Wiki\n\nThis is test content.")
-        schedule_for_cleanup(md_gz_filename)
 
         # Create wiki page with markdown gz
         wiki_page = WikiPage(
@@ -622,13 +589,12 @@ class TestWikiPageMarkdown:
             parent_id=root_wiki.id,
         )
         sub_wiki = await wiki_page.store_async(synapse_client=syn)
-        schedule_for_cleanup(sub_wiki.id)
+        schedule_for_cleanup(sub_wiki)
         return sub_wiki
 
     async def test_get_markdown_url_gz_file(
         self,
         wiki_page_with_markdown_gz: WikiPage,
-        schedule_for_cleanup: Callable[..., None],
     ) -> None:
         # GIVEN a wiki page with markdown gz
         root_wiki = wiki_page_with_markdown_gz
@@ -637,14 +603,12 @@ class TestWikiPageMarkdown:
         markdown_url = await WikiPage(
             owner_id=root_wiki.owner_id, id=root_wiki.id
         ).get_markdown_file_async(download_file=False, synapse_client=self.syn)
-        schedule_for_cleanup(markdown_url)
         # THEN a URL should be returned
         assert len(markdown_url) > 0
 
     async def test_download_markdown_file_gz_file(
         self,
         wiki_page_with_markdown_gz: WikiPage,
-        schedule_for_cleanup: Callable[..., None],
     ) -> None:
         # GIVEN a wiki page with markdown gz
         root_wiki = wiki_page_with_markdown_gz
@@ -658,14 +622,12 @@ class TestWikiPageMarkdown:
         ).get_markdown_file_async(
             download_file=True, download_location=download_dir, synapse_client=self.syn
         )
-        schedule_for_cleanup(downloaded_path)
         # THEN the file should be downloaded and unzipped
         assert os.path.exists(downloaded_path)
         # Verify content
         with open(downloaded_path, "r", encoding="utf-8") as f:
             content = f.read()
             assert "Test Wiki" in content
-        schedule_for_cleanup(download_dir)
 
 
 class TestWikiPageVersioning:
@@ -718,13 +680,12 @@ class TestWikiPageVersioning:
         updated_wiki = await WikiPage(
             owner_id=root_wiki.owner_id, id=updated_wiki.id, title="Version 2"
         ).store_async(synapse_client=syn)
-        schedule_for_cleanup(updated_wiki.id)
+        schedule_for_cleanup(updated_wiki)
         return updated_wiki
 
     async def test_wiki_page_history(
         self,
         wiki_page_with_multiple_versions,
-        schedule_for_cleanup: Callable[..., None],
     ) -> None:
         # GIVEN a wiki page with multiple versions
         sub_wiki = wiki_page_with_multiple_versions
@@ -736,7 +697,6 @@ class TestWikiPageVersioning:
             history.append(item)
         # THEN history should be returned
         assert len(history) == 3
-        schedule_for_cleanup(history)
 
     async def test_restore_wiki_page_version(
         self,
@@ -786,7 +746,8 @@ class TestWikiHeader:
         self.schedule_for_cleanup = schedule_for_cleanup
 
     async def test_get_wiki_header_tree(
-        self, wiki_page_fixture: WikiPage, schedule_for_cleanup: Callable[..., None]
+        self,
+        wiki_page_fixture: WikiPage,
     ) -> None:
         await asyncio.sleep(5)
         # WHEN getting the wiki header tree
@@ -798,7 +759,6 @@ class TestWikiHeader:
 
         # THEN headers should be returned
         assert len(headers) >= 1
-        schedule_for_cleanup(headers)
 
 
 class TestWikiOrderHint:
@@ -844,7 +804,8 @@ class TestWikiOrderHint:
         schedule_for_cleanup(order_hint)
 
     async def test_store_wiki_order_hint(
-        self, wiki_page_fixture: WikiPage, schedule_for_cleanup: Callable[..., None]
+        self,
+        wiki_page_fixture: WikiPage,
     ) -> None:
         await asyncio.sleep(5)
         # Get headers
@@ -859,23 +820,14 @@ class TestWikiOrderHint:
         order_hint = await WikiOrderHint(owner_id=wiki_page_fixture.owner_id).get_async(
             synapse_client=self.syn
         )
-        schedule_for_cleanup(order_hint)
         # WHEN setting a custom order
         order_hint.id_list = header_ids
         updated_order_hint = await order_hint.store_async(synapse_client=self.syn)
-        schedule_for_cleanup(updated_order_hint)
         await asyncio.sleep(5)
         # THEN the order hint should be updated
         # Retrieve the updated order hint
         retrieved_order_hint = await WikiOrderHint(
             owner_id=wiki_page_fixture.owner_id
         ).get_async(synapse_client=self.syn)
-        schedule_for_cleanup(retrieved_order_hint)
         assert retrieved_order_hint.id_list == header_ids
         assert len(retrieved_order_hint.id_list) >= 1
-
-    # clean up the wiki pages for other tests in the same session
-    async def test_cleanup_wiki_pages(self, wiki_page_fixture: WikiPage):
-        root_wiki = wiki_page_fixture
-        await root_wiki.delete_async(synapse_client=self.syn)
-        assert True
