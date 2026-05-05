@@ -1290,7 +1290,7 @@ async def _resolve_local_file_provenance(
 GENERATED_MANIFEST_COLUMNS = ["path", "parentId"]
 
 
-async def _generate_sync_manifest_async(
+async def generate_sync_manifest(
     directory_path: str,
     parent_id: str,
     manifest_path: str,

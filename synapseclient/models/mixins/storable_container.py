@@ -48,7 +48,7 @@ from synapseclient.models.protocols.storable_container_protocol import (
     StorableContainerSynchronousProtocol,
 )
 from synapseclient.models.services.manifest import (
-    _generate_sync_manifest_async,
+    generate_sync_manifest,
     read_manifest_for_upload,
     upload_sync_files,
 )
@@ -710,7 +710,7 @@ class StorableContainer(StorableContainerSynchronousProtocol):
                 " that has not been stored in Synapse. Set id on this"
                 " container (or store it) first."
             )
-        await _generate_sync_manifest_async(
+        await generate_sync_manifest(
             directory_path=directory_path,
             parent_id=self.id,
             manifest_path=manifest_path,
