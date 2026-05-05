@@ -8,7 +8,6 @@ from typing import (
     Dict,
     Generator,
     List,
-    Literal,
     NoReturn,
     Optional,
     Tuple,
@@ -46,6 +45,7 @@ from synapseclient.core.upload.multipart_upload_async import (
     shared_progress_bar as upload_shared_progress_bar,
 )
 from synapseclient.models.protocols.storable_container_protocol import (
+    ManifestSetting,
     StorableContainerSynchronousProtocol,
 )
 from synapseclient.models.services.manifest import (
@@ -72,9 +72,6 @@ if TYPE_CHECKING:
         Table,
         VirtualTable,
     )
-
-
-ManifestSetting = Literal["all", "suppress", "root"]
 
 
 @async_to_sync

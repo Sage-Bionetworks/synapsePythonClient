@@ -2,13 +2,12 @@
 generated at runtime."""
 
 import asyncio
-from typing import TYPE_CHECKING, List, Optional, Protocol
+from typing import TYPE_CHECKING, List, Literal, Optional, Protocol
 
 from typing_extensions import Self
 
 from synapseclient import Synapse
 from synapseclient.core.constants.method_flags import COLLISION_OVERWRITE_LOCAL
-from synapseclient.models.mixins.storable_container import ManifestSetting
 from synapseclient.models.services.storable_entity_components import (
     MANIFEST_UPLOAD_MAX_RETRIES,
     FailureStrategy,
@@ -16,6 +15,8 @@ from synapseclient.models.services.storable_entity_components import (
 
 if TYPE_CHECKING:
     from synapseclient.models.file import File
+
+ManifestSetting = Literal["all", "suppress", "root"]
 
 
 class StorableContainerSynchronousProtocol(Protocol):
