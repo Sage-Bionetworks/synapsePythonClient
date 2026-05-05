@@ -2,7 +2,7 @@
 generated at runtime."""
 
 import asyncio
-from typing import TYPE_CHECKING, List, Optional, Protocol
+from typing import TYPE_CHECKING, List, Literal, Optional, Protocol
 
 from typing_extensions import Self
 
@@ -15,6 +15,8 @@ from synapseclient.models.services.storable_entity_components import (
 
 if TYPE_CHECKING:
     from synapseclient.models.file import File
+
+ManifestSetting = Literal["all", "suppress", "root"]
 
 
 class StorableContainerSynchronousProtocol(Protocol):
@@ -35,6 +37,7 @@ class StorableContainerSynchronousProtocol(Protocol):
         link_hops: int = 1,
         queue: asyncio.Queue = None,
         include_types: Optional[List[str]] = None,
+        manifest: ManifestSetting = "all",
         *,
         synapse_client: Optional[Synapse] = None,
     ) -> Self:
@@ -46,9 +49,10 @@ class StorableContainerSynchronousProtocol(Protocol):
         If you only want to retrieve the full tree of metadata about your
         container specify `download_file` as False.
 
-        This works similar to [synapseutils.syncFromSynapse][], however, this does not
-        currently support the writing of data to a manifest TSV file. This will be a
-        future enhancement.
+        This works similar to [synapseutils.syncFromSynapse][], and generates a
+        `manifest.csv` file in each synced directory. The manifest uses CSV format
+        with `parentId` and `ID` columns, interoperable with the Synapse UI download
+        cart and `synapse get-download-list` CLI output.
 
         Supports syncing Files, Folders, Tables, EntityViews, SubmissionViews, Datasets,
         DatasetCollections, MaterializedViews, and VirtualTables from Synapse. The
@@ -80,6 +84,11 @@ class StorableContainerSynchronousProtocol(Protocol):
             include_types: Must be a list of entity types (ie. ["folder","file"]) which
                 can be found
                 [here](https://rest-docs.synapse.org/rest/org/sagebionetworks/repo/model/EntityType.html)
+            manifest: Determines whether to generate a manifest CSV file. Options are:
+
+                - `all` (default): generate `manifest.csv` in every synced directory
+                - `root`: generate `manifest.csv` only in the root `path` directory
+                - `suppress`: do not generate any manifest file
             synapse_client: If not passed in and caching was not disabled by
                 `Synapse.allow_client_caching(False)` this will use the last created
                 instance from the Synapse class constructor.

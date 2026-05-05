@@ -17,7 +17,7 @@ The format of the manifest file is a comma-separated value (CSV) file with one r
 | parentId | Synapse ID of parent       | syn1235                 |
 
 !!! note
-    The legacy TSV manifest used a column named `parent`. The CSV manifest uses `parentId` instead, which is consistent with the Synapse REST API field name. If you are migrating an existing TSV manifest to CSV, rename the `parent` column to `parentId`.
+    The legacy TSV manifest used the columns `parent` and `id`, while the CSV manifest uses `parentId` and `ID` to align with Synapse REST API field names. If you’re migrating a TSV manifest to CSV, you’ll need to rename `parent` to `parentId` and `id` to `ID`.
 
 ### Standard fields
 
@@ -60,11 +60,11 @@ Any columns that are not in the standard or metadata fields described above will
 
 Adding annotations to each row:
 
-| path | parentId | annot1 | annot2 | annot3 | annot4 | annot5 |
-| --- | --- | --- | --- | --- | --- | --- |
-| /path/file1.txt | syn1243 | bar | 3.1415 | "aaaa, bbbb" | "[14,27,30]" | "Annotation, with a comma" |
-| /path/file2.txt | syn12433 | baz | 2.71 | value_1 | "[1,2,3]" | test 123 |
-| /path/file3.txt | syn12455 | zzz | 3.52 | value_3 | "[42,56,77]" | a single annotation |
+| path | parentId | annot1 | annot2 | annot3 | annot4 | annot5 | annot6 |
+| --- | --- | --- | --- | --- | --- | --- | --- |
+| /path/file1.txt | syn1243 | bar | 3.1415 | "aaaa, bbbb" | "[14,27,30]" | "Annotation, with a comma" | "True" |
+| /path/file2.txt | syn12433 | baz | 2.71 | value_1 | "[1,2,3]" | string without commas | "[True,False]" |
+| /path/file3.txt | syn12455 | zzz | 3.52 | value_3 | "[42,56,77]" | a_single_string | |
 
 #### Multiple values of annotations per key
 
