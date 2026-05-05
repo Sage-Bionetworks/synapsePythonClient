@@ -127,10 +127,10 @@ def _get_entity_provenance_dict_for_manifest(entity: File) -> dict[str, str]:
 
 def _convert_manifest_data_items_to_string_list(
     items: list[Union[str, datetime.datetime, bool, int, float]],
-) -> Union[str, list[str]]:
+) -> str:
     """
     Handle coverting an individual key that contains a possible list of data into a
-    list of strings or objects that can be written to the manifest file.
+    string representation of the items that can be written to the manifest file.
 
     This has specific logic around how to handle datetime fields.
 
@@ -172,7 +172,7 @@ def _convert_manifest_data_items_to_string_list(
         items: The list of items to convert.
 
     Returns:
-        The list of items converted to strings.
+        The string representation of the items.
     """
     items_to_write = []
     for item in items:
@@ -269,7 +269,9 @@ def _convert_manifest_data_row_to_dict(row: dict, keys: list[str]) -> dict:
     return data_to_write
 
 
-def _write_manifest_data_csv(path: str, keys: list[str], data: list[dict]) -> None:
+def _write_manifest_data_csv(
+    path: str, keys: list[str], data: list[dict], syn: Synapse
+) -> None:
     """Writes manifest data to a CSV file using csv.DictWriter with QUOTE_MINIMAL that automatically quotes any cell containing a comma, newline, or the quote character.
 
     Each row dict is normalized via _convert_manifest_data_row_to_dict so that
@@ -294,8 +296,7 @@ def _write_manifest_data_csv(path: str, keys: list[str], data: list[dict]) -> No
         for row in data:
             writer.writerow(_convert_manifest_data_row_to_dict(row, keys))
 
-        # add a log message to the console
-        print(f"Manifest file {path} has been generated.")
+        syn.logger.info(f"Manifest file {path} has been generated.")
 
 
 def generate_manifest_csv(all_files: list[File], path: str) -> None:
