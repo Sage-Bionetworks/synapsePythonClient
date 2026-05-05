@@ -319,10 +319,9 @@ def generate_manifest_csv(all_files: list[File], path: str) -> None:
         raise ValueError(
             "The path argument is required to generate a manifest.csv file."
         )
-    if path:
-        filename = _manifest_csv_filename(path=path)
-        keys, data = _extract_entity_metadata_for_manifest_csv(all_files=all_files)
-        _write_manifest_data_csv(filename, keys, data)
+    filename = _manifest_csv_filename(path=path)
+    keys, data = _extract_entity_metadata_for_manifest_csv(all_files=all_files)
+    _write_manifest_data_csv(filename, keys, data)
 
 
 class UploadSyncFile(NamedTuple):
