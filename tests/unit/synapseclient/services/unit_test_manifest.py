@@ -2,6 +2,7 @@ import csv
 import datetime
 import os
 import tempfile
+from unittest.mock import patch
 
 import pytest
 
@@ -52,6 +53,10 @@ class TestManifestCsvFilename:
 
 class TestGenerateManifestCsv:
     """Tests for the generate_manifest_csv and related helper functions."""
+
+    @pytest.fixture(scope="function", autouse=True)
+    def setup_method(self, syn) -> None:
+        self.syn = syn
 
     def _make_file(
         self,
@@ -140,14 +145,20 @@ class TestGenerateManifestCsv:
             },
         )
 
-        with tempfile.TemporaryDirectory() as tmpdir:
+        with (
+            tempfile.TemporaryDirectory() as tmpdir,
+            patch.object(self.syn.logger, "info") as mock_logger_info,
+        ):
             # WHEN generate_manifest_csv is called
-            generate_manifest_csv(all_files=[f], path=tmpdir)
+            generate_manifest_csv(all_files=[f], path=tmpdir, syn=self.syn)
             manifest_path = os.path.join(tmpdir, "manifest.csv")
             content = open(manifest_path, encoding="utf8").read()
             with open(manifest_path, newline="", encoding="utf8") as fp:
                 row = next(csv.DictReader(fp))
 
+        mock_logger_info.assert_called_once_with(
+            f"Manifest file {manifest_path} has been generated."
+        )
         assert '"a, b, c"' in content
         assert row["single_str"] == "hello"
         assert row["multi_str"] == "[a,b,c]"
@@ -160,9 +171,12 @@ class TestGenerateManifestCsv:
 
     def test_generate_manifest_csv_with_only_header_row(self) -> None:
         # GIVEN an empty file list
-        with tempfile.TemporaryDirectory() as tmpdir:
+        with (
+            tempfile.TemporaryDirectory() as tmpdir,
+            patch.object(self.syn.logger, "info") as mock_logger_info,
+        ):
             # WHEN generate_manifest_csv is called with no files
-            generate_manifest_csv(all_files=[], path=tmpdir)
+            generate_manifest_csv(all_files=[], path=tmpdir, syn=self.syn)
 
             # THEN the manifest.csv file is created with only the header row and no data rows
             manifest_path = os.path.join(tmpdir, "manifest.csv")
@@ -182,6 +196,9 @@ class TestGenerateManifestCsv:
                     "activityDescription",
                 ]
             assert rows == []
+            mock_logger_info.assert_called_once_with(
+                f"Manifest file {manifest_path} has been generated."
+            )
 
     def test_generate_manifest_csv_with_path_None_raises_ValueError(self) -> None:
         # GIVEN an empty file list
@@ -191,32 +208,45 @@ class TestGenerateManifestCsv:
                 ValueError,
                 match="The path argument is required to generate a manifest.csv file.",
             ):
-                generate_manifest_csv(all_files=[], path=None)
+                generate_manifest_csv(all_files=[], path=None, syn=self.syn)
 
     def test_generate_manifest_csv_quotes_values_with_commas(self) -> None:
         # GIVEN a File whose name contains a comma
         f = self._make_file(name="file, extra.txt", path="/tmp/file, extra.txt")
 
-        with tempfile.TemporaryDirectory() as tmpdir:
-            generate_manifest_csv(all_files=[f], path=tmpdir)
+        with (
+            tempfile.TemporaryDirectory() as tmpdir,
+            patch.object(self.syn.logger, "info") as mock_logger_info,
+        ):
+            generate_manifest_csv(all_files=[f], path=tmpdir, syn=self.syn)
             manifest_path = os.path.join(tmpdir, "manifest.csv")
             content = open(manifest_path, encoding="utf8").read()
         # THEN the comma-containing value is quoted in the CSV
         assert '"file, extra.txt"' in content
+        mock_logger_info.assert_called_once_with(
+            f"Manifest file {manifest_path} has been generated."
+        )
 
 
 class TestWriteManifestDataCsv:
     """Tests for the _write_manifest_data_csv helper."""
+
+    @pytest.fixture(scope="function", autouse=True)
+    def setup_method(self, syn) -> None:
+        self.syn = syn
 
     def test_writes_header_and_rows(self) -> None:
         # GIVEN keys and one row of data
         keys = ["path", "parentId", "name"]
         data = [{"path": "/data/f.txt", "parentId": "syn1", "name": "f.txt"}]
 
-        with tempfile.TemporaryDirectory() as tmpdir:
+        with (
+            tempfile.TemporaryDirectory() as tmpdir,
+            patch.object(self.syn.logger, "info") as mock_logger_info,
+        ):
             filename = os.path.join(tmpdir, "manifest.csv")
             # WHEN _write_manifest_data_csv is called
-            _write_manifest_data_csv(filename, keys, data)
+            _write_manifest_data_csv(filename, keys, data, syn=self.syn)
 
             with open(filename, newline="", encoding="utf8") as fp:
                 rows = list(csv.DictReader(fp))
@@ -226,32 +256,44 @@ class TestWriteManifestDataCsv:
         assert rows[0]["path"] == "/data/f.txt"
         assert rows[0]["parentId"] == "syn1"
         assert rows[0]["name"] == "f.txt"
+        mock_logger_info.assert_called_once_with(
+            f"Manifest file {filename} has been generated."
+        )
 
     def test_missing_keys_use_empty_string(self) -> None:
         # GIVEN a row missing the "name" key
         keys = ["path", "parentId", "name"]
         data = [{"path": "/data/f.txt", "parentId": "syn1"}]
 
-        with tempfile.TemporaryDirectory() as tmpdir:
+        with (
+            tempfile.TemporaryDirectory() as tmpdir,
+            patch.object(self.syn.logger, "info") as mock_logger_info,
+        ):
             filename = os.path.join(tmpdir, "manifest.csv")
-            _write_manifest_data_csv(filename, keys, data)
+            _write_manifest_data_csv(filename, keys, data, syn=self.syn)
 
             with open(filename, newline="", encoding="utf8") as fp:
                 rows = list(csv.DictReader(fp))
 
         # THEN the missing field is written as an empty string
         assert rows[0]["name"] == ""
+        mock_logger_info.assert_called_once_with(
+            f"Manifest file {filename} has been generated."
+        )
 
     def test_extra_keys_in_row_are_ignored(self) -> None:
         # GIVEN a row with a key not in the fieldnames list
         keys = ["path", "name"]
         data = [{"path": "/data/f.txt", "name": "f.txt", "extra": "ignored"}]
 
-        with tempfile.TemporaryDirectory() as tmpdir:
+        with (
+            tempfile.TemporaryDirectory() as tmpdir,
+            patch.object(self.syn.logger, "info") as mock_logger_info,
+        ):
             filename = os.path.join(tmpdir, "manifest.csv")
             # WHEN _write_manifest_data_csv is called
             # THEN no exception is raised and only declared keys appear
-            _write_manifest_data_csv(filename, keys, data)
+            _write_manifest_data_csv(filename, keys, data, syn=self.syn)
 
             with open(filename, newline="", encoding="utf8") as fp:
                 reader = csv.DictReader(fp)
@@ -259,15 +301,21 @@ class TestWriteManifestDataCsv:
                 assert "extra" not in reader.fieldnames
 
         assert rows[0]["path"] == "/data/f.txt"
+        mock_logger_info.assert_called_once_with(
+            f"Manifest file {filename} has been generated."
+        )
 
     def test_values_with_commas_are_quoted(self) -> None:
         # GIVEN a value that contains a comma
         keys = ["name", "parentId"]
         data = [{"name": "file, with comma.txt", "parentId": "syn1"}]
 
-        with tempfile.TemporaryDirectory() as tmpdir:
+        with (
+            tempfile.TemporaryDirectory() as tmpdir,
+            patch.object(self.syn.logger, "info") as mock_logger_info,
+        ):
             filename = os.path.join(tmpdir, "manifest.csv")
-            _write_manifest_data_csv(filename, keys, data)
+            _write_manifest_data_csv(filename, keys, data, syn=self.syn)
             content = open(filename, encoding="utf8").read()
 
             with open(filename, newline="", encoding="utf8") as fp:
@@ -277,14 +325,20 @@ class TestWriteManifestDataCsv:
         assert '"file, with comma.txt"' in content
         # AND reads back correctly
         assert rows[0]["name"] == "file, with comma.txt"
+        mock_logger_info.assert_called_once_with(
+            f"Manifest file {filename} has been generated."
+        )
 
     def test_empty_data_writes_header_only(self) -> None:
         # GIVEN no data rows
         keys = ["path", "parentId", "name"]
 
-        with tempfile.TemporaryDirectory() as tmpdir:
+        with (
+            tempfile.TemporaryDirectory() as tmpdir,
+            patch.object(self.syn.logger, "info") as mock_logger_info,
+        ):
             filename = os.path.join(tmpdir, "manifest.csv")
-            _write_manifest_data_csv(filename, keys, [])
+            _write_manifest_data_csv(filename, keys, [], syn=self.syn)
 
             with open(filename, newline="", encoding="utf8") as fp:
                 reader = csv.DictReader(fp)
@@ -294,21 +348,30 @@ class TestWriteManifestDataCsv:
         # THEN the file exists with only the header
         assert rows == []
         assert header == keys
+        mock_logger_info.assert_called_once_with(
+            f"Manifest file {filename} has been generated."
+        )
 
     def test_unicode_values_are_written_correctly(self) -> None:
         # GIVEN a value with non-ASCII characters
         keys = ["name", "parentId"]
         data = [{"name": "données_été.txt", "parentId": "syn1"}]
 
-        with tempfile.TemporaryDirectory() as tmpdir:
+        with (
+            tempfile.TemporaryDirectory() as tmpdir,
+            patch.object(self.syn.logger, "info") as mock_logger_info,
+        ):
             filename = os.path.join(tmpdir, "manifest.csv")
-            _write_manifest_data_csv(filename, keys, data)
+            _write_manifest_data_csv(filename, keys, data, syn=self.syn)
 
             with open(filename, newline="", encoding="utf8") as fp:
                 rows = list(csv.DictReader(fp))
 
         # THEN unicode characters round-trip correctly
         assert rows[0]["name"] == "données_été.txt"
+        mock_logger_info.assert_called_once_with(
+            f"Manifest file {filename} has been generated."
+        )
 
     def test_multiple_rows_written_in_order(self) -> None:
         # GIVEN multiple rows
@@ -319,9 +382,12 @@ class TestWriteManifestDataCsv:
             {"name": "c.txt", "parentId": "syn3"},
         ]
 
-        with tempfile.TemporaryDirectory() as tmpdir:
+        with (
+            tempfile.TemporaryDirectory() as tmpdir,
+            patch.object(self.syn.logger, "info") as mock_logger_info,
+        ):
             filename = os.path.join(tmpdir, "manifest.csv")
-            _write_manifest_data_csv(filename, keys, data)
+            _write_manifest_data_csv(filename, keys, data, syn=self.syn)
 
             with open(filename, newline="", encoding="utf8") as fp:
                 rows = list(csv.DictReader(fp))
@@ -329,6 +395,9 @@ class TestWriteManifestDataCsv:
         # THEN all rows are present and in order
         assert len(rows) == 3
         assert [r["name"] for r in rows] == ["a.txt", "b.txt", "c.txt"]
+        mock_logger_info.assert_called_once_with(
+            f"Manifest file {filename} has been generated."
+        )
 
 
 class TestGetEntityProvenanceDictForManifest:

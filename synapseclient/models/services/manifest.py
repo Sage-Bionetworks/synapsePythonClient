@@ -299,7 +299,7 @@ def _write_manifest_data_csv(
         syn.logger.info(f"Manifest file {path} has been generated.")
 
 
-def generate_manifest_csv(all_files: list[File], path: str) -> None:
+def generate_manifest_csv(all_files: list[File], path: str, syn: Synapse) -> None:
     """Generates a manifest.csv file based on a list of File entities.
 
     The generated file uses CSV format with comma delimiter and is interoperable
@@ -311,7 +311,7 @@ def generate_manifest_csv(all_files: list[File], path: str) -> None:
     Args:
         all_files: A list of File model objects.
         path: The directory path where manifest.csv will be written.
-
+        syn: The Synapse client.
     raises:
         ValueError: If path is None.
     """
@@ -321,7 +321,7 @@ def generate_manifest_csv(all_files: list[File], path: str) -> None:
         )
     filename = _manifest_csv_filename(path=path)
     keys, data = _extract_entity_metadata_for_manifest_csv(all_files=all_files)
-    _write_manifest_data_csv(filename, keys, data)
+    _write_manifest_data_csv(path=filename, keys=keys, data=data, syn=syn)
 
 
 class UploadSyncFile(NamedTuple):

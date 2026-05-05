@@ -425,11 +425,11 @@ class StorableContainer(StorableContainerSynchronousProtocol):
                 opt manifest != "suppress" and path is set
                     alt manifest == "all"
                         loop For each directory path
-                            sync_from_synapse->>manifest: call `generate_manifest_csv(files, dir_path)`
+                            sync_from_synapse->>manifest: call `generate_manifest_csv(files, dir_path, syn)`
                             manifest-->>sync_from_synapse: manifest.csv written to dir_path
                         end
                     else manifest == "root"
-                        sync_from_synapse->>manifest: call `generate_manifest_csv(all_files, root_path)`
+                        sync_from_synapse->>manifest: call `generate_manifest_csv(all_files, root_path, syn)`
                         manifest-->>sync_from_synapse: manifest.csv written to root_path
                     end
                 end
@@ -573,11 +573,13 @@ class StorableContainer(StorableContainerSynchronousProtocol):
                     generate_manifest_csv(
                         all_files=file_entities,
                         path=directory_path,
+                        syn=syn,
                     )
             elif manifest == "root":
                 generate_manifest_csv(
                     all_files=self.flatten_file_list(),
                     path=path,
+                    syn=syn,
                 )
 
         return self
