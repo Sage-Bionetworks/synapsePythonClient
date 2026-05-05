@@ -74,6 +74,9 @@ if TYPE_CHECKING:
     )
 
 
+ManifestSetting = Literal["all", "suppress", "root"]
+
+
 @async_to_sync
 class StorableContainer(StorableContainerSynchronousProtocol):
     """
@@ -169,7 +172,7 @@ class StorableContainer(StorableContainerSynchronousProtocol):
         link_hops: int = 1,
         queue: asyncio.Queue = None,
         include_types: Optional[List[str]] = None,
-        manifest: Literal["all", "suppress", "root"] = "all",
+        manifest: ManifestSetting = "all",
         *,
         synapse_client: Optional[Synapse] = None,
     ) -> Self:
@@ -472,7 +475,7 @@ class StorableContainer(StorableContainerSynchronousProtocol):
         link_hops: int = 1,
         queue: asyncio.Queue = None,
         include_types: Optional[List[str]] = None,
-        manifest: Literal["all", "suppress", "root"] = "all",
+        manifest: ManifestSetting = "all",
         *,
         synapse_client: Optional[Synapse] = None,
     ) -> Self:
