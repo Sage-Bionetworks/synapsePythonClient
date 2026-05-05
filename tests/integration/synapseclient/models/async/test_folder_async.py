@@ -6,6 +6,7 @@ import os
 import tempfile
 import uuid
 from typing import Callable, List
+from unittest.mock import patch
 
 import pytest
 
@@ -1050,3 +1051,46 @@ class TestFolderManifestCSV:
         assert row["activityName"] == "my_activity"
         assert row["activityDescription"] == "my_description"
         assert row["used"] == "my_source"
+
+    async def test_manifest_generation_logs_info_per_directory(
+        self, project_model: Project
+    ) -> None:
+        # GIVEN a root folder with a file and a nested subfolder with its own file
+        root_folder = Folder(name=str(uuid.uuid4()), parent_id=project_model.id)
+        root_folder = await root_folder.store_async(synapse_client=self.syn)
+        self.schedule_for_cleanup(root_folder.id)
+
+        root_file = self.create_file_instance()
+        root_file.parent_id = root_folder.id
+        root_file = await root_file.store_async(synapse_client=self.syn)
+        self.schedule_for_cleanup(root_file.id)
+
+        sub_folder = Folder(name=str(uuid.uuid4()), parent_id=root_folder.id)
+        sub_folder = await sub_folder.store_async(synapse_client=self.syn)
+        self.schedule_for_cleanup(sub_folder.id)
+
+        sub_file = self.create_file_instance()
+        sub_file.parent_id = sub_folder.id
+        sub_file = await sub_file.store_async(synapse_client=self.syn)
+        self.schedule_for_cleanup(sub_file.id)
+
+        with tempfile.TemporaryDirectory() as tmpdir:
+            root_manifest = os.path.join(tmpdir, "manifest.csv")
+            sub_manifest = os.path.join(tmpdir, sub_folder.name, "manifest.csv")
+
+            with patch.object(self.syn.logger, "info") as mock_logger_info:
+                # WHEN I sync with manifest="all"
+                await root_folder.sync_from_synapse_async(
+                    path=tmpdir,
+                    manifest="all",
+                    synapse_client=self.syn,
+                )
+
+            # THEN _write_manifest_data_csv logs one message per generated manifest
+            logged_messages = [call.args[0] for call in mock_logger_info.call_args_list]
+            assert (
+                f"Manifest file {root_manifest} has been generated." in logged_messages
+            )
+            assert (
+                f"Manifest file {sub_manifest} has been generated." in logged_messages
+            )
