@@ -140,6 +140,9 @@ DOWNLOAD_LIST_MANIFEST_REQUEST = (
 
 # Grid Session Types
 CREATE_GRID_REQUEST = "org.sagebionetworks.repo.model.grid.CreateGridRequest"
+DOWNLOAD_FROM_GRID_REQUEST = (
+    "org.sagebionetworks.repo.model.grid.DownloadFromGridRequest"
+)
 GRID_RECORD_SET_EXPORT_REQUEST = (
     "org.sagebionetworks.repo.model.grid.GridRecordSetExportRequest"
 )
