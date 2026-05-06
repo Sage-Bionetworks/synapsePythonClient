@@ -28,6 +28,7 @@ With a project that has this example layout:
 In this tutorial you will:
 
 1. Download all files/folder from a project
+1. Control manifest CSV generation during download
 1. Download all files/folders for a specific folder within the project
 1. Loop over all files/folders on the project/folder object instances
 
@@ -44,48 +45,75 @@ another desired directory exists.
 
 #### First let's set up some constants we'll use in this script
 ```python
-{!docs/tutorials/python/tutorial_scripts/download_data_in_bulk.py!lines=5-19}
+--8<-- "docs/tutorials/python/tutorial_scripts/download_data_in_bulk.py:setup"
 ```
 
 #### Next we'll create an instance of the Project we are going to sync
 ```python
-{!docs/tutorials/python/tutorial_scripts/download_data_in_bulk.py!lines=20-22}
+--8<-- "docs/tutorials/python/tutorial_scripts/download_data_in_bulk.py:get_project"
 ```
 
 #### Finally we'll sync the project from synapse to your local machine
 ```python
-{!docs/tutorials/python/tutorial_scripts/download_data_in_bulk.py!lines=23-28}
+--8<-- "docs/tutorials/python/tutorial_scripts/download_data_in_bulk.py:sync_project"
 ```
 
 <details class="example">
   <summary>While syncing your project you'll see results like:</summary>
 ```
-Syncing Project (syn53185532:My uniquely named project about Alzheimer's Disease) from Synapse.
-Syncing Folder (syn53205630:experiment_notes) from Synapse.
-Syncing Folder (syn53205632:notes_2022) from Synapse.
-Syncing Folder (syn53205629:single_cell_RNAseq_batch_1) from Synapse.
-Syncing Folder (syn53205656:single_cell_RNAseq_batch_2) from Synapse.
-Syncing Folder (syn53205631:notes_2023) from Synapse.
-Downloading  [####################]100.00%   4.0bytes/4.0bytes (1.8kB/s) fileA.txt Done...
-Downloading  [####################]100.00%   3.0bytes/3.0bytes (1.1kB/s) SRR92345678_R1.fastq.gz Done...
-Downloading  [####################]100.00%   4.0bytes/4.0bytes (1.7kB/s) SRR12345678_R1.fastq.gz Done...
-Downloading  [####################]100.00%   4.0bytes/4.0bytes (1.9kB/s) fileC.txt Done...
-Downloading  [####################]100.00%   4.0bytes/4.0bytes (2.7kB/s) fileB.txt Done...
-Downloading  [####################]100.00%   4.0bytes/4.0bytes (2.7kB/s) SRR12345678_R2.fastq.gz Done...
-Downloading  [####################]100.00%   4.0bytes/4.0bytes (2.6kB/s) SRR12345678_R2.fastq.gz Done...
-Downloading  [####################]100.00%   4.0bytes/4.0bytes (1.8kB/s) SRR12345678_R1.fastq.gz Done...
-Downloading  [####################]100.00%   3.0bytes/3.0bytes (1.5kB/s) SRR92345678_R2.fastq.gz Done...
-Downloading  [####################]100.00%   4.0bytes/4.0bytes (1.6kB/s) fileD.txt Done...
-['single_cell_RNAseq_batch_2', 'single_cell_RNAseq_batch_1', 'experiment_notes']
+[syn74583648:My uniquely named project about Alzheimer's Disease]: Syncing Project from Synapse.
+[syn74584000:biospecimen_experiment_1]: Syncing Folder from Synapse.
+[syn74584007:single_cell_RNAseq_batch_2]: Syncing Folder from Synapse.
+[syn74584001:biospecimen_experiment_2]: Syncing Folder from Synapse.
+[syn74584006:single_cell_RNAseq_batch_1]: Syncing Folder from Synapse.
+[syn74584146]: Downloaded to <your_DIRECTORY_TO_SYNC_PROJECT_TO>/biospecimen_experiment_1/fileB.png
+[syn74584154]: Downloaded to <your_DIRECTORY_TO_SYNC_PROJECT_TO>/biospecimen_experiment_2/fileD.png
+[syn74584155]: Downloaded to <your_DIRECTORY_TO_SYNC_PROJECT_TO>/biospecimen_experiment_2/fileC.png
+[syn74584188]: Downloaded to <your_DIRECTORY_TO_SYNC_PROJECT_TO>/single_cell_RNAseq_batch_1/SRR12345678_R1.fastq.png
+[syn74584147]: Downloaded to <your_DIRECTORY_TO_SYNC_PROJECT_TO>/biospecimen_experiment_1/fileA.png
+[syn74584206]: Downloaded to <your_DIRECTORY_TO_SYNC_PROJECT_TO>/single_cell_RNAseq_batch_2/SRR12345678_R1.fastq.png
+[syn74584189]: Downloaded to <your_DIRECTORY_TO_SYNC_PROJECT_TO>/single_cell_RNAseq_batch_1/SRR12345678_R2.fastq.png
+[syn74584207]: Downloaded to <your_DIRECTORY_TO_SYNC_PROJECT_TO>/single_cell_RNAseq_batch_2/SRR12345678_R2.fastq.png
+Downloading files: 100%|████████████████████| 1.31M/1.31M [00:02<00:00, 606kB/s]
+Project(id='syn74583648', name="My uniquely named project about Alzheimer's Disease", files=[], folders=[
+  Folder(id='syn74584000', name='biospecimen_experiment_1', parent_id='syn74583648', files=[
+    File(id='syn74584147', name='fileA.png', path='<DIRECTORY_TO_SYNC_PROJECT_TO>/biospecimen_experiment_1/fileA.png', parent_id='syn74584000', ...),
+    File(id='syn74584146', name='fileB.png', path='<DIRECTORY_TO_SYNC_PROJECT_TO>/biospecimen_experiment_1/fileB.png', parent_id='syn74584000', ...)
+  ], folders=[], ...),
+  Folder(id='syn74584001', name='biospecimen_experiment_2', parent_id='syn74583648', files=[
+    File(id='syn74584155', name='fileC.png', path='<DIRECTORY_TO_SYNC_PROJECT_TO>/biospecimen_experiment_2/fileC.png', parent_id='syn74584001', ...),
+    File(id='syn74584154', name='fileD.png', path='<DIRECTORY_TO_SYNC_PROJECT_TO>/biospecimen_experiment_2/fileD.png', parent_id='syn74584001', ...)
+  ], folders=[], ...),
+  Folder(id='syn74584006', name='single_cell_RNAseq_batch_1', parent_id='syn74583648', files=[
+    File(id='syn74584188', name='SRR12345678_R1.fastq.png', path='<DIRECTORY_TO_SYNC_PROJECT_TO>/single_cell_RNAseq_batch_1/SRR12345678_R1.fastq.png', parent_id='syn74584006', ...),
+    File(id='syn74584189', name='SRR12345678_R2.fastq.png', path='<DIRECTORY_TO_SYNC_PROJECT_TO>/single_cell_RNAseq_batch_1/SRR12345678_R2.fastq.png', parent_id='syn74584006', ...)
+  ], folders=[], ...),
+  Folder(id='syn74584007', name='single_cell_RNAseq_batch_2', parent_id='syn74583648', files=[
+    File(id='syn74584206', name='SRR12345678_R1.fastq.png', path='<DIRECTORY_TO_SYNC_PROJECT_TO>/single_cell_RNAseq_batch_2/SRR12345678_R1.fastq.png', parent_id='syn74584007', ...),
+    File(id='syn74584207', name='SRR12345678_R2.fastq.png', path='<DIRECTORY_TO_SYNC_PROJECT_TO>/single_cell_RNAseq_batch_2/SRR12345678_R2.fastq.png', parent_id='syn74584007', ...)
+  ], folders=[], ...)
+], ...)
 ```
 </details>
 
-## 2. Download all files/folders for a specific folder within the project
+## 2. Control manifest CSV generation during download
+
+By default (`manifest="all"`), `sync_from_synapse` writes a `manifest.csv` into every
+synced directory. The manifest.csv is interoperable with sync_to_synapse, the Synapse UI download cart, and `download_list_files`.
+
+Use `manifest="root"` to write a single manifest at the root path, or
+`manifest="suppress"` to skip manifest generation entirely.
+
+```python
+--8<-- "docs/tutorials/python/tutorial_scripts/download_data_in_bulk.py:sync_project_with_root_manifest"
+```
+
+## 3. Download all files/folders for a specific folder within the project
 
 Following the same set of steps let's sync a specific folder
 
 ```python
-{!docs/tutorials/python/tutorial_scripts/download_data_in_bulk.py!lines=30-36}
+--8<-- "docs/tutorials/python/tutorial_scripts/download_data_in_bulk.py:sync_folder"
 ```
 
 <details class="example">
@@ -105,12 +133,12 @@ download the content again. If you were to use an `if_collision` of `"overwrite.
 you would see that when the content on your machine does not match Synapse the file
 will be overwritten.
 
-## 3. Loop over all files/folders on the project/folder object instances
+## 4. Loop over all files/folders on the project/folder object instances
 Using `sync_from_synapse` will load into memory the state of all Folders and Files
 retrieved from Synapse. This will allow you to loop over the contents of your container.
 
 ```python
-{!docs/tutorials/python/tutorial_scripts/download_data_in_bulk.py!lines=37-47}
+--8<-- "docs/tutorials/python/tutorial_scripts/download_data_in_bulk.py:loop_over_project_folder"
 ```
 
 <details class="example">
