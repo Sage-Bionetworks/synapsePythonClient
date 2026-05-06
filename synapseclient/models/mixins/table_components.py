@@ -199,28 +199,29 @@ def convert_dtypes_to_json_serializable(df) -> pd.DataFrame:
             def _reformat_special_values(obj):
                 if obj is ...:
                     return "..."
-                if obj is pd.NA:
-                    return None
                 if isinstance(obj, dict):
                     return {k: _reformat_special_values(v) for k, v in obj.items()}
                 if isinstance(obj, list):
                     return [_reformat_special_values(item) for item in obj]
+                # Catch pd.NA, np.nan, and None — none are valid JSON
+                if pd.isna(obj):
+                    return None
                 return obj
 
-            cleaned_x = _reformat_special_values(x)
-            return cleaned_x
+            return _reformat_special_values(x)
         # Handle standalone ellipsis
         if x is ...:
             return "..."
+        # Handle top-level pd.NA, np.nan, None
+        if pd.isna(x):
+            return None
         return x
 
     for col in df.columns:
-        sample_values = df[col].dropna()
-        if len(sample_values):
-            df[col] = df[col].apply(_serialize_json_value)
-            # restore the original values of the column especially for the int64 and float64 columns since apply function changes the dtype
-            df[col] = df[col].convert_dtypes()
-            df[col] = df[col].replace({pd.NA: None}).astype(object)
+        df[col] = df[col].apply(_serialize_json_value)
+        # restore the original values of the column especially for the int64 and float64 columns since apply function changes the dtype
+        df[col] = df[col].convert_dtypes()
+        df[col] = df[col].replace({pd.NA: None}).astype(object)
 
         # Convert ROW_ prefixed columns back to int (like ROW_ID, ROW_VERSION)
         if col in [
