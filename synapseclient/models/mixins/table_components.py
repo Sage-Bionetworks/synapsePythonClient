@@ -3216,9 +3216,7 @@ class TableStoreRowMixin:
         insert_size_bytes: int = 900 * MB,
         csv_table_descriptor: Optional[CsvTableDescriptor] = None,
         read_csv_kwargs: Optional[Dict[str, Any]] = None,
-        to_csv_kwargs: Optional[Dict[str, Any]] = {
-            "escapechar": "\\",
-        },
+        to_csv_kwargs: Optional[Dict[str, Any]] = None,
         job_timeout: int = 600,
         synapse_client: Optional[Synapse] = None,
     ) -> None:
@@ -3437,8 +3435,9 @@ class TableStoreRowMixin:
                 function when writing the data to a CSV file. This is only used when
                 the `values` argument is a Pandas DataFrame. See
                 <https://pandas.pydata.org/docs/reference/api/pandas.DataFrame.to_csv.html>
-                for complete list of supported arguments. The default is {"escapechar": "\\"}.
-                Ensure escapechar="\\" is set, along with other relevant kwargs, if your data contains double quotes.
+                for complete list of supported arguments. Any kwargs you supply are
+                merged on top of the default `{"escapechar": "\\"}`, so you only need
+                to override `escapechar` explicitly if you want different behavior.
 
             job_timeout: The maximum amount of time to wait for a job to complete.
                 This is used when inserting, and updating rows of data. Each individual
@@ -3610,6 +3609,8 @@ class TableStoreRowMixin:
         """
         test_import_pandas()
         from pandas import DataFrame
+
+        to_csv_kwargs = {"escapechar": "\\", **(to_csv_kwargs or {})}
 
         original_values = values
         if isinstance(values, dict):
