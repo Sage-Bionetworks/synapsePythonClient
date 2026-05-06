@@ -1,24 +1,31 @@
 """Unit tests for the CurationTask and Grid models."""
 
-from unittest.mock import AsyncMock, patch
+import os
+from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
 
 from synapseclient import Synapse
 from synapseclient.core.constants.concrete_types import (
     FILE_BASED_METADATA_TASK_PROPERTIES,
+    GRID_CSV_IMPORT_REQUEST,
     RECORD_BASED_METADATA_TASK_PROPERTIES,
+    UPLOAD_TO_TABLE_PREVIEW_REQUEST,
 )
 from synapseclient.models.curation import (
     CreateGridRequest,
     CurationTask,
+    DownloadFromGridRequest,
     FileBasedMetadataTaskProperties,
     Grid,
+    GridCsvImportRequest,
     GridRecordSetExportRequest,
     RecordBasedMetadataTaskProperties,
+    UploadToTablePreviewRequest,
     _create_task_properties_from_dict,
 )
 from synapseclient.models.recordset import ValidationSummary
+from synapseclient.models.table_components import Column, CsvTableDescriptor
 
 TASK_ID = 42
 TASK_ID_2 = 99
@@ -39,6 +46,7 @@ SOURCE_ENTITY_ID = "syn5555555"
 GRID_ETAG = "grid-etag-456"
 STARTED_BY = "user-1"
 STARTED_ON = "2024-03-01T00:00:00.000Z"
+FILE_HANDLE_ID = "1234567"
 
 
 def _get_file_based_task_api_response():
@@ -381,14 +389,17 @@ class TestCurationTask:
             return
             yield  # pragma: no cover
 
-        with patch(
-            "synapseclient.models.curation.list_curation_tasks",
-            return_value=empty_list_gen(),
-        ), patch(
-            "synapseclient.models.curation.create_curation_task",
-            new_callable=AsyncMock,
-            return_value=_get_file_based_task_api_response(),
-        ) as mock_create:
+        with (
+            patch(
+                "synapseclient.models.curation.list_curation_tasks",
+                return_value=empty_list_gen(),
+            ),
+            patch(
+                "synapseclient.models.curation.create_curation_task",
+                new_callable=AsyncMock,
+                return_value=_get_file_based_task_api_response(),
+            ) as mock_create,
+        ):
             result = await task.store_async(synapse_client=self.syn)
 
             # THEN the create API should be called
@@ -446,18 +457,22 @@ class TestCurationTask:
             yield existing_response
 
         # WHEN I call store_async
-        with patch(
-            "synapseclient.models.curation.list_curation_tasks",
-            return_value=mock_list(),
-        ), patch(
-            "synapseclient.models.curation.get_curation_task",
-            new_callable=AsyncMock,
-            return_value=existing_response,
-        ), patch(
-            "synapseclient.models.curation.update_curation_task",
-            new_callable=AsyncMock,
-            return_value=existing_response,
-        ) as mock_update:
+        with (
+            patch(
+                "synapseclient.models.curation.list_curation_tasks",
+                return_value=mock_list(),
+            ),
+            patch(
+                "synapseclient.models.curation.get_curation_task",
+                new_callable=AsyncMock,
+                return_value=existing_response,
+            ),
+            patch(
+                "synapseclient.models.curation.update_curation_task",
+                new_callable=AsyncMock,
+                return_value=existing_response,
+            ) as mock_update,
+        ):
             result = await task.store_async(synapse_client=self.syn)
 
             # THEN it should have merged the existing task and done an update
@@ -664,15 +679,18 @@ class TestGrid:
 
         # WHEN I call create_async with attach_to_previous_session=True and no
         # existing sessions
-        with patch.object(
-            Grid,
-            "list_async",
-            return_value=mock_list_async(),
-        ), patch.object(
-            CreateGridRequest,
-            "send_job_and_wait_async",
-            new_callable=AsyncMock,
-            return_value=mock_create_request,
+        with (
+            patch.object(
+                Grid,
+                "list_async",
+                return_value=mock_list_async(),
+            ),
+            patch.object(
+                CreateGridRequest,
+                "send_job_and_wait_async",
+                new_callable=AsyncMock,
+                return_value=mock_create_request,
+            ),
         ):
             result = await grid.create_async(
                 attach_to_previous_session=True, synapse_client=self.syn
@@ -802,6 +820,163 @@ class TestGrid:
             assert len(results) == 1
             assert results[0].session_id == SESSION_ID
 
+    async def test_import_csv_async_without_session_id(self) -> None:
+        """Test that calling import_csv_async without a session_id raises a ValueError."""
+        # GIVEN a Grid without a session_id
+        grid = Grid()
+
+        # WHEN I call import_csv_async
+        # THEN it should raise ValueError
+        with (
+            patch("synapseclient.models.curation.os.path.isfile", return_value=True),
+            pytest.raises(
+                ValueError,
+                match="session_id is required to import a CSV into a GridSession",
+            ),
+        ):
+            await grid.import_csv_async(synapse_client=self.syn, path="test.csv")
+
+    async def test_import_csv_async(self) -> None:
+        """Test the import_csv_async method of the Grid class, ensuring it correctly calls the preview and import requests and logs the results."""
+        # GIVEN a Grid with a session_id
+        grid = Grid(session_id=SESSION_ID)
+
+        csv_table_descriptor = CsvTableDescriptor(
+            separator=";",
+            quote_character='"',
+            escape_character="\\",
+            line_end=os.linesep,
+            is_first_line_header=True,
+        )
+        expected_columns = [Column(name="col1", column_type="STRING", maximum_size=50)]
+
+        # Mock preview response with suggested columns
+        mock_preview_response = UploadToTablePreviewRequest(
+            upload_file_handle_id=FILE_HANDLE_ID,
+            csv_table_descriptor=csv_table_descriptor,
+            suggested_columns=expected_columns,
+            sample_rows=[["value1"]],
+            rows_scanned=1,
+        )
+        # Mock import response with row counts
+        mock_import_response = GridCsvImportRequest(
+            session_id=SESSION_ID,
+            file_handle_id=FILE_HANDLE_ID,
+            schema=expected_columns,
+            total_count=1,
+            created_count=1,
+            updated_count=1,
+        )
+
+        mock_preview_instance = MagicMock()
+        mock_preview_instance.send_job_and_wait_async = AsyncMock(
+            return_value=mock_preview_response
+        )
+
+        mock_import_instance = MagicMock()
+        mock_import_instance.send_job_and_wait_async = AsyncMock(
+            return_value=mock_import_response
+        )
+
+        # WHEN I call import_csv_async
+        with (
+            patch("synapseclient.models.curation.os.path.isfile", return_value=True),
+            patch(
+                "synapseclient.models.curation.upload_synapse_s3",
+                new_callable=AsyncMock,
+                return_value={"id": FILE_HANDLE_ID},
+            ),
+            patch(
+                "synapseclient.models.curation.UploadToTablePreviewRequest",
+                return_value=mock_preview_instance,
+            ) as MockPreview,
+            patch(
+                "synapseclient.models.curation.GridCsvImportRequest",
+                return_value=mock_import_instance,
+            ) as MockImport,
+            patch.object(self.syn, "logger") as mock_logger,
+        ):
+            result = await grid.import_csv_async(
+                synapse_client=self.syn,
+                path="test.csv",
+                csv_table_descriptor=csv_table_descriptor,
+            )
+
+        # THEN the grid is returned with the same session
+        assert result.session_id == SESSION_ID
+
+        # AND UploadToTablePreviewRequest was constructed with the right arguments
+        MockPreview.assert_called_once_with(
+            csv_table_descriptor=csv_table_descriptor,
+            upload_file_handle_id=FILE_HANDLE_ID,
+        )
+
+        # AND GridCsvImportRequest was constructed with the schema from the preview
+        MockImport.assert_called_once_with(
+            session_id=SESSION_ID,
+            file_handle_id=FILE_HANDLE_ID,
+            schema=expected_columns,
+            csv_descriptor=csv_table_descriptor,
+        )
+
+        # AND the log message contains the import counts
+        mock_logger.info.assert_called_once()
+        log_message = mock_logger.info.call_args[0][0]
+        assert "total count: 1" in log_message
+        assert "total created: 1" in log_message
+        assert "total updated: 1" in log_message
+
+    async def test_import_csv_no_suggested_columns_async(self) -> None:
+        """Raises ValueError when the CSV preview returns no suggested columns."""
+        # GIVEN a Grid with a session_id
+        grid = Grid(session_id=SESSION_ID)
+
+        csv_table_descriptor = CsvTableDescriptor(
+            separator=";",
+            quote_character='"',
+            escape_character="\\",
+            line_end=os.linesep,
+            is_first_line_header=True,
+        )
+
+        # AND a preview response with no columns (e.g. empty CSV file)
+        mock_preview_response = UploadToTablePreviewRequest(
+            upload_file_handle_id=FILE_HANDLE_ID,
+            csv_table_descriptor=csv_table_descriptor,
+            suggested_columns=[],
+            sample_rows=[],
+            rows_scanned=0,
+        )
+
+        mock_preview_instance = MagicMock()
+        mock_preview_instance.send_job_and_wait_async = AsyncMock(
+            return_value=mock_preview_response
+        )
+
+        # WHEN I call import_csv_async
+        # THEN a ValueError is raised before the import is attempted
+        with (
+            patch("synapseclient.models.curation.os.path.isfile", return_value=True),
+            patch(
+                "synapseclient.models.curation.upload_synapse_s3",
+                new_callable=AsyncMock,
+                return_value={"id": FILE_HANDLE_ID},
+            ),
+            patch(
+                "synapseclient.models.curation.UploadToTablePreviewRequest",
+                return_value=mock_preview_instance,
+            ),
+        ):
+            with pytest.raises(
+                ValueError,
+                match=rf"CSV preview for file handle {FILE_HANDLE_ID} returned no suggested columns \(rows scanned: 0\).*separator=';'",
+            ):
+                await grid.import_csv_async(
+                    synapse_client=self.syn,
+                    path="test.csv",
+                    csv_table_descriptor=csv_table_descriptor,
+                )
+
 
 class TestCreateGridRequest:
     """Tests for the CreateGridRequest helper dataclass."""
@@ -844,6 +1019,197 @@ class TestCreateGridRequest:
         assert "concreteType" in result
         assert result["recordSetId"] == RECORD_SET_ID
         assert "initialQuery" not in result
+
+
+class TestUploadToTablePreviewRequest:
+    """Tests for the UploadToTablePreviewRequest helper dataclass."""
+
+    def test_fill_from_dict(self) -> None:
+        # GIVEN a response with upload to table preview data
+        raw_synapse_response = {
+            "jobId": "1234",
+            "concreteType": "org.sagebionetworks.repo.model.table.UploadToTablePreviewResult",
+            "suggestedColumns": [
+                {"name": "etag", "columnType": "STRING", "maximumSize": 50},
+                {"name": "Sex", "columnType": "STRING", "maximumSize": 6},
+                {"name": "Component", "columnType": "STRING", "maximumSize": 4},
+                {"name": "Diagnosis", "columnType": "STRING", "maximumSize": 7},
+                {"name": "PatientID", "columnType": "INTEGER"},
+                {"name": "CancerType", "columnType": "STRING", "maximumSize": 50},
+                {"name": "YearofBirth", "columnType": "STRING", "maximumSize": 50},
+                {"name": "FamilyHistory", "columnType": "STRING", "maximumSize": 50},
+            ],
+            "sampleRows": [
+                {"values": [None, "Female", "test", "Healthy", "1", None, None, None]}
+            ],
+            "rowsScanned": 1,
+        }
+
+        # WHEN I fill an UploadToTablePreviewRequest from the response
+        preview_req = UploadToTablePreviewRequest(upload_file_handle_id=FILE_HANDLE_ID)
+        preview_response = preview_req.fill_from_dict(raw_synapse_response)
+
+        # THEN the fields should be populated correctly
+        assert len(preview_response.suggested_columns) == 8
+        assert preview_response.suggested_columns[0] == Column(
+            name="etag", column_type="STRING", maximum_size=50
+        )
+        assert preview_response.suggested_columns[1] == Column(
+            name="Sex", column_type="STRING", maximum_size=6
+        )
+        assert preview_response.suggested_columns[2] == Column(
+            name="Component", column_type="STRING", maximum_size=4
+        )
+        assert preview_response.suggested_columns[3] == Column(
+            name="Diagnosis", column_type="STRING", maximum_size=7
+        )
+        assert preview_response.suggested_columns[4] == Column(
+            name="PatientID", column_type="INTEGER", maximum_size=None
+        )
+        assert preview_response.sample_rows == [
+            [None, "Female", "test", "Healthy", "1", None, None, None]
+        ]
+        assert preview_response.rows_scanned == 1
+
+    def test_to_synapse_request_with_minimal_fields(self) -> None:
+        # GIVEN an UploadToTablePreviewRequest with only required fields set
+        preview_req = UploadToTablePreviewRequest(
+            upload_file_handle_id=FILE_HANDLE_ID,
+        )
+
+        # WHEN I convert it to a synapse request
+        result = preview_req.to_synapse_request()
+
+        # THEN it should contain the correct fields and defaults
+        assert result["concreteType"] == UPLOAD_TO_TABLE_PREVIEW_REQUEST
+        assert result["uploadFileHandleId"] == FILE_HANDLE_ID
+        assert result["csvTableDescriptor"] == CsvTableDescriptor().to_synapse_request()
+
+    def test_to_synapse_request_with_all_fields(self) -> None:
+        # GIVEN an UploadToTablePreviewRequest
+        preview_req = UploadToTablePreviewRequest(
+            upload_file_handle_id=FILE_HANDLE_ID,
+            lines_to_skip=1,
+            do_full_file_scan=True,
+            csv_table_descriptor=CsvTableDescriptor(
+                separator=";",
+                quote_character='"',
+                escape_character="\\",
+                line_end="\n",
+                is_first_line_header=True,
+            ),
+        )
+
+        # WHEN I convert it to a synapse request
+        result = preview_req.to_synapse_request()
+
+        # THEN it should contain the correct fields
+        assert result["concreteType"] == UPLOAD_TO_TABLE_PREVIEW_REQUEST
+        assert result["uploadFileHandleId"] == FILE_HANDLE_ID
+        assert result["linesToSkip"] == 1
+        assert result["doFullFileScan"] is True
+        assert result["csvTableDescriptor"]["separator"] == ";"
+        assert result["csvTableDescriptor"]["quoteCharacter"] == '"'
+        assert result["csvTableDescriptor"]["escapeCharacter"] == "\\"
+        assert result["csvTableDescriptor"]["lineEnd"] == "\n"
+        assert result["csvTableDescriptor"]["isFirstLineHeader"] is True
+
+
+class TestGridCsvImportRequest:
+    """Tests for the GridCsvImportRequest helper dataclass."""
+
+    def test_fill_from_dict(self) -> None:
+        # GIVEN a response with grid CSV import data
+        raw_synapse_response = {
+            "jobId": "1234",
+            "concreteType": "org.sagebionetworks.repo.model.grid.GridCsvImportResponse",
+            "sessionId": SESSION_ID,
+            "totalCount": 3,
+            "createdCount": 1,
+            "updatedCount": 2,
+        }
+
+        # WHEN I fill a GridCsvImportRequest from the response
+        import_req = GridCsvImportRequest(
+            session_id=SESSION_ID,
+            file_handle_id=FILE_HANDLE_ID,
+            schema=[Column(name="col1", column_type="STRING")],
+        )
+        result = import_req.fill_from_dict(raw_synapse_response)
+
+        # THEN the response fields should be populated correctly
+        assert result.session_id == SESSION_ID
+        assert result.total_count == 3
+        assert result.created_count == 1
+        assert result.updated_count == 2
+
+    def test_to_synapse_request_with_minimal_fields(self) -> None:
+        # GIVEN a GridCsvImportRequest with only required fields set
+        import_req = GridCsvImportRequest(
+            session_id=SESSION_ID,
+            file_handle_id=FILE_HANDLE_ID,
+            schema=[Column(name="col1", column_type="STRING")],
+        )
+
+        # WHEN I convert it to a synapse request
+        result = import_req.to_synapse_request()
+
+        # THEN it should contain the correct fields and defaults
+        assert result["concreteType"] == GRID_CSV_IMPORT_REQUEST
+        assert result["sessionId"] == SESSION_ID
+        assert result["fileHandleId"] == FILE_HANDLE_ID
+        assert result["csvDescriptor"] == CsvTableDescriptor().to_synapse_request()
+        assert len(result["schema"]) == 1
+        assert (
+            result["schema"][0]
+            == Column(name="col1", column_type="STRING").to_synapse_request()
+        )
+
+    def test_to_synapse_request_with_all_fields(self) -> None:
+        # GIVEN a GridCsvImportRequest with all fields set
+        import_req = GridCsvImportRequest(
+            session_id=SESSION_ID,
+            file_handle_id=FILE_HANDLE_ID,
+            csv_descriptor=CsvTableDescriptor(
+                separator=";",
+                quote_character='"',
+                escape_character="\\",
+                line_end="\t",
+                is_first_line_header=True,
+            ),
+            schema=[
+                Column(name="ROW_ID", column_type="STRING"),
+                Column(name="ROW_VERSION", column_type="STRING"),
+                Column(name="PatientID", column_type="INTEGER"),
+                Column(name="Diagnosis", column_type="STRING"),
+            ],
+        )
+
+        # WHEN I convert it to a synapse request
+        result = import_req.to_synapse_request()
+
+        # THEN it should contain the correct fields
+        assert result["concreteType"] == GRID_CSV_IMPORT_REQUEST
+        assert result["sessionId"] == SESSION_ID
+        assert result["fileHandleId"] == FILE_HANDLE_ID
+        assert result["csvDescriptor"]["separator"] == ";"
+        assert result["csvDescriptor"]["quoteCharacter"] == '"'
+        assert result["csvDescriptor"]["escapeCharacter"] == "\\"
+        assert result["csvDescriptor"]["lineEnd"] == "\t"
+        assert result["csvDescriptor"]["isFirstLineHeader"] is True
+        assert len(result["schema"]) == 4
+        assert (
+            result["schema"][0]
+            == Column(name="ROW_ID", column_type="STRING").to_synapse_request()
+        )
+        assert (
+            result["schema"][2]
+            == Column(name="PatientID", column_type="INTEGER").to_synapse_request()
+        )
+        assert (
+            result["schema"][3]
+            == Column(name="Diagnosis", column_type="STRING").to_synapse_request()
+        )
 
 
 class TestGridRecordSetExportRequest:
@@ -905,3 +1271,249 @@ class TestGridRecordSetExportRequest:
         # THEN it should contain the correct fields
         assert "concreteType" in result
         assert result["sessionId"] == SESSION_ID
+
+
+class TestDownloadFromGridRequest:
+    """Tests for the DownloadFromGridRequest helper dataclass."""
+
+    def test_to_synapse_request(self) -> None:
+        # GIVEN a DownloadFromGridRequest with a session_id
+        request = DownloadFromGridRequest(session_id=SESSION_ID)
+
+        # WHEN I convert it to a synapse request
+        result = request.to_synapse_request()
+
+        # THEN it should contain the correct fields
+        assert "concreteType" in result
+        assert result["sessionId"] == SESSION_ID
+
+    def test_to_synapse_request_all_fields(self) -> None:
+        # GIVEN a DownloadFromGridRequest with all fields set
+        table_descriptor = CsvTableDescriptor(
+            quote_character='"',
+            escape_character="\\",
+            line_end=os.linesep,
+            separator=";",
+            is_first_line_header=False,
+        )
+        request = DownloadFromGridRequest(
+            session_id=SESSION_ID,
+            write_header=False,
+            include_row_id_and_row_version=False,
+            include_etag=False,
+            csv_table_descriptor=table_descriptor,
+            file_name="my_grid_data.csv",
+        )
+
+        # WHEN I convert it to a synapse request
+        result = request.to_synapse_request()
+
+        # THEN it should contain all the correct fields
+        assert "concreteType" in result
+        assert result["sessionId"] == SESSION_ID
+        assert result["includeRowIdAndRowVersion"] is False
+        assert result["includeEtag"] is False
+        assert result["fileName"] == "my_grid_data.csv"
+        assert result["csvTableDescriptor"]["quoteCharacter"] == '"'
+        assert result["csvTableDescriptor"]["escapeCharacter"] == "\\"
+        assert result["csvTableDescriptor"]["lineEnd"] == os.linesep
+        assert result["csvTableDescriptor"]["separator"] == ";"
+        assert result["csvTableDescriptor"]["isFirstLineHeader"] is False
+
+    def test_fill_from_dict(self) -> None:
+        # GIVEN a response with download data
+        raw_synapse_response = {
+            "jobId": "123",
+            "concreteType": "org.sagebionetworks.repo.model.grid.DownloadFromGridResult",
+            "sessionId": SESSION_ID,
+            "resultsFileHandleId": FILE_HANDLE_ID,
+        }
+        response = DownloadFromGridRequest(session_id=SESSION_ID).fill_from_dict(
+            raw_synapse_response
+        )
+        assert response.session_id == SESSION_ID
+        assert response.results_file_handle_id == FILE_HANDLE_ID
+
+
+class TestGridDownloadCsv:
+
+    @pytest.fixture(autouse=True, scope="function")
+    def init_syn(self, syn: Synapse) -> None:
+        self.syn = syn
+
+    async def test_download_csv_without_session_id(self) -> None:
+        # GIVEN a Grid without a session_id
+        grid = Grid()
+
+        # WHEN I call download_csv
+        # THEN it should raise ValueError
+        with pytest.raises(ValueError, match="session_id is required to download"):
+            await grid.download_csv_async(synapse_client=self.syn)
+
+    async def test_download_csv_async(self):
+        # GIVEN a Grid with a session_id
+        grid = Grid(session_id=SESSION_ID)
+
+        # Mock the DownloadFromGridRequest's send_job_and_wait_async
+        mock_download_request = DownloadFromGridRequest(session_id=SESSION_ID)
+        mock_download_request.results_file_handle_id = FILE_HANDLE_ID
+
+        mock_file_handle = {
+            "id": "172705303",
+            "etag": "mock-etag",
+            "createdBy": "3443707",
+            "createdOn": "2026-04-30T21:21:40.000Z",
+            "modifiedOn": "2026-04-30T21:21:40.000Z",
+            "concreteType": "org.sagebionetworks.repo.model.file.S3FileHandle",
+            "contentType": "text/csv",
+            "contentMd5": "mock-md5",
+            "fileName": "Job-1234.csv",
+            "contentSize": 100,
+            "status": "AVAILABLE",
+            "bucketName": "proddata.sagebase.org",
+            "key": "1234/5678/Job-1234.csv",
+            "isPreview": False,
+        }
+        mock_presigned_url = "https://presigned.example.com/file.csv"
+        expected_download_path = "/tmp/downloaded.csv"
+
+        with (
+            patch.object(
+                DownloadFromGridRequest,
+                "send_job_and_wait_async",
+                new_callable=AsyncMock,
+                return_value=mock_download_request,
+            ) as mock_send,
+            patch(
+                "synapseclient.models.curation.get_file_handle",
+                new_callable=AsyncMock,
+                return_value=mock_file_handle,
+            ) as mock_get_file_handle,
+            patch(
+                "synapseclient.models.curation.get_file_handle_presigned_url",
+                new_callable=AsyncMock,
+                return_value=mock_presigned_url,
+            ) as mock_get_presigned_url,
+            patch(
+                "synapseclient.models.curation.download_from_url",
+                return_value=expected_download_path,
+            ) as mock_download_from_url,
+        ):
+            result = await grid.download_csv_async(synapse_client=self.syn)
+            current_dir = os.getcwd()
+
+            # THEN the async job should be submitted
+            mock_send.assert_called_once()
+
+            # AND the file handle metadata should be fetched
+            mock_get_file_handle.assert_called_once_with(
+                file_handle_id=FILE_HANDLE_ID,
+                synapse_client=self.syn,
+            )
+
+            # AND a presigned URL should be fetched
+            mock_get_presigned_url.assert_called_once_with(
+                file_handle_id=FILE_HANDLE_ID,
+                synapse_client=self.syn,
+            )
+
+            # AND download_from_url should be called with the presigned URL and MD5
+            call_kwargs = mock_download_from_url.call_args
+            assert call_kwargs.kwargs["url"] == mock_presigned_url
+            assert call_kwargs.kwargs["file_handle_id"] == mock_file_handle["id"]
+            assert call_kwargs.kwargs["expected_md5"] == mock_file_handle["contentMd5"]
+            assert call_kwargs.kwargs["url_is_presigned"] is True
+            # AND the destination filename follows the grid_{session_id}-{timestamp}.csv convention
+            assert call_kwargs.kwargs["destination"].startswith(current_dir)
+            assert f"grid_{SESSION_ID}-" in call_kwargs.kwargs["destination"]
+            assert call_kwargs.kwargs["destination"].endswith(".csv")
+
+            # AND the result is the path returned by download_from_url
+            assert result == expected_download_path
+
+    async def test_download_csv_async_with_custom_file_name(self):
+        # GIVEN a Grid with a session_id and a caller-supplied file_name
+        grid = Grid(session_id=SESSION_ID)
+        custom_file_name = "my_export.csv"
+
+        mock_download_request = DownloadFromGridRequest(session_id=SESSION_ID)
+        mock_download_request.results_file_handle_id = FILE_HANDLE_ID
+
+        mock_file_handle = {
+            "id": "172705303",
+            "contentMd5": "mock-md5",
+            "fileName": "Job-1234.csv",
+        }
+        expected_download_path = "/tmp/my_export.csv"
+
+        with (
+            patch.object(
+                DownloadFromGridRequest,
+                "send_job_and_wait_async",
+                new_callable=AsyncMock,
+                return_value=mock_download_request,
+            ),
+            patch(
+                "synapseclient.models.curation.get_file_handle",
+                new_callable=AsyncMock,
+                return_value=mock_file_handle,
+            ),
+            patch(
+                "synapseclient.models.curation.get_file_handle_presigned_url",
+                new_callable=AsyncMock,
+                return_value="https://presigned.example.com/file.csv",
+            ),
+            patch(
+                "synapseclient.models.curation.download_from_url",
+                return_value=expected_download_path,
+            ) as mock_download_from_url,
+        ):
+            result = await grid.download_csv_async(
+                file_name=custom_file_name, synapse_client=self.syn
+            )
+            current_dir = os.getcwd()
+
+            # THEN the destination uses exactly the caller-supplied file_name
+            call_kwargs = mock_download_from_url.call_args
+            assert call_kwargs.kwargs["destination"] == os.path.join(
+                current_dir, custom_file_name
+            )
+
+            # AND the result is the path returned by download_from_url
+            assert result == expected_download_path
+
+    async def test_download_csv_async_with_invalid_dir(self):
+        # GIVEN a Grid with a session_id
+        grid = Grid(session_id=SESSION_ID)
+
+        # WHEN I call download_csv_async with an invalid destination
+        with pytest.raises(
+            ValueError, match="Destination ./nonexistent_dir is not a valid directory."
+        ):
+            await grid.download_csv_async(
+                synapse_client=self.syn, destination="./nonexistent_dir"
+            )
+
+    async def test_download_csv_async_empty_file_handle_id(self):
+        # GIVEN a Grid with a session_id
+        grid = Grid(session_id=SESSION_ID)
+
+        # Mock the DownloadFromGridRequest's send_job_and_wait_async to return an empty file handle ID
+        mock_download_request = DownloadFromGridRequest(session_id=SESSION_ID)
+        mock_download_request.results_file_handle_id = ""
+
+        with patch.object(
+            DownloadFromGridRequest,
+            "send_job_and_wait_async",
+            new_callable=AsyncMock,
+            return_value=mock_download_request,
+        ):
+            # WHEN I call download_csv_async
+            # THEN it should raise ValueError for empty file handle ID
+            with pytest.raises(
+                ValueError,
+                match=f"Download job for grid session '{SESSION_ID}' completed but "
+                "did not return a file handle ID. The CSV result may be empty or "
+                "the job may have failed silently.",
+            ):
+                await grid.download_csv_async(synapse_client=self.syn)

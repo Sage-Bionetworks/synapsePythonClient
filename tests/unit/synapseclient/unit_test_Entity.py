@@ -236,7 +236,7 @@ def test_split_entity_namespaces():
         "foo": 1234,
         "parentId": "syn1234",
     }
-    (properties, annotations, local_state) = split_entity_namespaces(e)
+    properties, annotations, local_state = split_entity_namespaces(e)
 
     assert set(properties.keys()) == {"concreteType", "name", "parentId"}
     assert properties["name"] == "Henry"
@@ -255,7 +255,7 @@ def test_split_entity_namespaces():
         "files": ["foo.xyz"],
         "path": "/foo/bar/bat/foo.xyz",
     }
-    (properties, annotations, local_state) = split_entity_namespaces(e)
+    properties, annotations, local_state = split_entity_namespaces(e)
 
     assert set(properties.keys()) == {
         "concreteType",

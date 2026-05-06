@@ -1,4 +1,5 @@
 """Integration tests for utility operations asynchronous."""
+
 import uuid
 from typing import Callable
 

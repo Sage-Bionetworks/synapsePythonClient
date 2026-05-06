@@ -309,7 +309,7 @@ class TestJSONSchema:
 
             response = await wait_for_condition(
                 _get_derived_keys,
-                timeout_seconds=30,
+                timeout_seconds=60,
                 poll_interval_seconds=2,
                 description="schema derived keys to be populated",
             )
@@ -373,7 +373,7 @@ class TestJSONSchema:
 
             response = await wait_for_condition(
                 _validate_invalid,
-                timeout_seconds=30,
+                timeout_seconds=60,
                 poll_interval_seconds=2,
                 description="schema validation results (invalid) to be available",
             )

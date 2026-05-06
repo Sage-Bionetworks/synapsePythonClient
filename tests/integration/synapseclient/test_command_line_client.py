@@ -1,4 +1,5 @@
 """Integration tests for the CLI."""
+
 import filecmp
 import json
 import logging
@@ -932,11 +933,14 @@ def test_login(test_state):
     alt_syn = Synapse(cache_client=False)
     username = "username"
     auth_token = "my_auth_token"
-    with patch.object(alt_syn, "login") as mock_login, patch.object(
-        alt_syn,
-        "getUserProfile",
-        return_value={"userName": "test_user", "ownerId": "ownerId"},
-    ) as mock_get_user_profile:
+    with (
+        patch.object(alt_syn, "login") as mock_login,
+        patch.object(
+            alt_syn,
+            "getUserProfile",
+            return_value={"userName": "test_user", "ownerId": "ownerId"},
+        ) as mock_get_user_profile,
+    ):
         run(
             test_state,
             "synapse" "--skip-checks",

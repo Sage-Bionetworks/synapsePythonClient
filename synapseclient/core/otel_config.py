@@ -1,4 +1,5 @@
 """OpenTelemetry configuration for Synapse Python Client."""
+
 import os
 import sys
 from typing import Any, Dict, List, Optional

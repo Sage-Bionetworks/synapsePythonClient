@@ -1,4 +1,5 @@
 """Unit tests for the File model"""
+
 import os
 from typing import Dict, Union
 from unittest.mock import AsyncMock, patch
@@ -186,19 +187,23 @@ class TestFile:
         file = File(id=SYN_123, path=PATH, description=MODIFIED_DESCRIPTION)
 
         # WHEN I store the example file
-        with patch(
-            "synapseclient.api.entity_factory.get_entity_id_bundle2",
-            new_callable=AsyncMock,
-            return_value=(self.get_example_rest_api_file_output()),
-        ) as mocked_get_entity_bundle, patch(
-            "synapseclient.models.file.upload_file_handle",
-            new_callable=AsyncMock,
-            return_value=(self.get_example_synapse_file_handle()),
-        ) as mocked_file_handle_upload, patch(
-            "synapseclient.models.file.store_entity",
-            new_callable=AsyncMock,
-            return_value=(self.get_example_synapse_file_output()),
-        ) as mocked_store_entity:
+        with (
+            patch(
+                "synapseclient.api.entity_factory.get_entity_id_bundle2",
+                new_callable=AsyncMock,
+                return_value=(self.get_example_rest_api_file_output()),
+            ) as mocked_get_entity_bundle,
+            patch(
+                "synapseclient.models.file.upload_file_handle",
+                new_callable=AsyncMock,
+                return_value=(self.get_example_synapse_file_handle()),
+            ) as mocked_file_handle_upload,
+            patch(
+                "synapseclient.models.file.store_entity",
+                new_callable=AsyncMock,
+                return_value=(self.get_example_synapse_file_output()),
+            ) as mocked_store_entity,
+        ):
             result = await file.store_async(synapse_client=self.syn)
 
             # THEN we should call the method with this data
@@ -265,19 +270,23 @@ class TestFile:
         )
 
         # WHEN I store the example file
-        with patch(
-            "synapseclient.api.entity_factory.get_entity_id_bundle2",
-            new_callable=AsyncMock,
-            return_value=(self.get_example_rest_api_file_output(path=None)),
-        ) as mocked_get_entity_bundle, patch(
-            "synapseclient.models.file.upload_file_handle",
-            new_callable=AsyncMock,
-            return_value=(self.get_example_synapse_file_handle()),
-        ) as mocked_file_handle_upload, patch(
-            "synapseclient.models.file.store_entity",
-            new_callable=AsyncMock,
-            return_value=(self.get_example_synapse_file_output()),
-        ) as mocked_store_entity:
+        with (
+            patch(
+                "synapseclient.api.entity_factory.get_entity_id_bundle2",
+                new_callable=AsyncMock,
+                return_value=(self.get_example_rest_api_file_output(path=None)),
+            ) as mocked_get_entity_bundle,
+            patch(
+                "synapseclient.models.file.upload_file_handle",
+                new_callable=AsyncMock,
+                return_value=(self.get_example_synapse_file_handle()),
+            ) as mocked_file_handle_upload,
+            patch(
+                "synapseclient.models.file.store_entity",
+                new_callable=AsyncMock,
+                return_value=(self.get_example_synapse_file_output()),
+            ) as mocked_store_entity,
+        ):
             result = await file.store_async(synapse_client=self.syn)
 
             # THEN we should call the method with this data
@@ -339,23 +348,28 @@ class TestFile:
         )
 
         # WHEN I store the example file
-        with patch.object(
-            self.syn,
-            "get",
-            return_value=None,
-        ) as mocked_get_call, patch(
-            "synapseclient.models.file.get_id",
-            new_callable=AsyncMock,
-            return_value=None,
-        ), patch(
-            "synapseclient.models.file.upload_file_handle",
-            new_callable=AsyncMock,
-            return_value=(self.get_example_synapse_file_handle()),
-        ) as mocked_file_handle_upload, patch(
-            "synapseclient.models.file.store_entity",
-            new_callable=AsyncMock,
-            return_value=(self.get_example_synapse_file_output(path=bogus_file)),
-        ) as mocked_store_entity:
+        with (
+            patch.object(
+                self.syn,
+                "get",
+                return_value=None,
+            ) as mocked_get_call,
+            patch(
+                "synapseclient.models.file.get_id",
+                new_callable=AsyncMock,
+                return_value=None,
+            ),
+            patch(
+                "synapseclient.models.file.upload_file_handle",
+                new_callable=AsyncMock,
+                return_value=(self.get_example_synapse_file_handle()),
+            ) as mocked_file_handle_upload,
+            patch(
+                "synapseclient.models.file.store_entity",
+                new_callable=AsyncMock,
+                return_value=(self.get_example_synapse_file_output(path=bogus_file)),
+            ) as mocked_store_entity,
+        ):
             result = await file.store_async(
                 parent=Project(id=ACTUAL_PARENT_ID), synapse_client=self.syn
             )
@@ -427,23 +441,28 @@ class TestFile:
         )
 
         # WHEN I store the example file
-        with patch.object(
-            self.syn,
-            "get",
-            return_value=None,
-        ) as mocked_get_call, patch(
-            "synapseclient.models.file.get_id",
-            new_callable=AsyncMock,
-            return_value=None,
-        ), patch(
-            "synapseclient.models.file.upload_file_handle",
-            new_callable=AsyncMock,
-            return_value=(self.get_example_synapse_file_handle()),
-        ) as mocked_file_handle_upload, patch(
-            "synapseclient.models.file.store_entity",
-            new_callable=AsyncMock,
-            return_value=(self.get_example_synapse_file_output(path=bogus_file)),
-        ) as mocked_store_entity:
+        with (
+            patch.object(
+                self.syn,
+                "get",
+                return_value=None,
+            ) as mocked_get_call,
+            patch(
+                "synapseclient.models.file.get_id",
+                new_callable=AsyncMock,
+                return_value=None,
+            ),
+            patch(
+                "synapseclient.models.file.upload_file_handle",
+                new_callable=AsyncMock,
+                return_value=(self.get_example_synapse_file_handle()),
+            ) as mocked_file_handle_upload,
+            patch(
+                "synapseclient.models.file.store_entity",
+                new_callable=AsyncMock,
+                return_value=(self.get_example_synapse_file_output(path=bogus_file)),
+            ) as mocked_store_entity,
+        ):
             result = await file.store_async(
                 parent=Project(id=ACTUAL_PARENT_ID), synapse_client=self.syn
             )
@@ -522,30 +541,37 @@ class TestFile:
         )
 
         # WHEN I store the example file
-        with patch.object(
-            self.syn,
-            "get",
-            return_value=None,
-        ) as mocked_get_call, patch(
-            "synapseclient.models.file.get_id",
-            new_callable=AsyncMock,
-            return_value=None,
-        ), patch(
-            "synapseclient.models.file.upload_file_handle",
-            new_callable=AsyncMock,
-            return_value=(self.get_example_synapse_file_handle()),
-        ) as mocked_file_handle_upload, patch(
-            "synapseclient.models.file.store_entity",
-            new_callable=AsyncMock,
-            return_value=(self.get_example_synapse_file_output(path=bogus_file)),
-        ) as mocked_store_entity, patch(
-            "synapseclient.models.file.store_entity_components",
-            return_value=True,
-        ) as mocked_store_entity_components, patch.object(
-            file,
-            "get_async",
-            return_value=file,
-        ) as mocked_get:
+        with (
+            patch.object(
+                self.syn,
+                "get",
+                return_value=None,
+            ) as mocked_get_call,
+            patch(
+                "synapseclient.models.file.get_id",
+                new_callable=AsyncMock,
+                return_value=None,
+            ),
+            patch(
+                "synapseclient.models.file.upload_file_handle",
+                new_callable=AsyncMock,
+                return_value=(self.get_example_synapse_file_handle()),
+            ) as mocked_file_handle_upload,
+            patch(
+                "synapseclient.models.file.store_entity",
+                new_callable=AsyncMock,
+                return_value=(self.get_example_synapse_file_output(path=bogus_file)),
+            ) as mocked_store_entity,
+            patch(
+                "synapseclient.models.file.store_entity_components",
+                return_value=True,
+            ) as mocked_store_entity_components,
+            patch.object(
+                file,
+                "get_async",
+                return_value=file,
+            ) as mocked_get,
+        ):
             result = await file.store_async(synapse_client=self.syn)
 
             # THEN we should not call the get method when just the path is supplied.
@@ -795,16 +821,18 @@ class TestFile:
         file = File(path=PATH, description=MODIFIED_DESCRIPTION)
 
         # WHEN I get the example file
-        with patch(
-            "synapseclient.api.entity_factory._search_for_file_by_md5",
-            new_callable=AsyncMock,
-            return_value=(self.get_example_rest_api_file_output()),
-        ) as mocked_search_for_file, patch.object(
-            file,
-            "_load_local_md5",
-            return_value=(None),
-        ), patch(
-            "os.path.isfile", return_value=True
+        with (
+            patch(
+                "synapseclient.api.entity_factory._search_for_file_by_md5",
+                new_callable=AsyncMock,
+                return_value=(self.get_example_rest_api_file_output()),
+            ) as mocked_search_for_file,
+            patch.object(
+                file,
+                "_load_local_md5",
+                return_value=(None),
+            ),
+            patch("os.path.isfile", return_value=True),
         ):
             result = await file.get_async(synapse_client=self.syn)
 
@@ -857,15 +885,17 @@ class TestFile:
         path = PATH
 
         # WHEN I get the example file
-        with patch(
-            "synapseclient.api.entity_factory._search_for_file_by_md5",
-            new_callable=AsyncMock,
-            return_value=(self.get_example_rest_api_file_output()),
-        ) as mocked_search_for_file, patch(
-            "synapseclient.models.file.File._load_local_md5",
-            return_value=(None),
-        ), patch(
-            "os.path.isfile", return_value=True
+        with (
+            patch(
+                "synapseclient.api.entity_factory._search_for_file_by_md5",
+                new_callable=AsyncMock,
+                return_value=(self.get_example_rest_api_file_output()),
+            ) as mocked_search_for_file,
+            patch(
+                "synapseclient.models.file.File._load_local_md5",
+                return_value=(None),
+            ),
+            patch("os.path.isfile", return_value=True),
         ):
             result = await File.from_path_async(path=path, synapse_client=self.syn)
 

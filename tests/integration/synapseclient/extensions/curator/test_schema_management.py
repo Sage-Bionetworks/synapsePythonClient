@@ -1,4 +1,5 @@
 """Integration tests for schema management wrapper functions (register and bind)"""
+
 import json
 import os
 import tempfile

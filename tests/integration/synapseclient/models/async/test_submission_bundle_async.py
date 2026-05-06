@@ -184,7 +184,9 @@ class TestSubmissionBundleRetrievalAsync:
         # WHEN I attempt to get submission bundles with an invalid status
         with pytest.raises(SynapseHTTPError) as exc_info:
             bundles = []
-            async for bundle in SubmissionBundle.get_evaluation_submission_bundles_async(
+            async for (
+                bundle
+            ) in SubmissionBundle.get_evaluation_submission_bundles_async(
                 evaluation_id=test_evaluation.id,
                 status="NONEXISTENT_STATUS",
                 synapse_client=self.syn,
@@ -233,7 +235,9 @@ class TestSubmissionBundleRetrievalAsync:
         # WHEN I try to get submission bundles for a non-existent evaluation
         with pytest.raises(SynapseHTTPError) as exc_info:
             bundles = []
-            async for bundle in SubmissionBundle.get_evaluation_submission_bundles_async(
+            async for (
+                bundle
+            ) in SubmissionBundle.get_evaluation_submission_bundles_async(
                 evaluation_id="syn999999999999",
                 synapse_client=self.syn,
             ):

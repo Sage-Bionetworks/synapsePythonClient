@@ -253,15 +253,18 @@ class TestSchemaOrganization:
         org = SchemaOrganization(name=ORG_NAME)
 
         # WHEN I call delete_async
-        with patch(
-            "synapseclient.models.schema_organization.get_organization",
-            new_callable=AsyncMock,
-            return_value=_get_organization_response(),
-        ) as mock_get, patch(
-            "synapseclient.models.schema_organization.delete_organization",
-            new_callable=AsyncMock,
-            return_value=None,
-        ) as mock_delete:
+        with (
+            patch(
+                "synapseclient.models.schema_organization.get_organization",
+                new_callable=AsyncMock,
+                return_value=_get_organization_response(),
+            ) as mock_get,
+            patch(
+                "synapseclient.models.schema_organization.delete_organization",
+                new_callable=AsyncMock,
+                return_value=None,
+            ) as mock_delete,
+        ):
             await org.delete_async(synapse_client=self.syn)
 
             # THEN get should be called first to obtain the id
@@ -341,15 +344,18 @@ class TestSchemaOrganization:
         acl_response = _get_acl_response()
 
         # WHEN I call get_acl_async (id will be fetched first)
-        with patch(
-            "synapseclient.models.schema_organization.get_organization",
-            new_callable=AsyncMock,
-            return_value=_get_organization_response(),
-        ) as mock_get, patch(
-            "synapseclient.models.schema_organization.get_organization_acl",
-            new_callable=AsyncMock,
-            return_value=acl_response,
-        ) as mock_get_acl:
+        with (
+            patch(
+                "synapseclient.models.schema_organization.get_organization",
+                new_callable=AsyncMock,
+                return_value=_get_organization_response(),
+            ) as mock_get,
+            patch(
+                "synapseclient.models.schema_organization.get_organization_acl",
+                new_callable=AsyncMock,
+                return_value=acl_response,
+            ) as mock_get_acl,
+        ):
             result = await org.get_acl_async(synapse_client=self.syn)
 
             # THEN get should be called first to obtain the id
@@ -365,15 +371,18 @@ class TestSchemaOrganization:
         acl_response = _get_acl_response()
 
         # WHEN I call update_acl_async with a new principal
-        with patch(
-            "synapseclient.models.schema_organization.get_organization_acl",
-            new_callable=AsyncMock,
-            return_value=acl_response,
-        ), patch(
-            "synapseclient.models.schema_organization.update_organization_acl",
-            new_callable=AsyncMock,
-            return_value=None,
-        ) as mock_update:
+        with (
+            patch(
+                "synapseclient.models.schema_organization.get_organization_acl",
+                new_callable=AsyncMock,
+                return_value=acl_response,
+            ),
+            patch(
+                "synapseclient.models.schema_organization.update_organization_acl",
+                new_callable=AsyncMock,
+                return_value=None,
+            ) as mock_update,
+        ):
             await org.update_acl_async(
                 principal_id=PRINCIPAL_ID_2,
                 access_type=["READ"],
@@ -404,15 +413,18 @@ class TestSchemaOrganization:
         acl_response = _get_acl_response()
 
         # WHEN I call update_acl_async for an existing principal with new permissions
-        with patch(
-            "synapseclient.models.schema_organization.get_organization_acl",
-            new_callable=AsyncMock,
-            return_value=acl_response,
-        ), patch(
-            "synapseclient.models.schema_organization.update_organization_acl",
-            new_callable=AsyncMock,
-            return_value=None,
-        ) as mock_update:
+        with (
+            patch(
+                "synapseclient.models.schema_organization.get_organization_acl",
+                new_callable=AsyncMock,
+                return_value=acl_response,
+            ),
+            patch(
+                "synapseclient.models.schema_organization.update_organization_acl",
+                new_callable=AsyncMock,
+                return_value=None,
+            ) as mock_update,
+        ):
             await org.update_acl_async(
                 principal_id=PRINCIPAL_ID_1,
                 access_type=["READ", "CREATE", "DELETE"],
@@ -681,13 +693,16 @@ class TestJSONSchema:
             yield schema_response
 
         # WHEN I call get_async (org exists and schema is found)
-        with patch(
-            "synapseclient.models.schema_organization.get_organization",
-            new_callable=AsyncMock,
-            return_value=_get_organization_response(),
-        ), patch(
-            "synapseclient.models.schema_organization.list_json_schemas",
-            return_value=mock_list(),
+        with (
+            patch(
+                "synapseclient.models.schema_organization.get_organization",
+                new_callable=AsyncMock,
+                return_value=_get_organization_response(),
+            ),
+            patch(
+                "synapseclient.models.schema_organization.list_json_schemas",
+                return_value=mock_list(),
+            ),
         ):
             result = await schema.get_async(synapse_client=self.syn)
 
@@ -709,13 +724,16 @@ class TestJSONSchema:
             yield other_schema_response
 
         # WHEN I call get_async
-        with patch(
-            "synapseclient.models.schema_organization.get_organization",
-            new_callable=AsyncMock,
-            return_value=_get_organization_response(),
-        ), patch(
-            "synapseclient.models.schema_organization.list_json_schemas",
-            return_value=mock_list(),
+        with (
+            patch(
+                "synapseclient.models.schema_organization.get_organization",
+                new_callable=AsyncMock,
+                return_value=_get_organization_response(),
+            ),
+            patch(
+                "synapseclient.models.schema_organization.list_json_schemas",
+                return_value=mock_list(),
+            ),
         ):
             # THEN it should raise ValueError
             with pytest.raises(ValueError, match="does not contain a schema with name"):

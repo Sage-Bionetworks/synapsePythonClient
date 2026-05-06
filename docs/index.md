@@ -28,6 +28,10 @@ Installing this package will install `synapseclient`, `synapseutils` and the com
 * [Further Reading](./explanations/home.md) to gain a deeper understanding of best practices and advanced use cases
 * Our [release notes](./news.md)
 
+## Use Synapse with AI assistants
+
+The [Synapse MCP server](./guides/synapse_mcp.md) lets you query Synapse directly from AI tools like Claude, GitHub Copilot, and Cursor using natural language — search datasets, inspect metadata, explore project hierarchies, and generate `synapseclient` code, all without leaving your AI assistant. See the [how-to guide](./guides/synapse_mcp.md) to get started in minutes.
+
 ## Additional Background
 
 * Read [about Synapse](https://help.synapse.org/docs/About-Synapse.2058846607.html)—how it got started and how it fits into the bigger data-sharing picture

@@ -223,9 +223,9 @@ class Activity(dict):
 
             resource = target
             if "concreteType" not in resource:
-                resource[
-                    "concreteType"
-                ] = "org.sagebionetworks.repo.model.provenance.UsedEntity"
+                resource["concreteType"] = (
+                    "org.sagebionetworks.repo.model.provenance.UsedEntity"
+                )
 
         # -- Used URL
         elif is_used_url(target):
@@ -234,9 +234,9 @@ class Activity(dict):
 
             resource = target
             if "concreteType" not in resource:
-                resource[
-                    "concreteType"
-                ] = "org.sagebionetworks.repo.model.provenance.UsedURL"
+                resource["concreteType"] = (
+                    "org.sagebionetworks.repo.model.provenance.UsedURL"
+                )
 
         # -- Synapse Entity
         elif is_synapse_entity(target):

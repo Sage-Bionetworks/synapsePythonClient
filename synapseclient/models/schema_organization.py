@@ -1228,7 +1228,7 @@ class JSONSchema(JSONSchemaProtocol):
 
     @staticmethod
     def _create_json_schema_version_from_response(
-        response: dict[str, Any]
+        response: dict[str, Any],
     ) -> JSONSchemaVersionInfo:
         """
         Creates a JSONSchemaVersionInfo object from a Synapse API response
@@ -1370,7 +1370,7 @@ class CreateSchemaRequest(AsynchronousCommunicator):
 
     @staticmethod
     def _create_json_schema_version_from_response(
-        response: dict[str, Any]
+        response: dict[str, Any],
     ) -> JSONSchemaVersionInfo:
         """
         Creates a JSONSchemaVersionInfo object from a Synapse API response
