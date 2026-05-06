@@ -1337,46 +1337,20 @@ async def generate_sync_manifest(
         None
 
     Raises:
-        ValueError: If directory_path does not exist or is not a directory,
-            or if parent_id exists in Synapse but is not a Folder or Project.
+        ValueError: If the parent directory of manifest_path does not exist,
+            if directory_path does not exist or is not a directory, or if
+            parent_id exists in Synapse but is not a Folder or Project.
         SynapseHTTPError: If parent_id does not exist in Synapse.
     """
     client = Synapse.get_client(synapse_client=synapse_client)
-    # realpath (not abspath) so that if directory_path is itself a symlink,
-    # the manifest records paths under the resolved target. That keeps the
-    # manifest valid if the original symlink is later removed or repointed.
-    directory_path = os.path.realpath(directory_path)
-    if not os.path.isdir(directory_path):
-        raise ValueError(f"{directory_path} is not a directory or does not exist")
-    await _validate_target_container_async(parent_id, client=client)
-    rows: list[dict[str, str]] = []
-    # os.walk descends top-down, so a directory's parent is always registered
-    # here before the directory itself is visited.
-    local_to_synapse_parent: dict[str, str] = {directory_path: parent_id}
 
-    for dirpath, dirnames, filenames in os.walk(
-        directory_path, onerror=functools.partial(_log_walk_error, client)
-    ):
-        # Drop symlinked dirs so we don't create Synapse folders for
-        # directories whose contents os.walk (followlinks=False) won't
-        # visit. Mutating dirnames in place is the documented os.walk hook
-        # for pruning the traversal.
-        dirnames[:] = [
-            d for d in dirnames if not os.path.islink(os.path.join(dirpath, d))
-        ]
-        # Sort in place so os.walk also descends in deterministic order.
-        dirnames.sort()
-        current_parent_id = local_to_synapse_parent[dirpath]
+    manifest_path = _expand_path(manifest_path)
+    manifest_parent = os.path.dirname(manifest_path) or "."
+    if not os.path.isdir(manifest_parent):
+        raise ValueError(f"Manifest output directory does not exist: {manifest_parent}")
+    directory_path = await _validate_directory_path(directory_path, parent_id, client)
 
-        created = await _create_child_folders_async(
-            parent_id=current_parent_id, dirnames=dirnames, client=client
-        )
-        for dirname, folder in zip(dirnames, created):
-            local_to_synapse_parent[os.path.join(dirpath, dirname)] = folder.id
-
-        rows.extend(
-            _collect_uploadable_rows(dirpath, filenames, current_parent_id, client)
-        )
+    rows = await _collect_manifest_rows(directory_path, parent_id, client)
 
     if not rows:
         client.logger.warning(
@@ -1384,6 +1358,37 @@ async def generate_sync_manifest(
             " generated manifest contains only the header row."
         )
     _write_manifest_csv(manifest_path, rows)
+
+
+async def _validate_directory_path(
+    directory_path: str, parent_id: str, client: Synapse
+) -> str:
+    """Resolve symlinks on directory_path, verify it is an existing directory,
+    and confirm parent_id points to a Folder or Project in Synapse.
+
+    Uses realpath (not abspath) so that if directory_path is itself a
+    symlink, the manifest records paths under the resolved target. That
+    keeps the manifest valid if the original symlink is later removed or
+    re-pointed.
+
+    Arguments:
+        directory_path: Path to validate.
+        parent_id: Synapse ID of the target container to validate.
+        client: Authenticated Synapse client.
+
+    Returns:
+        The realpath-resolved absolute directory path.
+
+    Raises:
+        ValueError: If the resolved path does not exist or is not a
+            directory, or if parent_id exists but is not a Folder or Project.
+        SynapseHTTPError: If parent_id does not exist in Synapse.
+    """
+    directory_path = os.path.realpath(_expand_path(directory_path))
+    if not os.path.isdir(directory_path):
+        raise ValueError(f"{directory_path} is not a directory or does not exist")
+    await _validate_target_container_async(parent_id, client=client)
+    return directory_path
 
 
 async def _validate_target_container_async(parent_id: str, client: Synapse) -> None:
@@ -1420,6 +1425,66 @@ def _log_walk_error(client: Synapse, err: OSError) -> None:
         f"Skipping unreadable path during manifest generation:"
         f" {err.filename} ({err})"
     )
+
+
+async def _collect_manifest_rows(
+    directory_path: str, parent_id: str, client: Synapse
+) -> list[dict[str, str]]:
+    """Walk directory_path and produce manifest rows for every uploadable file.
+
+    Mirrors the local folder hierarchy under parent_id in Synapse as a side
+    effect: sibling folders at each depth are created concurrently, and
+    existing Synapse folders with the same name and parent are reused.
+    Directory symlinks are pruned so os.walk's traversal stays consistent
+    with the folders actually created in Synapse.
+
+    Arguments:
+        directory_path: Realpath-resolved local directory to walk.
+        parent_id: Synapse ID of the container that maps to directory_path.
+        client: Authenticated Synapse client.
+
+    Returns:
+        A list of dicts with path and parentId keys, one per uploadable file.
+    """
+    rows: list[dict[str, str]] = []
+    # os.walk descends top-down, so a directory's parent is always registered
+    # here before the directory itself is visited.
+    local_to_synapse_parent: dict[str, str] = {directory_path: parent_id}
+
+    for dirpath, dirnames, filenames in os.walk(
+        directory_path, onerror=functools.partial(_log_walk_error, client)
+    ):
+        _prepare_dirnames(dirnames, dirpath)
+        current_parent_id = local_to_synapse_parent[dirpath]
+
+        created = await _create_child_folders_async(
+            parent_id=current_parent_id, dirnames=dirnames, client=client
+        )
+        for dirname, folder in zip(dirnames, created):
+            local_to_synapse_parent[os.path.join(dirpath, dirname)] = folder.id
+
+        rows.extend(
+            _collect_uploadable_rows(dirpath, filenames, current_parent_id, client)
+        )
+
+    return rows
+
+
+def _prepare_dirnames(dirnames: list[str], dirpath: str) -> None:
+    """Prune symlinked subdirectories and sort the rest in place.
+
+    Mutates dirnames in place — the documented os.walk hook for both
+    pruning the traversal and forcing deterministic descent order.
+    Symlinked subdirectories are dropped so we don't create Synapse
+    folders for directories whose contents os.walk (followlinks=False)
+    won't visit.
+
+    Arguments:
+        dirnames: The dirnames list yielded by os.walk for the current dirpath.
+        dirpath: The current directory being walked.
+    """
+    dirnames[:] = [d for d in dirnames if not os.path.islink(os.path.join(dirpath, d))]
+    dirnames.sort()
 
 
 async def _create_child_folders_async(
