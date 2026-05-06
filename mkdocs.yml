@@ -164,7 +164,7 @@ nav:
       - Domain Models of Synapse: explanations/domain_models_of_synapse.md
       - Access Control: explanations/access_control.md
       - Properties vs Annotations: explanations/properties_vs_annotations.md
-      - Manifest TSV: explanations/manifest_tsv.md
+      - Manifest CSV: explanations/manifest_csv.md
       - Benchmarking: explanations/benchmarking.md
       - Structuring Your Project: explanations/structuring_your_project.md
       - Asyncio Changes in Python 3.14: explanations/asyncio_in_python_3_14.md

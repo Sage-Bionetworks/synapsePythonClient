@@ -1916,3 +1916,21 @@ class TestSplitString(object):
             "baz",
             '"foo, bar, baz"',
         ]
+
+
+class TestSyncFromSynapseDeprecation:
+    """Tests for the deprecation of syncFromSynapse."""
+
+    def test_syncFromSynapse_emits_deprecation_warning(self, syn: Synapse) -> None:
+        # GIVEN the legacy syncFromSynapse function
+        # WHEN it is called
+        # THEN a DeprecationWarning is raised pointing to StorableContainer
+        with pytest.warns(
+            DeprecationWarning, match="StorableContainer.sync_from_synapse"
+        ):
+            with patch.object(
+                sync,
+                "syncFromSynapse_async",
+                return_value=AsyncMock(return_value=[])(),
+            ):
+                sync.syncFromSynapse(syn=syn, entity="syn123")
