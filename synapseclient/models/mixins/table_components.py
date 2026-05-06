@@ -141,9 +141,18 @@ def row_labels_from_rows(rows: List[Row]) -> List[Row]:
 
 def convert_dtypes_to_json_serializable(df) -> pd.DataFrame:
     """
-    Convert the dtypes of the int64 and float64 columns to object columns which are JSON serializable types.
-    Replace both Ellipsis and pandas NA within nested structures which are not JSON serializable types.
-    Also, convert the ROW_ID, ROW_VERSION, and ROW_ID.1 columns to int columns which are JSON serializable types.
+    Prepare a DataFrame for JSON/CSV serialization by cleaning special values
+    and normalizing dtypes. Mutates the passed-in DataFrame in place (and also
+    returns it).
+
+    - Recursively replaces `Ellipsis` with `"..."` and `pd.NA`/`np.nan`/`None`
+      with `None` inside nested `list`/`dict` values.
+    - Converts top-level `Ellipsis` to `"..."` and top-level `pd.NA`/`np.nan`/
+      `None` to `None`.
+    - Runs `convert_dtypes()` then casts every column to `object` dtype (with
+      `pd.NA` -> `None`), except `ROW_ID`, `ROW_VERSION`, and `ROW_ID.1`, which
+      are cast back to `int` since the Synapse API requires them as integers.
+
     Arguments:
         df: The dataframe to convert the dtypes of.
     Returns:
@@ -3611,7 +3620,7 @@ class TableStoreRowMixin:
         test_import_pandas()
         from pandas import DataFrame
 
-        to_csv_kwargs = {"escapechar": "\\", **(to_csv_kwargs or {})}
+        to_csv_kwargs = {"escapechar": DEFAULT_ESCAPSE_CHAR, **(to_csv_kwargs or {})}
 
         original_values = values
         if isinstance(values, dict):

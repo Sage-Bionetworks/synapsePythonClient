@@ -3975,8 +3975,9 @@ class TestCsvToPandasDf:
 class TestConvertDtypesToJsonSerializable:
     """Tests for convert_dtypes_to_json_serializable function"""
 
-    def test_no_conversion_when_no_na_in_column(self):
-        """Test that int64 and float64 columns are not converted to object dtype when no NA is present"""
+    def test_int_and_float_columns_converted_to_object(self):
+        """Test that int64 and float64 columns are always cast to object dtype,
+        even when no NA is present (values are preserved)."""
         df = pd.DataFrame({"int_col": [1, 2, 3, 4], "float_col": [1.1, 2.2, 3.3, 4.4]})
         assert df["int_col"].dtype == "int64"
         assert df["float_col"].dtype == "float64"
@@ -4072,17 +4073,18 @@ class TestConvertDtypesToJsonSerializable:
         assert result["ellipsis_col"].iloc[1] == "..."
         assert result["ellipsis_col"].iloc[2] == 3
 
-    def test_none_in_list_serialized_to_empty_list(self):
-        """Test that None values in list columns are serialized to '[]'"""
+    def test_none_in_list_column_remains_none(self):
+        """Test that pd.NA values in a column of lists are normalized to None
+        (not to an empty list)."""
         # GIVEN a dataframe with None in list column
         df = pd.DataFrame({"list_col": [[1, 2, 3], pd.NA, [7, 8, 9]]})
 
         # WHEN convert_dtypes_to_json_serializable is called
         result = convert_dtypes_to_json_serializable(df)
 
-        # THEN None should be converted to "[]"
+        # THEN the pd.NA entry should become None (and surrounding lists preserved)
         assert result["list_col"].iloc[0] == [1, 2, 3]
-        assert result["list_col"].iloc[1] == None
+        assert result["list_col"].iloc[1] is None
         assert result["list_col"].iloc[2] == [7, 8, 9]
 
     def test_dict_with_quotes_in_values(self):
@@ -4118,7 +4120,9 @@ class TestConvertDtypesToJsonSerializable:
         assert len(result.columns) == 0
 
     def test_mixed_column_types_no_conversion_needed(self):
-        """Test that multiple column types are handled correctly together"""
+        """Test that multiple column types without NA are handled correctly
+        together: values are preserved, ROW_* stays int, other columns become
+        object dtype."""
         # GIVEN a dataframe with mixed column types
         df = pd.DataFrame(
             {
@@ -4132,12 +4136,25 @@ class TestConvertDtypesToJsonSerializable:
                 "bool_col": [True, False, True],
             }
         )
+        # Snapshot before the function mutates df in place
+        original = df.copy(deep=True)
 
         # WHEN convert_dtypes_to_json_serializable is called
         result = convert_dtypes_to_json_serializable(df)
 
-        # THEN verify all conversions
-        pd.testing.assert_frame_equal(result, df)
+        # THEN values are preserved against the pre-call snapshot, ROW_* stay
+        # int, and other columns are object dtype
+        assert is_integer_dtype(result.ROW_ID)
+        assert is_integer_dtype(result.ROW_VERSION)
+        assert is_object_dtype(result.int_col)
+        assert is_object_dtype(result.float_col)
+        assert is_object_dtype(result.string_col)
+        assert is_object_dtype(result.list_col)
+        assert is_object_dtype(result.dict_col)
+        assert is_object_dtype(result.bool_col)
+
+        for col in original.columns:
+            assert list(result[col]) == list(original[col])
 
     def test_nested_dict_with_ellipsis(self):
         """Test that nested dicts with Ellipsis are properly handled"""
