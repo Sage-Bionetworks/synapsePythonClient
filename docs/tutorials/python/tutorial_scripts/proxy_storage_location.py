@@ -23,6 +23,7 @@ my_project = Project(name="My uniquely named project about Alzheimer's Disease")
 # --8<-- [start:create_proxy_storage_location]
 # Replace with your proxy server URL and shared secret key
 MY_PROXY_URL = "https://my-proxy-server.example.com"
+MY_PROXY_SECRET_KEY = "MY_PROXY_SECRET_KEY"
 
 # Replace with the path to a local file to register via the proxy
 FILE_PATH = "/path/to/your/file.csv"

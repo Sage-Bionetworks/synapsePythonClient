@@ -137,12 +137,12 @@ object_store_folder.set_storage_location(
 # Step 8: Create a Proxy storage location
 # Use this when a proxy server controls access to the underlying storage.
 # --8<-- [start:create_proxy_storage_location]
-
 MY_PROXY_URL = "https://my-proxy-server.example.com"
+MY_PROXY_SECRET_KEY = "MY_PROXY_SECRET_KEY"
 proxy_storage = StorageLocation(
     storage_type=StorageLocationType.PROXY,
     proxy_url=MY_PROXY_URL,
-    secret_key=my_proxy_secret_key,
+    secret_key=MY_PROXY_SECRET_KEY,
     benefactor_id=my_project.id,
     description="Proxy-controlled storage",
 ).store()
