@@ -150,6 +150,7 @@ class TestCreateFileBasedMetadataTask(unittest.TestCase):
             syn=self.mock_syn,
             synapse_entity_id=self.folder_id,
             entity_view_name=self.entity_view_name,
+            view_type_mask=ViewTypeMask.FILE,
         )
         mock_create_wiki.assert_called_once_with(
             syn=self.mock_syn, entity_view_id="syn87654321", owner_id=self.folder_id
@@ -480,6 +481,7 @@ class TestCreateFileBasedMetadataTask(unittest.TestCase):
                     syn=self.mock_syn,
                     synapse_entity_id=self.folder_id,
                     entity_view_name=self.entity_view_name,
+                    view_type_mask=ViewTypeMask.FILE,
                 )
 
 
