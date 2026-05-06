@@ -52,7 +52,7 @@ from synapseclient.extensions.curator.schema_registry import (
     SchemaRegistryColumnConfig,
     get_latest_schema_uri,
 )
-from synapseclient.models import Column, ColumnType
+from synapseclient.models import Column, ColumnType, ViewTypeMask
 from synapseclient.models.curation import (
     FileBasedMetadataTaskProperties,
     RecordBasedMetadataTaskProperties,
@@ -150,6 +150,7 @@ class TestCreateFileBasedMetadataTask(unittest.TestCase):
             syn=self.mock_syn,
             synapse_entity_id=self.folder_id,
             entity_view_name=self.entity_view_name,
+            view_type_mask=ViewTypeMask.FILE,
         )
         mock_create_wiki.assert_called_once_with(
             syn=self.mock_syn, entity_view_id="syn87654321", owner_id=self.folder_id
@@ -480,6 +481,7 @@ class TestCreateFileBasedMetadataTask(unittest.TestCase):
                     syn=self.mock_syn,
                     synapse_entity_id=self.folder_id,
                     entity_view_name=self.entity_view_name,
+                    view_type_mask=ViewTypeMask.FILE,
                 )
 
 
@@ -1465,6 +1467,72 @@ class TestFileBasedHelperFunctions(unittest.TestCase):
         mock_view.reorder_column.assert_any_call(name="createdBy", index=0)
         mock_view.reorder_column.assert_any_call(name="name", index=0)
         mock_view.reorder_column.assert_any_call(name="id", index=0)
+
+    @patch("synapseclient.extensions.curator.file_based_metadata_task.isinstance")
+    @patch("synapseclient.extensions.curator.file_based_metadata_task.EntityView")
+    @patch("synapseclient.extensions.curator.file_based_metadata_task.get")
+    @patch("synapseclient.extensions.curator.file_based_metadata_task.JSONSchema")
+    def test_create_json_schema_entity_view_with_file_and_folder_view_type_mask(
+        self,
+        mock_json_schema_cls,
+        mock_get,
+        mock_entity_view_cls,
+        mock_isinstance,
+    ):
+        """Test that a combined FILE|FOLDER view_type_mask is forwarded to EntityView."""
+        # GIVEN a valid synapse entity with a JSON schema
+        entity_id = "syn12345678"
+        entity_view_name = "Test View"
+        combined_mask = ViewTypeMask.FILE | ViewTypeMask.FOLDER
+
+        mock_entity = Mock()
+        mock_entity.get_schema.return_value = JSONSchemaBinding(
+            object_id=1,
+            object_type="",
+            created_on="",
+            created_by="",
+            enable_derived_annotations=True,
+            json_schema_version_info=JSONSchemaVersionInfo(
+                organization_id="",
+                organization_name="org.name",
+                schema_id="",
+                id="",
+                schema_name="schema.name",
+                version_id="",
+                semantic_version="0.0.1",
+                json_sha256_hex="",
+                created_on="",
+                created_by="",
+            ),
+        )
+        mock_get.return_value = mock_entity
+        mock_isinstance.return_value = True
+
+        mock_json_schema = Mock()
+        mock_json_schema.get_body.return_value = {
+            "properties": {"name": {"type": "string"}, "age": {"type": "integer"}}
+        }
+        mock_json_schema_cls.return_value = mock_json_schema
+
+        mock_view = Mock()
+        mock_view.id = "syn87654321"
+        mock_view.store.return_value = mock_view
+        mock_entity_view_cls.return_value = mock_view
+
+        # WHEN I create the JSON schema entity view with both file and folder types
+        result = create_json_schema_entity_view(
+            syn=self.mock_syn,
+            synapse_entity_id=entity_id,
+            entity_view_name=entity_view_name,
+            view_type_mask=combined_mask,
+        )
+
+        # THEN the entity view should be created with the combined mask
+        assert result == "syn87654321"
+        _, kwargs = mock_entity_view_cls.call_args
+        assert kwargs["view_type_mask"] == combined_mask
+        assert kwargs["view_type_mask"] & ViewTypeMask.FILE
+        assert kwargs["view_type_mask"] & ViewTypeMask.FOLDER
 
     @patch(
         "synapseclient.extensions.curator.file_based_metadata_task.update_wiki_with_entity_view"
