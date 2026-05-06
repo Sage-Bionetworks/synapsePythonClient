@@ -34,8 +34,7 @@ from synapseclient.core.utils import (
     test_import_pandas,
     topolgical_sort,
 )
-from synapseclient.operations.factory_operations import FileOptions
-from synapseclient.operations.factory_operations import get_async as factory_get_async
+from synapseclient.operations.factory_operations import FileOptions, get_async
 
 if TYPE_CHECKING:
     from pandas import DataFrame, Series
@@ -711,7 +710,7 @@ async def _check_parent_containers_async(parent_ids: list[str], syn: Synapse) ->
         if not syn_id:
             return
         try:
-            container = await factory_get_async(
+            container = await get_async(
                 synapse_id=syn_id,
                 file_options=FileOptions(download_file=False),
                 synapse_client=syn,
@@ -1550,7 +1549,7 @@ async def generate_sync_manifest(
     symlink-resolved path — directory_path is resolved via os.path.realpath
     before walking, so the manifest can be consumed from any working
     directory and remains valid even if the original symlink is later
-    removed or repointed) and parentId (the Synapse ID of the file's
+    removed or re-pointed) and parentId (the Synapse ID of the file's
     containing folder). Folders that already exist in Synapse with the same
     name and parent are reused rather than re-created.
 
@@ -1584,8 +1583,9 @@ async def generate_sync_manifest(
 
     Raises:
         ValueError: If the parent directory of manifest_path does not exist,
-            if directory_path does not exist or is not a directory, or if
-            parent_id exists in Synapse but is not a Folder or Project.
+            if manifest_path is an existing directory, if directory_path
+            does not exist or is not a directory, or if parent_id exists in
+            Synapse but is not a Folder or Project.
         SynapseHTTPError: If parent_id does not exist in Synapse.
     """
     client = Synapse.get_client(synapse_client=synapse_client)
@@ -1594,6 +1594,10 @@ async def generate_sync_manifest(
     manifest_parent = os.path.dirname(manifest_path) or "."
     if not os.path.isdir(manifest_parent):
         raise ValueError(f"Manifest output directory does not exist: {manifest_parent}")
+    if os.path.isdir(manifest_path):
+        raise ValueError(
+            f"Manifest output path is an existing directory, not a file: {manifest_path}"
+        )
     directory_path = await _validate_directory_path(directory_path, parent_id, client)
 
     rows = await _collect_manifest_rows(directory_path, parent_id, client)
@@ -1648,7 +1652,7 @@ async def _validate_target_container_async(parent_id: str, client: Synapse) -> N
         ValueError: If parent_id exists but is not a Folder or Project.
     """
     try:
-        container = await factory_get_async(
+        container = await get_async(
             synapse_id=parent_id,
             file_options=FileOptions(download_file=False),
             synapse_client=client,
@@ -1706,7 +1710,7 @@ async def _collect_manifest_rows(
         created = await _create_child_folders_async(
             parent_id=current_parent_id, dirnames=dirnames, client=client
         )
-        for dirname, folder in zip(dirnames, created):
+        for dirname, folder in created.items():
             local_to_synapse_parent[os.path.join(dirpath, dirname)] = folder.id
 
         rows.extend(
@@ -1735,20 +1739,33 @@ def _prepare_dirnames(dirnames: list[str], dirpath: str) -> None:
 
 async def _create_child_folders_async(
     parent_id: str, dirnames: list[str], client: Synapse
-) -> list[Folder]:
+) -> dict[str, Folder]:
     """Create sibling folders concurrently under a shared Synapse parent.
 
     Sibling folders have no ordering dependency on each other, so they are
-    gathered in a single batch rather than awaited one at a time.
+    gathered in a single batch rather than awaited one at a time. Each task
+    returns its own dirname alongside the resulting Folder so the caller's
+    name-to-Folder mapping does not depend on asyncio.gather preserving
+    submission order.
+
+    Returns:
+        A dict mapping each input dirname to the Folder that was created or
+        reused for it.
     """
     from synapseclient.models.folder import Folder
 
-    return await asyncio.gather(
-        *[
-            Folder(name=dirname, parent_id=parent_id).store_async(synapse_client=client)
-            for dirname in dirnames
-        ]
-    )
+    # Each task carries its dirname through to the result so the caller can
+    # build a name-to-Folder mapping without relying on asyncio.gather's
+    # input-order guarantee.
+    # Pair-tagged results remain correct under any completion order.
+    async def _store(dirname: str) -> tuple[str, Folder]:
+        folder = await Folder(name=dirname, parent_id=parent_id).store_async(
+            synapse_client=client
+        )
+        return dirname, folder
+
+    pairs = await asyncio.gather(*[_store(d) for d in dirnames])
+    return dict(pairs)
 
 
 def _collect_uploadable_rows(
