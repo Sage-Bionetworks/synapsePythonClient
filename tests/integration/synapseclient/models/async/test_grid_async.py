@@ -9,7 +9,6 @@ import pandas as pd
 import pytest
 
 from synapseclient import Synapse
-from synapseclient.extensions.curator.file_based_metadata_task import EntityView
 from synapseclient.models import (
     EntityView,
     Folder,
@@ -36,7 +35,7 @@ class TestGridAsync:
         project_model: Project,
         syn: Synapse,
         schedule_for_cleanup: Callable[..., None],
-    ) -> tuple[Folder, EntityView]:
+    ) -> EntityView:
         """Create a folder with an associated EntityView for file-based testing."""
         # Create a folder
         folder = await Folder(
@@ -232,7 +231,6 @@ class TestGridAsync:
         grid = await created_grid.synchronize_async(synapse_client=self.syn)
         assert grid.source_entity_id == entity_view.id
         assert grid.session_id == created_grid.session_id
-        assert grid.source_entity_id == entity_view.id
 
     async def test_import_csv_to_grid_session_async(
         self,
