@@ -565,9 +565,7 @@ class TestCreateRecordBasedMetadataTask(unittest.TestCase):
         mock_curation_task.store.return_value = mock_task
         mock_curation_task_cls.return_value = mock_curation_task
 
-        mock_grid = Mock()
         mock_grid_instance = Mock()
-        mock_grid_instance.export_to_record_set.return_value = mock_grid
         mock_grid_cls.return_value = mock_grid_instance
 
         # WHEN I create the record-based metadata task
@@ -590,7 +588,7 @@ class TestCreateRecordBasedMetadataTask(unittest.TestCase):
         record_set, task, grid = result
         assert record_set == mock_record_set
         assert task == mock_task
-        assert grid == mock_grid
+        assert grid == mock_grid_instance
 
         mock_extract_schema.assert_called_once_with(
             syn=self.mock_syn, schema_uri=self.schema_uri
@@ -652,9 +650,7 @@ class TestCreateRecordBasedMetadataTask(unittest.TestCase):
         mock_curation_task.store.return_value = mock_task
         mock_curation_task_cls.return_value = mock_curation_task
 
-        mock_grid = Mock()
         mock_grid_instance = Mock()
-        mock_grid_instance.export_to_record_set.return_value = mock_grid
         mock_grid_cls.return_value = mock_grid_instance
 
         # Call function
@@ -1010,9 +1006,7 @@ class TestCreateRecordBasedMetadataTask(unittest.TestCase):
                 mock_curation_task.store.return_value = mock_task
                 mock_curation_task_cls.return_value = mock_curation_task
 
-                mock_grid = Mock()
                 mock_grid_instance = Mock()
-                mock_grid_instance.export_to_record_set.return_value = mock_grid
                 mock_grid_cls.return_value = mock_grid_instance
 
                 # WHEN I create the record-based metadata task with assignee_principal_id
@@ -1035,7 +1029,7 @@ class TestCreateRecordBasedMetadataTask(unittest.TestCase):
                 record_set, task, grid = result
                 assert record_set == mock_record_set
                 assert task == mock_task
-                assert grid == mock_grid
+                assert grid == mock_grid_instance
 
                 # AND the CurationTask should be called with assignee_principal_id as string
                 mock_curation_task_cls.assert_called_once_with(
