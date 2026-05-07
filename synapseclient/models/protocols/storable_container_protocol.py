@@ -312,31 +312,14 @@ class StorableContainerSynchronousProtocol(Protocol):
         container in Synapse, and write a CSV manifest ready for
         [sync_to_synapse][synapseclient.models.mixins.StorableContainer.sync_to_synapse].
 
-        The generated manifest has two columns: path (always an absolute,
-        symlink-resolved path — the input directory_path is resolved via
-        os.path.realpath before walking, so the manifest can be consumed
-        from any working directory and remains valid even if the original
-        symlink is later removed or repointed) and parentId (the Synapse ID
-        of the file's containing folder). Folders that already exist in
-        Synapse with the same name and parent are reused rather than
-        re-created.
-
-        Sibling folders at the same depth are created concurrently to reduce
-        latency on wide trees. Directories and files are traversed in sorted
-        order so manifest output is deterministic across runs and platforms.
-        Directory symlinks encountered inside directory_path are not
-        followed. File symlinks are not pruned: the symlink's path is
-        recorded in the manifest, and the underlying target's contents
-        are uploaded when the manifest is consumed. The root
-        directory_path itself may be a symlink; if so, it is resolved to
-        its target and the target is walked. Zero-byte files are skipped with a
-        warning, since Synapse rejects empty files. I/O errors raised by
-        os.walk (for example, unreadable subdirectories) are logged and
-        skipped. If no uploadable files are found under directory_path, a
-        warning is logged and a header-only manifest is written. If a
-        folder store call fails, the exception propagates and no manifest
-        is written; any folders already created remain in Synapse and will
-        be reused on a retry.
+        The manifest has two columns: path (absolute, symlink-resolved) and
+        parentId (the Synapse ID of the file's containing folder). Existing
+        Synapse folders with matching names and parents are reused. Directory
+        symlinks inside directory_path are not followed; file symlinks record
+        the symlink path and upload the target's contents. Zero-byte files are
+        skipped with a warning — Synapse rejects empty files. I/O errors during
+        walk are logged and skipped; an empty source directory produces a
+        warning and a header-only manifest.
 
         Arguments:
             directory_path: Path to the local directory to be pushed to
@@ -346,9 +329,6 @@ class StorableContainerSynchronousProtocol(Protocol):
             synapse_client: If not passed in and caching was not disabled by
                 Synapse.allow_client_caching(False) this will use the last
                 created instance from the Synapse class constructor.
-
-        Returns:
-            None
 
         Raises:
             ValueError: If this container's id is None, or if directory_path
