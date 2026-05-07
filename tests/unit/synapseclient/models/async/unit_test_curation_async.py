@@ -1524,7 +1524,7 @@ class TestSynchronizeGridRequest:
     def test_to_synapse_request(self) -> None:
         # GIVEN a SynchronizeGridRequest with all fields set
         sync_req = SynchronizeGridRequest(
-            session_id=SESSION_ID,
+            grid_session_id=SESSION_ID,
         )
 
         # WHEN I convert it to a synapse request
@@ -1544,10 +1544,10 @@ class TestSynchronizeGridRequest:
         }
 
         # WHEN I fill a SynchronizeGridRequest from the response
-        sync_req = SynchronizeGridRequest(session_id=SESSION_ID)
+        sync_req = SynchronizeGridRequest(grid_session_id=SESSION_ID)
         response = sync_req.fill_from_dict(raw_response)
         assert "test_error" in response.error_messages
-        assert response.session_id == SESSION_ID
+        assert response.grid_session_id == SESSION_ID
 
 
 class TestSynchronizeGrid:
@@ -1568,7 +1568,7 @@ class TestSynchronizeGrid:
         # GIVEN a Grid with a session_id
         grid = Grid(session_id=SESSION_ID)
         mock_sync_response = SynchronizeGridRequest(
-            session_id=SESSION_ID,
+            grid_session_id=SESSION_ID,
             error_messages=[],
         )
 
@@ -1587,7 +1587,7 @@ class TestSynchronizeGrid:
         # GIVEN a Grid with a session_id
         grid = Grid(session_id=SESSION_ID)
         mock_sync_response = SynchronizeGridRequest(
-            session_id=SESSION_ID,
+            grid_session_id=SESSION_ID,
             error_messages=["sync_error_1", "sync_error_2"],
         )
 

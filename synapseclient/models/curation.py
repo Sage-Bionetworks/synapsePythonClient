@@ -1322,7 +1322,7 @@ class SynchronizeGridRequest(AsynchronousCommunicator):
     The response is modeled from: <https://rest-docs.synapse.org/rest/org/sagebionetworks/repo/model/grid/SynchronizeGridResponse.html>
     """
 
-    session_id: str = ""
+    grid_session_id: str
     """The ID of the grid session to synchronize."""
 
     concrete_type: str = field(default=SYNCHRONIZE_GRID_REQUEST)
@@ -1355,7 +1355,7 @@ class SynchronizeGridRequest(AsynchronousCommunicator):
         """
         return {
             "concreteType": self.concrete_type,
-            "gridSessionId": self.session_id,
+            "gridSessionId": self.grid_session_id,
         }
 
 
@@ -2592,7 +2592,7 @@ class Grid(GridSynchronousProtocol):
         if not self.session_id:
             raise ValueError("session_id is required to synchronize a GridSession")
 
-        request = SynchronizeGridRequest(session_id=self.session_id)
+        request = SynchronizeGridRequest(grid_session_id=self.session_id)
         result = await request.send_job_and_wait_async(
             timeout=timeout, synapse_client=synapse_client
         )
