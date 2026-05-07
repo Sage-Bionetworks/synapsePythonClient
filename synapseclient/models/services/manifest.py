@@ -1819,15 +1819,18 @@ async def _create_child_folders_async(
     """
     from synapseclient.models.folder import Folder
 
+    semaphore = asyncio.Semaphore(max(client.max_threads * 2, 1))
+
     # Each task carries its dirname through to the result so the caller can
     # build a name-to-Folder mapping without relying on asyncio.gather's
     # input-order guarantee.
     # Pair-tagged results remain correct under any completion order.
     async def _store(dirname: str) -> tuple[str, Folder]:
-        folder = await Folder(name=dirname, parent_id=parent_id).store_async(
-            synapse_client=client
-        )
-        return dirname, folder
+        async with semaphore:
+            folder = await Folder(name=dirname, parent_id=parent_id).store_async(
+                synapse_client=client
+            )
+            return dirname, folder
 
     pairs = await asyncio.gather(*[_store(d) for d in dirnames])
     return dict(pairs)
