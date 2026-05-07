@@ -143,9 +143,7 @@ object_store_folder.set_storage_location(
 # Replace with your proxy server URL and provide the shared secret key via the
 # MY_PROXY_SECRET_KEY environment variable.
 MY_PROXY_URL = "https://my-proxy-server.example.com"
-MY_PROXY_SECRET_KEY = os.environ.get(
-    "MY_PROXY_SECRET_KEY", "REPLACE_WITH_YOUR_PROXY_SECRET_KEY"
-)
+MY_PROXY_SECRET_KEY = os.environ.get("MY_PROXY_SECRET_KEY")
 proxy_storage = StorageLocation(
     storage_type=StorageLocationType.PROXY,
     proxy_url=MY_PROXY_URL,
