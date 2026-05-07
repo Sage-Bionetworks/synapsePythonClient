@@ -2291,6 +2291,9 @@ class Grid(GridSynchronousProtocol):
             session_id=self.session_id, synapse_client=synapse_client
         )
 
+    @otel_trace_method(
+        method_to_trace_name=lambda self, **kwargs: f"Grid_ImportCsv: ID: {self.session_id}"
+    )
     async def import_csv_async(
         self,
         path: str,
@@ -2537,6 +2540,9 @@ class Grid(GridSynchronousProtocol):
             synapse_client=synapse_client,
         )
 
+    @otel_trace_method(
+        method_to_trace_name=lambda self, **kwargs: f"Grid_Synchronize: ID: {self.session_id}"
+    )
     async def synchronize_async(
         self, *, timeout: int = 120, synapse_client: Optional[Synapse] = None
     ) -> "Grid":
@@ -2585,8 +2591,6 @@ class Grid(GridSynchronousProtocol):
         """
         if not self.session_id:
             raise ValueError("session_id is required to synchronize a GridSession")
-
-        trace.get_current_span().set_attributes({"synapse.session_id": self.session_id})
 
         request = SynchronizeGridRequest(session_id=self.session_id)
         result = await request.send_job_and_wait_async(
