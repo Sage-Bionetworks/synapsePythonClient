@@ -283,9 +283,6 @@ def create_record_based_metadata_task(
             record_set_id=record_set_id,
         )
         curation_grid.create(synapse_client=synapse_client)
-        curation_grid = curation_grid.export_to_record_set(
-            synapse_client=synapse_client
-        )
         synapse_client.logger.info(
             f"Created Grid view for RecordSet ID: {record_set_id} for curation task {curation_task_name}"
         )
