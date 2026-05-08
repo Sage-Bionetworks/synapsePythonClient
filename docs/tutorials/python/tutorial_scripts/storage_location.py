@@ -3,6 +3,8 @@ Tutorial code for the Storage Location and project settings.
 """
 
 # --8<-- [start:setup]
+import os
+
 import synapseclient
 from synapseclient.models import Folder, Project, StorageLocation, StorageLocationType
 
@@ -138,11 +140,14 @@ object_store_folder.set_storage_location(
 # Use this when a proxy server controls access to the underlying storage.
 # --8<-- [start:create_proxy_storage_location]
 
+# Replace with your proxy server URL and provide the shared secret key via the
+# MY_PROXY_SECRET_KEY environment variable.
 MY_PROXY_URL = "https://my-proxy-server.example.com"
+MY_PROXY_SECRET_KEY = os.environ.get("MY_PROXY_SECRET_KEY")
 proxy_storage = StorageLocation(
     storage_type=StorageLocationType.PROXY,
     proxy_url=MY_PROXY_URL,
-    secret_key=my_proxy_secret_key,
+    secret_key=MY_PROXY_SECRET_KEY,
     benefactor_id=my_project.id,
     description="Proxy-controlled storage",
 ).store()
