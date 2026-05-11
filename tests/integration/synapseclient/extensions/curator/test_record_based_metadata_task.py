@@ -90,7 +90,7 @@ class TestCreateRecordBasedMetadataTask:
         """
         test_name = _test_name()
         upsert_keys = ["PatientID"]
-        instructions = "Curate per the schema."
+        instructions = "Contribute Patient data."
 
         record_set, curation_task, grid = create_record_based_metadata_task(
             folder_id=folder.id,
