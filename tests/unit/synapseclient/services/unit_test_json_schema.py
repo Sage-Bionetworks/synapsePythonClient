@@ -1,4 +1,5 @@
 """TODO: Add more tests"""
+
 import pytest
 
 from synapseclient.services import json_schema

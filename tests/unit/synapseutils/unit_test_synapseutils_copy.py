@@ -15,8 +15,9 @@ from synapseutils.copy_functions import (
 
 def test_copyWiki_empty_Wiki(syn):
     entity = {"id": "syn123"}
-    with patch.object(syn, "getWikiHeaders", return_value=None), patch.object(
-        syn, "get", return_value=entity
+    with (
+        patch.object(syn, "getWikiHeaders", return_value=None),
+        patch.object(syn, "get", return_value=entity),
     ):
         synapseutils.copyWiki(syn, "syn123", "syn456", updateLinks=False)
 
@@ -35,10 +36,11 @@ def test_copyWiki_input_validation(syn):
         call({"id": "syn123"}, "8689"),
         call({"id": "syn123"}, "8690"),
     ]
-    with patch.object(syn, "getWikiHeaders", return_value=to_copy), patch.object(
-        syn, "get", return_value=entity
-    ), patch.object(syn, "getWiki", return_value=wiki) as mock_getWiki, patch.object(
-        syn, "store", return_value=wiki
+    with (
+        patch.object(syn, "getWikiHeaders", return_value=to_copy),
+        patch.object(syn, "get", return_value=entity),
+        patch.object(syn, "getWiki", return_value=wiki) as mock_getWiki,
+        patch.object(syn, "store", return_value=wiki),
     ):
         synapseutils.copyWiki(
             syn,
@@ -362,13 +364,12 @@ class TestProtectedBatchIteratorGenerator:
 
 @pytest.mark.parametrize("forceVersionToggle", [True, False])
 def test_change_file_metadata(syn, forceVersionToggle):
-    with patch.object(syn, "get") as get_mock, patch.object(
-        syn, "_getFileHandleDownload"
-    ) as fh_mock, patch(
-        "synapseutils.copy_functions.copyFileHandles"
-    ) as copy_mock, patch.object(
-        syn, "store"
-    ) as store_mock:
+    with (
+        patch.object(syn, "get") as get_mock,
+        patch.object(syn, "_getFileHandleDownload") as fh_mock,
+        patch("synapseutils.copy_functions.copyFileHandles") as copy_mock,
+        patch.object(syn, "store") as store_mock,
+    ):
         copy_result = {"failureCode": None, "newFileHandle": {"id": 123}}
         copy_mock.return_value = [copy_result]
         synapseutils.changeFileMetaData(syn, "syn123", forceVersion=forceVersionToggle)
@@ -402,11 +403,12 @@ class TestCopyPermissions:
     def test_dont_copy_read_permissions(self):
         """Entities with READ permissions not copied"""
         permissions = {"canDownload": False}
-        with patch.object(
-            self.syn, "get", return_value=self.file_ent
-        ) as patch_syn_get, patch.object(
-            self.syn, "restGET", return_value=permissions
-        ) as patch_rest_get:
+        with (
+            patch.object(self.syn, "get", return_value=self.file_ent) as patch_syn_get,
+            patch.object(
+                self.syn, "restGET", return_value=permissions
+            ) as patch_rest_get,
+        ):
             copied_file = synapseutils.copy(
                 self.syn,
                 self.file_ent,
@@ -441,11 +443,12 @@ class TestCopyAccessRestriction:
         # TEST: Entity with access requirement not copied
         access_requirements = {"results": ["fee", "fi"]}
         permissions = {"canDownload": True}
-        with patch.object(
-            self.syn, "get", return_value=self.file_ent
-        ) as patch_syn_get, patch.object(
-            self.syn, "restGET", side_effects=[permissions, access_requirements]
-        ) as patch_rest_get:
+        with (
+            patch.object(self.syn, "get", return_value=self.file_ent) as patch_syn_get,
+            patch.object(
+                self.syn, "restGET", side_effects=[permissions, access_requirements]
+            ) as patch_rest_get,
+        ):
             copied_file = synapseutils.copy(
                 self.syn,
                 self.file_ent,
@@ -483,15 +486,16 @@ class TestCopy:
         """Docker repositories and EntityViews aren't copied"""
         access_requirements = {"results": []}
         permissions = {"canDownload": True}
-        with patch.object(
-            self.syn, "get", return_value=self.project_entity
-        ) as patch_syn_get, patch.object(
-            self.syn, "restGET", side_effect=[permissions, access_requirements]
-        ) as patch_rest_get, patch.object(
-            self.syn, "getChildren"
-        ) as patch_get_children, patch.object(
-            self.syn, "store"
-        ) as patch_store:
+        with (
+            patch.object(
+                self.syn, "get", return_value=self.project_entity
+            ) as patch_syn_get,
+            patch.object(
+                self.syn, "restGET", side_effect=[permissions, access_requirements]
+            ) as patch_rest_get,
+            patch.object(self.syn, "getChildren") as patch_get_children,
+            patch.object(self.syn, "store") as patch_store,
+        ):
             copied_project = synapseutils.copy(
                 self.syn,
                 self.project_entity,

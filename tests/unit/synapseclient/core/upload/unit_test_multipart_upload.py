@@ -307,14 +307,11 @@ class TestUploadAttempt:
 
         md5_hex = md5_fn(chunk, None)
 
-        with mock.patch.object(
-            multipart_upload, "get_file_chunk"
-        ) as chunk_fn, mock.patch.object(
-            upload, "_get_thread_session"
-        ) as get_session, mock.patch.object(
-            upload, "_refresh_pre_signed_part_urls"
-        ) as refresh_urls, mock.patch.object(
-            syn, "restPUT"
+        with (
+            mock.patch.object(multipart_upload, "get_file_chunk") as chunk_fn,
+            mock.patch.object(upload, "_get_thread_session") as get_session,
+            mock.patch.object(upload, "_refresh_pre_signed_part_urls") as refresh_urls,
+            mock.patch.object(syn, "restPUT"),
         ):
             get_session.return_value = mock_session
             chunk_fn.return_value = chunk
@@ -440,13 +437,11 @@ class TestUploadAttempt:
         upload._pre_signed_part_urls = {part_number: (pre_signed_url_1, signed_headers)}
         mock_session = mock.Mock()
 
-        with mock.patch.object(
-            multipart_upload, "get_file_chunk"
-        ) as chunk_fn, mock.patch.object(
-            upload, "_get_thread_session"
-        ) as get_session, mock.patch.object(
-            upload, "_refresh_pre_signed_part_urls"
-        ) as refresh_urls:
+        with (
+            mock.patch.object(multipart_upload, "get_file_chunk") as chunk_fn,
+            mock.patch.object(upload, "_get_thread_session") as get_session,
+            mock.patch.object(upload, "_refresh_pre_signed_part_urls") as refresh_urls,
+        ):
             get_session.return_value = mock_session
             chunk_fn.return_value = chunk
             refresh_urls.side_effect = [
@@ -490,17 +485,17 @@ class TestUploadAttempt:
             future.set_result((i, upload._part_size))
             futures.append(future)
 
-        with mock.patch.object(
-            upload, "_create_synapse_upload"
-        ) as create_synapse_upload, mock.patch.object(
-            upload, "_fetch_pre_signed_part_urls"
-        ) as fetch_pre_signed_urls, mock.patch.object(
-            pool_provider, "get_executor"
-        ) as get_executor, mock.patch.object(
-            upload, "_get_thread_session"
-        ) as get_session, mock.patch.object(
-            syn, "restPUT"
-        ) as restPUT:
+        with (
+            mock.patch.object(
+                upload, "_create_synapse_upload"
+            ) as create_synapse_upload,
+            mock.patch.object(
+                upload, "_fetch_pre_signed_part_urls"
+            ) as fetch_pre_signed_urls,
+            mock.patch.object(pool_provider, "get_executor") as get_executor,
+            mock.patch.object(upload, "_get_thread_session") as get_session,
+            mock.patch.object(syn, "restPUT") as restPUT,
+        ):
             mock_session = mock.Mock()
             get_session.return_value = mock_session
 
@@ -539,13 +534,15 @@ class TestUploadAttempt:
         future = Future()
         future.set_exception(part_exception())
 
-        with mock.patch.object(
-            upload, "_create_synapse_upload"
-        ) as create_synapse_upload, mock.patch.object(
-            upload, "_fetch_pre_signed_part_urls"
-        ) as fetch_pre_signed_urls, mock.patch.object(
-            pool_provider, "get_executor"
-        ) as get_executor:
+        with (
+            mock.patch.object(
+                upload, "_create_synapse_upload"
+            ) as create_synapse_upload,
+            mock.patch.object(
+                upload, "_fetch_pre_signed_part_urls"
+            ) as fetch_pre_signed_urls,
+            mock.patch.object(pool_provider, "get_executor") as get_executor,
+        ):
             create_synapse_upload.return_value = upload_status
             fetch_pre_signed_urls.return_value = pre_signed_urls
 
@@ -585,13 +582,15 @@ class TestUploadAttempt:
             "state": "COMPLETED",
         }
 
-        with mock.patch.object(
-            upload, "_create_synapse_upload"
-        ) as create_synapse_upload, mock.patch.object(
-            upload, "_fetch_pre_signed_part_urls"
-        ) as fetch_pre_signed_urls, mock.patch.object(
-            pool_provider, "get_executor"
-        ) as get_executor:
+        with (
+            mock.patch.object(
+                upload, "_create_synapse_upload"
+            ) as create_synapse_upload,
+            mock.patch.object(
+                upload, "_fetch_pre_signed_part_urls"
+            ) as fetch_pre_signed_urls,
+            mock.patch.object(pool_provider, "get_executor") as get_executor,
+        ):
             create_synapse_upload.return_value = upload_status_response
 
             upload_result = upload()
@@ -622,15 +621,16 @@ class TestUploadAttempt:
             "state": "COMPLETED",
         }
 
-        with mock.patch.object(
-            upload, "_create_synapse_upload"
-        ) as create_synapse_upload, mock.patch.object(
-            upload, "_fetch_pre_signed_part_urls"
-        ) as fetch_pre_signed_urls, mock.patch.object(
-            pool_provider, "get_executor"
-        ) as get_executor, mock.patch.object(
-            upload._syn, "restPUT"
-        ) as restPUT:
+        with (
+            mock.patch.object(
+                upload, "_create_synapse_upload"
+            ) as create_synapse_upload,
+            mock.patch.object(
+                upload, "_fetch_pre_signed_part_urls"
+            ) as fetch_pre_signed_urls,
+            mock.patch.object(pool_provider, "get_executor") as get_executor,
+            mock.patch.object(upload._syn, "restPUT") as restPUT,
+        ):
             create_synapse_upload.return_value = create_status_response
             restPUT.return_value = complete_status_response
 
@@ -664,17 +664,19 @@ class TestMultipartUpload:
         md5_hex = "abc123"
         storage_location_id = 5432
 
-        with mock.patch("os.path.exists") as os_path_exists, mock.patch(
-            "os.path.isdir"
-        ) as os_path_is_dir, mock.patch(
-            "os.path.getsize"
-        ) as os_path_getsize, mock.patch.object(
-            multipart_upload,
-            "md5_for_file",
-        ) as md5_for_file, mock.patch.object(
-            multipart_upload,
-            "_multipart_upload",
-        ) as mock_multipart_upload:
+        with (
+            mock.patch("os.path.exists") as os_path_exists,
+            mock.patch("os.path.isdir") as os_path_is_dir,
+            mock.patch("os.path.getsize") as os_path_getsize,
+            mock.patch.object(
+                multipart_upload,
+                "md5_for_file",
+            ) as md5_for_file,
+            mock.patch.object(
+                multipart_upload,
+                "_multipart_upload",
+            ) as mock_multipart_upload,
+        ):
             os_path_getsize.return_value = file_size
             md5_for_file.return_value.hexdigest.return_value = md5_hex
 

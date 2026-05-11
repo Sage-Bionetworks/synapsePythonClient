@@ -327,7 +327,10 @@ class TestJSONSchema:
 
         # THEN the result should match the expected structure
         expected_cancer = {
-            "if": {"properties": {"Diagnosis": {"enum": ["Cancer"]}}},
+            "if": {
+                "properties": {"Diagnosis": {"enum": ["Cancer"]}},
+                "required": ["Diagnosis"],
+            },
             "then": {
                 "properties": {
                     "CancerType": {"not": {"type": "null"}},
@@ -338,7 +341,10 @@ class TestJSONSchema:
         }
 
         expected_healthy = {
-            "if": {"properties": {"Diagnosis": {"enum": ["Healthy"]}}},
+            "if": {
+                "properties": {"Diagnosis": {"enum": ["Healthy"]}},
+                "required": ["Diagnosis"],
+            },
             "then": {
                 "properties": {"CheckupDate": {"not": {"type": "null"}}},
                 "required": ["CheckupDate"],
@@ -993,9 +999,10 @@ def test_create_json_schema_with_class_label(
         use_display_labels=False,
         logger=logger,
     )
-    with open(expected_path, encoding="utf-8") as file1, open(
-        test_path, encoding="utf-8"
-    ) as file2:
+    with (
+        open(expected_path, encoding="utf-8") as file1,
+        open(test_path, encoding="utf-8") as file2,
+    ):
         expected_json = json.load(file1)
         test_json = json.load(file2)
     assert expected_json == test_json
@@ -1023,9 +1030,10 @@ def test_create_json_schema_with_display_names(
         schema_path=test_path,
         logger=logger,
     )
-    with open(expected_path, encoding="utf-8") as file1, open(
-        test_path, encoding="utf-8"
-    ) as file2:
+    with (
+        open(expected_path, encoding="utf-8") as file1,
+        open(test_path, encoding="utf-8") as file2,
+    ):
         expected_json = json.load(file1)
         test_json = json.load(file2)
     assert expected_json == test_json
@@ -1068,9 +1076,10 @@ def test_create_json_schema_with_class_label_using_jsonld(
         use_display_labels=False,
         logger=logger,
     )
-    with open(expected_path, encoding="utf-8") as file1, open(
-        test_path, encoding="utf-8"
-    ) as file2:
+    with (
+        open(expected_path, encoding="utf-8") as file1,
+        open(test_path, encoding="utf-8") as file2,
+    ):
         expected_json = json.load(file1)
         test_json = json.load(file2)
     assert expected_json == test_json

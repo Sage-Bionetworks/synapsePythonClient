@@ -10,7 +10,10 @@
               "BAM"
             ]
           }
-        }
+        },
+        "required":[
+          "FileFormat"
+        ]
       },
       "then": {
         "properties": {
@@ -33,7 +36,10 @@
               "CRAM"
             ]
           }
-        }
+        },
+        "required":[
+          "FileFormat"
+        ]
       },
       "then": {
         "properties": {
@@ -62,7 +68,10 @@
               "CSV/TSV"
             ]
           }
-        }
+        },
+        "required":[
+          "FileFormat"
+        ]
       },
       "then": {
         "properties": {

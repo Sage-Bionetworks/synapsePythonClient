@@ -12,6 +12,7 @@ import os
 import shutil
 import tempfile
 import unittest
+from typing import Any
 from unittest.mock import Mock, mock_open, patch
 
 import pandas as pd
@@ -26,6 +27,7 @@ from synapseclient.extensions.curator import (
 )
 from synapseclient.extensions.curator.file_based_metadata_task import (
     _create_columns_from_json_schema,
+    _create_synapse_column_from_js_property,
     _get_column_type_from_js_one_of_list,
     _get_column_type_from_js_property,
     _get_list_column_type_from_js_property,
@@ -50,7 +52,7 @@ from synapseclient.extensions.curator.schema_registry import (
     SchemaRegistryColumnConfig,
     get_latest_schema_uri,
 )
-from synapseclient.models import ColumnType
+from synapseclient.models import Column, ColumnType, ViewTypeMask
 from synapseclient.models.curation import (
     FileBasedMetadataTaskProperties,
     RecordBasedMetadataTaskProperties,
@@ -148,6 +150,7 @@ class TestCreateFileBasedMetadataTask(unittest.TestCase):
             syn=self.mock_syn,
             synapse_entity_id=self.folder_id,
             entity_view_name=self.entity_view_name,
+            view_type_mask=ViewTypeMask.FILE,
         )
         mock_create_wiki.assert_called_once_with(
             syn=self.mock_syn, entity_view_id="syn87654321", owner_id=self.folder_id
@@ -478,6 +481,7 @@ class TestCreateFileBasedMetadataTask(unittest.TestCase):
                     syn=self.mock_syn,
                     synapse_entity_id=self.folder_id,
                     entity_view_name=self.entity_view_name,
+                    view_type_mask=ViewTypeMask.FILE,
                 )
 
 
@@ -1464,6 +1468,72 @@ class TestFileBasedHelperFunctions(unittest.TestCase):
         mock_view.reorder_column.assert_any_call(name="name", index=0)
         mock_view.reorder_column.assert_any_call(name="id", index=0)
 
+    @patch("synapseclient.extensions.curator.file_based_metadata_task.isinstance")
+    @patch("synapseclient.extensions.curator.file_based_metadata_task.EntityView")
+    @patch("synapseclient.extensions.curator.file_based_metadata_task.get")
+    @patch("synapseclient.extensions.curator.file_based_metadata_task.JSONSchema")
+    def test_create_json_schema_entity_view_with_file_and_folder_view_type_mask(
+        self,
+        mock_json_schema_cls,
+        mock_get,
+        mock_entity_view_cls,
+        mock_isinstance,
+    ):
+        """Test that a combined FILE|FOLDER view_type_mask is forwarded to EntityView."""
+        # GIVEN a valid synapse entity with a JSON schema
+        entity_id = "syn12345678"
+        entity_view_name = "Test View"
+        combined_mask = ViewTypeMask.FILE | ViewTypeMask.FOLDER
+
+        mock_entity = Mock()
+        mock_entity.get_schema.return_value = JSONSchemaBinding(
+            object_id=1,
+            object_type="",
+            created_on="",
+            created_by="",
+            enable_derived_annotations=True,
+            json_schema_version_info=JSONSchemaVersionInfo(
+                organization_id="",
+                organization_name="org.name",
+                schema_id="",
+                id="",
+                schema_name="schema.name",
+                version_id="",
+                semantic_version="0.0.1",
+                json_sha256_hex="",
+                created_on="",
+                created_by="",
+            ),
+        )
+        mock_get.return_value = mock_entity
+        mock_isinstance.return_value = True
+
+        mock_json_schema = Mock()
+        mock_json_schema.get_body.return_value = {
+            "properties": {"name": {"type": "string"}, "age": {"type": "integer"}}
+        }
+        mock_json_schema_cls.return_value = mock_json_schema
+
+        mock_view = Mock()
+        mock_view.id = "syn87654321"
+        mock_view.store.return_value = mock_view
+        mock_entity_view_cls.return_value = mock_view
+
+        # WHEN I create the JSON schema entity view with both file and folder types
+        result = create_json_schema_entity_view(
+            syn=self.mock_syn,
+            synapse_entity_id=entity_id,
+            entity_view_name=entity_view_name,
+            view_type_mask=combined_mask,
+        )
+
+        # THEN the entity view should be created with the combined mask
+        assert result == "syn87654321"
+        _, kwargs = mock_entity_view_cls.call_args
+        assert kwargs["view_type_mask"] == combined_mask
+        assert kwargs["view_type_mask"] & ViewTypeMask.FILE
+        assert kwargs["view_type_mask"] & ViewTypeMask.FOLDER
+
     @patch(
         "synapseclient.extensions.curator.file_based_metadata_task.update_wiki_with_entity_view"
     )
@@ -1670,50 +1740,6 @@ class TestFileBasedHelperFunctions(unittest.TestCase):
         assert all(hasattr(col, "name") for col in columns)
         assert all(hasattr(col, "column_type") for col in columns)
 
-    def test_get_column_type_from_js_property_enum(self):
-        """Test getting column type for enum property."""
-        # GIVEN a JSON schema property with an enum
-        js_property = {"enum": ["option1", "option2", "option3"]}
-
-        # WHEN I get the column type
-        result = _get_column_type_from_js_property(js_property)
-
-        # THEN it should return STRING type
-        assert result == ColumnType.STRING
-
-    def test_get_column_type_from_js_property_array(self):
-        """Test getting column type for array property."""
-        # GIVEN a JSON schema property with array type
-        js_property = {"type": "array", "items": {"type": "string"}}
-
-        # WHEN I get the column type
-        result = _get_column_type_from_js_property(js_property)
-
-        # THEN it should return a list type
-        assert result == ColumnType.STRING_LIST
-
-    def test_get_column_type_from_js_property_one_of(self):
-        """Test getting column type for oneOf property."""
-        # GIVEN a JSON schema property with oneOf
-        js_property = {"oneOf": [{"type": "string"}, {"type": "null"}]}
-
-        # WHEN I get the column type
-        result = _get_column_type_from_js_property(js_property)
-
-        # THEN it should return STRING type
-        assert result == ColumnType.STRING
-
-    def test_get_column_type_from_js_property_fallback(self):
-        """Test getting column type fallback to STRING."""
-        # GIVEN a JSON schema property without recognizable type
-        js_property = {"description": "some property"}
-
-        # WHEN I get the column type
-        result = _get_column_type_from_js_property(js_property)
-
-        # THEN it should return STRING type as fallback
-        assert result == ColumnType.STRING
-
     def test_get_column_type_from_js_one_of_list_with_enum(self):
         """Test getting column type from oneOf list containing enum."""
         # GIVEN a oneOf list with an enum
@@ -1722,8 +1748,8 @@ class TestFileBasedHelperFunctions(unittest.TestCase):
         # WHEN I get the column type
         result = _get_column_type_from_js_one_of_list(js_one_of_list)
 
-        # THEN it should return STRING type
-        assert result == ColumnType.STRING
+        # THEN it should return MEDIUMTEXT type
+        assert result == ColumnType.MEDIUMTEXT
 
     def test_get_column_type_from_js_one_of_list_single_type(self):
         """Test getting column type from oneOf list with single non-null type."""
@@ -1758,8 +1784,8 @@ class TestFileBasedHelperFunctions(unittest.TestCase):
         # WHEN I get the column type
         result = _get_column_type_from_js_one_of_list(js_one_of_list)
 
-        # THEN it should return STRING type as fallback
-        assert result == ColumnType.STRING
+        # THEN it should return MEDIUMTEXT type as fallback
+        assert result == ColumnType.MEDIUMTEXT
 
     def test_get_list_column_type_from_js_property_with_enum(self):
         """Test getting list column type for property with enum items."""
@@ -1793,6 +1819,157 @@ class TestFileBasedHelperFunctions(unittest.TestCase):
 
         # THEN it should return STRING_LIST type as fallback
         assert result == ColumnType.STRING_LIST
+
+
+@pytest.mark.parametrize(
+    "json_schema, expected_columns",
+    [
+        (
+            {
+                "properties": {
+                    "string_col": {"type": "string"},
+                }
+            },
+            [
+                Column(name="string_col", column_type=ColumnType.MEDIUMTEXT),
+            ],
+        ),
+        (
+            {
+                "properties": {
+                    "string_col": {"type": "string"},
+                    "int_col": {"type": "integer"},
+                    "bool_col": {"type": "boolean"},
+                    "number_col": {"type": "number"},
+                }
+            },
+            [
+                Column(name="string_col", column_type=ColumnType.MEDIUMTEXT),
+                Column(name="int_col", column_type=ColumnType.INTEGER),
+                Column(name="bool_col", column_type=ColumnType.BOOLEAN),
+                Column(name="number_col", column_type=ColumnType.DOUBLE),
+            ],
+        ),
+    ],
+    ids=["one column", "three columns"],
+)
+def test_create_columns_from_json_schema(
+    json_schema: dict[str, Any], expected_columns: list[Column]
+):
+    """Test successful column creation from JSON schema."""
+    assert _create_columns_from_json_schema(json_schema) == expected_columns
+
+
+@pytest.mark.parametrize(
+    "json_schema",
+    [{}, {"properties": []}],
+    ids=["empty schema", "properties is not a dict"],
+)
+def test_create_columns_from_json_schema_exceptions(json_schema: dict[str, Any]):
+    """Test exceptions when creating columns from invalid JSON schema."""
+    with pytest.raises(ValueError):
+        _create_columns_from_json_schema(json_schema)
+
+
+@pytest.mark.parametrize(
+    "json_schema_property, property_name, expected_column_type",
+    [
+        (
+            {"type": "array", "items": {"type": "string"}},
+            "string_list_col",
+            ColumnType.STRING_LIST,
+        ),
+        (
+            {"type": "array", "items": {"type": "integer"}},
+            "int_list_col",
+            ColumnType.INTEGER_LIST,
+        ),
+        (
+            {"type": "array", "items": {"type": "boolean"}},
+            "bool_list_col",
+            ColumnType.BOOLEAN_LIST,
+        ),
+        (
+            {"type": "number"},
+            "number_col",
+            ColumnType.DOUBLE,
+        ),
+        (
+            {"type": "integer"},
+            "integer_col",
+            ColumnType.INTEGER,
+        ),
+        (
+            {"type": "boolean"},
+            "boolean_col",
+            ColumnType.BOOLEAN,
+        ),
+        (
+            {"type": "string"},
+            "string_col",
+            ColumnType.MEDIUMTEXT,
+        ),
+    ],
+    ids=[
+        "string_list",
+        "integer_list",
+        "boolean_list",
+        "number",
+        "integer",
+        "boolean",
+        "string",
+    ],
+)
+def test_create_synapse_column_from_js_property(
+    json_schema_property: dict[str, Any],
+    property_name: str,
+    expected_column_type: ColumnType,
+):
+    """Test successful column creation from JSON schema property."""
+    result = _create_synapse_column_from_js_property(
+        json_schema_property, property_name
+    )
+    assert isinstance(result, Column)
+    assert result.name == property_name
+    assert result.column_type == expected_column_type
+
+
+@pytest.mark.parametrize(
+    "json_schema_property, expected_column_type",
+    [
+        ({"enum": ["a", "b", "c"]}, ColumnType.MEDIUMTEXT),
+        ({"type": "string"}, ColumnType.MEDIUMTEXT),
+        ({"type": "integer"}, ColumnType.INTEGER),
+        ({"type": "number"}, ColumnType.DOUBLE),
+        ({"type": "boolean"}, ColumnType.BOOLEAN),
+        ({"type": ["integer", "null"]}, ColumnType.INTEGER),
+        ({"type": ["integer", "string"]}, ColumnType.MEDIUMTEXT),
+        ({"type": "array", "items": {"type": "integer"}}, ColumnType.INTEGER_LIST),
+        ({"oneOf": [{"type": "integer"}, {"type": "null"}]}, ColumnType.INTEGER),
+        ({"type": "unknown"}, ColumnType.MEDIUMTEXT),
+        ({}, ColumnType.MEDIUMTEXT),
+    ],
+    ids=[
+        "enum_property",
+        "type_string",
+        "type_integer",
+        "type_number",
+        "type_boolean",
+        "type_list_nullable",
+        "type_list_multiple_types",
+        "type_array",
+        "one_of_list",
+        "unknown_type",
+        "empty_property",
+    ],
+)
+def test_get_column_type_from_js_property(
+    json_schema_property: dict[str, Any], expected_column_type: ColumnType
+):
+    """Test getting column type from JSON schema property."""
+    assert (
+        _get_column_type_from_js_property(json_schema_property) == expected_column_type
+    )
 
 
 class TestGetLatestSchemaUri(unittest.TestCase):

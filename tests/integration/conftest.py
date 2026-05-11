@@ -181,6 +181,11 @@ async def _cleanup(syn: Synapse, items):
                         os.remove(item)
                 except Exception as ex:
                     print(ex)
+            else:
+                sys.stderr.write(
+                    "Don't know how to clean: %s (type: %s)"
+                    % (str(item), type(item).__name__)
+                )
         elif isinstance(
             item,
             (
@@ -238,4 +243,3 @@ def wrap_with_otel(request):
         finally:
             for processor in active_span_processors:
                 processor.force_flush()
-            span.end()

@@ -41,7 +41,7 @@ async def test_round_trip(
             parent_id=project_model.id, data_file_handle_id=file_handle_id
         ).store_async(synapse_client=syn)
 
-        (_, tmp_path) = tempfile.mkstemp()
+        _, tmp_path = tempfile.mkstemp()
         schedule_for_cleanup(tmp_path)
 
         # AND I download the file from Synapse
@@ -128,7 +128,7 @@ async def test_randomly_failing_parts(
                 parent_id=project_model.id, data_file_handle_id=file_handle_id
             ).store_async(synapse_client=syn)
 
-            (_, tmp_path) = tempfile.mkstemp()
+            _, tmp_path = tempfile.mkstemp()
             schedule_for_cleanup(tmp_path)
 
             # AND I download the file from Synapse
@@ -215,7 +215,7 @@ async def test_multipart_upload_big_string(
         parent_id=project_model.id, data_file_handle_id=file_handle_id
     ).store_async(synapse_client=syn)
 
-    (_, tmp_path) = tempfile.mkstemp()
+    _, tmp_path = tempfile.mkstemp()
     schedule_for_cleanup(tmp_path)
 
     # AND I download the file from Synapse

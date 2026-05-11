@@ -10,7 +10,10 @@
               "Cancer"
             ]
           }
-        }
+        },
+        "required":[
+          "Diagnosis"
+        ]
       },
       "then": {
         "properties": {

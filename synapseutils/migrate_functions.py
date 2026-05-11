@@ -348,8 +348,7 @@ def _ensure_schema(cursor):
     # our representation of migratable file handles is flat including both file entities
     # and table attached files, so not all columns are applicable to both. row id and col id
     # are only used by table attached files, for example.
-    cursor.execute(
-        """
+    cursor.execute("""
             create table if not exists migrations (
                 id text not null,
                 type integer not null,
@@ -368,8 +367,7 @@ def _ensure_schema(cursor):
 
                 primary key (id, type, row_id, col_id, version)
             )
-        """
-    )
+        """)
 
     # we get counts grouping on status
     cursor.execute("create index if not exists ix_status on migrations(status)")

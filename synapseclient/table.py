@@ -338,6 +338,7 @@ def cast_row_set(rowset):
     return rowset
 
 
+@deprecated(version="4.12.0", reason="To be removed in 5.0.0. ")
 def escape_column_name(column: Union[str, collections.abc.Mapping]) -> str:
     """
     Escape the name of the given column for use in a Synapse table query statement
@@ -355,6 +356,7 @@ def escape_column_name(column: Union[str, collections.abc.Mapping]) -> str:
     return f'"{escaped_name}"'
 
 
+@deprecated(version="4.12.0", reason="To be removed in 5.0.0. ")
 def join_column_names(columns: Union[List, Dict[str, str]]):
     """
     Join the names of the given columns into a comma delimited list suitable for use in a Synapse table query

@@ -24,9 +24,15 @@ from synapseclient.models.link import Link
 from synapseclient.models.materializedview import MaterializedView
 from synapseclient.models.mixins.table_components import QueryMixin
 from synapseclient.models.project import Project
+from synapseclient.models.project_setting import ProjectSetting
 from synapseclient.models.recordset import RecordSet
 from synapseclient.models.schema_organization import JSONSchema, SchemaOrganization
 from synapseclient.models.services import FailureStrategy
+from synapseclient.models.storage_location import (
+    StorageLocation,
+    StorageLocationType,
+    UploadType,
+)
 from synapseclient.models.submission import Submission
 from synapseclient.models.submission_bundle import SubmissionBundle
 from synapseclient.models.submission_status import SubmissionStatus
@@ -155,6 +161,12 @@ __all__ = [
     # Form models
     "FormGroup",
     "FormData",
+    # Storage Location models
+    "StorageLocation",
+    "StorageLocationType",
+    "UploadType",
+    # Project Setting models
+    "ProjectSetting",
 ]
 
 # Static methods to expose as functions

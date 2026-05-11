@@ -18,6 +18,7 @@ jenkins/
 .idea/*
 docs/build/doctrees/*
 docs/build/html/_sources/*
+docs_site/*
 build/*
 
 /venv

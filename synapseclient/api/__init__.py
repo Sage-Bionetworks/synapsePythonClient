@@ -27,6 +27,11 @@ from .curation_services import (
 )
 from .docker_commit_services import get_docker_tag
 from .docker_services import get_entity_id_by_repository_name
+from .download_list_services import (
+    add_to_download_list_async,
+    clear_download_list_async,
+    remove_from_download_list_async,
+)
 from .entity_bundle_services_v2 import (
     get_entity_id_bundle2,
     get_entity_id_version_bundle2,
@@ -95,6 +100,7 @@ from .file_services import (
     get_file_handle,
     get_file_handle_for_download,
     get_file_handle_for_download_async,
+    get_file_handle_presigned_url,
     post_external_filehandle,
     post_external_object_store_filehandle,
     post_external_s3_file_handle,
@@ -130,6 +136,16 @@ from .json_schema_services import (
     list_organizations_sync,
     update_organization_acl,
     validate_entity_with_json_schema,
+)
+from .project_setting_services import (
+    create_project_setting,
+    delete_project_setting,
+    get_project_setting,
+    update_project_setting,
+)
+from .storage_location_services import (
+    create_storage_location_setting,
+    get_storage_location_setting,
 )
 from .table_services import (
     ViewEntityType,
@@ -196,6 +212,7 @@ __all__ = [
     "post_external_object_store_filehandle",
     "post_external_s3_file_handle",
     "get_file_handle",
+    "get_file_handle_presigned_url",
     "post_external_filehandle",
     "post_file_multipart_presigned_urls",
     "put_file_multipart_add",
@@ -318,6 +335,10 @@ __all__ = [
     "list_curation_tasks",
     "list_grid_sessions",
     "update_curation_task",
+    # download_list_services
+    "add_to_download_list_async",
+    "clear_download_list_async",
+    "remove_from_download_list_async",
     # docker_commit_services
     "get_docker_tag",
     # docker_services
@@ -360,4 +381,11 @@ __all__ = [
     "create_form_data",
     "list_form_data",
     "list_form_data_sync",
+    # storage_location_services
+    "create_storage_location_setting",
+    "get_storage_location_setting",
+    "get_project_setting",
+    "create_project_setting",
+    "update_project_setting",
+    "delete_project_setting",
 ]
