@@ -50,6 +50,8 @@ for curation_task in CurationTask.list(project_id=PROJECT_ID):
     pprint(curation_task)
 ```
 
+> **Coming in v4.13.0 — filter to just your tasks:** `CurationTask.list` will accept an `assigned_to_me` flag that narrows results to tasks assigned to you or to any team you belong to. Pass `assigned_to_me=True` to skip tasks owned by other contributors. This filter cannot be combined with an explicit `assignee_ids` list — use one or the other. See the [ListCurationTaskRequest](https://rest-docs.synapse.org/rest/org/sagebionetworks/repo/model/curation/ListCurationTaskRequest.html) REST reference for the underlying API contract.
+
 ## Step 3: Get the Grid session for a task, or create one if it doesn't exist
 
 For each task you plan to work on, determine the **source entity** — `record_set_id` for record-based tasks, `file_view_id` for file-based — then look for an active Grid session on it. If one exists, attach to it; otherwise, create a new one.
