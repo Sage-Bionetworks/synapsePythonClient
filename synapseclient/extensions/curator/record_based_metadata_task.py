@@ -116,8 +116,10 @@ def create_record_based_metadata_task(
     project_id: Optional[str] = None,  # Deprecated, will be removed in v5.0.0
 ) -> Tuple[RecordSet, CurationTask, Grid]:
     """
-    Generate and upload CSV templates as a RecordSet for record-based metadata,
-    create a CurationTask, and also create a Grid to bootstrap the ValidationStatistics.
+    This function:
+        - Generates and uploads CSV templates as a RecordSet for record-based metadata
+        - Creates a CurationTask
+        - Creates a Grid
 
     A number of schema URIs that are already registered to Synapse can be found at:
 
