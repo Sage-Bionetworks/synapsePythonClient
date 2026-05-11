@@ -152,6 +152,7 @@ LIST_GRID_SESSIONS_REQUEST = (
 LIST_GRID_SESSIONS_RESPONSE = (
     "org.sagebionetworks.repo.model.grid.ListGridSessionsResponse"
 )
+SYNCHRONIZE_GRID_REQUEST = "org.sagebionetworks.repo.model.grid.SynchronizeGridRequest"
 GRID_CSV_IMPORT_REQUEST = "org.sagebionetworks.repo.model.grid.GridCsvImportRequest"
 UPLOAD_TO_TABLE_PREVIEW_REQUEST = (
     "org.sagebionetworks.repo.model.table.UploadToTablePreviewRequest"

@@ -9,6 +9,42 @@ detailing some of the changes.
 the 4.x.x versions hidden behind optional feature flags or different import paths. Any
 breaking changes will not be included until v5.0.
 
+## 4.12.0
+
+## Highlights
+
+- Added support for Docker repositories and curator extension improvements
+- Fixed several bugs related to schema generation and validation
+- Upgraded dependencies and added new CLI commands
+
+## Features
+
+- [SYNPY-1731] Implement DockerRepository entity by @linglp in #1322
+- [SYNPY-1746] Add IsTemplate column to Curator CSV data model by @andrewelamb in #1311
+- [SYNPY-1726] Add bind-jsonschema CLI command by @aditigopalan in #1317
+- [SYNPY-1777] Separated check_name into org and schema functions; Add fix_schema_name by @andrewelamb in #1328, #1327
+- [SYNPY-1765] Remove project id arg from create_record_based_curator_task by @andrewelamb in #1329
+- [SYNPY-1784] Added delete_record_set and delete_file_view parameters to CurationTask.delete() by @andrewelamb in #1333
+
+## Bug Fixes
+
+- [SYNPY-1787] Changed conditionals so that the watched property is required by @andrewelamb in #1334
+- [SYNPY-1770] fix variable mutation in get_conditional_properties by @linglp in #1319
+- [SYNPY-1744] Redo how curator extension checks imports by @andrewelamb in #1307
+- [SYNPY-1702] Update curator extensions related documentation by @thomasyu888 in #1312
+- [SYNPY-1788] Comment out test due to synapse api error by @linglp in #1338
+
+## Tech Debt
+
+- [SYNPY-1751] upgrade setuptools by @danlu1 in #1310
+- [SYNPY-1758] Bump filelock version to 3.20.3 in setup.cfg by @BryanFauble in #1323
+
+## Other
+
+- [SYNPY-1759] Allow task to be assigned using assigneePrincipalId by @linglp in #1321
+- [SYNPY-1768] Conditional dependencies are now grouped by @andrewelamb in #1324
+- [SYNPY-1794] Modified EntityView creation of strings and list cols by @andrewelamb in #1340
+
 ## 4.11.0
 
 
