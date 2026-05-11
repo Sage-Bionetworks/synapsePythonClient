@@ -1,21 +1,22 @@
-# How to Create Metadata Curation Workflows
+# How to Set Up Metadata Curation Workflows
 
-This guide shows you how to set up a metadata curation workflow in Synapse using the curator extension. You'll learn to find appropriate schemas, create curation tasks for your research data.
+This guide is for **curation administrators** — the person responsible for designing a curation workflow: choosing a JSON schema, deciding whether metadata is record-based or file-based, creating the `CurationTask`, and reviewing the validation results contributors submit.
+
+If you're a data contributor opening a task an administrator has already created, see [How to Enter and Update Metadata for a Curation Task](contribution.md) instead.
 
 ## What you'll accomplish
 
 By following this guide, you will:
 
 - Find and select the right JSON schema for your data type
-- Create a metadata curation workflow with automatic validation
-- Set up either file-based or record-based metadata collection
-- Configure curation tasks that guide collaborators through metadata entry
+- Create a record-based or file-based metadata curation workflow
+- Configure curation tasks that guide contributors through metadata entry
 - Retrieve and analyze detailed validation results to identify data quality issues
 
 ## Prerequisites
 
 - A Synapse account with project creation permissions
-- Python environment with synapseclient and the `curator` extension installed (ie. `pip install --upgrade "synapseclient[curator]"`)
+- Python environment with synapseclient and the `curator` extension installed (`pip install --upgrade "synapseclient[curator]"`)
 - An existing Synapse project and folder where you want to manage metadata
 - A JSON Schema registered in Synapse (many schemas are already available for Sage-affiliated projects, or you can register your own by following the [JSON Schema tutorial](../../../tutorials/python/json_schema.md))
     - If you are leveraging the [Curator CSV data model](../../../explanations/curator_data_model.md), you can create JSON schemas by following this [tutorial](../../extensions/curator/schema_operations.md)
@@ -185,26 +186,24 @@ print(f"  EntityView: {entity_view_id}")
 print(f"  CurationTask: {task_id}")
 ```
 
-## Step 4: Work with metadata and validate (Record-based workflow)
+## Step 4: Review validation results from contributor submissions
 
-After creating a record-based metadata task, collaborators can enter metadata through the Grid interface. Once metadata entry is complete, you'll want to validate the data against your schema and identify any issues.
+Once contributors finish entering metadata and apply their changes (see the [contributor guide](contribution.md)), the administrator's job is to review what came back.
 
-### The metadata curation workflow
+How validation results surface depends on the workflow type:
 
-1. **Data Entry**: Collaborators use the Grid interface (via the curation task link in the Synapse web UI) to enter metadata
-2. **Grid Export**: Export the Grid session back to the RecordSet to save changes (this can be done via the web UI or programmatically)
-3. **Validation**: Retrieve detailed validation results to identify schema violations
-4. **Correction**: Fix any validation errors and repeat as needed
+- **Record-based tasks** — applying changes triggers `Grid.export_to_record_set()`, which validates each row against the schema bound to the RecordSet and produces a row-level validation report retrievable via `RecordSet.get_detailed_validation_results()`. The rest of this section focuses on this case.
+- **File-based tasks** — applying changes triggers `Grid.synchronize()`, which pushes annotation edits back to the underlying files. Validation is enforced by the JSON schema bound to the folder containing those files, not by a row-level report. To verify schema compliance after contributors synchronize, use [`Folder.validate_schema`](#validate-schema-binding-on-folders) below.
 
-### Creating and exporting a Grid session
+### How a contributor's edits reach the RecordSet
 
-Validation results are only generated when a Grid session is exported back to the RecordSet. This triggers Synapse to validate each row against the bound schema. You have two options:
+Validation results for record-based tasks are only generated when a Grid session is exported back to the RecordSet. This can happen in one of two ways:
 
 **Option A: Via the Synapse web UI (most common)**
 
-Users can access the curation task through the Synapse web interface, enter/edit data in the Grid, and click the export button. This automatically generates validation results.
+Contributors access the curation task through the Synapse web interface, enter or edit data in the Grid, and click the export button. This automatically generates validation results.
 
-**Option B: Programmatically create and export a Grid session**
+**Option B: Programmatically (see the [contributor guide](contribution.md) for the full contributor flow)**
 
 ```python
 from synapseclient import Synapse
@@ -636,7 +635,7 @@ for curation_task in CurationTask.list(
 - [create_record_based_metadata_task][synapseclient.extensions.curator.create_record_based_metadata_task] - Create RecordSet-based curation workflows
 - [create_file_based_metadata_task][synapseclient.extensions.curator.create_file_based_metadata_task] - Create EntityView-based curation workflows
 - [RecordSet.get_detailed_validation_results][synapseclient.models.RecordSet.get_detailed_validation_results] - Get detailed validation results for RecordSet data
-- [Grid.create][synapseclient.models.curation.Grid.create] - Create a Grid session from a RecordSet
+- [Grid.create][synapseclient.models.curation.Grid.create] - Create a Grid session from a RecordSet or EntityView
 - [Grid.export_to_record_set][synapseclient.models.curation.Grid.export_to_record_set] - Export Grid data back to RecordSet and generate validation results
 - [Folder.bind_schema][synapseclient.models.Folder.bind_schema] - Bind schemas to folders
 - [Folder.validate_schema][synapseclient.models.Folder.validate_schema] - Validate folder schema compliance
@@ -644,5 +643,6 @@ for curation_task in CurationTask.list(
 
 ### Related Documentation
 
+- [How to Enter and Update Metadata for a Curation Task](contribution.md) - The contributor-facing companion to this guide
 - [JSON Schema Tutorial](../../../tutorials/python/json_schema.md) - Learn how to register schemas
 - [Schema Registry](https://synapse.org/Synapse:syn69735275/tables/) - Browse available schemas
