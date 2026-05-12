@@ -126,68 +126,6 @@ print(f"Created CurationTask: {task_id}")
 - Automatic schema binding to the folder for validation
 - Optional wiki attached to the folder
 
-## Complete example script
-
-Here's the full script that demonstrates both workflow types:
-
-```python
-from pprint import pprint
-from synapseclient.extensions.curator import (
-    create_record_based_metadata_task,
-    create_file_based_metadata_task,
-    query_schema_registry
-)
-from synapseclient import Synapse
-
-# Step 1: Authenticate
-syn = Synapse()
-syn.login()
-
-# Step 2: Find schema
-schema_uri = query_schema_registry(
-    synapse_client=syn,
-    dcc="ad",
-    datatype="IndividualAnimalMetadataTemplate"
-)
-print("Using schema:", schema_uri)
-
-# Step 3A: Create record-based workflow
-items = create_record_based_metadata_task(
-    synapse_client=syn,
-    folder_id="syn987654321",
-    record_set_name="AnimalMetadata_Records",
-    record_set_description="Centralized animal study metadata",
-    curation_task_name="AnimalMetadata_Curation",
-    upsert_keys=["StudyKey"],
-    instructions="Complete metadata for all study animals using StudyKey to link records to data files.",
-    schema_uri=schema_uri,
-    bind_schema_to_record_set=True,
-    assignee_principal_id="123456"  # Optional: Assign to a user or team
-)
-record_set = items[0]
-curation_task = items[1]
-
-print(f"Record-based workflow created:")
-print(f"  RecordSet: {record_set.id}")
-print(f"  CurationTask: {curation_task.task_id}")
-
-# Step 3B: Create file-based workflow
-entity_view_id, task_id = create_file_based_metadata_task(
-    synapse_client=syn,
-    folder_id="syn987654321",
-    curation_task_name="FileMetadata_Curation",
-    instructions="Annotate each file with complete metadata according to schema.",
-    attach_wiki=True,
-    entity_view_name="Animal Study Files View",
-    schema_uri=schema_uri,
-    assignee_principal_id="123456"  # Optional: Assign to a user or team
-)
-
-print(f"File-based workflow created:")
-print(f"  EntityView: {entity_view_id}")
-print(f"  CurationTask: {task_id}")
-```
-
 ## Step 4: Review validation results from contributor submissions
 
 Once contributors finish entering metadata and apply their changes (see the [contributor guide](contribution.md)), the administrator's job is to review what came back.
@@ -271,6 +209,68 @@ if validation_results is not None:
             print(f"  ValidationError: {row['all_validation_messages']}")
 else:
     print("No validation results available. The Grid session must be exported to generate validation results.")
+```
+
+## Complete example script
+
+Here's the full script that demonstrates both workflow types:
+
+```python
+from pprint import pprint
+from synapseclient.extensions.curator import (
+    create_record_based_metadata_task,
+    create_file_based_metadata_task,
+    query_schema_registry
+)
+from synapseclient import Synapse
+
+# Step 1: Authenticate
+syn = Synapse()
+syn.login()
+
+# Step 2: Find schema
+schema_uri = query_schema_registry(
+    synapse_client=syn,
+    dcc="ad",
+    datatype="IndividualAnimalMetadataTemplate"
+)
+print("Using schema:", schema_uri)
+
+# Step 3A: Create record-based workflow
+items = create_record_based_metadata_task(
+    synapse_client=syn,
+    folder_id="syn987654321",
+    record_set_name="AnimalMetadata_Records",
+    record_set_description="Centralized animal study metadata",
+    curation_task_name="AnimalMetadata_Curation",
+    upsert_keys=["StudyKey"],
+    instructions="Complete metadata for all study animals using StudyKey to link records to data files.",
+    schema_uri=schema_uri,
+    bind_schema_to_record_set=True,
+    assignee_principal_id="123456"  # Optional: Assign to a user or team
+)
+record_set = items[0]
+curation_task = items[1]
+
+print(f"Record-based workflow created:")
+print(f"  RecordSet: {record_set.id}")
+print(f"  CurationTask: {curation_task.task_id}")
+
+# Step 3B: Create file-based workflow
+entity_view_id, task_id = create_file_based_metadata_task(
+    synapse_client=syn,
+    folder_id="syn987654321",
+    curation_task_name="FileMetadata_Curation",
+    instructions="Annotate each file with complete metadata according to schema.",
+    attach_wiki=True,
+    entity_view_name="Animal Study Files View",
+    schema_uri=schema_uri,
+    assignee_principal_id="123456"  # Optional: Assign to a user or team
+)
+
+print(f"File-based workflow created:")
+print(f"  EntityView: {entity_view_id}")
+print(f"  CurationTask: {task_id}")
 ```
 
 ## Additional utilities
