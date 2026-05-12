@@ -1,6 +1,6 @@
 # How to Enter and Update Metadata for a Curation Task
 
-This guide is for **data contributors** — someone who has been assigned a `CurationTask` and needs to fill in metadata against it (see [How to Set Up Metadata Curation Workflows](curation.md)). Your job is to open the work assigned to you, make your edits, and apply them so they can be validated.
+This guide is for **data contributors** — someone who has been assigned a `CurationTask` and needs to fill in metadata against it (see [How to Set Up Metadata Curation Workflows](metadata_curation.md)). Your job is to open the work assigned to you, make your edits, and apply them so they can be validated.
 
 ## What you'll accomplish
 
@@ -143,7 +143,7 @@ print(
 
 Applying the changes is what makes your edits visible beyond the Grid session and — for record-based tasks — triggers schema validation.
 
-- For **record-based** tasks, export the grid back to the RecordSet. This creates a new version of the RecordSet and generates the row-level validation report that administrators retrieve in [Step 4 of the administrator guide](curation.md#step-4-review-validation-results-from-contributor-submissions).
+- For **record-based** tasks, export the grid back to the RecordSet. This creates a new version of the RecordSet and generates the row-level validation report that administrators retrieve in [Step 4 of the administrator guide](metadata_curation.md#step-4-review-validation-results-from-contributor-submissions).
 
     ```python
     latest_grid.export_to_record_set()
@@ -156,7 +156,7 @@ Applying the changes is what makes your edits visible beyond the Grid session an
     latest_grid.synchronize()
     ```
 
-    Validation for file-based tasks is enforced by the JSON schema bound to the folder containing the files, not by a row-level export report. After synchronizing, the administrator can verify schema compliance using [`Folder.validate_schema`][synapseclient.models.Folder.validate_schema] — see [Validate schema binding on folders](curation.md#validate-schema-binding-on-folders) in the administrator guide.
+    Validation for file-based tasks is enforced by the JSON schema bound to the folder containing the files, not by a row-level export report. After synchronizing, the administrator can verify schema compliance using [`Folder.validate_schema`][synapseclient.models.Folder.validate_schema] — see [Validate schema binding on folders](metadata_curation.md#validate-schema-binding-on-folders) in the administrator guide.
 
 Once your changes are applied and you're done with the session, you can clean it up:
 
@@ -181,4 +181,4 @@ latest_grid.delete()
 
 ### Related Documentation
 
-- [How to Set Up Metadata Curation Workflows](curation.md) - The administrator-facing companion to this guide
+- [How to Set Up Metadata Curation Workflows](metadata_curation.md) - The administrator-facing companion to this guide
