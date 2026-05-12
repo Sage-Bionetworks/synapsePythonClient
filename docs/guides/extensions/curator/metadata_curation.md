@@ -2,7 +2,7 @@
 
 This guide is for **curation administrators** — the person responsible for designing a curation workflow: choosing a JSON schema, deciding whether metadata is record-based or file-based, creating the `CurationTask`, and reviewing the validation results contributors submit.
 
-If you're a data contributor opening a task an administrator has already created, see [How to Enter and Update Metadata for a Curation Task](contribution.md) instead.
+If you're a data contributor opening a task an administrator has already created, see [How to Enter and Update Metadata for a Curation Task](metadata_contribution.md) instead.
 
 ## What you'll accomplish
 
@@ -246,6 +246,6 @@ for curation_task in CurationTask.list(
 
 ### Related Documentation
 
-- [How to Enter and Update Metadata for a Curation Task](contribution.md) - The contributor-facing companion to this guide
+- [How to Enter and Update Metadata for a Curation Task](metadata_contribution.md) - The contributor-facing companion to this guide
 - [JSON Schema Tutorial](../../../tutorials/python/json_schema.md) - Learn how to register schemas
 - [Schema Registry](https://synapse.org/Synapse:syn69735275/tables/) - Browse available schemas
