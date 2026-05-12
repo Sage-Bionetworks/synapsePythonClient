@@ -84,7 +84,7 @@ items = create_record_based_metadata_task(
     instructions="Complete all required fields according to the schema. Use StudyKey to link records to your data files.",
     schema_uri=schema_uri,             # Schema found in Step 2
     bind_schema_to_record_set=True,
-    assignee_principal_id="123456"     # Optional: Assign to a user or team
+    assignee_principal_id=123456     # Optional: Assign to a user or team
 )
 record_set = items[0]
 curation_task = items[1]
@@ -112,7 +112,7 @@ entity_view_id, task_id = create_file_based_metadata_task(
     attach_wiki=False,                 # Creates a wiki in the folder with the entity view (Defaults to False)
     entity_view_name="Animal Study Files View",
     schema_uri=schema_uri,             # Schema found in Step 2
-    assignee_principal_id="123456"     # Optional: Assign to a user or team
+    assignee_principal_id=123456     # Optional: Assign to a user or team
 )
 
 print(f"Created EntityView: {entity_view_id}")
@@ -162,7 +162,7 @@ items = create_record_based_metadata_task(
     instructions="Complete metadata for all study animals using StudyKey to link records to data files.",
     schema_uri=schema_uri,
     bind_schema_to_record_set=True,
-    assignee_principal_id="123456"  # Optional: Assign to a user or team
+    assignee_principal_id=123456  # Optional: Assign to a user or team
 )
 record_set = items[0]
 curation_task = items[1]
@@ -180,7 +180,7 @@ entity_view_id, task_id = create_file_based_metadata_task(
     attach_wiki=True,
     entity_view_name="Animal Study Files View",
     schema_uri=schema_uri,
-    assignee_principal_id="123456"  # Optional: Assign to a user or team
+    assignee_principal_id=123456  # Optional: Assign to a user or team
 )
 
 print(f"File-based workflow created:")
