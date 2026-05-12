@@ -88,7 +88,7 @@ for session in grid_sessions:
 
 ### Get the Grid Session
 
-Once you have the `session_id` — whether from the lookup above or because someone shared it with you — you cna then get the session.
+Once you have the `session_id` — whether from the lookup above or because someone shared it — you can then get the session.
 
 ```python
 from synapseclient.models import Grid
