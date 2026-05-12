@@ -11,7 +11,6 @@ By following this guide, you will:
 - Find and select the right JSON schema for your data type
 - Create a record-based or file-based metadata curation workflow
 - Configure curation tasks that guide contributors through metadata entry
-- Retrieve and analyze detailed validation results to identify data quality issues
 
 ## Prerequisites
 
@@ -31,6 +30,8 @@ from synapseclient.extensions.curator import (
     query_schema_registry
 )
 from synapseclient import Synapse
+from synapseclient.models import Grid
+from synapseclient.models.table_components import Query
 
 syn = Synapse()
 syn.login()
@@ -69,12 +70,17 @@ all_schemas = query_schema_registry(
 
 ## Step 3: Choose your metadata workflow type
 
+!!! note
+    The way Grid sessions are created in this step will change in the near future. Expect updates to the Grid creation API and to this guide.
+    Currently Data Contributers should create their own Grids due to how permissions work.
+    This will be fixed in the near future.
+
 ### Option A: Record-based metadata
 
 Use this when metadata is normalized in structured records to eliminate duplication and ensure consistency.
 
 ```python
-items = create_record_based_metadata_task(
+record_set, curation_task, grid = create_record_based_metadata_task(
     synapse_client=syn,
     folder_id="syn987654321",          # Folder where RecordSet Entity will be stored
     record_set_name="AnimalMetadata_Records",
@@ -86,8 +92,6 @@ items = create_record_based_metadata_task(
     bind_schema_to_record_set=True,
     assignee_principal_id=123456     # Optional: Assign to a user or team
 )
-record_set = items[0]
-curation_task = items[1]
 
 print(f"Created RecordSet: {record_set.id}")
 print(f"Created CurationTask: {curation_task.task_id}")
@@ -117,6 +121,7 @@ entity_view_id, task_id = create_file_based_metadata_task(
 
 print(f"Created EntityView: {entity_view_id}")
 print(f"Created CurationTask: {task_id}")
+
 ```
 
 **What this creates:**
@@ -125,6 +130,7 @@ print(f"Created CurationTask: {task_id}")
 - A CurationTask for guided metadata entry
 - Automatic schema binding to the folder for validation
 - Optional wiki attached to the folder
+- A Grid session for interactive metadata editing
 
 ## Complete example script
 
@@ -152,7 +158,7 @@ schema_uri = query_schema_registry(
 print("Using schema:", schema_uri)
 
 # Step 3A: Create record-based workflow
-items = create_record_based_metadata_task(
+record_set, curation_task, grid = create_record_based_metadata_task(
     synapse_client=syn,
     folder_id="syn987654321",
     record_set_name="AnimalMetadata_Records",
@@ -164,10 +170,8 @@ items = create_record_based_metadata_task(
     bind_schema_to_record_set=True,
     assignee_principal_id=123456  # Optional: Assign to a user or team
 )
-record_set = items[0]
-curation_task = items[1]
 
-print(f"Record-based workflow created:")
+print("Record-based workflow created:")
 print(f"  RecordSet: {record_set.id}")
 print(f"  CurationTask: {curation_task.task_id}")
 
@@ -183,7 +187,7 @@ entity_view_id, task_id = create_file_based_metadata_task(
     assignee_principal_id=123456  # Optional: Assign to a user or team
 )
 
-print(f"File-based workflow created:")
+print("File-based workflow created:")
 print(f"  EntityView: {entity_view_id}")
 print(f"  CurationTask: {task_id}")
 ```
