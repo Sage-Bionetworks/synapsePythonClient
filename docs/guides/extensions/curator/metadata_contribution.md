@@ -1,6 +1,6 @@
 # How to Enter and Update Metadata for a Curation Task
 
-This guide is for **data contributors** — someone who has been assigned a `CurationTask` and needs to fill in metadata against it. You don't create the task or bind the schema; an administrator has already done that (see [How to Set Up Metadata Curation Workflows](curation.md)). Your job is to open the work assigned to you, make your edits, and apply them so they can be validated.
+This guide is for **data contributors** — someone who has been assigned a `CurationTask` and needs to fill in metadata against it (see [How to Set Up Metadata Curation Workflows](curation.md)). Your job is to open the work assigned to you, make your edits, and apply them so they can be validated.
 
 ## What you'll accomplish
 
@@ -52,45 +52,48 @@ for curation_task in CurationTask.list(project_id=PROJECT_ID):
 
 > **Coming in v4.13.0 — filter to just your tasks:** `CurationTask.list` will accept an `assigned_to_me` flag that narrows results to tasks assigned to you or to any team you belong to. Pass `assigned_to_me=True` to skip tasks owned by other contributors. This filter cannot be combined with an explicit `assignee_ids` list — use one or the other. See the [ListCurationTaskRequest](https://rest-docs.synapse.org/rest/org/sagebionetworks/repo/model/curation/ListCurationTaskRequest.html) REST reference for the underlying API contract.
 
-## Step 3: Get the Grid session for a task, or create one if it doesn't exist
+## Step 3: Attach to the Grid session for a task
 
-For each task you plan to work on, determine the **source entity** — `record_set_id` for record-based tasks, `file_view_id` for file-based — then look for an active Grid session on it. If one exists, attach to it; otherwise, create a new one.
+The administrator who set up the curation task should have already created a Grid session for it. You'll need its `session_id` to attach.
+
+### Find the session_id from a CurationTask
+
+If no one handed you a `session_id` directly, you can discover it from the `CurationTask`. There is no direct pointer from a task to a Grid session — you go through the task's **source entity** (the `record_set_id` for record-based tasks, or the `file_view_id` for file-based tasks) and list the active Grid sessions for it.
 
 ```python
 from synapseclient.models import (
-    CurationTask,
     FileBasedMetadataTaskProperties,
     Grid,
     RecordBasedMetadataTaskProperties,
 )
-from synapseclient.models.table_components import Query
 
-# Use a CurationTask from Step 2, or look one up by ID:
-curation_task = CurationTask(task_id=12345).get()
-
+# `curation_task` is a CurationTask from Step 2.
 if isinstance(curation_task.task_properties, RecordBasedMetadataTaskProperties):
     source_id = curation_task.task_properties.record_set_id
-    grid_sessions = list(Grid.list(source_id=source_id))
-    if grid_sessions:
-        latest_grid = grid_sessions[0]
-        print(f"Attaching to existing grid session: {latest_grid.session_id}")
-    else:
-        print(f"No active grid session for {source_id}; creating one.")
-        latest_grid = Grid(record_set_id=source_id).create()
-elif isinstance(curation_task.task_properties, FileBasedMetadataTaskProperties):
+else:  # FileBasedMetadataTaskProperties
     source_id = curation_task.task_properties.file_view_id
-    grid_sessions = list(Grid.list(source_id=source_id))
-    if grid_sessions:
-        latest_grid = grid_sessions[0]
-        print(f"Attaching to existing grid session: {latest_grid.session_id}")
-    else:
-        print(f"No active grid session for {source_id}; creating one.")
-        latest_grid = Grid(
-            initial_query=Query(sql=f"SELECT * FROM {source_id}")
-        ).create()
+
+grid_sessions = list(Grid.list(source_id=source_id))
+for session in grid_sessions:
+    print(
+        f"session_id={session.session_id} "
+        f"started_by={session.started_by} "
+        f"modified_on={session.modified_on}"
+    )
 ```
 
-> **Why prefer an existing session?** Grid sessions can be team-owned (when an administrator sets `assignee_principal_id` to a team ID), so teammates share progress on the same session instead of forking divergent copies.
+`Grid.list` may return zero, one, or many sessions. If there are several — for instance, when multiple contributors or teams are working against the same source entity — use `started_by` and `modified_on` to identify the session that belongs to your work, or coordinate with the task's administrator to confirm which one to use. Team-owned sessions (created when the task's `assignee_principal_id` points at a team) are joinable by any member of that team.
+
+### Attach to the session
+
+Once you have the `session_id` — whether from the lookup above or because someone shared it with you — attach to it directly:
+
+```python
+from synapseclient.models import Grid
+
+latest_grid = Grid(session_id="abc-123-def")
+print(f"Attached to grid session: {latest_grid.session_id}")
+```
 
 ## Step 4: Pull the grid down as a CSV
 
