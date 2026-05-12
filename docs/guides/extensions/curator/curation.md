@@ -19,7 +19,7 @@ By following this guide, you will:
 - Python environment with synapseclient and the `curator` extension installed (`pip install --upgrade "synapseclient[curator]"`)
 - An existing Synapse project and folder where you want to manage metadata
 - A JSON Schema registered in Synapse (many schemas are already available for Sage-affiliated projects, or you can register your own by following the [JSON Schema tutorial](../../../tutorials/python/json_schema.md))
-    - If you are leveraging the [Curator CSV data model](../../../explanations/curator_data_model.md), you can create JSON schemas by following this [tutorial](../../extensions/curator/schema_operations.md)
+  - If you are using the [Curator CSV data model](../../../explanations/curator_data_model.md), you can create JSON schemas by following this [guide](schema_operations.md)
 - (Optional) An existing Synapse team if you want multiple users to collaborate on the same Grid session. Pass the team's ID as `assignee_principal_id` when creating the curation task.
 
 ## Step 1: Authenticate and import required functions
@@ -56,6 +56,7 @@ print("Latest schema URI:", schema_uri)
 **When to use this approach:** You know your DCC and data type, you want the most current schema version, and it has already been registered into <https://www.synapse.org/Synapse:syn69735275/tables/>.
 
 **Alternative - browse available schemas:**
+
 ```python
 # Get all versions to see what's available
 all_schemas = query_schema_registry(
@@ -70,12 +71,11 @@ all_schemas = query_schema_registry(
 
 ### Option A: Record-based metadata
 
-Use this when metadata describes individual data files and is stored as annotations directly on each file.
+Use this when metadata is normalized in structured records to eliminate duplication and ensure consistency.
 
 ```python
-record_set, curation_task, data_grid = create_record_based_metadata_task(
+items = create_record_based_metadata_task(
     synapse_client=syn,
-    project_id="syn123456789",         # Your project ID
     folder_id="syn987654321",          # Folder where RecordSet Entity will be stored
     record_set_name="AnimalMetadata_Records",
     record_set_description="Centralized metadata for animal study data",
@@ -86,6 +86,8 @@ record_set, curation_task, data_grid = create_record_based_metadata_task(
     bind_schema_to_record_set=True,
     assignee_principal_id="123456"     # Optional: Assign to a user or team
 )
+record_set = items[0]
+curation_task = items[1]
 
 print(f"Created RecordSet: {record_set.id}")
 print(f"Created CurationTask: {curation_task.task_id}")
@@ -96,11 +98,10 @@ print(f"Created CurationTask: {curation_task.task_id}")
 - A RecordSet where metadata is stored as structured records (like a spreadsheet)
 - A CurationTask that guides users through completing the metadata
 - Automatic schema binding for validation
-- A data grid interface for easy metadata entry
 
 ### Option B: File-based metadata (for unique per-file metadata)
 
-Use this when metadata is normalized in structured records to eliminate duplication and ensure consistency.
+Use this when metadata describes individual data files and is stored as annotations directly on each file.
 
 ```python
 entity_view_id, task_id = create_file_based_metadata_task(
@@ -151,9 +152,8 @@ schema_uri = query_schema_registry(
 print("Using schema:", schema_uri)
 
 # Step 3A: Create record-based workflow
-record_set, curation_task, data_grid = create_record_based_metadata_task(
+items = create_record_based_metadata_task(
     synapse_client=syn,
-    project_id="syn123456789",
     folder_id="syn987654321",
     record_set_name="AnimalMetadata_Records",
     record_set_description="Centralized animal study metadata",
@@ -164,6 +164,8 @@ record_set, curation_task, data_grid = create_record_based_metadata_task(
     bind_schema_to_record_set=True,
     assignee_principal_id="123456"  # Optional: Assign to a user or team
 )
+record_set = items[0]
+curation_task = items[1]
 
 print(f"Record-based workflow created:")
 print(f"  RecordSet: {record_set.id}")
@@ -350,74 +352,6 @@ folder.delete(synapse_client=syn)
 CurationTask(task_id=task_id).delete(synapse_client=syn, delete_source=True)
 ```
 
-### Example: Getting data into a Grid for a record-based workflow
-
-The following example is for record-based curation.
-It assumes your data is in a CSV file where each column is a property.
-
-Here is the csv used in the example:
-
-```csv
-Sex,Component,Diagnosis,PatientID,CancerType,YearofBirth,FamilyHistory
-Male,Patient,Healthy,id1,,1970,
-Female,Patient,Healthy,id2,,1980,
-```
-
-```python
-import uuid
-from synapseclient import Synapse
-from synapseclient.models import Folder, Grid
-from synapseclient.extensions.curator import create_record_based_metadata_task
-
-# 1. Replace all these values with your own information
-PROJECT_ID = "syn123"
-FOLDER_NAME = f"Patient Curation Folder {uuid.uuid4().hex[:8]}"
-CSV_PATH = "patient.csv"
-JSON_SCHEMA_URI = "dpetest-test.schematic.Patient"
-CURATION_TASK_NAME = f"Record-based curation task for patients {uuid.uuid4().hex[:8]}"
-INSTRUCTIONS = "Please curate the patient information."
-RECORD_SET_NAME = f"Patient Record Set {uuid.uuid4().hex[:8]}"
-RECORD_SET_DESCRIPTION = "A record set for patients created for a record-based curation task example."
-UPSERT_KEYS = ["PatientID"]
-
-# 2. Login to Synapse
-syn = Synapse()
-syn.login()
-
-# 3. Create a folder to store the RecordSet in
-folder = Folder(name=FOLDER_NAME, parent_id=PROJECT_ID)
-folder = folder.store(synapse_client=syn)
-print(f"Created folder with ID: {folder.id}")
-
-# 4. Create RecordSet, CurationTask, and Grid
-items = create_record_based_metadata_task(
-    folder_id=folder.id,
-    record_set_name=RECORD_SET_NAME,
-    record_set_description=RECORD_SET_DESCRIPTION,
-    curation_task_name=CURATION_TASK_NAME,
-    upsert_keys=UPSERT_KEYS,
-    instructions=INSTRUCTIONS,
-    schema_uri=JSON_SCHEMA_URI,
-    synapse_client=syn,
-)
-record_set = items[0]
-task = items[1]
-print(f"Created RecordSet with ID: {record_set.id}")
-print(f"Created CurationTask with ID: {task.task_id}")
-
-grid = Grid(record_set_id=record_set.id)
-grid.create(synapse_client=syn)
-print(f"Created Grid with ID: {grid.session_id}")
-
-
-# 5. Import the CSV data into the grid session
-grid.import_csv(path=CSV_PATH, synapse_client=syn)
-
-# 6. Cleanup all Synapse entities created
-folder.delete(synapse_client=syn)
-task.delete(synapse_client=syn, delete_source=True)
-
-```
 
 ### Example: Complete validation workflow for animal study metadata
 
@@ -444,17 +378,24 @@ schema_uri = query_schema_registry(
 )
 
 # Step 1.5: Create initial test data with validation examples
-# Row 1: VALID - all required fields present and valid
-# Row 2: INVALID - missing required field 'genotype'
-# Row 3: INVALID - invalid enum value for 'sex' ("other" not in enum)
+# Row 0: VALID - all required fields present and valid
+# Row 1: INVALID - missing required field 'genotype'
+# Row 2: INVALID - invalid enum value for 'sex' ("other" not in enum)
+#
+# Note on dateBirth: the schema declares dateBirth as a String, but Synapse's
+# column-type inference treats unambiguous ISO 8601 values (e.g. "2024-01-15")
+# as a DATE column and stores them as epoch milliseconds (Long). At validation
+# time the schema then sees a Long instead of a String and every row would
+# fail on dateBirth. We sidestep that here by writing the values in a format
+# that defeats date inference, so the column stays typed as String end-to-end.
 test_data = pd.DataFrame({
     "individualID": ["ANIMAL001", "ANIMAL002", "ANIMAL003"],
     "species": ["Mouse", "Mouse", "Mouse"],
-    "sex": ["female", "male", "other"],  # Row 3: invalid enum
-    "genotype": ["5XFAD", None, "APOE4KI"],  # Row 2: missing required field
+    "sex": ["female", "male", "other"],  # Row 2: invalid enum
+    "genotype": ["5XFAD", None, "APOE4KI"],  # Row 1: missing required field
     "genotypeBackground": ["C57BL/6J", "C57BL/6J", "C57BL/6J"],
     "modelSystemName": ["5XFAD", "5XFAD", "APOE4KI"],
-    "dateBirth": ["2024-01-15", "2024-02-20", "2024-03-10"],
+    "dateBirth": ["2024-Jan-15", "2024-Feb-20", "2024-Mar-10"],
     "individualIdSource": ["JAX", "JAX", "JAX"],
 })
 
@@ -464,10 +405,9 @@ os.close(temp_fd)
 test_data.to_csv(temp_csv, index=False)
 
 # Step 2: Create the curation task (this creates an empty template RecordSet)
-record_set, curation_task, data_grid = create_record_based_metadata_task(
+items = create_record_based_metadata_task(
     synapse_client=syn,
-    project_id="syn123456789",
-    folder_id="syn987654321",
+    folder_id="syn74917407",
     record_set_name="AnimalMetadata_Records",
     record_set_description="Animal study metadata with validation",
     curation_task_name="AnimalMetadata_Validation_Example",
@@ -476,6 +416,8 @@ record_set, curation_task, data_grid = create_record_based_metadata_task(
     schema_uri=schema_uri,
     bind_schema_to_record_set=True,
 )
+record_set = items[0]
+curation_task = items[1]
 
 time.sleep(10)
 
@@ -549,20 +491,16 @@ curation_task.delete(delete_source=True)
 
 In this example you would expect to get results like:
 
-```
+```text
 === Sample Validation Errors ===
 
-Row 0:
-  Error: expected type: String, found: Long
-  ValidationError: ["#/dateBirth: expected type: String, found: Long"]
-
 Row 1:
-  Error: 2 schema violations found
-  ValidationError: ["#/genotype: expected type: String, found: Null","#/dateBirth: expected type: String, found: Long"]
+  Error: expected type: String, found: Null
+  ValidationError: ["#/genotype: expected type: String, found: Null"]
 
 Row 2:
-  Error: 2 schema violations found
-  ValidationError: ["#/dateBirth: expected type: String, found: Long","#/sex: other is not a valid enum value"]
+  Error: other is not a valid enum value
+  ValidationError: ["#/sex: other is not a valid enum value"]
 ```
 
 **Key points about validation results:**
@@ -575,11 +513,13 @@ Row 2:
 ### When validation results are available
 
 Validation results are only available after:
+
 1. A JSON schema has been bound to the RecordSet (set `bind_schema_to_record_set=True` when creating the task)
 2. Data has been entered through a Grid session
 3. **The Grid session has been exported back to the RecordSet** - This is the critical step that triggers validation and populates the `validation_file_handle_id` attribute
 
 The export can happen in two ways:
+
 - **Via the Synapse web UI**: Users click the export/save button in the Grid interface
 - **Programmatically**: Call `grid.export_to_record_set()` after creating a Grid session
 
