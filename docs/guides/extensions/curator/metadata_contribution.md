@@ -52,9 +52,9 @@ for curation_task in CurationTask.list(project_id=PROJECT_ID):
 
 > **Coming in v4.13.0 — filter to just your tasks:** `CurationTask.list` will accept an `assigned_to_me` flag that narrows results to tasks assigned to you or to any team you belong to. Pass `assigned_to_me=True` to skip tasks owned by other contributors. This filter cannot be combined with an explicit `assignee_ids` list — use one or the other. See the [ListCurationTaskRequest](https://rest-docs.synapse.org/rest/org/sagebionetworks/repo/model/curation/ListCurationTaskRequest.html) REST reference for the underlying API contract.
 
-## Step 3: Attach to the Grid session for a task
+## Step 3: Get the Grid session for a task
 
-The administrator who set up the curation task should have already created a Grid session for it. You'll need its `session_id` to attach.
+The administrator who set up the curation task should have already created a Grid session for it. You'll need its `session_id`.
 
 ### Find the session_id from a CurationTask
 
@@ -84,15 +84,14 @@ for session in grid_sessions:
 
 `Grid.list` may return zero, one, or many sessions. If there are several — for instance, when multiple contributors or teams are working against the same source entity — use `started_by` and `modified_on` to identify the session that belongs to your work, or coordinate with the task's administrator to confirm which one to use. Team-owned sessions (created when the task's `assignee_principal_id` points at a team) are joinable by any member of that team.
 
-### Attach to the session
+### Get the Grid Session
 
-Once you have the `session_id` — whether from the lookup above or because someone shared it with you — attach to it directly:
+Once you have the `session_id` — whether from the lookup above or because someone shared it with you — you cna then get the session.
 
 ```python
 from synapseclient.models import Grid
 
 latest_grid = Grid(session_id="abc-123-def")
-print(f"Attached to grid session: {latest_grid.session_id}")
 ```
 
 ## Step 4: Pull the grid down as a CSV
