@@ -1236,10 +1236,12 @@ async def syncToSynapse_async(
 ) -> None:
     """Synchronizes files specified in the manifest file to Synapse.
 
-    .. deprecated:: 4.13.0
-        Use :meth:`synapseclient.models.Project.sync_to_synapse` or
-        :meth:`synapseclient.models.Folder.sync_to_synapse` instead.
-        This function will be removed in v5.0.0.
+    !!! warning "Deprecated since 4.13.0"
+        Use
+        [Project.sync_to_synapse][synapseclient.models.mixins.StorableContainer.sync_to_synapse]
+        or
+        [Folder.sync_to_synapse][synapseclient.models.mixins.StorableContainer.sync_to_synapse]
+        instead. This function will be removed in v5.0.0.
 
     Given a file describing all of the uploads, this uploads the content to Synapse and
     optionally notifies you via Synapse messaging (email) at specific intervals, on
@@ -1573,7 +1575,7 @@ def generate_sync_manifest(syn, directory_path, parent_id, manifest_path) -> Non
 
     [Read more about the manifest file format](../../explanations/manifest_tsv/)
 
-    .. deprecated:: 4.13.0
+    !!! warning "Deprecated since 4.13.0"
         To be removed in 5.0.0. Use
         [Project.generate_sync_manifest][synapseclient.models.mixins.StorableContainer.generate_sync_manifest]
         or
