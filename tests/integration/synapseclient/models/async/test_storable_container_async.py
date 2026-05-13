@@ -424,7 +424,7 @@ class TestGenerateSyncManifest:
             name=f"{request.node.name}_{uuid.uuid4()}",
             parent_id=project_model.id,
         ).store_async(synapse_client=syn)
-        schedule_for_cleanup(folder)
+        schedule_for_cleanup(folder.id)
         return folder
 
     async def test_flat_directory_uses_parent_id(
