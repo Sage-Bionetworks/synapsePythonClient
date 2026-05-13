@@ -20,16 +20,15 @@ By following this guide, you will:
 - The Synapse ID of the project where the administrator created the curation tasks
 - (Optional) The `task_id` of a specific `CurationTask` you've been pointed at
 
-## The high-level flow
+The high-level flow is:
 
 1. **List** the curation tasks in your project to see what's been assigned
 2. **Get the Grid session** for each task — attach to an existing one if it exists, otherwise create one
-3. **Pull the grid down** as a CSV so you can edit in bulk with the tools of your choice
-4. **Upsert your edits** back into the grid (record-based tasks only — file-based tasks edit through the Grid web UI; see notes below)
-5. **Apply the changes** — export the grid back to the RecordSet (record-based) or synchronize it against the file view (file-based) so changes take effect
-6. **Check the validation results** — confirm your submission passes the schema before handing the task back to the administrator (record-based tasks only)
+3. **Pull the grid down** to a local CSV so you can edit in bulk with the tools of your choice
+4. **Upsert your edits** back into the grid (matching on the task's `upsert_keys`)
+5. **Apply the changes** — export the grid back to the RecordSet (or synchronize, for file-based tasks) so validation runs
 
-## Step 1: Authenticate
+### Step 1: Authenticate
 
 ```python
 from synapseclient import Synapse
@@ -38,65 +37,69 @@ syn = Synapse()
 syn.login()
 ```
 
-## Step 2: List the curation tasks in your project
+### Step 2: List all curation tasks in your project
 
 Each `CurationTask` carries the information you need to decide which workflow to follow — most importantly, `task_properties` tells you whether it's a record-based task (you'll see `record_set_id`) or a file-based task (you'll see `file_view_id`).
 
 ```python
 from pprint import pprint
-from synapseclient.models import CurationTask
+from synapseclient.models.curation import CurationTask
 
 PROJECT_ID = "syn123456789"  # The Synapse ID of the project to list tasks from
 
-for curation_task in CurationTask.list(project_id=PROJECT_ID):
-    pprint(curation_task)
+all_tasks = list(CurationTask.list(project_id=PROJECT_ID))
+for task in all_tasks:
+    pprint(task)
 ```
 
-> **Coming in v4.13.0 — filter to just your tasks:** `CurationTask.list` will accept an `assigned_to_me` flag that narrows results to tasks assigned to you or to any team you belong to. Pass `assigned_to_me=True` to skip tasks owned by other contributors. This filter cannot be combined with an explicit `assignee_ids` list — use one or the other. See the [ListCurationTaskRequest](https://rest-docs.synapse.org/rest/org/sagebionetworks/repo/model/curation/ListCurationTaskRequest.html) REST reference for the underlying API contract.
+### Step 3: Get the Grid session for a task, or create one if it doesn't exist
 
-## Step 3: Get the Grid session for a task
-
-The administrator who set up the curation task should have already created a Grid session for it. You'll need its `session_id`.
-
-### Find the session_id from a CurationTask
-
-If no one handed you a `session_id` directly, you can discover it from the `CurationTask`. There is no direct pointer from a task to a Grid session — you go through the task's **source entity** (the `record_set_id` for record-based tasks, or the `file_view_id` for file-based tasks) and list the active Grid sessions for it.
-
-```python
-from synapseclient.models import (
-    FileBasedMetadataTaskProperties,
-    Grid,
-    RecordBasedMetadataTaskProperties,
-)
-
-# `curation_task` is a CurationTask from Step 2.
-if isinstance(curation_task.task_properties, RecordBasedMetadataTaskProperties):
-    source_id = curation_task.task_properties.record_set_id
-else:  # FileBasedMetadataTaskProperties
-    source_id = curation_task.task_properties.file_view_id
-
-grid_sessions = list(Grid.list(source_id=source_id))
-for session in grid_sessions:
-    print(
-        f"session_id={session.session_id} "
-        f"started_by={session.started_by} "
-        f"modified_on={session.modified_on}"
-    )
-```
-
-`Grid.list` may return zero, one, or many sessions. If there are several — for instance, when multiple contributors or teams are working against the same source entity — use `started_by` and `modified_on` to identify the session that belongs to your work, or coordinate with the task's administrator to confirm which one to use. Team-owned sessions (created when the task's `assignee_principal_id` points at a team) are joinable by any member of that team.
-
-### Get the Grid Session
-
-Once you have the `session_id` — whether from the lookup above or because someone shared it — you can then get the session.
+For each task you plan to work on, determine the **source entity** (the `record_set_id` for record-based tasks, or the `file_view_id` for file-based tasks), then look for an active Grid session on it. If one exists, attach to it; otherwise, create a new one.
 
 ```python
 from synapseclient.models import Grid
+from synapseclient.models.table_components import Query
+from synapseclient.models.curation import (
+    CurationTask,
+    FileBasedMetadataTaskProperties,
+    RecordBasedMetadataTaskProperties,
+)
 
-latest_grid = Grid(session_id="abc-123-def")
+
+# Take a curation task from above (Python lists are 0-indexed)
+curation_task = all_tasks[0]
+
+# OR get a curation task by id
+curation_task = CurationTask(task_id=12345)
+curation_task.get()
+
+if isinstance(curation_task.task_properties, RecordBasedMetadataTaskProperties):
+    source_id = curation_task.task_properties.record_set_id
+
+    grid_sessions = list(Grid.list(source_id=source_id))
+    if grid_sessions:
+        latest_grid = grid_sessions[0]
+        print(f"Active grid sessions: {len(grid_sessions)}. Getting latest grid session: {latest_grid.session_id}")
+    else:
+        print(f"No active grid session for {source_id}; creating one.")
+        latest_grid = Grid(record_set_id=source_id)
+        latest_grid.create()
+
+if isinstance(task.task_properties, FileBasedMetadataTaskProperties):
+    source_id = task.task_properties.file_view_id
+    grid_sessions = list(Grid.list(source_id=source_id))
+    if grid_sessions:
+        latest_grid = grid_sessions[0]
+        print(f"Active grid sessions: {len(grid_sessions)}. Getting latest grid session: {latest_grid.session_id}")
+    else:
+        print(f"No active grid session for {source_id}; creating one.")
+        latest_grid = Grid(initial_query=Query(sql=f"SELECT * FROM {source_id}"))
+        latest_grid.create()
 ```
 
-## Step 4: Pull the grid down as a CSV
+> **Why prefer an existing session?** Grid sessions can be owned by a team (when the administrator set `assignee_principal_id` to a team ID), so teammates can share progress on the same session instead of forking divergent copies.
+
+### Step 4: Pull the grid down as a CSV
 
 Download the current grid contents so you can edit them locally — in pandas, Excel, or any tool that reads CSV.
 
@@ -126,29 +129,24 @@ edited_path = "./grid_edited.csv"
 df.to_csv(edited_path, index=False)
 ```
 
-## Step 5: Upsert your edits back into the grid (record-based tasks)
+### Step 5: Upsert your edits back into the grid
 
 `import_csv` upserts rows into the grid based on the `upsert_keys` the administrator configured on the curation task. Existing rows matching on those keys are updated; new rows are inserted.
 
 ```python
 latest_grid = latest_grid.import_csv(path=edited_path)
-print(
-    "Upserted edits into grid session: "
-    f"https://www.synapse.org/Grid:default?sessionId={latest_grid.session_id}"
-)
+print(f"Upserted edits into grid session: https://www.synapse.org/Grid:default?sessionId={latest_grid.session_id}")
 ```
 
-> **File-based tasks:** `Grid.import_csv` is currently supported only for grids created from a RecordSet. For file-based tasks, edit metadata directly in the Grid through the Synapse web UI, or update annotations on the underlying files via the EntityView (see [`EntityView.update_rows`][synapseclient.models.EntityView.update_rows]). Then proceed to Step 6.
+### Step 6: Apply the changes to the source entity
 
-## Step 6: Apply the changes to the source entity
+Applying the changes is what triggers schema validation and makes your edits visible to administrators and other contributors.
 
-Applying the changes is what makes your edits visible beyond the Grid session and — for record-based tasks — triggers schema validation.
-
-- For **record-based** tasks, export the grid back to the RecordSet. This creates a new version of the RecordSet and generates the row-level validation report that administrators retrieve in [Step 4 of the administrator guide](metadata_curation.md#step-4-review-validation-results-from-contributor-submissions).
+- For **record-based** tasks, export the grid back to the RecordSet. This creates a new version of the RecordSet and generates the validation report that administrators retrieve in [Part 1, Step 4](#step-4-review-validation-results-from-contributor-submissions).
 
     ```python
     latest_grid.export_to_record_set()
-    print(f"Exported to RecordSet version: {latest_grid.record_set_version_number}")
+    print(f"Exported to RecordSet version: {grid.record_set_version_number}")
     ```
 
 - For **file-based** tasks, synchronize the grid against the file view to push annotation changes back to the underlying files.
@@ -157,15 +155,13 @@ Applying the changes is what makes your edits visible beyond the Grid session an
     latest_grid.synchronize()
     ```
 
-    Validation for file-based tasks is enforced by the JSON schema bound to the folder containing the files, not by a row-level export report. After synchronizing, the administrator can verify schema compliance using [`Folder.validate_schema`][synapseclient.models.Folder.validate_schema] — see [Validate schema binding on folders](metadata_curation.md#validate-schema-binding-on-folders) in the administrator guide.
-
 Once your changes are applied and you're done with the session, you can clean it up:
 
 ```python
 latest_grid.delete()
 ```
 
-> **Important:** Until you call `export_to_record_set()` (or `synchronize()` for file-based tasks), your edits live only inside the Grid session — they aren't visible on the RecordSet or the underlying files and won't be validated. Apply changes whenever you reach a logical checkpoint.
+> **Important:** Until you call `export_to_record_set()` (or `synchronize()` for file-based tasks), your edits live only inside the Grid session — they aren't visible on the RecordSet and won't be validated. Apply changes whenever you reach a logical checkpoint.
 
 ## Step 7: Review your validation results (record-based tasks)
 
