@@ -163,7 +163,9 @@ navigated to the Files tab and selected the file that we added a Provenance reco
 ## References used in this tutorial
 
 - [syn.login][synapseclient.Synapse.login]
-- [Project.generate_sync_manifest][synapseclient.models.mixins.StorableContainer.generate_sync_manifest]
-- [Project.sync_to_synapse][synapseclient.models.mixins.StorableContainer.sync_to_synapse]
+- [Project.generate_sync_manifest][synapseclient.models.Project.generate_sync_manifest]
+- [Project.sync_to_synapse][synapseclient.models.Project.sync_to_synapse]
+- [Folder.generate_sync_manifest][synapseclient.models.Folder.generate_sync_manifest]
+- [Folder.sync_to_synapse][synapseclient.models.Folder.sync_to_synapse]
 - [Manifest CSV format](../../explanations/manifest_csv.md)
 - [Activity/Provenance](../../explanations/domain_models_of_synapse.md#activityprovenance)
