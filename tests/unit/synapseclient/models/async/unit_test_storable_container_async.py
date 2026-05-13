@@ -208,7 +208,7 @@ class TestGenerateSyncManifest:
 
 
 class TestResolveAndValidateDirectoryPath:
-    """Tests for manifest._resolve_and_validate_directory_path_async."""
+    """Tests for manifest._resolve_and_validate_directory_path."""
 
     async def test_valid_directory_returns_realpath(self, tmp_path: Path) -> None:
         """A valid directory returns the realpath-resolved absolute path."""
@@ -217,7 +217,7 @@ class TestResolveAndValidateDirectoryPath:
         src.mkdir()
 
         # WHEN we validate the directory path
-        result = await manifest_module._resolve_and_validate_directory_path_async(
+        result = manifest_module._resolve_and_validate_directory_path(
             directory_path=str(src)
         )
 
@@ -240,7 +240,7 @@ class TestResolveAndValidateDirectoryPath:
         # WHEN we validate the directory path
         # THEN a ValueError is raised explaining the path is not a directory
         with pytest.raises(ValueError, match="is not a directory or does not exist"):
-            await manifest_module._resolve_and_validate_directory_path_async(
+            manifest_module._resolve_and_validate_directory_path(
                 directory_path=str(path)
             )
 
@@ -258,7 +258,7 @@ class TestResolveAndValidateDirectoryPath:
         os.symlink(str(target), str(link))
 
         # WHEN we validate the symlink path
-        result = await manifest_module._resolve_and_validate_directory_path_async(
+        result = manifest_module._resolve_and_validate_directory_path(
             directory_path=str(link)
         )
 

@@ -1609,7 +1609,7 @@ async def generate_sync_manifest(
         raise ValueError(
             f"Manifest output path is an existing directory, not a file: {manifest_path}"
         )
-    directory_path = await _resolve_and_validate_directory_path_async(directory_path)
+    directory_path = _resolve_and_validate_directory_path(directory_path)
     await _validate_target_container_async(parent_id, client=client)
 
     rows = await _collect_manifest_rows_async(directory_path, parent_id, client)
@@ -1622,7 +1622,7 @@ async def generate_sync_manifest(
     _write_manifest_csv(manifest_path, rows)
 
 
-async def _resolve_and_validate_directory_path_async(directory_path: str) -> str:
+def _resolve_and_validate_directory_path(directory_path: str) -> str:
     """Resolve symlinks on directory_path and verify it is an existing
     directory.
 
