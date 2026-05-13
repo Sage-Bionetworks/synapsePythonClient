@@ -220,8 +220,9 @@ def create_record_based_metadata_task(
     # remove this warning
     synapse_client.logger.warning(
         "A Grid object will no longer be created by this function starting in v5.0.0. "
-        "A Grid is used for curation workflows where data can be edited in a grid format and then exported back to record sets. "
-        "The Grid should be created from the RecordSet created by this function like: `grid = Grid(record_set_id=record_set.id).create()`. "
+        "The return type will change from Tuple[RecordSet, CurationTask, Grid] to Tuple[RecordSet, CurationTask]. "
+        "The Grid can be created from the RecordSet created by this function like: "
+        "`grid = Grid(record_set_id=record_set.id).create()`. "
         "To prepare for this change call the function like: `items = create_record_based_metadata_task()`. "
         "Then retrieve the RecordSet and Task like: `record_set = items[0]; curation_task = items[1]`. "
     )
