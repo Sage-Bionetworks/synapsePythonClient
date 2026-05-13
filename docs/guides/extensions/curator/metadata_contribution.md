@@ -20,14 +20,6 @@ By following this guide, you will:
 - The Synapse ID of the project where the administrator created the curation tasks
 - (Optional) The `task_id` of a specific `CurationTask` you've been pointed at
 
-The high-level flow is:
-
-1. **List** the curation tasks in your project to see what's been assigned
-2. **Get the Grid session** for each task — attach to an existing one if it exists, otherwise create one
-3. **Pull the grid down** to a local CSV so you can edit in bulk with the tools of your choice
-4. **Upsert your edits** back into the grid (matching on the task's `upsert_keys`)
-5. **Apply the changes** — export the grid back to the RecordSet (or synchronize, for file-based tasks) so validation runs
-
 ### Step 1: Authenticate
 
 ```python
@@ -66,12 +58,12 @@ from synapseclient.models.curation import (
 )
 
 
-# Take a curation task from above (Python lists are 0-indexed)
+# Option A: take a curation task from the list above (Python lists are 0-indexed)
 curation_task = all_tasks[0]
 
-# OR get a curation task by id
-curation_task = CurationTask(task_id=12345)
-curation_task.get()
+# Option B (alternative): get a curation task directly by id
+# curation_task = CurationTask(task_id=12345)
+# curation_task.get()
 
 if isinstance(curation_task.task_properties, RecordBasedMetadataTaskProperties):
     source_id = curation_task.task_properties.record_set_id
@@ -85,8 +77,8 @@ if isinstance(curation_task.task_properties, RecordBasedMetadataTaskProperties):
         latest_grid = Grid(record_set_id=source_id)
         latest_grid.create()
 
-if isinstance(task.task_properties, FileBasedMetadataTaskProperties):
-    source_id = task.task_properties.file_view_id
+elif isinstance(curation_task.task_properties, FileBasedMetadataTaskProperties):
+    source_id = curation_task.task_properties.file_view_id
     grid_sessions = list(Grid.list(source_id=source_id))
     if grid_sessions:
         latest_grid = grid_sessions[0]
@@ -142,11 +134,11 @@ print(f"Upserted edits into grid session: https://www.synapse.org/Grid:default?s
 
 Applying the changes is what triggers schema validation and makes your edits visible to administrators and other contributors.
 
-- For **record-based** tasks, export the grid back to the RecordSet. This creates a new version of the RecordSet and generates the validation report that administrators retrieve in [Part 1, Step 4](#step-4-review-validation-results-from-contributor-submissions).
+- For **record-based** tasks, export the grid back to the RecordSet. This creates a new version of the RecordSet and generates the validation report that administrators can retrieve via [RecordSet.get_detailed_validation_results][synapseclient.models.RecordSet.get_detailed_validation_results].
 
     ```python
     latest_grid.export_to_record_set()
-    print(f"Exported to RecordSet version: {grid.record_set_version_number}")
+    print(f"Exported to RecordSet version: {latest_grid.record_set_version_number}")
     ```
 
 - For **file-based** tasks, synchronize the grid against the file view to push annotation changes back to the underlying files.
@@ -163,13 +155,13 @@ latest_grid.delete()
 
 > **Important:** Until you call `export_to_record_set()` (or `synchronize()` for file-based tasks), your edits live only inside the Grid session — they aren't visible on the RecordSet and won't be validated. Apply changes whenever you reach a logical checkpoint.
 
-## Step 7: Review your validation results (record-based tasks)
+### Step 7: Review your validation results (record-based tasks)
 
 When you exported the grid in Step 6, Synapse validated each row against the JSON schema bound to the RecordSet and generated a row-level report. Reviewing this report before handing the task back to the administrator lets you catch and fix problems in your own data first — saving a round trip.
 
 > **File-based tasks:** Validation for file-based tasks is enforced by the JSON schema bound to the folder containing the files, not by a row-level report on the Grid export. After you call synchronize(), the administrator verifies schema compliance using [Folder.validate_schema][synapseclient.models.Folder.validate_schema] — there is no per-row report for you to inspect from the contributor side.
 
-### Prerequisites for validation results
+#### Prerequisites for validation results
 
 A validation report is only generated when **all** of the following are true:
 
@@ -179,34 +171,34 @@ A validation report is only generated when **all** of the following are true:
 
 If the Grid was never exported (Step 6), there is nothing to review yet.
 
-### Retrieve and inspect the results
+#### Retrieve and inspect the results
 
 Validation results live on the RecordSet itself, so you can retrieve them whether or not the Grid session is still open. Use the record_set_id from your CurationTask, re-fetch the RecordSet to pick up the latest validation_file_handle_id, and pull the detailed report as a pandas DataFrame:
 
 ```python
 from synapseclient.models import RecordSet
 
-# Use the record_set_id from the CurationTask you've been working on.
-record_set = RecordSet(id="syn987654321").get()
+if isinstance(curation_task.task_properties, RecordBasedMetadataTaskProperties):
+    record_set = RecordSet(id=curation_task.task_properties.record_set_id).get()
 
-validation_df = record_set.get_detailed_validation_results()
+    validation_df = record_set.get_detailed_validation_results()
 
-if validation_df is None:
-    print("No validation results yet — make sure the Grid was exported in Step 6.")
-else:
-    total = len(validation_df)
-    valid = (validation_df["is_valid"] == True).sum()  # noqa: E712
-    invalid = (validation_df["is_valid"] == False).sum()  # noqa: E712
+    if validation_df is None:
+        print("No validation results yet — make sure the Grid was exported in Step 6.")
+    else:
+        total = len(validation_df)
+        valid = (validation_df["is_valid"] == True).sum()  # noqa: E712
+        invalid = (validation_df["is_valid"] == False).sum()  # noqa: E712
 
-    print(f"Total records: {total}")
-    print(f"Valid records: {valid}")
-    print(f"Invalid records: {invalid}")
+        print(f"Total records: {total}")
+        print(f"Valid records: {valid}")
+        print(f"Invalid records: {invalid}")
 
-    invalid_rows = validation_df[validation_df["is_valid"] == False]  # noqa: E712
-    for _, row in invalid_rows.iterrows():
-        print(f"\nRow {row['row_index']}:")
-        print(f"  Error: {row['validation_error_message']}")
-        print(f"  All messages: {row['all_validation_messages']}")
+        invalid_rows = validation_df[validation_df["is_valid"] == False]  # noqa: E712
+        for _, row in invalid_rows.iterrows():
+            print(f"\nRow {row['row_index']}:")
+            print(f"  Error: {row['validation_error_message']}")
+            print(f"  All messages: {row['all_validation_messages']}")
 ```
 
 Each row of the report carries:
@@ -228,7 +220,7 @@ Row 2:
   All messages: ["#/sex: other is not a valid enum value"]
 ```
 
-### Fix and re-export
+#### Fix and re-export
 
 If any rows are invalid, recreate a Grid session against the RecordSet (see Step 3), correct the offending rows, and re-run Steps 4–6 to re-export. The validation report is regenerated on each export, so iterate until the report is clean before letting the administrator know your task is ready.
 
