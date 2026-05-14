@@ -303,6 +303,7 @@ class TestWikiPageAttachments:
         root_wiki = wiki_page_fixture
         # Create a temporary file for attachment with > 8 MiB
         filename = utils.make_bogus_uuid_file()
+        self.schedule_for_cleanup(filename)
         with open(filename, "wb") as f:
             f.write(b"\0" * (9 * 1024 * 1024))
 
