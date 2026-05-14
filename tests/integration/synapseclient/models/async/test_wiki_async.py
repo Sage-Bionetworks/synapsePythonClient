@@ -790,7 +790,6 @@ class TestWikiOrderHint:
     async def test_get_wiki_order_hint(
         self,
         wiki_page_fixture: WikiPage,
-        schedule_for_cleanup: Callable[..., None],
     ) -> None:
         await asyncio.sleep(5)
         # WHEN getting the wiki order hint
@@ -801,7 +800,6 @@ class TestWikiOrderHint:
         assert (
             len(order_hint.id_list) == 0
         )  # this is expected because the order hint is not set by default
-        schedule_for_cleanup(order_hint)
 
     async def test_store_wiki_order_hint(
         self,
