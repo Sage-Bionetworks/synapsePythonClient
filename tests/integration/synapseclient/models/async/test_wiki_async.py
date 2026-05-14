@@ -60,7 +60,6 @@ class TestWikiPageBasicOperations:
         retrieved_wiki = await WikiPage(
             owner_id=root_wiki.owner_id, id=root_wiki.id
         ).get_async(synapse_client=self.syn)
-        self.schedule_for_cleanup(retrieved_wiki)
 
         # THEN the retrieved wiki should match the created one
         assert retrieved_wiki.id == root_wiki.id
@@ -169,6 +168,7 @@ class TestWikiPageAttachments:
         """Create a wiki page with an attachment."""
         # Create a temporary file for attachment
         filename = utils.make_bogus_uuid_file()
+        schedule_for_cleanup(filename)
         # GIVEN a root wiki page
         root_wiki = wiki_page_fixture
         # Create wiki page with attachment
@@ -347,6 +347,7 @@ class TestWikiPageAttachments:
         os.rename(filename, gz_filename)
         with gzip.open(gz_filename, "wt") as f:
             f.write("hello world\n")
+        schedule_for_cleanup(gz_filename)
 
         # GIVEN a root wiki page
         root_wiki = wiki_page_fixture
@@ -580,6 +581,7 @@ class TestWikiPageMarkdown:
         os.rename(filename, md_gz_filename)
         with gzip.open(md_gz_filename, "wt") as f:
             f.write("# Test Wiki\n\nThis is test content.")
+        schedule_for_cleanup(md_gz_filename)
 
         # Create wiki page with markdown gz
         wiki_page = WikiPage(
