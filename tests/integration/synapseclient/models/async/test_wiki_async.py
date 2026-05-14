@@ -78,7 +78,6 @@ class TestWikiPageBasicOperations:
         retrieved_wiki = await WikiPage(
             owner_id=root_wiki.owner_id, title=root_wiki.title
         ).get_async(synapse_client=self.syn)
-        self.schedule_for_cleanup(retrieved_wiki)
         # THEN the retrieved wiki should match the created one
         assert retrieved_wiki.id == root_wiki.id
         assert retrieved_wiki.title == root_wiki.title
