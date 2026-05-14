@@ -100,7 +100,7 @@ PANDAS_TABLE_TYPE = {
 
 DEFAULT_QUOTE_CHARACTER = '"'
 DEFAULT_SEPARATOR = ","
-DEFAULT_ESCAPSE_CHAR = "\\"
+DEFAULT_ESCAPE_CHAR = "\\"
 
 # Taken from <https://github.com/Sage-Bionetworks/Synapse-Repository-Services/blob/cce01ec2c9f8ae44dabe957ca70e87942431aff5/lib/models/src/main/java/org/sagebionetworks/repo/model/table/TableConstants.java#L77>
 RESERVED_COLUMN_NAMES = [
@@ -485,7 +485,7 @@ async def _table_query(
             query=query,
             synapse_client=synapse_client,
             quote_character=kwargs.get("quote_character", DEFAULT_QUOTE_CHARACTER),
-            escape_character=kwargs.get("escape_character", DEFAULT_ESCAPSE_CHAR),
+            escape_character=kwargs.get("escape_character", DEFAULT_ESCAPE_CHAR),
             line_end=kwargs.get("line_end", str(os.linesep)),
             separator=kwargs.get("separator", DEFAULT_SEPARATOR),
             header=kwargs.get("header", True),
@@ -2910,7 +2910,7 @@ class QueryMixin(QueryMixinSynchronousProtocol):
             filepath=csv_path,
             separator=separator or DEFAULT_SEPARATOR,
             quote_char=quote_character or DEFAULT_QUOTE_CHARACTER,
-            escape_char=escape_character or DEFAULT_ESCAPSE_CHAR,
+            escape_char=escape_character or DEFAULT_ESCAPE_CHAR,
             row_id_and_version_in_index=False,
             date_columns=date_columns if date_columns else None,
             list_columns=list_columns if list_columns else None,
@@ -3620,7 +3620,7 @@ class TableStoreRowMixin:
         test_import_pandas()
         from pandas import DataFrame
 
-        to_csv_kwargs = {"escapechar": DEFAULT_ESCAPSE_CHAR, **(to_csv_kwargs or {})}
+        to_csv_kwargs = {"escapechar": DEFAULT_ESCAPE_CHAR, **(to_csv_kwargs or {})}
 
         original_values = values
         if isinstance(values, dict):
@@ -4506,7 +4506,7 @@ def csv_to_pandas_df(
     filepath: Union[str, BytesIO],
     separator: str = DEFAULT_SEPARATOR,
     quote_char: str = DEFAULT_QUOTE_CHARACTER,
-    escape_char: str = DEFAULT_ESCAPSE_CHAR,
+    escape_char: str = DEFAULT_ESCAPE_CHAR,
     contain_headers: bool = True,
     lines_to_skip: int = 0,
     date_columns: Optional[List[str]] = None,
@@ -4529,7 +4529,7 @@ def csv_to_pandas_df(
                     Passed as `quotechar` to pandas. If `quotechar` is supplied as a `kwarg`
                     it will be used instead of this `quote_char` argument.
         escape_char: The escape character for the file,
-                    Defaults to `DEFAULT_ESCAPSE_CHAR`.
+                    Defaults to `DEFAULT_ESCAPE_CHAR`.
         contain_headers: Whether the file contains headers,
                     Defaults to `True`.
         lines_to_skip: The number of lines to skip at the beginning of the file,
