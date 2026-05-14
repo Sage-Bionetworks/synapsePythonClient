@@ -718,7 +718,6 @@ class TestWikiPageVersioning:
 
         # THEN the wiki should be restored
         assert "Sub Wiki Versioning" in restored_wiki.title
-        self.schedule_for_cleanup(restored_wiki)
 
 
 class TestWikiHeader:
