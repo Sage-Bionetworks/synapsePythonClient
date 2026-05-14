@@ -56,6 +56,8 @@ at your own risk.
         members:
             - create_async
             - export_to_record_set_async
+            - synchronize_async
+            - download_csv_async
             - import_csv_async
 ---
 [](){ #query-reference-async }

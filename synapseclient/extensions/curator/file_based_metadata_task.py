@@ -41,6 +41,7 @@ def create_json_schema_entity_view(
     syn: Synapse,
     synapse_entity_id: str,
     entity_view_name: str = "JSON Schema view",
+    view_type_mask: Union[int, ViewTypeMask] = ViewTypeMask.FILE,
 ) -> str:
     """
     Creates a Synapse entity view based on a JSON Schema that is bound to a Synapse entity
@@ -50,6 +51,10 @@ def create_json_schema_entity_view(
         syn: A Synapse object thats been logged in
         synapse_entity_id: The ID of the entity in Synapse to bind the JSON Schema to
         entity_view_name: The name the crated entity view will have
+        view_type_mask: The view type mask for the EntityView. Defaults to
+            ViewTypeMask.FILE. Additional types can be added using bitwise OR
+            (e.g., ViewTypeMask.FILE | ViewTypeMask.DOCKER). Accepts either a
+            ViewTypeMask enum member or its raw integer value.
 
     Returns:
         The Synapse id of the crated entity view
@@ -69,7 +74,7 @@ def create_json_schema_entity_view(
         name=entity_view_name,
         parent_id=synapse_entity_id,
         scope_ids=[synapse_entity_id],
-        view_type_mask=ViewTypeMask.FILE,
+        view_type_mask=view_type_mask,
         columns=columns,
     ).store(synapse_client=syn)
     # This reorder is so that these show up in the front of the EntityView in Synapse
@@ -319,6 +324,7 @@ def create_file_based_metadata_task(
     schema_uri: Optional[str] = None,
     enable_derived_annotations: bool = False,
     assignee_principal_id: Optional[Union[str, int]] = None,
+    view_type_mask: Union[int, ViewTypeMask] = ViewTypeMask.FILE,
     *,
     synapse_client: Optional[Synapse] = None,
 ) -> Tuple[str, str]:
@@ -332,6 +338,7 @@ def create_file_based_metadata_task(
         ```python
         import synapseclient
         from synapseclient.extensions.curator import create_file_based_metadata_task
+        from synapseclient.models import ViewTypeMask
 
         syn = synapseclient.Synapse()
         syn.login()
@@ -344,7 +351,8 @@ def create_file_based_metadata_task(
             attach_wiki=False,
             entity_view_name="Biospecimen Metadata View",
             schema_uri="sage.schemas.v2571-amp.Biospecimen.schema-0.0.1",
-            assignee_principal_id=123456  # Optional: Assign to a user or team (can be str or int)
+            assignee_principal_id=123456,  # Optional: Assign to a user or team (can be str or int)
+            view_type_mask=ViewTypeMask.FILE | ViewTypeMask.DOCKER,  # Optional: include additional entity types in the view
         )
         ```
 
@@ -365,6 +373,10 @@ def create_file_based_metadata_task(
             (default), the task will be unassigned. For metadata tasks, this determines
             the owner of the grid session. Team members can all join grid sessions owned
             by their team, while user-owned grid sessions are restricted to that user only.
+        view_type_mask: The view type mask for the EntityView. Defaults to
+            ViewTypeMask.FILE. Additional types can be added using bitwise OR
+            (e.g., ViewTypeMask.FILE | ViewTypeMask.DOCKER). Accepts either a
+            ViewTypeMask enum member or its raw integer value.
         synapse_client: If not passed in and caching was not disabled by
                 `Synapse.allow_client_caching(False)` this will use the last created
                 instance from the Synapse class constructor.
@@ -415,6 +427,7 @@ def create_file_based_metadata_task(
             syn=synapse_client,
             synapse_entity_id=folder_id,
             entity_view_name=entity_view_name,
+            view_type_mask=view_type_mask,
         )
     except Exception as e:
         synapse_client.logger.exception("Error creating entity view")
