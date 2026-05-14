@@ -270,6 +270,7 @@ class TestWikiPageAttachments:
 
         # AND a download location
         download_dir = tempfile.mkdtemp()
+        self.schedule_for_cleanup(download_dir)
 
         # Poll until attachment preview is available for download
         await wait_for_condition(
@@ -313,6 +314,7 @@ class TestWikiPageAttachments:
 
         # AND a download location
         download_dir = tempfile.mkdtemp()
+        self.schedule_for_cleanup(download_dir)
 
         # Create wiki page with attachment
         wiki_page = WikiPage(
@@ -411,6 +413,7 @@ class TestWikiPageAttachments:
 
         # AND a download location
         download_dir = tempfile.mkdtemp()
+        self.schedule_for_cleanup(download_dir)
 
         # WHEN downloading the gz attachment
         downloaded_path = await wiki_page.get_attachment_async(
@@ -469,6 +472,7 @@ class TestWikiPageAttachments:
 
         # AND a download location
         download_dir = tempfile.mkdtemp()
+        self.schedule_for_cleanup(download_dir)
 
         # WHEN downloading the attachment preview
         downloaded_path = await wiki_page.get_attachment_preview_async(
@@ -551,6 +555,7 @@ class TestWikiPageMarkdown:
 
         # AND a download location
         download_dir = tempfile.mkdtemp()
+        self.schedule_for_cleanup(download_dir)
 
         # WHEN downloading the markdown file
         downloaded_path = await WikiPage(
@@ -615,6 +620,7 @@ class TestWikiPageMarkdown:
 
         # AND a download location
         download_dir = tempfile.mkdtemp()
+        self.schedule_for_cleanup(download_dir)
 
         # WHEN downloading the markdown file
         downloaded_path = await WikiPage(
