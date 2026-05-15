@@ -12,8 +12,6 @@ from synapseclient import Synapse
 from synapseclient.core.exceptions import SynapseHTTPError
 from synapseclient.core.utils import make_bogus_uuid_file
 from synapseclient.models import (
-    Column,
-    ColumnType,
     CurationTask,
     EntityView,
     FileBasedMetadataTaskProperties,
@@ -48,28 +46,11 @@ class TestCurationTaskStoreAsync:
         ).store_async(synapse_client=syn)
         schedule_for_cleanup(folder.id)
 
-        # Create an EntityView for the folder
-        columns = [
-            Column(name="id", column_type=ColumnType.ENTITYID),
-            Column(name="name", column_type=ColumnType.STRING, maximum_size=256),
-            Column(name="createdOn", column_type=ColumnType.DATE),
-            Column(name="createdBy", column_type=ColumnType.USERID),
-            Column(name="etag", column_type=ColumnType.STRING, maximum_size=64),
-            Column(name="type", column_type=ColumnType.STRING, maximum_size=64),
-            Column(name="parentId", column_type=ColumnType.ENTITYID),
-            Column(name="benefactorId", column_type=ColumnType.ENTITYID),
-            Column(name="projectId", column_type=ColumnType.ENTITYID),
-            Column(name="modifiedOn", column_type=ColumnType.DATE),
-            Column(name="modifiedBy", column_type=ColumnType.USERID),
-            Column(name="dataFileHandleId", column_type=ColumnType.FILEHANDLEID),
-        ]
-
         entity_view = await EntityView(
             name=str(uuid.uuid4()),
             parent_id=project_model.id,
             scope_ids=[folder.id],
             view_type_mask=ViewTypeMask.FILE.value,
-            columns=columns,
         ).store_async(synapse_client=syn)
         schedule_for_cleanup(entity_view.id)
 
@@ -277,28 +258,11 @@ class TestCurationTaskGetAsync:
         ).store_async(synapse_client=syn)
         schedule_for_cleanup(folder.id)
 
-        # Create required columns for the EntityView
-        columns = [
-            Column(name="id", column_type=ColumnType.ENTITYID),
-            Column(name="name", column_type=ColumnType.STRING, maximum_size=256),
-            Column(name="createdOn", column_type=ColumnType.DATE),
-            Column(name="createdBy", column_type=ColumnType.USERID),
-            Column(name="etag", column_type=ColumnType.STRING, maximum_size=64),
-            Column(name="type", column_type=ColumnType.STRING, maximum_size=64),
-            Column(name="parentId", column_type=ColumnType.ENTITYID),
-            Column(name="benefactorId", column_type=ColumnType.ENTITYID),
-            Column(name="projectId", column_type=ColumnType.ENTITYID),
-            Column(name="modifiedOn", column_type=ColumnType.DATE),
-            Column(name="modifiedBy", column_type=ColumnType.USERID),
-            Column(name="dataFileHandleId", column_type=ColumnType.FILEHANDLEID),
-        ]
-
         entity_view = await EntityView(
             name=str(uuid.uuid4()),
             parent_id=project_model.id,
             scope_ids=[folder.id],
             view_type_mask=ViewTypeMask.FILE.value,
-            columns=columns,
         ).store_async(synapse_client=syn)
         schedule_for_cleanup(entity_view.id)
 
@@ -386,28 +350,11 @@ class TestCurationTaskDeleteAsync:
         ).store_async(synapse_client=syn)
         schedule_for_cleanup(folder.id)
 
-        # Create required columns for the EntityView
-        columns = [
-            Column(name="id", column_type=ColumnType.ENTITYID),
-            Column(name="name", column_type=ColumnType.STRING, maximum_size=256),
-            Column(name="createdOn", column_type=ColumnType.DATE),
-            Column(name="createdBy", column_type=ColumnType.USERID),
-            Column(name="etag", column_type=ColumnType.STRING, maximum_size=64),
-            Column(name="type", column_type=ColumnType.STRING, maximum_size=64),
-            Column(name="parentId", column_type=ColumnType.ENTITYID),
-            Column(name="benefactorId", column_type=ColumnType.ENTITYID),
-            Column(name="projectId", column_type=ColumnType.ENTITYID),
-            Column(name="modifiedOn", column_type=ColumnType.DATE),
-            Column(name="modifiedBy", column_type=ColumnType.USERID),
-            Column(name="dataFileHandleId", column_type=ColumnType.FILEHANDLEID),
-        ]
-
         entity_view = await EntityView(
             name=str(uuid.uuid4()),
             parent_id=project_model.id,
             scope_ids=[folder.id],
             view_type_mask=ViewTypeMask.FILE.value,
-            columns=columns,
         ).store_async(synapse_client=syn)
         schedule_for_cleanup(entity_view.id)
 
@@ -604,28 +551,11 @@ class TestCurationTaskListAsync:
         ).store_async(synapse_client=syn)
         schedule_for_cleanup(folder.id)
 
-        # Create required columns for the EntityView
-        columns = [
-            Column(name="id", column_type=ColumnType.ENTITYID),
-            Column(name="name", column_type=ColumnType.STRING, maximum_size=256),
-            Column(name="createdOn", column_type=ColumnType.DATE),
-            Column(name="createdBy", column_type=ColumnType.USERID),
-            Column(name="etag", column_type=ColumnType.STRING, maximum_size=64),
-            Column(name="type", column_type=ColumnType.STRING, maximum_size=64),
-            Column(name="parentId", column_type=ColumnType.ENTITYID),
-            Column(name="benefactorId", column_type=ColumnType.ENTITYID),
-            Column(name="projectId", column_type=ColumnType.ENTITYID),
-            Column(name="modifiedOn", column_type=ColumnType.DATE),
-            Column(name="modifiedBy", column_type=ColumnType.USERID),
-            Column(name="dataFileHandleId", column_type=ColumnType.FILEHANDLEID),
-        ]
-
         entity_view = await EntityView(
             name=str(uuid.uuid4()),
             parent_id=project_model.id,
             scope_ids=[folder.id],
             view_type_mask=ViewTypeMask.FILE.value,
-            columns=columns,
         ).store_async(synapse_client=syn)
         schedule_for_cleanup(entity_view.id)
 

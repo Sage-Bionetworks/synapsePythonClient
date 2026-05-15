@@ -852,10 +852,11 @@ class TestFactoryOperationsGetAsync:
     ) -> None:
         """Test retrieving a Docker repository using get factory function."""
         # GIVEN a Docker repository exists
+        unique_id = str(uuid.uuid4())[:8]
         docker_repo = await DockerRepository(
             parent_id=project_model.id,
-            repository_name="username/test-get-factory",
-            name="Test Factory Repo",
+            repository_name=f"username/test-get-factory-{unique_id}",
+            name=f"Test Factory Repo {unique_id}",
             description="Testing get factory",
         ).store_async(synapse_client=self.syn)
 
@@ -867,8 +868,8 @@ class TestFactoryOperationsGetAsync:
         # THEN the correct DockerRepository is returned
         assert isinstance(retrieved, DockerRepository)
         assert retrieved.id == docker_repo.id
-        assert retrieved.repository_name == "username/test-get-factory"
-        assert retrieved.name == "Test Factory Repo"
+        assert retrieved.repository_name == f"username/test-get-factory-{unique_id}"
+        assert retrieved.name == f"Test Factory Repo {unique_id}"
         assert retrieved.description == "Testing get factory"
         assert retrieved.parent_id == project_model.id
         assert retrieved.etag is not None
