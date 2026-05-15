@@ -815,7 +815,7 @@ class TestCheckParentContainersAsync:
         cls = {"Project": Project, "Folder": Folder}[container_cls]
         mock_container = MagicMock(spec=cls)
         with patch(
-            "synapseclient.models.services.manifest.factory_get_async",
+            "synapseclient.models.services.manifest.get_async",
             new=AsyncMock(return_value=mock_container),
         ):
             await _check_parent_containers_async(["syn1"], syn=self.syn)
@@ -824,7 +824,7 @@ class TestCheckParentContainersAsync:
         """A parent ID that resolves to a non-container Synapse entity raises ValueError."""
         mock_entity = MagicMock()  # not a Folder or Project
         with patch(
-            "synapseclient.models.services.manifest.factory_get_async",
+            "synapseclient.models.services.manifest.get_async",
             new=AsyncMock(return_value=mock_entity),
         ):
             with pytest.raises(ValueError, match="not a Folder or Project"):
@@ -833,7 +833,7 @@ class TestCheckParentContainersAsync:
     async def test_empty_parent_id_skipped(self) -> None:
         """An empty parent ID string is skipped without calling the Synapse API."""
         with patch(
-            "synapseclient.models.services.manifest.factory_get_async",
+            "synapseclient.models.services.manifest.get_async",
             new=AsyncMock(),
         ) as mock_get:
             await _check_parent_containers_async([""], syn=self.syn)
@@ -844,7 +844,7 @@ class TestCheckParentContainersAsync:
         from synapseclient.core.exceptions import SynapseHTTPError
 
         with patch(
-            "synapseclient.models.services.manifest.factory_get_async",
+            "synapseclient.models.services.manifest.get_async",
             new=AsyncMock(side_effect=SynapseHTTPError("Not found")),
         ):
             with pytest.raises(SynapseHTTPError):
