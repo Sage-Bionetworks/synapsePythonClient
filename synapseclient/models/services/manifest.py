@@ -1,4 +1,5 @@
-"""Services for reading and writing Synapse manifest CSV files.
+"""Services for reading and generating Synapse manifest CSV files used to
+drive bulk upload via Project.sync_to_synapse / Folder.sync_to_synapse.
 
 This includes reading a manifest CSV file and preparing it for upload, as well
 as writing a manifest CSV file from a list of File entities.
@@ -10,11 +11,12 @@ import ast
 import asyncio
 import csv
 import datetime
+import functools
 import io
 import os
 import re
 from dataclasses import dataclass
-from typing import TYPE_CHECKING, Any, Iterable, NamedTuple, Union
+from typing import TYPE_CHECKING, Any, Iterable, NamedTuple, TypedDict, Union
 
 from synapseclient import Synapse
 from synapseclient.core import utils
@@ -32,14 +34,14 @@ from synapseclient.core.utils import (
     test_import_pandas,
     topolgical_sort,
 )
-from synapseclient.operations.factory_operations import FileOptions
-from synapseclient.operations.factory_operations import get_async as factory_get_async
+from synapseclient.operations.factory_operations import FileOptions, get_async
 
 if TYPE_CHECKING:
     from pandas import DataFrame, Series
 
     from synapseclient.models import UsedEntity, UsedURL
     from synapseclient.models.file import File
+    from synapseclient.models.folder import Folder
 
 
 MANIFEST_CSV_FILENAME = "manifest.csv"
@@ -708,7 +710,7 @@ async def _check_parent_containers_async(parent_ids: list[str], syn: Synapse) ->
         if not syn_id:
             return
         try:
-            container = await factory_get_async(
+            container = await get_async(
                 synapse_id=syn_id,
                 file_options=FileOptions(download_file=False),
                 synapse_client=syn,
@@ -1528,3 +1530,378 @@ async def _resolve_local_file_provenance(
             f"The provenance record for file: {owner_path} is incorrect.\n"
             f"Specifically {absolute_path} is not being uploaded and is not in Synapse."
         ) from e
+
+
+GENERATED_MANIFEST_COLUMNS = ["path", "parentId"]
+
+
+class ManifestRow(TypedDict):
+    """Shape of a single row in the generated manifest CSV.
+
+    Keys mirror GENERATED_MANIFEST_COLUMNS so the dict can be passed
+    directly to csv.DictWriter without conversion.
+    """
+
+    path: str
+    parentId: str
+
+
+async def generate_sync_manifest(
+    directory_path: str,
+    parent_id: str,
+    manifest_path: str,
+    *,
+    synapse_client: Synapse | None = None,
+) -> None:
+    """Walk a local directory, mirror its folder hierarchy under parent_id in
+    Synapse, and write a CSV manifest ready for sync_to_synapse_async.
+
+    The generated manifest has two columns: path (always an absolute,
+    symlink-resolved path — directory_path is resolved via os.path.realpath
+    before walking, so the manifest can be consumed from any working
+    directory and remains valid even if the original symlink is later
+    removed or re-pointed) and parentId (the Synapse ID of the file's
+    containing folder). Folders that already exist in Synapse with the same
+    name and parent are reused rather than re-created.
+
+    Sibling folders at the same depth are created concurrently to reduce
+    latency on wide trees. Directories and files are traversed in sorted
+    order so manifest output is deterministic across runs and platforms.
+    Directory symlinks encountered inside directory_path are not followed.
+    File symlinks are not pruned: the symlink's path is recorded in the
+    manifest, and the underlying target's contents are uploaded when the
+    manifest is consumed. The root directory_path itself may be a symlink;
+    if so, it is resolved to its target and the target is walked. Zero-byte
+    files are skipped with a warning, since Synapse rejects empty files.
+    I/O errors raised by os.walk (for example, unreadable subdirectories)
+    are logged and skipped. If no uploadable files are found under
+    directory_path, a warning is logged and a header-only manifest is
+    written. If a folder store call fails, the exception propagates and no
+    manifest is written; any folders already created remain in Synapse and
+    will be reused on a retry.
+
+    Arguments:
+        directory_path: Path to the local directory to be pushed to Synapse.
+        parent_id: Synapse ID of the Folder or Project to mirror the
+            directory hierarchy under.
+        manifest_path: Path where the generated manifest CSV will be written.
+        synapse_client: If not passed in and caching was not disabled by
+            Synapse.allow_client_caching(False) this will use the last
+            created instance from the Synapse class constructor.
+
+    Returns:
+        None
+
+    Raises:
+        ValueError: If the parent directory of manifest_path does not exist,
+            if manifest_path is an existing directory, if directory_path
+            does not exist or is not a directory, or if parent_id exists in
+            Synapse but is not a Folder or Project.
+        SynapseHTTPError: If parent_id does not exist in Synapse.
+    """
+    client = Synapse.get_client(synapse_client=synapse_client)
+
+    manifest_path = _expand_path(manifest_path)
+    manifest_parent = os.path.dirname(manifest_path) or "."
+    if not os.path.isdir(manifest_parent):
+        raise ValueError(f"Manifest output directory does not exist: {manifest_parent}")
+    if os.path.isdir(manifest_path):
+        raise ValueError(
+            f"Manifest output path is an existing directory, not a file: {manifest_path}"
+        )
+    directory_path = _resolve_and_validate_directory_path(directory_path)
+    await _validate_target_container_async(parent_id, client=client)
+
+    rows = await _collect_manifest_rows_async(directory_path, parent_id, client)
+
+    if not rows:
+        client.logger.warning(
+            f"No uploadable files found under {directory_path};"
+            " generated manifest contains only the header row."
+        )
+    _write_manifest_csv(manifest_path, rows)
+
+
+def _resolve_and_validate_directory_path(directory_path: str) -> str:
+    """Resolve symlinks on directory_path and verify it is an existing
+    directory.
+
+    Uses realpath (not abspath) so that if directory_path is itself a
+    symlink, the manifest records paths under the resolved target. That
+    keeps the manifest valid if the original symlink is later removed or
+    re-pointed.
+
+    Arguments:
+        directory_path: Path to validate.
+
+    Returns:
+        The realpath-resolved absolute directory path.
+
+    Raises:
+        ValueError: If the resolved path does not exist or is not a
+            directory.
+    """
+    directory_path = os.path.realpath(_expand_path(directory_path))
+    if not os.path.isdir(directory_path):
+        raise ValueError(f"{directory_path} is not a directory or does not exist")
+    return directory_path
+
+
+async def _validate_target_container_async(parent_id: str, client: Synapse) -> None:
+    """Verify that parent_id resolves to a Folder or Project in Synapse.
+
+    Raises:
+        ValueError: If parent_id exists but is not a Folder or Project.
+    """
+    container = await get_async(
+        synapse_id=parent_id,
+        file_options=FileOptions(download_file=False),
+        synapse_client=client,
+    )
+
+    from synapseclient.models import Folder, Project
+
+    if not isinstance(container, (Folder, Project)):
+        raise ValueError(f"Container {parent_id} is not a Folder or Project")
+
+
+async def _collect_manifest_rows_async(
+    directory_path: str, parent_id: str, client: Synapse
+) -> list[ManifestRow]:
+    """Walk directory_path and produce manifest rows for every uploadable file.
+
+        Orchestrates the layer between os.walk (filesystem traversal) and the
+        Synapse folder/file model. Called once by generate_sync_manifest, after
+        path validation and before _write_manifest_csv.
+
+        Algorithm:
+
+        1. Initialize a local-to-Synapse parent map seeded with
+           directory_path → parent_id. Subfolder IDs are added as they are
+           created so descendants can look up their Synapse parent.
+        2. Walk top-down with os.walk. Top-down order matters — a directory's
+           parent is always yielded (and registered) before the directory
+           itself is visited. Walk errors (permission denied, broken paths)
+           are logged via _log_walk_error rather than aborting traversal.
+
+    For each directory:
+
+        3. Prune symlinks and sort dirnames in place via
+           _prune_symlinks_and_sort_dirnames so Synapse folders aren't created
+           for directories os.walk(followlinks=False) won't visit, and
+           descent is deterministic.
+        4. Look up current_parent_id from the map (guaranteed present by the
+           top-down invariant).
+        5. Create sibling folders concurrently via _create_child_folders_async
+           (asyncio.gather over Folder.store_async). Existing Synapse folders
+           with the same name and parent are reused, not duplicated.
+        6. Register each new folder's Synapse ID in the map keyed by its
+           absolute local path so step 4 succeeds when os.walk descends into
+           it on a later iteration.
+        7. Build manifest rows for files in the current directory via
+           _build_manifest_rows. Unreadable and zero-byte files are filtered
+           out with warnings inside that helper.
+
+        Side effect vs return value: the return value is the flat list of
+        ManifestRow entries, but the side effect — creating the Synapse
+        folder hierarchy under parent_id to mirror the local tree — is what
+        makes the rows usable. Without it the parentId values in the rows
+        would point at folders that don't exist yet.
+
+        Async because _create_child_folders_async hits the Synapse API and
+        parallelizes sibling-folder creation. The rest (walking, sorting,
+        building rows) is local I/O and would otherwise be sync.
+
+        Arguments:
+            directory_path: Realpath-resolved local directory to walk.
+            parent_id: Synapse ID of the container that maps to directory_path.
+            client: Authenticated Synapse client.
+
+        Returns:
+            A list of ManifestRow entries, one per uploadable file.
+    """
+    rows: list[ManifestRow] = []
+    # Step 1: seed the local-to-Synapse parent map with the root mapping.
+    local_to_synapse_parent: dict[str, str] = {directory_path: parent_id}
+
+    # Step 2: walk the input dir.
+    for dirpath, dirnames, filenames in os.walk(
+        directory_path, onerror=functools.partial(_log_walk_error, client)
+    ):
+        # Step 3: prune symlinked dirs and sort in place
+        _prune_symlinks_and_sort_dirnames(dirnames, dirpath)
+
+        # Step 4: look up the Synapse parent for the current local dir
+        current_parent_id = local_to_synapse_parent[dirpath]
+
+        # Step 5: create sibling folders concurrently.
+        created = await _create_child_folders_async(
+            parent_id=current_parent_id, dirnames=dirnames, client=client
+        )
+        # Step 6: register each new folder's Synapse ID.
+        for dirname, folder in created.items():
+            local_to_synapse_parent[os.path.join(dirpath, dirname)] = folder.id
+
+        # Step 7: build rows for files in this directory and accumulate.
+        rows.extend(_build_manifest_rows(dirpath, filenames, current_parent_id, client))
+
+    return rows
+
+
+def _log_walk_error(client: Synapse, err: OSError) -> None:
+    """Turn an os.walk I/O error from fatal into logged-and-skipped.
+
+    By default os.walk silently ignores any OSError it hits while listing a
+    directory (e.g., permission denied, vanished symlink target, dead mount
+    point). Silent skipping is dangerous during manifest generation because
+    the user would get an incomplete manifest with no indication that some
+    subtree was missed. os.walk accepts an onerror callback that, if
+    provided, is invoked with the OSError instead — which is what
+    _collect_manifest_rows_async wires up via functools.partial.
+
+    This callback logs a warning through the Synapse client's logger naming
+    the offending path (err.filename) and the underlying error message, then
+    returns. Returning normally (rather than raising) is the contract that
+    tells os.walk to keep going, so traversal continues into the rest of the
+    tree.
+
+    The client argument is first only so the caller can bind it via
+    functools.partial, leaving the (err: OSError) signature os.walk requires.
+    The client is needed solely to reach client.logger.
+
+    Net effect: unreadable directories produce a visible warning but do not
+    abort manifest generation; readable parts of the tree still produce
+    manifest rows. This mirrors _build_manifest_rows, which also
+    warns-and-skips on unreadable or zero-byte files rather than failing the
+    whole run.
+
+    Arguments:
+        client: Authenticated Synapse client, used only for its logger.
+        err: The OSError raised by os.walk while listing a directory.
+    """
+    client.logger.warning(
+        f"Skipping unreadable path during manifest generation:"
+        f" {err.filename} ({err})"
+    )
+
+
+def _prune_symlinks_and_sort_dirnames(dirnames: list[str], dirpath: str) -> None:
+    """Prune symlinked subdirectories and sort the rest in place.
+
+    Mutates dirnames in place — the documented os.walk hook for both
+    pruning the traversal and forcing deterministic descent order.
+    Symlinked subdirectories are dropped so we don't create Synapse
+    folders for directories whose contents os.walk (followlinks=False)
+    won't visit.
+
+    Arguments:
+        dirnames: The dirnames list yielded by os.walk for the current dirpath.
+        dirpath: The current directory being walked.
+    """
+    dirnames[:] = [d for d in dirnames if not os.path.islink(os.path.join(dirpath, d))]
+    dirnames.sort()
+
+
+async def _create_child_folders_async(
+    parent_id: str, dirnames: list[str], client: Synapse
+) -> dict[str, Folder]:
+    """Create sibling folders concurrently under a shared Synapse parent.
+
+    Sibling folders have no ordering dependency on each other, so they are
+    gathered in a single batch rather than awaited one at a time. Each task
+    returns its own dirname alongside the resulting Folder so the caller's
+    name-to-Folder mapping does not depend on asyncio.gather preserving
+    submission order.
+
+    Returns:
+        A dict mapping each input dirname to the Folder that was created or
+        reused for it.
+    """
+    from synapseclient.models.folder import Folder
+
+    semaphore = asyncio.Semaphore(max(client.max_threads * 2, 1))
+
+    # Each task carries its dirname through to the result so the caller can
+    # build a name-to-Folder mapping without relying on asyncio.gather's
+    # input-order guarantee.
+    # Pair-tagged results remain correct under any completion order.
+    async def _store(dirname: str) -> tuple[str, Folder]:
+        async with semaphore:
+            folder = await Folder(name=dirname, parent_id=parent_id).store_async(
+                synapse_client=client
+            )
+            return dirname, folder
+
+    pairs = await asyncio.gather(*[_store(d) for d in dirnames])
+    return dict(pairs)
+
+
+def _build_manifest_rows(
+    dirpath: str,
+    filenames: Iterable[str],
+    parent_id: str,
+    client: Synapse,
+) -> list[ManifestRow]:
+    """Build manifest rows for the uploadable files in a single directory.
+
+    Called once per directory by _collect_manifest_rows_async during the
+    os.walk traversal. All files in a single call share the same parent_id
+    (the Synapse folder corresponding to dirpath). Sync because everything
+    it does is local I/O with no Synapse API calls; the async parent only
+    awaits when creating Synapse folders, not when scanning files.
+
+    Filenames are sorted before iteration so output is deterministic across
+    runs and platforms (os.walk does not guarantee filename order). Each
+    name is joined with dirpath to form an absolute filepath, then filtered
+    through _is_uploadable_file, which logs and drops unreadable files
+    (broken symlinks, permission errors) and zero-byte files.
+
+    Arguments:
+        dirpath: Absolute directory path currently being walked.
+        filenames: Filenames yielded by os.walk for dirpath.
+        parent_id: Synapse ID of the folder that maps to dirpath.
+        client: Authenticated Synapse client, used only for logging.
+
+    Returns:
+        A list of ManifestRow entries (path, parentId) ready to be written
+        into the manifest CSV (matching GENERATED_MANIFEST_COLUMNS), one
+        per uploadable file.
+    """
+    rows: list[ManifestRow] = []
+    for filename in sorted(filenames):
+        filepath = os.path.join(dirpath, filename)
+        if _is_uploadable_file(filepath, client):
+            rows.append({"path": filepath, "parentId": parent_id})
+    return rows
+
+
+def _write_manifest_csv(manifest_path: str, rows: list[ManifestRow]) -> None:
+    """Write generated manifest rows to a CSV at manifest_path."""
+    with open(manifest_path, "w", encoding="utf-8", newline="") as fp:
+        writer = csv.DictWriter(fp, fieldnames=GENERATED_MANIFEST_COLUMNS)
+        writer.writeheader()
+        writer.writerows(rows)
+
+
+def _is_uploadable_file(filepath: str, client: Synapse) -> bool:
+    """Return True if filepath can be included in a generated manifest.
+
+    Logs a warning and returns False for files that cannot be uploaded:
+    unreadable files (broken symlinks, permission errors, races) and
+    zero-byte files (rejected by Synapse).
+    """
+    try:
+        size = os.stat(filepath).st_size
+    except OSError as err:
+        client.logger.warning(
+            f"Skipping unreadable file during manifest generation:"
+            f" {filepath} ({err})"
+        )
+        return False
+    if size == 0:
+        client.logger.warning(
+            f"Skipping zero-byte file (empty files cannot be"
+            f" uploaded to Synapse): {filepath}"
+        )
+        return False
+    return True

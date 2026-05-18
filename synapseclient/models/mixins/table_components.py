@@ -13,6 +13,7 @@ from datetime import datetime
 from io import BytesIO
 from typing import Any, Dict, List, Optional, Protocol, Tuple, Union
 
+import pandas as pd
 from tqdm import tqdm
 from tqdm.contrib.logging import logging_redirect_tqdm
 from typing_extensions import Self
@@ -99,7 +100,7 @@ PANDAS_TABLE_TYPE = {
 
 DEFAULT_QUOTE_CHARACTER = '"'
 DEFAULT_SEPARATOR = ","
-DEFAULT_ESCAPSE_CHAR = "\\"
+DEFAULT_ESCAPE_CHAR = "\\"
 
 # Taken from <https://github.com/Sage-Bionetworks/Synapse-Repository-Services/blob/cce01ec2c9f8ae44dabe957ca70e87942431aff5/lib/models/src/main/java/org/sagebionetworks/repo/model/table/TableConstants.java#L77>
 RESERVED_COLUMN_NAMES = [
@@ -138,10 +139,20 @@ def row_labels_from_rows(rows: List[Row]) -> List[Row]:
     )
 
 
-def convert_dtypes_to_json_serializable(df):
+def convert_dtypes_to_json_serializable(df) -> pd.DataFrame:
     """
-    Convert the dtypes of the int64 and float64 columns to object columns which are JSON serializable types.
-    Also, convert the ROW_ID, ROW_VERSION, and ROW_ID.1 columns to int columns which are JSON serializable types.
+    Prepare a DataFrame for JSON/CSV serialization by cleaning special values
+    and normalizing dtypes. Mutates the passed-in DataFrame in place (and also
+    returns it).
+
+    - Recursively replaces `Ellipsis` with `"..."` and `pd.NA`/`np.nan`/`None`
+      with `None` inside nested `list`/`dict` values.
+    - Converts top-level `Ellipsis` to `"..."` and top-level `pd.NA`/`np.nan`/
+      `None` to `None`.
+    - Runs `convert_dtypes()` then casts every column to `object` dtype (with
+      `pd.NA` -> `None`), except `ROW_ID`, `ROW_VERSION`, and `ROW_ID.1`, which
+      are cast back to `int` since the Synapse API requires them as integers.
+
     Arguments:
         df: The dataframe to convert the dtypes of.
     Returns:
@@ -163,16 +174,64 @@ def convert_dtypes_to_json_serializable(df):
             "datetime_list_col": [[datetime(2021, 1, 1), datetime(2021, 1, 2), datetime(2021, 1, 3)], [datetime(2021, 1, 4), datetime(2021, 1, 5), datetime(2021, 1, 6)], None, [datetime(2021, 1, 7), datetime(2021, 1, 8), datetime(2021, 1, 9)]],
             "entityid_list_col": [["syn123", "syn456", None], ["syn101", "syn102", "syn103"], None, ["syn104", "syn105", "syn106"]],
             "userid_list_col": [["user1", "user2", "user3"], ["user4", "user5", None], None, ["user7", "user8", "user9"]],
+            "json_col_with_quotes": [
+                {
+                    "id": 1,
+                    "description": 'Text with "quotes" in the description field',
+                    "references": []
+                },
+                {
+                    "id": 2,
+                    "description": 'Another description with "quoted text" here',
+                    "references": ["ref1", "ref2"]
+                },
+                {
+                    "id": 3,
+                    "description": 'Description containing "multiple" quoted "words"',
+                    "references": [...]
+                },
+                {
+                    "id": 4,
+                    "description": 'Description containing apostrophes sage\'s',
+                    "references": [...]
+                }
+
+            ],
         }).convert_dtypes()
         df = convert_dtypes_to_json_serializable(df)
         print(df)
     """
-    import pandas as pd
+
+    def _serialize_json_value(x):
+        if isinstance(x, (list, dict)):
+
+            def _reformat_special_values(obj):
+                if obj is ...:
+                    return "..."
+                if isinstance(obj, dict):
+                    return {k: _reformat_special_values(v) for k, v in obj.items()}
+                if isinstance(obj, list):
+                    return [_reformat_special_values(item) for item in obj]
+                # Catch pd.NA, np.nan, and None — none are valid JSON
+                if pd.isna(obj):
+                    return None
+                return obj
+
+            return _reformat_special_values(x)
+        # Handle standalone ellipsis
+        if x is ...:
+            return "..."
+        # Handle top-level pd.NA, np.nan, None
+        if pd.isna(x):
+            return None
+        return x
 
     for col in df.columns:
-        df[col] = (
-            df[col].replace({pd.NA: None}).astype(object)
-        )  # this will convert the int64 and float64 columns to object columns
+        df[col] = df[col].apply(_serialize_json_value)
+        # restore the original values of the column especially for the int64 and float64 columns since apply function changes the dtype
+        df[col] = df[col].convert_dtypes()
+        df[col] = df[col].replace({pd.NA: None}).astype(object)
+
         # Convert ROW_ prefixed columns back to int (like ROW_ID, ROW_VERSION)
         if col in [
             "ROW_ID",
@@ -426,7 +485,7 @@ async def _table_query(
             query=query,
             synapse_client=synapse_client,
             quote_character=kwargs.get("quote_character", DEFAULT_QUOTE_CHARACTER),
-            escape_character=kwargs.get("escape_character", DEFAULT_ESCAPSE_CHAR),
+            escape_character=kwargs.get("escape_character", DEFAULT_ESCAPE_CHAR),
             line_end=kwargs.get("line_end", str(os.linesep)),
             separator=kwargs.get("separator", DEFAULT_SEPARATOR),
             header=kwargs.get("header", True),
@@ -2809,7 +2868,6 @@ class QueryMixin(QueryMixinSynchronousProtocol):
             timeout=timeout,
             synapse_client=synapse_client,
         )
-
         if download_location:
             return csv_path
 
@@ -2852,7 +2910,7 @@ class QueryMixin(QueryMixinSynchronousProtocol):
             filepath=csv_path,
             separator=separator or DEFAULT_SEPARATOR,
             quote_char=quote_character or DEFAULT_QUOTE_CHARACTER,
-            escape_char=escape_character or DEFAULT_ESCAPSE_CHAR,
+            escape_char=escape_character or DEFAULT_ESCAPE_CHAR,
             row_id_and_version_in_index=False,
             date_columns=date_columns if date_columns else None,
             list_columns=list_columns if list_columns else None,
@@ -3387,7 +3445,9 @@ class TableStoreRowMixin:
                 function when writing the data to a CSV file. This is only used when
                 the `values` argument is a Pandas DataFrame. See
                 <https://pandas.pydata.org/docs/reference/api/pandas.DataFrame.to_csv.html>
-                for complete list of supported arguments.
+                for complete list of supported arguments. Any kwargs you supply are
+                merged on top of the default `{"escapechar": "\\"}`, so you only need
+                to override `escapechar` explicitly if you want different behavior.
 
             job_timeout: The maximum amount of time to wait for a job to complete.
                 This is used when inserting, and updating rows of data. Each individual
@@ -3559,6 +3619,8 @@ class TableStoreRowMixin:
         """
         test_import_pandas()
         from pandas import DataFrame
+
+        to_csv_kwargs = {"escapechar": DEFAULT_ESCAPE_CHAR, **(to_csv_kwargs or {})}
 
         original_values = values
         if isinstance(values, dict):
@@ -3786,6 +3848,7 @@ class TableStoreRowMixin:
                 "AppendableRowSetRequest",
             ]
         ] = None,
+        to_csv_kwargs: Optional[Dict[str, Any]] = None,
     ) -> None:
         """
         Organize the process of reading in and uploading parts of the DataFrame we are
@@ -3816,6 +3879,8 @@ class TableStoreRowMixin:
                 being uploaded.
             changes: Additional changes to the table that should
                 execute within this transaction.
+            to_csv_kwargs: Additional arguments to pass to the `pd.DataFrame.to_csv`
+                function when writing the data to a CSV file.
         """
         file_handle_id = await multipart_upload_dataframe_async(
             syn=client,
@@ -3828,6 +3893,7 @@ class TableStoreRowMixin:
             line_start=line_start,
             line_end=line_end,
             bytes_to_prepend=header,
+            to_csv_kwargs=to_csv_kwargs,
         )
         # We are using a semaphore here because large tables can take a very long time
         # for the update to complete. This will allow us to wait for the update to
@@ -4031,8 +4097,8 @@ class TableStoreRowMixin:
             to_csv_kwargs: Additional arguments to pass to the `pd.DataFrame.to_csv`
                 function when writing the data to a CSV file.
         """
+        df = convert_dtypes_to_json_serializable(df)
         # Loop over the rows of the DF to determine the size/boundries we'll be uploading
-
         chunks_to_upload = []
         size_of_chunk = 0
         buffer = BytesIO()
@@ -4142,6 +4208,7 @@ class TableStoreRowMixin:
                         header=header_line,
                         changes=changes,
                         file_suffix=f"{part}",
+                        to_csv_kwargs=to_csv_kwargs,
                     )
                 )
             )
@@ -4439,7 +4506,7 @@ def csv_to_pandas_df(
     filepath: Union[str, BytesIO],
     separator: str = DEFAULT_SEPARATOR,
     quote_char: str = DEFAULT_QUOTE_CHARACTER,
-    escape_char: str = DEFAULT_ESCAPSE_CHAR,
+    escape_char: str = DEFAULT_ESCAPE_CHAR,
     contain_headers: bool = True,
     lines_to_skip: int = 0,
     date_columns: Optional[List[str]] = None,
@@ -4462,7 +4529,7 @@ def csv_to_pandas_df(
                     Passed as `quotechar` to pandas. If `quotechar` is supplied as a `kwarg`
                     it will be used instead of this `quote_char` argument.
         escape_char: The escape character for the file,
-                    Defaults to `DEFAULT_ESCAPSE_CHAR`.
+                    Defaults to `DEFAULT_ESCAPE_CHAR`.
         contain_headers: Whether the file contains headers,
                     Defaults to `True`.
         lines_to_skip: The number of lines to skip at the beginning of the file,

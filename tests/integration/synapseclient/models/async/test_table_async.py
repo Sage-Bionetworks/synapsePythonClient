@@ -10,6 +10,7 @@ from unittest import skip
 
 import pandas as pd
 import pytest
+from pandas.api.types import is_object_dtype
 from pytest_mock import MockerFixture
 
 import synapseclient.models.mixins.asynchronous_job as asynchronous_job_module
@@ -351,6 +352,8 @@ class TestRowStorage:
                 "float_string": [1.1, 2.2, 3.3, None],
             }
         )
+        data_for_table = data_for_table.convert_dtypes()
+        data_for_table = data_for_table.replace({pd.NA: None})
         filepath = f"{tempfile.mkdtemp()}/upload_{uuid.uuid4()}.csv"
         self.schedule_for_cleanup(filepath)
         data_for_table.to_csv(filepath, index=False, float_format="%.12g")
@@ -512,6 +515,8 @@ class TestRowStorage:
                 "float_column": [1.1, 2.2, 3.3, None],
             }
         )
+        data_for_table = data_for_table.convert_dtypes()
+        data_for_table = data_for_table.replace({pd.NA: None})
         filepath = f"{tempfile.mkdtemp()}/upload_{uuid.uuid4()}.csv"
         self.schedule_for_cleanup(filepath)
         data_for_table.to_csv(filepath, index=False, float_format="%.12g")
@@ -976,6 +981,179 @@ class TestRowStorage:
 
         # AND The spy should have been called in multiple batches
         assert spy_send_job.call_count == 1
+
+    async def test_store_rows_with_quotes_and_apostrophes_ellipses(
+        self, project_model: Project
+    ) -> None:
+        """Test columns with quotes, apostrophes, and ellipses (in lists, dicts, and standalone) in values are properly stored and retrieved in the tables"""
+        # GIVEN a table with a JSON column
+        table_name = str(uuid.uuid4())
+        table = Table(
+            name=table_name,
+            parent_id=project_model.id,
+            columns=[
+                Column(name="id", column_type=ColumnType.INTEGER),
+                Column(name="json_data", column_type=ColumnType.JSON),
+                Column(
+                    name="string_list_with_ellipses", column_type=ColumnType.STRING_LIST
+                ),
+                Column(name="string_col_with_ellipses", column_type=ColumnType.STRING),
+                Column(name="int_list_with_pa_na", column_type=ColumnType.INTEGER_LIST),
+                Column(name="nullable_int", column_type=ColumnType.INTEGER),
+                Column(name="nullable_float", column_type=ColumnType.DOUBLE),
+            ],
+        )
+        table = await table.store_async(synapse_client=self.syn)
+        self.schedule_for_cleanup(table.id)
+
+        # AND data with quotes in JSON values
+        data_for_table = pd.DataFrame(
+            {
+                "id": [1, 2, 3, 4, 5, 6, 7],
+                "json_data": [
+                    {"description": 'Text with "quotes" here', "value": 100},
+                    {
+                        "description": 'Multiple "quoted" "words" here',
+                        "value": 300,
+                    },
+                    {
+                        "description": ...,
+                        "value": 200,
+                    },  # standalone ellipses in the json value
+                    {
+                        "description": [1, 2, ...],
+                        "value": 400,
+                    },  # list with ellipses in the json value
+                    {
+                        "description": {"inner": ...},
+                        "value": 500,
+                    },  # dict with ellipses in the json value
+                    {
+                        "description": "single apostrophe's",
+                        "author": "D'Angelo",
+                    },  # single apostrophe in the json value
+                    {
+                        "description": "Multiple's apostrophe's",
+                        "author": "McDonald's",
+                    },  # multiple apostrophe's in the json value
+                ],
+                "string_list_with_ellipses": [
+                    ["a", "b", ...],
+                    ["d", ..., "f"],
+                    ["g", "h", "i"],
+                    [...],
+                    ["m", "n", "..."],
+                    ["p", "q", "r"],
+                    ["s", "t", "u"],
+                ],
+                "string_col_with_ellipses": [
+                    "value1",
+                    ...,
+                    "value3",
+                    ...,
+                    "value6",
+                    ...,
+                    "value8",
+                ],
+                "int_list_with_pa_na": [
+                    [1, 2, 3],
+                    pd.NA,
+                    [7, 8, 9],
+                    pd.NA,
+                    [11, 12, 13],
+                    pd.NA,
+                    [15, 16, 17],
+                ],
+                "nullable_int": pd.array([10, pd.NA, 30, pd.NA, 31, pd.NA, 32]),
+                "nullable_float": pd.array([1.1, pd.NA, 3.3, pd.NA, 3.4, pd.NA, 3.5]),
+            }
+        )
+        # WHEN I store the rows
+        await table.store_rows_async(
+            values=data_for_table,
+            synapse_client=self.syn,
+        )
+        # THEN I can query the table and retrieve the data correctly
+        results = await query_async(
+            f"SELECT * FROM {table.id}",
+            synapse_client=self.syn,
+            timeout=QUERY_TIMEOUT_SEC,
+        )
+        # AND the JSON data should be properly preserved with quotes
+        assert len(results) == 7
+        expected_result = pd.DataFrame(
+            {
+                "id": [1, 2, 3, 4, 5, 6, 7],
+                "json_data": [
+                    {"description": 'Text with "quotes" here', "value": 100},
+                    {
+                        "description": 'Multiple "quoted" "words" here',
+                        "value": 300,
+                    },
+                    {
+                        "description": "...",
+                        "value": 200,
+                    },  # standalone ellipses in the json value
+                    {
+                        "description": [1, 2, "..."],
+                        "value": 400,
+                    },  # list with ellipses in the json value
+                    {
+                        "description": {"inner": "..."},
+                        "value": 500,
+                    },  # dict with ellipses in the json value
+                    {
+                        "description": "single apostrophe's",
+                        "author": "D'Angelo",
+                    },  # single apostrophe in the json value
+                    {
+                        "description": "Multiple's apostrophe's",
+                        "author": "McDonald's",
+                    },  # multiple apostrophe's in the json value
+                ],
+                "string_list_with_ellipses": [
+                    ["a", "b", "..."],
+                    ["d", "...", "f"],
+                    ["g", "h", "i"],
+                    ["..."],
+                    ["m", "n", "..."],
+                    ["p", "q", "r"],
+                    ["s", "t", "u"],
+                ],
+                "string_col_with_ellipses": [
+                    "value1",
+                    "...",
+                    "value3",
+                    "...",
+                    "value6",
+                    "...",
+                    "value8",
+                ],
+                "int_list_with_pa_na": [
+                    [1, 2, 3],
+                    [],
+                    [7, 8, 9],
+                    [],
+                    [11, 12, 13],
+                    [],
+                    [15, 16, 17],
+                ],
+                "nullable_int": pd.array([10, None, 30, None, 31, None, 32]),
+                "nullable_float": pd.array([1.1, None, 3.3, None, 3.4, None, 3.5]),
+            }
+        )
+        assert is_object_dtype(results.json_data)
+        assert is_object_dtype(results.int_list_with_pa_na)
+        assert is_object_dtype(results.nullable_int)
+        assert is_object_dtype(results.nullable_float)
+
+        expected_result = expected_result.convert_dtypes()
+        expected_result = expected_result.replace({pd.NA: None})
+        pd.testing.assert_frame_equal(
+            results.drop(columns=["ROW_ID", "ROW_VERSION"]),
+            expected_result,
+            check_dtype=False,
+        )
 
 
 class TestUpsertRows:
@@ -1549,9 +1727,13 @@ class TestUpsertRows:
                     ],
                 }
             )
+
+            expected_results = expected_results.convert_dtypes()
+            expected_results = expected_results.replace({pd.NA: None})
             pd.testing.assert_frame_equal(
                 results_after_insert, expected_results, check_dtype=False
             )
+
             # Create a second test file to update references
             path2 = utils.make_bogus_data_file()
             self.schedule_for_cleanup(path2)
@@ -1733,7 +1915,10 @@ class TestUpsertRows:
                     ],
                 }
             )
+            expected_results = expected_results.convert_dtypes()
+            expected_results = expected_results.replace({pd.NA: None})
             pd.testing.assert_frame_equal(results, expected_results, check_dtype=False)
+
             # WHEN I upsert with multiple primary keys and null values
             multi_key_data = pd.DataFrame(
                 {
