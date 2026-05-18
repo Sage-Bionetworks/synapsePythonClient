@@ -13,14 +13,44 @@ from synapseclient.core.exceptions import SynapseHTTPError
 from synapseclient.core.utils import make_bogus_uuid_file
 from synapseclient.models import (
     CurationTask,
+    CurationTaskState,
+    CurationTaskStatus,
     EntityView,
     FileBasedMetadataTaskProperties,
     Folder,
+    Grid,
+    GridExecutionDetails,
     Project,
     RecordBasedMetadataTaskProperties,
     RecordSet,
     ViewTypeMask,
 )
+from synapseclient.models.table_components import Query
+from tests.integration import ASYNC_JOB_TIMEOUT_SEC
+
+
+@pytest.fixture(scope="function")
+async def folder_with_view(
+    project_model: Project,
+    syn: Synapse,
+    schedule_for_cleanup: Callable[..., None],
+) -> tuple[Folder, EntityView]:
+    """Create a folder with an associated EntityView for file-based testing."""
+    folder = await Folder(
+        name=str(uuid.uuid4()),
+        parent_id=project_model.id,
+    ).store_async(synapse_client=syn)
+    schedule_for_cleanup(folder.id)
+
+    entity_view = await EntityView(
+        name=str(uuid.uuid4()),
+        parent_id=project_model.id,
+        scope_ids=[folder.id],
+        view_type_mask=ViewTypeMask.FILE.value,
+    ).store_async(synapse_client=syn)
+    schedule_for_cleanup(entity_view.id)
+
+    return folder, entity_view
 
 
 class TestCurationTaskStoreAsync:
@@ -626,3 +656,256 @@ class TestCurationTaskListAsync:
 
         # THEN I should get an empty list
         assert len(listed_tasks) == 0
+
+
+class TestCurationTaskStatusAsync:
+    """Tests for the CurationTask.get_status_async and CurationTask.update_status_async methods."""
+
+    @pytest.fixture(scope="function")
+    async def grid(
+        self,
+        syn: Synapse,
+        folder_with_view: tuple[Folder, EntityView],
+        request: pytest.FixtureRequest,
+    ) -> Grid:
+        """Create a Grid backed by the entity view; delete it after the test."""
+        _, entity_view = folder_with_view
+        grid = await Grid(
+            initial_query=Query(sql=f"SELECT * FROM {entity_view.id}")
+        ).create_async(timeout=ASYNC_JOB_TIMEOUT_SEC, synapse_client=syn)
+
+        def delete_grid() -> None:
+            grid.delete(synapse_client=syn)
+
+        request.addfinalizer(delete_grid)
+        return grid
+
+    async def test_get_and_update_curation_task_status_async(
+        self,
+        syn: Synapse,
+        project_model: Project,
+        folder_with_view: tuple[Folder, EntityView],
+        grid: Grid,
+    ) -> None:
+        # GIVEN a project, folder, and entity view
+        folder, entity_view = folder_with_view
+
+        # AND a stored curation task
+        data_type = f"test_data_type_{str(uuid.uuid4()).replace('-', '_')}"
+        task_properties = FileBasedMetadataTaskProperties(
+            upload_folder_id=folder.id,
+            file_view_id=entity_view.id,
+        )
+        stored_task = await CurationTask(
+            data_type=data_type,
+            project_id=project_model.id,
+            instructions="Test instructions for status flow.",
+            task_properties=task_properties,
+        ).store_async(synapse_client=syn)
+
+        # WHEN I get the initial status of the task
+        initial_status = await stored_task.get_status_async(synapse_client=syn)
+
+        # THEN it should be parsed into a CurationTaskStatus tied to this task
+        assert isinstance(initial_status, CurationTaskStatus)
+        assert initial_status.task_id == stored_task.task_id
+        assert initial_status.state == CurationTaskState.NOT_STARTED
+        # AND it should not yet reference an active grid session
+        assert initial_status.execution_details is None
+
+        # AND WHEN I modify the state to IN_PROGRESS, attach a GridExecutionDetails
+        # pointing to the active grid session, and store the status
+        initial_status.state = CurationTaskState.IN_PROGRESS
+        initial_status.execution_details = GridExecutionDetails(
+            active_session_id=grid.session_id
+        )
+        updated_status = await stored_task.update_status_async(
+            curation_task_status=initial_status, synapse_client=syn
+        )
+
+        # THEN the update response should reflect the new state and execution details
+        assert isinstance(updated_status, CurationTaskStatus)
+        assert updated_status.task_id == stored_task.task_id
+        assert updated_status.state == CurationTaskState.IN_PROGRESS
+        assert isinstance(updated_status.execution_details, GridExecutionDetails)
+        assert updated_status.execution_details.active_session_id == grid.session_id
+
+        # AND WHEN I get the status again
+        refetched_status = await stored_task.get_status_async(synapse_client=syn)
+
+        # THEN the modification should have persisted on the server
+        assert refetched_status.task_id == stored_task.task_id
+        assert refetched_status.state == CurationTaskState.IN_PROGRESS
+        assert isinstance(refetched_status.execution_details, GridExecutionDetails)
+        assert refetched_status.execution_details.active_session_id == grid.session_id
+
+
+class TestCurationTaskCreateGridSessionAsync:
+    """Tests for the CurationTask.create_grid_session_async method."""
+
+    async def test_create_grid_session_async(
+        self,
+        syn: Synapse,
+        project_model: Project,
+        folder_with_view: tuple[Folder, EntityView],
+        request: pytest.FixtureRequest,
+    ) -> None:
+        # GIVEN a project, folder, and entity view
+        folder, entity_view = folder_with_view
+
+        # AND a stored file-based curation task
+        data_type = f"test_data_type_{str(uuid.uuid4()).replace('-', '_')}"
+        task_properties = FileBasedMetadataTaskProperties(
+            upload_folder_id=folder.id,
+            file_view_id=entity_view.id,
+        )
+        stored_task = await CurationTask(
+            data_type=data_type,
+            project_id=project_model.id,
+            instructions="Create a grid session for this task.",
+            task_properties=task_properties,
+        ).store_async(synapse_client=syn)
+
+        # WHEN I create a grid session for the task asynchronously
+        grid = await stored_task.create_grid_session_async(
+            timeout=ASYNC_JOB_TIMEOUT_SEC, synapse_client=syn
+        )
+        request.addfinalizer(lambda: grid.delete(synapse_client=syn))
+
+        # THEN a Grid is returned with a populated session_id
+        assert isinstance(grid, Grid)
+        assert grid.session_id is not None
+
+        # AND the curation task status now references the new grid session
+        status = await stored_task.get_status_async(synapse_client=syn)
+        assert isinstance(status, CurationTaskStatus)
+        assert isinstance(status.execution_details, GridExecutionDetails)
+        assert status.execution_details.active_session_id == grid.session_id
+
+
+class TestCurationTaskSetActiveGridSessionAsync:
+    """Tests for the CurationTask.set_active_grid_session_async method."""
+
+    @pytest.fixture(scope="function")
+    async def grid(
+        self,
+        syn: Synapse,
+        folder_with_view: tuple[Folder, EntityView],
+        request: pytest.FixtureRequest,
+    ) -> Grid:
+        """Create a Grid backed by the entity view; delete it after the test."""
+        _, entity_view = folder_with_view
+        grid = await Grid(
+            initial_query=Query(sql=f"SELECT * FROM {entity_view.id}")
+        ).create_async(timeout=ASYNC_JOB_TIMEOUT_SEC, synapse_client=syn)
+
+        def delete_grid() -> None:
+            grid.delete(synapse_client=syn)
+
+        request.addfinalizer(delete_grid)
+        return grid
+
+    async def test_set_active_grid_session_async(
+        self,
+        syn: Synapse,
+        project_model: Project,
+        folder_with_view: tuple[Folder, EntityView],
+        grid: Grid,
+    ) -> None:
+        # GIVEN a project, folder, and entity view
+        folder, entity_view = folder_with_view
+
+        # AND a stored file-based curation task
+        data_type = f"test_data_type_{str(uuid.uuid4()).replace('-', '_')}"
+        task_properties = FileBasedMetadataTaskProperties(
+            upload_folder_id=folder.id,
+            file_view_id=entity_view.id,
+        )
+        stored_task = await CurationTask(
+            data_type=data_type,
+            project_id=project_model.id,
+            instructions="Attach an existing grid session to this task.",
+            task_properties=task_properties,
+        ).store_async(synapse_client=syn)
+
+        # AND the task's initial status has no execution details
+        initial_status = await stored_task.get_status_async(synapse_client=syn)
+        assert initial_status.execution_details is None
+
+        # WHEN I attach the existing grid session to the task
+        updated_status = await stored_task.set_active_grid_session_async(
+            active_session_id=grid.session_id, synapse_client=syn
+        )
+
+        # THEN the returned status references the grid session
+        assert isinstance(updated_status, CurationTaskStatus)
+        assert updated_status.task_id == stored_task.task_id
+        assert isinstance(updated_status.execution_details, GridExecutionDetails)
+        assert updated_status.execution_details.active_session_id == grid.session_id
+        # AND the task state is not transitioned by this call
+        assert updated_status.state == initial_status.state
+
+        # AND the change persists on the server
+        refetched_status = await stored_task.get_status_async(synapse_client=syn)
+        assert isinstance(refetched_status.execution_details, GridExecutionDetails)
+        assert refetched_status.execution_details.active_session_id == grid.session_id
+
+    async def test_set_active_grid_session_async_replaces_existing_session(
+        self,
+        syn: Synapse,
+        project_model: Project,
+        folder_with_view: tuple[Folder, EntityView],
+        grid: Grid,
+        request: pytest.FixtureRequest,
+    ) -> None:
+        # GIVEN a project, folder, and entity view
+        folder, entity_view = folder_with_view
+
+        # AND a stored file-based curation task that already has an active
+        # grid session linked via create_grid_session_async
+        data_type = f"test_data_type_{str(uuid.uuid4()).replace('-', '_')}"
+        task_properties = FileBasedMetadataTaskProperties(
+            upload_folder_id=folder.id,
+            file_view_id=entity_view.id,
+        )
+        stored_task = await CurationTask(
+            data_type=data_type,
+            project_id=project_model.id,
+            instructions="Replace the active grid session on this task.",
+            task_properties=task_properties,
+        ).store_async(synapse_client=syn)
+
+        original_grid = await stored_task.create_grid_session_async(
+            timeout=ASYNC_JOB_TIMEOUT_SEC, synapse_client=syn
+        )
+        request.addfinalizer(lambda: original_grid.delete(synapse_client=syn))
+        assert original_grid.session_id is not None
+        assert original_grid.session_id != grid.session_id
+
+        # WHEN I point the task at a different existing grid session
+        updated_status = await stored_task.set_active_grid_session_async(
+            active_session_id=grid.session_id, synapse_client=syn
+        )
+
+        # THEN the status now references the new session, not the original
+        assert isinstance(updated_status.execution_details, GridExecutionDetails)
+        assert updated_status.execution_details.active_session_id == grid.session_id
+
+        # AND the change persists on the server
+        refetched_status = await stored_task.get_status_async(synapse_client=syn)
+        assert refetched_status.execution_details.active_session_id == grid.session_id
+
+    async def test_set_active_grid_session_async_validation_error(
+        self, syn: Synapse
+    ) -> None:
+        # GIVEN a CurationTask without a task_id
+        curation_task = CurationTask()
+
+        # WHEN I try to set an active grid session
+        # THEN it should raise a ValueError from the underlying get_status call
+        with pytest.raises(
+            ValueError, match="task_id is required to get a CurationTask status"
+        ):
+            await curation_task.set_active_grid_session_async(
+                active_session_id="some-session-id", synapse_client=syn
+            )
