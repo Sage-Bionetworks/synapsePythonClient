@@ -9,7 +9,7 @@ By following this guide, you will:
 - List curation tasks in a Synapse project
 - Create a Grid if needed for a curation task
 - Download record-based metadata locally as a csv
-- Upsert your edits back into the grid (record-based tasks)
+- Upload the record-based metadata into Synapse
 - Apply your changes so the administrator can validate them
 - Review the validation report for your submission so you can fix issues before handing the task back (record-based tasks)
 - Mark the curation task as COMPLETED to signal the administrator that you're done
