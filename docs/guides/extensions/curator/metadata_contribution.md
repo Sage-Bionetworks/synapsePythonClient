@@ -97,7 +97,7 @@ edited_path = "./grid_edited.csv"
 df.to_csv(edited_path, index=False)
 ```
 
-### Step 5: Upsert your edits back into the grid
+### Step 5: Import edited record-based metadata to Synapse
 
 `import_csv` upserts rows into the grid based on the `upsert_keys` the administrator configured on the curation task. Existing rows matching on those keys are updated; new rows are inserted.
 
