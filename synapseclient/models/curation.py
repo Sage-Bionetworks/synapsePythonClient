@@ -7,6 +7,7 @@ data or metadata in Synapse.
 
 import asyncio
 import os
+from copy import deepcopy
 from dataclasses import dataclass, field, replace
 from datetime import datetime, timezone
 from enum import Enum
@@ -911,6 +912,9 @@ class CurationTask(CurationTaskSynchronousProtocol):
         determine if the object has been changed and needs to be updated in Synapse."""
         del self._last_persistent_instance
         self._last_persistent_instance = replace(self)
+        self._last_persistent_instance.task_properties = (
+            deepcopy(self.task_properties) if self.task_properties else None
+        )
 
     def fill_from_dict(
         self, synapse_response: Union[Dict[str, Any], Any]

@@ -514,6 +514,23 @@ class TestCurationTask:
         # THEN has_changed should be True
         assert task.has_changed is True
 
+    def test_has_changed_true_after_nested_task_properties_mutation(self) -> None:
+        # GIVEN a CurationTask with task_properties and a persistent instance set
+        task = CurationTask(
+            task_id=TASK_ID,
+            task_properties=FileBasedMetadataTaskProperties(
+                file_view_id=FILE_VIEW_ID,
+                upload_folder_id=UPLOAD_FOLDER_ID,
+            ),
+        )
+        task._set_last_persistent_instance()
+
+        # WHEN I mutate a field on the nested task_properties object in place
+        task.task_properties.file_view_id = "syn_updated"
+
+        # THEN has_changed should be True because task_properties was deep-copied
+        assert task.has_changed is True
+
     async def test_get_async(self) -> None:
         # GIVEN a CurationTask with a task_id
         task = CurationTask(task_id=TASK_ID)
