@@ -2,7 +2,7 @@
 
 This guide shows how to programmatically complete file-based and record-based metadata curation tasks, including adding, editing, and validating metadata.
 
-## What you'll accomplish
+## Overview
 
 By following this guide, you will:
 
