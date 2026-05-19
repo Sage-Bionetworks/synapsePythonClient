@@ -1,17 +1,18 @@
-# How to Enter and Update Metadata for a Curation Task
+# How to Enter and Update Metadata for a Record-Based Curation Task
 
-This guide shows how to programmatically complete file-based and record-based metadata curation tasks, including adding, editing, and validating metadata.
+This guide shows how to programmatically complete a record-based metadata curation task, including adding, editing, validating, and submitting metadata.
 
 ## Overview
 
 By following this guide, you will:
 
 - List curation tasks in a Synapse project
-- Create a Grid if needed for a curation task
-- Download metadata from a Grid to a local csv
+- Create a Grid session for a record-based curation task
+- Download metadata from the Grid to a local CSV
 - Edit the metadata locally
-- Upload the metadata into Synapse
-- Generate a validation report on the updated metadata
+- Upload the metadata back into the Grid
+- Export the Grid to the RecordSet to trigger schema validation
+- Review the validation report
 - Mark the curation task as COMPLETED to signal the administrator that you're done
 
 ## Prerequisites
@@ -19,7 +20,7 @@ By following this guide, you will:
 - A Synapse account
 - Completion of the certification quiz
 - A minimum of **view** access on the Synapse project
-- A minimum of **edit** access on the folder containing the record-set entity.
+- A minimum of **edit** access on the folder containing the RecordSet entity
 - Python environment with synapseclient and the `curator` extension installed (`pip install --upgrade "synapseclient[curator]"`)
 - The Synapse ID of the project where the administrator created the curation tasks
 - (Optional) The `task_id` of a specific `CurationTask` you've been pointed at
@@ -35,7 +36,7 @@ syn.login()
 
 ### Step 2: List all curation tasks in your project
 
-Each `CurationTask` carries the information you need to decide which workflow to follow — most importantly, `task_properties` tells you whether it's a record-based task (you'll see `record_set_id`) or a file-based task (you'll see `file_view_id`).
+Each `CurationTask` carries the information you need. For record-based tasks, `task_properties` will contain a `record_set_id`
 
 ```python
 from pprint import pprint
@@ -50,7 +51,7 @@ for task in all_tasks:
 
 ### Step 3: Create a Grid session for the task
 
-Ask the task to create a new Grid session for you — it picks the correct seed (record_set_id for record-based tasks, file_view_id for file-based tasks) automatically and links the session back to the task. If the task already has an active session linked, calling this replaces the link with the new session.
+Ask the task to create a new Grid session — it picks the `record_set_id` from the task properties automatically and links the session back to the task. If the task already has an active session linked, calling this replaces the link with the new session.
 
 ```python
 from synapseclient.models import CurationTask
@@ -100,8 +101,6 @@ df.to_csv(edited_path, index=False)
 
 ### Step 5: Upsert your edits back into the grid
 
-> **Note:** Grid import via `import_csv` is currently only supported for record-based tasks. File-based tasks do not currently support CSV import. As a workaround users can cut and paste from the local CSV file into the Grid via the Synapse GUI.
-
 `import_csv` upserts rows into the grid based on the `upsert_keys` the administrator configured on the curation task. Existing rows matching on those keys are updated; new rows are inserted.
 
 ```python
@@ -109,30 +108,20 @@ latest_grid = latest_grid.import_csv(path=edited_path)
 print(f"Upserted edits into grid session: https://www.synapse.org/Grid:default?sessionId={latest_grid.session_id}")
 ```
 
-### Step 6: Apply the changes to the source entity
+### Step 6: Export the grid back to the RecordSet
 
-> **Important:** Until you call `export_to_record_set()` (or `synchronize()` for file-based tasks), your edits live only inside the Grid session — they aren't visible on the RecordSet and won't be validated. Apply changes whenever you reach a logical checkpoint.
+> **Important:** Until you call `export_to_record_set()`, your edits live only inside the Grid session — they aren't visible on the RecordSet and won't be validated. Apply changes whenever you reach a logical checkpoint.
 
-Applying the changes is what triggers schema validation and makes your edits visible to administrators and other contributors.
+Exporting triggers schema validation and makes your edits visible to administrators and other contributors. It creates a new version of the RecordSet and generates the validation report.
 
-- For **record-based** tasks, export the grid back to the RecordSet. This creates a new version of the RecordSet and generates the validation report that administrators can retrieve via [RecordSet.get_detailed_validation_results][synapseclient.models.RecordSet.get_detailed_validation_results].
+```python
+latest_grid.export_to_record_set()
+print(f"Exported to RecordSet version: {latest_grid.record_set_version_number}")
+```
 
-    ```python
-    latest_grid.export_to_record_set()
-    print(f"Exported to RecordSet version: {latest_grid.record_set_version_number}")
-    ```
-
-- For **file-based** tasks, synchronize the grid against the file view to push annotation changes back to the underlying files.
-
-    ```python
-    latest_grid.synchronize()
-    ```
-
-### Step 7: Review your validation results (record-based tasks)
+### Step 7: Review your validation results
 
 When you exported the grid in Step 6, Synapse validated each row against the JSON schema bound to the RecordSet and generated a row-level report. Reviewing this report before handing the task back to the administrator lets you catch and fix problems in your own data first — saving a round trip.
-
-> **File-based tasks:** Validation for file-based tasks is enforced by the JSON schema bound to the folder containing the files, not by a row-level report on the Grid export. After you call synchronize(), the administrator verifies schema compliance using [Folder.validate_schema][synapseclient.models.Folder.validate_schema] — there is no per-row report for you to inspect from the contributor side.
 
 #### Prerequisites for validation results
 
@@ -217,10 +206,30 @@ Once your validation report is clean and you've cleaned up the Grid session, tra
 curation_task.set_task_state(state="COMPLETED")
 ```
 
+## File-Based Curation Tasks
+
+File-based tasks follow the same overall flow as record-based tasks (Steps 1–8 above), with three key differences:
+
+**No CSV import.** `import_csv` is not currently supported for file-based grids. Instead, you can either:
+
+- Download the CSV (Step 4) as a local reference, make your edits locally, then copy-paste the values back into the Grid UI
+- Make edits directly in the Synapse Grid UI — Step 3 prints the session URL (`https://www.synapse.org/Grid:default?sessionId=...`) after creating the session
+
+**Use `synchronize()` instead of `export_to_record_set()`.** After editing in the Grid UI, push your changes back to the underlying files:
+
+```python
+latest_grid.synchronize()
+```
+
+This writes the Grid annotation values back to each file as Synapse annotations. There is no versioned RecordSet — the files themselves are updated in place.
+
+**No per-row validation report.** Validation is enforced by the JSON schema bound to the folder containing the files, not by a row-level export report. After you call `synchronize()`, the administrator verifies schema compliance on their end — there is nothing to retrieve from the contributor side. If the administrator reports violations, correct the flagged annotations in the Grid UI and re-synchronize.
+
 ## References
 
 ### API Documentation
 
+<!-- markdownlint-disable MD052 -->
 - [CurationTask.list][synapseclient.models.CurationTask.list] - List curation tasks in a project
 - [CurationTask.get][synapseclient.models.CurationTask.get] - Fetch a CurationTask by id
 - [CurationTask.create_grid_session][synapseclient.models.CurationTask.create_grid_session] - Create a Grid session for a CurationTask and link it to the task status
@@ -231,6 +240,7 @@ curation_task.set_task_state(state="COMPLETED")
 - [Grid.synchronize][synapseclient.models.Grid.synchronize] - Synchronize a file-based Grid against its source file view
 - [Grid.delete][synapseclient.models.Grid.delete] - Delete a Grid session
 - [RecordSet.get_detailed_validation_results][synapseclient.models.RecordSet.get_detailed_validation_results] - Retrieve the row-level validation report for a RecordSet
+<!-- markdownlint-enable MD052 -->
 
 ### Related Documentation
 
