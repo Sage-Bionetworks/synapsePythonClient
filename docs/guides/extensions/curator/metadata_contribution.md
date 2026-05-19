@@ -1,6 +1,6 @@
 # How to Enter and Update Metadata for a Curation Task
 
-This guide is for **data contributors** — someone who has been assigned a `CurationTask` and needs to fill in metadata against it (see [How to Set Up Metadata Curation Workflows](metadata_curation.md)). Your job is to open the work assigned to you, make your edits, and apply them so they can be validated.
+This guide shows how to programmatically complete file-based and record-based metadata curation tasks, including adding, editing, and validating metadata.
 
 ## What you'll accomplish
 
