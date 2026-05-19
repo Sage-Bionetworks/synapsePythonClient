@@ -18,7 +18,7 @@ By following this guide, you will:
 - A Synapse account
 - Completion of the certification quiz
 - A minimum of **view** access on the Synapse project
-- A minimum of **edit** access on the folder containing the record-set entity. 
+- A minimum of **edit** access on the folder containing the record-set entity.
 - Python environment with synapseclient and the `curator` extension installed (`pip install --upgrade "synapseclient[curator]"`)
 - The Synapse ID of the project where the administrator created the curation tasks
 - (Optional) The `task_id` of a specific `CurationTask` you've been pointed at
