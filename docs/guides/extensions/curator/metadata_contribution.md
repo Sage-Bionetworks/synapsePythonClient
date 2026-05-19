@@ -67,7 +67,7 @@ curation_task = all_tasks[0]
 latest_grid = curation_task.create_grid_session()
 ```
 
-### Step 4: Pull the grid down as a CSV
+### Step 4: Download record-based metadata as a local CSV
 
 Download the current grid contents so you can edit them locally — in pandas, Excel, or any tool that reads CSV.
 
