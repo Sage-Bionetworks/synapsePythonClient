@@ -15,7 +15,7 @@ By following this guide, you will:
 - Review the validation report
 - Mark the curation task as COMPLETED to signal the administrator that you're done
 
-## Prerequisites
+## Requirements
 
 - A Synapse account
 - Completion of the certification quiz
