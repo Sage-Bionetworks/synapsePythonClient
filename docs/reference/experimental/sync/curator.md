@@ -15,6 +15,8 @@ at your own risk.
             - delete
             - store
             - list
+            - create_grid_session
+            - set_task_state
 ---
 
 [](){ #RecordSet-reference }
@@ -59,6 +61,7 @@ at your own risk.
             - synchronize
             - download_csv
             - import_csv
+            - delete
 ---
 [](){ #query-reference }
 ::: synapseclient.models.Query

@@ -1,6 +1,6 @@
 # Synapse Curator Extension - Developer Guide
 
-This document describes the design principles and architecture of the `synapseclient.extensions.curator` module. For user-facing documentation, see `metadata_curation.md` in the docs folder.
+This document describes the design principles and architecture of the `synapseclient.extensions.curator` module. For user-facing documentation, see `docs/guides/extensions/curator/curation.md` (administrators) and `docs/guides/extensions/curator/contribution.md` (contributors).
 
 ## Design Goals
 
