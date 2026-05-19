@@ -6,7 +6,7 @@ This guide shows how to programmatically complete file-based and record-based me
 
 By following this guide, you will:
 
-- List the curation tasks in your project to see what's been assigned
+- List curation tasks in a Synapse project
 - Attach to an existing Grid session for a task, or create one if none exists
 - Pull the grid contents down to a local CSV so you can edit in bulk
 - Upsert your edits back into the grid (record-based tasks)
