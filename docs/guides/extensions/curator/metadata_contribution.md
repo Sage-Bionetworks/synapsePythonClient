@@ -8,8 +8,9 @@ By following this guide, you will:
 
 - List curation tasks in a Synapse project
 - Create a Grid if needed for a curation task
-- Download record-based metadata locally as a csv
-- Upload the record-based metadata into Synapse
+- Download metadata from a Grid to a local csv
+- Edit the metadata locally
+- Upload the metadata into Synapse
 - Generate a validation report on the updated metadata
 - Mark the curation task as COMPLETED to signal the administrator that you're done
 
@@ -99,7 +100,7 @@ df.to_csv(edited_path, index=False)
 
 ### Step 5: Upsert your edits back into the grid
 
-> **Note:** Grid import via `import_csv` is currently only supported for record-based tasks. File-based tasks do not support CSV import.
+> **Note:** Grid import via `import_csv` is currently only supported for record-based tasks. File-based tasks do not currently support CSV import. As a workaround users can cut and paste from the local CSV file into the Grid via the Synapse GUI.
 
 `import_csv` upserts rows into the grid based on the `upsert_keys` the administrator configured on the curation task. Existing rows matching on those keys are updated; new rows are inserted.
 
