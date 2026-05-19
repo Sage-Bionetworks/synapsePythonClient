@@ -513,6 +513,50 @@ class CurationTaskSynchronousProtocol(Protocol):
         """
         return CurationTaskStatus()
 
+    def set_task_state(
+        self,
+        state: "CurationTaskState | str",
+        *,
+        synapse_client: Synapse | None = None,
+    ) -> "CurationTaskStatus":
+        """
+        Set the state on this CurationTask's status.
+
+        Does not modify execution_details. Fetches the current CurationTaskStatus
+        first so the update carries a fresh etag.
+
+        Arguments:
+            state: The state to set on this task's status. Accepts a
+                CurationTaskState or a case-insensitive string matching one of
+                its members (e.g. NOT_STARTED, IN_PROGRESS, COMPLETED, CANCELED).
+            synapse_client: If not passed in and caching was not disabled by
+                Synapse.allow_client_caching(False) this will use the last created
+                instance from the Synapse class constructor.
+
+        Returns:
+            The updated CurationTaskStatus object.
+
+        Raises:
+            ValueError: If the CurationTask object does not have a task_id, or
+                if state is a string that does not match a CurationTaskState member.
+
+        Example: Mark a curation task as completed
+            &nbsp;
+
+            ```python
+            from synapseclient import Synapse
+            from synapseclient.models import CurationTask, CurationTaskState
+
+            syn = Synapse()
+            syn.login()
+
+            CurationTask(task_id=123).set_task_state(
+                state=CurationTaskState.COMPLETED
+            )
+            ```
+        """
+        return CurationTaskStatus()
+
     def create_grid_session(
         self,
         *,
@@ -1356,6 +1400,72 @@ class CurationTask(CurationTaskSynchronousProtocol):
         status.execution_details = GridExecutionDetails(
             active_session_id=active_session_id
         )
+        return await self.update_status_async(
+            curation_task_status=status, synapse_client=synapse_client
+        )
+
+    @otel_trace_method(
+        method_to_trace_name=lambda self, **kwargs: (
+            f"CurationTask_SetTaskState: ID: {self.task_id}"
+        )
+    )
+    async def set_task_state_async(
+        self,
+        state: "CurationTaskState | str",
+        *,
+        synapse_client: Synapse | None = None,
+    ) -> "CurationTaskStatus":
+        """
+        Set the state on this CurationTask's status.
+
+        Does not modify execution_details. Fetches the current CurationTaskStatus
+        first so the update carries a fresh etag.
+
+        Arguments:
+            state: The state to set on this task's status. Accepts a
+                CurationTaskState or a case-insensitive string matching one of
+                its members (e.g. NOT_STARTED, IN_PROGRESS, COMPLETED, CANCELED).
+            synapse_client: If not passed in and caching was not disabled by
+                Synapse.allow_client_caching(False) this will use the last created
+                instance from the Synapse class constructor.
+
+        Returns:
+            The updated CurationTaskStatus object.
+
+        Raises:
+            ValueError: If the CurationTask object does not have a task_id, or
+                if state is a string that does not match a CurationTaskState member.
+
+        Example: Mark a curation task as completed asynchronously
+            &nbsp;
+
+            ```python
+            import asyncio
+            from synapseclient import Synapse
+            from synapseclient.models import CurationTask, CurationTaskState
+
+            syn = Synapse()
+            syn.login()
+
+            async def main():
+                await CurationTask(task_id=123).set_task_state_async(
+                    state=CurationTaskState.COMPLETED
+                )
+
+            asyncio.run(main())
+            ```
+        """
+        normalized = state.upper() if isinstance(state, str) else state
+        try:
+            coerced_state = CurationTaskState(normalized)
+        except ValueError as exc:
+            raise ValueError(
+                f"{state!r} is not a valid CurationTaskState. "
+                f"Expected one of: {[s.value for s in CurationTaskState]}."
+            ) from exc
+
+        status = await self.get_status_async(synapse_client=synapse_client)
+        status.state = coerced_state
         return await self.update_status_async(
             curation_task_status=status, synapse_client=synapse_client
         )

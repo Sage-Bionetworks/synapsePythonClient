@@ -70,17 +70,12 @@ all_schemas = query_schema_registry(
 
 ## Step 3: Choose your metadata workflow type
 
-!!! note
-    The way Grid sessions are created in this step will change in the near future. Expect updates to the Grid creation API and to this guide.
-    Currently Data Contributers should create their own Grids due to how permissions work.
-    This will be fixed in the near future.
-
 ### Option A: Record-based metadata
 
 Use this when metadata is normalized in structured records to eliminate duplication and ensure consistency.
 
 ```python
-record_set, curation_task, grid = create_record_based_metadata_task(
+items = create_record_based_metadata_task(
     synapse_client=syn,
     folder_id="syn987654321",          # Folder where RecordSet Entity will be stored
     record_set_name="AnimalMetadata_Records",
@@ -92,6 +87,8 @@ record_set, curation_task, grid = create_record_based_metadata_task(
     bind_schema_to_record_set=True,
     assignee_principal_id=123456     # Optional: Assign to a user or team
 )
+record_set = items[0]
+curation_task = items[1]
 
 print(f"Created RecordSet: {record_set.id}")
 print(f"Created CurationTask: {curation_task.task_id}")
@@ -158,7 +155,7 @@ schema_uri = query_schema_registry(
 print("Using schema:", schema_uri)
 
 # Step 3A: Create record-based workflow
-record_set, curation_task, grid = create_record_based_metadata_task(
+items = create_record_based_metadata_task(
     synapse_client=syn,
     folder_id="syn987654321",
     record_set_name="AnimalMetadata_Records",
@@ -170,6 +167,8 @@ record_set, curation_task, grid = create_record_based_metadata_task(
     bind_schema_to_record_set=True,
     assignee_principal_id=123456  # Optional: Assign to a user or team
 )
+record_set = items[0]
+curation_task = items[1]
 
 print("Record-based workflow created:")
 print(f"  RecordSet: {record_set.id}")
@@ -234,6 +233,28 @@ for curation_task in CurationTask.list(
     pprint(curation_task)
 ```
 
+### Update the state of a curation task
+
+Use this script to change a task's lifecycle state. Valid states are
+NOT_STARTED, IN_PROGRESS, COMPLETED, and CANCELED.
+
+```python
+from synapseclient import Synapse
+from synapseclient.models import CurationTask
+
+TASK_ID = 123456  # The numeric ID of the CurationTask to update
+
+syn = Synapse()
+syn.login()
+
+status = CurationTask(task_id=TASK_ID).set_task_state(
+    state="COMPLETED",
+    synapse_client=syn,
+)
+
+print(f"Task {TASK_ID} state is now: {status.state}")
+```
+
 ## References
 
 ### API Documentation
@@ -247,6 +268,7 @@ for curation_task in CurationTask.list(
 - [Folder.bind_schema][synapseclient.models.Folder.bind_schema] - Bind schemas to folders
 - [Folder.validate_schema][synapseclient.models.Folder.validate_schema] - Validate folder schema compliance
 - [CurationTask.list][synapseclient.models.CurationTask.list] - List curation tasks in a project
+- [CurationTask.set_task_state][synapseclient.models.CurationTask.set_task_state] - Update the lifecycle state of a curation task
 
 ### Related Documentation
 

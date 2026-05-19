@@ -909,3 +909,47 @@ class TestCurationTaskSetActiveGridSessionAsync:
             await curation_task.set_active_grid_session_async(
                 active_session_id="some-session-id", synapse_client=syn
             )
+
+
+class TestCurationTaskSetTaskStateAsync:
+    """Test for the CurationTask.set_task_state_async method."""
+
+    async def test_set_task_state_async(
+        self,
+        syn: Synapse,
+        project_model: Project,
+        folder_with_view: tuple[Folder, EntityView],
+    ) -> None:
+        # GIVEN a project, folder, and entity view
+        folder, entity_view = folder_with_view
+
+        # AND a stored file-based curation task
+        data_type = f"test_data_type_{str(uuid.uuid4()).replace('-', '_')}"
+        task_properties = FileBasedMetadataTaskProperties(
+            upload_folder_id=folder.id,
+            file_view_id=entity_view.id,
+        )
+        stored_task = await CurationTask(
+            data_type=data_type,
+            project_id=project_model.id,
+            instructions="Set the task state on this curation task.",
+            task_properties=task_properties,
+        ).store_async(synapse_client=syn)
+
+        # AND the task's status starts at NOT_STARTED
+        initial_status = await stored_task.get_status_async(synapse_client=syn)
+        assert initial_status.state == CurationTaskState.NOT_STARTED
+
+        # WHEN I transition the state to IN_PROGRESS
+        updated_status = await stored_task.set_task_state_async(
+            state=CurationTaskState.IN_PROGRESS, synapse_client=syn
+        )
+
+        # THEN the returned status reflects the new state
+        assert isinstance(updated_status, CurationTaskStatus)
+        assert updated_status.task_id == stored_task.task_id
+        assert updated_status.state == CurationTaskState.IN_PROGRESS
+
+        # AND the change persists on the server
+        refetched_status = await stored_task.get_status_async(synapse_client=syn)
+        assert refetched_status.state == CurationTaskState.IN_PROGRESS

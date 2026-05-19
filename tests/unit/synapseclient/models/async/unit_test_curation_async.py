@@ -925,6 +925,108 @@ class TestCurationTask:
                 active_session_id=SESSION_ID, synapse_client=self.syn
             )
 
+    @pytest.mark.parametrize(
+        "input_state,expected_state_value",
+        [
+            (CurationTaskState.IN_PROGRESS, "IN_PROGRESS"),
+            (CurationTaskState.COMPLETED, "COMPLETED"),
+            (CurationTaskState.CANCELED, "CANCELED"),
+            ("IN_PROGRESS", "IN_PROGRESS"),
+            ("completed", "COMPLETED"),
+            ("In_Progress", "IN_PROGRESS"),
+        ],
+    )
+    async def test_set_task_state_async(
+        self, input_state, expected_state_value: str
+    ) -> None:
+        # GIVEN a CurationTask with a task_id
+        task = CurationTask(task_id=TASK_ID)
+
+        # AND a current status from the server with execution_details set
+        get_response = _get_curation_task_status_response(
+            state="NOT_STARTED", active_session_id=SESSION_ID
+        )
+        # AND an update response reflecting the new state but preserving
+        # execution_details
+        put_response = _get_curation_task_status_response(
+            state=expected_state_value, active_session_id=SESSION_ID
+        )
+
+        # WHEN I call set_task_state_async with an enum or string
+        with (
+            patch(
+                "synapseclient.models.curation.get_curation_task_status",
+                new_callable=AsyncMock,
+                return_value=get_response,
+            ) as mock_get_status,
+            patch(
+                "synapseclient.models.curation.update_curation_task_status",
+                new_callable=AsyncMock,
+                return_value=put_response,
+            ) as mock_update_status,
+        ):
+            result = await task.set_task_state_async(
+                state=input_state, synapse_client=self.syn
+            )
+
+            # THEN it fetches the current status first
+            mock_get_status.assert_called_once_with(
+                task_id=TASK_ID, synapse_client=self.syn
+            )
+
+            # AND PUTs a payload that carries the fresh etag, the coerced
+            # state, and preserves the existing execution_details
+            mock_update_status.assert_called_once()
+            put_kwargs = mock_update_status.call_args.kwargs
+            assert put_kwargs["task_id"] == TASK_ID
+            payload = put_kwargs["curation_task_status"]
+            assert payload["etag"] == STATUS_ETAG
+            assert payload["state"] == expected_state_value
+            assert payload["executionDetails"]["concreteType"] == GRID_EXECUTION_DETAILS
+            assert payload["executionDetails"]["activeSessionId"] == SESSION_ID
+
+            # AND it returns the parsed update response
+            assert isinstance(result, CurationTaskStatus)
+            assert result.state == CurationTaskState(expected_state_value)
+            assert isinstance(result.execution_details, GridExecutionDetails)
+            assert result.execution_details.active_session_id == SESSION_ID
+
+    async def test_set_task_state_async_invalid_string(self) -> None:
+        # GIVEN a CurationTask with a task_id
+        task = CurationTask(task_id=TASK_ID)
+
+        # WHEN I call set_task_state_async with a string that does not match
+        # any CurationTaskState member
+        # THEN it raises ValueError before any API call is made
+        with (
+            patch(
+                "synapseclient.models.curation.get_curation_task_status",
+                new_callable=AsyncMock,
+            ) as mock_get_status,
+            patch(
+                "synapseclient.models.curation.update_curation_task_status",
+                new_callable=AsyncMock,
+            ) as mock_update_status,
+        ):
+            with pytest.raises(ValueError, match="is not a valid CurationTaskState"):
+                await task.set_task_state_async(
+                    state="NOT_A_REAL_STATE", synapse_client=self.syn
+                )
+
+            mock_get_status.assert_not_called()
+            mock_update_status.assert_not_called()
+
+    async def test_set_task_state_async_without_task_id(self) -> None:
+        # GIVEN a CurationTask without a task_id
+        task = CurationTask()
+
+        # WHEN I call set_task_state_async
+        # THEN it should raise ValueError (propagated from get_status_async)
+        with pytest.raises(ValueError, match="task_id is required to get"):
+            await task.set_task_state_async(
+                state=CurationTaskState.IN_PROGRESS, synapse_client=self.syn
+            )
+
     async def test_create_grid_session_async_record_based(self) -> None:
         # GIVEN a CurationTask whose task_properties is RecordBasedMetadataTaskProperties
         task = CurationTask(
