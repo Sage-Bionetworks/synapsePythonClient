@@ -84,7 +84,6 @@ import numpy as np
 
 df = pd.read_csv(csv_path)
 print(df)
-# The grid you downloaded may be empty — the columns shown here will match
 # whatever the curation administrator configured for the task's schema.
 
 # Smoke-test stand-in: fills 4 rows with random integers regardless of column type.
