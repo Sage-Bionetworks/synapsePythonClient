@@ -180,7 +180,7 @@ entity_view_id, task_id = create_file_based_metadata_task(
     entity_view_name="Animal Study Files View",
     schema_uri=schema_uri,
     assignee_principal_id="123456",    # Optional: Assign to a user or team
-    view_type_mask=ViewTypeMask.FILE   # Optional: include additional entity types in the view (ViewTypeMask.FILE|ViewTypeMask.DOCKER).  (Defaults to ViewTypeMask.FILE)
+    view_type_mask=ViewTypeMask.FILE   # Optional: include additional entity types in the view (ViewTypeMask.FILE | ViewTypeMask.DOCKER). (Defaults to ViewTypeMask.FILE)
 )
 
 print(f"File-based workflow created:")
