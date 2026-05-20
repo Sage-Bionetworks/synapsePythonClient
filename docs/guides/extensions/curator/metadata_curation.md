@@ -127,7 +127,6 @@ print(f"Created CurationTask: {task_id}")
 - A CurationTask for guided metadata entry
 - Automatic schema binding to the folder for validation
 - Optional wiki attached to the folder
-- A Grid session for interactive metadata editing
 
 ## Complete example script
 
