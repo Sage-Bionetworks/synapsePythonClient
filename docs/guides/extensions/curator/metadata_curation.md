@@ -29,7 +29,7 @@ from synapseclient.extensions.curator import (
     create_file_based_metadata_task,
     query_schema_registry
 )
-from synapseclient.models import (  # type: ignore
+from synapseclient.models import (
     ViewTypeMask,
 )
 from synapseclient import Synapse
@@ -113,7 +113,7 @@ entity_view_id, task_id = create_file_based_metadata_task(
     entity_view_name="Animal Study Files View",
     schema_uri=schema_uri,             # Schema found in Step 2
     assignee_principal_id="123456",    # Optional: Assign to a user or team
-    view_type_mask=ViewTypeMask.FILE   # Optional: include additional entity types in the view (ViewTypeMask.FILE|ViewTypeMask.DOCKER).  (Defaults to ViewTypeMask.FILE)
+    view_type_mask=ViewTypeMask.FILE   # Optional: include additional entity types in the view (ViewTypeMask.FILE | ViewTypeMask.DOCKER). (Defaults to ViewTypeMask.FILE)
 )
 
 print(f"Created EntityView: {entity_view_id}")
@@ -179,8 +179,8 @@ entity_view_id, task_id = create_file_based_metadata_task(
     attach_wiki=True,
     entity_view_name="Animal Study Files View",
     schema_uri=schema_uri,
-    assignee_principal_id="123456"    # Optional: Assign to a user or team
-    view_type_mask=ViewTypeMask.FILE  # Optional: include additional entity types in the view (ViewTypeMask.FILE|ViewTypeMask.DOCKER).  (Defaults to ViewTypeMask.FILE)
+    assignee_principal_id="123456",    # Optional: Assign to a user or team
+    view_type_mask=ViewTypeMask.FILE   # Optional: include additional entity types in the view (ViewTypeMask.FILE|ViewTypeMask.DOCKER).  (Defaults to ViewTypeMask.FILE)
 )
 
 print(f"File-based workflow created:")
