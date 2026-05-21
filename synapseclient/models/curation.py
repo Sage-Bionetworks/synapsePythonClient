@@ -399,10 +399,9 @@ class CurationTaskSynchronousProtocol(Protocol):
         Arguments:
             project_id: The synId of the project.
             assigned_to_me: When True, only return tasks assigned to the current user.
-                False and None are identical in effect — neither activates an assignee
-                filter, and both may be combined with assignee_ids freely. Note that
-                False does not mean "tasks not assigned to me". Passing True together
-                with assignee_ids raises a ValueError. Defaults to None.
+                Cannot be combined with assignee_ids.
+                False does not mean "tasks not assigned to me".
+                Defaults to None.
             assignee_ids: Optional list of principal IDs (users or teams) to filter
                 tasks by assignee. Cannot be combined with assigned_to_me=True.
                 Defaults to None.
