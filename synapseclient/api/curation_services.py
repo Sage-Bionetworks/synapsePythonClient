@@ -123,6 +123,9 @@ async def delete_curation_task(
 async def list_curation_tasks(
     project_id: str,
     *,
+    assigned_to_me: Optional[bool] = None,
+    assignee_ids: Optional[list[str]] = None,
+    state_filter: Optional[list[str]] = None,
     synapse_client: Optional["Synapse"] = None,
 ) -> AsyncGenerator[Dict[str, Any], None]:
     """
@@ -132,6 +135,14 @@ async def list_curation_tasks(
 
     Arguments:
         project_id: The synId of the project.
+        assigned_to_me: When True, only return tasks that are assigned to the
+            current user. When False or None, the filter is not applied.
+            Cannot be combined with assignee_ids when True. Defaults to None.
+        assignee_ids: Optional list of principal IDs (users or teams) to filter
+            tasks by assignee. Cannot be combined with assigned_to_me=True.
+            Defaults to None.
+        state_filter: Optional list of TaskState string values to filter tasks by
+            their current state. Defaults to None (all states returned).
         synapse_client: If not passed in and caching was not disabled by
             `Synapse.allow_client_caching(False)` this will use the last created
             instance from the Synapse class constructor.
@@ -143,7 +154,14 @@ async def list_curation_tasks(
 
     client = Synapse.get_client(synapse_client=synapse_client)
 
-    request_body = {"projectId": project_id}
+    request_body: Dict[str, Any] = {"projectId": project_id}
+    # Only send the flag when True; False/None both mean "no filter"
+    if assigned_to_me is True:
+        request_body["assignedToMe"] = True
+    if assignee_ids is not None:
+        request_body["assigneeIds"] = assignee_ids
+    if state_filter is not None:
+        request_body["stateFilter"] = state_filter
 
     async for item in rest_post_paginated_async(
         "/curation/task/list", body=request_body, synapse_client=client

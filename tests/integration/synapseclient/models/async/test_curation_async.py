@@ -19,6 +19,7 @@ from synapseclient.models import (
     Project,
     RecordBasedMetadataTaskProperties,
     RecordSet,
+    TaskState,
     ViewTypeMask,
 )
 
@@ -626,3 +627,90 @@ class TestCurationTaskListAsync:
 
         # THEN I should get an empty list
         assert len(listed_tasks) == 0
+
+    async def test_list_state_filter_not_started_async(
+        self, project_model: Project, folder_with_view: tuple[Folder, EntityView]
+    ) -> None:
+        # GIVEN a newly created curation task (default state is NOT_STARTED)
+        folder, entity_view = folder_with_view
+        data_type = f"test_data_type_{str(uuid.uuid4()).replace('-', '_')}"
+        task = await CurationTask(
+            data_type=data_type,
+            project_id=project_model.id,
+            instructions="Test instructions",
+            task_properties=FileBasedMetadataTaskProperties(
+                upload_folder_id=folder.id,
+                file_view_id=entity_view.id,
+            ),
+        ).store_async(synapse_client=self.syn)
+
+        # WHEN I list tasks filtered to NOT_STARTED
+        listed_task_ids = [
+            t.task_id
+            async for t in CurationTask.list_async(
+                project_id=project_model.id,
+                state_filter=[TaskState.NOT_STARTED],
+                synapse_client=self.syn,
+            )
+        ]
+
+        # THEN the new task should appear
+        assert task.task_id in listed_task_ids
+
+    async def test_list_state_filter_excludes_other_states_async(
+        self, project_model: Project, folder_with_view: tuple[Folder, EntityView]
+    ) -> None:
+        # GIVEN a newly created curation task (default state is NOT_STARTED)
+        folder, entity_view = folder_with_view
+        data_type = f"test_data_type_{str(uuid.uuid4()).replace('-', '_')}"
+        task = await CurationTask(
+            data_type=data_type,
+            project_id=project_model.id,
+            instructions="Test instructions",
+            task_properties=FileBasedMetadataTaskProperties(
+                upload_folder_id=folder.id,
+                file_view_id=entity_view.id,
+            ),
+        ).store_async(synapse_client=self.syn)
+
+        # WHEN I list tasks filtered to COMPLETED
+        listed_task_ids = [
+            t.task_id
+            async for t in CurationTask.list_async(
+                project_id=project_model.id,
+                state_filter=[TaskState.COMPLETED],
+                synapse_client=self.syn,
+            )
+        ]
+
+        # THEN the NOT_STARTED task should not appear
+        assert task.task_id not in listed_task_ids
+
+    async def test_list_state_filter_string_coercion_async(
+        self, project_model: Project, folder_with_view: tuple[Folder, EntityView]
+    ) -> None:
+        # GIVEN a newly created curation task (default state is NOT_STARTED)
+        folder, entity_view = folder_with_view
+        data_type = f"test_data_type_{str(uuid.uuid4()).replace('-', '_')}"
+        task = await CurationTask(
+            data_type=data_type,
+            project_id=project_model.id,
+            instructions="Test instructions",
+            task_properties=FileBasedMetadataTaskProperties(
+                upload_folder_id=folder.id,
+                file_view_id=entity_view.id,
+            ),
+        ).store_async(synapse_client=self.syn)
+
+        # WHEN I list tasks using a lowercase string for state_filter
+        listed_task_ids = [
+            t.task_id
+            async for t in CurationTask.list_async(
+                project_id=project_model.id,
+                state_filter=["not_started"],
+                synapse_client=self.syn,
+            )
+        ]
+
+        # THEN the task should appear (string was coerced to TaskState.NOT_STARTED)
+        assert task.task_id in listed_task_ids
