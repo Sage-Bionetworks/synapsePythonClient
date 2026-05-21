@@ -657,22 +657,6 @@ class TestCurationTaskListAsync:
         # THEN the new task should appear
         assert task.task_id in listed_task_ids
 
-    async def test_list_state_filter_excludes_other_states_async(
-        self, project_model: Project, folder_with_view: tuple[Folder, EntityView]
-    ) -> None:
-        # GIVEN a newly created curation task (default state is NOT_STARTED)
-        folder, entity_view = folder_with_view
-        data_type = f"test_data_type_{str(uuid.uuid4()).replace('-', '_')}"
-        task = await CurationTask(
-            data_type=data_type,
-            project_id=project_model.id,
-            instructions="Test instructions",
-            task_properties=FileBasedMetadataTaskProperties(
-                upload_folder_id=folder.id,
-                file_view_id=entity_view.id,
-            ),
-        ).store_async(synapse_client=self.syn)
-
         # WHEN I list tasks filtered to COMPLETED
         listed_task_ids = [
             t.task_id
