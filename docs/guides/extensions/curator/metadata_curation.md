@@ -29,6 +29,9 @@ from synapseclient.extensions.curator import (
     create_file_based_metadata_task,
     query_schema_registry
 )
+from synapseclient.models import (
+    ViewTypeMask,
+)
 from synapseclient import Synapse
 
 syn = Synapse()
@@ -74,7 +77,6 @@ Use this when metadata describes individual data files and is stored as annotati
 ```python
 record_set, curation_task, data_grid = create_record_based_metadata_task(
     synapse_client=syn,
-    project_id="syn123456789",         # Your project ID
     folder_id="syn987654321",          # Folder where RecordSet Entity will be stored
     record_set_name="AnimalMetadata_Records",
     record_set_description="Centralized metadata for animal study data",
@@ -110,7 +112,8 @@ entity_view_id, task_id = create_file_based_metadata_task(
     attach_wiki=False,                 # Creates a wiki in the folder with the entity view (Defaults to False)
     entity_view_name="Animal Study Files View",
     schema_uri=schema_uri,             # Schema found in Step 2
-    assignee_principal_id="123456"     # Optional: Assign to a user or team
+    assignee_principal_id="123456",    # Optional: Assign to a user or team
+    view_type_mask=ViewTypeMask.FILE   # Optional: include additional entity types in the view (ViewTypeMask.FILE | ViewTypeMask.DOCKER). (Defaults to ViewTypeMask.FILE)
 )
 
 print(f"Created EntityView: {entity_view_id}")
@@ -152,7 +155,6 @@ print("Using schema:", schema_uri)
 # Step 3A: Create record-based workflow
 record_set, curation_task, data_grid = create_record_based_metadata_task(
     synapse_client=syn,
-    project_id="syn123456789",
     folder_id="syn987654321",
     record_set_name="AnimalMetadata_Records",
     record_set_description="Centralized animal study metadata",
@@ -177,7 +179,8 @@ entity_view_id, task_id = create_file_based_metadata_task(
     attach_wiki=True,
     entity_view_name="Animal Study Files View",
     schema_uri=schema_uri,
-    assignee_principal_id="123456"  # Optional: Assign to a user or team
+    assignee_principal_id="123456",    # Optional: Assign to a user or team
+    view_type_mask=ViewTypeMask.FILE   # Optional: include additional entity types in the view (ViewTypeMask.FILE | ViewTypeMask.DOCKER). (Defaults to ViewTypeMask.FILE)
 )
 
 print(f"File-based workflow created:")
@@ -319,7 +322,6 @@ test_data.to_csv(temp_csv, index=False)
 # Step 2: Create the curation task (this creates an empty template RecordSet)
 record_set, curation_task, data_grid = create_record_based_metadata_task(
     synapse_client=syn,
-    project_id="syn123456789",
     folder_id="syn987654321",
     record_set_name="AnimalMetadata_Records",
     record_set_description="Animal study metadata with validation",
