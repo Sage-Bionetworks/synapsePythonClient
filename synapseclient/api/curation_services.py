@@ -155,7 +155,6 @@ async def list_curation_tasks(
     client = Synapse.get_client(synapse_client=synapse_client)
 
     request_body: Dict[str, Any] = {"projectId": project_id}
-    # Only send the flag when True; False/None both mean "no filter"
     if assigned_to_me is True:
         request_body["assignedToMe"] = True
     if assignee_ids is not None:
