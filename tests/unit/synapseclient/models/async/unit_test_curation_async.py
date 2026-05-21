@@ -24,6 +24,7 @@ from synapseclient.models.curation import (
     SynchronizeGridRequest,
     TaskState,
     UploadToTablePreviewRequest,
+    _coerce_state_filter,
     _create_task_properties_from_dict,
 )
 from synapseclient.models.recordset import ValidationSummary
@@ -1745,3 +1746,41 @@ class TestSynchronizeGrid:
                 error_message = mock_logger.error.call_args[0][0]
                 assert "sync_error_1" in error_message
                 assert "sync_error_2" in error_message
+
+
+class TestCoerceStateFilter:
+    """Tests for the _coerce_state_filter."""
+
+    @pytest.mark.parametrize(
+        "input_filter,expected",
+        [
+            ([TaskState.IN_PROGRESS], ["IN_PROGRESS"]),
+            ([TaskState.COMPLETED], ["COMPLETED"]),
+            (
+                [TaskState.IN_PROGRESS, TaskState.COMPLETED],
+                ["IN_PROGRESS", "COMPLETED"],
+            ),
+            (["IN_PROGRESS"], ["IN_PROGRESS"]),
+            (["in_progress"], ["IN_PROGRESS"]),
+            (["In_Progress"], ["IN_PROGRESS"]),
+            (["COMPLETED"], ["COMPLETED"]),
+            (["completed"], ["COMPLETED"]),
+            ([TaskState.IN_PROGRESS, "completed"], ["IN_PROGRESS", "COMPLETED"]),
+            ([], []),
+        ],
+    )
+    def test_valid_inputs(self, input_filter, expected) -> None:
+        """Accepts TaskState enums, case-insensitive strings, mixed lists, and empty lists."""
+        assert _coerce_state_filter(input_filter) == expected
+
+    @pytest.mark.parametrize(
+        "input_filter,match",
+        [
+            (["NOT_A_REAL_STATE"], "Invalid state_filter value"),
+            ([42], "Expected a TaskState or str"),
+        ],
+    )
+    def test_invalid_inputs_raise_value_error(self, input_filter, match) -> None:
+        """Raises ValueError for unrecognized strings and non-string, non-TaskState values."""
+        with pytest.raises(ValueError, match=match):
+            _coerce_state_filter(input_filter)

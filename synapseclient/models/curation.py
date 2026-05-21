@@ -491,6 +491,45 @@ class CurationTaskSynchronousProtocol(Protocol):
         )
 
 
+def _coerce_state_filter(
+    state_filter: list[Union["TaskState", str]],
+) -> list[str]:
+    """Normalize a list of state_filter values to their string equivalents.
+
+    Accepts TaskState enum members or strings. Strings are upper-cased before
+    coercion so that values like in_progress are accepted. Non-string,
+    non-TaskState values raise ValueError. Unrecognized strings also raise
+    ValueError with the list of valid values.
+
+    Arguments:
+        state_filter: List of TaskState values or equivalent strings to coerce.
+
+    Returns:
+        List of string values corresponding to each TaskState.
+
+    Raises:
+        ValueError: If any element is not a TaskState, a valid TaskState string,
+            or a recognized state name.
+    """
+    coerced: list[str] = []
+    for s in state_filter:
+        if isinstance(s, TaskState):
+            coerced.append(s.value)
+            continue
+        if not isinstance(s, str):
+            raise ValueError(
+                f"Invalid state_filter value {s!r}. Expected a TaskState or str."
+            )
+        try:
+            coerced.append(TaskState(s.upper()).value)
+        except ValueError as exc:
+            valid = [e.value for e in TaskState]
+            raise ValueError(
+                f"Invalid state_filter value {s!r}. Valid values are: {valid}"
+            ) from exc
+    return coerced
+
+
 @dataclass
 @async_to_sync
 class CurationTask(CurationTaskSynchronousProtocol):
@@ -1057,27 +1096,8 @@ class CurationTask(CurationTaskSynchronousProtocol):
                 "and cannot be used together."
             )
 
-        # Normalize state_filter.
-        # This method accepts TaskState enums or strings, anything else causes a ValueError.
-        # Strings are upper-cased and validated against TaskState; invalid values raise.
         if state_filter is not None:
-            coerced_state_filter = []
-            for s in state_filter:
-                if isinstance(s, TaskState):
-                    coerced_state_filter.append(s.value)
-                    continue
-                if not isinstance(s, str):
-                    raise ValueError(
-                        f"Invalid state_filter value {s!r}. Expected a TaskState or str."
-                    )
-                try:
-                    coerced_state_filter.append(TaskState(s.upper()).value)
-                except ValueError as exc:
-                    valid = [e.value for e in TaskState]
-                    raise ValueError(
-                        f"Invalid state_filter value {s!r}. Valid values are: {valid}"
-                    ) from exc
-            state_filter = coerced_state_filter
+            state_filter = _coerce_state_filter(state_filter)
 
         trace.get_current_span().set_attributes(
             {
