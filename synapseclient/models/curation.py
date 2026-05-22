@@ -1538,8 +1538,9 @@ class CurationTask(CurationTaskSynchronousProtocol):
 
         Raises:
             ValueError: If task_id is unset or task_properties is of an unsupported type.
-            SynapseHTTPError: If the status update fails. The orphan Grid is
-                deleted on a best-effort basis before the error is re-raised.
+            SynapseHTTPError: If the RecordSet or EntityView does not exist, or if the
+                status update fails. The orphan Grid is deleted on a best-effort basis
+                before the error is re-raised.
 
         Example: Create a grid session for a curation task asynchronously
             &nbsp;
@@ -1573,6 +1574,12 @@ class CurationTask(CurationTaskSynchronousProtocol):
                     "Cannot create grid session: "
                     "task_properties.record_set_id is missing."
                 )
+            from synapseclient.models import RecordSet
+
+            # raises SynapseHTTPError if RecordSet does not exist
+            await RecordSet(id=self.task_properties.record_set_id).get_async(
+                synapse_client=synapse_client
+            )
             grid = Grid(
                 record_set_id=self.task_properties.record_set_id,
                 owner_principal_id=owner_principal_id,
@@ -1583,6 +1590,12 @@ class CurationTask(CurationTaskSynchronousProtocol):
                     "Cannot create grid session: "
                     "task_properties.file_view_id is missing."
                 )
+            from synapseclient.models import EntityView
+
+            # raises SynapseHTTPError if EntityView does not exist
+            await EntityView(id=self.task_properties.file_view_id).get_async(
+                synapse_client=synapse_client
+            )
             grid = Grid(
                 initial_query=Query(
                     sql=f"SELECT * FROM {self.task_properties.file_view_id}"

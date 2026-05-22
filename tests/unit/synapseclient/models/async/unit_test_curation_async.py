@@ -13,6 +13,7 @@ from synapseclient.core.constants.concrete_types import (
     RECORD_BASED_METADATA_TASK_PROPERTIES,
     UPLOAD_TO_TABLE_PREVIEW_REQUEST,
 )
+from synapseclient.models import EntityView, RecordSet
 from synapseclient.models.curation import (
     CreateGridRequest,
     CurationTask,
@@ -1073,6 +1074,7 @@ class TestCurationTask:
             return created_grid
 
         with (
+            patch.object(RecordSet, "get_async", new_callable=AsyncMock),
             patch.object(Grid, "create_async", new=capture_create),
             patch.object(
                 CurationTask,
@@ -1119,6 +1121,7 @@ class TestCurationTask:
             return created_grid
 
         with (
+            patch.object(EntityView, "get_async", new_callable=AsyncMock),
             patch.object(Grid, "create_async", new=capture_create),
             patch.object(
                 CurationTask,
@@ -1167,6 +1170,7 @@ class TestCurationTask:
 
         with (
             patch.object(CurationTask, "get_async", new=fake_get_async),
+            patch.object(EntityView, "get_async", new_callable=AsyncMock),
             patch.object(Grid, "create_async", new=fake_create_async),
             patch.object(
                 CurationTask,
@@ -1226,6 +1230,56 @@ class TestCurationTask:
         with pytest.raises(ValueError, match="task_properties.file_view_id is missing"):
             await task.create_grid_session_async(synapse_client=self.syn)
 
+    async def test_create_grid_session_async_record_based_record_set_not_found(
+        self,
+    ) -> None:
+        from synapseclient.core.exceptions import SynapseHTTPError
+
+        # GIVEN a record-based CurationTask with a record_set_id that does not exist
+        task = CurationTask(
+            task_id=TASK_ID,
+            task_properties=RecordBasedMetadataTaskProperties(
+                record_set_id=RECORD_SET_ID
+            ),
+        )
+
+        # AND RecordSet.get_async raises SynapseHTTPError (e.g. 404)
+        with patch.object(
+            RecordSet,
+            "get_async",
+            new_callable=AsyncMock,
+            side_effect=SynapseHTTPError("404 Not Found"),
+        ):
+            # WHEN I call create_grid_session_async
+            # THEN the SynapseHTTPError propagates and no Grid is created
+            with pytest.raises(SynapseHTTPError):
+                await task.create_grid_session_async(synapse_client=self.syn)
+
+    async def test_create_grid_session_async_file_based_entity_view_not_found(
+        self,
+    ) -> None:
+        from synapseclient.core.exceptions import SynapseHTTPError
+
+        # GIVEN a file-based CurationTask with a file_view_id that does not exist
+        task = CurationTask(
+            task_id=TASK_ID,
+            task_properties=FileBasedMetadataTaskProperties(
+                upload_folder_id=UPLOAD_FOLDER_ID, file_view_id=FILE_VIEW_ID
+            ),
+        )
+
+        # AND EntityView.get_async raises SynapseHTTPError (e.g. 404)
+        with patch.object(
+            EntityView,
+            "get_async",
+            new_callable=AsyncMock,
+            side_effect=SynapseHTTPError("404 Not Found"),
+        ):
+            # WHEN I call create_grid_session_async
+            # THEN the SynapseHTTPError propagates and no Grid is created
+            with pytest.raises(SynapseHTTPError):
+                await task.create_grid_session_async(synapse_client=self.syn)
+
     async def test_create_grid_session_async_unsupported_task_properties(
         self,
     ) -> None:
@@ -1266,6 +1320,7 @@ class TestCurationTask:
             delete_calls.append(grid_self)
 
         with (
+            patch.object(RecordSet, "get_async", new_callable=AsyncMock),
             patch.object(Grid, "create_async", new=fake_create_async),
             patch.object(
                 CurationTask,
@@ -1308,6 +1363,7 @@ class TestCurationTask:
         mock_logger = MagicMock()
 
         with (
+            patch.object(RecordSet, "get_async", new_callable=AsyncMock),
             patch.object(Grid, "create_async", new=fake_create_async),
             patch.object(
                 CurationTask,
