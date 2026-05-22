@@ -41,10 +41,9 @@ For writing code using the Synapse Python client that is easy to share with othe
 
 The Synapse Python Client supports multiple profiles within the `~/.synapseConfig` file, enabling users to manage credentials for multiple accounts. Each profile is defined in its own `[profile <profile_name>]` section. A default profile can still be defined using `[default]`.
 
-When installing the Synapse Python client, the `~/.synapseConfig` is added to your home directory.
+### Create/Modify the `~/.synapseConfig` file with the Command line Client
 
-### Automatically modifying the `~/.synapseConfig` file with the Command line Client
-You may modify the `~/.synapseConfig` file by utilizing the [command line client command and following the interactive prompts](./command_line_client.md#config):
+After installing the Synapse Python client, run the [command line client command and following the interactive prompts](./command_line_client.md#config) to create a `.synapseConfig` file in your home directory. You may also modify the `~/.synapseConfig` file by utilizing this command.
 
 #### Modifying the synapse config for multiple profiles
 

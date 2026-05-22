@@ -25,19 +25,19 @@ In this tutorial you will:
 
 #### First let's retrieve all of the Synapse IDs we are going to use
 ```python
-{!docs/tutorials/python/tutorial_scripts/annotation.py!lines=5-23}
+--8<-- "docs/tutorials/python/tutorial_scripts/annotation.py:retrieve_synapse_ids"
 ```
 
 #### Next let's define the annotations I want to set
 
 ```python
-{!docs/tutorials/python/tutorial_scripts/annotation.py!lines=25-31}
+--8<-- "docs/tutorials/python/tutorial_scripts/annotation.py:define_annotations"
 ```
 
 #### Finally we'll loop over all of the files and set their annotations
 
 ```python
-{!docs/tutorials/python/tutorial_scripts/annotation.py!lines=33-51}
+--8<-- "docs/tutorials/python/tutorial_scripts/annotation.py:set_annotations_loop"
 ```
 
 
@@ -64,7 +64,7 @@ In order for the following script to work please replace the files with ones tha
 already exist on your local machine.
 
 ```python
-{!docs/tutorials/python/tutorial_scripts/annotation.py!lines=53-78}
+--8<-- "docs/tutorials/python/tutorial_scripts/annotation.py:upload_with_annotations"
 ```
 
 <details class="example">
@@ -115,7 +115,7 @@ files in the synapse web UI. It should look similar to:
   <summary>Click to show me</summary>
 
 ```python
-{!docs/tutorials/python/tutorial_scripts/annotation.py!}
+--8<-- "docs/tutorials/python/tutorial_scripts/annotation.py"
 ```
 </details>
 

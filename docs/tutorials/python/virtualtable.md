@@ -31,7 +31,7 @@ You will want to replace `"My uniquely named project about Alzheimer's Disease"`
 the name of your project.
 
 ```python
-{!docs/tutorials/python/tutorial_scripts/virtualtable.py!lines=3-72}
+--8<-- "docs/tutorials/python/tutorial_scripts/virtualtable.py:setup"
 ```
 
 **Note**: Virtual Tables do not support JOIN or UNION operations in the defining SQL query.
@@ -44,7 +44,7 @@ First, we will create a simple Virtual Table that selects all rows from a table 
 then query it to retrieve the results.
 
 ```python
-{!docs/tutorials/python/tutorial_scripts/virtualtable.py!lines=77-99}
+--8<-- "docs/tutorials/python/tutorial_scripts/virtualtable.py:basic_view"
 ```
 
 <details class="example">
@@ -66,7 +66,7 @@ Results from the basic virtual table:
 Next, we'll create a Virtual Table that selects only specific columns from the source table.
 
 ```python
-{!docs/tutorials/python/tutorial_scripts/virtualtable.py!lines=102-124}
+--8<-- "docs/tutorials/python/tutorial_scripts/virtualtable.py:column_selection"
 ```
 
 <details class="example">
@@ -88,7 +88,7 @@ Results from the virtual table with column selection:
 We can create a Virtual Table that filters rows from the source table using a WHERE clause.
 
 ```python
-{!docs/tutorials/python/tutorial_scripts/virtualtable.py!lines=127-149}
+--8<-- "docs/tutorials/python/tutorial_scripts/virtualtable.py:filtering"
 ```
 
 <details class="example">
@@ -107,7 +107,7 @@ Results from the virtual table with filtering:
 You can also create a Virtual Table that orders the rows from the source table using an ORDER BY clause.
 
 ```python
-{!docs/tutorials/python/tutorial_scripts/virtualtable.py!lines=152-174}
+--8<-- "docs/tutorials/python/tutorial_scripts/virtualtable.py:ordering"
 ```
 
 <details class="example">
@@ -129,7 +129,7 @@ Results from the virtual table with ordering:
 Finally, we can create a Virtual Table that aggregates data using functions like COUNT, along with GROUP BY.
 
 ```python
-{!docs/tutorials/python/tutorial_scripts/virtualtable.py!lines=177-199}
+--8<-- "docs/tutorials/python/tutorial_scripts/virtualtable.py:aggregation"
 ```
 
 <details class="example">
@@ -148,7 +148,7 @@ Results from the virtual table with aggregation:
   <summary>Click to show me</summary>
 
 ```python
-{!docs/tutorials/python/tutorial_scripts/virtualtable.py!}
+--8<-- "docs/tutorials/python/tutorial_scripts/virtualtable.py"
 ```
 </details>
 

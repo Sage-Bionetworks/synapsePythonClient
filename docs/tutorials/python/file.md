@@ -50,19 +50,19 @@ In this tutorial you will:
 
 #### First let's retrieve all of the Synapse IDs we are going to use
 ```python
-{!docs/tutorials/python/tutorial_scripts/file.py!lines=5-30}
+--8<-- "docs/tutorials/python/tutorial_scripts/file.py:retrieve_folder_ids"
 ```
 
 #### Next let's create all of the File objects to upload content
 
 ```python
-{!docs/tutorials/python/tutorial_scripts/file.py!lines=32-75}
+--8<-- "docs/tutorials/python/tutorial_scripts/file.py:create_file_objects"
 ```
 
 #### Finally we'll store the files in Synapse
 
 ```python
-{!docs/tutorials/python/tutorial_scripts/file.py!lines=77-85}
+--8<-- "docs/tutorials/python/tutorial_scripts/file.py:store_files"
 ```
 
 
@@ -83,7 +83,7 @@ Uploading [####################]100.00%   2.0bytes/2.0bytes (1.8bytes/s) SRR1234
 ## 2. Print stored attributes about your files
 
 ```python
-{!docs/tutorials/python/tutorial_scripts/file.py!lines=87-99}
+--8<-- "docs/tutorials/python/tutorial_scripts/file.py:print_attributes"
 ```
 
 <details class="example">
@@ -103,7 +103,7 @@ My file was last modified on: 2023-12-28T21:55:17.971Z
 Now that your project has a number of Folders and Files let's explore how we can traverse the content stored within the Project.
 
 ```python
-{!docs/tutorials/python/tutorial_scripts/file.py!lines=101-112}
+--8<-- "docs/tutorials/python/tutorial_scripts/file.py:walk_project"
 ```
 
 
@@ -138,7 +138,7 @@ Now that you have created your files you'll be able to inspect this on the Files
   <summary>Click to show me</summary>
 
 ```python
-{!docs/tutorials/python/tutorial_scripts/file.py!}
+--8<-- "docs/tutorials/python/tutorial_scripts/file.py"
 ```
 </details>
 

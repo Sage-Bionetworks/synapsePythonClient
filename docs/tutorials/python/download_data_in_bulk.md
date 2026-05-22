@@ -168,6 +168,6 @@ File in single_cell_RNAseq_batch_2: SRR12345678_R2.fastq.gz
   <summary>Click to show me</summary>
 
 ```python
-{!docs/tutorials/python/tutorial_scripts/download_data_in_bulk.py!}
+--8<-- "docs/tutorials/python/tutorial_scripts/download_data_in_bulk.py"
 ```
 </details>

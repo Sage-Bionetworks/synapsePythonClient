@@ -55,13 +55,13 @@ In this tutorial you will:
 ## 1. Create a new folder
 
 ```python
-{!docs/tutorials/python/tutorial_scripts/folder.py!lines=5-35}
+--8<-- "docs/tutorials/python/tutorial_scripts/folder.py:create_folder"
 ```
 
 ## 2. Print stored attributes about your folder
 
 ```python
-{!docs/tutorials/python/tutorial_scripts/folder.py!lines=35-49}
+--8<-- "docs/tutorials/python/tutorial_scripts/folder.py:print_attributes"
 ```
 
 <details class="example">
@@ -79,7 +79,7 @@ My folder was last modified on: 2023-12-28T20:52:50.193Z
 ## 3. Create 2 sub-folders
 
 ```python
-{!docs/tutorials/python/tutorial_scripts/folder.py!lines=52-59}
+--8<-- "docs/tutorials/python/tutorial_scripts/folder.py:create_subfolders"
 ```
 
 ## Results
@@ -94,7 +94,7 @@ Now that you have created your folders you'll be able to inspect this on the Fil
   <summary>Click to show me</summary>
 
 ```python
-{!docs/tutorials/python/tutorial_scripts/folder.py!}
+--8<-- "docs/tutorials/python/tutorial_scripts/folder.py"
 ```
 </details>
 
