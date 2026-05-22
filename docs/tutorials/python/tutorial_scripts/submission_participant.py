@@ -75,6 +75,7 @@ print(f"  Submitter: {retrieved_submission.submitter_alias}")
 print(f"  Created On: {retrieved_submission.created_on}")
 
 # --8<-- [end:fetch_submission]
+
 # --8<-- [start:count_submissions]
 # ==============================================================================
 # 3. Count your submissions
@@ -85,11 +86,11 @@ print("\n=== 3. Counting submissions ===")
 # Get the total count of submissions for this evaluation
 submission_count = Submission.get_submission_count(evaluation_id=EVALUATION_ID)
 
-# --8<-- [start:fetch_all_submissions]
 print(f"Total submissions in evaluation: {submission_count}")
 # --8<-- [end:count_submissions]
 
 
+# --8<-- [start:fetch_all_submissions]
 # ==============================================================================
 # 4. Fetch all of your submissions from an existing evaluation queue
 # ==============================================================================
@@ -129,6 +130,7 @@ else:
     print(f"  No submission annotations available")
 
 # --8<-- [end:check_status]
+
 # --8<-- [start:cancel_submission]
 # ==============================================================================
 # 6. Cancel your submission (optional)
@@ -148,8 +150,8 @@ print("\n=== 6. Cancelling submission ===")
 
 print(f"\nCancellation is commented out by default.")
 print(f"Uncomment the cancellation code if you want to test this functionality.")
-# --8<-- [end:cancel_submission]
 
 print(f"\n=== Tutorial completed! ===")
 print(f"Your submission ID {submission_id} is ready for evaluation.")
 print(f"Check back later to see if the organizers have scored your submission.")
+# --8<-- [end:cancel_submission]
