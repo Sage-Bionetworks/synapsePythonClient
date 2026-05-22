@@ -1,5 +1,6 @@
 """Here is where you'll find the code for the VirtualTable tutorial."""
 
+# --8<-- [start:setup]
 import pandas as pd
 
 from synapseclient import Synapse
@@ -70,10 +71,12 @@ data2 = pd.DataFrame(
     ]
 )
 table2.upsert_rows(values=data2, primary_keys=["sample_id"])
+# --8<-- [end:setup]
 # Note: VirtualTables do not support JOIN or UNION operations in the defining_sql.
 # If you need to combine data from multiple tables, consider using a MaterializedView instead.
 
 
+# --8<-- [start:basic_view]
 def create_basic_virtual_table():
     """
     Example: Create a basic virtual table with a simple SELECT query.
@@ -99,6 +102,10 @@ def create_basic_virtual_table():
     print(query_result)
 
 
+# --8<-- [end:basic_view]
+
+
+# --8<-- [start:column_selection]
 def create_virtual_table_with_column_selection():
     """
     Example: Create a virtual table that selects only specific columns.
@@ -124,6 +131,10 @@ def create_virtual_table_with_column_selection():
     print(query_result)
 
 
+# --8<-- [end:column_selection]
+
+
+# --8<-- [start:filtering]
 def create_virtual_table_with_filtering():
     """
     Example: Create a virtual table with a WHERE clause for filtering.
@@ -149,6 +160,10 @@ def create_virtual_table_with_filtering():
     print(query_result)
 
 
+# --8<-- [end:filtering]
+
+
+# --8<-- [start:ordering]
 def create_virtual_table_with_ordering():
     """
     Example: Create a virtual table with an ORDER BY clause.
@@ -174,6 +189,10 @@ def create_virtual_table_with_ordering():
     print(query_result)
 
 
+# --8<-- [end:ordering]
+
+
+# --8<-- [start:aggregation]
 def create_virtual_table_with_aggregation():
     """
     Example: Create a virtual table with an aggregate function.
@@ -197,6 +216,9 @@ def create_virtual_table_with_aggregation():
     # Print the results to the console
     print("Results from the virtual table with aggregation:")
     print(query_result)
+
+
+# --8<-- [end:aggregation]
 
 
 def main():

@@ -2,6 +2,7 @@
 Here is where you'll find the code for the File tutorial.
 """
 
+# --8<-- [start:retrieve_folder_ids]
 # Step 1: Upload several files to Synapse
 import os
 
@@ -27,7 +28,9 @@ biospecimen_experiment_1_folder = Folder(
 biospecimen_experiment_2_folder = Folder(
     parent_id=my_project.id, name="biospecimen_experiment_2"
 ).get()
+# --8<-- [end:retrieve_folder_ids]
 
+# --8<-- [start:create_file_objects]
 # Create a File object for each file I want to upload
 biospecimen_experiment_1_a_2022 = File(
     path=os.path.expanduser("~/my_ad_project/biospecimen_experiment_1/fileA.txt"),
@@ -72,7 +75,9 @@ batch_2_scrnaseq_file_2 = File(
     ),
     parent_id=batch_2_folder.id,
 )
+# --8<-- [end:create_file_objects]
 
+# --8<-- [start:store_files]
 # Upload each file to Synapse
 biospecimen_experiment_1_a_2022.store()
 biospecimen_experiment_1_b_2022.store()
@@ -82,7 +87,9 @@ batch_1_scrnaseq_file_1.store()
 batch_1_scrnaseq_file_2.store()
 batch_2_scrnaseq_file_1.store()
 batch_2_scrnaseq_file_2.store()
+# --8<-- [end:store_files]
 
+# --8<-- [start:print_attributes]
 # Step 2: Print stored attributes about your file
 batch_1_scrnaseq_file_1_id = batch_1_scrnaseq_file_1.id
 print(f"My file ID is: {batch_1_scrnaseq_file_1_id}")
@@ -96,7 +103,9 @@ print(
 )
 
 print(f"My file was last modified on: {batch_1_scrnaseq_file_1.modified_on}")
+# --8<-- [end:print_attributes]
 
+# --8<-- [start:walk_project]
 # Step 3: List all Folders and Files within my project
 my_project.sync_from_synapse(download_file=False)
 dir_mapping = my_project.map_directory_to_all_contained_files("./")
@@ -104,3 +113,4 @@ for directory_name, file_entities in dir_mapping.items():
     print(f"Directory: {directory_name}")
     for file_entity in file_entities:
         print(f"\tFile: {file_entity.name}, ID: {file_entity.id}")
+# --8<-- [end:walk_project]
