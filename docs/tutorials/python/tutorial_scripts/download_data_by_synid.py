@@ -10,6 +10,7 @@ from synapseclient.models import File
 syn = Synapse()
 syn.login()
 
+# --8<-- [start:syn_id_mapping]
 # A mapping of Synapse IDs to the local directory each file should be downloaded to.
 # Files can be directed to different directories as needed.
 SYN_IDS_AND_PATHS = {
@@ -26,8 +27,10 @@ SYN_IDS_AND_PATHS = {
     "syn60584405": "~/temp/subdir2",
     "syn60584400": "~/temp/subdir3",
 }
+# --8<-- [end:syn_id_mapping]
 
 
+# --8<-- [start:concurrent_download]
 async def main():
     # Build a list of concurrent download tasks — one per Synapse ID
     tasks = []
@@ -41,3 +44,4 @@ async def main():
 
 
 asyncio.run(main())
+# --8<-- [end:concurrent_download]

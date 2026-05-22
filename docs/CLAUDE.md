@@ -19,12 +19,18 @@ MkDocs with Material theme, mkdocstrings (Google-style docstrings), termynal (CL
 - **reference/** — API reference auto-generated from docstrings via mkdocstrings. Split into `experimental/sync/` and `experimental/async/` for new OOP API.
 - **explanations/** — Deep conceptual content ("why" not just "how"). Design decisions, internal machinery.
 
-### File inclusion pattern (markdown-include)
-Tutorial code lives in `tutorials/python/tutorial_scripts/*.py` and is embedded in markdown via line-range includes:
+### File inclusion pattern (pymdownx.snippets)
+Tutorial code lives in `tutorials/python/tutorial_scripts/*.py` and is embedded in markdown via named-tag includes (the `--8<--` directive must be the only content on its line):
 ```markdown
-{!docs/tutorials/python/tutorial_scripts/annotation.py!lines=5-23}
+--8<-- "docs/tutorials/python/tutorial_scripts/annotation.py:retrieve_synapse_ids"
 ```
-Single source of truth — edit the `.py` file, not the markdown. Changing line numbers in scripts requires updating the line ranges in the corresponding `.md` files.
+In the paired `.py` file, wrap the region with matching comment markers:
+```python
+# --8<-- [start:retrieve_synapse_ids]
+<code to include>
+# --8<-- [end:retrieve_synapse_ids]
+```
+Single source of truth — edit the `.py` file, not the markdown. Use descriptive snake_case tag names (e.g. `setup`, `create_dataset`) rather than `step_1`. To include the whole file, omit the tag: `--8<-- "docs/tutorials/python/tutorial_scripts/annotation.py"`.
 
 ### mkdocstrings reference generation
 Reference markdown files use `::: synapseclient.ClassName` syntax to trigger auto-generation from docstrings. Key configuration:

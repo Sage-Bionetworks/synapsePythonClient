@@ -10,6 +10,7 @@ This tutorial demonstrates how to:
 6. Cancel your submission
 """
 
+# --8<-- [start:setup]
 from synapseclient import Synapse
 from synapseclient.models import Submission, SubmissionStatus
 
@@ -28,7 +29,9 @@ assert (
 
 print(f"Working with Evaluation: {EVALUATION_ID}")
 print(f"Submitting Entity: {ENTITY_ID}")
+# --8<-- [end:setup]
 
+# --8<-- [start:make_submission]
 # ==============================================================================
 # 1. Make a submission to an existing evaluation queue on Synapse
 # ==============================================================================
@@ -52,7 +55,9 @@ print(f"Created On: {submission.created_on}")
 
 # Store the submission ID for later use
 submission_id = submission.id
+# --8<-- [end:make_submission]
 
+# --8<-- [start:fetch_submission]
 # ==============================================================================
 # 2. Fetch your existing submission
 # ==============================================================================
@@ -69,6 +74,8 @@ print(f"  Entity ID: {retrieved_submission.entity_id}")
 print(f"  Submitter: {retrieved_submission.submitter_alias}")
 print(f"  Created On: {retrieved_submission.created_on}")
 
+# --8<-- [end:fetch_submission]
+# --8<-- [start:count_submissions]
 # ==============================================================================
 # 3. Count your submissions
 # ==============================================================================
@@ -78,7 +85,9 @@ print("\n=== 3. Counting submissions ===")
 # Get the total count of submissions for this evaluation
 submission_count = Submission.get_submission_count(evaluation_id=EVALUATION_ID)
 
+# --8<-- [start:fetch_all_submissions]
 print(f"Total submissions in evaluation: {submission_count}")
+# --8<-- [end:count_submissions]
 
 
 # ==============================================================================
@@ -93,7 +102,9 @@ user_submissions = list(Submission.get_user_submissions(evaluation_id=EVALUATION
 print(f"Found {len(user_submissions)} submissions from the current user:")
 for i, sub in enumerate(user_submissions, 1):
     print(f"  {i}. ID: {sub.id}, Name: {sub.name}, Created: {sub.created_on}")
+# --8<-- [end:fetch_all_submissions]
 
+# --8<-- [start:check_status]
 # ==============================================================================
 # 5. Check the status of your submission
 # ==============================================================================
@@ -117,6 +128,8 @@ if status.submission_annotations:
 else:
     print(f"  No submission annotations available")
 
+# --8<-- [end:check_status]
+# --8<-- [start:cancel_submission]
 # ==============================================================================
 # 6. Cancel your submission (optional)
 # ==============================================================================
@@ -135,6 +148,7 @@ print("\n=== 6. Cancelling submission ===")
 
 print(f"\nCancellation is commented out by default.")
 print(f"Uncomment the cancellation code if you want to test this functionality.")
+# --8<-- [end:cancel_submission]
 
 print(f"\n=== Tutorial completed! ===")
 print(f"Your submission ID {submission_id} is ready for evaluation.")

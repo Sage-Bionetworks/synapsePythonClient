@@ -28,7 +28,7 @@ Create a dictionary that maps each Synapse ID to the local path where that file
 should be saved. Files can be directed to different directories as needed.
 
 ```python
-{!docs/tutorials/python/tutorial_scripts/download_data_by_synid.py!lines=13-30}
+--8<-- "docs/tutorials/python/tutorial_scripts/download_data_by_synid.py:syn_id_mapping"
 ```
 
 
@@ -38,7 +38,7 @@ Use `File.get_async()` together with `asyncio.gather` to kick off every download
 at the same time and wait for them all to finish.
 
 ```python
-{!docs/tutorials/python/tutorial_scripts/download_data_by_synid.py!lines=31-43}
+--8<-- "docs/tutorials/python/tutorial_scripts/download_data_by_synid.py:concurrent_download"
 ```
 
 <details class="example">
@@ -55,7 +55,7 @@ Retrieved 12 files
   <summary>Click to show me</summary>
 
 ```python
-{!docs/tutorials/python/tutorial_scripts/download_data_by_synid.py!}
+--8<-- "docs/tutorials/python/tutorial_scripts/download_data_by_synid.py"
 ```
 </details>
 
