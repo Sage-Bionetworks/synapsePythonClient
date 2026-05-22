@@ -65,7 +65,7 @@ As an organizer of a Synapse challenge, you will
 Script setup:
 
 ```python
-{!docs/tutorials/python/tutorial_scripts/submission_participant.py!lines=13-30}
+--8<-- "docs/tutorials/python/tutorial_scripts/submission_participant.py:setup"
 ```
 
 ## 1. Participating in a Synapse challenge
@@ -73,37 +73,37 @@ Script setup:
 ### 1. Make a submission to an existing evaluation queue on Synapse
 
 ```python
-{!docs/tutorials/python/tutorial_scripts/submission_participant.py!lines=32-54}
+--8<-- "docs/tutorials/python/tutorial_scripts/submission_participant.py:make_submission"
 ```
 
 ### 2. Fetch your existing submission
 
 ```python
-{!docs/tutorials/python/tutorial_scripts/submission_participant.py!lines=56-71}
+--8<-- "docs/tutorials/python/tutorial_scripts/submission_participant.py:fetch_submission"
 ```
 
 ### 3. Count your submissions
 
 ```python
-{!docs/tutorials/python/tutorial_scripts/submission_participant.py!lines=72-82}
+--8<-- "docs/tutorials/python/tutorial_scripts/submission_participant.py:count_submissions"
 ```
 
 ### 4. Fetch all of your submissions from an existing evaluation queue on Synapse
 
 ```python
-{!docs/tutorials/python/tutorial_scripts/submission_participant.py!lines=82-95}
+--8<-- "docs/tutorials/python/tutorial_scripts/submission_participant.py:fetch_all_submissions"
 ```
 
 ### 5. Check the status of your submission
 
 ```python
-{!docs/tutorials/python/tutorial_scripts/submission_participant.py!lines=97-119}
+--8<-- "docs/tutorials/python/tutorial_scripts/submission_participant.py:check_status"
 ```
 
 ### 6. Cancel your submission
 
 ```python
-{!docs/tutorials/python/tutorial_scripts/submission_participant.py!lines=120-137}
+--8<-- "docs/tutorials/python/tutorial_scripts/submission_participant.py:cancel_submission"
 ```
 
 ## 2. Organizing a Synapse challenge
@@ -112,37 +112,37 @@ Script setup:
 Script setup:
 
 ```python
-{!docs/tutorials/python/tutorial_scripts/submission_organizer.py!lines=12-31}
+--8<-- "docs/tutorials/python/tutorial_scripts/submission_organizer.py:setup"
 ```
 
 ### 1. Annotate a submission to score it
 
 ```python
-{!docs/tutorials/python/tutorial_scripts/submission_organizer.py!lines=33-60}
+--8<-- "docs/tutorials/python/tutorial_scripts/submission_organizer.py:annotate_submission"
 ```
 
 ### 2. Batch-update submission statuses
 
 ```python
-{!docs/tutorials/python/tutorial_scripts/submission_organizer.py!lines=62-99}
+--8<-- "docs/tutorials/python/tutorial_scripts/submission_organizer.py:batch_update"
 ```
 
 ### 3. Fetch the submission bundle for a given submission
 
 ```python
-{!docs/tutorials/python/tutorial_scripts/submission_organizer.py!lines=101-136}
+--8<-- "docs/tutorials/python/tutorial_scripts/submission_organizer.py:fetch_bundle"
 ```
 
 ### 4. Allow cancellation of submissions
 
 ```python
-{!docs/tutorials/python/tutorial_scripts/submission_organizer.py!lines=138-177}
+--8<-- "docs/tutorials/python/tutorial_scripts/submission_organizer.py:allow_cancellation"
 ```
 
 ### 5. Delete submissions
 
 ```python
-{!docs/tutorials/python/tutorial_scripts/submission_organizer.py!lines=179-209}
+--8<-- "docs/tutorials/python/tutorial_scripts/submission_organizer.py:delete_submissions"
 ```
 
 ## Source code for this tutorial
@@ -151,7 +151,7 @@ Script setup:
   <summary>Click to show me (source code for Participant)</summary>
 
 ```python
-{!docs/tutorials/python/tutorial_scripts/submission_participant.py!}
+--8<-- "docs/tutorials/python/tutorial_scripts/submission_participant.py"
 ```
 </details>
 
@@ -159,7 +159,7 @@ Script setup:
   <summary>Click to show me (source code for Organizer)</summary>
 
 ```python
-{!docs/tutorials/python/tutorial_scripts/submission_organizer.py!}
+--8<-- "docs/tutorials/python/tutorial_scripts/submission_organizer.py"
 ```
 </details>
 

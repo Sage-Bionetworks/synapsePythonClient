@@ -1,5 +1,6 @@
 """Here is where you'll find the code for the MaterializedView tutorial."""
 
+# --8<-- [start:setup]
 import pandas as pd
 
 from synapseclient import Synapse
@@ -70,8 +71,10 @@ data2 = pd.DataFrame(
     ]
 )
 table2.upsert_rows(values=data2, primary_keys=["sample_id"])
+# --8<-- [end:setup]
 
 
+# --8<-- [start:basic_view]
 def create_materialized_view():
     """
     Example: Create a new materialized view with a defining SQL query.
@@ -97,6 +100,10 @@ def create_materialized_view():
     print(query_result)
 
 
+# --8<-- [end:basic_view]
+
+
+# --8<-- [start:join_view]
 def create_materialized_view_with_join():
     """
     Example: Create a materialized view with a JOIN clause.
@@ -130,6 +137,10 @@ def create_materialized_view_with_join():
     print(query_result)
 
 
+# --8<-- [end:join_view]
+
+
+# --8<-- [start:left_join_view]
 def create_materialized_view_with_left_join():
     """
     Example: Create a materialized view with a LEFT JOIN clause.
@@ -163,6 +174,10 @@ def create_materialized_view_with_left_join():
     print(query_result)
 
 
+# --8<-- [end:left_join_view]
+
+
+# --8<-- [start:right_join_view]
 def create_materialized_view_with_right_join():
     """
     Example: Create a materialized view with a RIGHT JOIN clause.
@@ -196,6 +211,10 @@ def create_materialized_view_with_right_join():
     print(query_result)
 
 
+# --8<-- [end:right_join_view]
+
+
+# --8<-- [start:union_view]
 def create_materialized_view_with_union():
     """
     Example: Create a materialized view with a UNION clause.
@@ -227,6 +246,9 @@ def create_materialized_view_with_union():
     # Print the results to the console
     print("Results from the materialized view with UNION:")
     print(query_result)
+
+
+# --8<-- [end:union_view]
 
 
 def main():
