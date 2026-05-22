@@ -1664,9 +1664,11 @@ class CreateGridRequest(AsynchronousCommunicator):
             stored for the given record set id
         initial_query: Initialize a grid session from an EntityView.
             Mutually exclusive with record_set_id.
-        owner_principal_id: The principal ID (user or team) that will own the
-            created grid session. When not provided, the principal ID of the
-            caller is used.
+        owner_principal_id: The owner of the grid determines who is allowed to join and participate in the grid's session.
+            The default owner will be the user that started the grid session, but only that user will have access to the grid.
+            In order to allow other users to access the grid, set this value to the id of a team.
+            When a team ID is provided as the owner, all members of that team will have equal access to the grid.
+            Note: If a team ID is provided, the creator of the grid must be a member of the team.
         session_id: The session ID of the created grid (populated from response)
     """
 
@@ -1683,8 +1685,11 @@ class CreateGridRequest(AsynchronousCommunicator):
     Mutually exclusive with record_set_id."""
 
     owner_principal_id: int | None = None
-    """The principal ID (user or team) that will own the created grid session.
-    When not provided, the principal ID of the caller is used."""
+    """The owner of the grid determines who is allowed to join and participate in the grid's session.
+    The default owner will be the user that started the grid session, but only that user will have access to the grid.
+    In order to allow other users to access the grid, set this value to the id of a team.
+    When a team ID is provided as the owner, all members of that team will have equal access to the grid.
+    Note: If a team ID is provided, the creator of the grid must be a member of the team."""
 
     session_id: Optional[str] = None
     """The session ID of the created grid (populated from response)"""
