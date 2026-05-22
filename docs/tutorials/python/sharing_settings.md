@@ -77,13 +77,13 @@ The inheritance and benefactor concepts apply consistently across all entity typ
 **⚠️ IMPORTANT**: Before running the tutorial, you MUST edit the script to set a valid `PRINCIPAL_ID`.
 
 ```python
-{!docs/tutorials/python/tutorial_scripts/sharing_settings.py!lines=17-34}
+--8<-- "docs/tutorials/python/tutorial_scripts/sharing_settings.py:setup_and_project"
 ```
 
 ## 2. Create a main folder to set custom sharing settings
 
 ```python
-{!docs/tutorials/python/tutorial_scripts/sharing_settings.py!lines=36-45}
+--8<-- "docs/tutorials/python/tutorial_scripts/sharing_settings.py:create_main_folder"
 ```
 
 ## 3. Examine Current Permissions
@@ -91,7 +91,7 @@ The inheritance and benefactor concepts apply consistently across all entity typ
 The `get_permissions()` method returns the permissions that the current user has on an entity
 
 ```python
-{!docs/tutorials/python/tutorial_scripts/sharing_settings.py!lines=46-49}
+--8<-- "docs/tutorials/python/tutorial_scripts/sharing_settings.py:get_permissions"
 ```
 
 <details class="example">
@@ -108,7 +108,7 @@ Current user permissions on main folder: ['READ', 'UPDATE', 'CREATE', 'DELETE', 
 The `get_acl()` method gets the specific permissions for a given principal (user or team):
 
 ```python
-{!docs/tutorials/python/tutorial_scripts/sharing_settings.py!lines=51-62}
+--8<-- "docs/tutorials/python/tutorial_scripts/sharing_settings.py:get_acl"
 ```
 
 Depending on if you've already given permissions to given user/team your may see
@@ -129,7 +129,7 @@ Principal ######## permissions on folder only: []
 Use `set_permissions()` to grant specific permissions to a user or team:
 
 ```python
-{!docs/tutorials/python/tutorial_scripts/sharing_settings.py!lines=63-79}
+--8<-- "docs/tutorials/python/tutorial_scripts/sharing_settings.py:set_permissions"
 ```
 
 <details class="example">
@@ -149,7 +149,7 @@ Verified new permissions: ['DOWNLOAD', 'READ']
 Create a sub-folder and give it more restrictive permissions than its parent:
 
 ```python
-{!docs/tutorials/python/tutorial_scripts/sharing_settings.py!lines=80-101}
+--8<-- "docs/tutorials/python/tutorial_scripts/sharing_settings.py:create_sub_folder"
 ```
 
 <details class="example">
@@ -171,7 +171,7 @@ the `log_tree=True` argument for the method we can get an ascii tree representat
 the ACLs on the project. Alternatively you will also be able to loop over the data.
 
 ```python
-{!docs/tutorials/python/tutorial_scripts/sharing_settings.py!lines=102-117}
+--8<-- "docs/tutorials/python/tutorial_scripts/sharing_settings.py:list_acl"
 ```
 
 <details class="example">
@@ -209,7 +209,7 @@ Using `overwrite=False` will allow you to add Permissions Non-destructively.
 **Note:** The default behavior is `overwrite=True` which will replace the permissions for the given Principal.
 
 ```python
-{!docs/tutorials/python/tutorial_scripts/sharing_settings.py!lines=118-132}
+--8<-- "docs/tutorials/python/tutorial_scripts/sharing_settings.py:advanced_permissions"
 ```
 
 <details class="example">
@@ -227,7 +227,7 @@ Updated permissions after adding UPDATE: ['READ', 'DOWNLOAD', 'UPDATE']
 Remove permissions for a specific principal by setting an empty access type list:
 
 ```python
-{!docs/tutorials/python/tutorial_scripts/sharing_settings.py!lines=133-147}
+--8<-- "docs/tutorials/python/tutorial_scripts/sharing_settings.py:remove_permissions"
 ```
 
 <details class="example">
@@ -245,7 +245,7 @@ After removal - Principal ####### permissions: []
 Use `delete_permissions()` to remove entire ACLs and revert to inheritance:
 
 ```python
-{!docs/tutorials/python/tutorial_scripts/sharing_settings.py!lines=149-167}
+--8<-- "docs/tutorials/python/tutorial_scripts/sharing_settings.py:delete_acls"
 ```
 
 <details class="example">
@@ -282,7 +282,7 @@ Sub-folder now inherits permissions: []
 Get a complete view of your permission structure:
 
 ```python
-{!docs/tutorials/python/tutorial_scripts/sharing_settings.py!lines=168-172}
+--8<-- "docs/tutorials/python/tutorial_scripts/sharing_settings.py:final_overview"
 ```
 
 <details class="example">
@@ -344,7 +344,7 @@ ACL Tree Structure:
   <summary>Click to show me</summary>
 
 ```python
-{!docs/tutorials/python/tutorial_scripts/sharing_settings.py!}
+--8<-- "docs/tutorials/python/tutorial_scripts/sharing_settings.py"
 ```
 </details>
 

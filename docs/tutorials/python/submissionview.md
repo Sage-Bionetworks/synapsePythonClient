@@ -35,7 +35,7 @@ The name of the Evaluation must also be globally unique. Please update
 `"Test Evaluation Queue for Alzheimer conference"` with a new value.
 
 ```python
-{!docs/tutorials/python/tutorial_scripts/submissionview.py!lines=13-44}
+--8<-- "docs/tutorials/python/tutorial_scripts/submissionview.py:setup_and_evaluation"
 ```
 
 ## 2. Create a SubmissionView for the evaluation queue
@@ -45,7 +45,7 @@ in its scope. We'll also add custom columns for metrics that will be used for sc
 submissions.
 
 ```python
-{!docs/tutorials/python/tutorial_scripts/submissionview.py!lines=46-82}
+--8<-- "docs/tutorials/python/tutorial_scripts/submissionview.py:create_submissionview"
 ```
 
 ## 3. Create and submit a file to the evaluation queue
@@ -54,7 +54,7 @@ Now let's create a test file and submit it to our evaluation queue. For convenie
 we'll use a temporary file that will be automatically cleaned up after execution.
 
 ```python
-{!docs/tutorials/python/tutorial_scripts/submissionview.py!lines=84-105}
+--8<-- "docs/tutorials/python/tutorial_scripts/submissionview.py:submit_file"
 ```
 
 ## 4. Query and update the submission status
@@ -66,7 +66,7 @@ Note: Due to Synapse's eventual consistency model, we need to wait briefly for t
 submission to appear in the view.
 
 ```python
-{!docs/tutorials/python/tutorial_scripts/submissionview.py!lines=107-126}
+--8<-- "docs/tutorials/python/tutorial_scripts/submissionview.py:query_and_update"
 ```
 
 <details class="example">
@@ -93,7 +93,7 @@ The name of the Evaluation must also be globally unique. Please update
 `"Second Test Evaluation Queue for Alzheimer conference"` with a new value.
 
 ```python
-{!docs/tutorials/python/tutorial_scripts/submissionview.py!lines=128-143}
+--8<-- "docs/tutorials/python/tutorial_scripts/submissionview.py:modify_scope"
 ```
 
 ## 6. Create a snapshot of the view
@@ -102,7 +102,7 @@ SubmissionViews support creating snapshots, which capture the state of all submi
 specific point in time. This is useful for archiving or comparing submission states.
 
 ```python
-{!docs/tutorials/python/tutorial_scripts/submissionview.py!lines=145-152}
+--8<-- "docs/tutorials/python/tutorial_scripts/submissionview.py:create_snapshot"
 ```
 
 ## 7. Query the snapshot
@@ -111,7 +111,7 @@ After creating a snapshot, you can query it to retrieve the state of submissions
 time the snapshot was created. This is useful for historical analysis or auditing.
 
 ```python
-{!docs/tutorials/python/tutorial_scripts/submissionview.py!lines=153-162}
+--8<-- "docs/tutorials/python/tutorial_scripts/submissionview.py:query_snapshot"
 ```
 
 ## Source Code for this Tutorial
@@ -120,7 +120,7 @@ time the snapshot was created. This is useful for historical analysis or auditin
   <summary>Click to show me</summary>
 
 ```python
-{!docs/tutorials/python/tutorial_scripts/submissionview.py!}
+--8<-- "docs/tutorials/python/tutorial_scripts/submissionview.py"
 ```
 </details>
 

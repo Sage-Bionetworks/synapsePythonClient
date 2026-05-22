@@ -9,6 +9,8 @@ This tutorial demonstrates how to:
 5. Delete submissions
 """
 
+# --8<-- [start:setup]
+
 from synapseclient import Synapse
 from synapseclient.models import SubmissionBundle, SubmissionStatus
 
@@ -29,7 +31,9 @@ assert (
 
 print(f"Working with Evaluation: {EVALUATION_ID}")
 print(f"Managing Submission: {SUBMISSION_ID}")
+# --8<-- [end:setup]
 
+# --8<-- [start:annotate_submission]
 # ==============================================================================
 # 1. Annotate a submission to score it
 # ==============================================================================
@@ -58,7 +62,9 @@ print(f"Status: {updated_status.status}")
 print(f"Annotations added:")
 for key, value in updated_status.submission_annotations.items():
     print(f"  {key}: {value}")
+# --8<-- [end:annotate_submission]
 
+# --8<-- [start:batch_update]
 # ==============================================================================
 # 2. Batch-update submission statuses
 # ==============================================================================
@@ -97,6 +103,9 @@ if statuses_to_update:
 else:
     print("No submissions found with 'RECEIVED' status to update")
 
+# --8<-- [end:batch_update]
+
+# --8<-- [start:fetch_bundle]
 # ==============================================================================
 # 3. Fetch the submission bundle for a given submission
 # ==============================================================================
@@ -134,6 +143,9 @@ for i, bundle in enumerate(bundles[:5]):  # Show first 5
                 if key in ["accuracy", "f1_score", "precision", "recall"]:
                     print(f"    {key}: {value}")
 
+# --8<-- [end:fetch_bundle]
+
+# --8<-- [start:allow_cancellation]
 # ==============================================================================
 # 4. Allow cancellation of submissions
 # ==============================================================================
@@ -173,6 +185,9 @@ target_status.can_cancel = True
 target_status = target_status.store()
 print(f"Cancellation enabled for submission {SUBMISSION_ID}")
 
+# --8<-- [end:allow_cancellation]
+
+# --8<-- [start:delete_submissions]
 # ==============================================================================
 # 5. Delete submissions
 # ==============================================================================
@@ -206,3 +221,4 @@ print(f"\nDeletion step is commented out by default.")
 print(f"Uncomment the deletion code if you want to test this functionality.")
 
 print(f"\n=== Organizer tutorial completed! ===")
+# --8<-- [end:delete_submissions]
