@@ -193,16 +193,6 @@ If any rows are invalid, recreate a Grid session against the RecordSet (see Step
 
 > **If get_detailed_validation_results returns None after exporting:** check that record_set.validation_file_handle_id is set after the re-fetch. If it isn't, the export did not complete — re-run export_to_record_set() on an active Grid session against the same RecordSet.
 
-#### Clean up the session
-
-Once validation is clean and you're done, delete the session:
-
-```python
-latest_grid.delete()
-```
-
-Deleting is permanent — you can no longer re-export from this session. If you spot more issues later, create a new Grid session via Step 3.
-
 ### Step 8: Mark the curation task as COMPLETED
 
 Once your validation report is clean and you've cleaned up the Grid session, transition the curation task to COMPLETED. This signals the administrator that the task is ready for their review — they can list tasks in the project and pick up the ones whose status is COMPLETED.
@@ -229,6 +219,16 @@ latest_grid.synchronize()
 This writes the Grid annotation values back to each file as Synapse annotations. There is no versioned RecordSet — the files themselves are updated in place.
 
 **No per-row validation report.** Validation is enforced by the JSON schema bound to the folder containing the files, not by a row-level export report. After you call `synchronize()`, the administrator verifies schema compliance on their end — there is nothing to retrieve from the contributor side. If the administrator reports violations, correct the flagged annotations in the Grid UI and re-synchronize.
+
+## Appendix
+
+### Cleaning up a Grid session
+
+```python
+latest_grid.delete()
+```
+
+Deleting is permanent — you can no longer re-export from this session. If you spot more issues later, create a new Grid session via Step 3.
 
 ## References
 
