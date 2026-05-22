@@ -34,8 +34,9 @@ biospecimen_experiment_2_folder = Folder(
 biospecimen_experiment_2_folder.store()
 
 # --8<-- [start:print_attributes]
-# Step 2: Print stored attributes about your folder
+
 # --8<-- [end:create_folder]
+# Step 2: Print stored attributes about your folder
 my_scrnaseq_batch_1_folder_id = my_scrnaseq_batch_1_folder.id
 print(f"My folder ID is: {my_scrnaseq_batch_1_folder_id}")
 
@@ -49,11 +50,12 @@ print(
 
 print(f"My folder was last modified on: {my_scrnaseq_batch_1_folder.modified_on}")
 
-# Step 3: Create 2 sub-folders
 # --8<-- [end:print_attributes]
+
+# --8<-- [start:create_subfolders]
+# Step 3: Create 2 sub-folders
 hierarchical_root_folder = Folder(name="experiment_notes", parent_id=my_project.id)
 hierarchical_root_folder.store()
-# --8<-- [start:create_subfolders]
 
 folder_notes_2023 = Folder(name="notes_2023", parent_id=hierarchical_root_folder.id)
 folder_notes_2023.store()
