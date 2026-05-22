@@ -25,10 +25,11 @@ project_id = project.id
 print(f"My project ID is {project_id}")
 # --8<-- [end:setup]
 
-# --8<-- [start:create_dataset]
 # Next, let's create the dataset. We'll use the project id as the parent id.
 # To begin, the dataset will be empty, but if you view the dataset's schema in the UI,
 # you will notice that datasets come with default columns.
+
+# --8<-- [start:create_dataset]
 my_new_dataset = Dataset(parent_id=project_id, name="My New Dataset").store()
 print(f"My Dataset's ID is {my_new_dataset.id}")
 # --8<-- [end:create_dataset]
