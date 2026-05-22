@@ -46,7 +46,11 @@ from synapseclient.core.constants.concrete_types import (
 )
 from synapseclient.core.download.download_functions import download_from_url
 from synapseclient.core.upload.upload_functions_async import upload_synapse_s3
-from synapseclient.core.utils import delete_none_keys, merge_dataclass_entities
+from synapseclient.core.utils import (
+    coerce_enum_list,
+    delete_none_keys,
+    merge_dataclass_entities,
+)
 from synapseclient.models.mixins.asynchronous_job import AsynchronousCommunicator
 from synapseclient.models.recordset import ValidationSummary
 from synapseclient.models.table_components import Column, CsvTableDescriptor, Query
@@ -406,11 +410,10 @@ class CurationTaskSynchronousProtocol(Protocol):
                 tasks by assignee. Cannot be combined with assigned_to_me=True.
                 Passing an empty list raises a ValueError; pass None to return tasks
                 for any assignee. Defaults to None.
-            state_filter: Optional list of TaskState values or equivalent strings to
-                filter tasks by their current state. Strings are normalized to uppercase
-                before coercion (e.g., in_progress is accepted). Defaults to None
-                (all states returned). Passing an empty list raises a ValueError; pass
-                None to return tasks in any state.
+            state_filter: Optional list of TaskState values or exact-case strings to
+                filter tasks by their current state (e.g., "IN_PROGRESS"). Defaults to
+                None (all states returned). Passing an empty list raises a ValueError;
+                pass None to return tasks in any state.
             synapse_client: If not passed in and caching was not disabled by
                 Synapse.allow_client_caching(False) this will use the last created
                 instance from the Synapse class constructor.
@@ -422,8 +425,8 @@ class CurationTaskSynchronousProtocol(Protocol):
             ValueError: If state_filter is an empty list.
             ValueError: If assignee_ids is an empty list.
             ValueError: If assigned_to_me is True and assignee_ids is also provided.
-            ValueError: If any value in state_filter is not a TaskState, a valid
-                TaskState string, or a recognized state name.
+            ValueError: If any value in state_filter is not a TaskState member or
+                an exact-case string matching a TaskState value (e.g., "IN_PROGRESS").
 
         Note: Due to generator semantics, argument validation runs on the first
             iteration of the generator, not at the point where list() is called.
@@ -480,6 +483,27 @@ class CurationTaskSynchronousProtocol(Protocol):
                 print(f"Data Type: {task.data_type}")
                 print("---")
             ```
+
+        Example: List only in-progress curation tasks using a string state filter
+            &nbsp;
+
+            state_filter also accepts plain strings matching TaskState names exactly.
+
+            ```python
+            from synapseclient import Synapse
+            from synapseclient.models import CurationTask
+
+            syn = Synapse()
+            syn.login()
+
+            for task in CurationTask.list(
+                project_id="syn9876543",
+                state_filter=["IN_PROGRESS"],
+            ):
+                print(f"Task ID: {task.task_id}")
+                print(f"Data Type: {task.data_type}")
+                print("---")
+            ```
         """
         yield from wrap_async_generator_to_sync_generator(
             async_gen_func=cls.list_async,
@@ -489,45 +513,6 @@ class CurationTaskSynchronousProtocol(Protocol):
             state_filter=state_filter,
             synapse_client=synapse_client,
         )
-
-
-def _coerce_state_filter(
-    state_filter: list[Union["TaskState", str]],
-) -> list[str]:
-    """Normalize a list of state_filter values to their string equivalents.
-
-    Accepts TaskState enum members or strings. Strings are upper-cased before
-    coercion so that values like in_progress are accepted. Non-string,
-    non-TaskState values raise ValueError. Unrecognized strings also raise
-    ValueError with the list of valid values.
-
-    Arguments:
-        state_filter: List of TaskState values or equivalent strings to coerce.
-
-    Returns:
-        List of string values corresponding to each TaskState.
-
-    Raises:
-        ValueError: If any element is not a TaskState, a valid TaskState string,
-            or a recognized state name.
-    """
-    coerced: list[str] = []
-    for s in state_filter:
-        if isinstance(s, TaskState):
-            coerced.append(s.value)
-            continue
-        if not isinstance(s, str):
-            raise ValueError(
-                f"Invalid state_filter value {s!r}. Expected a TaskState or str."
-            )
-        try:
-            coerced.append(TaskState(s.upper()).value)
-        except ValueError as exc:
-            valid = [e.value for e in TaskState]
-            raise ValueError(
-                f"Invalid state_filter value {s!r}. Valid values are: {valid}"
-            ) from exc
-    return coerced
 
 
 @dataclass
@@ -996,11 +981,10 @@ class CurationTask(CurationTaskSynchronousProtocol):
                 tasks by assignee. Cannot be combined with assigned_to_me=True.
                 Passing an empty list raises a ValueError; pass None to return tasks
                 for any assignee. Defaults to None.
-            state_filter: Optional list of TaskState values or equivalent strings to
-                filter tasks by their current state. Strings are normalized to uppercase
-                before coercion (e.g., in_progress is accepted). Defaults to None
-                (all states returned). Passing an empty list raises a ValueError; pass
-                None to return tasks in any state.
+            state_filter: Optional list of TaskState values or exact-case strings to
+                filter tasks by their current state (e.g., "IN_PROGRESS"). Defaults to
+                None (all states returned). Passing an empty list raises a ValueError;
+                pass None to return tasks in any state.
             synapse_client: If not passed in and caching was not disabled by
                 Synapse.allow_client_caching(False) this will use the last created
                 instance from the Synapse class constructor.
@@ -1012,8 +996,8 @@ class CurationTask(CurationTaskSynchronousProtocol):
             ValueError: If state_filter is an empty list.
             ValueError: If assignee_ids is an empty list.
             ValueError: If assigned_to_me is True and assignee_ids is also provided.
-            ValueError: If any value in state_filter is not a TaskState, a valid
-                TaskState string, or a recognized state name.
+            ValueError: If any value in state_filter is not a TaskState member or
+                an exact-case string matching a TaskState value (e.g., "IN_PROGRESS").
 
         Example: List all curation tasks in a project asynchronously
             &nbsp;
@@ -1081,6 +1065,31 @@ class CurationTask(CurationTaskSynchronousProtocol):
 
             asyncio.run(main())
             ```
+
+        Example: List only in-progress curation tasks using a string state filter asynchronously
+            &nbsp;
+
+            state_filter also accepts plain strings matching TaskState names exactly.
+
+            ```python
+            import asyncio
+            from synapseclient import Synapse
+            from synapseclient.models import CurationTask
+
+            syn = Synapse()
+            syn.login()
+
+            async def main():
+                async for task in CurationTask.list_async(
+                    project_id="syn9876543",
+                    state_filter=["IN_PROGRESS"],
+                ):
+                    print(f"Task ID: {task.task_id}")
+                    print(f"Data Type: {task.data_type}")
+                    print("---")
+
+            asyncio.run(main())
+            ```
         """
         if state_filter == []:
             raise ValueError(
@@ -1092,12 +1101,12 @@ class CurationTask(CurationTaskSynchronousProtocol):
             )
         if assigned_to_me is True and assignee_ids is not None:
             raise ValueError(
-                "assigned_to_me and assignee_ids are mutually exclusive "
-                "and cannot be used together."
+                f"assigned_to_me and assignee_ids are mutually exclusive "
+                f"and cannot be used together. Got assignee_ids={assignee_ids!r}."
             )
 
         if state_filter is not None:
-            state_filter = _coerce_state_filter(state_filter)
+            state_filter = coerce_enum_list(TaskState, state_filter)
 
         trace.get_current_span().set_attributes(
             {

@@ -26,7 +26,8 @@ import warnings
 import zipfile
 from dataclasses import asdict, fields, is_dataclass
 from email.message import Message
-from typing import TYPE_CHECKING, List, Optional, TypeVar
+from enum import Enum
+from typing import TYPE_CHECKING, List, Optional, TypeVar, Union
 
 import requests
 from deprecated import deprecated
@@ -40,6 +41,7 @@ if TYPE_CHECKING:
     from synapseclient.models.dataset import EntityRef
 
 R = TypeVar("R")
+E = TypeVar("E", bound=Enum)
 
 UNIX_EPOCH = datetime.datetime(1970, 1, 1, 0, 0, tzinfo=datetime.timezone.utc)
 ISO_FORMAT = "%Y-%m-%dT%H:%M:%S.000Z"
@@ -1587,3 +1589,30 @@ def test_import_sqlite3() -> None:
     # catch other errors (see SYNPY-177)
     except:  # noqa
         raise
+
+
+def coerce_enum_list(enum_class: type[E], values: list[Union[E, str]]) -> list[str]:
+    """Normalize a list of values to string equivalents of an enum class.
+
+    Accepts enum members or strings. Unrecognized values raise ValueError with
+    the list of valid values.
+
+    Arguments:
+        enum_class: The Enum subclass to coerce values against.
+        values: List of enum members or equivalent strings to coerce.
+
+    Returns:
+        List of string values corresponding to each enum member.
+
+    Raises:
+        ValueError: If any element is not a valid enum member or string.
+    """
+    result = []
+    for value in values:
+        try:
+            result.append(enum_class(value).value)
+        except ValueError as exc:
+            raise ValueError(
+                f"Invalid value {value!r}. Valid values are: {[e.value for e in enum_class]}"
+            ) from exc
+    return result
