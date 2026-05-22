@@ -114,15 +114,15 @@ def create_record_based_metadata_task(
     *,
     synapse_client: Optional[Synapse] = None,
     project_id: Optional[str] = None,  # Deprecated, will be removed in v5.0.0
-    create_grid[bool] = True, # Deprecated, will be removed in v5.0.0
+    create_grid: bool = True,  # Deprecated, will be removed in v5.0.0
     # TODO: https://sagebionetworks.jira.com/browse/SYNPY-1838
-    # remove Grid here
-) -> Tuple[RecordSet, CurationTask, Grid]:
+    # remove Grid tuple here
+) -> Tuple[RecordSet, CurationTask, Grid] | Tuple[RecordSet, CurationTask]:
     """
     This function:
         - Generates and uploads CSV templates as a RecordSet for record-based metadata
         - Creates a CurationTask
-        - Creates a Grid (will be removed in v5.0.0)
+        - Optionally creates a Grid if create_grid is True (deprecated, will be removed in v5.0.0)
 
     A number of schema URIs that are already registered to Synapse can be found at:
 
@@ -187,9 +187,13 @@ def create_record_based_metadata_task(
                 `Synapse.allow_client_caching(False)` this will use the last created
                 instance from the Synapse class constructor.
         project_id: Deprecated, will be removed in v5.0.0
+        create_grid: If True (default), creates a Grid for the RecordSet and returns it as the
+            third element of the tuple. Deprecated — Grid creation will be removed in v5.0.0.
+            Pass False to opt out early and receive only (RecordSet, CurationTask).
 
     Returns:
-        Tuple containing the created RecordSet, CurationTask, and Grid objects
+        If create_grid is True: tuple of (RecordSet, CurationTask, Grid).
+        If create_grid is False: tuple of (RecordSet, CurationTask).
 
     Raises:
         ValueError: If required parameters are missing or if schema_uri is not provided.
@@ -217,18 +221,14 @@ def create_record_based_metadata_task(
             "The project ID will be inferred from the folder ID provided."
         )
 
+    synapse_client = Synapse.get_client(synapse_client=synapse_client)
+
     # TODO: https://sagebionetworks.jira.com/browse/SYNPY-1838
     # remove this warning
-    synapse_client.logger.warning(
-        "A Grid object will no longer be created by this function starting in v5.0.0. "
-        "The return type will change from Tuple[RecordSet, CurationTask, Grid] to Tuple[RecordSet, CurationTask]. "
-        "The Grid can be created from the RecordSet created by this function like: "
-        "`grid = Grid(record_set_id=record_set.id).create()`. "
-        "To prepare for this change call the function like: `items = create_record_based_metadata_task()`. "
-        "Then retrieve the RecordSet and Task like: `record_set = items[0]; curation_task = items[1]`. "
-    )
-
-    synapse_client = Synapse.get_client(synapse_client=synapse_client)
+    if create_grid:
+        synapse_client.logger.warning(
+            "A Grid object will no longer be created by this function starting in v5.0.0. "
+        )
 
     project_id = project_id_from_entity_id(
         entity_id=folder_id, synapse_client=synapse_client
@@ -298,18 +298,18 @@ def create_record_based_metadata_task(
 
     # TODO: https://sagebionetworks.jira.com/browse/SYNPY-1838
     # stop creating Grid
-    try:
-        curation_grid: Grid = Grid(
-            record_set_id=record_set_id,
-        )
-        curation_grid.create(synapse_client=synapse_client)
-        synapse_client.logger.info(
-            f"Created Grid view for RecordSet ID: {record_set_id} for curation task {curation_task_name}"
-        )
-    except Exception as e:
-        synapse_client.logger.exception("Error creating Grid view in Synapse")
-        raise e
+    if create_grid:
+        try:
+            curation_grid: Grid = Grid(
+                record_set_id=record_set_id,
+            )
+            curation_grid.create(synapse_client=synapse_client)
+            synapse_client.logger.info(
+                f"Created Grid view for RecordSet ID: {record_set_id} for curation task {curation_task_name}"
+            )
+        except Exception as e:
+            synapse_client.logger.exception("Error creating Grid view in Synapse")
+            raise e
+        return record_set_with_data, curation_task, curation_grid
 
-    # TODO: https://sagebionetworks.jira.com/browse/SYNPY-1838
-    # don't return Grid
-    return record_set_with_data, curation_task, curation_grid
+    return record_set_with_data, curation_task
