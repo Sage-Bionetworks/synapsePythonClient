@@ -601,6 +601,11 @@ class TestCreateRecordBasedMetadataTask(unittest.TestCase):
             synapse_client=self.mock_syn,
         )
 
+        # AND the Grid deprecation warning was emitted
+        self.mock_syn.logger.warning.assert_any_call(
+            "A Grid object will no longer be created by this function starting in v5.0.0."
+        )
+
     @patch(
         "synapseclient.extensions.curator.record_based_metadata_task.project_id_from_entity_id"
     )
@@ -629,7 +634,7 @@ class TestCreateRecordBasedMetadataTask(unittest.TestCase):
         mock_get_project_id_from_entity_id,
     ):
         """Test creation without schema binding."""
-        # Setup mocks
+        # GIVEN a record-based metadata task with schema binding disabled
         mock_get_client.return_value = self.mock_syn
         mock_get_project_id_from_entity_id.return_value = self.project_id
 
@@ -655,7 +660,7 @@ class TestCreateRecordBasedMetadataTask(unittest.TestCase):
         mock_grid_instance = Mock()
         mock_grid_cls.return_value = mock_grid_instance
 
-        # Call function
+        # WHEN I create the record-based metadata task without schema binding
         result = create_record_based_metadata_task(
             folder_id=self.folder_id,
             record_set_name=self.record_set_name,
@@ -668,7 +673,15 @@ class TestCreateRecordBasedMetadataTask(unittest.TestCase):
             synapse_client=self.mock_syn,
         )
 
-        # Assertions
+        # THEN the correct items are returned
+        assert isinstance(result, tuple)
+        assert len(result) == 3
+        record_set, task, grid = result
+        assert record_set == mock_record_set
+        assert task == mock_task
+        assert grid == mock_grid_instance
+
+        # AND schema binding was skipped
         mock_record_set.bind_schema.assert_not_called()
 
     @patch(
@@ -1072,6 +1085,7 @@ class TestCreateRecordBasedMetadataTask(unittest.TestCase):
         mock_get_project_id_from_entity_id,
     ):
         """Test that Grid is not created and not returned when create_grid=False."""
+        # GIVEN a record-based metadata task with Grid creation disabled
         mock_get_client.return_value = self.mock_syn
         mock_get_project_id_from_entity_id.return_value = self.project_id
 
