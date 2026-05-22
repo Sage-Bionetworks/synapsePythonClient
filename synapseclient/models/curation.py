@@ -1487,7 +1487,7 @@ class CurationTask(CurationTaskSynchronousProtocol):
         synapse_client: Synapse | None = None,
     ) -> "Grid":
         """
-        Create a Grid session for this CurationTask and link it to the task status.
+        Create a new Grid session for this CurationTask and set it as the active session.
 
         Picks the Grid seed from this task's task_properties:
 
