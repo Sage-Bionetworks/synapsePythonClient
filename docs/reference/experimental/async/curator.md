@@ -12,6 +12,9 @@ at your own risk.
         inherited_members: true
         members:
             - get_async
+            - get_status_async
+            - update_status_async
+            - set_active_grid_session_async
             - delete_async
             - store_async
             - list_async
@@ -62,6 +65,7 @@ at your own risk.
             - download_csv_async
             - import_csv_async
             - delete_async
+            - list_async
 ---
 [](){ #query-reference-async }
 ::: synapseclient.models.Query
