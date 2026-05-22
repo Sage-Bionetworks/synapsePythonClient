@@ -114,6 +114,7 @@ def create_record_based_metadata_task(
     *,
     synapse_client: Optional[Synapse] = None,
     project_id: Optional[str] = None,  # Deprecated, will be removed in v5.0.0
+    create_grid[bool] = True, # Deprecated, will be removed in v5.0.0
     # TODO: https://sagebionetworks.jira.com/browse/SYNPY-1838
     # remove Grid here
 ) -> Tuple[RecordSet, CurationTask, Grid]:
