@@ -6,7 +6,7 @@ User-facing documentation for the Synapse Python Client. Built with MkDocs + Mat
 
 ## Stack
 
-MkDocs with Material theme, mkdocstrings (Google-style docstrings), termynal (CLI animations), markdown-include (file embedding).
+MkDocs with Material theme, mkdocstrings (Google-style docstrings), termynal (CLI animations), pymdownx.snippets (named-tag embeddings).
 
 ### Python style
 - Use built-in generics (`list`, `dict`, `tuple`, `set`) instead of `typing.List`, `typing.Dict`, etc. (Python 3.9+)

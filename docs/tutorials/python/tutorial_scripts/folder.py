@@ -32,10 +32,9 @@ biospecimen_experiment_2_folder = Folder(
     name="biospecimen_experiment_2", parent_id=my_project.id
 )
 biospecimen_experiment_2_folder.store()
+# --8<-- [end:create_folder]
 
 # --8<-- [start:print_attributes]
-
-# --8<-- [end:create_folder]
 # Step 2: Print stored attributes about your folder
 my_scrnaseq_batch_1_folder_id = my_scrnaseq_batch_1_folder.id
 print(f"My folder ID is: {my_scrnaseq_batch_1_folder_id}")
