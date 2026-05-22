@@ -82,19 +82,20 @@ assert (
 ), "Wiki page title does not match after restore"
 # --8<-- [end:verify_restore]
 
-# --8<-- [start:get_wiki_by_id]
 # Get the wiki page
+
+# --8<-- [start:get_wiki_by_id]
 # Once you know the Wiki page id, you can retrieve the Wiki page with the id
 retrieved_wiki = WikiPage(owner_id=project.id, id=root_wiki_page.id).get()
 # --8<-- [end:get_wiki_by_id]
 
-# --8<-- [start:get_wiki_by_title]
 # Or you can retrieve the Wiki page with the title
+# --8<-- [start:get_wiki_by_title]
 retrieved_wiki = WikiPage(owner_id=project.id, title=root_wiki_page.title).get()
 # --8<-- [end:get_wiki_by_title]
 
-# --8<-- [start:verify_retrieved_wiki]
 # Check if the retrieved Wiki page is the same as the original Wiki page
+# --8<-- [start:verify_retrieved_wiki]
 assert (
     root_wiki_page.markdown_file_handle_id == retrieved_wiki.markdown_file_handle_id
 ), "Markdown file handle ID does not match retrieved wiki page"
@@ -106,8 +107,8 @@ assert (
 ), "Wiki page title does not match retrieved wiki page"
 # --8<-- [end:verify_retrieved_wiki]
 
-# --8<-- [start:create_sub_wiki]
 # Create a sub-wiki page
+# --8<-- [start:create_sub_wiki]
 sub_wiki_1 = WikiPage(
     owner_id=project.id,
     title="Sub Wiki Page 1",
@@ -244,8 +245,9 @@ wiki_page_attachment = WikiPage(owner_id=project.id, id=sub_wiki_4.id).get_attac
 unzipped_attachment_file_path = WikiPage.unzip_gzipped_file(wiki_page_attachment)
 # --8<-- [end:download_attachment]
 
-# --8<-- [start:get_attachment_preview_url]
 # Download an attachment preview. Instead of using the file_name from the attachmenthandle response when isPreview=True, you should use the original file name in the get_attachment_preview request. The downloaded file will still be named according to the file_name provided in the response when isPreview=True.
+
+# --8<-- [start:get_attachment_preview_url]
 # Get attachment preview URL without downloading
 attachment_preview_url = WikiPage(
     owner_id=project.id, id=sub_wiki_4.id
@@ -269,21 +271,22 @@ attachment_preview = WikiPage(
 # --8<-- [start:get_wiki_header_tree]
 # Section 4: WikiHeader - Working with Wiki Hierarchy
 # Get wiki header tree (hierarchy)
-# --8<-- [end:get_wiki_header_tree]
 headers = WikiHeader.get(owner_id=project.id)
+# --8<-- [end:get_wiki_header_tree]
 
 # --8<-- [start:get_wiki_history]
 # Section 5. WikiHistorySnapshot - Version History
 # Get wiki history for root_wiki_page
-# --8<-- [end:get_wiki_history]
 history = WikiHistorySnapshot.get(owner_id=project.id, id=root_wiki_page.id)
+# --8<-- [end:get_wiki_history]
 
 # --8<-- [start:get_order_hint]
 # Section 6. WikiOrderHint - Ordering Wiki Pages
 # Set the wiki order hint
-# --8<-- [end:get_order_hint]
-# --8<-- [start:set_order_hint]
 order_hint = WikiOrderHint(owner_id=project.id).get()
+# --8<-- [end:get_order_hint]
+
+# --8<-- [start:set_order_hint]
 # As you can see from the printed message, the order hint is not set by default, so you need to set it explicitly at the beginning.
 order_hint.id_list = [
     root_wiki_page.id,
