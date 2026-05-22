@@ -210,7 +210,19 @@ class CurationTaskState(str, Enum):
 
 
 @dataclass
-class GridExecutionDetails:
+class TaskExecutionDetails:
+    """
+    Base class for task-specific execution details attached to a CurationTaskStatus.
+
+    Represents a [Synapse TaskExecutionDetails](https://rest-docs.synapse.org/rest/org/sagebionetworks/repo/model/curation/TaskExecutionDetails.html).
+
+    The concrete subclass is determined by the concreteType field in the REST response.
+    Currently the only known subclass is GridExecutionDetails.
+    """
+
+
+@dataclass
+class GridExecutionDetails(TaskExecutionDetails):
     """
     Execution details for a metadata curation task involving a collaborative grid session.
 
@@ -276,7 +288,7 @@ class CurationTaskStatus(EnumCoercionMixin):
     state: str | CurationTaskState | None = None
     """The state of a curation task in its lifecycle."""
 
-    execution_details: GridExecutionDetails | None = None
+    execution_details: TaskExecutionDetails | None = None
     """Task-specific execution details. The concrete type determines which
     task-type-specific properties are available."""
 

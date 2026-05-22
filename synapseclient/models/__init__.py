@@ -15,6 +15,7 @@ from synapseclient.models.curation import (
     Grid,
     GridExecutionDetails,
     RecordBasedMetadataTaskProperties,
+    TaskExecutionDetails,
 )
 from synapseclient.models.dataset import Dataset, DatasetCollection, EntityRef
 from synapseclient.models.docker import DockerRepository
@@ -103,6 +104,7 @@ __all__ = [
     "RecordBasedMetadataTaskProperties",
     "Grid",
     "GridExecutionDetails",
+    "TaskExecutionDetails",
     "UserProfile",
     "UserPreference",
     "UserGroupHeader",
