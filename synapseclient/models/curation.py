@@ -956,10 +956,13 @@ class CurationTask(CurationTaskSynchronousProtocol):
         self.assignee_principal_id = synapse_response.get("assigneePrincipalId", None)
 
         task_properties_dict = synapse_response.get("taskProperties", None)
-        if task_properties_dict:
-            self.task_properties = _create_task_properties_from_dict(
-                task_properties_dict
+        if task_properties_dict is None:
+            raise ValueError(
+                "taskProperties was not found in the Synapse response for this CurationTask. "
+                "This means it is likely an older CurationTask from before taskProperties was added. "
+                "It is recommended that this task be deleted: task.delete(delete_source=False)"
             )
+        self.task_properties = _create_task_properties_from_dict(task_properties_dict)
 
         return self
 
@@ -1004,6 +1007,7 @@ class CurationTask(CurationTaskSynchronousProtocol):
 
         Raises:
             ValueError: If the CurationTask object does not have a task_id.
+            ValueError: If the Synapse response does not contain taskProperties.
 
         Example: Get a curation task asynchronously
             &nbsp;
@@ -1242,6 +1246,11 @@ class CurationTask(CurationTaskSynchronousProtocol):
 
             asyncio.run(main())
             ```
+
+        Raises:
+            ValueError: If project_id is not set.
+            ValueError: If data_type is not set.
+            ValueError: If the Synapse response does not contain taskProperties.
         """
         if not self.project_id:
             raise ValueError("project_id is required")
@@ -1649,6 +1658,9 @@ class CurationTask(CurationTaskSynchronousProtocol):
 
             asyncio.run(main())
             ```
+
+        Raises:
+            ValueError: If the Synapse response for any task does not contain taskProperties.
         """
         trace.get_current_span().set_attributes(
             {

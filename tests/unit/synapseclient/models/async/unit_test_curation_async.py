@@ -458,6 +458,16 @@ class TestCurationTask:
         assert isinstance(task.task_properties, RecordBasedMetadataTaskProperties)
         assert task.task_properties.record_set_id == RECORD_SET_ID
 
+    def test_fill_from_dict_missing_task_properties_raises(self) -> None:
+        # GIVEN a CurationTask API response with taskProperties omitted
+        response = _get_file_based_task_api_response()
+        del response["taskProperties"]
+
+        # WHEN I fill a CurationTask from the response
+        # THEN a ValueError should be raised
+        with pytest.raises(ValueError, match="taskProperties was not found"):
+            CurationTask().fill_from_dict(response)
+
     def test_to_synapse_request(self) -> None:
         # GIVEN a CurationTask with all fields set
         task = CurationTask(

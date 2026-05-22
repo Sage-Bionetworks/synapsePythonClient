@@ -161,6 +161,13 @@ if isinstance(curation_task.task_properties, RecordBasedMetadataTaskProperties):
             print(f"  All messages: {row['all_validation_messages']}")
 ```
 
+!!! note "Older CurationTasks without task properties"
+    CurationTasks created before task properties were introduced will not have a
+    `taskProperties` field in the Synapse response. Attempting to retrieve such a task
+    via `get()`, `store()`, or `list()` will raise a `ValueError`. If you encounter
+    this error, delete the task with `task.delete(delete_source=False)` and recreate
+    it with the appropriate task properties.
+
 Each row of the report carries:
 
 - row_index — the row in the RecordSet that was validated
