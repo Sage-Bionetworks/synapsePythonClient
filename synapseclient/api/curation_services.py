@@ -127,7 +127,7 @@ async def list_curation_tasks(
     assignee_ids: Optional[list[str]] = None,
     state_filter: Optional[list[str]] = None,
     synapse_client: Optional["Synapse"] = None,
-) -> AsyncGenerator[Dict[str, Any], None]:
+) -> AsyncGenerator[dict[str, Any], None]:
     """
     Generator to get a list of CurationTasks for a project.
 
@@ -155,7 +155,7 @@ async def list_curation_tasks(
     client = Synapse.get_client(synapse_client=synapse_client)
 
     request_body: Dict[str, Any] = {"projectId": project_id}
-    if assigned_to_me is True:
+    if assigned_to_me:
         request_body["assignedToMe"] = True
     if assignee_ids is not None:
         request_body["assigneeIds"] = assignee_ids
