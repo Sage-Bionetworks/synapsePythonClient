@@ -62,31 +62,6 @@ class TestCurationTaskStoreAsync:
         self.schedule_for_cleanup = schedule_for_cleanup
 
     @pytest.fixture(scope="class")
-    async def folder_with_view(
-        self,
-        project_model: Project,
-        syn: Synapse,
-        schedule_for_cleanup: Callable[..., None],
-    ) -> tuple[Folder, EntityView]:
-        """Create a folder with an associated EntityView for file-based testing."""
-        # Create a folder
-        folder = await Folder(
-            name=str(uuid.uuid4()),
-            parent_id=project_model.id,
-        ).store_async(synapse_client=syn)
-        schedule_for_cleanup(folder.id)
-
-        entity_view = await EntityView(
-            name=str(uuid.uuid4()),
-            parent_id=project_model.id,
-            scope_ids=[folder.id],
-            view_type_mask=ViewTypeMask.FILE.value,
-        ).store_async(synapse_client=syn)
-        schedule_for_cleanup(entity_view.id)
-
-        return folder, entity_view
-
-    @pytest.fixture(scope="class")
     async def record_set(
         self,
         project_model: Project,
@@ -273,31 +248,6 @@ class TestCurationTaskGetAsync:
         self.syn = syn
         self.schedule_for_cleanup = schedule_for_cleanup
 
-    @pytest.fixture(scope="class")
-    async def folder_with_view(
-        self,
-        project_model: Project,
-        syn: Synapse,
-        schedule_for_cleanup: Callable[..., None],
-    ) -> tuple[Folder, EntityView]:
-        """Create a folder with an associated EntityView for file-based testing."""
-        # Create a folder
-        folder = await Folder(
-            name=str(uuid.uuid4()),
-            parent_id=project_model.id,
-        ).store_async(synapse_client=syn)
-        schedule_for_cleanup(folder.id)
-
-        entity_view = await EntityView(
-            name=str(uuid.uuid4()),
-            parent_id=project_model.id,
-            scope_ids=[folder.id],
-            view_type_mask=ViewTypeMask.FILE.value,
-        ).store_async(synapse_client=syn)
-        schedule_for_cleanup(entity_view.id)
-
-        return folder, entity_view
-
     async def test_get_curation_task_async(
         self, project_model: Project, folder_with_view: tuple[Folder, EntityView]
     ) -> None:
@@ -364,31 +314,6 @@ class TestCurationTaskDeleteAsync:
     def init(self, syn: Synapse, schedule_for_cleanup: Callable[..., None]) -> None:
         self.syn = syn
         self.schedule_for_cleanup = schedule_for_cleanup
-
-    @pytest.fixture(scope="function")
-    async def folder_with_view(
-        self,
-        project_model: Project,
-        syn: Synapse,
-        schedule_for_cleanup: Callable[..., None],
-    ) -> tuple[Folder, EntityView]:
-        """Create a folder with an associated EntityView for file-based testing."""
-        # Create a folder
-        folder = await Folder(
-            name=str(uuid.uuid4()),
-            parent_id=project_model.id,
-        ).store_async(synapse_client=syn)
-        schedule_for_cleanup(folder.id)
-
-        entity_view = await EntityView(
-            name=str(uuid.uuid4()),
-            parent_id=project_model.id,
-            scope_ids=[folder.id],
-            view_type_mask=ViewTypeMask.FILE.value,
-        ).store_async(synapse_client=syn)
-        schedule_for_cleanup(entity_view.id)
-
-        return folder, entity_view
 
     @pytest.fixture(scope="function")
     async def folder_with_record_set(
@@ -565,31 +490,6 @@ class TestCurationTaskListAsync:
     def init(self, syn: Synapse, schedule_for_cleanup: Callable[..., None]) -> None:
         self.syn = syn
         self.schedule_for_cleanup = schedule_for_cleanup
-
-    @pytest.fixture(scope="class")
-    async def folder_with_view(
-        self,
-        project_model: Project,
-        syn: Synapse,
-        schedule_for_cleanup: Callable[..., None],
-    ) -> tuple[Folder, EntityView]:
-        """Create a folder with an associated EntityView for file-based testing."""
-        # Create a folder
-        folder = await Folder(
-            name=str(uuid.uuid4()),
-            parent_id=project_model.id,
-        ).store_async(synapse_client=syn)
-        schedule_for_cleanup(folder.id)
-
-        entity_view = await EntityView(
-            name=str(uuid.uuid4()),
-            parent_id=project_model.id,
-            scope_ids=[folder.id],
-            view_type_mask=ViewTypeMask.FILE.value,
-        ).store_async(synapse_client=syn)
-        schedule_for_cleanup(entity_view.id)
-
-        return folder, entity_view
 
     async def test_list_curation_tasks_async(
         self, project_model: Project, folder_with_view: tuple[Folder, EntityView]
