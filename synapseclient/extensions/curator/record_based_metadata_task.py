@@ -7,7 +7,7 @@ in Synapse, including RecordSet creation, CurationTask setup, and Grid view init
 """
 
 import tempfile
-from typing import Any, Dict, List, Optional, Tuple, Union
+from typing import Any, Dict, List, Optional, Union
 
 from synapseclient import Synapse
 from synapseclient.core.typing_utils import DataFrame as DATA_FRAME_TYPE
@@ -117,7 +117,7 @@ def create_record_based_metadata_task(
     create_grid: bool = True,  # Deprecated, will be removed in v5.0.0
     # TODO: https://sagebionetworks.jira.com/browse/SYNPY-1838
     # remove Grid tuple here
-) -> Tuple[RecordSet, CurationTask, Grid] | Tuple[RecordSet, CurationTask]:
+) -> tuple[RecordSet, CurationTask, Grid] | tuple[RecordSet, CurationTask]:
     """
     This function:
         - Generates and uploads CSV templates as a RecordSet for record-based metadata
@@ -147,7 +147,7 @@ def create_record_based_metadata_task(
         syn = synapseclient.Synapse()
         syn.login()
 
-        items = create_record_based_metadata_task(
+        record_set, curation_task = create_record_based_metadata_task(
             synapse_client=syn,
             folder_id="syn87654321",
             record_set_name="BiospecimenMetadata_RecordSet",
@@ -156,10 +156,9 @@ def create_record_based_metadata_task(
             upsert_keys=["specimenID"],
             instructions="Please curate this metadata according to the schema requirements",
             schema_uri="schema-org-schema.name.schema-v1.0.0",
-            assignee_principal_id=123456  # Optional: Assign to a user or team (can be str or int)
+            assignee_principal_id=123456,  # Optional: Assign to a user or team (can be str or int)
+            create_grid=False,  # Opt out of deprecated Grid creation
         )
-        record_set = items[0]
-        curation_task = items[1]
         ```
 
     Arguments:
@@ -227,7 +226,7 @@ def create_record_based_metadata_task(
     # remove this warning
     if create_grid:
         synapse_client.logger.warning(
-            "A Grid object will no longer be created by this function starting in v5.0.0. "
+            "A Grid object will no longer be created by this function starting in v5.0.0."
         )
 
     project_id = project_id_from_entity_id(
