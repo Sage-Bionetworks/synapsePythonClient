@@ -12,6 +12,7 @@ from synapseclient.models.curation import (
     FileBasedMetadataTaskProperties,
     Grid,
     RecordBasedMetadataTaskProperties,
+    TaskState,
 )
 from synapseclient.models.dataset import Dataset, DatasetCollection, EntityRef
 from synapseclient.models.docker import DockerRepository
@@ -96,6 +97,7 @@ __all__ = [
     "CurationTask",
     "FileBasedMetadataTaskProperties",
     "RecordBasedMetadataTaskProperties",
+    "TaskState",
     "Grid",
     "UserProfile",
     "UserPreference",

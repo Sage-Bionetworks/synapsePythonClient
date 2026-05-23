@@ -9,6 +9,7 @@ import asyncio
 import os
 from dataclasses import dataclass, field, replace
 from datetime import datetime, timezone
+from enum import Enum
 from typing import Any, AsyncGenerator, Dict, Generator, Optional, Protocol, Union
 
 from opentelemetry import trace
@@ -45,10 +46,34 @@ from synapseclient.core.constants.concrete_types import (
 )
 from synapseclient.core.download.download_functions import download_from_url
 from synapseclient.core.upload.upload_functions_async import upload_synapse_s3
-from synapseclient.core.utils import delete_none_keys, merge_dataclass_entities
+from synapseclient.core.utils import (
+    coerce_enum_list,
+    delete_none_keys,
+    merge_dataclass_entities,
+)
 from synapseclient.models.mixins.asynchronous_job import AsynchronousCommunicator
 from synapseclient.models.recordset import ValidationSummary
 from synapseclient.models.table_components import Column, CsvTableDescriptor, Query
+
+
+class TaskState(str, Enum):
+    """
+    The state of a CurationTask.
+
+    See <https://rest-docs.synapse.org/rest/org/sagebionetworks/repo/model/curation/TaskState.html>.
+    """
+
+    NOT_STARTED = "NOT_STARTED"
+    """The task has been created and assigned but work has not yet started."""
+
+    IN_PROGRESS = "IN_PROGRESS"
+    """The assignee has actively started the task."""
+
+    COMPLETED = "COMPLETED"
+    """The task has been completed and verified."""
+
+    CANCELED = "CANCELED"
+    """The task has been canceled and is no longer needed."""
 
 
 @dataclass
@@ -367,6 +392,9 @@ class CurationTaskSynchronousProtocol(Protocol):
         cls,
         project_id: str,
         *,
+        assigned_to_me: Optional[bool] = None,
+        assignee_ids: Optional[list[str]] = None,
+        state_filter: Optional[list[Union["TaskState", str]]] = None,
         synapse_client: Optional[Synapse] = None,
     ) -> Generator["CurationTask", None, None]:
         """
@@ -374,12 +402,34 @@ class CurationTaskSynchronousProtocol(Protocol):
 
         Arguments:
             project_id: The synId of the project.
+            assigned_to_me: When True, only return tasks assigned to the current user.
+                Cannot be combined with assignee_ids.
+                False does not mean "tasks not assigned to me".
+                Defaults to None.
+            assignee_ids: Optional list of principal IDs (users or teams) to filter
+                tasks by assignee. Cannot be combined with assigned_to_me=True.
+                Passing an empty list raises a ValueError; pass None to return tasks
+                for any assignee. Defaults to None.
+            state_filter: Optional list of TaskState values or exact-case strings to
+                filter tasks by their current state (e.g., "IN_PROGRESS"). Defaults to
+                None (all states returned). Passing an empty list raises a ValueError;
+                pass None to return tasks in any state.
             synapse_client: If not passed in and caching was not disabled by
-                `Synapse.allow_client_caching(False)` this will use the last created
+                Synapse.allow_client_caching(False) this will use the last created
                 instance from the Synapse class constructor.
 
         Yields:
             CurationTask objects as they are retrieved from the API.
+
+        Raises:
+            ValueError: If state_filter is an empty list.
+            ValueError: If assignee_ids is an empty list.
+            ValueError: If assigned_to_me is True and assignee_ids is also provided.
+            ValueError: If any value in state_filter is not a TaskState member or
+                an exact-case string matching a TaskState value (e.g., "IN_PROGRESS").
+
+        Note: Due to generator semantics, argument validation runs on the first
+            iteration of the generator, not at the point where list() is called.
 
         Example: List all curation tasks in a project
             &nbsp;
@@ -398,10 +448,69 @@ class CurationTaskSynchronousProtocol(Protocol):
                 print(f"Instructions: {task.instructions}")
                 print("---")
             ```
+
+        Example: List only curation tasks assigned to the current user
+            &nbsp;
+
+            ```python
+            from synapseclient import Synapse
+            from synapseclient.models import CurationTask
+
+            syn = Synapse()
+            syn.login()
+
+            for task in CurationTask.list(project_id="syn9876543", assigned_to_me=True):
+                print(f"Task ID: {task.task_id}")
+                print(f"Data Type: {task.data_type}")
+                print("---")
+            ```
+
+        Example: List only in-progress curation tasks
+            &nbsp;
+
+            ```python
+            from synapseclient import Synapse
+            from synapseclient.models import CurationTask, TaskState
+
+            syn = Synapse()
+            syn.login()
+
+            for task in CurationTask.list(
+                project_id="syn9876543",
+                state_filter=[TaskState.IN_PROGRESS],
+            ):
+                print(f"Task ID: {task.task_id}")
+                print(f"Data Type: {task.data_type}")
+                print("---")
+            ```
+
+        Example: List only in-progress curation tasks using a string state filter
+            &nbsp;
+
+            state_filter also accepts plain strings matching TaskState names exactly.
+
+            ```python
+            from synapseclient import Synapse
+            from synapseclient.models import CurationTask
+
+            syn = Synapse()
+            syn.login()
+
+            for task in CurationTask.list(
+                project_id="syn9876543",
+                state_filter=["IN_PROGRESS"],
+            ):
+                print(f"Task ID: {task.task_id}")
+                print(f"Data Type: {task.data_type}")
+                print("---")
+            ```
         """
         yield from wrap_async_generator_to_sync_generator(
             async_gen_func=cls.list_async,
             project_id=project_id,
+            assigned_to_me=assigned_to_me,
+            assignee_ids=assignee_ids,
+            state_filter=state_filter,
             synapse_client=synapse_client,
         )
 
@@ -854,6 +963,9 @@ class CurationTask(CurationTaskSynchronousProtocol):
         cls,
         project_id: str,
         *,
+        assigned_to_me: Optional[bool] = None,
+        assignee_ids: Optional[list[str]] = None,
+        state_filter: Optional[list[Union["TaskState", str]]] = None,
         synapse_client: Optional[Synapse] = None,
     ) -> AsyncGenerator["CurationTask", None]:
         """
@@ -861,12 +973,31 @@ class CurationTask(CurationTaskSynchronousProtocol):
 
         Arguments:
             project_id: The synId of the project.
+            assigned_to_me: When True, only return tasks assigned to the current user.
+                Cannot be combined with assignee_ids.
+                False does not mean "tasks not assigned to me".
+                Defaults to None.
+            assignee_ids: Optional list of principal IDs (users or teams) to filter
+                tasks by assignee. Cannot be combined with assigned_to_me=True.
+                Passing an empty list raises a ValueError; pass None to return tasks
+                for any assignee. Defaults to None.
+            state_filter: Optional list of TaskState values or exact-case strings to
+                filter tasks by their current state (e.g., "IN_PROGRESS"). Defaults to
+                None (all states returned). Passing an empty list raises a ValueError;
+                pass None to return tasks in any state.
             synapse_client: If not passed in and caching was not disabled by
-                `Synapse.allow_client_caching(False)` this will use the last created
+                Synapse.allow_client_caching(False) this will use the last created
                 instance from the Synapse class constructor.
 
         Yields:
             CurationTask objects as they are retrieved from the API.
+
+        Raises:
+            ValueError: If state_filter is an empty list.
+            ValueError: If assignee_ids is an empty list.
+            ValueError: If assigned_to_me is True and assignee_ids is also provided.
+            ValueError: If any value in state_filter is not a TaskState member or
+                an exact-case string matching a TaskState value (e.g., "IN_PROGRESS").
 
         Example: List all curation tasks in a project asynchronously
             &nbsp;
@@ -889,7 +1020,94 @@ class CurationTask(CurationTaskSynchronousProtocol):
 
             asyncio.run(main())
             ```
+
+        Example: List only curation tasks assigned to the current user asynchronously
+            &nbsp;
+
+            ```python
+            import asyncio
+            from synapseclient import Synapse
+            from synapseclient.models import CurationTask
+
+            syn = Synapse()
+            syn.login()
+
+            async def main():
+                async for task in CurationTask.list_async(
+                    project_id="syn9876543", assigned_to_me=True
+                ):
+                    print(f"Task ID: {task.task_id}")
+                    print(f"Data Type: {task.data_type}")
+                    print("---")
+
+            asyncio.run(main())
+            ```
+
+        Example: List only in-progress curation tasks asynchronously
+            &nbsp;
+
+            ```python
+            import asyncio
+            from synapseclient import Synapse
+            from synapseclient.models import CurationTask, TaskState
+
+            syn = Synapse()
+            syn.login()
+
+            async def main():
+                async for task in CurationTask.list_async(
+                    project_id="syn9876543",
+                    state_filter=[TaskState.IN_PROGRESS],
+                ):
+                    print(f"Task ID: {task.task_id}")
+                    print(f"Data Type: {task.data_type}")
+                    print("---")
+
+            asyncio.run(main())
+            ```
+
+        Example: List only in-progress curation tasks using a string state filter asynchronously
+            &nbsp;
+
+            state_filter also accepts plain strings matching TaskState names exactly.
+
+            ```python
+            import asyncio
+            from synapseclient import Synapse
+            from synapseclient.models import CurationTask
+
+            syn = Synapse()
+            syn.login()
+
+            async def main():
+                async for task in CurationTask.list_async(
+                    project_id="syn9876543",
+                    state_filter=["IN_PROGRESS"],
+                ):
+                    print(f"Task ID: {task.task_id}")
+                    print(f"Data Type: {task.data_type}")
+                    print("---")
+
+            asyncio.run(main())
+            ```
         """
+        if state_filter == []:
+            raise ValueError(
+                "state_filter must not be empty. Pass None to return tasks in any state."
+            )
+        if assignee_ids == []:
+            raise ValueError(
+                "assignee_ids must not be empty. Pass None to return tasks for any assignee."
+            )
+        if assigned_to_me is True and assignee_ids is not None:
+            raise ValueError(
+                f"assigned_to_me and assignee_ids are mutually exclusive "
+                f"and cannot be used together. Got assignee_ids={assignee_ids!r}."
+            )
+
+        if state_filter is not None:
+            state_filter = coerce_enum_list(TaskState, state_filter)
+
         trace.get_current_span().set_attributes(
             {
                 "synapse.project_id": project_id,
@@ -897,7 +1115,11 @@ class CurationTask(CurationTaskSynchronousProtocol):
         )
 
         async for task_dict in list_curation_tasks(
-            project_id=project_id, synapse_client=synapse_client
+            project_id=project_id,
+            assigned_to_me=assigned_to_me,
+            assignee_ids=assignee_ids,
+            state_filter=state_filter,
+            synapse_client=synapse_client,
         ):
             task = cls().fill_from_dict(synapse_response=task_dict)
             yield task
