@@ -68,13 +68,13 @@ the correct parent folder in Synapse (creating folders as needed). The output
 is ready to hand directly to `sync_to_synapse`.
 
 !!! warning "Folders are created in Synapse during manifest generation"
-    `generate_sync_manifest` is not purely local. As it walks the directory
-    tree it **also creates the corresponding folder structure on the
-    project/folder it is called on**, including any empty subfolders. Only
-    the files themselves are deferred to the later `sync_to_synapse` call.
-    This is why the call still needs a target Synapse container even when
-    you only want to produce a manifest — each row in the manifest references
-    the Synapse ID of its (already-created) parent folder.
+    While walking the directory tree, `generate_sync_manifest` **creates the
+    corresponding folder structure on the project/folder it is called on**,
+    including any empty subfolders . Only the files themselves are deferred
+    to the later `sync_to_synapse` call. This is why the call still needs a
+    target Synapse Project/Folder even when you only want to produce a manifest
+    — each row in the manifest references the Synapse ID of its (already-created)
+    parent folder.
 
     To upload a subset of files, generate the manifest first, delete the rows
     for files you do not want to upload from `PATH_TO_MANIFEST_FILE`, then run

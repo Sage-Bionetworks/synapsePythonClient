@@ -1011,9 +1011,9 @@ def build_parser():
         description=(
             "Generate a TSV manifest describing the files in a local directory tree "
             "for later upload with `synapse sync`. "
-            "IMPORTANT: this command is not purely local. While walking the directory "
-            "tree it ALSO creates the corresponding folder structure under --parent-id "
-            "in Synapse (including any empty folders); only the files are deferred to "
+            "IMPORTANT: this command will also create the corresponding folder structure "
+            "in Synapse while walking the directory under --parent-id "
+            "(including any empty folders); only the files are deferred to "
             "the subsequent `synapse sync` call. "
             "To upload a subset of files, run `synapse manifest` first, delete the rows "
             "for files you do not want to upload from the generated manifest, then run "

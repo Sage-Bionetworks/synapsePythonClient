@@ -111,7 +111,7 @@ synapse get [-h] [-q queryString] [-v VERSION] [-r] [--followLink] [--limitSearc
 Generate a TSV manifest describing the files in a local directory tree for
 later upload with `synapse sync`.
 
-!!! warning "This command is not purely local"
+!!! warning "Folders are created in Synapse during manifest generation"
     While walking the directory tree, `synapse manifest` **also creates the
     corresponding folder structure under `--parent-id` in Synapse**, including
     any empty subfolders. Only the files themselves are deferred to the
