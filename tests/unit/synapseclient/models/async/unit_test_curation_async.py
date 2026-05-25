@@ -22,6 +22,7 @@ from synapseclient.models.curation import (
     GridRecordSetExportRequest,
     RecordBasedMetadataTaskProperties,
     SynchronizeGridRequest,
+    TaskState,
     UploadToTablePreviewRequest,
     _create_task_properties_from_dict,
 )
@@ -576,6 +577,114 @@ class TestCurationTask:
             assert isinstance(
                 results[1].task_properties, RecordBasedMetadataTaskProperties
             )
+
+    async def test_list_async_assigned_to_me_and_assignee_ids_raises(self) -> None:
+        # GIVEN both assigned_to_me and assignee_ids are provided
+        # WHEN I call list_async
+        # THEN it should raise ValueError on first iteration (generators are lazy)
+        with pytest.raises(
+            ValueError, match="mutually exclusive.*Got assignee_ids=\\['123'\\]"
+        ):
+            async for _ in CurationTask.list_async(
+                project_id=PROJECT_ID,
+                assigned_to_me=True,
+                assignee_ids=["123"],
+                synapse_client=self.syn,
+            ):
+                pass  # pragma: no cover
+
+    async def test_list_async_passes_assigned_to_me_to_api(self) -> None:
+        # GIVEN assigned_to_me=True
+        async def mock_list(*args, **kwargs):
+            return
+            yield  # pragma: no cover
+
+        # WHEN I call list_async
+        with patch(
+            "synapseclient.models.curation.list_curation_tasks",
+            side_effect=mock_list,
+        ) as mock_api:
+            async for _ in CurationTask.list_async(
+                project_id=PROJECT_ID,
+                assigned_to_me=True,
+                synapse_client=self.syn,
+            ):
+                pass
+
+            # THEN the API should be called with assigned_to_me=True
+            mock_api.assert_called_once_with(
+                project_id=PROJECT_ID,
+                assigned_to_me=True,
+                assignee_ids=None,
+                state_filter=None,
+                synapse_client=self.syn,
+            )
+
+    async def test_list_async_passes_assignee_ids_to_api(self) -> None:
+        # GIVEN a list of assignee_ids
+        async def mock_list(*args, **kwargs):
+            return
+            yield  # pragma: no cover
+
+        # WHEN I call list_async
+        with patch(
+            "synapseclient.models.curation.list_curation_tasks",
+            side_effect=mock_list,
+        ) as mock_api:
+            async for _ in CurationTask.list_async(
+                project_id=PROJECT_ID,
+                assignee_ids=["111", "222"],
+                synapse_client=self.syn,
+            ):
+                pass
+
+            # THEN the API should be called with the serialized assignee_ids
+            mock_api.assert_called_once_with(
+                project_id=PROJECT_ID,
+                assigned_to_me=None,
+                assignee_ids=["111", "222"],
+                state_filter=None,
+                synapse_client=self.syn,
+            )
+
+    async def test_list_async_passes_state_filter_to_api(self) -> None:
+        # GIVEN a state_filter with TaskState enums
+        async def mock_list(*args, **kwargs):
+            return
+            yield  # pragma: no cover
+
+        # WHEN I call list_async
+        with patch(
+            "synapseclient.models.curation.list_curation_tasks",
+            side_effect=mock_list,
+        ) as mock_api:
+            async for _ in CurationTask.list_async(
+                project_id=PROJECT_ID,
+                state_filter=[TaskState.NOT_STARTED, TaskState.IN_PROGRESS],
+                synapse_client=self.syn,
+            ):
+                pass
+
+            # THEN the API should be called with serialized string values
+            mock_api.assert_called_once_with(
+                project_id=PROJECT_ID,
+                assigned_to_me=None,
+                assignee_ids=None,
+                state_filter=["NOT_STARTED", "IN_PROGRESS"],
+                synapse_client=self.syn,
+            )
+
+    async def test_list_async_state_filter_invalid_string_raises(self) -> None:
+        # GIVEN a state_filter with an invalid string value
+        # WHEN I call list_async
+        # THEN it should raise ValueError before any API call
+        with pytest.raises(ValueError, match="Invalid value"):
+            async for _ in CurationTask.list_async(
+                project_id=PROJECT_ID,
+                state_filter=["invalid"],
+                synapse_client=self.syn,
+            ):
+                pass  # pragma: no cover
 
 
 class TestGrid:

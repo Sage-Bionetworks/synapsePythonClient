@@ -5,12 +5,14 @@ import logging
 import os
 import re
 import tempfile
+from enum import Enum
 from shutil import rmtree
 from unittest.mock import MagicMock, Mock, call, mock_open, patch
 
 import pytest
 
 from synapseclient.core import constants, utils
+from synapseclient.core.utils import coerce_enum_list
 
 
 def test_is_url() -> None:
@@ -608,3 +610,41 @@ class TestSpinner:
         mock_sys.stdout.write.assert_not_called()
         mock_sys.stdout.flush.assert_not_called()
         assert self.spinner._tick == 1
+
+
+class _Color(Enum):
+    RED = "RED"
+    BLUE = "BLUE"
+
+
+class TestCoerceEnumList:
+    """Tests for coerce_enum_list."""
+
+    @pytest.mark.parametrize(
+        "input_filter,expected",
+        [
+            ([_Color.RED], ["RED"]),
+            ([_Color.BLUE], ["BLUE"]),
+            ([_Color.RED, _Color.BLUE], ["RED", "BLUE"]),
+            (["RED"], ["RED"]),
+            (["BLUE"], ["BLUE"]),
+            ([_Color.RED, "BLUE"], ["RED", "BLUE"]),
+            ([], []),
+        ],
+    )
+    def test_valid_inputs(self, input_filter, expected) -> None:
+        """Accepts enum members, matching strings, mixed lists, and empty lists."""
+        assert coerce_enum_list(_Color, input_filter) == expected
+
+    @pytest.mark.parametrize(
+        "input_filter,match",
+        [
+            (["NOT_A_COLOR"], "Invalid value"),
+            ([42], "Invalid value"),
+            (["red"], "Invalid value"),
+        ],
+    )
+    def test_invalid_inputs_raise_value_error(self, input_filter, match) -> None:
+        """Raises ValueError for unrecognized strings and non-string, non-enum values."""
+        with pytest.raises(ValueError, match=match):
+            coerce_enum_list(_Color, input_filter)
