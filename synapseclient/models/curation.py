@@ -1496,9 +1496,6 @@ class CurationTask(CurationTaskSynchronousProtocol):
         Set the active grid session on this CurationTask's status by replacing
         execution_details with a GridExecutionDetails carrying the given session id.
 
-        Does not transition the task state. Fetches the current CurationTaskStatus
-        first so the update carries a fresh etag.
-
         Arguments:
             active_session_id: The unique identifier of the active grid session to link.
             synapse_client: If not passed in and caching was not disabled by
