@@ -23,6 +23,7 @@ from synapseclient.models import (
     Project,
     RecordBasedMetadataTaskProperties,
     RecordSet,
+    TaskState,
     ViewTypeMask,
 )
 from synapseclient.models.table_components import Query
@@ -491,8 +492,43 @@ class TestCurationTaskListAsync:
         self.syn = syn
         self.schedule_for_cleanup = schedule_for_cleanup
 
+    @pytest.fixture(scope="function")
+    async def project_for_test(
+        self,
+        syn: Synapse,
+        schedule_for_cleanup: Callable[..., None],
+    ) -> Project:
+        """Create a fresh project per test so tasks from other tests don't appear in listings."""
+        project = await Project(name=str(uuid.uuid4())).store_async(synapse_client=syn)
+        schedule_for_cleanup(project.id)
+        return project
+
+    @pytest.fixture(scope="function")
+    async def folder_with_view(
+        self,
+        project_for_test: Project,
+        syn: Synapse,
+        schedule_for_cleanup: Callable[..., None],
+    ) -> tuple[Folder, EntityView]:
+        """Create a folder with an associated EntityView for file-based testing."""
+        folder = await Folder(
+            name=str(uuid.uuid4()),
+            parent_id=project_for_test.id,
+        ).store_async(synapse_client=syn)
+        schedule_for_cleanup(folder.id)
+
+        entity_view = await EntityView(
+            name=str(uuid.uuid4()),
+            parent_id=project_for_test.id,
+            scope_ids=[folder.id],
+            view_type_mask=ViewTypeMask.FILE.value,
+        ).store_async(synapse_client=syn)
+        schedule_for_cleanup(entity_view.id)
+
+        return folder, entity_view
+
     async def test_list_curation_tasks_async(
-        self, project_model: Project, folder_with_view: tuple[Folder, EntityView]
+        self, project_for_test: Project, folder_with_view: tuple[Folder, EntityView]
     ) -> None:
         # GIVEN a project, folder, and entity view
         folder, entity_view = folder_with_view
@@ -507,7 +543,7 @@ class TestCurationTaskListAsync:
             )
             task = await CurationTask(
                 data_type=data_type,
-                project_id=project_model.id,
+                project_id=project_for_test.id,
                 instructions=f"Instructions for task {i}",
                 task_properties=task_properties,
             ).store_async(synapse_client=self.syn)
@@ -516,12 +552,12 @@ class TestCurationTaskListAsync:
         # WHEN I list all curation tasks for the project asynchronously
         listed_tasks = []
         async for task in CurationTask.list_async(
-            project_id=project_model.id, synapse_client=self.syn
+            project_id=project_for_test.id, synapse_client=self.syn
         ):
             listed_tasks.append(task)
 
-        # THEN I should get all the created tasks
-        assert len(listed_tasks) >= 3  # There might be other tasks from other tests
+        # THEN I should get exactly the 3 created tasks (isolated project)
+        assert len(listed_tasks) == 3
 
         # Check that our created tasks are in the list
         listed_task_ids = [task.task_id for task in listed_tasks]
@@ -533,12 +569,11 @@ class TestCurationTaskListAsync:
 
         # Verify the structure of retrieved tasks
         for task in listed_tasks:
-            if task.task_id in [t[1] for t in tasks_data]:
-                assert task.project_id == project_model.id
-                assert task.task_properties is not None
-                assert task.etag is not None
-                assert task.created_on is not None
-                assert task.created_by is not None
+            assert task.project_id == project_for_test.id
+            assert task.task_properties is not None
+            assert task.etag is not None
+            assert task.created_on is not None
+            assert task.created_by is not None
 
     async def test_list_empty_project_async(self) -> None:
         # GIVEN a project with no curation tasks
@@ -556,6 +591,49 @@ class TestCurationTaskListAsync:
 
         # THEN I should get an empty list
         assert len(listed_tasks) == 0
+
+    async def test_list_filters_async(
+        self, project_for_test: Project, folder_with_view: tuple[Folder, EntityView]
+    ) -> None:
+        # GIVEN a newly created curation task (default state is NOT_STARTED)
+        folder, entity_view = folder_with_view
+        data_type = f"test_data_type_{str(uuid.uuid4()).replace('-', '_')}"
+        task = await CurationTask(
+            data_type=data_type,
+            project_id=project_for_test.id,
+            instructions="Test instructions",
+            task_properties=FileBasedMetadataTaskProperties(
+                upload_folder_id=folder.id,
+                file_view_id=entity_view.id,
+            ),
+        ).store_async(synapse_client=self.syn)
+
+        # WHEN I list tasks filtered to NOT_STARTED
+        listed_task_ids = [
+            t.task_id
+            async for t in CurationTask.list_async(
+                project_id=project_for_test.id,
+                state_filter=[TaskState.NOT_STARTED],
+                synapse_client=self.syn,
+            )
+        ]
+
+        # THEN exactly 1 task should appear and it should be our task
+        assert len(listed_task_ids) == 1
+        assert task.task_id in listed_task_ids
+
+        # WHEN I list tasks filtered to COMPLETED
+        listed_task_ids = [
+            t.task_id
+            async for t in CurationTask.list_async(
+                project_id=project_for_test.id,
+                state_filter=[TaskState.COMPLETED],
+                synapse_client=self.syn,
+            )
+        ]
+
+        # THEN no tasks should appear (the only task is NOT_STARTED)
+        assert len(listed_task_ids) == 0
 
 
 class TestCurationTaskStatusAsync:

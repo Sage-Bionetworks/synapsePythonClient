@@ -11,6 +11,8 @@ path and name as needed.
 
 """
 
+# --8<-- [start:setup_and_evaluation]
+
 import tempfile
 
 import pandas as pd
@@ -42,7 +44,9 @@ evaluation = Evaluation(
 )
 evaluation = syn.store(evaluation)
 print(f"Created evaluation queue with ID: {evaluation.id}")
+# --8<-- [end:setup_and_evaluation]
 
+# --8<-- [start:create_submissionview]
 # Step 2: Create a SubmissionView for the evaluation queue
 view = SubmissionView(
     name="SubmissionView for Alzheimer conference",
@@ -80,7 +84,9 @@ view.reorder_column(name="evaluationid", index=4)
 view.store()
 
 print("Available columns in the view:", list(view.columns.keys()))
+# --8<-- [end:create_submissionview]
 
+# --8<-- [start:submit_file]
 # Step 3: Create and submit a file to the evaluation queue
 with tempfile.NamedTemporaryFile(
     mode="w", suffix=".txt", delete=True, delete_on_close=False
@@ -103,7 +109,9 @@ with tempfile.NamedTemporaryFile(
     )
 
     print(f"Created submission with ID: {submission.id}")
+# --8<-- [end:submit_file]
 
+# --8<-- [start:query_and_update]
 # Step 4: Query and update the submission status
 # Query the SubmissionView to see our submission
 query = f"SELECT * FROM {view.id} WHERE id = '{submission.id}'"
@@ -124,7 +132,9 @@ submission_status.score = 0.7
 submission_status = syn.store(submission_status)
 print(f"Updated submission status to: {submission_status.status}")
 
+# --8<-- [end:query_and_update]
 # Step 5: Modify the SubmissionView scope
+# --8<-- [start:modify_scope]
 # First let's make sure we have the latest view from Synapse:
 view.get()
 
@@ -141,7 +151,9 @@ print(f"Created second evaluation queue with ID: {second_evaluation.id}")
 view.scope_ids.append(second_evaluation.id)
 view.store()  # Store the updated view
 print("Updated SubmissionView scope. Current scope IDs:", view.scope_ids)
+# --8<-- [end:modify_scope]
 
+# --8<-- [start:create_snapshot]
 # Step 6: Create a snapshot of the view
 snapshot_info = view.snapshot(
     comment="Initial submission review snapshot",
@@ -150,6 +162,8 @@ print("Created snapshot of the SubmissionView:")
 print(snapshot_info)
 snapshot_version = snapshot_info.snapshot_version_number
 print(f"Snapshot version number: {snapshot_version}")
+# --8<-- [end:create_snapshot]
+# --8<-- [start:query_snapshot]
 
 # Step 7: Query the snapshot we just created
 # You may also get the snapshot version from the view object directly by looking at the version number
@@ -160,3 +174,4 @@ snapshot_query = f"SELECT * FROM {view.id}.{snapshot_version}"
 snapshot_results = view.query(snapshot_query)
 print("Query results from the snapshot:")
 print(snapshot_results)
+# --8<-- [end:query_snapshot]
