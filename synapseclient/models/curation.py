@@ -1361,11 +1361,6 @@ class CurationTask(CurationTaskSynchronousProtocol):
 
             asyncio.run(main())
             ```
-
-        Raises:
-            ValueError: If project_id is not set.
-            ValueError: If data_type is not set.
-            ValueError: If the Synapse response does not contain taskProperties.
         """
         if not self.project_id:
             raise ValueError("project_id is required")
