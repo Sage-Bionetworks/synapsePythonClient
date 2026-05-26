@@ -1227,42 +1227,30 @@ class TestGrid:
         assert grid.last_replica_id_service == -5
         assert grid.grid_json_schema_id == "my-schema-id"
         assert grid.source_entity_id == SOURCE_ENTITY_ID
-        assert grid.owner_principal_id == OWNER_PRINCIPAL_ID
 
     async def test_create_async_with_record_set_id(self) -> None:
-        # GIVEN a Grid with a record_set_id and an owner_principal_id
-        grid = Grid(record_set_id=RECORD_SET_ID, owner_principal_id=OWNER_PRINCIPAL_ID)
+        # GIVEN a Grid with a record_set_id
+        grid = Grid(record_set_id=RECORD_SET_ID)
 
-        # Mock the CreateGridRequest's send_job_and_wait_async, capturing the
-        # request instance so we can assert what Grid.create_async constructed.
+        # Mock the CreateGridRequest's send_job_and_wait_async
         mock_create_request = CreateGridRequest(record_set_id=RECORD_SET_ID)
         mock_create_request.session_id = SESSION_ID
         mock_create_request._grid_session_data = _get_grid_session_response()
 
-        captured_requests = []
-
-        async def capture_send(request_self, **kwargs):
-            captured_requests.append(request_self)
-            return mock_create_request
-
         # WHEN I call create_async
         with patch.object(
-            CreateGridRequest, "send_job_and_wait_async", new=capture_send
+            CreateGridRequest,
+            "send_job_and_wait_async",
+            new_callable=AsyncMock,
+            return_value=mock_create_request,
         ):
             result = await grid.create_async(synapse_client=self.syn)
 
-            # THEN the grid should be populated with session data, including
-            # the server-echoed owner_principal_id
+            # THEN the grid should be populated with session data
             assert result.session_id == SESSION_ID
             assert result.started_by == STARTED_BY
             assert result.started_on == STARTED_ON
             assert result.source_entity_id == SOURCE_ENTITY_ID
-            assert result.owner_principal_id == OWNER_PRINCIPAL_ID
-
-            # AND the CreateGridRequest carried the grid's owner_principal_id
-            assert len(captured_requests) == 1
-            assert captured_requests[0].record_set_id == RECORD_SET_ID
-            assert captured_requests[0].owner_principal_id == OWNER_PRINCIPAL_ID
 
     async def test_create_async_no_record_set_or_query_raises(self) -> None:
         # GIVEN a Grid with neither record_set_id nor initial_query
@@ -1644,7 +1632,6 @@ class TestCreateGridRequest:
         assert grid.started_by == STARTED_BY
         assert grid.etag == GRID_ETAG
         assert grid.source_entity_id == SOURCE_ENTITY_ID
-        assert grid.owner_principal_id == OWNER_PRINCIPAL_ID
 
     def test_to_synapse_request_with_record_set_id(self) -> None:
         # GIVEN a CreateGridRequest with a record_set_id
@@ -1657,20 +1644,6 @@ class TestCreateGridRequest:
         assert "concreteType" in result
         assert result["recordSetId"] == RECORD_SET_ID
         assert "initialQuery" not in result
-        # AND ownerPrincipalId is omitted when not set
-        assert "ownerPrincipalId" not in result
-
-    def test_to_synapse_request_with_owner_principal_id(self) -> None:
-        # GIVEN a CreateGridRequest with an owner_principal_id
-        request = CreateGridRequest(
-            record_set_id=RECORD_SET_ID, owner_principal_id=987654
-        )
-
-        # WHEN I convert it to a synapse request
-        result = request.to_synapse_request()
-
-        # THEN ownerPrincipalId should be serialized in the request
-        assert result["ownerPrincipalId"] == 987654
 
 
 class TestUploadToTablePreviewRequest:
