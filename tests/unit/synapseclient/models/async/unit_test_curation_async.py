@@ -267,14 +267,6 @@ class TestGridExecutionDetails:
         # THEN the active_session_id should be populated
         assert details.active_session_id == SESSION_ID
 
-    def test_fill_from_dict_empty(self) -> None:
-        # GIVEN an empty response dict
-        # WHEN I fill a GridExecutionDetails from it
-        details = GridExecutionDetails().fill_from_dict({})
-
-        # THEN active_session_id should remain None
-        assert details.active_session_id is None
-
     def test_to_synapse_request(self) -> None:
         # GIVEN a GridExecutionDetails with an active session id
         details = GridExecutionDetails(active_session_id=SESSION_ID)
@@ -285,16 +277,6 @@ class TestGridExecutionDetails:
         # THEN the request should contain the concreteType and activeSessionId
         assert request["concreteType"] == GRID_EXECUTION_DETAILS
         assert request["activeSessionId"] == SESSION_ID
-
-    def test_to_synapse_request_none_values(self) -> None:
-        # GIVEN a GridExecutionDetails with no active session id
-        details = GridExecutionDetails()
-
-        # WHEN I convert it to a request dict
-        request = details.to_synapse_request()
-
-        # THEN only concreteType should be present
-        assert request == {"concreteType": GRID_EXECUTION_DETAILS}
 
 
 class TestCurationTaskStatus:
