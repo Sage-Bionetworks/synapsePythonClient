@@ -78,7 +78,7 @@ all_schemas = query_schema_registry(
 Use this when metadata is normalized in structured records to eliminate duplication and ensure consistency.
 
 ```python
-items = create_record_based_metadata_task(
+record_set, curation_task = create_record_based_metadata_task(
     synapse_client=syn,
     folder_id="syn987654321",          # Folder where RecordSet Entity will be stored
     record_set_name="AnimalMetadata_Records",
@@ -88,10 +88,9 @@ items = create_record_based_metadata_task(
     instructions="Complete all required fields according to the schema. Use StudyKey to link records to your data files.",
     schema_uri=schema_uri,             # Schema found in Step 2
     bind_schema_to_record_set=True,
+    create_grid=False,
     assignee_principal_id=123456     # Optional: Assign to a user or team
 )
-record_set = items[0]
-curation_task = items[1]
 
 print(f"Created RecordSet: {record_set.id}")
 print(f"Created CurationTask: {curation_task.task_id}")
@@ -158,7 +157,7 @@ schema_uri = query_schema_registry(
 print("Using schema:", schema_uri)
 
 # Step 3A: Create record-based workflow
-items = create_record_based_metadata_task(
+record_set, curation_task = create_record_based_metadata_task(
     synapse_client=syn,
     folder_id="syn987654321",
     record_set_name="AnimalMetadata_Records",
@@ -168,10 +167,9 @@ items = create_record_based_metadata_task(
     instructions="Complete metadata for all study animals using StudyKey to link records to data files.",
     schema_uri=schema_uri,
     bind_schema_to_record_set=True,
+    create_grid=False,
     assignee_principal_id=123456  # Optional: Assign to a user or team
 )
-record_set = items[0]
-curation_task = items[1]
 
 print("Record-based workflow created:")
 print(f"  RecordSet: {record_set.id}")
@@ -327,7 +325,7 @@ os.close(temp_fd)
 test_data.to_csv(temp_csv, index=False)
 
 # Step 2: Create the curation task (this creates an empty template RecordSet)
-record_set, curation_task, data_grid = create_record_based_metadata_task(
+record_set, curation_task = create_record_based_metadata_task(
     synapse_client=syn,
     folder_id="syn987654321",
     record_set_name="AnimalMetadata_Records",
@@ -337,6 +335,7 @@ record_set, curation_task, data_grid = create_record_based_metadata_task(
     instructions="Enter metadata for each animal. All required fields must be completed.",
     schema_uri=schema_uri,
     bind_schema_to_record_set=True,
+    create_grid=False,
 )
 
 time.sleep(10)
