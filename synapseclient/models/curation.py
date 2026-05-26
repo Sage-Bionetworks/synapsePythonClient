@@ -571,8 +571,8 @@ class CurationTaskSynchronousProtocol(Protocol):
 
         Arguments:
             state: The state to set on this task's status. Accepts a
-                TaskState or a case-insensitive string matching one of
-                its members (e.g. NOT_STARTED, IN_PROGRESS, COMPLETED, CANCELED).
+                TaskState or a string exactly matching one of its members
+                (e.g. NOT_STARTED, IN_PROGRESS, COMPLETED, CANCELED).
             synapse_client: If not passed in and caching was not disabled by
                 Synapse.allow_client_caching(False) this will use the last created
                 instance from the Synapse class constructor.
@@ -597,6 +597,19 @@ class CurationTaskSynchronousProtocol(Protocol):
             CurationTask(task_id=123).set_task_state(
                 state=TaskState.COMPLETED
             )
+            ```
+
+        Example: Mark a curation task as completed using a string
+            &nbsp;
+
+            ```python
+            from synapseclient import Synapse
+            from synapseclient.models import CurationTask
+
+            syn = Synapse()
+            syn.login()
+
+            CurationTask(task_id=123).set_task_state(state="COMPLETED")
             ```
         """
         return CurationTaskStatus()
@@ -1555,8 +1568,8 @@ class CurationTask(CurationTaskSynchronousProtocol):
 
         Arguments:
             state: The state to set on this task's status. Accepts a
-                TaskState or a case-insensitive string matching one of
-                its members (e.g. NOT_STARTED, IN_PROGRESS, COMPLETED, CANCELED).
+                TaskState or a string exactly matching one of its members
+                (e.g. NOT_STARTED, IN_PROGRESS, COMPLETED, CANCELED).
             synapse_client: If not passed in and caching was not disabled by
                 Synapse.allow_client_caching(False) this will use the last created
                 instance from the Synapse class constructor.
@@ -1586,10 +1599,28 @@ class CurationTask(CurationTaskSynchronousProtocol):
 
             asyncio.run(main())
             ```
+
+        Example: Mark a curation task as completed using a string asynchronously
+            &nbsp;
+
+            ```python
+            import asyncio
+            from synapseclient import Synapse
+            from synapseclient.models import CurationTask
+
+            syn = Synapse()
+            syn.login()
+
+            async def main():
+                await CurationTask(task_id=123).set_task_state_async(
+                    state="COMPLETED"
+                )
+
+            asyncio.run(main())
+            ```
         """
-        normalized = state.upper() if isinstance(state, str) else state
         try:
-            coerced_state = TaskState(normalized)
+            coerced_state = TaskState(state)
         except ValueError as exc:
             raise ValueError(
                 f"{state!r} is not a valid TaskState. "

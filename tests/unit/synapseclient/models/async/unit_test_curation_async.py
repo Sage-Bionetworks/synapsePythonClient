@@ -960,8 +960,8 @@ class TestCurationTask:
             (TaskState.COMPLETED, "COMPLETED"),
             (TaskState.CANCELED, "CANCELED"),
             ("IN_PROGRESS", "IN_PROGRESS"),
-            ("completed", "COMPLETED"),
-            ("In_Progress", "IN_PROGRESS"),
+            ("COMPLETED", "COMPLETED"),
+            ("CANCELED", "CANCELED"),
         ],
     )
     async def test_set_task_state_async(
