@@ -17,7 +17,6 @@ from synapseclient.models import EntityView, RecordSet
 from synapseclient.models.curation import (
     CreateGridRequest,
     CurationTask,
-    CurationTaskState,
     CurationTaskStatus,
     DownloadFromGridRequest,
     FileBasedMetadataTaskProperties,
@@ -312,7 +311,7 @@ class TestCurationTaskStatus:
 
         # THEN all fields should be populated and state coerced to the enum
         assert status.task_id == TASK_ID
-        assert status.state == CurationTaskState.IN_PROGRESS
+        assert status.state == TaskState.IN_PROGRESS
         assert status.last_updated_by == STATUS_LAST_UPDATED_BY
         assert status.last_updated_on == STATUS_LAST_UPDATED_ON
         assert status.etag == STATUS_ETAG
@@ -328,7 +327,7 @@ class TestCurationTaskStatus:
 
         # THEN execution_details should be None
         assert status.execution_details is None
-        assert status.state == CurationTaskState.NOT_STARTED
+        assert status.state == TaskState.NOT_STARTED
 
     def test_fill_from_dict_unknown_execution_details_concrete_type(self) -> None:
         # GIVEN a status response with an unknown executionDetails concreteType
@@ -358,11 +357,11 @@ class TestCurationTaskStatus:
         assert status.task_id is None
 
     def test_to_synapse_request_with_enum_state(self) -> None:
-        # GIVEN a CurationTaskStatus whose state is a CurationTaskState enum
+        # GIVEN a CurationTaskStatus whose state is a TaskState enum
         # AND server-managed audit fields populated from a prior GET
         status = CurationTaskStatus(
             task_id=TASK_ID,
-            state=CurationTaskState.COMPLETED,
+            state=TaskState.COMPLETED,
             execution_details=GridExecutionDetails(active_session_id=SESSION_ID),
             last_updated_by=STATUS_LAST_UPDATED_BY,
             last_updated_on=STATUS_LAST_UPDATED_ON,
@@ -395,7 +394,7 @@ class TestCurationTaskStatus:
 
         # THEN the state should be serialized as the enum value
         assert request["state"] == "IN_PROGRESS"
-        assert status.state == CurationTaskState.IN_PROGRESS
+        assert status.state == TaskState.IN_PROGRESS
 
     def test_to_synapse_request_omits_none_values(self) -> None:
         # GIVEN a CurationTaskStatus with only task_id set
@@ -415,7 +414,7 @@ class TestCurationTaskStatus:
         status.state = "CANCELED"
 
         # THEN it should be auto-coerced to the enum via EnumCoercionMixin
-        assert status.state == CurationTaskState.CANCELED
+        assert status.state == TaskState.CANCELED
 
 
 class TestCurationTask:
@@ -826,7 +825,7 @@ class TestCurationTask:
             # AND the response should be parsed into a CurationTaskStatus
             assert isinstance(result, CurationTaskStatus)
             assert result.task_id == TASK_ID
-            assert result.state == CurationTaskState.IN_PROGRESS
+            assert result.state == TaskState.IN_PROGRESS
             assert result.etag == STATUS_ETAG
             assert result.last_updated_by == STATUS_LAST_UPDATED_BY
             assert result.last_updated_on == STATUS_LAST_UPDATED_ON
@@ -847,7 +846,7 @@ class TestCurationTask:
         task = CurationTask(task_id=TASK_ID)
         status_to_update = CurationTaskStatus(
             task_id=TASK_ID,
-            state=CurationTaskState.IN_PROGRESS,
+            state=TaskState.IN_PROGRESS,
             execution_details=GridExecutionDetails(active_session_id=SESSION_ID),
             etag=STATUS_ETAG,
         )
@@ -878,7 +877,7 @@ class TestCurationTask:
 
             # AND the response should be parsed back into a CurationTaskStatus
             assert isinstance(result, CurationTaskStatus)
-            assert result.state == CurationTaskState.IN_PROGRESS
+            assert result.state == TaskState.IN_PROGRESS
             assert isinstance(result.execution_details, GridExecutionDetails)
             assert result.execution_details.active_session_id == SESSION_ID
 
@@ -957,9 +956,9 @@ class TestCurationTask:
     @pytest.mark.parametrize(
         "input_state,expected_state_value",
         [
-            (CurationTaskState.IN_PROGRESS, "IN_PROGRESS"),
-            (CurationTaskState.COMPLETED, "COMPLETED"),
-            (CurationTaskState.CANCELED, "CANCELED"),
+            (TaskState.IN_PROGRESS, "IN_PROGRESS"),
+            (TaskState.COMPLETED, "COMPLETED"),
+            (TaskState.CANCELED, "CANCELED"),
             ("IN_PROGRESS", "IN_PROGRESS"),
             ("completed", "COMPLETED"),
             ("In_Progress", "IN_PROGRESS"),
@@ -1016,7 +1015,7 @@ class TestCurationTask:
 
             # AND it returns the parsed update response
             assert isinstance(result, CurationTaskStatus)
-            assert result.state == CurationTaskState(expected_state_value)
+            assert result.state == TaskState(expected_state_value)
             assert isinstance(result.execution_details, GridExecutionDetails)
             assert result.execution_details.active_session_id == SESSION_ID
 
@@ -1025,7 +1024,7 @@ class TestCurationTask:
         task = CurationTask(task_id=TASK_ID)
 
         # WHEN I call set_task_state_async with a string that does not match
-        # any CurationTaskState member
+        # any TaskState member
         # THEN it raises ValueError before any API call is made
         with (
             patch(
@@ -1037,7 +1036,7 @@ class TestCurationTask:
                 new_callable=AsyncMock,
             ) as mock_update_status,
         ):
-            with pytest.raises(ValueError, match="is not a valid CurationTaskState"):
+            with pytest.raises(ValueError, match="is not a valid TaskState"):
                 await task.set_task_state_async(
                     state="NOT_A_REAL_STATE", synapse_client=self.syn
                 )
@@ -1053,7 +1052,7 @@ class TestCurationTask:
         # THEN it should raise ValueError (propagated from get_status_async)
         with pytest.raises(ValueError, match="task_id is required to get"):
             await task.set_task_state_async(
-                state=CurationTaskState.IN_PROGRESS, synapse_client=self.syn
+                state=TaskState.IN_PROGRESS, synapse_client=self.syn
             )
 
     async def test_create_grid_session_async_record_based(self) -> None:

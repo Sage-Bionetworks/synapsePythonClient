@@ -207,32 +207,6 @@ def _create_task_properties_from_dict(
         )
 
 
-class CurationTaskState(str, Enum):
-    """
-    The state of a CurationTask in its lifecycle.
-
-    Represents a [Synapse TaskState](https://rest-docs.synapse.org/rest/org/sagebionetworks/repo/model/curation/TaskState.html).
-
-    Attributes:
-        NOT_STARTED: The task has been created and assigned but work has not yet started.
-        IN_PROGRESS: The assignee has actively started the task.
-        COMPLETED: The task has been completed and verified.
-        CANCELED: The task has been canceled and is no longer needed.
-    """
-
-    NOT_STARTED = "NOT_STARTED"
-    """The task has been created and assigned but work has not yet started."""
-
-    IN_PROGRESS = "IN_PROGRESS"
-    """The assignee has actively started the task."""
-
-    COMPLETED = "COMPLETED"
-    """The task has been completed and verified."""
-
-    CANCELED = "CANCELED"
-    """The task has been canceled and is no longer needed."""
-
-
 @dataclass
 class TaskExecutionDetails:
     """
@@ -304,12 +278,12 @@ class CurationTaskStatus(EnumCoercionMixin):
         etag: Optimistic concurrency control token for the task status.
     """
 
-    _ENUM_FIELDS: ClassVar[dict[str, type]] = {"state": CurationTaskState}
+    _ENUM_FIELDS: ClassVar[dict[str, type]] = {"state": TaskState}
 
     task_id: int | None = None
     """The unique identifier of the associated curation task."""
 
-    state: str | CurationTaskState | None = None
+    state: str | TaskState | None = None
     """The state of a curation task in its lifecycle."""
 
     execution_details: TaskExecutionDetails | None = None
@@ -492,7 +466,7 @@ class CurationTaskSynchronousProtocol(Protocol):
             from synapseclient import Synapse
             from synapseclient.models import (
                 CurationTask,
-                CurationTaskState,
+                TaskState,
                 CurationTaskStatus,
             )
 
@@ -501,7 +475,7 @@ class CurationTaskSynchronousProtocol(Protocol):
 
             task = CurationTask(task_id=123)
             current = task.get_status()
-            current.state = CurationTaskState.COMPLETED
+            current.state = TaskState.COMPLETED
             updated = task.update_status(curation_task_status=current)
             print(updated.state)
             ```
@@ -552,7 +526,7 @@ class CurationTaskSynchronousProtocol(Protocol):
 
     def set_task_state(
         self,
-        state: "CurationTaskState | str",
+        state: "TaskState | str",
         *,
         synapse_client: Synapse | None = None,
     ) -> "CurationTaskStatus":
@@ -564,7 +538,7 @@ class CurationTaskSynchronousProtocol(Protocol):
 
         Arguments:
             state: The state to set on this task's status. Accepts a
-                CurationTaskState or a case-insensitive string matching one of
+                TaskState or a case-insensitive string matching one of
                 its members (e.g. NOT_STARTED, IN_PROGRESS, COMPLETED, CANCELED).
             synapse_client: If not passed in and caching was not disabled by
                 Synapse.allow_client_caching(False) this will use the last created
@@ -575,20 +549,20 @@ class CurationTaskSynchronousProtocol(Protocol):
 
         Raises:
             ValueError: If the CurationTask object does not have a task_id, or
-                if state is a string that does not match a CurationTaskState member.
+                if state is a string that does not match a TaskState member.
 
         Example: Mark a curation task as completed
             &nbsp;
 
             ```python
             from synapseclient import Synapse
-            from synapseclient.models import CurationTask, CurationTaskState
+            from synapseclient.models import CurationTask, TaskState
 
             syn = Synapse()
             syn.login()
 
             CurationTask(task_id=123).set_task_state(
-                state=CurationTaskState.COMPLETED
+                state=TaskState.COMPLETED
             )
             ```
         """
@@ -1452,7 +1426,7 @@ class CurationTask(CurationTaskSynchronousProtocol):
             from synapseclient import Synapse
             from synapseclient.models import (
                 CurationTask,
-                CurationTaskState,
+                TaskState,
                 CurationTaskStatus,
             )
 
@@ -1462,7 +1436,7 @@ class CurationTask(CurationTaskSynchronousProtocol):
             async def main():
                 task = CurationTask(task_id=123)
                 current = await task.get_status_async()
-                current.state = CurationTaskState.COMPLETED
+                current.state = TaskState.COMPLETED
                 updated = await task.update_status_async(curation_task_status=current)
                 print(updated.state)
 
@@ -1544,7 +1518,7 @@ class CurationTask(CurationTaskSynchronousProtocol):
     )
     async def set_task_state_async(
         self,
-        state: "CurationTaskState | str",
+        state: "TaskState | str",
         *,
         synapse_client: Synapse | None = None,
     ) -> "CurationTaskStatus":
@@ -1556,7 +1530,7 @@ class CurationTask(CurationTaskSynchronousProtocol):
 
         Arguments:
             state: The state to set on this task's status. Accepts a
-                CurationTaskState or a case-insensitive string matching one of
+                TaskState or a case-insensitive string matching one of
                 its members (e.g. NOT_STARTED, IN_PROGRESS, COMPLETED, CANCELED).
             synapse_client: If not passed in and caching was not disabled by
                 Synapse.allow_client_caching(False) this will use the last created
@@ -1567,7 +1541,7 @@ class CurationTask(CurationTaskSynchronousProtocol):
 
         Raises:
             ValueError: If the CurationTask object does not have a task_id, or
-                if state is a string that does not match a CurationTaskState member.
+                if state is a string that does not match a TaskState member.
 
         Example: Mark a curation task as completed asynchronously
             &nbsp;
@@ -1575,14 +1549,14 @@ class CurationTask(CurationTaskSynchronousProtocol):
             ```python
             import asyncio
             from synapseclient import Synapse
-            from synapseclient.models import CurationTask, CurationTaskState
+            from synapseclient.models import CurationTask, TaskState
 
             syn = Synapse()
             syn.login()
 
             async def main():
                 await CurationTask(task_id=123).set_task_state_async(
-                    state=CurationTaskState.COMPLETED
+                    state=TaskState.COMPLETED
                 )
 
             asyncio.run(main())
@@ -1590,11 +1564,11 @@ class CurationTask(CurationTaskSynchronousProtocol):
         """
         normalized = state.upper() if isinstance(state, str) else state
         try:
-            coerced_state = CurationTaskState(normalized)
+            coerced_state = TaskState(normalized)
         except ValueError as exc:
             raise ValueError(
-                f"{state!r} is not a valid CurationTaskState. "
-                f"Expected one of: {[s.value for s in CurationTaskState]}."
+                f"{state!r} is not a valid TaskState. "
+                f"Expected one of: {[s.value for s in TaskState]}."
             ) from exc
 
         status = await self.get_status_async(synapse_client=synapse_client)

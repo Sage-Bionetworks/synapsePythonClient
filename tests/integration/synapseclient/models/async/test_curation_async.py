@@ -13,7 +13,6 @@ from synapseclient.core.exceptions import SynapseHTTPError
 from synapseclient.core.utils import make_bogus_uuid_file
 from synapseclient.models import (
     CurationTask,
-    CurationTaskState,
     CurationTaskStatus,
     EntityView,
     FileBasedMetadataTaskProperties,
@@ -687,13 +686,13 @@ class TestCurationTaskStatusAsync:
         # THEN it should be parsed into a CurationTaskStatus tied to this task
         assert isinstance(initial_status, CurationTaskStatus)
         assert initial_status.task_id == stored_task.task_id
-        assert initial_status.state == CurationTaskState.NOT_STARTED
+        assert initial_status.state == TaskState.NOT_STARTED
         # AND it should not yet reference an active grid session
         assert initial_status.execution_details is None
 
         # AND WHEN I modify the state to IN_PROGRESS, attach a GridExecutionDetails
         # pointing to the active grid session, and store the status
-        initial_status.state = CurationTaskState.IN_PROGRESS
+        initial_status.state = TaskState.IN_PROGRESS
         initial_status.execution_details = GridExecutionDetails(
             active_session_id=grid.session_id
         )
@@ -704,7 +703,7 @@ class TestCurationTaskStatusAsync:
         # THEN the update response should reflect the new state and execution details
         assert isinstance(updated_status, CurationTaskStatus)
         assert updated_status.task_id == stored_task.task_id
-        assert updated_status.state == CurationTaskState.IN_PROGRESS
+        assert updated_status.state == TaskState.IN_PROGRESS
         assert isinstance(updated_status.execution_details, GridExecutionDetails)
         assert updated_status.execution_details.active_session_id == grid.session_id
 
@@ -713,7 +712,7 @@ class TestCurationTaskStatusAsync:
 
         # THEN the modification should have persisted on the server
         assert refetched_status.task_id == stored_task.task_id
-        assert refetched_status.state == CurationTaskState.IN_PROGRESS
+        assert refetched_status.state == TaskState.IN_PROGRESS
         assert isinstance(refetched_status.execution_details, GridExecutionDetails)
         assert refetched_status.execution_details.active_session_id == grid.session_id
 
@@ -916,18 +915,18 @@ class TestCurationTaskSetTaskStateAsync:
 
         # AND the task's status starts at NOT_STARTED
         initial_status = await stored_task.get_status_async(synapse_client=syn)
-        assert initial_status.state == CurationTaskState.NOT_STARTED
+        assert initial_status.state == TaskState.NOT_STARTED
 
         # WHEN I transition the state to IN_PROGRESS
         updated_status = await stored_task.set_task_state_async(
-            state=CurationTaskState.IN_PROGRESS, synapse_client=syn
+            state=TaskState.IN_PROGRESS, synapse_client=syn
         )
 
         # THEN the returned status reflects the new state
         assert isinstance(updated_status, CurationTaskStatus)
         assert updated_status.task_id == stored_task.task_id
-        assert updated_status.state == CurationTaskState.IN_PROGRESS
+        assert updated_status.state == TaskState.IN_PROGRESS
 
         # AND the change persists on the server
         refetched_status = await stored_task.get_status_async(synapse_client=syn)
-        assert refetched_status.state == CurationTaskState.IN_PROGRESS
+        assert refetched_status.state == TaskState.IN_PROGRESS
