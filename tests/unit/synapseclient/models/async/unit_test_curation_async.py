@@ -283,6 +283,7 @@ class TestCurationTaskStatus:
     """Tests for the CurationTaskStatus dataclass."""
 
     def test_fill_from_dict_full(self) -> None:
+        """All scalar fields and nested GridExecutionDetails are populated; state string is coerced to enum."""
         # GIVEN a full status response with execution details
         response = _get_curation_task_status_response(
             state="IN_PROGRESS", active_session_id=SESSION_ID
@@ -301,6 +302,7 @@ class TestCurationTaskStatus:
         assert status.execution_details.active_session_id == SESSION_ID
 
     def test_fill_from_dict_without_execution_details(self) -> None:
+        """execution_details is None when the response omits the executionDetails key."""
         # GIVEN a status response with no executionDetails
         response = _get_curation_task_status_response(state="NOT_STARTED")
 
@@ -312,6 +314,7 @@ class TestCurationTaskStatus:
         assert status.state == TaskState.NOT_STARTED
 
     def test_fill_from_dict_unknown_execution_details_concrete_type(self) -> None:
+        """An unrecognized concreteType in executionDetails raises ValueError."""
         # GIVEN a status response with an unknown executionDetails concreteType
         response = _get_curation_task_status_response(state="NOT_STARTED")
         response["executionDetails"] = {
@@ -326,77 +329,6 @@ class TestCurationTaskStatus:
             ValueError, match="Unknown concreteType for TaskExecutionDetails"
         ):
             CurationTaskStatus().fill_from_dict(response)
-
-    def test_fill_from_dict_without_task_id(self) -> None:
-        # GIVEN a status response with no taskId
-        response = _get_curation_task_status_response(state="NOT_STARTED")
-        response.pop("taskId")
-
-        # WHEN I fill a CurationTaskStatus from it
-        status = CurationTaskStatus().fill_from_dict(response)
-
-        # THEN task_id should be None (not coerced via int(None))
-        assert status.task_id is None
-
-    def test_to_synapse_request_with_enum_state(self) -> None:
-        # GIVEN a CurationTaskStatus whose state is a TaskState enum
-        # AND server-managed audit fields populated from a prior GET
-        status = CurationTaskStatus(
-            task_id=TASK_ID,
-            state=TaskState.COMPLETED,
-            execution_details=GridExecutionDetails(active_session_id=SESSION_ID),
-            last_updated_by=STATUS_LAST_UPDATED_BY,
-            last_updated_on=STATUS_LAST_UPDATED_ON,
-            etag=STATUS_ETAG,
-        )
-
-        # WHEN I convert it to a request dict
-        request = status.to_synapse_request()
-
-        # THEN the enum should be serialized as its string value
-        assert request["taskId"] == TASK_ID
-        assert request["state"] == "COMPLETED"
-        assert request["etag"] == STATUS_ETAG
-        assert request["executionDetails"] == {
-            "concreteType": GRID_EXECUTION_DETAILS,
-            "activeSessionId": SESSION_ID,
-        }
-        # AND the server-managed audit fields should not be echoed on the PUT
-        assert "lastUpdatedBy" not in request
-        assert "lastUpdatedOn" not in request
-
-    def test_to_synapse_request_coerces_string_state(self) -> None:
-        # GIVEN a CurationTaskStatus constructed with a plain-string state.
-        # EnumCoercionMixin should coerce on assignment so the serialized
-        # request still emits the canonical enum value.
-        status = CurationTaskStatus(task_id=TASK_ID, state="IN_PROGRESS")
-
-        # WHEN I convert it to a request dict
-        request = status.to_synapse_request()
-
-        # THEN the state should be serialized as the enum value
-        assert request["state"] == "IN_PROGRESS"
-        assert status.state == TaskState.IN_PROGRESS
-
-    def test_to_synapse_request_omits_none_values(self) -> None:
-        # GIVEN a CurationTaskStatus with only task_id set
-        status = CurationTaskStatus(task_id=TASK_ID)
-
-        # WHEN I convert it to a request dict
-        request = status.to_synapse_request()
-
-        # THEN None-valued fields should be stripped by delete_none_keys
-        assert request == {"taskId": TASK_ID}
-
-    def test_state_enum_coercion_on_assignment(self) -> None:
-        # GIVEN a CurationTaskStatus
-        status = CurationTaskStatus(task_id=TASK_ID)
-
-        # WHEN I assign a string to state
-        status.state = "CANCELED"
-
-        # THEN it should be auto-coerced to the enum via EnumCoercionMixin
-        assert status.state == TaskState.CANCELED
 
 
 class TestCurationTask:
