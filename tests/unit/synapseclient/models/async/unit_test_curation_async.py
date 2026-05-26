@@ -1227,6 +1227,7 @@ class TestGrid:
         assert grid.last_replica_id_service == -5
         assert grid.grid_json_schema_id == "my-schema-id"
         assert grid.source_entity_id == SOURCE_ENTITY_ID
+        assert grid.owner_principal_id == OWNER_PRINCIPAL_ID
 
     async def test_create_async_with_record_set_id(self) -> None:
         # GIVEN a Grid with a record_set_id
