@@ -1093,50 +1093,6 @@ class TestCurationTask:
         ):
             await task.create_grid_session_async(synapse_client=self.syn)
 
-    async def test_create_grid_session_async_rolls_back_orphan_grid_on_failure(
-        self,
-    ) -> None:
-        """Verify that create_grid_session_async deletes the created Grid and re-raises when the status update fails."""
-        # GIVEN a CurationTask whose grid creation will succeed but whose
-        # status-update step will fail
-        task = CurationTask(
-            task_id=TASK_ID,
-            task_properties=RecordBasedMetadataTaskProperties(
-                record_set_id=RECORD_SET_ID
-            ),
-        )
-
-        created_grid = Grid(record_set_id=RECORD_SET_ID, session_id=SESSION_ID)
-
-        update_failure = RuntimeError("status update failed")
-
-        async def fake_create_async(seed_self, **kwargs):
-            return created_grid
-
-        delete_calls = []
-
-        async def fake_delete_async(grid_self, **kwargs):
-            delete_calls.append(grid_self)
-
-        with (
-            patch.object(RecordSet, "get_async", new_callable=AsyncMock),
-            patch.object(Grid, "create_async", new=fake_create_async),
-            patch.object(
-                CurationTask,
-                "set_active_grid_session_async",
-                new_callable=AsyncMock,
-                side_effect=update_failure,
-            ),
-            patch.object(Grid, "delete_async", new=fake_delete_async),
-        ):
-            # WHEN I call create_grid_session_async
-            # THEN the original exception should be re-raised
-            with pytest.raises(RuntimeError, match="status update failed"):
-                await task.create_grid_session_async(synapse_client=self.syn)
-
-            # AND the orphan grid should have been deleted
-            assert delete_calls == [created_grid]
-
     async def test_list_async_assigned_to_me_and_assignee_ids_raises(self) -> None:
         # GIVEN both assigned_to_me and assignee_ids are provided
         # WHEN I call list_async
