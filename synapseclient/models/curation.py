@@ -7,6 +7,7 @@ data or metadata in Synapse.
 
 import asyncio
 import os
+from abc import ABC, abstractmethod
 from copy import deepcopy
 from dataclasses import dataclass, field, replace
 from datetime import datetime, timezone
@@ -208,15 +209,39 @@ def _create_task_properties_from_dict(
 
 
 @dataclass
-class TaskExecutionDetails:
+class TaskExecutionDetails(ABC):
     """
     Base class for task-specific execution details attached to a CurationTaskStatus.
 
-    Represents a [Synapse TaskExecutionDetails](https://rest-docs.synapse.org/rest/org/sagebionetworks/repo/model/curation/TaskExecutionDetails.html).
+    <https://rest-docs.synapse.org/rest/org/sagebionetworks/repo/model/curation/TaskExecutionDetails.html>
 
     The concrete subclass is determined by the concreteType field in the REST response.
-    Currently the only known subclass is GridExecutionDetails.
     """
+
+    @abstractmethod
+    def fill_from_dict(
+        self, synapse_response: dict[str, Any]
+    ) -> "TaskExecutionDetails":
+        """
+        Converts a response from the REST API into this dataclass.
+
+        Arguments:
+            synapse_response: The response from the REST API.
+
+        Returns:
+            The TaskExecutionDetails object.
+        """
+        ...
+
+    @abstractmethod
+    def to_synapse_request(self) -> dict[str, Any]:
+        """
+        Converts this dataclass to a dictionary suitable for a Synapse REST API request.
+
+        Returns:
+            A dictionary representation of this object for API requests.
+        """
+        ...
 
 
 @dataclass
@@ -224,7 +249,7 @@ class GridExecutionDetails(TaskExecutionDetails):
     """
     Execution details for a metadata curation task involving a collaborative grid session.
 
-    Represents a [Synapse GridExecutionDetails](https://rest-docs.synapse.org/rest/org/sagebionetworks/repo/model/curation/execution/GridExecutionDetails.html).
+    <https://rest-docs.synapse.org/rest/org/sagebionetworks/repo/model/curation/execution/GridExecutionDetails.html>
 
     Attributes:
         active_session_id: The unique identifier of the active CRDT grid session linked to this task.
@@ -261,12 +286,17 @@ class GridExecutionDetails(TaskExecutionDetails):
         return request_dict
 
 
+TASK_EXECUTION_DETAILS_DICT: dict[str, type[TaskExecutionDetails]] = {
+    GRID_EXECUTION_DETAILS: GridExecutionDetails,
+}
+
+
 @dataclass
 class CurationTaskStatus(EnumCoercionMixin):
     """
     The status of a CurationTask in its lifecycle.
 
-    Represents a [Synapse TaskStatus](https://rest-docs.synapse.org/rest/org/sagebionetworks/repo/model/curation/TaskStatus.html).
+    <https://rest-docs.synapse.org/rest/org/sagebionetworks/repo/model/curation/TaskStatus.html>
 
     Attributes:
         task_id: The unique identifier of the associated curation task.
@@ -316,16 +346,19 @@ class CurationTaskStatus(EnumCoercionMixin):
         self.last_updated_on = synapse_response.get("lastUpdatedOn", None)
         self.etag = synapse_response.get("etag", None)
 
-        details_dict = synapse_response.get("executionDetails", None)
+        details_dict: dict[str, Any] | None = synapse_response.get(
+            "executionDetails", None
+        )
         if details_dict is None:
             self.execution_details = None
-        elif details_dict.get("concreteType", "") == GRID_EXECUTION_DETAILS:
-            self.execution_details = GridExecutionDetails().fill_from_dict(details_dict)
         else:
-            raise ValueError(
-                "Unknown concreteType for TaskExecutionDetails: "
-                f"{details_dict.get('concreteType', '')}"
-            )
+            concrete_type = details_dict.get("concreteType", "")
+            cls = TASK_EXECUTION_DETAILS_DICT.get(concrete_type)
+            if cls is None:
+                raise ValueError(
+                    f"Unknown concreteType for TaskExecutionDetails: {concrete_type}"
+                )
+            self.execution_details = cls().fill_from_dict(details_dict)
         return self
 
     def to_synapse_request(self) -> dict[str, Any]:
