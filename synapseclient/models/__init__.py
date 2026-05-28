@@ -28,6 +28,29 @@ from synapseclient.models.project import Project
 from synapseclient.models.project_setting import ProjectSetting
 from synapseclient.models.recordset import RecordSet
 from synapseclient.models.schema_organization import JSONSchema, SchemaOrganization
+from synapseclient.models.search_index import SearchIndex
+from synapseclient.models.search_management import (
+    ColumnAnalyzerOverride,
+    ColumnAnalyzerOverrideEntry,
+    FacetRequest,
+    FacetSortField,
+    KeyRange,
+    KeyValues,
+    SearchConfigBinding,
+    SearchConfiguration,
+    SearchFieldValue,
+    SearchHit,
+    SearchIndexQuery,
+    SearchIndexState,
+    SearchIndexStatus,
+    SearchQuery,
+    SearchQueryPart,
+    SearchQueryType,
+    SortDirection,
+    SortField,
+    SynonymSet,
+    TextAnalyzer,
+)
 from synapseclient.models.services import FailureStrategy
 from synapseclient.models.storage_location import (
     StorageLocation,
@@ -169,6 +192,28 @@ __all__ = [
     "UploadType",
     # Project Setting models
     "ProjectSetting",
+    # SearchIndex / Search Management models
+    "SearchIndex",
+    "SearchIndexQuery",
+    "SearchIndexStatus",
+    "SearchIndexState",
+    "SearchQuery",
+    "SearchQueryPart",
+    "SearchQueryType",
+    "SearchHit",
+    "SearchFieldValue",
+    "KeyValues",
+    "KeyRange",
+    "FacetRequest",
+    "FacetSortField",
+    "SortField",
+    "SortDirection",
+    "SearchConfiguration",
+    "SearchConfigBinding",
+    "TextAnalyzer",
+    "ColumnAnalyzerOverride",
+    "ColumnAnalyzerOverrideEntry",
+    "SynonymSet",
 ]
 
 # Static methods to expose as functions

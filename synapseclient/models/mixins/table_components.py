@@ -85,7 +85,7 @@ CLASSES_THAT_CONTAIN_ROW_ETAG = [
     "DatasetCollection",
     "SubmissionView",
 ]
-CLASSES_WITH_READ_ONLY_SCHEMA = ["MaterializedView", "VirtualTable"]
+CLASSES_WITH_READ_ONLY_SCHEMA = ["MaterializedView", "VirtualTable", "SearchIndex"]
 
 PANDAS_TABLE_TYPE = {
     "floating": "DOUBLE",

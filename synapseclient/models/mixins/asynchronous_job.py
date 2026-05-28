@@ -21,6 +21,7 @@ from synapseclient.core.constants.concrete_types import (
     GRID_RECORD_SET_EXPORT_REQUEST,
     QUERY_BUNDLE_REQUEST,
     QUERY_TABLE_CSV_REQUEST,
+    SEARCH_INDEX_QUERY,
     SYNCHRONIZE_GRID_REQUEST,
     TABLE_UPDATE_TRANSACTION_REQUEST,
     UPLOAD_TO_TABLE_PREVIEW_REQUEST,
@@ -45,6 +46,7 @@ ASYNC_JOB_URIS = {
     QUERY_BUNDLE_REQUEST: "/entity/{entityId}/table/query/async",
     GRID_CSV_IMPORT_REQUEST: "/grid/import/csv/async",
     UPLOAD_TO_TABLE_PREVIEW_REQUEST: "/table/upload/csv/preview/async",
+    SEARCH_INDEX_QUERY: "/search/query/async",
 }
 
 
