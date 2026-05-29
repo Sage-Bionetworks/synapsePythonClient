@@ -18,6 +18,7 @@ from synapseclient.core.constants.concrete_types import (
     DOWNLOAD_LIST_MANIFEST_REQUEST,
     GET_VALIDATION_SCHEMA_REQUEST,
     GRID_CSV_IMPORT_REQUEST,
+    GRID_QUERY_JOB_REQUEST,
     GRID_RECORD_SET_EXPORT_REQUEST,
     QUERY_BUNDLE_REQUEST,
     QUERY_TABLE_CSV_REQUEST,
@@ -35,6 +36,7 @@ ASYNC_JOB_URIS = {
     AGENT_CHAT_REQUEST: "/agent/chat/async",
     CREATE_GRID_REQUEST: "/grid/session/async",
     DOWNLOAD_FROM_GRID_REQUEST: "/grid/download/csv/async",
+    GRID_QUERY_JOB_REQUEST: "/grid/session/query/async",
     DOWNLOAD_LIST_MANIFEST_REQUEST: "/download/list/manifest/async",
     GRID_RECORD_SET_EXPORT_REQUEST: "/grid/export/recordset/async",
     SYNCHRONIZE_GRID_REQUEST: "/grid/synchronize/async",
@@ -470,12 +472,14 @@ async def get_job_async(
                     )
                 uri = uri.format(entityId=request["entityId"])
             progress_bar.desc = uri
+            print(f"  [DEBUG] token={job_id}, about to GET poll")
             result = await client.rest_get_async(
                 uri=f"{uri}/get/{job_id}",
                 endpoint=endpoint,
             )
-
+            print(f"  [DEBUG] GET returned: {list(result.keys())}")
             job_status = AsynchronousJobStatus().fill_from_dict(async_job_status=result)
+            print("job status state", job_status.state)
             if job_status.state == AsynchronousJobState.PROCESSING:
                 progress_tracking = any(
                     [

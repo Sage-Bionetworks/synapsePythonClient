@@ -37,6 +37,7 @@ from synapseclient.core.constants.concrete_types import (
     DOWNLOAD_FROM_GRID_REQUEST,
     FILE_BASED_METADATA_TASK_PROPERTIES,
     GRID_CSV_IMPORT_REQUEST,
+    GRID_QUERY_JOB_REQUEST,
     GRID_RECORD_SET_EXPORT_REQUEST,
     LIST_GRID_SESSIONS_REQUEST,
     LIST_GRID_SESSIONS_RESPONSE,
@@ -1579,6 +1580,100 @@ class SynchronizeGridRequest(AsynchronousCommunicator):
             "concreteType": self.concrete_type,
             "gridSessionId": self.grid_session_id,
         }
+
+
+@dataclass
+class GridQueryJobRequest(AsynchronousCommunicator):
+    """
+    Submit a query against a grid session and retrieve per-row validation results.
+
+    Represents a [Synapse GridQueryJobRequest](https://rest-docs.synapse.org/rest/org/sagebionetworks/repo/model/grid/GridQueryJobRequest.html).
+
+    Use `send_job_and_wait_async()` to submit the job and block until the result is ready.
+    After the call, `query_result` is populated with the `queryResult` portion of the
+    [GridQueryJobResponse](https://rest-docs.synapse.org/rest/org/sagebionetworks/repo/model/grid/GridQueryJobResponse.html).
+
+    Attributes:
+        session_id: The grid session ID to query.
+        replica_id: The replica ID for the session (use `last_replica_id_service` from the
+            created Grid session).
+        column_selection: List of column-selection dicts. Each dict must contain a
+            ``concreteType`` key identifying the selection type (e.g. ``SelectAll``,
+            ``SelectByName``, ``CountStar``).
+        filters: Optional list of filter dicts applied to the query rows.
+        limit: Maximum number of rows to return. Defaults to 100.
+        offset: Zero-based row offset for pagination. Defaults to 0.
+        include_validation_messages: When True, each row's ``validationResults`` will
+            include the full list of validation error messages. Defaults to False.
+        concrete_type: The concrete type string for this request.
+        query_result: Populated after `send_job_and_wait_async()` completes. Contains
+            ``selectColumns`` and ``rows`` from the response.
+    """
+
+    session_id: Optional[str] = None
+    """The grid session ID to query."""
+
+    replica_id: Optional[int] = None
+    """The replica ID for the session."""
+
+    column_selection: list = field(default_factory=list)
+    """List of column-selection dicts (each with a ``concreteType`` key)."""
+
+    filters: Optional[list] = None
+    """Optional list of filter dicts."""
+
+    limit: int = 100
+    """Maximum number of rows to return."""
+
+    offset: int = 0
+    """Zero-based row offset for pagination."""
+
+    include_validation_messages: bool = False
+    """Include full validation error messages in each row's ``validationResults``."""
+
+    concrete_type: str = field(default=GRID_QUERY_JOB_REQUEST)
+    """The concrete type string for this request."""
+
+    # Response fields (populated by fill_from_dict after the job completes)
+    query_result: Optional[Dict[str, Any]] = field(default=None, compare=False)
+    """The ``queryResult`` dict from GridQueryJobResponse (populated after job completes)."""
+
+    def fill_from_dict(self, synapse_response: Dict[str, Any]) -> "GridQueryJobRequest":
+        """
+        Converts a response from the REST API into this dataclass.
+
+        Arguments:
+            synapse_response: The response from the REST API.
+
+        Returns:
+            The GridQueryJobRequest object.
+        """
+        self.query_result = synapse_response.get("queryResult", None)
+        return self
+
+    def to_synapse_request(self) -> Dict[str, Any]:
+        """
+        Converts this dataclass to a dictionary suitable for a Synapse REST API request.
+
+        Returns:
+            A dictionary representation of this object for API requests.
+        """
+        query: Dict[str, Any] = {
+            "columnSelection": self.column_selection,
+            "limit": self.limit,
+            "offset": self.offset,
+            "includeValidationMessages": self.include_validation_messages,
+        }
+        if self.filters:
+            query["filters"] = self.filters
+        request_dict: Dict[str, Any] = {
+            "concreteType": self.concrete_type,
+            "sessionId": self.session_id,
+            "replicaId": self.replica_id,
+            "queryRequest": {"query": query},
+        }
+        delete_none_keys(request_dict)
+        return request_dict
 
 
 @dataclass
