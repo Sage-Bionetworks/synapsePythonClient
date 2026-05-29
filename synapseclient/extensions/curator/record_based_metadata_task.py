@@ -159,9 +159,9 @@ def create_record_based_metadata_task(
             upsert_keys=["specimenID"],
             instructions="Please curate this metadata according to the schema requirements",
             schema_uri="schema-org-schema.name.schema-v1.0.0",
-            assignee_principal_id=123456,
+            assignee_principal_id=123456,  # Optional: Assign to a user or team (can be str or int)
             suggested_authorization_mode=AuthorizationMode.SOURCE_BENEFACTOR,
-            create_grid=False,
+            create_grid=False,  # Opt out of deprecated Grid creation
         )
         ```
 

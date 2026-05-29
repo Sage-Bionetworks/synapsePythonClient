@@ -354,8 +354,8 @@ def create_file_based_metadata_task(
             attach_wiki=False,
             entity_view_name="Biospecimen Metadata View",
             schema_uri="sage.schemas.v2571-amp.Biospecimen.schema-0.0.1",
-            assignee_principal_id=123456,
-            view_type_mask=ViewTypeMask.FILE | ViewTypeMask.DOCKER,
+            assignee_principal_id=123456, # Optional: Assign to a user or team (can be str or int)
+            view_type_mask=ViewTypeMask.FILE | ViewTypeMask.DOCKER, # Optional: include additional entity types in the view
             suggested_authorization_mode=AuthorizationMode.SOURCE_BENEFACTOR,
         )
         ```
