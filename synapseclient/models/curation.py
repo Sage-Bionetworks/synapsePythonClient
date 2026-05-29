@@ -1088,7 +1088,8 @@ class CurationTask(CurationTaskSynchronousProtocol):
             raise ValueError(
                 "taskProperties was not found in the Synapse response for this CurationTask. "
                 "This means it is likely an older CurationTask from before taskProperties was added. "
-                "It is recommended that this task be deleted: task.delete(delete_source=False)"
+                "It is recommended that this task be deleted: task.delete(delete_source=False) "
+                "and then recreate the task with the correct taskProperties."
             )
         self.task_properties = _create_task_properties_from_dict(task_properties_dict)
 
@@ -1751,6 +1752,14 @@ class CurationTask(CurationTaskSynchronousProtocol):
             synapse_client=synapse_client,
         )
 
+        # Only one grid session can be set as the active one on a a given CurationTask
+        # at a any time, though multiple sessions can exist.
+        # If two users run this concurrently, one will lose the race and
+        # receive a 412 (precondition failed). In that case — or if recording the
+        # active session fails for any other reason — delete the session we just
+        # created so it doesn't become an orphan. If the delete also fails, log a
+        # warning so the caller knows manual cleanup is needed, then re-raise the
+        # original exception in all cases.
         try:
             await self.set_active_grid_session_async(
                 active_session_id=grid.session_id, synapse_client=synapse_client
