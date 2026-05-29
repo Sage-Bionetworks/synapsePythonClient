@@ -8,6 +8,7 @@ from synapseclient.models.agent import (
 )
 from synapseclient.models.annotations import Annotations
 from synapseclient.models.curation import (
+    AuthorizationMode,
     CurationTask,
     FileBasedMetadataTaskProperties,
     Grid,
@@ -94,6 +95,7 @@ __all__ = [
     "Team",
     "TeamMember",
     "TeamMembershipStatus",
+    "AuthorizationMode",
     "CurationTask",
     "FileBasedMetadataTaskProperties",
     "RecordBasedMetadataTaskProperties",
