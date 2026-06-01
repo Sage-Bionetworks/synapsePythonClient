@@ -3971,6 +3971,75 @@ class TestCsvToPandasDf:
         # THEN assert the dataframe is equal to the expected dataframe
         pd.testing.assert_frame_equal(df, expected_df)
 
+    @pytest.mark.parametrize(
+        "list_column_types",
+        [
+            {"empty_list": "INTEGER_LIST"},
+            {"empty_list": "BOOLEAN_LIST"},
+            {"empty_list": "STRING_LIST"},
+            {"empty_list": "USERID_LIST"},
+            {"empty_list": "ENTITYID_LIST"},
+            None,
+        ],
+        ids=[
+            "INTEGER_LIST",
+            "BOOLEAN_LIST",
+            "STRING_LIST",
+            "USERID_LIST",
+            "ENTITYID_LIST",
+            "no_types",
+        ],
+    )
+    def test_csv_to_pandas_df_all_na_list_column(self, list_column_types):
+        """Reproducer for the bug where querying a table with a list column whose
+        values are all NA in the result set raised
+        TypeError: Invalid value '[]' for dtype 'Int64'.
+
+        pandas' read_csv().convert_dtypes() infers an all-empty column as the
+        nullable Int64 dtype; the previous fillna({col: '[]'}) implementation
+        could not store a string into that column."""
+        # GIVEN a CSV where every row has an empty value for the list column
+        csv_content = "name,empty_list\n" "Alice,\n" "Bob,\n" "Charlie,"
+        csv_file = BytesIO(csv_content.encode("utf-8"))
+
+        # WHEN csv_to_pandas_df is called for that list column
+        df = csv_to_pandas_df(
+            filepath=csv_file,
+            list_columns=["empty_list"],
+            list_column_types=list_column_types,
+        )
+
+        # THEN the all-NA column should become a column of empty lists, and the
+        # other columns should still parse normally
+        assert list(df["name"]) == ["Alice", "Bob", "Charlie"]
+        assert list(df["empty_list"]) == [[], [], []]
+
+    def test_csv_to_pandas_df_mixed_all_na_and_populated_list_columns(self):
+        """When two list columns are present and only one is all-NA, the
+        populated one must still parse correctly."""
+        # GIVEN a CSV with one populated list column and one all-NA list column
+        csv_content = (
+            "name,populated_list,empty_list\n"
+            'Alice,"[1, 2, 3]",\n'
+            'Bob,"[4, 5]",\n'
+            'Charlie,"[6]",'
+        )
+        csv_file = BytesIO(csv_content.encode("utf-8"))
+
+        # WHEN csv_to_pandas_df is called
+        df = csv_to_pandas_df(
+            filepath=csv_file,
+            list_columns=["populated_list", "empty_list"],
+            list_column_types={
+                "populated_list": "INTEGER_LIST",
+                "empty_list": "INTEGER_LIST",
+            },
+        )
+
+        # THEN both columns should have the correct contents
+        assert list(df["populated_list"]) == [[1, 2, 3], [4, 5], [6]]
+        assert list(df["empty_list"]) == [[], [], []]
+
 
 class TestConvertDtypesToJsonSerializable:
     """Tests for convert_dtypes_to_json_serializable function"""
