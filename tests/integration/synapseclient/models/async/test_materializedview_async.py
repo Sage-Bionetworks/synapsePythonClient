@@ -212,14 +212,14 @@ class TestMaterializedViewWithData:
         self.syn = syn
         self.schedule_for_cleanup = schedule_for_cleanup
 
-    @pytest.fixture(scope="class")
+    @pytest.fixture(scope="function")
     async def base_table_with_data(
         self,
         project_model: Project,
         syn: Synapse,
         schedule_for_cleanup: Callable[..., None],
     ) -> Table:
-        """Create a table with data, shared across all tests in this class."""
+        """Create a table with data for use in a single test."""
         table_name = str(uuid.uuid4())
         table = Table(
             name=table_name,
