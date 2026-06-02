@@ -508,7 +508,9 @@ def test_store_is_restricted_flag(
         assert intercepted.called
 
 
-# @skip("Skip integration tests for soon to be removed code")
+@pytest.mark.skip(
+    reason="Skip integration test because it gets stuck, causing CI timeout on Github actions. "
+)
 def test_external_file_handle(syn: Synapse, project: Project) -> None:
     # Tests shouldn't have external dependencies, but this is a pretty picture of Singapore
     singapore_url = "http://upload.wikimedia.org/wikipedia/commons/thumb/3/3e/1_singapore_city_skyline_dusk_panorama_2011.jpg/1280px-1_singapore_city_skyline_dusk_panorama_2011.jpg"  # noqa
