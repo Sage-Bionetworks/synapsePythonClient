@@ -96,7 +96,7 @@ curation_task = CurationTask(task_id=12345).get()
 
 ### Step 3: Create a Grid session for the task
 
-Ask the task to create a new Grid session — it picks the `record_set_id` from the task properties automatically and links the session back to the task. If the task already has an active session linked, calling this replaces the link with the new session.
+Start a new Grid session — it picks the `record_set_id` from the task properties automatically and links the session back to the task. If the task already has an active Grid session linked, calling this replaces the link with the new session.
 
 ```python
 # Use whichever task you found in Step 2, for example:
