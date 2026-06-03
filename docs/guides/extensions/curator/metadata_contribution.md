@@ -38,11 +38,11 @@ syn.login()
 
 Each `CurationTask` carries the information you need. For record-based tasks, `task_properties` will contain a `record_set_id`.
 
-Choose whichever approach fits your situation:
+Choose whichever approach fits your situation. Whichever you pick, the goal is the same: end up with a single `curation_task` object to use in Step 3. `CurationTask.list()` returns fully-populated tasks — each one already carries its `task_properties`, so there is no need to call `.get()` again on a task you got from a list.
 
 #### Option A: List all tasks in the project
 
-Use this when you don't know the task ID yet and want to browse what's available.
+Use this when you don't know the task ID yet and want to browse what's available. List the tasks, inspect them, and pick the one you want.
 
 ```python
 from pprint import pprint
@@ -53,11 +53,14 @@ PROJECT_ID = "syn123456789"  # The Synapse ID of the project to list tasks from
 all_tasks = list(CurationTask.list(project_id=PROJECT_ID))
 for task in all_tasks:
     pprint(task)
+
+# Select the task you want to work on (here, the first one as an example)
+curation_task = all_tasks[0]
 ```
 
 #### Option B: Filter the list by assignee, state, or name
 
-Use this when you want to find tasks assigned to you, tasks in a specific state, or locate a task by name.
+Use this when you want to find tasks assigned to you, tasks in a specific state, or locate a task by name. Each filter still returns a list — pick the one you want from it.
 
 ```python
 from synapseclient.models import CurationTask
@@ -82,6 +85,9 @@ named_tasks = [
     for task in CurationTask.list(project_id=PROJECT_ID)
     if task.name == target_name
 ]
+
+# Select the task you want from whichever list you built above
+curation_task = my_tasks[0]
 ```
 
 #### Option C: Fetch a task directly by ID
@@ -96,17 +102,9 @@ curation_task = CurationTask(task_id=12345).get()
 
 ### Step 3: Create a Grid session for the task
 
-Start a new Grid session — it picks the `record_set_id` from the task properties automatically and links the session back to the task. If the task already has an active Grid session linked, calling this replaces the link with the new session.
+Each option in Step 2 leaves you with a single `curation_task`. Start a new Grid session on it — it picks the `record_set_id` from the task properties automatically and links the session back to the task. If the task already has an active Grid session linked, calling this replaces the link with the new session.
 
 ```python
-# Use whichever task you found in Step 2, for example:
-# curation_task = all_tasks[0]               # from Option A (list all)
-# curation_task = my_tasks[0]               # from Option B (assigned to me)
-# curation_task = team_tasks[0]             # from Option B (assigned to a team)
-# curation_task = in_progress_tasks[0]      # from Option B (by state)
-# curation_task = named_tasks[0]            # from Option B (by name)
-# curation_task = CurationTask(task_id=12345).get()  # from Option C (by ID)
-
 latest_grid = curation_task.create_grid_session()
 ```
 
