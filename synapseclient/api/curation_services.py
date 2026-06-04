@@ -94,6 +94,63 @@ async def update_curation_task(
     )
 
 
+async def get_curation_task_status(
+    task_id: int,
+    *,
+    synapse_client: "Synapse | None" = None,
+) -> dict[str, Any]:
+    """
+    Get the status of a CurationTask by its ID.
+
+    <https://rest-docs.synapse.org/rest/GET/curation/task/taskId/status.html>
+
+    Arguments:
+        task_id: The unique identifier of the task.
+        synapse_client: If not passed in and caching was not disabled by
+            `Synapse.allow_client_caching(False)` this will use the last created
+            instance from the Synapse class constructor.
+
+    Returns:
+        The CurationTaskStatus.
+    """
+    from synapseclient import Synapse
+
+    client = Synapse.get_client(synapse_client=synapse_client)
+
+    return await client.rest_get_async(uri=f"/curation/task/{task_id}/status")
+
+
+async def update_curation_task_status(
+    task_id: int,
+    curation_task_status: dict[str, Any],
+    *,
+    synapse_client: "Synapse | None" = None,
+) -> dict[str, Any]:
+    """
+    Update the status of a CurationTask.
+
+    <https://rest-docs.synapse.org/rest/PUT/curation/task/taskId/status.html>
+
+    Arguments:
+        task_id: The unique identifier of the task.
+        curation_task_status: The complete CurationTaskStatus object to update.
+        synapse_client: If not passed in and caching was not disabled by
+            `Synapse.allow_client_caching(False)` this will use the last created
+            instance from the Synapse class constructor.
+
+    Returns:
+        The updated CurationTaskStatus.
+    """
+    from synapseclient import Synapse
+
+    client = Synapse.get_client(synapse_client=synapse_client)
+
+    return await client.rest_put_async(
+        uri=f"/curation/task/{task_id}/status",
+        body=json.dumps(curation_task_status),
+    )
+
+
 async def delete_curation_task(
     task_id: int,
     *,

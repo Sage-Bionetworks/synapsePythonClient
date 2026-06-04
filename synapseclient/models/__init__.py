@@ -9,9 +9,12 @@ from synapseclient.models.agent import (
 from synapseclient.models.annotations import Annotations
 from synapseclient.models.curation import (
     CurationTask,
+    CurationTaskStatus,
     FileBasedMetadataTaskProperties,
     Grid,
+    GridExecutionDetails,
     RecordBasedMetadataTaskProperties,
+    TaskExecutionDetails,
     TaskState,
 )
 from synapseclient.models.dataset import Dataset, DatasetCollection, EntityRef
@@ -95,10 +98,13 @@ __all__ = [
     "TeamMember",
     "TeamMembershipStatus",
     "CurationTask",
+    "CurationTaskStatus",
     "FileBasedMetadataTaskProperties",
     "RecordBasedMetadataTaskProperties",
     "TaskState",
     "Grid",
+    "GridExecutionDetails",
+    "TaskExecutionDetails",
     "UserProfile",
     "UserPreference",
     "UserGroupHeader",
