@@ -270,7 +270,7 @@ class GridExecutionDetails(TaskExecutionDetails):
         Returns:
             The GridExecutionDetails object.
         """
-        self.active_session_id = synapse_response.get("activeSessionId", None)
+        self.active_session_id = synapse_response.get("activeSessionId")
         return self
 
     def to_synapse_request(self) -> dict[str, Any]:
@@ -339,16 +339,14 @@ class CurationTaskStatus(EnumCoercionMixin):
         Returns:
             The CurationTaskStatus object.
         """
-        task_id_value = synapse_response.get("taskId", None)
+        task_id_value = synapse_response.get("taskId")
         self.task_id = int(task_id_value) if task_id_value is not None else None
-        self.state = synapse_response.get("state", None)
-        self.last_updated_by = synapse_response.get("lastUpdatedBy", None)
-        self.last_updated_on = synapse_response.get("lastUpdatedOn", None)
-        self.etag = synapse_response.get("etag", None)
+        self.state = synapse_response.get("state")
+        self.last_updated_by = synapse_response.get("lastUpdatedBy")
+        self.last_updated_on = synapse_response.get("lastUpdatedOn")
+        self.etag = synapse_response.get("etag")
 
-        details_dict: dict[str, Any] | None = synapse_response.get(
-            "executionDetails", None
-        )
+        details_dict: dict[str, Any] | None = synapse_response.get("executionDetails")
         if details_dict is None:
             self.execution_details = None
         else:
@@ -2038,7 +2036,7 @@ class CreateGridRequest(AsynchronousCommunicator):
         grid_session.last_replica_id_service = data.get("lastReplicaIdService", None)
         grid_session.grid_json_schema_id = data.get("gridJsonSchema$Id", None)
         grid_session.source_entity_id = data.get("sourceEntityId", None)
-        grid_session.owner_principal_id = data.get("ownerPrincipalId", None)
+        grid_session.owner_principal_id = data.get("ownerPrincipalId")
 
         return grid_session
 
@@ -3223,7 +3221,7 @@ class Grid(GridSynchronousProtocol):
         )
         self.grid_json_schema_id = synapse_response.get("gridJsonSchema$Id", None)
         self.source_entity_id = synapse_response.get("sourceEntityId", None)
-        self.owner_principal_id = synapse_response.get("ownerPrincipalId", None)
+        self.owner_principal_id = synapse_response.get("ownerPrincipalId")
         return self
 
     @skip_async_to_sync
