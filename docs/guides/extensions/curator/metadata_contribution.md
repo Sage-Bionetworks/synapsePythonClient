@@ -140,7 +140,7 @@ df.to_csv(edited_path, index=False)
 
 ### Step 5: Import edited record-based metadata to Synapse
 
-`import_csv` upserts rows into the grid based on the `upsert_keys` the administrator configured on the curation task. Existing rows matching on those keys are updated; new rows are inserted.
+`import_csv` upserts rows into the grid based on the `upsert_keys` the administrator configured when setting up the `RecordSet`. Existing rows matching on those keys are updated; new rows are inserted.
 
 ```python
 latest_grid = latest_grid.import_csv(path=edited_path)
