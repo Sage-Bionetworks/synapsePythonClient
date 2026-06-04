@@ -498,7 +498,6 @@ class CurationTaskSynchronousProtocol(Protocol):
             from synapseclient.models import (
                 CurationTask,
                 TaskState,
-                CurationTaskStatus,
             )
 
             syn = Synapse()
@@ -1467,7 +1466,6 @@ class CurationTask(CurationTaskSynchronousProtocol):
             from synapseclient.models import (
                 CurationTask,
                 TaskState,
-                CurationTaskStatus,
             )
 
             syn = Synapse()
