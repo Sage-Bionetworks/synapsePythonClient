@@ -200,6 +200,7 @@ def convert_dtypes_to_json_serializable(df) -> "DATA_FRAME_TYPE":
         df = convert_dtypes_to_json_serializable(df)
         print(df)
     """
+    test_import_pandas()
     import pandas as pd
 
     def _serialize_json_value(x):
