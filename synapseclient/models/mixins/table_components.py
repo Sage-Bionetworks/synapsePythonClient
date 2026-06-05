@@ -13,7 +13,6 @@ from datetime import datetime
 from io import BytesIO
 from typing import Any, Dict, List, Optional, Protocol, Tuple, Union
 
-import pandas as pd
 from tqdm import tqdm
 from tqdm.contrib.logging import logging_redirect_tqdm
 from typing_extensions import Self
@@ -139,7 +138,7 @@ def row_labels_from_rows(rows: List[Row]) -> List[Row]:
     )
 
 
-def convert_dtypes_to_json_serializable(df) -> pd.DataFrame:
+def convert_dtypes_to_json_serializable(df) -> "DATA_FRAME_TYPE":
     """
     Prepare a DataFrame for JSON/CSV serialization by cleaning special values
     and normalizing dtypes. Mutates the passed-in DataFrame in place (and also
@@ -201,6 +200,7 @@ def convert_dtypes_to_json_serializable(df) -> pd.DataFrame:
         df = convert_dtypes_to_json_serializable(df)
         print(df)
     """
+    import pandas as pd
 
     def _serialize_json_value(x):
         if isinstance(x, (list, dict)):
