@@ -102,6 +102,11 @@ synapseutils/          # Legacy bulk utilities (copy, sync, migrate, walk) — s
 
 Data flow: User → `operations/` factory → model async methods → `api/` service functions → `client.py` REST calls → Synapse API. Responses deserialized via `fill_from_dict()` on model instances.
 
+### Optional dependency imports
+pandas, boto3, pysftp, and other optional extras must never be imported at the top level of any module. Always import them lazily inside the functions/methods that need them. A top-level import of an optional dependency will crash the CLI and any code path that imports the module — even for unrelated operations like `synapse --version`.
+
+For type annotations referencing pandas types, use `DATA_FRAME_TYPE` and `SERIES_TYPE` from `core/typing_utils.py` rather than `pd.DataFrame` or `pd.Series`. These aliases resolve correctly at type-check time without requiring pandas at runtime.
+
 ## Constraints
 
 - Do not use Pydantic for models — the codebase uses stdlib dataclasses with custom serialization. Mixing would break the `@async_to_sync` decorator and `fill_from_dict()` pattern.
