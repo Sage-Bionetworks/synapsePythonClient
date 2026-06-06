@@ -479,7 +479,7 @@ def test_store_activity(
 
     # Store another Entity with the same Activity
     entity = File(
-        "http://en.wikipedia.org/wiki/File:Nettlebed_cave.jpg",
+        "https://www.synapse.org/Portal/clear.cache.gif",
         name="Nettlebed Cave" + str(uuid.uuid4()),
         parent=project,
         synapseStore=False,
@@ -510,8 +510,8 @@ def test_store_is_restricted_flag(
 
 # @skip("Skip integration tests for soon to be removed code")
 def test_external_file_handle(syn: Synapse, project: Project) -> None:
-    # Tests shouldn't have external dependencies, but this is a pretty picture of Singapore
-    singapore_url = "http://upload.wikimedia.org/wikipedia/commons/thumb/3/3e/1_singapore_city_skyline_dusk_panorama_2011.jpg/1280px-1_singapore_city_skyline_dusk_panorama_2011.jpg"  # noqa
+    # Use a stable Sage-hosted asset to avoid external rate limiting (e.g. 429s)
+    singapore_url = "https://www.synapse.org/Portal/clear.cache.gif"
     singapore = File(singapore_url, parent=project, synapseStore=False)
     singapore = syn.store(singapore)
 
@@ -535,10 +535,8 @@ def test_external_file_handle(syn: Synapse, project: Project) -> None:
     assert singapore.externalURL == singapore_url
     assert os.path.exists(singapore.path)
 
-    # Update external URL
-    singapore_2_url = (
-        "https://upload.wikimedia.org/wikipedia/commons/a/a2/Singapore_Panorama_v2.jpg"
-    )
+    # Update external URL (metadata only, not downloaded)
+    singapore_2_url = "https://www.synapse.org/Portal/clear.cache.gif?v=2"
     singapore.externalURL = singapore_2_url
     singapore = syn.store(singapore)
     s2 = syn.get(singapore, downloadFile=False)
