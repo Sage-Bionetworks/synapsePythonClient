@@ -115,7 +115,7 @@ entity_view_id, task_id = create_file_based_metadata_task(
     attach_wiki=False,                 # Creates a wiki in the folder with the entity view (Defaults to False)
     entity_view_name="Animal Study Files View",
     schema_uri=schema_uri,             # Schema found in Step 2
-    assignee_principal_id=123456     # Optional: Assign to a user or team
+    assignee_principal_id=123456,    # Optional: Assign to a user or team
     view_type_mask=ViewTypeMask.FILE   # Optional: include additional entity types in the view (ViewTypeMask.FILE | ViewTypeMask.DOCKER). (Defaults to ViewTypeMask.FILE)
 )
 
@@ -184,7 +184,7 @@ entity_view_id, task_id = create_file_based_metadata_task(
     attach_wiki=True,
     entity_view_name="Animal Study Files View",
     schema_uri=schema_uri,
-    assignee_principal_id=123456  # Optional: Assign to a user or team
+    assignee_principal_id=123456,  # Optional: Assign to a user or team
     view_type_mask=ViewTypeMask.FILE   # Optional: include additional entity types in the view (ViewTypeMask.FILE | ViewTypeMask.DOCKER). (Defaults to ViewTypeMask.FILE)
 )
 

@@ -126,7 +126,7 @@ import numpy as np
 df = pd.read_csv(csv_path)
 print(df)
 
-# Smoke-test stand-in: fills 4 rows with random integers regardless of column type.
+# Example only: fills 4 rows with random integers regardless of column type.
 # Replace this with real edits that match your task's schema before importing —
 # schema validation runs in Step 6 and will reject values that don't fit.
 df = pd.DataFrame(
