@@ -13,11 +13,10 @@ breaking changes will not be included until v5.0.
 
 ## Highlights
 
-- New object-oriented `DownloadList` model and `sync_to_synapse` / `sync_from_synapse` workflows with manifest generation, modernizing bulk upload/download.
-- Curator extensions gain Grid synchronization: CSV import/export to Grid sessions, Grid-to-CurationTask linking, and configurable view types for metadata tasks.
-- Storage locations and migration are now supported in the new OOP models.
-- Several bug fixes for table queries, RecordSet versioning, async messaging, and special-character handling in row stores.
-- Extensive documentation refresh: new tutorials, migrated reference style, and improved configuration docs.
+- `sync_to_synapse` / `sync_from_synapse` to enable bulk upload/download operations on OOP `Project` and `Folder` models.
+- Enabling programmatic Grid collaboration through CSV import/export to Grid sessions, and Grid session to CurationTask linking for Curator.
+- Object-oriented `DownloadList`, storage locations and migration are now supported.
+- Bug fixes for table queries, Recordset versioning, async messaging, and special-character handling in row stores.
 
 ## Features
 
