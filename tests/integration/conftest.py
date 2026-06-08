@@ -192,9 +192,6 @@ async def _cleanup(syn: Synapse, items):
                 Team,
                 SubmissionView,
                 WikiPage,
-                WikiHistorySnapshot,
-                WikiHeader,
-                WikiOrderHint,
             ),
         ):
             try:
