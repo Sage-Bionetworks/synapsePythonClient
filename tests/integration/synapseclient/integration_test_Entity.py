@@ -508,9 +508,7 @@ def test_store_is_restricted_flag(
         assert intercepted.called
 
 
-@pytest.mark.skip(
-    reason="Skip integration test because it gets stuck, causing CI timeout on Github actions. "
-)
+# @skip("Skip integration tests for soon to be removed code")
 def test_external_file_handle(syn: Synapse, project: Project) -> None:
     # Use a stable Sage-hosted asset to avoid external rate limiting (e.g. 429s)
     singapore_url = "https://www.synapse.org/Portal/clear.cache.gif"
