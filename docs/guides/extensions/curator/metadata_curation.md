@@ -1,24 +1,24 @@
-# How to Create Metadata Curation Workflows
+# How to Set Up Metadata Curation Workflows
 
-This guide shows you how to set up a metadata curation workflow in Synapse using the curator extension. You'll learn to find appropriate schemas, create curation tasks for your research data.
+This guide is for **curation administrators** — the person responsible for designing a curation workflow: choosing a JSON schema, deciding whether metadata is record-based or file-based, creating the `CurationTask`, and reviewing the validation results contributors submit.
+
+If you're a data contributor opening a task an administrator has already created, see [How to Enter and Update Metadata for a Curation Task](metadata_contribution.md) instead.
 
 ## What you'll accomplish
 
 By following this guide, you will:
 
 - Find and select the right JSON schema for your data type
-- Create a metadata curation workflow with automatic validation
-- Set up either file-based or record-based metadata collection
-- Configure curation tasks that guide collaborators through metadata entry
-- Retrieve and analyze detailed validation results to identify data quality issues
+- Create a record-based or file-based metadata curation workflow
+- Configure curation tasks that guide contributors through metadata entry
 
 ## Prerequisites
 
 - A Synapse account with project creation permissions
-- Python environment with synapseclient and the `curator` extension installed (ie. `pip install --upgrade "synapseclient[curator]"`)
+- Python environment with synapseclient and the `curator` extension installed (`pip install --upgrade "synapseclient[curator]"`)
 - An existing Synapse project and folder where you want to manage metadata
 - A JSON Schema registered in Synapse (many schemas are already available for Sage-affiliated projects, or you can register your own by following the [JSON Schema tutorial](../../../tutorials/python/json_schema.md))
-    - If you are leveraging the [Curator CSV data model](../../../explanations/curator_data_model.md), you can create JSON schemas by following this [tutorial](../../extensions/curator/schema_operations.md)
+  - If you are using the [Curator CSV data model](../../../explanations/curator_data_model.md), you can create JSON schemas by following this [guide](schema_operations.md)
 - (Optional) An existing Synapse team if you want multiple users to collaborate on the same Grid session. Pass the team's ID as `assignee_principal_id` when creating the curation task.
 
 ## Step 1: Authenticate and import required functions
@@ -33,6 +33,8 @@ from synapseclient.models import (
     ViewTypeMask,
 )
 from synapseclient import Synapse
+from synapseclient.models import Grid
+from synapseclient.models.table_components import Query
 
 syn = Synapse()
 syn.login()
@@ -58,6 +60,7 @@ print("Latest schema URI:", schema_uri)
 **When to use this approach:** You know your DCC and data type, you want the most current schema version, and it has already been registered into <https://www.synapse.org/Synapse:syn69735275/tables/>.
 
 **Alternative - browse available schemas:**
+
 ```python
 # Get all versions to see what's available
 all_schemas = query_schema_registry(
@@ -72,10 +75,10 @@ all_schemas = query_schema_registry(
 
 ### Option A: Record-based metadata
 
-Use this when metadata describes individual data files and is stored as annotations directly on each file.
+Use this when metadata is normalized in structured records to eliminate duplication and ensure consistency.
 
 ```python
-record_set, curation_task, data_grid = create_record_based_metadata_task(
+record_set, curation_task = create_record_based_metadata_task(
     synapse_client=syn,
     folder_id="syn987654321",          # Folder where RecordSet Entity will be stored
     record_set_name="AnimalMetadata_Records",
@@ -85,7 +88,8 @@ record_set, curation_task, data_grid = create_record_based_metadata_task(
     instructions="Complete all required fields according to the schema. Use StudyKey to link records to your data files.",
     schema_uri=schema_uri,             # Schema found in Step 2
     bind_schema_to_record_set=True,
-    assignee_principal_id="123456"     # Optional: Assign to a user or team
+    create_grid=False,
+    assignee_principal_id=123456     # Optional: Assign to a user or team
 )
 
 print(f"Created RecordSet: {record_set.id}")
@@ -97,11 +101,10 @@ print(f"Created CurationTask: {curation_task.task_id}")
 - A RecordSet where metadata is stored as structured records (like a spreadsheet)
 - A CurationTask that guides users through completing the metadata
 - Automatic schema binding for validation
-- A data grid interface for easy metadata entry
 
 ### Option B: File-based metadata (for unique per-file metadata)
 
-Use this when metadata is normalized in structured records to eliminate duplication and ensure consistency.
+Use this when metadata describes individual data files and is stored as annotations directly on each file.
 
 ```python
 entity_view_id, task_id = create_file_based_metadata_task(
@@ -112,12 +115,13 @@ entity_view_id, task_id = create_file_based_metadata_task(
     attach_wiki=False,                 # Creates a wiki in the folder with the entity view (Defaults to False)
     entity_view_name="Animal Study Files View",
     schema_uri=schema_uri,             # Schema found in Step 2
-    assignee_principal_id="123456",    # Optional: Assign to a user or team
+    assignee_principal_id=123456     # Optional: Assign to a user or team
     view_type_mask=ViewTypeMask.FILE   # Optional: include additional entity types in the view (ViewTypeMask.FILE | ViewTypeMask.DOCKER). (Defaults to ViewTypeMask.FILE)
 )
 
 print(f"Created EntityView: {entity_view_id}")
 print(f"Created CurationTask: {task_id}")
+
 ```
 
 **What this creates:**
@@ -153,7 +157,7 @@ schema_uri = query_schema_registry(
 print("Using schema:", schema_uri)
 
 # Step 3A: Create record-based workflow
-record_set, curation_task, data_grid = create_record_based_metadata_task(
+record_set, curation_task = create_record_based_metadata_task(
     synapse_client=syn,
     folder_id="syn987654321",
     record_set_name="AnimalMetadata_Records",
@@ -163,10 +167,11 @@ record_set, curation_task, data_grid = create_record_based_metadata_task(
     instructions="Complete metadata for all study animals using StudyKey to link records to data files.",
     schema_uri=schema_uri,
     bind_schema_to_record_set=True,
-    assignee_principal_id="123456"  # Optional: Assign to a user or team
+    create_grid=False,
+    assignee_principal_id=123456  # Optional: Assign to a user or team
 )
 
-print(f"Record-based workflow created:")
+print("Record-based workflow created:")
 print(f"  RecordSet: {record_set.id}")
 print(f"  CurationTask: {curation_task.task_id}")
 
@@ -179,11 +184,11 @@ entity_view_id, task_id = create_file_based_metadata_task(
     attach_wiki=True,
     entity_view_name="Animal Study Files View",
     schema_uri=schema_uri,
-    assignee_principal_id="123456",    # Optional: Assign to a user or team
+    assignee_principal_id=123456  # Optional: Assign to a user or team
     view_type_mask=ViewTypeMask.FILE   # Optional: include additional entity types in the view (ViewTypeMask.FILE | ViewTypeMask.DOCKER). (Defaults to ViewTypeMask.FILE)
 )
 
-print(f"File-based workflow created:")
+print("File-based workflow created:")
 print(f"  EntityView: {entity_view_id}")
 print(f"  CurationTask: {task_id}")
 ```
@@ -320,7 +325,7 @@ os.close(temp_fd)
 test_data.to_csv(temp_csv, index=False)
 
 # Step 2: Create the curation task (this creates an empty template RecordSet)
-record_set, curation_task, data_grid = create_record_based_metadata_task(
+record_set, curation_task = create_record_based_metadata_task(
     synapse_client=syn,
     folder_id="syn987654321",
     record_set_name="AnimalMetadata_Records",
@@ -330,6 +335,7 @@ record_set, curation_task, data_grid = create_record_based_metadata_task(
     instructions="Enter metadata for each animal. All required fields must be completed.",
     schema_uri=schema_uri,
     bind_schema_to_record_set=True,
+    create_grid=False,
 )
 
 time.sleep(10)
@@ -482,6 +488,28 @@ for curation_task in CurationTask.list(
     pprint(curation_task)
 ```
 
+### Update the state of a curation task
+
+Use this script to change a task's lifecycle state. Valid states are
+NOT_STARTED, IN_PROGRESS, COMPLETED, and CANCELED.
+
+```python
+from synapseclient import Synapse
+from synapseclient.models import CurationTask
+
+TASK_ID = 123456  # The numeric ID of the CurationTask to update
+
+syn = Synapse()
+syn.login()
+
+status = CurationTask(task_id=TASK_ID).set_task_state(
+    state="COMPLETED",
+    synapse_client=syn,
+)
+
+print(f"Task {TASK_ID} state is now: {status.state}")
+```
+
 ## References
 
 ### API Documentation
@@ -490,13 +518,15 @@ for curation_task in CurationTask.list(
 - [create_record_based_metadata_task][synapseclient.extensions.curator.create_record_based_metadata_task] - Create RecordSet-based curation workflows
 - [create_file_based_metadata_task][synapseclient.extensions.curator.create_file_based_metadata_task] - Create EntityView-based curation workflows
 - [RecordSet.get_detailed_validation_results][synapseclient.models.RecordSet.get_detailed_validation_results] - Get detailed validation results for RecordSet data
-- [Grid.create][synapseclient.models.curation.Grid.create] - Create a Grid session from a RecordSet
+- [Grid.create][synapseclient.models.curation.Grid.create] - Create a Grid session from a RecordSet or EntityView
 - [Grid.export_to_record_set][synapseclient.models.curation.Grid.export_to_record_set] - Export Grid data back to RecordSet and generate validation results
 - [Folder.bind_schema][synapseclient.models.Folder.bind_schema] - Bind schemas to folders
 - [Folder.validate_schema][synapseclient.models.Folder.validate_schema] - Validate folder schema compliance
 - [CurationTask.list][synapseclient.models.CurationTask.list] - List curation tasks in a project
+- [CurationTask.set_task_state][synapseclient.models.CurationTask.set_task_state] - Update the lifecycle state of a curation task
 
 ### Related Documentation
 
+- [How to Enter and Update Metadata for a Curation Task](metadata_contribution.md) - The contributor-facing companion to this guide
 - [JSON Schema Tutorial](../../../tutorials/python/json_schema.md) - Learn how to register schemas
 - [Schema Registry](https://synapse.org/Synapse:syn69735275/tables/) - Browse available schemas

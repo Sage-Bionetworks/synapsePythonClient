@@ -132,6 +132,9 @@ FILE_BASED_METADATA_TASK_PROPERTIES = (
 RECORD_BASED_METADATA_TASK_PROPERTIES = (
     "org.sagebionetworks.repo.model.curation.metadata.RecordBasedMetadataTaskProperties"
 )
+GRID_EXECUTION_DETAILS = (
+    "org.sagebionetworks.repo.model.curation.execution.GridExecutionDetails"
+)
 
 # Download List
 DOWNLOAD_LIST_MANIFEST_REQUEST = (
