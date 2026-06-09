@@ -9,9 +9,13 @@ from synapseclient.models.agent import (
 from synapseclient.models.annotations import Annotations
 from synapseclient.models.curation import (
     CurationTask,
+    CurationTaskStatus,
     FileBasedMetadataTaskProperties,
     Grid,
+    GridExecutionDetails,
     RecordBasedMetadataTaskProperties,
+    TaskExecutionDetails,
+    TaskState,
 )
 from synapseclient.models.dataset import Dataset, DatasetCollection, EntityRef
 from synapseclient.models.docker import DockerRepository
@@ -24,9 +28,15 @@ from synapseclient.models.link import Link
 from synapseclient.models.materializedview import MaterializedView
 from synapseclient.models.mixins.table_components import QueryMixin
 from synapseclient.models.project import Project
+from synapseclient.models.project_setting import ProjectSetting
 from synapseclient.models.recordset import RecordSet
 from synapseclient.models.schema_organization import JSONSchema, SchemaOrganization
 from synapseclient.models.services import FailureStrategy
+from synapseclient.models.storage_location import (
+    StorageLocation,
+    StorageLocationType,
+    UploadType,
+)
 from synapseclient.models.submission import Submission
 from synapseclient.models.submission_bundle import SubmissionBundle
 from synapseclient.models.submission_status import SubmissionStatus
@@ -88,9 +98,13 @@ __all__ = [
     "TeamMember",
     "TeamMembershipStatus",
     "CurationTask",
+    "CurationTaskStatus",
     "FileBasedMetadataTaskProperties",
     "RecordBasedMetadataTaskProperties",
+    "TaskState",
     "Grid",
+    "GridExecutionDetails",
+    "TaskExecutionDetails",
     "UserProfile",
     "UserPreference",
     "UserGroupHeader",
@@ -155,6 +169,12 @@ __all__ = [
     # Form models
     "FormGroup",
     "FormData",
+    # Storage Location models
+    "StorageLocation",
+    "StorageLocationType",
+    "UploadType",
+    # Project Setting models
+    "ProjectSetting",
 ]
 
 # Static methods to expose as functions

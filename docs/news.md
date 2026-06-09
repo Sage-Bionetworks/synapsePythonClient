@@ -9,6 +9,67 @@ detailing some of the changes.
 the 4.x.x versions hidden behind optional feature flags or different import paths. Any
 breaking changes will not be included until v5.0.
 
+## 4.13.0
+
+## Highlights
+
+- `sync_to_synapse` / `sync_from_synapse` to enable bulk upload/download operations on OOP `Project` and `Folder` models.
+- Enabling programmatic Grid collaboration through CSV import/export to Grid sessions, and Grid session to CurationTask linking for Curator.
+- Object-oriented `DownloadList`, storage locations and migration are now supported.
+- Bug fixes for table queries, Recordset versioning, async messaging, and special-character handling in row stores.
+
+## Features
+
+- [SYNPY-1802] Add DownloadList OOP model and deprecate legacy methods by @andrewelamb in #1347
+- [SYNPY-1800] Add new sync_to_synapse method on StorableContainer by @andrewelamb in #1353
+- [SYNPY-1799, SYNPY-1804] Add manifest generation to sync_from_synapse by @danlu1 in #1354
+- [SYNPY-1809] Add generate_sync_manifest method by @andrewelamb in #1373
+- [DPE-1577] Support storage locations and migration in OOP models by @BryanFauble in #1315
+- [SYNPY-1781] Implement CSV import to Grid session by @linglp in #1360
+- [SYNPY-1782] Implement CSV download from Grid session by @linglp in #1366
+- [SYNPY-1783] Implement Grid synchronization by @linglp in #1368
+- [SYNPY-1760] Add ability to link Grid to CurationTask by @andrewelamb in #1383
+- [SYNPY-1841] Add fields for CurationTask search/filtering by @andrewelamb in #1384
+- [SYNPY-1836] Support configurable view_type_mask in file-based metadata task by @BryanFauble in #1374
+
+## Bug Fixes
+
+- [SYNPY-1835] Fix query() failure when a list column is all-NA by @BryanFauble in #1390
+- [SYNPY-1832] Fix bug causing RecordSet to be updated to v2 by @andrewelamb in #1378
+- [SYNPY-1838] Prevent create_record_based_metadata_task from creating a Grid entity by @andrewelamb in #1380
+- [SYNPY-1824] Fix syn.sendMessage in async context by @linglp in #1370
+- [SYNPY-1749] Allow quote, apostrophe and ellipsis in store_row_async by @danlu1 in #1316
+
+## Tech Debt
+
+- [SYNPY-1764] Add Trivy container vulnerability scanning by @BryanFauble in #1346, #1355, #1357
+- [SYNPY-1798] Update black to 26.3.1 and rerun pre-commit by @linglp in #1341
+- Add validate-release workflow by @xschildw in #1361
+- Fix circular dependencies by @andrewelamb in #1365
+- Fix flaky integration test test_wikiAttachment by @linglp in #1363
+- Fix flaky test test_get_docker_repo_by_id by @linglp in #1381
+- Remove explicit default columns when creating EntityView in curation tests by @linglp in #1377
+- Set higher requests version minimum by @andrewelamb in #1385
+
+## Documentation
+
+- [SYNPY-1810] Migrate all docs to new reference style by @thomasyu888 in #1386
+- [SYNPY-1508] Add tutorial for downloading files by Synapse ID concurrently by @thomasyu888 in #1337
+- [SYNPY-1375] Add Activity/Provenance tutorial by @thomasyu888 in #1351
+- [SYNPY-1402] Update reticulate tutorial for new OOP models/operations API by @thomasyu888 in #1352
+- [SYNPY-1480] Improve documentation around configuration file by @thomasyu888 in #1350
+- [SYNPY-1638] Clarify that the config file is not generated upon installation by @thomasyu888 in #1387
+- Promote the usage of MCP by @thomasyu888 in #1349
+- Curator documentation: add viewtype mask by @thomasyu888 in #1382
+- Add missing MY_PROXY_SECRET_KEY variable in tutorials by @rxu17 in #1375
+- Update project name in activity.py by @thomasyu888 in #1367
+
+## Other
+
+- Add initial CLAUDE.md for AI-assisted development by @BryanFauble in #1342
+
+Full Changelog: https://github.com/Sage-Bionetworks/synapsePythonClient/compare/v4.12.0...v4.13.0
+
 ## 4.12.0
 
 ## Highlights

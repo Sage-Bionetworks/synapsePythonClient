@@ -1,4 +1,5 @@
 """Unit tests for entity_services utility functions."""
+
 from unittest.mock import AsyncMock, patch
 
 import pytest

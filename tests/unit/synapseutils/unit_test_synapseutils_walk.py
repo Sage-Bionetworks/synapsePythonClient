@@ -35,9 +35,10 @@ def test_help_walk_one_child_file(syn, include_types):
     }
     child = [{"id": "syn2222", "conreteType": "File", "name": "test_file"}]
     expected = [(("parent_folder", "syn123"), [], [("test_file", "syn2222")])]
-    with patch.object(syn, "get", return_value=entity) as mock_syn_get, patch.object(
-        syn, "getChildren", return_value=child
-    ) as mock_get_child:
+    with (
+        patch.object(syn, "get", return_value=entity) as mock_syn_get,
+        patch.object(syn, "getChildren", return_value=child) as mock_get_child,
+    ):
         result = _help_walk(syn=syn, syn_id="syn123", include_types=include_types)
         gen_result = list(result)
         mock_syn_get.assert_called_once_with("syn123", downloadFile=False)
@@ -82,11 +83,10 @@ def test_help_walk_recursive(syn):
             [("test_file_2", "syn22223")],
         ),
     ]
-    with patch.object(
-        syn, "get", side_effect=entity_list
-    ) as mock_syn_get, patch.object(
-        syn, "getChildren", side_effect=child_list
-    ) as mock_get_child:
+    with (
+        patch.object(syn, "get", side_effect=entity_list) as mock_syn_get,
+        patch.object(syn, "getChildren", side_effect=child_list) as mock_get_child,
+    ):
         result = _help_walk(syn=syn, syn_id="syn123", include_types=["folder", "file"])
         gen_result = list(result)
         mock_syn_get.assert_called_once_with("syn123", downloadFile=False)
@@ -103,9 +103,10 @@ def test_help_walk_newpath(syn):
     }
     child = [{"id": "syn2222", "conreteType": "File", "name": "test_file"}]
     expected = [(("testpathnow", "syn123"), [], [("test_file", "syn2222")])]
-    with patch.object(syn, "get", return_value=entity) as mock_syn_get, patch.object(
-        syn, "getChildren", return_value=child
-    ) as mock_get_child:
+    with (
+        patch.object(syn, "get", return_value=entity) as mock_syn_get,
+        patch.object(syn, "getChildren", return_value=child) as mock_get_child,
+    ):
         result = _help_walk(
             syn=syn,
             syn_id="syn123",

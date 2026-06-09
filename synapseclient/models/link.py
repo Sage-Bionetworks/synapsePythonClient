@@ -358,12 +358,14 @@ class Link(LinkSynchronousProtocol):
             "modifiedBy": self.modified_by,
             "parentId": self.parent_id,
             "concreteType": LINK_ENTITY,
-            "linksTo": {
-                "targetId": self.target_id,
-                "targetVersionNumber": self.target_version_number,
-            }
-            if self.target_id
-            else None,
+            "linksTo": (
+                {
+                    "targetId": self.target_id,
+                    "targetVersionNumber": self.target_version_number,
+                }
+                if self.target_id
+                else None
+            ),
             "linksToClassName": self.links_to_class_name,
         }
         if request_dict["linksTo"]:

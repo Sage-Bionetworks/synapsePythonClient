@@ -10,6 +10,7 @@ The following actions are shown in this script:
 
 All steps also include setting a number of annotations for the objects.
 """
+
 import os
 import uuid
 from datetime import datetime, timedelta, timezone

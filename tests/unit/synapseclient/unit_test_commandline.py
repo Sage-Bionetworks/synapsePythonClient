@@ -1,6 +1,4 @@
-"""Test the Synapse command line client.
-
-"""
+"""Test the Synapse command line client."""
 
 import os
 import shutil

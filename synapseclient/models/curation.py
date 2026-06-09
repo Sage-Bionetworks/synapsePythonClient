@@ -5,8 +5,23 @@ Curation tasks are used to guide data contributors through the process of contri
 data or metadata in Synapse.
 """
 
+import asyncio
+import os
+from abc import ABC, abstractmethod
+from copy import deepcopy
 from dataclasses import dataclass, field, replace
-from typing import Any, AsyncGenerator, Dict, Generator, Optional, Protocol, Union
+from datetime import datetime, timezone
+from enum import Enum
+from typing import (
+    Any,
+    AsyncGenerator,
+    ClassVar,
+    Dict,
+    Generator,
+    Optional,
+    Protocol,
+    Union,
+)
 
 from opentelemetry import trace
 
@@ -16,27 +31,64 @@ from synapseclient.api import (
     delete_curation_task,
     delete_grid_session,
     get_curation_task,
+    get_curation_task_status,
+    get_file_handle,
+    get_file_handle_presigned_url,
     list_curation_tasks,
     list_grid_sessions,
     update_curation_task,
+    update_curation_task_status,
 )
 from synapseclient.core.async_utils import (
     async_to_sync,
+    otel_trace_method,
     skip_async_to_sync,
     wrap_async_generator_to_sync_generator,
 )
 from synapseclient.core.constants.concrete_types import (
     CREATE_GRID_REQUEST,
+    DOWNLOAD_FROM_GRID_REQUEST,
     FILE_BASED_METADATA_TASK_PROPERTIES,
+    GRID_CSV_IMPORT_REQUEST,
+    GRID_EXECUTION_DETAILS,
     GRID_RECORD_SET_EXPORT_REQUEST,
     LIST_GRID_SESSIONS_REQUEST,
     LIST_GRID_SESSIONS_RESPONSE,
     RECORD_BASED_METADATA_TASK_PROPERTIES,
+    SYNCHRONIZE_GRID_REQUEST,
+    UPLOAD_TO_TABLE_PREVIEW_REQUEST,
 )
-from synapseclient.core.utils import delete_none_keys, merge_dataclass_entities
+from synapseclient.core.download.download_functions import download_from_url
+from synapseclient.core.upload.upload_functions_async import upload_synapse_s3
+from synapseclient.core.utils import (
+    coerce_enum_list,
+    delete_none_keys,
+    merge_dataclass_entities,
+)
 from synapseclient.models.mixins.asynchronous_job import AsynchronousCommunicator
+from synapseclient.models.mixins.enum_coercion import EnumCoercionMixin
 from synapseclient.models.recordset import ValidationSummary
-from synapseclient.models.table_components import Query
+from synapseclient.models.table_components import Column, CsvTableDescriptor, Query
+
+
+class TaskState(str, Enum):
+    """
+    The state of a CurationTask.
+
+    See <https://rest-docs.synapse.org/rest/org/sagebionetworks/repo/model/curation/TaskState.html>.
+    """
+
+    NOT_STARTED = "NOT_STARTED"
+    """The task has been created and assigned but work has not yet started."""
+
+    IN_PROGRESS = "IN_PROGRESS"
+    """The assignee has actively started the task."""
+
+    COMPLETED = "COMPLETED"
+    """The task has been completed and verified."""
+
+    CANCELED = "CANCELED"
+    """The task has been canceled and is no longer needed."""
 
 
 @dataclass
@@ -132,7 +184,7 @@ class RecordBasedMetadataTaskProperties:
 
 
 def _create_task_properties_from_dict(
-    properties_dict: Dict[str, Any]
+    properties_dict: Dict[str, Any],
 ) -> Union[FileBasedMetadataTaskProperties, RecordBasedMetadataTaskProperties]:
     """
     Factory method to create the appropriate FileBasedMetadataTaskProperties/RecordBasedMetadataTaskProperties
@@ -154,6 +206,177 @@ def _create_task_properties_from_dict(
         raise ValueError(
             f"Unknown concreteType for CurationTaskProperties: {concrete_type}"
         )
+
+
+@dataclass
+class TaskExecutionDetails(ABC):
+    """
+    Base class for task-specific execution details attached to a CurationTaskStatus.
+
+    <https://rest-docs.synapse.org/rest/org/sagebionetworks/repo/model/curation/TaskExecutionDetails.html>
+
+    The concrete subclass is determined by the concreteType field in the REST response.
+    """
+
+    @abstractmethod
+    def fill_from_dict(
+        self, synapse_response: dict[str, Any]
+    ) -> "TaskExecutionDetails":
+        """
+        Converts a response from the REST API into this dataclass.
+
+        Arguments:
+            synapse_response: The response from the REST API.
+
+        Returns:
+            The TaskExecutionDetails object.
+        """
+        ...
+
+    @abstractmethod
+    def to_synapse_request(self) -> dict[str, Any]:
+        """
+        Converts this dataclass to a dictionary suitable for a Synapse REST API request.
+
+        Returns:
+            A dictionary representation of this object for API requests.
+        """
+        ...
+
+
+@dataclass
+class GridExecutionDetails(TaskExecutionDetails):
+    """
+    Execution details for a metadata curation task involving a collaborative grid session.
+
+    <https://rest-docs.synapse.org/rest/org/sagebionetworks/repo/model/curation/execution/GridExecutionDetails.html>
+
+    Attributes:
+        active_session_id: The unique identifier of the active CRDT grid session linked to this task.
+    """
+
+    active_session_id: str | None = None
+    """The unique identifier of the active CRDT grid session linked to this task."""
+
+    def fill_from_dict(
+        self, synapse_response: dict[str, Any]
+    ) -> "GridExecutionDetails":
+        """
+        Converts a response from the REST API into this dataclass.
+
+        Arguments:
+            synapse_response: The response from the REST API.
+
+        Returns:
+            The GridExecutionDetails object.
+        """
+        self.active_session_id = synapse_response.get("activeSessionId")
+        return self
+
+    def to_synapse_request(self) -> dict[str, Any]:
+        """
+        Converts this dataclass to a dictionary suitable for a Synapse REST API request.
+
+        Returns:
+            A dictionary representation of this object for API requests.
+        """
+        request_dict: dict[str, Any] = {"concreteType": GRID_EXECUTION_DETAILS}
+        if self.active_session_id is not None:
+            request_dict["activeSessionId"] = self.active_session_id
+        return request_dict
+
+
+TASK_EXECUTION_DETAILS_DICT: dict[str, type[TaskExecutionDetails]] = {
+    GRID_EXECUTION_DETAILS: GridExecutionDetails,
+}
+
+
+@dataclass
+class CurationTaskStatus(EnumCoercionMixin):
+    """
+    The status of a CurationTask in its lifecycle.
+
+    <https://rest-docs.synapse.org/rest/org/sagebionetworks/repo/model/curation/TaskStatus.html>
+
+    Attributes:
+        task_id: The unique identifier of the associated curation task.
+        state: The state of a curation task in its lifecycle.
+        execution_details: Task-specific execution details. The concrete type
+            determines which task-type-specific properties are available.
+        last_updated_by: The principal ID of the user who last updated the status.
+        last_updated_on: Timestamp of when the status was last updated.
+        etag: Optimistic concurrency control token for the task status.
+    """
+
+    _ENUM_FIELDS: ClassVar[dict[str, type]] = {"state": TaskState}
+
+    task_id: int | None = None
+    """The unique identifier of the associated curation task."""
+
+    state: str | TaskState | None = None
+    """The state of a curation task in its lifecycle."""
+
+    execution_details: TaskExecutionDetails | None = None
+    """Task-specific execution details. The concrete type determines which
+    task-type-specific properties are available."""
+
+    last_updated_by: str | None = None
+    """The principal ID of the user who last updated the status."""
+
+    last_updated_on: str | None = None
+    """Timestamp of when the status was last updated."""
+
+    etag: str | None = None
+    """Optimistic concurrency control token for the task status."""
+
+    def fill_from_dict(self, synapse_response: dict[str, Any]) -> "CurationTaskStatus":
+        """
+        Converts a response from the REST API into this dataclass.
+
+        Arguments:
+            synapse_response: The response from the REST API.
+
+        Returns:
+            The CurationTaskStatus object.
+        """
+        task_id_value = synapse_response.get("taskId")
+        self.task_id = int(task_id_value) if task_id_value is not None else None
+        self.state = synapse_response.get("state")
+        self.last_updated_by = synapse_response.get("lastUpdatedBy")
+        self.last_updated_on = synapse_response.get("lastUpdatedOn")
+        self.etag = synapse_response.get("etag")
+
+        details_dict: dict[str, Any] | None = synapse_response.get("executionDetails")
+        if details_dict is None:
+            self.execution_details = None
+        else:
+            concrete_type = details_dict.get("concreteType", "")
+            cls = TASK_EXECUTION_DETAILS_DICT.get(concrete_type)
+            if cls is None:
+                raise ValueError(
+                    f"Unknown concreteType for TaskExecutionDetails: {concrete_type}"
+                )
+            self.execution_details = cls().fill_from_dict(details_dict)
+        return self
+
+    def to_synapse_request(self) -> dict[str, Any]:
+        """
+        Converts this dataclass to a dictionary suitable for a Synapse REST API request.
+
+        Returns:
+            A dictionary representation of this object for API requests.
+        """
+        request_dict: dict[str, Any] = {
+            "taskId": self.task_id,
+            "state": self.state.value if self.state is not None else None,
+            "etag": self.etag,
+        }
+        if self.execution_details is not None:
+            request_dict["executionDetails"] = (
+                self.execution_details.to_synapse_request()
+            )
+        delete_none_keys(request_dict)
+        return request_dict
 
 
 async def _get_existing_curation_task_id(
@@ -212,6 +435,238 @@ class CurationTaskSynchronousProtocol(Protocol):
             ```
         """
         return self
+
+    def get_status(
+        self, *, synapse_client: Synapse | None = None
+    ) -> "CurationTaskStatus":
+        """
+        Gets the status of this CurationTask from Synapse.
+
+        Arguments:
+            synapse_client: If not passed in and caching was not disabled by
+                Synapse.allow_client_caching(False) this will use the last created
+                instance from the Synapse class constructor.
+
+        Returns:
+            The CurationTaskStatus object.
+
+        Raises:
+            ValueError: If the CurationTask object does not have a task_id.
+
+        Example: Get the status of a curation task
+            &nbsp;
+
+            ```python
+            from synapseclient import Synapse
+            from synapseclient.models import CurationTask
+
+            syn = Synapse()
+            syn.login()
+
+            status = CurationTask(task_id=123).get_status()
+            print(status.state)
+            ```
+        """
+        return CurationTaskStatus()
+
+    def update_status(
+        self,
+        curation_task_status: "CurationTaskStatus",
+        *,
+        synapse_client: Synapse | None = None,
+    ) -> "CurationTaskStatus":
+        """
+        Updates the status of this CurationTask on Synapse.
+
+        Arguments:
+            curation_task_status: The complete CurationTaskStatus object to update.
+            synapse_client: If not passed in and caching was not disabled by
+                Synapse.allow_client_caching(False) this will use the last created
+                instance from the Synapse class constructor.
+
+        Returns:
+            The updated CurationTaskStatus object.
+
+        Raises:
+            ValueError: If the CurationTask object does not have a task_id.
+
+        Example: Update the status of a curation task
+            &nbsp;
+
+            ```python
+            from synapseclient import Synapse
+            from synapseclient.models import (
+                CurationTask,
+                TaskState,
+            )
+
+            syn = Synapse()
+            syn.login()
+
+            task = CurationTask(task_id=123)
+            current = task.get_status()
+            current.state = TaskState.COMPLETED
+            updated = task.update_status(curation_task_status=current)
+            print(updated.state)
+            ```
+        """
+        return CurationTaskStatus()
+
+    def set_active_grid_session(
+        self,
+        active_session_id: str,
+        *,
+        synapse_client: Synapse | None = None,
+    ) -> "CurationTaskStatus":
+        """
+        Set the active grid session on this CurationTask's status by replacing
+        execution_details with a GridExecutionDetails carrying the given session id.
+
+        Does not transition the task state.
+
+        Arguments:
+            active_session_id: The unique identifier of the active grid session to link.
+            synapse_client: If not passed in and caching was not disabled by
+                Synapse.allow_client_caching(False) this will use the last created
+                instance from the Synapse class constructor.
+
+        Returns:
+            The updated CurationTaskStatus object.
+
+        Raises:
+            ValueError: If the CurationTask object does not have a task_id.
+
+        Example: Link a grid session to a curation task
+            &nbsp;
+
+            ```python
+            from synapseclient import Synapse
+            from synapseclient.models import CurationTask, Grid
+
+            syn = Synapse()
+            syn.login()
+
+            grid = Grid(record_set_id="syn1234567").create()
+            CurationTask(task_id=123).set_active_grid_session(
+                active_session_id=grid.session_id
+            )
+            ```
+        """
+        return CurationTaskStatus()
+
+    def set_task_state(
+        self,
+        state: "TaskState | str",
+        *,
+        synapse_client: Synapse | None = None,
+    ) -> "CurationTaskStatus":
+        """
+        Set the state on this CurationTask's status.
+
+        Does not modify execution_details. Fetches the current CurationTaskStatus
+        first so the update carries a fresh etag.
+
+        Arguments:
+            state: The state to set on this task's status. Accepts a
+                TaskState or a string exactly matching one of its members
+                (e.g. NOT_STARTED, IN_PROGRESS, COMPLETED, CANCELED).
+            synapse_client: If not passed in and caching was not disabled by
+                Synapse.allow_client_caching(False) this will use the last created
+                instance from the Synapse class constructor.
+
+        Returns:
+            The updated CurationTaskStatus object.
+
+        Raises:
+            ValueError: If the CurationTask object does not have a task_id, or
+                if state is a string that does not match a TaskState member.
+
+        Example: Mark a curation task as completed
+            &nbsp;
+
+            ```python
+            from synapseclient import Synapse
+            from synapseclient.models import CurationTask, TaskState
+
+            syn = Synapse()
+            syn.login()
+
+            CurationTask(task_id=123).set_task_state(
+                state=TaskState.COMPLETED
+            )
+            ```
+
+        Example: Mark a curation task as completed using a string
+            &nbsp;
+
+            ```python
+            from synapseclient import Synapse
+            from synapseclient.models import CurationTask
+
+            syn = Synapse()
+            syn.login()
+
+            CurationTask(task_id=123).set_task_state(state="COMPLETED")
+            ```
+        """
+        return CurationTaskStatus()
+
+    def create_grid_session(
+        self,
+        *,
+        owner_principal_id: int | None = None,
+        timeout: int = 120,
+        synapse_client: Synapse | None = None,
+    ) -> "Grid":
+        """
+        Create a Grid session for this CurationTask and link it to the task status.
+
+        Picks the Grid seed from this task's task_properties:
+
+        - RecordBasedMetadataTaskProperties uses record_set_id
+        - FileBasedMetadataTaskProperties uses an initial_query that selects from
+          the file_view_id
+
+        Always creates a new Grid session. To attach an existing session to a task,
+        use set_active_grid_session instead.
+
+        After the Grid is created, updates the CurationTaskStatus to point its
+        active_session_id at the new session. If that update fails for any reason,
+        the newly created Grid is deleted on a best-effort basis and the original
+        exception is re-raised.
+
+        Arguments:
+            owner_principal_id: The principal ID (user or team) that will own the
+                created grid session. When not provided, the principal ID of the
+                caller is used.
+            timeout: Seconds to wait for the grid creation job. Defaults to 120.
+            synapse_client: If not passed in and caching was not disabled by
+                Synapse.allow_client_caching(False) this will use the last created
+                instance from the Synapse class constructor.
+
+        Returns:
+            The newly created Grid.
+
+        Raises:
+            ValueError: If task_id is unset or task_properties is of an unsupported type.
+            SynapseHTTPError: If the status update fails. The orphan Grid is
+                deleted on a best-effort basis before the error is re-raised.
+
+        Example: Create a grid session for a curation task
+            &nbsp;
+
+            ```python
+            from synapseclient import Synapse
+            from synapseclient.models import CurationTask
+
+            syn = Synapse()
+            syn.login()
+
+            grid = CurationTask(task_id=123).create_grid_session()
+            print(grid.session_id)
+            ```
+        """
+        return Grid()
 
     def delete(
         self,
@@ -355,6 +810,9 @@ class CurationTaskSynchronousProtocol(Protocol):
         cls,
         project_id: str,
         *,
+        assigned_to_me: Optional[bool] = None,
+        assignee_ids: Optional[list[str]] = None,
+        state_filter: Optional[list[Union["TaskState", str]]] = None,
         synapse_client: Optional[Synapse] = None,
     ) -> Generator["CurationTask", None, None]:
         """
@@ -362,12 +820,34 @@ class CurationTaskSynchronousProtocol(Protocol):
 
         Arguments:
             project_id: The synId of the project.
+            assigned_to_me: When True, only return tasks assigned to the current user.
+                Cannot be combined with assignee_ids.
+                False does not mean "tasks not assigned to me".
+                Defaults to None.
+            assignee_ids: Optional list of principal IDs (users or teams) to filter
+                tasks by assignee. Cannot be combined with assigned_to_me=True.
+                Passing an empty list raises a ValueError; pass None to return tasks
+                for any assignee. Defaults to None.
+            state_filter: Optional list of TaskState values or exact-case strings to
+                filter tasks by their current state (e.g., "IN_PROGRESS"). Defaults to
+                None (all states returned). Passing an empty list raises a ValueError;
+                pass None to return tasks in any state.
             synapse_client: If not passed in and caching was not disabled by
-                `Synapse.allow_client_caching(False)` this will use the last created
+                Synapse.allow_client_caching(False) this will use the last created
                 instance from the Synapse class constructor.
 
         Yields:
             CurationTask objects as they are retrieved from the API.
+
+        Raises:
+            ValueError: If state_filter is an empty list.
+            ValueError: If assignee_ids is an empty list.
+            ValueError: If assigned_to_me is True and assignee_ids is also provided.
+            ValueError: If any value in state_filter is not a TaskState member or
+                an exact-case string matching a TaskState value (e.g., "IN_PROGRESS").
+
+        Note: Due to generator semantics, argument validation runs on the first
+            iteration of the generator, not at the point where list() is called.
 
         Example: List all curation tasks in a project
             &nbsp;
@@ -386,10 +866,69 @@ class CurationTaskSynchronousProtocol(Protocol):
                 print(f"Instructions: {task.instructions}")
                 print("---")
             ```
+
+        Example: List only curation tasks assigned to the current user
+            &nbsp;
+
+            ```python
+            from synapseclient import Synapse
+            from synapseclient.models import CurationTask
+
+            syn = Synapse()
+            syn.login()
+
+            for task in CurationTask.list(project_id="syn9876543", assigned_to_me=True):
+                print(f"Task ID: {task.task_id}")
+                print(f"Data Type: {task.data_type}")
+                print("---")
+            ```
+
+        Example: List only in-progress curation tasks
+            &nbsp;
+
+            ```python
+            from synapseclient import Synapse
+            from synapseclient.models import CurationTask, TaskState
+
+            syn = Synapse()
+            syn.login()
+
+            for task in CurationTask.list(
+                project_id="syn9876543",
+                state_filter=[TaskState.IN_PROGRESS],
+            ):
+                print(f"Task ID: {task.task_id}")
+                print(f"Data Type: {task.data_type}")
+                print("---")
+            ```
+
+        Example: List only in-progress curation tasks using a string state filter
+            &nbsp;
+
+            state_filter also accepts plain strings matching TaskState names exactly.
+
+            ```python
+            from synapseclient import Synapse
+            from synapseclient.models import CurationTask
+
+            syn = Synapse()
+            syn.login()
+
+            for task in CurationTask.list(
+                project_id="syn9876543",
+                state_filter=["IN_PROGRESS"],
+            ):
+                print(f"Task ID: {task.task_id}")
+                print(f"Data Type: {task.data_type}")
+                print("---")
+            ```
         """
         yield from wrap_async_generator_to_sync_generator(
             async_gen_func=cls.list_async,
             project_id=project_id,
+            assigned_to_me=assigned_to_me,
+            assignee_ids=assignee_ids,
+            state_filter=state_filter,
             synapse_client=synapse_client,
         )
 
@@ -510,6 +1049,9 @@ class CurationTask(CurationTaskSynchronousProtocol):
         determine if the object has been changed and needs to be updated in Synapse."""
         del self._last_persistent_instance
         self._last_persistent_instance = replace(self)
+        self._last_persistent_instance.task_properties = (
+            deepcopy(self.task_properties) if self.task_properties else None
+        )
 
     def fill_from_dict(
         self, synapse_response: Union[Dict[str, Any], Any]
@@ -539,10 +1081,14 @@ class CurationTask(CurationTaskSynchronousProtocol):
         self.assignee_principal_id = synapse_response.get("assigneePrincipalId", None)
 
         task_properties_dict = synapse_response.get("taskProperties", None)
-        if task_properties_dict:
-            self.task_properties = _create_task_properties_from_dict(
-                task_properties_dict
+        if task_properties_dict is None:
+            raise ValueError(
+                "taskProperties was not found in the Synapse response for this CurationTask. "
+                "This means it is likely an older CurationTask from before taskProperties was added. "
+                "It is recommended that this task be deleted: task.delete(delete_source=False) "
+                "and then recreate the task with the correct taskProperties."
             )
+        self.task_properties = _create_task_properties_from_dict(task_properties_dict)
 
         return self
 
@@ -587,6 +1133,7 @@ class CurationTask(CurationTaskSynchronousProtocol):
 
         Raises:
             ValueError: If the CurationTask object does not have a task_id.
+            ValueError: If the Synapse response does not contain taskProperties.
 
         Example: Get a curation task asynchronously
             &nbsp;
@@ -622,6 +1169,54 @@ class CurationTask(CurationTaskSynchronousProtocol):
         self.fill_from_dict(synapse_response=task_result)
         self._set_last_persistent_instance()
         return self
+
+    @otel_trace_method(
+        method_to_trace_name=lambda self, **kwargs: (
+            f"CurationTask_GetStatus: ID: {self.task_id}"
+        )
+    )
+    async def get_status_async(
+        self, *, synapse_client: Synapse | None = None
+    ) -> "CurationTaskStatus":
+        """
+        Gets the status of this CurationTask from Synapse.
+
+        Arguments:
+            synapse_client: If not passed in and caching was not disabled by
+                Synapse.allow_client_caching(False) this will use the last created
+                instance from the Synapse class constructor.
+
+        Returns:
+            The CurationTaskStatus object.
+
+        Raises:
+            ValueError: If the CurationTask object does not have a task_id.
+
+        Example: Get the status of a curation task asynchronously
+            &nbsp;
+
+            ```python
+            import asyncio
+            from synapseclient import Synapse
+            from synapseclient.models import CurationTask
+
+            syn = Synapse()
+            syn.login()
+
+            async def main():
+                status = await CurationTask(task_id=123).get_status_async()
+                print(status.state)
+
+            asyncio.run(main())
+            ```
+        """
+        if not self.task_id:
+            raise ValueError("task_id is required to get a CurationTask status")
+
+        status_result = await get_curation_task_status(
+            task_id=self.task_id, synapse_client=synapse_client
+        )
+        return CurationTaskStatus().fill_from_dict(status_result)
 
     async def delete_async(
         self,
@@ -836,12 +1431,357 @@ class CurationTask(CurationTaskSynchronousProtocol):
             self._set_last_persistent_instance()
             return self
 
+    @otel_trace_method(
+        method_to_trace_name=lambda self, **kwargs: (
+            f"CurationTask_UpdateStatus: ID: {self.task_id}"
+        )
+    )
+    async def update_status_async(
+        self,
+        curation_task_status: "CurationTaskStatus",
+        *,
+        synapse_client: Synapse | None = None,
+    ) -> "CurationTaskStatus":
+        """
+        Updates the status of this CurationTask on Synapse.
+
+        Arguments:
+            curation_task_status: The complete CurationTaskStatus object to update.
+            synapse_client: If not passed in and caching was not disabled by
+                Synapse.allow_client_caching(False) this will use the last created
+                instance from the Synapse class constructor.
+
+        Returns:
+            The updated CurationTaskStatus object.
+
+        Raises:
+            ValueError: If the CurationTask object does not have a task_id.
+
+        Example: Update the status of a curation task asynchronously
+            &nbsp;
+
+            ```python
+            import asyncio
+            from synapseclient import Synapse
+            from synapseclient.models import (
+                CurationTask,
+                TaskState,
+            )
+
+            syn = Synapse()
+            syn.login()
+
+            async def main():
+                task = CurationTask(task_id=123)
+                current = await task.get_status_async()
+                current.state = TaskState.COMPLETED
+                updated = await task.update_status_async(curation_task_status=current)
+                print(updated.state)
+
+            asyncio.run(main())
+            ```
+        """
+        if not self.task_id:
+            raise ValueError("task_id is required to update a CurationTask status")
+
+        status_result = await update_curation_task_status(
+            task_id=self.task_id,
+            curation_task_status=curation_task_status.to_synapse_request(),
+            synapse_client=synapse_client,
+        )
+        return CurationTaskStatus().fill_from_dict(status_result)
+
+    @otel_trace_method(
+        method_to_trace_name=lambda self, **kwargs: (
+            f"CurationTask_SetActiveGridSession: ID: {self.task_id}"
+        )
+    )
+    async def set_active_grid_session_async(
+        self,
+        active_session_id: str,
+        *,
+        synapse_client: Synapse | None = None,
+    ) -> "CurationTaskStatus":
+        """
+        Set the active grid session on this CurationTask's status by replacing
+        execution_details with a GridExecutionDetails carrying the given session id.
+
+        Arguments:
+            active_session_id: The unique identifier of the active grid session to link.
+            synapse_client: If not passed in and caching was not disabled by
+                Synapse.allow_client_caching(False) this will use the last created
+                instance from the Synapse class constructor.
+
+        Returns:
+            The updated CurationTaskStatus object.
+
+        Raises:
+            ValueError: If the CurationTask object does not have a task_id.
+
+        Example: Link a grid session to a curation task asynchronously
+            &nbsp;
+
+            ```python
+            import asyncio
+            from synapseclient import Synapse
+            from synapseclient.models import CurationTask, Grid
+
+            syn = Synapse()
+            syn.login()
+
+            async def main():
+                grid = await Grid(record_set_id="syn1234567").create_async()
+                await CurationTask(task_id=123).set_active_grid_session_async(
+                    active_session_id=grid.session_id
+                )
+
+            asyncio.run(main())
+            ```
+        """
+        status = await self.get_status_async(synapse_client=synapse_client)
+        status.execution_details = GridExecutionDetails(
+            active_session_id=active_session_id
+        )
+        return await self.update_status_async(
+            curation_task_status=status, synapse_client=synapse_client
+        )
+
+    @otel_trace_method(
+        method_to_trace_name=lambda self, **kwargs: (
+            f"CurationTask_SetTaskState: ID: {self.task_id}"
+        )
+    )
+    async def set_task_state_async(
+        self,
+        state: "TaskState | str",
+        *,
+        synapse_client: Synapse | None = None,
+    ) -> "CurationTaskStatus":
+        """
+        Set the state on this CurationTask's status.
+
+        Does not modify execution_details. Fetches the current CurationTaskStatus
+        first so the update carries a fresh etag.
+
+        Arguments:
+            state: The state to set on this task's status. Accepts a
+                TaskState or a string exactly matching one of its members
+                (e.g. NOT_STARTED, IN_PROGRESS, COMPLETED, CANCELED).
+            synapse_client: If not passed in and caching was not disabled by
+                Synapse.allow_client_caching(False) this will use the last created
+                instance from the Synapse class constructor.
+
+        Returns:
+            The updated CurationTaskStatus object.
+
+        Raises:
+            ValueError: If the CurationTask object does not have a task_id, or
+                if state is a string that does not match a TaskState member.
+
+        Example: Mark a curation task as completed asynchronously
+            &nbsp;
+
+            ```python
+            import asyncio
+            from synapseclient import Synapse
+            from synapseclient.models import CurationTask, TaskState
+
+            syn = Synapse()
+            syn.login()
+
+            async def main():
+                await CurationTask(task_id=123).set_task_state_async(
+                    state=TaskState.COMPLETED
+                )
+
+            asyncio.run(main())
+            ```
+
+        Example: Mark a curation task as completed using a string asynchronously
+            &nbsp;
+
+            ```python
+            import asyncio
+            from synapseclient import Synapse
+            from synapseclient.models import CurationTask
+
+            syn = Synapse()
+            syn.login()
+
+            async def main():
+                await CurationTask(task_id=123).set_task_state_async(
+                    state="COMPLETED"
+                )
+
+            asyncio.run(main())
+            ```
+        """
+        try:
+            coerced_state = TaskState(state)
+        except ValueError as exc:
+            raise ValueError(
+                f"{state!r} is not a valid TaskState. "
+                f"Expected one of: {[s.value for s in TaskState]}."
+            ) from exc
+
+        status = await self.get_status_async(synapse_client=synapse_client)
+        status.state = coerced_state
+        return await self.update_status_async(
+            curation_task_status=status, synapse_client=synapse_client
+        )
+
+    @otel_trace_method(
+        method_to_trace_name=lambda self, **kwargs: (
+            f"CurationTask_CreateGridSession: ID: {self.task_id}"
+        )
+    )
+    async def create_grid_session_async(
+        self,
+        *,
+        owner_principal_id: int | None = None,
+        timeout: int = 120,
+        synapse_client: Synapse | None = None,
+    ) -> "Grid":
+        """
+        Create a new Grid session for this CurationTask and set it as the active session.
+
+        Picks the Grid seed from this task's task_properties:
+
+        - RecordBasedMetadataTaskProperties uses record_set_id
+        - FileBasedMetadataTaskProperties uses an initial_query that selects from
+          the file_view_id
+
+        Always creates a new Grid session. To attach an existing session to a task,
+        use set_active_grid_session_async instead.
+
+        After the Grid is created, updates the CurationTaskStatus to point its
+        active_session_id at the new session. If that update fails for any reason,
+        the newly created Grid is deleted on a best-effort basis and the original
+        exception is re-raised.
+
+        Arguments:
+            owner_principal_id: The principal ID (user or team) that will own the
+                created grid session. When not provided, the principal ID of the
+                caller is used.
+            timeout: Seconds to wait for the grid creation job. Defaults to 120.
+            synapse_client: If not passed in and caching was not disabled by
+                Synapse.allow_client_caching(False) this will use the last created
+                instance from the Synapse class constructor.
+
+        Returns:
+            The newly created Grid.
+
+        Raises:
+            ValueError: If task_id is unset or task_properties is of an unsupported type.
+            SynapseHTTPError: If the RecordSet or EntityView does not exist, or if the
+                status update fails. The orphan Grid is deleted on a best-effort basis
+                before the error is re-raised.
+
+        Example: Create a grid session for a curation task asynchronously
+            &nbsp;
+
+            ```python
+            import asyncio
+            from synapseclient import Synapse
+            from synapseclient.models import CurationTask
+
+            syn = Synapse()
+            syn.login()
+
+            async def main():
+                grid = await CurationTask(task_id=123).create_grid_session_async()
+                print(grid.session_id)
+
+            asyncio.run(main())
+            ```
+        """
+        if not self.task_id:
+            raise ValueError(
+                "task_id is required to create a CurationTask grid session"
+            )
+
+        if not self.task_properties:
+            await self.get_async(synapse_client=synapse_client)
+
+        if isinstance(self.task_properties, RecordBasedMetadataTaskProperties):
+            if not self.task_properties.record_set_id:
+                raise ValueError(
+                    "Cannot create grid session: "
+                    "task_properties.record_set_id is missing."
+                )
+            from synapseclient.models import RecordSet
+
+            # raises SynapseHTTPError if RecordSet does not exist
+            await RecordSet(id=self.task_properties.record_set_id).get_async(
+                synapse_client=synapse_client
+            )
+            grid = Grid(
+                record_set_id=self.task_properties.record_set_id,
+                owner_principal_id=owner_principal_id,
+            )
+        elif isinstance(self.task_properties, FileBasedMetadataTaskProperties):
+            if not self.task_properties.file_view_id:
+                raise ValueError(
+                    "Cannot create grid session: "
+                    "task_properties.file_view_id is missing."
+                )
+            from synapseclient.models import EntityView
+
+            # raises SynapseHTTPError if EntityView does not exist
+            await EntityView(id=self.task_properties.file_view_id).get_async(
+                synapse_client=synapse_client
+            )
+            grid = Grid(
+                initial_query=Query(
+                    sql=f"SELECT * FROM {self.task_properties.file_view_id}"
+                ),
+                owner_principal_id=owner_principal_id,
+            )
+        else:
+            raise ValueError(
+                "task_properties must be a FileBasedMetadataTaskProperties or "
+                "RecordBasedMetadataTaskProperties to create a grid session"
+            )
+
+        grid = await grid.create_async(
+            timeout=timeout,
+            synapse_client=synapse_client,
+        )
+
+        # Only one grid session can be set as the active one on a a given CurationTask
+        # at a any time, though multiple sessions can exist.
+        # If two users run this concurrently, one will lose the race and
+        # receive a 412 (precondition failed). In that case — or if recording the
+        # active session fails for any other reason — delete the session we just
+        # created so it doesn't become an orphan. If the delete also fails, log a
+        # warning so the caller knows manual cleanup is needed, then re-raise the
+        # original exception in all cases.
+        try:
+            await self.set_active_grid_session_async(
+                active_session_id=grid.session_id, synapse_client=synapse_client
+            )
+        except Exception:
+            try:
+                await grid.delete_async(synapse_client=synapse_client)
+            except Exception:
+                Synapse.get_client(synapse_client=synapse_client).logger.warning(
+                    "Failed to delete orphan grid session %s after status "
+                    "update failure; manual cleanup may be required.",
+                    grid.session_id,
+                )
+            raise
+
+        return grid
+
     @skip_async_to_sync
     @classmethod
     async def list_async(
         cls,
         project_id: str,
         *,
+        assigned_to_me: Optional[bool] = None,
+        assignee_ids: Optional[list[str]] = None,
+        state_filter: Optional[list[Union["TaskState", str]]] = None,
         synapse_client: Optional[Synapse] = None,
     ) -> AsyncGenerator["CurationTask", None]:
         """
@@ -849,12 +1789,33 @@ class CurationTask(CurationTaskSynchronousProtocol):
 
         Arguments:
             project_id: The synId of the project.
+            assigned_to_me: When True, only return tasks assigned to the current user.
+                Cannot be combined with assignee_ids.
+                False does not mean "tasks not assigned to me".
+                Defaults to None.
+            assignee_ids: Optional list of principal IDs (users or teams) to filter
+                tasks by assignee. Cannot be combined with assigned_to_me=True.
+                Passing an empty list raises a ValueError; pass None to return tasks
+                for any assignee. Defaults to None.
+            state_filter: Optional list of TaskState values or exact-case strings to
+                filter tasks by their current state (e.g., "IN_PROGRESS"). Defaults to
+                None (all states returned). Passing an empty list raises a ValueError;
+                pass None to return tasks in any state.
             synapse_client: If not passed in and caching was not disabled by
-                `Synapse.allow_client_caching(False)` this will use the last created
+                Synapse.allow_client_caching(False) this will use the last created
                 instance from the Synapse class constructor.
 
         Yields:
             CurationTask objects as they are retrieved from the API.
+
+        Raises:
+            ValueError: If state_filter is an empty list.
+            ValueError: If assignee_ids is an empty list.
+            ValueError: If assigned_to_me is True and assignee_ids is also provided.
+            ValueError: If any value in state_filter is not a TaskState member or
+                an exact-case string matching a TaskState value (e.g., "IN_PROGRESS").
+            ValueError: If the Synapse response for any task does not contain
+                taskProperties.
 
         Example: List all curation tasks in a project asynchronously
             &nbsp;
@@ -877,7 +1838,94 @@ class CurationTask(CurationTaskSynchronousProtocol):
 
             asyncio.run(main())
             ```
+
+        Example: List only curation tasks assigned to the current user asynchronously
+            &nbsp;
+
+            ```python
+            import asyncio
+            from synapseclient import Synapse
+            from synapseclient.models import CurationTask
+
+            syn = Synapse()
+            syn.login()
+
+            async def main():
+                async for task in CurationTask.list_async(
+                    project_id="syn9876543", assigned_to_me=True
+                ):
+                    print(f"Task ID: {task.task_id}")
+                    print(f"Data Type: {task.data_type}")
+                    print("---")
+
+            asyncio.run(main())
+            ```
+
+        Example: List only in-progress curation tasks asynchronously
+            &nbsp;
+
+            ```python
+            import asyncio
+            from synapseclient import Synapse
+            from synapseclient.models import CurationTask, TaskState
+
+            syn = Synapse()
+            syn.login()
+
+            async def main():
+                async for task in CurationTask.list_async(
+                    project_id="syn9876543",
+                    state_filter=[TaskState.IN_PROGRESS],
+                ):
+                    print(f"Task ID: {task.task_id}")
+                    print(f"Data Type: {task.data_type}")
+                    print("---")
+
+            asyncio.run(main())
+            ```
+
+        Example: List only in-progress curation tasks using a string state filter asynchronously
+            &nbsp;
+
+            state_filter also accepts plain strings matching TaskState names exactly.
+
+            ```python
+            import asyncio
+            from synapseclient import Synapse
+            from synapseclient.models import CurationTask
+
+            syn = Synapse()
+            syn.login()
+
+            async def main():
+                async for task in CurationTask.list_async(
+                    project_id="syn9876543",
+                    state_filter=["IN_PROGRESS"],
+                ):
+                    print(f"Task ID: {task.task_id}")
+                    print(f"Data Type: {task.data_type}")
+                    print("---")
+
+            asyncio.run(main())
+            ```
         """
+        if state_filter == []:
+            raise ValueError(
+                "state_filter must not be empty. Pass None to return tasks in any state."
+            )
+        if assignee_ids == []:
+            raise ValueError(
+                "assignee_ids must not be empty. Pass None to return tasks for any assignee."
+            )
+        if assigned_to_me is True and assignee_ids is not None:
+            raise ValueError(
+                f"assigned_to_me and assignee_ids are mutually exclusive "
+                f"and cannot be used together. Got assignee_ids={assignee_ids!r}."
+            )
+
+        if state_filter is not None:
+            state_filter = coerce_enum_list(TaskState, state_filter)
+
         trace.get_current_span().set_attributes(
             {
                 "synapse.project_id": project_id,
@@ -885,7 +1933,11 @@ class CurationTask(CurationTaskSynchronousProtocol):
         )
 
         async for task_dict in list_curation_tasks(
-            project_id=project_id, synapse_client=synapse_client
+            project_id=project_id,
+            assigned_to_me=assigned_to_me,
+            assignee_ids=assignee_ids,
+            state_filter=state_filter,
+            synapse_client=synapse_client,
         ):
             task = cls().fill_from_dict(synapse_response=task_dict)
             yield task
@@ -904,6 +1956,11 @@ class CreateGridRequest(AsynchronousCommunicator):
             stored for the given record set id
         initial_query: Initialize a grid session from an EntityView.
             Mutually exclusive with record_set_id.
+        owner_principal_id: The owner of the grid determines who is allowed to join and participate in the grid's session.
+            The default owner will be the user that started the grid session, but only that user will have access to the grid.
+            In order to allow other users to access the grid, set this value to the id of a team.
+            When a team ID is provided as the owner, all members of that team will have equal access to the grid.
+            Note: If a team ID is provided, the creator of the grid must be a member of the team.
         session_id: The session ID of the created grid (populated from response)
     """
 
@@ -918,6 +1975,13 @@ class CreateGridRequest(AsynchronousCommunicator):
     initial_query: Optional[Query] = None
     """Initialize a grid session from an EntityView.
     Mutually exclusive with record_set_id."""
+
+    owner_principal_id: int | None = None
+    """The owner of the grid determines who is allowed to join and participate in the grid's session.
+    The default owner will be the user that started the grid session, but only that user will have access to the grid.
+    In order to allow other users to access the grid, set this value to the id of a team.
+    When a team ID is provided as the owner, all members of that team will have equal access to the grid.
+    Note: If a team ID is provided, the creator of the grid must be a member of the team."""
 
     session_id: Optional[str] = None
     """The session ID of the created grid (populated from response)"""
@@ -970,6 +2034,7 @@ class CreateGridRequest(AsynchronousCommunicator):
         grid_session.last_replica_id_service = data.get("lastReplicaIdService", None)
         grid_session.grid_json_schema_id = data.get("gridJsonSchema$Id", None)
         grid_session.source_entity_id = data.get("sourceEntityId", None)
+        grid_session.owner_principal_id = data.get("ownerPrincipalId")
 
         return grid_session
 
@@ -985,6 +2050,229 @@ class CreateGridRequest(AsynchronousCommunicator):
         request_dict["initialQuery"] = (
             self.initial_query.to_synapse_request() if self.initial_query else None
         )
+        request_dict["ownerPrincipalId"] = self.owner_principal_id
+        delete_none_keys(request_dict)
+        return request_dict
+
+
+@dataclass
+class GridCsvImportRequest(AsynchronousCommunicator):
+    """
+    A request to import a CSV file into a grid. Currently supports only grid
+    created from a record set.
+
+    This request is modeled from: <https://rest-docs.synapse.org/rest/org/sagebionetworks/repo/model/grid/GridCsvImportRequest.html>
+
+    The response is modeled from: <https://rest-docs.synapse.org/rest/org/sagebionetworks/repo/model/grid/GridCsvImportResponse.html>
+    """
+
+    session_id: str
+    """The grid session ID."""
+
+    file_handle_id: str
+    """The id of the file handle that contains the CSV data."""
+
+    schema: list[Column]
+    """The list of ColumnModel that describe the CSV file. Currently this is required."""
+
+    concrete_type: str = GRID_CSV_IMPORT_REQUEST
+    """The concrete type for this request."""
+
+    csv_descriptor: CsvTableDescriptor = field(default_factory=CsvTableDescriptor)
+    """The description of a csv for upload or download."""
+
+    # Response fields (populated by fill_from_dict)
+    total_count: Optional[int] = field(default=None, compare=False)
+    """The total number of rows in the CSV."""
+
+    created_count: Optional[int] = field(default=None, compare=False)
+    """The number of rows that were created."""
+
+    updated_count: Optional[int] = field(default=None, compare=False)
+    """The number of rows that were updated."""
+
+    def fill_from_dict(
+        self, synapse_response: Dict[str, Any]
+    ) -> "GridCsvImportRequest":
+        """
+        Converts a response from the REST API into this dataclass.
+
+        Arguments:
+            synapse_response: The response from the REST API.
+
+        Returns:
+            The GridCsvImportRequest object.
+        """
+        self.session_id = synapse_response.get("sessionId", self.session_id)
+        self.total_count = synapse_response.get("totalCount", None)
+        self.created_count = synapse_response.get("createdCount", None)
+        self.updated_count = synapse_response.get("updatedCount", None)
+        return self
+
+    def to_synapse_request(self) -> Dict[str, Any]:
+        """
+        Converts this dataclass to a dictionary suitable for a Synapse REST API request.
+
+        Returns:
+            A dictionary representation of this object for API requests.
+        """
+        request_dict = {
+            "concreteType": self.concrete_type,
+            "sessionId": self.session_id,
+            "fileHandleId": self.file_handle_id,
+            "csvDescriptor": self.csv_descriptor.to_synapse_request(),
+            "schema": [col.to_synapse_request() for col in self.schema],
+        }
+        delete_none_keys(request_dict)
+        return request_dict
+
+
+@dataclass
+class DownloadFromGridRequest(AsynchronousCommunicator):
+    """
+    A CSV Grid download request.
+
+    This request is modeled from: <https://rest-docs.synapse.org/rest/org/sagebionetworks/repo/model/grid/DownloadFromGridRequest.html>
+
+    The response is modeled from: <https://rest-docs.synapse.org/rest/org/sagebionetworks/repo/model/grid/DownloadFromGridResult.html>
+    """
+
+    session_id: str
+    """The grid session ID."""
+
+    concrete_type: str = DOWNLOAD_FROM_GRID_REQUEST
+    """The concrete type for this request."""
+
+    write_header: bool = True
+    """Should the first line contain the columns names as a header in the resulting file? Set to 'true' to include the headers else, 'false'."""
+
+    include_row_id_and_row_version: bool = False
+    """Should the first two columns contain the row ID and row version?"""
+
+    include_etag: bool = False
+    """Should the first (or third if includeRowIdAndRowVersion is true) column contain the row etag?"""
+
+    csv_table_descriptor: CsvTableDescriptor = field(default_factory=CsvTableDescriptor)
+    """The description of a csv for upload or download."""
+
+    file_name: Optional[str] = None
+    """The optional name for the downloaded table."""
+
+    # Response fields (populated by fill_from_dict)
+    results_file_handle_id: Optional[str] = None
+    """The file handle ID of the generated CSV. Populated from the async job response."""
+
+    def fill_from_dict(
+        self, synapse_response: Dict[str, Any]
+    ) -> "DownloadFromGridRequest":
+        """
+        Converts a response from the REST API into this dataclass.
+
+        Arguments:
+            synapse_response: The response from the REST API.
+
+        Returns:
+            The DownloadFromGridRequest object.
+        """
+        self.results_file_handle_id = synapse_response.get("resultsFileHandleId")
+        return self
+
+    def to_synapse_request(self) -> Dict[str, Any]:
+        """
+        Converts this dataclass to a dictionary suitable for a Synapse REST API request.
+
+        Returns:
+            A dictionary representation of this object for API requests.
+        """
+        request_dict = {
+            "concreteType": self.concrete_type,
+            "sessionId": self.session_id,
+            "writeHeader": self.write_header,
+            "includeRowIdAndRowVersion": self.include_row_id_and_row_version,
+            "includeEtag": self.include_etag,
+            "csvTableDescriptor": self.csv_table_descriptor.to_synapse_request(),
+            "fileName": self.file_name,
+        }
+        delete_none_keys(request_dict)
+        return request_dict
+
+
+@dataclass
+class UploadToTablePreviewRequest(AsynchronousCommunicator):
+    """
+    Request for a preview of an upload to a Table.
+
+    This request is modeled from: <https://rest-docs.synapse.org/rest/org/sagebionetworks/repo/model/table/UploadToTablePreviewRequest.html>
+
+    This response is modeled from: <https://rest-docs.synapse.org/rest/org/sagebionetworks/repo/model/table/UploadToTablePreviewResult.html>
+    """
+
+    upload_file_handle_id: str
+    """The ID of the file handle for a type of UPLOAD"""
+
+    concrete_type: str = UPLOAD_TO_TABLE_PREVIEW_REQUEST
+    """The concrete type for this request."""
+
+    lines_to_skip: Optional[int] = None
+    """The number of lines to skip from the start of the file. The default value of 0 will be used if this is not provided by the caller."""
+
+    csv_table_descriptor: CsvTableDescriptor = field(default_factory=CsvTableDescriptor)
+    """The description of a csv for upload or download."""
+
+    do_full_file_scan: Optional[bool] = None
+    """When set to true the full file will be scanned for a schema suggestions. A full scan is more accurate but can take more time. When set to false only a sub-set of the first rows will be scanned, which can be faster but is less accurate. The default value is false."""
+
+    # Response fields (populated by fill_from_dict)
+    suggested_columns: Optional[list[Column]] = field(default=None, compare=False)
+    """The suggested columns for the table based on the file scan."""
+
+    sample_rows: Optional[list[list[Optional[str]]]] = field(
+        default=None, compare=False
+    )
+    """A sample of the rows in the file."""
+
+    rows_scanned: Optional[int] = field(default=None, compare=False)
+    """The number of rows scanned from the file."""
+
+    def fill_from_dict(
+        self, synapse_response: Dict[str, Any]
+    ) -> "UploadToTablePreviewRequest":
+        """
+        Converts a response from the REST API into this dataclass.
+
+        Arguments:
+            synapse_response: The response from the REST API.
+
+        Returns:
+            The UploadToTablePreviewRequest object.
+        """
+        suggested_columns_data = synapse_response.get("suggestedColumns", None)
+        if suggested_columns_data is not None:
+            self.suggested_columns = [
+                Column().fill_from_dict(col) for col in suggested_columns_data
+            ]
+
+        sample_rows_data = synapse_response.get("sampleRows", None)
+        if sample_rows_data is not None:
+            self.sample_rows = [row.get("values", []) for row in sample_rows_data]
+
+        self.rows_scanned = synapse_response.get("rowsScanned", None)
+        return self
+
+    def to_synapse_request(self) -> Dict[str, Any]:
+        """
+        Converts this dataclass to a dictionary suitable for a Synapse REST API request.
+
+        Returns:
+            A dictionary representation of this object for API requests.
+        """
+        request_dict = {
+            "concreteType": self.concrete_type,
+            "uploadFileHandleId": self.upload_file_handle_id,
+            "linesToSkip": self.lines_to_skip,
+            "doFullFileScan": self.do_full_file_scan,
+            "csvTableDescriptor": self.csv_table_descriptor.to_synapse_request(),
+        }
         delete_none_keys(request_dict)
         return request_dict
 
@@ -1076,6 +2364,53 @@ class GridRecordSetExportRequest(AsynchronousCommunicator):
         if self.session_id is not None:
             request_dict["sessionId"] = self.session_id
         return request_dict
+
+
+@dataclass
+class SynchronizeGridRequest(AsynchronousCommunicator):
+    """
+    A request to synchronize a grid session.
+
+    The request is modeled from: <https://rest-docs.synapse.org/rest/org/sagebionetworks/repo/model/grid/SynchronizeGridRequest.html>
+
+    The response is modeled from: <https://rest-docs.synapse.org/rest/org/sagebionetworks/repo/model/grid/SynchronizeGridResponse.html>
+    """
+
+    grid_session_id: str
+    """The ID of the grid session to synchronize."""
+
+    concrete_type: str = field(default=SYNCHRONIZE_GRID_REQUEST)
+    """The concrete type for this request."""
+
+    error_messages: Optional[list[str]] = field(default=None, compare=False)
+    """Any error messages generated during the synchronization process."""
+
+    def fill_from_dict(
+        self, synapse_response: Dict[str, Any]
+    ) -> "SynchronizeGridRequest":
+        """
+        Converts a response from the REST API into this dataclass.
+
+        Arguments:
+            synapse_response: The response from the REST API.
+
+        Returns:
+            The SynchronizeGridRequest object.
+        """
+        self.error_messages = synapse_response.get("errorMessages", None)
+        return self
+
+    def to_synapse_request(self) -> Dict[str, Any]:
+        """
+        Converts this dataclass to a dictionary suitable for a Synapse REST API request.
+
+        Returns:
+            A dictionary representation of this object for API requests.
+        """
+        return {
+            "concreteType": self.concrete_type,
+            "gridSessionId": self.grid_session_id,
+        }
 
 
 @dataclass
@@ -1339,6 +2674,50 @@ class GridSynchronousProtocol(Protocol):
         """
         return self
 
+    def synchronize(
+        self, *, timeout: int = 120, synapse_client: Optional[Synapse] = None
+    ) -> "Grid":
+        """
+        Synchronizes the grid session's schema and row data against its source entity.
+
+        This is intended for grid sessions created from a file view via `initial_query`.
+        Grid sessions backed by a RecordSet should use `export_to_record_set` instead.
+
+        Arguments:
+            timeout: The number of seconds to wait for the job to complete or progress
+                before raising a SynapseTimeoutError. Defaults to 120.
+            synapse_client: If not passed in and caching was not disabled by
+                `Synapse.allow_client_caching(False)` this will use the last created
+                instance from the Synapse class constructor.
+
+        Returns:
+            Grid: The Grid object.
+
+        Raises:
+            ValueError: If session_id is not provided.
+
+        Example: Synchronize a grid session created from a file view
+            &nbsp;
+
+            ```python
+            from synapseclient import Synapse
+            from synapseclient.models import Grid
+            from synapseclient.models.table_components import Query
+
+            syn = Synapse()
+            syn.login()
+
+            # First create a grid session from a file view
+            query = Query(sql="SELECT * FROM syn1234567")
+            grid = Grid(initial_query=query)
+            grid = grid.create()
+
+            # Synchronize the grid with the latest state of the file view
+            grid = grid.synchronize()
+            ```
+        """
+        return self
+
     def delete(self, *, synapse_client: Optional[Synapse] = None) -> None:
         """
         Delete the grid session.
@@ -1372,6 +2751,83 @@ class GridSynchronousProtocol(Protocol):
             ```
         """
         return None
+
+    def download_csv(
+        self,
+        *,
+        destination: Optional[str] = None,
+        write_header: bool = True,
+        include_row_id_and_row_version: bool = False,
+        include_etag: bool = False,
+        csv_table_descriptor: Optional[CsvTableDescriptor] = None,
+        file_name: Optional[str] = None,
+        timeout: int = 120,
+        synapse_client: Optional[Synapse] = None,
+    ) -> str:
+        """
+        Download the current state of this grid session as a CSV file.
+
+        Submits a DownloadFromGridRequest async job, waits for it to complete,
+        then downloads the resulting CSV to the local filesystem.
+
+        Arguments:
+            destination: Local directory path where the CSV will be saved.
+                If not provided, defaults to the current working directory. The directory must already exist.
+            write_header: Whether the first line should contain column names
+                as a header. Defaults to True.
+            include_row_id_and_row_version: Whether the first two columns
+                should contain row ID and version. Defaults to False.
+            include_etag: Whether a column should contain the row etag.
+                Defaults to False.
+            csv_table_descriptor: The description of the CSV format (delimiter,
+                quote character, etc.). If not provided, the default CSV format
+                will be used.
+            file_name: The optional name for the downloaded file. If not
+                provided, defaults to `grid_{session_id}-{timestamp}.csv`.
+            timeout: The number of seconds to wait for the async job to
+                complete or progress before raising a SynapseTimeoutError.
+                Defaults to 120.
+            synapse_client: If not passed in and caching was not disabled by
+                `Synapse.allow_client_caching(False)` this will use the last
+                created instance from the Synapse class constructor.
+
+        Returns:
+            The local path to the downloaded CSV file.
+
+        Raises:
+            ValueError: If session_id is not provided.
+
+        Example: Download a grid session as a CSV
+            &nbsp;
+
+            ```python
+            from synapseclient import Synapse
+            from synapseclient.models import Grid
+
+            syn = Synapse()
+            syn.login()
+
+            grid = Grid(session_id="abc-123-def")
+            path = grid.download_csv(destination="./downloads")
+            print(f"Downloaded CSV to: {path}")
+            ```
+
+        Example: Download a grid session as a CSV with a custom file name
+            &nbsp;
+
+            ```python
+            from synapseclient import Synapse
+            from synapseclient.models import Grid
+
+            syn = Synapse()
+            syn.login()
+
+            grid = Grid(session_id="abc-123-def")
+            path = grid.download_csv(destination="./downloads", file_name="my_export.csv")
+            print(f"Downloaded CSV to: {path}")
+            ```
+        """
+        return ""
 
     @classmethod
     def list(
@@ -1427,6 +2883,53 @@ class GridSynchronousProtocol(Protocol):
             ```
         """
 
+    def import_csv(
+        self,
+        path: str,
+        *,
+        timeout: int = 120,
+        csv_table_descriptor: Optional[CsvTableDescriptor] = None,
+        synapse_client: Optional[Synapse] = None,
+    ) -> "Grid":
+        """
+        Import a CSV file into this grid session. Previews the file to determine
+        the column schema, then imports the data. Currently supports only grids
+        created from a record set.
+
+        Arguments:
+            path: Local path to the CSV file to import.
+            csv_table_descriptor: The description of the CSV format (delimiter,
+                quote character, etc.). If not provided, the default CSV format
+                will be used.
+            timeout: The number of seconds to wait for each async job to complete
+                or progress before raising a SynapseTimeoutError. Defaults to 120.
+            synapse_client: If not passed in and caching was not disabled by
+                `Synapse.allow_client_caching(False)` this will use the last created
+                instance from the Synapse class constructor.
+
+        Returns:
+            The Grid object.
+
+        Raises:
+            ValueError: If session_id is not provided.
+
+        Example: Import a CSV file into a grid session
+            &nbsp;
+
+            ```python
+            from synapseclient import Synapse
+            from synapseclient.models import Grid
+
+            syn = Synapse()
+            syn.login()
+
+            grid = Grid(session_id="abc-123-def")
+            grid = grid.import_csv(path="/local/path/to/data.csv")
+            print(f"Import complete for session: {grid.session_id}")
+            ```
+        """
+        return self
+
 
 @dataclass
 @async_to_sync
@@ -1440,6 +2943,9 @@ class Grid(GridSynchronousProtocol):
         record_set_id: The synId of the RecordSet to use for initializing the grid
         initial_query: Initialize a grid session from an EntityView.
             Mutually exclusive with record_set_id.
+        owner_principal_id: The principal ID (user or team) that will own the
+            created grid session. When not provided, the principal ID of the
+            caller is used.
         session_id: The unique sessionId that identifies the grid session
         started_by: The user that started this session
         started_on: The date-time when the session was started
@@ -1503,6 +3009,10 @@ class Grid(GridSynchronousProtocol):
     initial_query: Optional[Query] = None
     """Initialize a grid session from an EntityView.
     Mutually exclusive with record_set_id."""
+
+    owner_principal_id: int | None = None
+    """The principal ID (user or team) that will own the created grid session.
+    When not provided, the principal ID of the caller is used."""
 
     session_id: Optional[str] = None
     """The unique sessionId that identifies the grid session"""
@@ -1619,7 +3129,9 @@ class Grid(GridSynchronousProtocol):
 
         # No existing session found, create a new one
         create_request = CreateGridRequest(
-            record_set_id=self.record_set_id, initial_query=self.initial_query
+            record_set_id=self.record_set_id,
+            initial_query=self.initial_query,
+            owner_principal_id=self.owner_principal_id,
         )
         result = await create_request.send_job_and_wait_async(
             timeout=timeout, synapse_client=synapse_client
@@ -1707,6 +3219,7 @@ class Grid(GridSynchronousProtocol):
         )
         self.grid_json_schema_id = synapse_response.get("gridJsonSchema$Id", None)
         self.source_entity_id = synapse_response.get("sourceEntityId", None)
+        self.owner_principal_id = synapse_response.get("ownerPrincipalId")
         return self
 
     @skip_async_to_sync
@@ -1789,6 +3302,9 @@ class Grid(GridSynchronousProtocol):
             synapse_client=synapse_client,
         )
 
+    @otel_trace_method(
+        method_to_trace_name=lambda self, **kwargs: f"Grid_Delete: ID: {self.session_id}"
+    )
     async def delete_async(self, *, synapse_client: Optional[Synapse] = None) -> None:
         """
         Delete the grid session.
@@ -1838,3 +3354,318 @@ class Grid(GridSynchronousProtocol):
         await delete_grid_session(
             session_id=self.session_id, synapse_client=synapse_client
         )
+
+    @otel_trace_method(
+        method_to_trace_name=lambda self, **kwargs: f"Grid_ImportCsv: ID: {self.session_id}"
+    )
+    async def import_csv_async(
+        self,
+        path: str,
+        *,
+        timeout: int = 120,
+        csv_table_descriptor: Optional[CsvTableDescriptor] = None,
+        synapse_client: Optional[Synapse] = None,
+    ) -> "Grid":
+        """
+        Import a CSV file into this grid session. Previews the file to determine
+        the column schema, then imports the data. Currently supports only grids
+        created from a record set.
+
+        Arguments:
+            path: Local path to the CSV file to import.
+            csv_table_descriptor: The description of the CSV format (delimiter,
+                quote character, etc.). If not provided, the default CSV format
+                will be used.
+            timeout: The number of seconds to wait for each async job to complete
+                or progress before raising a SynapseTimeoutError. Defaults to 120.
+            synapse_client: If not passed in and caching was not disabled by
+                `Synapse.allow_client_caching(False)` this will use the last created
+                instance from the Synapse class constructor.
+
+        Returns:
+            The Grid object.
+
+        Raises:
+            ValueError: If session_id is not provided.
+
+        Example: Import a CSV file into a grid session asynchronously
+            &nbsp;
+
+            ```python
+            import asyncio
+            from synapseclient import Synapse
+            from synapseclient.models import Grid
+
+            syn = Synapse()
+            syn.login()
+
+            async def main():
+                grid = Grid(session_id="abc-123-def")
+                grid = await grid.import_csv_async(path="/local/path/to/data.csv")
+                print(f"Import complete for session: {grid.session_id}")
+
+            asyncio.run(main())
+            ```
+        """
+
+        if not self.session_id:
+            raise ValueError(
+                "session_id is required to import a CSV into a GridSession"
+            )
+
+        if not os.path.isfile(path):
+            raise ValueError(f"Path '{path}' is not a valid file.")
+
+        trace.get_current_span().set_attributes(
+            {
+                "synapse.session_id": self.session_id,
+            }
+        )
+
+        client = Synapse.get_client(synapse_client=synapse_client)
+        file_handle = await upload_synapse_s3(syn=client, file_path=path)
+        file_handle_id = file_handle["id"]
+
+        effective_descriptor = csv_table_descriptor or CsvTableDescriptor()
+
+        upload_to_table_preview = UploadToTablePreviewRequest(
+            csv_table_descriptor=effective_descriptor,
+            upload_file_handle_id=file_handle_id,
+        )
+
+        preview_response = await upload_to_table_preview.send_job_and_wait_async(
+            timeout=timeout, synapse_client=synapse_client
+        )
+        if not preview_response.suggested_columns:
+            raise ValueError(
+                f"CSV preview for file handle {file_handle_id} returned no suggested "
+                f"columns (rows scanned: {preview_response.rows_scanned}). The file may "
+                f"be empty, contain only a header row, or use a separator different "
+                f"from the configured csv_table_descriptor "
+                f"(separator={repr(effective_descriptor.separator)})."
+            )
+
+        import_request = GridCsvImportRequest(
+            session_id=self.session_id,
+            file_handle_id=file_handle_id,
+            schema=preview_response.suggested_columns,
+            csv_descriptor=effective_descriptor,
+        )
+        import_response = await import_request.send_job_and_wait_async(
+            timeout=timeout, synapse_client=synapse_client
+        )
+        client.logger.info(
+            f"CSV import to grid session {self.session_id} completed successfully, "
+            f"total count: {import_response.total_count}, "
+            f"total created: {import_response.created_count}, "
+            f"total updated: {import_response.updated_count}"
+        )
+
+        return self
+
+    @otel_trace_method(
+        method_to_trace_name=lambda self, *args, **kwargs: f"Grid_DownloadCsv: ID: {self.session_id}"
+    )
+    async def download_csv_async(
+        self,
+        *,
+        destination: Optional[str] = None,
+        write_header: bool = True,
+        include_row_id_and_row_version: bool = False,
+        include_etag: bool = False,
+        csv_table_descriptor: Optional[CsvTableDescriptor] = None,
+        file_name: Optional[str] = None,
+        timeout: int = 120,
+        synapse_client: Optional[Synapse] = None,
+    ) -> str:
+        """
+        Asynchronously download the current state of this grid session as a CSV file.
+
+        Submits a DownloadFromGridRequest async job, waits for it to complete,
+        then downloads the resulting CSV to the local filesystem.
+
+        Arguments:
+            destination: Local directory path where the CSV will be saved. The directory must already exist.
+                If not provided, defaults to the current working directory.
+            write_header: Whether the first line should contain column names
+                as a header. Defaults to True.
+            include_row_id_and_row_version: Whether the first two columns
+                should contain row ID and version. Defaults to False.
+            include_etag: Whether a column should contain the row etag.
+                Defaults to False.
+            csv_table_descriptor: The description of the CSV format (delimiter,
+                quote character, etc.). If not provided, the default CSV format
+                will be used.
+            file_name: The optional name for the downloaded file. If not
+                provided, defaults to `grid_{session_id}-{timestamp}.csv`.
+            timeout: The number of seconds to wait for the async job to
+                complete or progress before raising a SynapseTimeoutError.
+                Defaults to 120.
+            synapse_client: If not passed in and caching was not disabled by
+                `Synapse.allow_client_caching(False)` this will use the last
+                created instance from the Synapse class constructor.
+
+        Returns:
+            The local path to the downloaded CSV file.
+
+        Raises:
+            ValueError: If session_id is not provided.
+
+        Example: Download a grid session as a CSV asynchronously
+            &nbsp;
+
+            ```python
+            import asyncio
+            from synapseclient import Synapse
+            from synapseclient.models import Grid
+
+            syn = Synapse()
+            syn.login()
+
+            async def main():
+                grid = Grid(session_id="abc-123-def")
+                path = await grid.download_csv_async(destination="./downloads")
+                print(f"Downloaded CSV to: {path}")
+
+            asyncio.run(main())
+            ```
+
+        Example: Download a grid session as a CSV with a custom file name asynchronously
+            &nbsp;
+
+            ```python
+            import asyncio
+            from synapseclient import Synapse
+            from synapseclient.models import Grid
+
+            syn = Synapse()
+            syn.login()
+
+            async def main():
+                grid = Grid(session_id="abc-123-def")
+                path = await grid.download_csv_async(
+                    destination="./downloads", file_name="my_export.csv"
+                )
+                print(f"Downloaded CSV to: {path}")
+
+            asyncio.run(main())
+            ```
+        """
+        if not self.session_id:
+            raise ValueError("session_id is required to download a GridSession as CSV")
+
+        if not destination:
+            destination = os.getcwd()
+
+        if not os.path.isdir(destination):
+            raise ValueError(f"Destination {destination} is not a valid directory.")
+
+        trace.get_current_span().set_attributes({"synapse.session_id": self.session_id})
+
+        effective_descriptor = csv_table_descriptor or CsvTableDescriptor()
+        request = DownloadFromGridRequest(
+            session_id=self.session_id,
+            write_header=write_header,
+            include_row_id_and_row_version=include_row_id_and_row_version,
+            include_etag=include_etag,
+            csv_table_descriptor=effective_descriptor,
+            file_name=file_name,
+        )
+        download_response = await request.send_job_and_wait_async(
+            timeout=timeout, synapse_client=synapse_client
+        )
+        if not download_response.results_file_handle_id:
+            raise ValueError(
+                f"Download job for grid session '{self.session_id}' completed but "
+                "did not return a file handle ID. The CSV result may be empty or "
+                "the job may have failed silently."
+            )
+        file_handle, presigned_url = await asyncio.gather(
+            get_file_handle(
+                file_handle_id=download_response.results_file_handle_id,
+                synapse_client=synapse_client,
+            ),
+            get_file_handle_presigned_url(
+                file_handle_id=download_response.results_file_handle_id,
+                synapse_client=synapse_client,
+            ),
+        )
+        if not file_name:
+            timestamp = datetime.now(tz=timezone.utc).strftime("%Y%m%d%H%M%S")
+            file_name = f"grid_{self.session_id}-{timestamp}.csv"
+        file_path = os.path.join(destination, file_name)
+        return await asyncio.to_thread(
+            download_from_url,
+            url=presigned_url,
+            destination=file_path,
+            file_handle_id=file_handle["id"],
+            expected_md5=file_handle.get("contentMd5"),
+            url_is_presigned=True,
+            synapse_client=synapse_client,
+        )
+
+    @otel_trace_method(
+        method_to_trace_name=lambda self, **kwargs: f"Grid_Synchronize: ID: {self.session_id}"
+    )
+    async def synchronize_async(
+        self, *, timeout: int = 120, synapse_client: Optional[Synapse] = None
+    ) -> "Grid":
+        """
+        Synchronizes the grid session's schema and row data against its source entity.
+
+        This is intended for grid sessions created from a file view via `initial_query`.
+        Grid sessions backed by a RecordSet should use `export_to_record_set` instead.
+
+        Arguments:
+            timeout: The number of seconds to wait for the job to complete or progress
+                before raising a SynapseTimeoutError. Defaults to 120.
+            synapse_client: If not passed in and caching was not disabled by
+                `Synapse.allow_client_caching(False)` this will use the last created
+                instance from the Synapse class constructor.
+
+        Returns:
+            Grid: The Grid object.
+
+        Raises:
+            ValueError: If session_id is not provided.
+
+        Example: Synchronize a grid session created from a file view
+            &nbsp;
+
+            ```python
+            import asyncio
+            from synapseclient import Synapse
+            from synapseclient.models import Grid
+            from synapseclient.models.table_components import Query
+
+            syn = Synapse()
+            syn.login()
+
+            async def main():
+                # First create a grid session from a file view
+                query = Query(sql="SELECT * FROM syn1234567")
+                grid = Grid(initial_query=query)
+                grid = await grid.create_async()
+
+                # Synchronize the grid with the latest state of the file view
+                grid = await grid.synchronize_async()
+
+            asyncio.run(main())
+            ```
+        """
+        if not self.session_id:
+            raise ValueError("session_id is required to synchronize a GridSession")
+
+        request = SynchronizeGridRequest(grid_session_id=self.session_id)
+        result = await request.send_job_and_wait_async(
+            timeout=timeout, synapse_client=synapse_client
+        )
+
+        if result.error_messages:
+            client = Synapse.get_client(synapse_client=synapse_client)
+            client.logger.error(
+                f"Grid session '{self.session_id}' synchronization completed with "
+                f"error messages: {result.error_messages}"
+            )
+
+        return self

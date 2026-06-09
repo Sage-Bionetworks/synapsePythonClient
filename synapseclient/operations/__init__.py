@@ -1,4 +1,17 @@
 from synapseclient.operations.delete_operations import delete, delete_async
+from synapseclient.operations.download_list_operations import (
+    DownloadListItem,
+    download_list_add,
+    download_list_add_async,
+    download_list_clear,
+    download_list_clear_async,
+    download_list_files,
+    download_list_files_async,
+    download_list_manifest,
+    download_list_manifest_async,
+    download_list_remove,
+    download_list_remove_async,
+)
 from synapseclient.operations.factory_operations import (
     ActivityOptions,
     FileOptions,
@@ -47,6 +60,18 @@ __all__ = [
     # Delete operations
     "delete",
     "delete_async",
+    # Download list operations
+    "DownloadListItem",
+    "download_list_files",
+    "download_list_files_async",
+    "download_list_manifest",
+    "download_list_manifest_async",
+    "download_list_add",
+    "download_list_add_async",
+    "download_list_remove",
+    "download_list_remove_async",
+    "download_list_clear",
+    "download_list_clear_async",
     # Utility operations
     "find_entity_id",
     "find_entity_id_async",

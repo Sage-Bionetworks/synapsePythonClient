@@ -12,17 +12,45 @@ from synapseclient import Synapse
 from synapseclient.core.exceptions import SynapseHTTPError
 from synapseclient.core.utils import make_bogus_uuid_file
 from synapseclient.models import (
-    Column,
-    ColumnType,
     CurationTask,
+    CurationTaskStatus,
     EntityView,
     FileBasedMetadataTaskProperties,
     Folder,
+    Grid,
+    GridExecutionDetails,
     Project,
     RecordBasedMetadataTaskProperties,
     RecordSet,
+    TaskState,
     ViewTypeMask,
 )
+from synapseclient.models.table_components import Query
+from tests.integration import ASYNC_JOB_TIMEOUT_SEC
+
+
+@pytest.fixture(scope="function")
+async def folder_with_view(
+    project_model: Project,
+    syn: Synapse,
+    schedule_for_cleanup: Callable[..., None],
+) -> tuple[Folder, EntityView]:
+    """Create a folder with an associated EntityView for file-based testing."""
+    folder = await Folder(
+        name=str(uuid.uuid4()),
+        parent_id=project_model.id,
+    ).store_async(synapse_client=syn)
+    schedule_for_cleanup(folder.id)
+
+    entity_view = await EntityView(
+        name=str(uuid.uuid4()),
+        parent_id=project_model.id,
+        scope_ids=[folder.id],
+        view_type_mask=ViewTypeMask.FILE.value,
+    ).store_async(synapse_client=syn)
+    schedule_for_cleanup(entity_view.id)
+
+    return folder, entity_view
 
 
 class TestCurationTaskStoreAsync:
@@ -32,48 +60,6 @@ class TestCurationTaskStoreAsync:
     def init(self, syn: Synapse, schedule_for_cleanup: Callable[..., None]) -> None:
         self.syn = syn
         self.schedule_for_cleanup = schedule_for_cleanup
-
-    @pytest.fixture(scope="class")
-    async def folder_with_view(
-        self,
-        project_model: Project,
-        syn: Synapse,
-        schedule_for_cleanup: Callable[..., None],
-    ) -> tuple[Folder, EntityView]:
-        """Create a folder with an associated EntityView for file-based testing."""
-        # Create a folder
-        folder = await Folder(
-            name=str(uuid.uuid4()),
-            parent_id=project_model.id,
-        ).store_async(synapse_client=syn)
-        schedule_for_cleanup(folder.id)
-
-        # Create an EntityView for the folder
-        columns = [
-            Column(name="id", column_type=ColumnType.ENTITYID),
-            Column(name="name", column_type=ColumnType.STRING, maximum_size=256),
-            Column(name="createdOn", column_type=ColumnType.DATE),
-            Column(name="createdBy", column_type=ColumnType.USERID),
-            Column(name="etag", column_type=ColumnType.STRING, maximum_size=64),
-            Column(name="type", column_type=ColumnType.STRING, maximum_size=64),
-            Column(name="parentId", column_type=ColumnType.ENTITYID),
-            Column(name="benefactorId", column_type=ColumnType.ENTITYID),
-            Column(name="projectId", column_type=ColumnType.ENTITYID),
-            Column(name="modifiedOn", column_type=ColumnType.DATE),
-            Column(name="modifiedBy", column_type=ColumnType.USERID),
-            Column(name="dataFileHandleId", column_type=ColumnType.FILEHANDLEID),
-        ]
-
-        entity_view = await EntityView(
-            name=str(uuid.uuid4()),
-            parent_id=project_model.id,
-            scope_ids=[folder.id],
-            view_type_mask=ViewTypeMask.FILE.value,
-            columns=columns,
-        ).store_async(synapse_client=syn)
-        schedule_for_cleanup(entity_view.id)
-
-        return folder, entity_view
 
     @pytest.fixture(scope="class")
     async def record_set(
@@ -262,48 +248,6 @@ class TestCurationTaskGetAsync:
         self.syn = syn
         self.schedule_for_cleanup = schedule_for_cleanup
 
-    @pytest.fixture(scope="class")
-    async def folder_with_view(
-        self,
-        project_model: Project,
-        syn: Synapse,
-        schedule_for_cleanup: Callable[..., None],
-    ) -> tuple[Folder, EntityView]:
-        """Create a folder with an associated EntityView for file-based testing."""
-        # Create a folder
-        folder = await Folder(
-            name=str(uuid.uuid4()),
-            parent_id=project_model.id,
-        ).store_async(synapse_client=syn)
-        schedule_for_cleanup(folder.id)
-
-        # Create required columns for the EntityView
-        columns = [
-            Column(name="id", column_type=ColumnType.ENTITYID),
-            Column(name="name", column_type=ColumnType.STRING, maximum_size=256),
-            Column(name="createdOn", column_type=ColumnType.DATE),
-            Column(name="createdBy", column_type=ColumnType.USERID),
-            Column(name="etag", column_type=ColumnType.STRING, maximum_size=64),
-            Column(name="type", column_type=ColumnType.STRING, maximum_size=64),
-            Column(name="parentId", column_type=ColumnType.ENTITYID),
-            Column(name="benefactorId", column_type=ColumnType.ENTITYID),
-            Column(name="projectId", column_type=ColumnType.ENTITYID),
-            Column(name="modifiedOn", column_type=ColumnType.DATE),
-            Column(name="modifiedBy", column_type=ColumnType.USERID),
-            Column(name="dataFileHandleId", column_type=ColumnType.FILEHANDLEID),
-        ]
-
-        entity_view = await EntityView(
-            name=str(uuid.uuid4()),
-            parent_id=project_model.id,
-            scope_ids=[folder.id],
-            view_type_mask=ViewTypeMask.FILE.value,
-            columns=columns,
-        ).store_async(synapse_client=syn)
-        schedule_for_cleanup(entity_view.id)
-
-        return folder, entity_view
-
     async def test_get_curation_task_async(
         self, project_model: Project, folder_with_view: tuple[Folder, EntityView]
     ) -> None:
@@ -370,48 +314,6 @@ class TestCurationTaskDeleteAsync:
     def init(self, syn: Synapse, schedule_for_cleanup: Callable[..., None]) -> None:
         self.syn = syn
         self.schedule_for_cleanup = schedule_for_cleanup
-
-    @pytest.fixture(scope="function")
-    async def folder_with_view(
-        self,
-        project_model: Project,
-        syn: Synapse,
-        schedule_for_cleanup: Callable[..., None],
-    ) -> tuple[Folder, EntityView]:
-        """Create a folder with an associated EntityView for file-based testing."""
-        # Create a folder
-        folder = await Folder(
-            name=str(uuid.uuid4()),
-            parent_id=project_model.id,
-        ).store_async(synapse_client=syn)
-        schedule_for_cleanup(folder.id)
-
-        # Create required columns for the EntityView
-        columns = [
-            Column(name="id", column_type=ColumnType.ENTITYID),
-            Column(name="name", column_type=ColumnType.STRING, maximum_size=256),
-            Column(name="createdOn", column_type=ColumnType.DATE),
-            Column(name="createdBy", column_type=ColumnType.USERID),
-            Column(name="etag", column_type=ColumnType.STRING, maximum_size=64),
-            Column(name="type", column_type=ColumnType.STRING, maximum_size=64),
-            Column(name="parentId", column_type=ColumnType.ENTITYID),
-            Column(name="benefactorId", column_type=ColumnType.ENTITYID),
-            Column(name="projectId", column_type=ColumnType.ENTITYID),
-            Column(name="modifiedOn", column_type=ColumnType.DATE),
-            Column(name="modifiedBy", column_type=ColumnType.USERID),
-            Column(name="dataFileHandleId", column_type=ColumnType.FILEHANDLEID),
-        ]
-
-        entity_view = await EntityView(
-            name=str(uuid.uuid4()),
-            parent_id=project_model.id,
-            scope_ids=[folder.id],
-            view_type_mask=ViewTypeMask.FILE.value,
-            columns=columns,
-        ).store_async(synapse_client=syn)
-        schedule_for_cleanup(entity_view.id)
-
-        return folder, entity_view
 
     @pytest.fixture(scope="function")
     async def folder_with_record_set(
@@ -589,50 +491,43 @@ class TestCurationTaskListAsync:
         self.syn = syn
         self.schedule_for_cleanup = schedule_for_cleanup
 
-    @pytest.fixture(scope="class")
+    @pytest.fixture(scope="function")
+    async def project_for_test(
+        self,
+        syn: Synapse,
+        schedule_for_cleanup: Callable[..., None],
+    ) -> Project:
+        """Create a fresh project per test so tasks from other tests don't appear in listings."""
+        project = await Project(name=str(uuid.uuid4())).store_async(synapse_client=syn)
+        schedule_for_cleanup(project.id)
+        return project
+
+    @pytest.fixture(scope="function")
     async def folder_with_view(
         self,
-        project_model: Project,
+        project_for_test: Project,
         syn: Synapse,
         schedule_for_cleanup: Callable[..., None],
     ) -> tuple[Folder, EntityView]:
         """Create a folder with an associated EntityView for file-based testing."""
-        # Create a folder
         folder = await Folder(
             name=str(uuid.uuid4()),
-            parent_id=project_model.id,
+            parent_id=project_for_test.id,
         ).store_async(synapse_client=syn)
         schedule_for_cleanup(folder.id)
 
-        # Create required columns for the EntityView
-        columns = [
-            Column(name="id", column_type=ColumnType.ENTITYID),
-            Column(name="name", column_type=ColumnType.STRING, maximum_size=256),
-            Column(name="createdOn", column_type=ColumnType.DATE),
-            Column(name="createdBy", column_type=ColumnType.USERID),
-            Column(name="etag", column_type=ColumnType.STRING, maximum_size=64),
-            Column(name="type", column_type=ColumnType.STRING, maximum_size=64),
-            Column(name="parentId", column_type=ColumnType.ENTITYID),
-            Column(name="benefactorId", column_type=ColumnType.ENTITYID),
-            Column(name="projectId", column_type=ColumnType.ENTITYID),
-            Column(name="modifiedOn", column_type=ColumnType.DATE),
-            Column(name="modifiedBy", column_type=ColumnType.USERID),
-            Column(name="dataFileHandleId", column_type=ColumnType.FILEHANDLEID),
-        ]
-
         entity_view = await EntityView(
             name=str(uuid.uuid4()),
-            parent_id=project_model.id,
+            parent_id=project_for_test.id,
             scope_ids=[folder.id],
             view_type_mask=ViewTypeMask.FILE.value,
-            columns=columns,
         ).store_async(synapse_client=syn)
         schedule_for_cleanup(entity_view.id)
 
         return folder, entity_view
 
     async def test_list_curation_tasks_async(
-        self, project_model: Project, folder_with_view: tuple[Folder, EntityView]
+        self, project_for_test: Project, folder_with_view: tuple[Folder, EntityView]
     ) -> None:
         # GIVEN a project, folder, and entity view
         folder, entity_view = folder_with_view
@@ -647,7 +542,7 @@ class TestCurationTaskListAsync:
             )
             task = await CurationTask(
                 data_type=data_type,
-                project_id=project_model.id,
+                project_id=project_for_test.id,
                 instructions=f"Instructions for task {i}",
                 task_properties=task_properties,
             ).store_async(synapse_client=self.syn)
@@ -656,12 +551,12 @@ class TestCurationTaskListAsync:
         # WHEN I list all curation tasks for the project asynchronously
         listed_tasks = []
         async for task in CurationTask.list_async(
-            project_id=project_model.id, synapse_client=self.syn
+            project_id=project_for_test.id, synapse_client=self.syn
         ):
             listed_tasks.append(task)
 
-        # THEN I should get all the created tasks
-        assert len(listed_tasks) >= 3  # There might be other tasks from other tests
+        # THEN I should get exactly the 3 created tasks (isolated project)
+        assert len(listed_tasks) == 3
 
         # Check that our created tasks are in the list
         listed_task_ids = [task.task_id for task in listed_tasks]
@@ -673,12 +568,11 @@ class TestCurationTaskListAsync:
 
         # Verify the structure of retrieved tasks
         for task in listed_tasks:
-            if task.task_id in [t[1] for t in tasks_data]:
-                assert task.project_id == project_model.id
-                assert task.task_properties is not None
-                assert task.etag is not None
-                assert task.created_on is not None
-                assert task.created_by is not None
+            assert task.project_id == project_for_test.id
+            assert task.task_properties is not None
+            assert task.etag is not None
+            assert task.created_on is not None
+            assert task.created_by is not None
 
     async def test_list_empty_project_async(self) -> None:
         # GIVEN a project with no curation tasks
@@ -696,3 +590,343 @@ class TestCurationTaskListAsync:
 
         # THEN I should get an empty list
         assert len(listed_tasks) == 0
+
+    async def test_list_filters_async(
+        self, project_for_test: Project, folder_with_view: tuple[Folder, EntityView]
+    ) -> None:
+        # GIVEN a newly created curation task (default state is NOT_STARTED)
+        folder, entity_view = folder_with_view
+        data_type = f"test_data_type_{str(uuid.uuid4()).replace('-', '_')}"
+        task = await CurationTask(
+            data_type=data_type,
+            project_id=project_for_test.id,
+            instructions="Test instructions",
+            task_properties=FileBasedMetadataTaskProperties(
+                upload_folder_id=folder.id,
+                file_view_id=entity_view.id,
+            ),
+        ).store_async(synapse_client=self.syn)
+
+        # WHEN I list tasks filtered to NOT_STARTED
+        listed_task_ids = [
+            t.task_id
+            async for t in CurationTask.list_async(
+                project_id=project_for_test.id,
+                state_filter=[TaskState.NOT_STARTED],
+                synapse_client=self.syn,
+            )
+        ]
+
+        # THEN exactly 1 task should appear and it should be our task
+        assert len(listed_task_ids) == 1
+        assert task.task_id in listed_task_ids
+
+        # WHEN I list tasks filtered to COMPLETED
+        listed_task_ids = [
+            t.task_id
+            async for t in CurationTask.list_async(
+                project_id=project_for_test.id,
+                state_filter=[TaskState.COMPLETED],
+                synapse_client=self.syn,
+            )
+        ]
+
+        # THEN no tasks should appear (the only task is NOT_STARTED)
+        assert len(listed_task_ids) == 0
+
+
+class TestCurationTaskStatusAsync:
+    """Tests for the CurationTask.get_status_async and CurationTask.update_status_async methods."""
+
+    @pytest.fixture(scope="function")
+    async def grid(
+        self,
+        syn: Synapse,
+        folder_with_view: tuple[Folder, EntityView],
+        request: pytest.FixtureRequest,
+    ) -> Grid:
+        """Create a Grid backed by the entity view; delete it after the test."""
+        _, entity_view = folder_with_view
+        grid = await Grid(
+            initial_query=Query(sql=f"SELECT * FROM {entity_view.id}")
+        ).create_async(timeout=ASYNC_JOB_TIMEOUT_SEC, synapse_client=syn)
+
+        def delete_grid() -> None:
+            grid.delete(synapse_client=syn)
+
+        request.addfinalizer(delete_grid)
+        return grid
+
+    async def test_get_and_update_curation_task_status_async(
+        self,
+        syn: Synapse,
+        project_model: Project,
+        folder_with_view: tuple[Folder, EntityView],
+        grid: Grid,
+    ) -> None:
+        # GIVEN a project, folder, and entity view
+        folder, entity_view = folder_with_view
+
+        # AND a stored curation task
+        data_type = f"test_data_type_{str(uuid.uuid4()).replace('-', '_')}"
+        task_properties = FileBasedMetadataTaskProperties(
+            upload_folder_id=folder.id,
+            file_view_id=entity_view.id,
+        )
+        stored_task = await CurationTask(
+            data_type=data_type,
+            project_id=project_model.id,
+            instructions="Test instructions for status flow.",
+            task_properties=task_properties,
+        ).store_async(synapse_client=syn)
+
+        # WHEN I get the initial status of the task
+        initial_status = await stored_task.get_status_async(synapse_client=syn)
+
+        # THEN it should be parsed into a CurationTaskStatus tied to this task
+        assert isinstance(initial_status, CurationTaskStatus)
+        assert initial_status.task_id == stored_task.task_id
+        assert initial_status.state == TaskState.NOT_STARTED
+        # AND it should not yet reference an active grid session
+        assert initial_status.execution_details is None
+
+        # AND WHEN I modify the state to IN_PROGRESS, attach a GridExecutionDetails
+        # pointing to the active grid session, and store the status
+        initial_status.state = TaskState.IN_PROGRESS
+        initial_status.execution_details = GridExecutionDetails(
+            active_session_id=grid.session_id
+        )
+        updated_status = await stored_task.update_status_async(
+            curation_task_status=initial_status, synapse_client=syn
+        )
+
+        # THEN the update response should reflect the new state and execution details
+        assert isinstance(updated_status, CurationTaskStatus)
+        assert updated_status.task_id == stored_task.task_id
+        assert updated_status.state == TaskState.IN_PROGRESS
+        assert isinstance(updated_status.execution_details, GridExecutionDetails)
+        assert updated_status.execution_details.active_session_id == grid.session_id
+
+        # AND WHEN I get the status again
+        refetched_status = await stored_task.get_status_async(synapse_client=syn)
+
+        # THEN the modification should have persisted on the server
+        assert refetched_status.task_id == stored_task.task_id
+        assert refetched_status.state == TaskState.IN_PROGRESS
+        assert isinstance(refetched_status.execution_details, GridExecutionDetails)
+        assert refetched_status.execution_details.active_session_id == grid.session_id
+
+
+class TestCurationTaskCreateGridSessionAsync:
+    """Tests for the CurationTask.create_grid_session_async method."""
+
+    async def test_create_grid_session_async(
+        self,
+        syn: Synapse,
+        project_model: Project,
+        folder_with_view: tuple[Folder, EntityView],
+        request: pytest.FixtureRequest,
+    ) -> None:
+        # GIVEN a project, folder, and entity view
+        folder, entity_view = folder_with_view
+
+        # AND a stored file-based curation task
+        data_type = f"test_data_type_{str(uuid.uuid4()).replace('-', '_')}"
+        task_properties = FileBasedMetadataTaskProperties(
+            upload_folder_id=folder.id,
+            file_view_id=entity_view.id,
+        )
+        stored_task = await CurationTask(
+            data_type=data_type,
+            project_id=project_model.id,
+            instructions="Create a grid session for this task.",
+            task_properties=task_properties,
+        ).store_async(synapse_client=syn)
+
+        # WHEN I create a grid session for the task asynchronously
+        grid = await stored_task.create_grid_session_async(
+            timeout=ASYNC_JOB_TIMEOUT_SEC, synapse_client=syn
+        )
+        request.addfinalizer(lambda: grid.delete(synapse_client=syn))
+
+        # THEN a Grid is returned with a populated session_id
+        assert isinstance(grid, Grid)
+        assert grid.session_id is not None
+
+        # AND the curation task status now references the new grid session
+        status = await stored_task.get_status_async(synapse_client=syn)
+        assert isinstance(status, CurationTaskStatus)
+        assert isinstance(status.execution_details, GridExecutionDetails)
+        assert status.execution_details.active_session_id == grid.session_id
+
+
+class TestCurationTaskSetActiveGridSessionAsync:
+    """Tests for the CurationTask.set_active_grid_session_async method."""
+
+    @pytest.fixture(scope="function")
+    async def grid(
+        self,
+        syn: Synapse,
+        folder_with_view: tuple[Folder, EntityView],
+        request: pytest.FixtureRequest,
+    ) -> Grid:
+        """Create a Grid backed by the entity view; delete it after the test."""
+        _, entity_view = folder_with_view
+        grid = await Grid(
+            initial_query=Query(sql=f"SELECT * FROM {entity_view.id}")
+        ).create_async(timeout=ASYNC_JOB_TIMEOUT_SEC, synapse_client=syn)
+
+        def delete_grid() -> None:
+            grid.delete(synapse_client=syn)
+
+        request.addfinalizer(delete_grid)
+        return grid
+
+    async def test_set_active_grid_session_async(
+        self,
+        syn: Synapse,
+        project_model: Project,
+        folder_with_view: tuple[Folder, EntityView],
+        grid: Grid,
+    ) -> None:
+        # GIVEN a project, folder, and entity view
+        folder, entity_view = folder_with_view
+
+        # AND a stored file-based curation task
+        data_type = f"test_data_type_{str(uuid.uuid4()).replace('-', '_')}"
+        task_properties = FileBasedMetadataTaskProperties(
+            upload_folder_id=folder.id,
+            file_view_id=entity_view.id,
+        )
+        stored_task = await CurationTask(
+            data_type=data_type,
+            project_id=project_model.id,
+            instructions="Attach an existing grid session to this task.",
+            task_properties=task_properties,
+        ).store_async(synapse_client=syn)
+
+        # AND the task's initial status has no execution details
+        initial_status = await stored_task.get_status_async(synapse_client=syn)
+        assert initial_status.execution_details is None
+
+        # WHEN I attach the existing grid session to the task
+        updated_status = await stored_task.set_active_grid_session_async(
+            active_session_id=grid.session_id, synapse_client=syn
+        )
+
+        # THEN the returned status references the grid session
+        assert isinstance(updated_status, CurationTaskStatus)
+        assert updated_status.task_id == stored_task.task_id
+        assert isinstance(updated_status.execution_details, GridExecutionDetails)
+        assert updated_status.execution_details.active_session_id == grid.session_id
+        # AND the task state is not transitioned by this call
+        assert updated_status.state == initial_status.state
+
+        # AND the change persists on the server
+        refetched_status = await stored_task.get_status_async(synapse_client=syn)
+        assert isinstance(refetched_status.execution_details, GridExecutionDetails)
+        assert refetched_status.execution_details.active_session_id == grid.session_id
+
+    async def test_set_active_grid_session_async_replaces_existing_session(
+        self,
+        syn: Synapse,
+        project_model: Project,
+        folder_with_view: tuple[Folder, EntityView],
+        grid: Grid,
+        request: pytest.FixtureRequest,
+    ) -> None:
+        # GIVEN a project, folder, and entity view
+        folder, entity_view = folder_with_view
+
+        # AND a stored file-based curation task that already has an active
+        # grid session linked via create_grid_session_async
+        data_type = f"test_data_type_{str(uuid.uuid4()).replace('-', '_')}"
+        task_properties = FileBasedMetadataTaskProperties(
+            upload_folder_id=folder.id,
+            file_view_id=entity_view.id,
+        )
+        stored_task = await CurationTask(
+            data_type=data_type,
+            project_id=project_model.id,
+            instructions="Replace the active grid session on this task.",
+            task_properties=task_properties,
+        ).store_async(synapse_client=syn)
+
+        original_grid = await stored_task.create_grid_session_async(
+            timeout=ASYNC_JOB_TIMEOUT_SEC, synapse_client=syn
+        )
+        request.addfinalizer(lambda: original_grid.delete(synapse_client=syn))
+        assert original_grid.session_id is not None
+        assert original_grid.session_id != grid.session_id
+
+        # WHEN I point the task at a different existing grid session
+        updated_status = await stored_task.set_active_grid_session_async(
+            active_session_id=grid.session_id, synapse_client=syn
+        )
+
+        # THEN the status now references the new session, not the original
+        assert isinstance(updated_status.execution_details, GridExecutionDetails)
+        assert updated_status.execution_details.active_session_id == grid.session_id
+
+        # AND the change persists on the server
+        refetched_status = await stored_task.get_status_async(synapse_client=syn)
+        assert refetched_status.execution_details.active_session_id == grid.session_id
+
+    async def test_set_active_grid_session_async_validation_error(
+        self, syn: Synapse
+    ) -> None:
+        # GIVEN a CurationTask without a task_id
+        curation_task = CurationTask()
+
+        # WHEN I try to set an active grid session
+        # THEN it should raise a ValueError from the underlying get_status call
+        with pytest.raises(
+            ValueError, match="task_id is required to get a CurationTask status"
+        ):
+            await curation_task.set_active_grid_session_async(
+                active_session_id="some-session-id", synapse_client=syn
+            )
+
+
+class TestCurationTaskSetTaskStateAsync:
+    """Test for the CurationTask.set_task_state_async method."""
+
+    async def test_set_task_state_async(
+        self,
+        syn: Synapse,
+        project_model: Project,
+        folder_with_view: tuple[Folder, EntityView],
+    ) -> None:
+        # GIVEN a project, folder, and entity view
+        folder, entity_view = folder_with_view
+
+        # AND a stored file-based curation task
+        data_type = f"test_data_type_{str(uuid.uuid4()).replace('-', '_')}"
+        task_properties = FileBasedMetadataTaskProperties(
+            upload_folder_id=folder.id,
+            file_view_id=entity_view.id,
+        )
+        stored_task = await CurationTask(
+            data_type=data_type,
+            project_id=project_model.id,
+            instructions="Set the task state on this curation task.",
+            task_properties=task_properties,
+        ).store_async(synapse_client=syn)
+
+        # AND the task's status starts at NOT_STARTED
+        initial_status = await stored_task.get_status_async(synapse_client=syn)
+        assert initial_status.state == TaskState.NOT_STARTED
+
+        # WHEN I transition the state to IN_PROGRESS
+        updated_status = await stored_task.set_task_state_async(
+            state=TaskState.IN_PROGRESS, synapse_client=syn
+        )
+
+        # THEN the returned status reflects the new state
+        assert isinstance(updated_status, CurationTaskStatus)
+        assert updated_status.task_id == stored_task.task_id
+        assert updated_status.state == TaskState.IN_PROGRESS
+
+        # AND the change persists on the server
+        refetched_status = await stored_task.get_status_async(synapse_client=syn)
+        assert refetched_status.state == TaskState.IN_PROGRESS

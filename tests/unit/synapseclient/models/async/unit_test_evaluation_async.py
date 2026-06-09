@@ -517,15 +517,18 @@ class TestEvaluationAsync:
         )
 
         # WHEN I call update_acl_async with a principal_id and access_type
-        with patch(
-            "synapseclient.api.evaluation_services.get_evaluation_acl",
-            new_callable=AsyncMock,
-            return_value=current_acl,
-        ) as mock_get_acl, patch(
-            "synapseclient.api.evaluation_services.update_evaluation_acl",
-            new_callable=AsyncMock,
-            return_value=updated_acl,
-        ) as mock_update_acl:
+        with (
+            patch(
+                "synapseclient.api.evaluation_services.get_evaluation_acl",
+                new_callable=AsyncMock,
+                return_value=current_acl,
+            ) as mock_get_acl,
+            patch(
+                "synapseclient.api.evaluation_services.update_evaluation_acl",
+                new_callable=AsyncMock,
+                return_value=updated_acl,
+            ) as mock_update_acl,
+        ):
             result = await evaluation.update_acl_async(
                 principal_id=PRINCIPAL_ID,
                 access_type=["READ", "SUBMIT"],
@@ -599,15 +602,18 @@ class TestEvaluationAsync:
         )
 
         # WHEN I call update_acl_async with a NEW principal_id
-        with patch(
-            "synapseclient.api.evaluation_services.get_evaluation_acl",
-            new_callable=AsyncMock,
-            return_value=current_acl,
-        ), patch(
-            "synapseclient.api.evaluation_services.update_evaluation_acl",
-            new_callable=AsyncMock,
-            return_value=expected_updated_acl,
-        ) as mock_update_acl:
+        with (
+            patch(
+                "synapseclient.api.evaluation_services.get_evaluation_acl",
+                new_callable=AsyncMock,
+                return_value=current_acl,
+            ),
+            patch(
+                "synapseclient.api.evaluation_services.update_evaluation_acl",
+                new_callable=AsyncMock,
+                return_value=expected_updated_acl,
+            ) as mock_update_acl,
+        ):
             result = await evaluation.update_acl_async(
                 principal_id=TEAM_PRINCIPAL_ID,
                 access_type=["READ", "SUBMIT"],
@@ -640,15 +646,18 @@ class TestEvaluationAsync:
         expected_updated_acl["resourceAccess"][0]["accessType"] = ["READ"]
 
         # WHEN I call update_acl_async to update the existing principal's permissions
-        with patch(
-            "synapseclient.api.evaluation_services.get_evaluation_acl",
-            new_callable=AsyncMock,
-            return_value=current_acl,
-        ), patch(
-            "synapseclient.api.evaluation_services.update_evaluation_acl",
-            new_callable=AsyncMock,
-            return_value=expected_updated_acl,
-        ) as mock_update_acl:
+        with (
+            patch(
+                "synapseclient.api.evaluation_services.get_evaluation_acl",
+                new_callable=AsyncMock,
+                return_value=current_acl,
+            ),
+            patch(
+                "synapseclient.api.evaluation_services.update_evaluation_acl",
+                new_callable=AsyncMock,
+                return_value=expected_updated_acl,
+            ) as mock_update_acl,
+        ):
             result = await evaluation.update_acl_async(
                 principal_id=OWNER_ID,
                 access_type=["READ"],
@@ -685,15 +694,18 @@ class TestEvaluationAsync:
         expected_updated_acl["resourceAccess"] = []
 
         # WHEN I call update_acl_async with an empty access_type list
-        with patch(
-            "synapseclient.api.evaluation_services.get_evaluation_acl",
-            new_callable=AsyncMock,
-            return_value=current_acl,
-        ), patch(
-            "synapseclient.api.evaluation_services.update_evaluation_acl",
-            new_callable=AsyncMock,
-            return_value=expected_updated_acl,
-        ) as mock_update_acl:
+        with (
+            patch(
+                "synapseclient.api.evaluation_services.get_evaluation_acl",
+                new_callable=AsyncMock,
+                return_value=current_acl,
+            ),
+            patch(
+                "synapseclient.api.evaluation_services.update_evaluation_acl",
+                new_callable=AsyncMock,
+                return_value=expected_updated_acl,
+            ) as mock_update_acl,
+        ):
             result = await evaluation.update_acl_async(
                 principal_id=OWNER_ID,
                 access_type=[],
@@ -758,15 +770,18 @@ class TestEvaluationAsync:
         current_acl = self.get_example_acl_response()
 
         # WHEN I call update_acl_async with lowercase access_type values
-        with patch(
-            "synapseclient.api.evaluation_services.get_evaluation_acl",
-            new_callable=AsyncMock,
-            return_value=current_acl,
-        ), patch(
-            "synapseclient.api.evaluation_services.update_evaluation_acl",
-            new_callable=AsyncMock,
-            return_value=current_acl,
-        ) as mock_update_acl:
+        with (
+            patch(
+                "synapseclient.api.evaluation_services.get_evaluation_acl",
+                new_callable=AsyncMock,
+                return_value=current_acl,
+            ),
+            patch(
+                "synapseclient.api.evaluation_services.update_evaluation_acl",
+                new_callable=AsyncMock,
+                return_value=current_acl,
+            ) as mock_update_acl,
+        ):
             await evaluation.update_acl_async(
                 principal_id=TEAM_PRINCIPAL_ID,
                 access_type=["read", "submit"],

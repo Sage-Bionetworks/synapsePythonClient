@@ -52,7 +52,7 @@ from synapseclient.extensions.curator.schema_registry import (
     SchemaRegistryColumnConfig,
     get_latest_schema_uri,
 )
-from synapseclient.models import Column, ColumnType
+from synapseclient.models import Column, ColumnType, ViewTypeMask
 from synapseclient.models.curation import (
     FileBasedMetadataTaskProperties,
     RecordBasedMetadataTaskProperties,
@@ -150,6 +150,7 @@ class TestCreateFileBasedMetadataTask(unittest.TestCase):
             syn=self.mock_syn,
             synapse_entity_id=self.folder_id,
             entity_view_name=self.entity_view_name,
+            view_type_mask=ViewTypeMask.FILE,
         )
         mock_create_wiki.assert_called_once_with(
             syn=self.mock_syn, entity_view_id="syn87654321", owner_id=self.folder_id
@@ -480,6 +481,7 @@ class TestCreateFileBasedMetadataTask(unittest.TestCase):
                     syn=self.mock_syn,
                     synapse_entity_id=self.folder_id,
                     entity_view_name=self.entity_view_name,
+                    view_type_mask=ViewTypeMask.FILE,
                 )
 
 
@@ -565,9 +567,7 @@ class TestCreateRecordBasedMetadataTask(unittest.TestCase):
         mock_curation_task.store.return_value = mock_task
         mock_curation_task_cls.return_value = mock_curation_task
 
-        mock_grid = Mock()
         mock_grid_instance = Mock()
-        mock_grid_instance.export_to_record_set.return_value = mock_grid
         mock_grid_cls.return_value = mock_grid_instance
 
         # WHEN I create the record-based metadata task
@@ -590,7 +590,7 @@ class TestCreateRecordBasedMetadataTask(unittest.TestCase):
         record_set, task, grid = result
         assert record_set == mock_record_set
         assert task == mock_task
-        assert grid == mock_grid
+        assert grid == mock_grid_instance
 
         mock_extract_schema.assert_called_once_with(
             syn=self.mock_syn, schema_uri=self.schema_uri
@@ -599,6 +599,11 @@ class TestCreateRecordBasedMetadataTask(unittest.TestCase):
             json_schema_uri=self.schema_uri,
             enable_derived_annotations=True,
             synapse_client=self.mock_syn,
+        )
+
+        # AND the Grid deprecation warning was emitted
+        self.mock_syn.logger.warning.assert_any_call(
+            "A Grid object will no longer be created by this function starting in v5.0.0."
         )
 
     @patch(
@@ -629,7 +634,7 @@ class TestCreateRecordBasedMetadataTask(unittest.TestCase):
         mock_get_project_id_from_entity_id,
     ):
         """Test creation without schema binding."""
-        # Setup mocks
+        # GIVEN a record-based metadata task with schema binding disabled
         mock_get_client.return_value = self.mock_syn
         mock_get_project_id_from_entity_id.return_value = self.project_id
 
@@ -652,12 +657,10 @@ class TestCreateRecordBasedMetadataTask(unittest.TestCase):
         mock_curation_task.store.return_value = mock_task
         mock_curation_task_cls.return_value = mock_curation_task
 
-        mock_grid = Mock()
         mock_grid_instance = Mock()
-        mock_grid_instance.export_to_record_set.return_value = mock_grid
         mock_grid_cls.return_value = mock_grid_instance
 
-        # Call function
+        # WHEN I create the record-based metadata task without schema binding
         result = create_record_based_metadata_task(
             folder_id=self.folder_id,
             record_set_name=self.record_set_name,
@@ -670,7 +673,15 @@ class TestCreateRecordBasedMetadataTask(unittest.TestCase):
             synapse_client=self.mock_syn,
         )
 
-        # Assertions
+        # THEN the correct items are returned
+        assert isinstance(result, tuple)
+        assert len(result) == 3
+        record_set, task, grid = result
+        assert record_set == mock_record_set
+        assert task == mock_task
+        assert grid == mock_grid_instance
+
+        # AND schema binding was skipped
         mock_record_set.bind_schema.assert_not_called()
 
     @patch(
@@ -1010,9 +1021,7 @@ class TestCreateRecordBasedMetadataTask(unittest.TestCase):
                 mock_curation_task.store.return_value = mock_task
                 mock_curation_task_cls.return_value = mock_curation_task
 
-                mock_grid = Mock()
                 mock_grid_instance = Mock()
-                mock_grid_instance.export_to_record_set.return_value = mock_grid
                 mock_grid_cls.return_value = mock_grid_instance
 
                 # WHEN I create the record-based metadata task with assignee_principal_id
@@ -1035,7 +1044,7 @@ class TestCreateRecordBasedMetadataTask(unittest.TestCase):
                 record_set, task, grid = result
                 assert record_set == mock_record_set
                 assert task == mock_task
-                assert grid == mock_grid
+                assert grid == mock_grid_instance
 
                 # AND the CurationTask should be called with assignee_principal_id as string
                 mock_curation_task_cls.assert_called_once_with(
@@ -1047,6 +1056,88 @@ class TestCreateRecordBasedMetadataTask(unittest.TestCase):
                         record_set_id=mock_record_set.id
                     ),
                 )
+
+    @patch(
+        "synapseclient.extensions.curator.record_based_metadata_task.project_id_from_entity_id"
+    )
+    @patch(
+        "synapseclient.extensions.curator.record_based_metadata_task.Synapse.get_client"
+    )
+    @patch(
+        "synapseclient.extensions.curator.record_based_metadata_task.extract_schema_properties_from_web"
+    )
+    @patch(
+        "synapseclient.extensions.curator.record_based_metadata_task.tempfile.NamedTemporaryFile"
+    )
+    @patch("synapseclient.extensions.curator.record_based_metadata_task.RecordSet")
+    @patch("synapseclient.extensions.curator.record_based_metadata_task.CurationTask")
+    @patch("synapseclient.extensions.curator.record_based_metadata_task.Grid")
+    @patch("builtins.open")
+    def test_create_record_based_metadata_task_create_grid_false(
+        self,
+        mock_open,
+        mock_grid_cls,
+        mock_curation_task_cls,
+        mock_record_set_cls,
+        mock_temp_file,
+        mock_extract_schema,
+        mock_get_client,
+        mock_get_project_id_from_entity_id,
+    ):
+        """Test that Grid is not created and not returned when create_grid=False."""
+        # GIVEN a record-based metadata task with Grid creation disabled
+        mock_get_client.return_value = self.mock_syn
+        mock_get_project_id_from_entity_id.return_value = self.project_id
+
+        mock_df = pd.DataFrame(columns=["specimenID", "age", "diagnosis"])
+        mock_extract_schema.return_value = mock_df
+
+        mock_temp = Mock()
+        mock_temp.name = "/tmp/test.csv"
+        mock_temp_file.return_value = mock_temp
+
+        mock_record_set = Mock()
+        mock_record_set.id = "syn87654321"
+        mock_record_set_instance = Mock()
+        mock_record_set_instance.store.return_value = mock_record_set
+        mock_record_set_cls.return_value = mock_record_set_instance
+
+        mock_task = Mock()
+        mock_task.task_id = "task123"
+        mock_curation_task = Mock()
+        mock_curation_task.store.return_value = mock_task
+        mock_curation_task_cls.return_value = mock_curation_task
+
+        # WHEN create_grid=False
+        result = create_record_based_metadata_task(
+            folder_id=self.folder_id,
+            record_set_name=self.record_set_name,
+            record_set_description=self.record_set_description,
+            curation_task_name=self.curation_task_name,
+            upsert_keys=self.upsert_keys,
+            instructions=self.instructions,
+            schema_uri=self.schema_uri,
+            synapse_client=self.mock_syn,
+            create_grid=False,
+        )
+
+        # THEN only RecordSet and CurationTask are returned
+        assert isinstance(result, tuple)
+        assert len(result) == 2
+        record_set, task = result
+        assert record_set == mock_record_set
+        assert task == mock_task
+
+        # AND Grid was never instantiated or created
+        mock_grid_cls.assert_not_called()
+
+        # AND no deprecation warning about Grid was emitted
+        warning_calls = [
+            str(call)
+            for call in self.mock_syn.logger.warning.call_args_list
+            if "Grid" in str(call)
+        ]
+        assert not warning_calls
 
 
 class TestQuerySchemaRegistry(unittest.TestCase):
@@ -1465,6 +1556,72 @@ class TestFileBasedHelperFunctions(unittest.TestCase):
         mock_view.reorder_column.assert_any_call(name="createdBy", index=0)
         mock_view.reorder_column.assert_any_call(name="name", index=0)
         mock_view.reorder_column.assert_any_call(name="id", index=0)
+
+    @patch("synapseclient.extensions.curator.file_based_metadata_task.isinstance")
+    @patch("synapseclient.extensions.curator.file_based_metadata_task.EntityView")
+    @patch("synapseclient.extensions.curator.file_based_metadata_task.get")
+    @patch("synapseclient.extensions.curator.file_based_metadata_task.JSONSchema")
+    def test_create_json_schema_entity_view_with_file_and_folder_view_type_mask(
+        self,
+        mock_json_schema_cls,
+        mock_get,
+        mock_entity_view_cls,
+        mock_isinstance,
+    ):
+        """Test that a combined FILE|FOLDER view_type_mask is forwarded to EntityView."""
+        # GIVEN a valid synapse entity with a JSON schema
+        entity_id = "syn12345678"
+        entity_view_name = "Test View"
+        combined_mask = ViewTypeMask.FILE | ViewTypeMask.FOLDER
+
+        mock_entity = Mock()
+        mock_entity.get_schema.return_value = JSONSchemaBinding(
+            object_id=1,
+            object_type="",
+            created_on="",
+            created_by="",
+            enable_derived_annotations=True,
+            json_schema_version_info=JSONSchemaVersionInfo(
+                organization_id="",
+                organization_name="org.name",
+                schema_id="",
+                id="",
+                schema_name="schema.name",
+                version_id="",
+                semantic_version="0.0.1",
+                json_sha256_hex="",
+                created_on="",
+                created_by="",
+            ),
+        )
+        mock_get.return_value = mock_entity
+        mock_isinstance.return_value = True
+
+        mock_json_schema = Mock()
+        mock_json_schema.get_body.return_value = {
+            "properties": {"name": {"type": "string"}, "age": {"type": "integer"}}
+        }
+        mock_json_schema_cls.return_value = mock_json_schema
+
+        mock_view = Mock()
+        mock_view.id = "syn87654321"
+        mock_view.store.return_value = mock_view
+        mock_entity_view_cls.return_value = mock_view
+
+        # WHEN I create the JSON schema entity view with both file and folder types
+        result = create_json_schema_entity_view(
+            syn=self.mock_syn,
+            synapse_entity_id=entity_id,
+            entity_view_name=entity_view_name,
+            view_type_mask=combined_mask,
+        )
+
+        # THEN the entity view should be created with the combined mask
+        assert result == "syn87654321"
+        _, kwargs = mock_entity_view_cls.call_args
+        assert kwargs["view_type_mask"] == combined_mask
+        assert kwargs["view_type_mask"] & ViewTypeMask.FILE
+        assert kwargs["view_type_mask"] & ViewTypeMask.FOLDER
 
     @patch(
         "synapseclient.extensions.curator.file_based_metadata_task.update_wiki_with_entity_view"

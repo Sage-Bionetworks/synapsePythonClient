@@ -2,6 +2,7 @@
 
 from synapseclient.models.mixins.access_control import AccessControllable
 from synapseclient.models.mixins.asynchronous_job import AsynchronousCommunicator
+from synapseclient.models.mixins.enum_coercion import EnumCoercionMixin
 from synapseclient.models.mixins.form import (
     FormChangeRequest,
     FormData,
@@ -21,10 +22,17 @@ from synapseclient.models.mixins.json_schema import (
     ValidationException,
 )
 from synapseclient.models.mixins.storable_container import StorableContainer
+from synapseclient.models.mixins.storage_location_mixin import (
+    ProjectSettingsMixin,
+    StorageLocationConfigurable,
+)
 
 __all__ = [
     "AccessControllable",
+    "EnumCoercionMixin",
+    "ProjectSettingsMixin",
     "StorableContainer",
+    "StorageLocationConfigurable",
     "AsynchronousCommunicator",
     "BaseJSONSchema",
     "ContainerEntityJSONSchema",

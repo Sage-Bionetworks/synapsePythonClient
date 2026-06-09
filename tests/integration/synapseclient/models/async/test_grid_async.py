@@ -9,8 +9,20 @@ import pandas as pd
 import pytest
 
 from synapseclient import Synapse
-from synapseclient.models import Grid, Project, RecordSet
-from tests.integration import ASYNC_JOB_TIMEOUT_SEC
+from synapseclient.core.utils import make_bogus_data_file
+from synapseclient.models import (
+    EntityView,
+    File,
+    Folder,
+    Grid,
+    Project,
+    RecordSet,
+    ViewTypeMask,
+    query_async,
+)
+from synapseclient.models.table_components import Query
+from tests.integration import ASYNC_JOB_TIMEOUT_SEC, QUERY_TIMEOUT_SEC
+from tests.integration.helpers import wait_for_condition
 
 
 class TestGridAsync:
@@ -20,6 +32,31 @@ class TestGridAsync:
     def init(self, syn: Synapse, schedule_for_cleanup: Callable[..., None]) -> None:
         self.syn = syn
         self.schedule_for_cleanup = schedule_for_cleanup
+
+    @pytest.fixture(scope="function")
+    async def entity_view(
+        self,
+        project_model: Project,
+        syn: Synapse,
+        schedule_for_cleanup: Callable[..., None],
+    ) -> tuple[Folder, EntityView]:
+        """Create a folder with an associated EntityView for file-based testing."""
+        # Create a folder
+        folder = await Folder(
+            name=str(uuid.uuid4()),
+            parent_id=project_model.id,
+        ).store_async(synapse_client=syn)
+        schedule_for_cleanup(folder.id)
+
+        entity_view = await EntityView(
+            name=str(uuid.uuid4()),
+            parent_id=project_model.id,
+            scope_ids=[folder.id],
+            view_type_mask=ViewTypeMask.FILE.value,
+        ).store_async(synapse_client=syn)
+        schedule_for_cleanup(entity_view.id)
+
+        return folder, entity_view
 
     @pytest.fixture(scope="function")
     async def record_set_fixture(self, project_model: Project) -> RecordSet:
@@ -183,3 +220,155 @@ class TestGridAsync:
             match="session_id is required to delete a GridSession",
         ):
             await grid.delete_async(synapse_client=self.syn)
+
+    async def test_synchronize_grid_async(
+        self,
+        entity_view: tuple[Folder, EntityView],
+    ) -> None:
+        folder, ev = entity_view
+
+        # GIVEN: A Grid session created at T0 from an empty EntityView
+        query = Query(sql=f"SELECT * FROM {ev.id}")
+        grid = Grid(initial_query=query)
+        created_grid = await grid.create_async(synapse_client=self.syn)
+
+        try:
+            # AND: A file uploaded into the scoped folder
+            bogus_file = make_bogus_data_file()
+            self.schedule_for_cleanup(bogus_file)
+            uploaded_file = await File(
+                path=bogus_file,
+                parent_id=folder.id,
+            ).store_async(synapse_client=self.syn)
+            self.schedule_for_cleanup(uploaded_file.id)
+
+            # Wait for the EntityView to index the new file
+            async def file_indexed() -> bool:
+                df = await query_async(
+                    query=f"SELECT id FROM {ev.id} WHERE id = '{uploaded_file.id}'",
+                    include_row_id_and_row_version=False,
+                    synapse_client=self.syn,
+                )
+                return not df.empty
+
+            await wait_for_condition(
+                condition_fn=file_indexed,
+                timeout_seconds=QUERY_TIMEOUT_SEC,
+            )
+
+            # WHEN: Synchronizing the same session
+            synced_grid = await created_grid.synchronize_async(synapse_client=self.syn)
+
+            # THEN: The session ID is unchanged
+            assert synced_grid.session_id == created_grid.session_id
+            assert synced_grid.source_entity_id == ev.id
+
+            # AND: The downloaded CSV reflects the newly uploaded file
+            dest = tempfile.mkdtemp()
+            self.schedule_for_cleanup(dest)
+            csv_path = await synced_grid.download_csv_async(
+                destination=dest,
+                timeout=ASYNC_JOB_TIMEOUT_SEC,
+                synapse_client=self.syn,
+            )
+            df = pd.read_csv(csv_path)
+            assert uploaded_file.id in df["id"].tolist()
+        finally:
+            if created_grid.session_id:
+                await created_grid.delete_async(synapse_client=self.syn)
+
+    async def test_import_csv_to_grid_session_async(
+        self,
+        record_set_fixture: RecordSet,
+    ) -> None:
+        """Test importing a CSV file into a grid session."""
+
+        # GIVEN: Create a grid session first
+        grid = Grid(record_set_id=record_set_fixture.id)
+        created_grid = None
+        try:
+            created_grid = await grid.create_async(
+                timeout=ASYNC_JOB_TIMEOUT_SEC, synapse_client=self.syn
+            )
+
+            assert created_grid.session_id is not None
+
+            # AND a CSV file uploaded to Synapse
+            test_data = pd.DataFrame(
+                {
+                    "id": [6, 7, 8, 9, 10],
+                    "name": ["Alpha", "Beta", "Gamma", "Delta", "Epsilon"],
+                    "value": [10.5, 20.3, 30.7, 40.1, 50.9],
+                    "category": ["A", "B", "A", "C", "B"],
+                    "active": [True, False, False, True, True],
+                }
+            )
+
+            # Create a temporary CSV file.
+            with tempfile.NamedTemporaryFile(
+                "w", suffix=".csv", delete=False
+            ) as temp_csv:
+                temp_csv_path = temp_csv.name
+
+            test_data.to_csv(temp_csv_path, index=False)
+            self.schedule_for_cleanup(temp_csv_path)
+
+            # WHEN: Importing the CSV into the grid session
+            imported_grid = await created_grid.import_csv_async(
+                path=temp_csv_path,
+                timeout=ASYNC_JOB_TIMEOUT_SEC,
+                synapse_client=self.syn,
+            )
+
+            # THEN: The import should complete and return the Grid with the same session
+            assert imported_grid.session_id == created_grid.session_id
+
+            # WHEN: Exporting the grid back to the record set
+            exported_grid = await imported_grid.export_to_record_set_async(
+                timeout=ASYNC_JOB_TIMEOUT_SEC, synapse_client=self.syn
+            )
+
+            # THEN: The export should contain 10 total rows
+            # (5 from the original record set + 5 imported)
+            assert exported_grid.validation_summary_statistics is not None
+            assert (
+                exported_grid.validation_summary_statistics.total_number_of_children
+                == 10
+            )
+        finally:
+            if created_grid is not None and created_grid.session_id:
+                await created_grid.delete_async(synapse_client=self.syn)
+
+    async def test_download_csv_async(self, record_set_fixture: RecordSet) -> None:
+        # GIVEN: Create a grid session first
+        grid = Grid(record_set_id=record_set_fixture.id)
+        try:
+            created_grid = await grid.create_async(
+                timeout=ASYNC_JOB_TIMEOUT_SEC, synapse_client=self.syn
+            )
+
+            # WHEN: Downloading the grid results as CSV
+            temp_dir = tempfile.mkdtemp()
+            self.schedule_for_cleanup(temp_dir)
+            csv_path = await created_grid.download_csv_async(
+                synapse_client=self.syn,
+                timeout=ASYNC_JOB_TIMEOUT_SEC,
+                destination=temp_dir,
+            )
+
+            # THEN: The CSV content should be returned and match the original data
+            assert os.path.exists(csv_path)
+            df = pd.read_csv(csv_path)
+            expected_df = pd.DataFrame(
+                {
+                    "id": [1, 2, 3, 4, 5],
+                    "name": ["Alpha", "Beta", "Gamma", "Delta", "Epsilon"],
+                    "value": [10.5, 20.3, 30.7, 40.1, 50.9],
+                    "category": ["A", "B", "A", "C", "B"],
+                    "active": [True, False, True, True, False],
+                }
+            )
+            pd.testing.assert_frame_equal(df, expected_df, check_dtype=False)
+        finally:
+            if created_grid is not None and created_grid.session_id:
+                await created_grid.delete_async(synapse_client=self.syn)

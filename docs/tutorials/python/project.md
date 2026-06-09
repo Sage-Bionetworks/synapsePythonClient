@@ -89,7 +89,7 @@ I just got my project: My uniquely named project about Alzheimer's Disease, id: 
   <summary>Click to show me</summary>
 
 ```python
-{!docs/tutorials/python/tutorial_scripts/project.py!}
+--8<-- "docs/tutorials/python/tutorial_scripts/project.py"
 ```
 </details>
 

@@ -1,6 +1,7 @@
 """
 Integration tests for the synapseclient.models.Form class.
 """
+
 import tempfile
 import uuid
 from typing import Callable

@@ -12,9 +12,14 @@ at your own risk.
         inherited_members: true
         members:
             - get
+            - get_status
+            - update_status
+            - set_active_grid_session
             - delete
             - store
             - list
+            - create_grid_session
+            - set_task_state
 ---
 
 [](){ #RecordSet-reference }
@@ -56,6 +61,11 @@ at your own risk.
         members:
             - create
             - export_to_record_set
+            - synchronize
+            - download_csv
+            - import_csv
+            - delete
+            - list
 ---
 [](){ #query-reference }
 ::: synapseclient.models.Query

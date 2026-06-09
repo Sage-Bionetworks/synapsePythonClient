@@ -135,7 +135,7 @@ def notify_me_async(syn: "Synapse", messageSubject: str = "", retries: int = 0):
             while attempt <= retries:
                 try:
                     output = await func(*args, **kwargs)
-                    syn.sendMessage(
+                    await syn.sendMessage_async(
                         [destination],
                         messageSubject,
                         messageBody="Call to %s completed successfully!"
@@ -146,7 +146,7 @@ def notify_me_async(syn: "Synapse", messageSubject: str = "", retries: int = 0):
                     syn.logger.exception(
                         f"Encountered a temporary Failure during execution.  Will retry {retries - attempt} more times."
                     )
-                    syn.sendMessage(
+                    await syn.sendMessage_async(
                         [destination],
                         messageSubject,
                         messageBody=(

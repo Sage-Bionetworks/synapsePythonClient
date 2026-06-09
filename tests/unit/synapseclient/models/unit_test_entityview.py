@@ -1,4 +1,5 @@
 """Tests for the EntityView class."""
+
 import pytest
 
 from synapseclient import Synapse

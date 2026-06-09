@@ -30,13 +30,13 @@ repos:
         name: isort (python)
 
   - repo: https://github.com/psf/black
-    rev: 23.3.0
+    rev: 26.3.1
     hooks:
       - id: black
         language_version: python3
 
   - repo: https://github.com/PyCQA/bandit
-    rev: 1.8.0
+    rev: 1.8.6
     hooks:
       - id: bandit
         args: ["-c", "pyproject.toml"]

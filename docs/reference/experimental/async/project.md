@@ -15,6 +15,8 @@ at your own risk.
         - delete_async
         - walk_async
         - sync_from_synapse_async
+        - sync_to_synapse_async
+        - generate_sync_manifest_async
         - flatten_file_list
         - map_directory_to_all_contained_files
         - get_permissions_async
@@ -29,3 +31,9 @@ at your own risk.
         - get_schema_derived_keys_async
         - get_schema_validation_statistics_async
         - get_invalid_validation_async
+        - set_storage_location_async
+        - get_project_setting_async
+        - delete_project_setting_async
+        - get_sts_storage_token_async
+        - index_files_for_migration_async
+        - migrate_indexed_files_async
