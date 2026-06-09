@@ -89,6 +89,9 @@ def parse(regex, output):
         raise Exception('ERROR parsing output: "' + str(output) + '"')
 
 
+@pytest.mark.skip(
+    reason="Unbounded retry loop on Wikimedia 429 kills CI — see SYNPY-1855"
+)
 def test_command_line_client(test_state):
     print("TESTING CMD LINE CLIENT")
     # Create a Project
