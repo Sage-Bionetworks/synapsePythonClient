@@ -12,6 +12,7 @@ from synapseclient import Wiki  # type: ignore
 from synapseclient.core.exceptions import SynapseHTTPError  # type: ignore
 from synapseclient.extensions.curator.utils import project_id_from_entity_id
 from synapseclient.models import (  # type: ignore
+    AuthorizationMode,
     Column,
     ColumnType,
     EntityView,
@@ -325,6 +326,8 @@ def create_file_based_metadata_task(
     enable_derived_annotations: bool = False,
     assignee_principal_id: Optional[Union[str, int]] = None,
     view_type_mask: Union[int, ViewTypeMask] = ViewTypeMask.FILE,
+    suggested_authorization_mode: Optional[Union[AuthorizationMode, str]] = None,
+    collaborator_principal_ids: Optional[list[str]] = None,
     *,
     synapse_client: Optional[Synapse] = None,
 ) -> Tuple[str, str]:
@@ -338,7 +341,7 @@ def create_file_based_metadata_task(
         ```python
         import synapseclient
         from synapseclient.extensions.curator import create_file_based_metadata_task
-        from synapseclient.models import ViewTypeMask
+        from synapseclient.models import AuthorizationMode, ViewTypeMask
 
         syn = synapseclient.Synapse()
         syn.login()
@@ -351,8 +354,9 @@ def create_file_based_metadata_task(
             attach_wiki=False,
             entity_view_name="Biospecimen Metadata View",
             schema_uri="sage.schemas.v2571-amp.Biospecimen.schema-0.0.1",
-            assignee_principal_id=123456,  # Optional: Assign to a user or team (can be str or int)
-            view_type_mask=ViewTypeMask.FILE | ViewTypeMask.DOCKER,  # Optional: include additional entity types in the view
+            assignee_principal_id=123456, # Optional: Assign to a user or team (can be str or int)
+            view_type_mask=ViewTypeMask.FILE | ViewTypeMask.DOCKER, # Optional: include additional entity types in the view
+            suggested_authorization_mode=AuthorizationMode.SOURCE_BENEFACTOR,
         )
         ```
 
@@ -377,6 +381,13 @@ def create_file_based_metadata_task(
             ViewTypeMask.FILE. Additional types can be added using bitwise OR
             (e.g., ViewTypeMask.FILE | ViewTypeMask.DOCKER). Accepts either a
             ViewTypeMask enum member or its raw integer value.
+        suggested_authorization_mode: The authorization mode a client should use when
+            creating a linked grid session for this task. When omitted, clients follow
+            legacy behavior: find or create a personal, unlinked grid session.
+        collaborator_principal_ids: The set of principal IDs that should collaborate on
+            the grid session. Used to set the owner(s) of a linked GridSession when
+            suggested_authorization_mode is SESSION_OWNER. Reserved for future
+            multi-owner support; not actively used at this time.
         synapse_client: If not passed in and caching was not disabled by
                 `Synapse.allow_client_caching(False)` this will use the last created
                 instance from the Synapse class constructor.
@@ -481,6 +492,8 @@ def create_file_based_metadata_task(
             task_properties=FileBasedMetadataTaskProperties(
                 upload_folder_id=folder_id,
                 file_view_id=entity_view_id,
+                suggested_authorization_mode=suggested_authorization_mode,
+                collaborator_principal_ids=collaborator_principal_ids,
             ),
         ).store(synapse_client=synapse_client)
     except Exception as e:

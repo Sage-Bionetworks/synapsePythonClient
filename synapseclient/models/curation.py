@@ -91,8 +91,23 @@ class TaskState(str, Enum):
     """The task has been canceled and is no longer needed."""
 
 
+class AuthorizationMode(str, Enum):
+    """
+    The authorization mode a client should use when creating a linked grid session
+    for a CurationTask.
+
+    See <https://rest-docs.synapse.org/rest/org/sagebionetworks/repo/model/grid/AuthorizationMode.html>.
+    """
+
+    SESSION_OWNER = "SESSION_OWNER"
+    """The grid session is owned by one or more explicit principals (collaborator_principal_ids)."""
+
+    SOURCE_BENEFACTOR = "SOURCE_BENEFACTOR"
+    """The grid session inherits permissions from the benefactor of the source entity."""
+
+
 @dataclass
-class FileBasedMetadataTaskProperties:
+class FileBasedMetadataTaskProperties(EnumCoercionMixin):
     """
     A CurationTaskProperties for file-based data, describing where data is uploaded
     and a view which contains the annotations.
@@ -104,11 +119,27 @@ class FileBasedMetadataTaskProperties:
         file_view_id: The synId of the FileView that shows all data of this type
     """
 
+    _ENUM_FIELDS: ClassVar[dict[str, type]] = {
+        "suggested_authorization_mode": AuthorizationMode
+    }
+
     upload_folder_id: Optional[str] = None
     """The synId of the folder where data files of this type are to be uploaded"""
 
     file_view_id: Optional[str] = None
     """The synId of the FileView that shows all data of this type"""
+
+    suggested_authorization_mode: Optional[Union[AuthorizationMode, str]] = None
+    """The authorization mode a client should use when creating a linked grid session for
+    this task. When omitted, clients follow legacy behavior: find or create a personal,
+    unlinked grid session. When this field changes, the server automatically clears
+    activeSessionId from the task status. Accepts either an AuthorizationMode enum
+    value or its string equivalent (e.g., "SOURCE_BENEFACTOR")."""
+
+    collaborator_principal_ids: Optional[list[str]] = None
+    """The set of principal IDs that should collaborate on the grid session. Used to set
+    the owner(s) of a linked GridSession when suggested_authorization_mode is SESSION_OWNER.
+    Reserved for future multi-owner support; not actively used at this time."""
 
     def fill_from_dict(
         self, synapse_response: Union[Dict[str, Any], Any]
@@ -124,6 +155,12 @@ class FileBasedMetadataTaskProperties:
         """
         self.upload_folder_id = synapse_response.get("uploadFolderId", None)
         self.file_view_id = synapse_response.get("fileViewId", None)
+        self.suggested_authorization_mode = synapse_response.get(
+            "suggestedAuthorizationMode", None
+        )
+        self.collaborator_principal_ids = synapse_response.get(
+            "collaboratorPrincipalIds", None
+        )
         return self
 
     def to_synapse_request(self) -> Dict[str, Any]:
@@ -133,16 +170,23 @@ class FileBasedMetadataTaskProperties:
         Returns:
             A dictionary representation of this object for API requests.
         """
-        request_dict = {"concreteType": FILE_BASED_METADATA_TASK_PROPERTIES}
-        if self.upload_folder_id is not None:
-            request_dict["uploadFolderId"] = self.upload_folder_id
-        if self.file_view_id is not None:
-            request_dict["fileViewId"] = self.file_view_id
+        request_dict = {
+            "concreteType": FILE_BASED_METADATA_TASK_PROPERTIES,
+            "uploadFolderId": self.upload_folder_id,
+            "fileViewId": self.file_view_id,
+            "suggestedAuthorizationMode": (
+                self.suggested_authorization_mode.value
+                if self.suggested_authorization_mode is not None
+                else None
+            ),
+            "collaboratorPrincipalIds": self.collaborator_principal_ids,
+        }
+        delete_none_keys(request_dict)
         return request_dict
 
 
 @dataclass
-class RecordBasedMetadataTaskProperties:
+class RecordBasedMetadataTaskProperties(EnumCoercionMixin):
     """
     A CurationTaskProperties for record-based metadata.
 
@@ -152,8 +196,24 @@ class RecordBasedMetadataTaskProperties:
         record_set_id: The synId of the RecordSet that will contain all record-based metadata
     """
 
+    _ENUM_FIELDS: ClassVar[Dict[str, type]] = {
+        "suggested_authorization_mode": AuthorizationMode
+    }
+
     record_set_id: Optional[str] = None
     """The synId of the RecordSet that will contain all record-based metadata"""
+
+    suggested_authorization_mode: Optional[Union[AuthorizationMode, str]] = None
+    """The authorization mode a client should use when creating a linked grid session for
+    this task. When omitted, clients follow legacy behavior: find or create a personal,
+    unlinked grid session. When this field changes, the server automatically clears
+    activeSessionId from the task status. Accepts either an AuthorizationMode enum
+    value or its string equivalent (e.g., "SOURCE_BENEFACTOR")."""
+
+    collaborator_principal_ids: Optional[list[str]] = None
+    """The set of principal IDs that should collaborate on the grid session. Used to set
+    the owner(s) of a linked GridSession when suggested_authorization_mode is SESSION_OWNER.
+    Reserved for future multi-owner support; not actively used at this time."""
 
     def fill_from_dict(
         self, synapse_response: Union[Dict[str, Any], Any]
@@ -168,6 +228,12 @@ class RecordBasedMetadataTaskProperties:
             The RecordBasedMetadataTaskProperties object.
         """
         self.record_set_id = synapse_response.get("recordSetId", None)
+        self.suggested_authorization_mode = synapse_response.get(
+            "suggestedAuthorizationMode", None
+        )
+        self.collaborator_principal_ids = synapse_response.get(
+            "collaboratorPrincipalIds", None
+        )
         return self
 
     def to_synapse_request(self) -> Dict[str, Any]:
@@ -177,9 +243,17 @@ class RecordBasedMetadataTaskProperties:
         Returns:
             A dictionary representation of this object for API requests.
         """
-        request_dict = {"concreteType": RECORD_BASED_METADATA_TASK_PROPERTIES}
-        if self.record_set_id is not None:
-            request_dict["recordSetId"] = self.record_set_id
+        request_dict = {
+            "concreteType": RECORD_BASED_METADATA_TASK_PROPERTIES,
+            "recordSetId": self.record_set_id,
+            "suggestedAuthorizationMode": (
+                self.suggested_authorization_mode.value
+                if self.suggested_authorization_mode is not None
+                else None
+            ),
+            "collaboratorPrincipalIds": self.collaborator_principal_ids,
+        }
+        delete_none_keys(request_dict)
         return request_dict
 
 
