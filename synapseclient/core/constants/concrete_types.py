@@ -89,7 +89,11 @@ ENTITY_VIEW = "org.sagebionetworks.repo.model.table.EntityView"
 MATERIALIZED_VIEW = "org.sagebionetworks.repo.model.table.MaterializedView"
 SUBMISSION_VIEW = "org.sagebionetworks.repo.model.table.SubmissionView"
 VIRTUAL_TABLE = "org.sagebionetworks.repo.model.table.VirtualTable"
+SEARCH_INDEX_ENTITY = "org.sagebionetworks.repo.model.search.table.SearchIndex"
 DOCKER_REPOSITORY = "org.sagebionetworks.repo.model.docker.DockerRepository"
+
+# Search Management
+SEARCH_INDEX_QUERY = "org.sagebionetworks.repo.model.search.table.SearchIndexQuery"
 
 # upload requests
 MULTIPART_UPLOAD_REQUEST = "org.sagebionetworks.repo.model.file.MultipartUploadRequest"
