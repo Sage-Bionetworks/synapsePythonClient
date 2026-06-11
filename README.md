@@ -8,7 +8,7 @@ master  | [![Build Status master branch](https://github.com/Sage-Bionetworks/syn
 
 [![Get the synapseclient from PyPI](https://img.shields.io/pypi/v/synapseclient.svg)](https://pypi.python.org/pypi/synapseclient/) [![Supported Python Versions](https://img.shields.io/pypi/pyversions/synapseclient.svg)](https://pypi.python.org/pypi/synapseclient/)
 
-A Python client for [Sage Bionetworks'](https://sagebionetworks.org/) [Synapse](https://www.synapse.org/), a collaborative, open-source research platform that allows teams to share data, track analyses, and collaborate. The Python client can be used as a library for development of software that communicates with Synapse or as a command-line utility.
+This is a Python client for [Synapse](https://www.synapse.org/), built by [Sage Bionetworks](https://sagebionetworks.org/). Synapse is an open-source platform for research teams. Teams use it to share data, track analyses, and work together. You can use this client in two ways. You can call it as a library in your own code, or run it as a command-line tool.
 
 There is also a [Synapse client for R](https://github.com/Sage-Bionetworks/synapser/).
 
@@ -36,9 +36,9 @@ or by sending an email to [python-announce+subscribe@sagebase.org](mailto:python
 Installation
 ------------
 
-The Python Synapse client has been tested on versions 3.10, 3.11, 3.12, 3.13 and 3.14 on Mac OS X, Ubuntu Linux and Windows.
+We test the client on Python 3.10, 3.11, 3.12, 3.13, and 3.14. It runs on Mac OS X, Linux, and Windows.
 
-**Starting from Synapse Python client version 3.0, Synapse Python client requires Python >= 3.10**
+**Version 3.0 and later needs Python 3.10 or higher.**
 
 ### Install using pip
 
@@ -56,12 +56,12 @@ The [Python Synapse Client is on PyPI](https://pypi.python.org/pypi/synapseclien
     # sudo may optionally be needed depending on your setup
     pip install --upgrade synapseclient
 
-The dependencies on `pandas`, `pysftp`, and `boto3` are optional. Synapse
-[Tables](https://python-docs.synapse.org/reference/tables/) integrate
-with [Pandas](http://pandas.pydata.org/). The library `pysftp` is required for users of
-[SFTP](https://python-docs.synapse.org/guides/data_storage/#sftp) file storage. All
-libraries require native code to be compiled or installed separately from prebuilt
-binaries.
+The `pandas`, `pysftp`, and `boto3` packages are optional. Synapse
+[Tables](https://python-docs.synapse.org/reference/tables/) work
+with [Pandas](http://pandas.pydata.org/). You need `pysftp` only for
+[SFTP](https://python-docs.synapse.org/guides/data_storage/#sftp) file storage. Each of
+these packages includes native code. You may need to build it, or install a prebuilt
+version.
 
 ### Install from source
 
@@ -82,9 +82,8 @@ or
 Command line usage
 ------------------
 
-The Synapse client can be used from the shell command prompt. Valid commands
-include: query, get, cat, add, update, delete, and onweb. A few examples are
-shown.
+You can run the client from the shell. Commands include: query, get, cat, add,
+update, delete, and onweb. Here are a few examples.
 
 ### downloading test data from Synapse
 
@@ -100,7 +99,7 @@ Note that a [Synapse account](https://www.synapse.org/#RegisterAccount:0) is req
 Usage as a library
 ------------------
 
-The Synapse client can be used to write software that interacts with the Sage Bionetworks Synapse repository. More examples can be found in the Tutorial section found [here](https://python-docs.synapse.org/tutorials/home/)
+You can use the client to write software that works with Synapse. For more examples, see the [Tutorials](https://python-docs.synapse.org/tutorials/home/).
 
 ### Examples
 
@@ -118,7 +117,7 @@ syn.login(authToken='auth_token')
 ```
 
 #### Sync a local directory to synapse
-This is the recommended way of synchronizing more than one file or directory to a synapse project through the use of `synapseutils`. Using this library allows us to handle scheduling everything required to sync an entire directory tree. Read more about the manifest file format in [`synapseutils.syncToSynapse`](https://python-docs.synapse.org/reference/synapse_utils/#synapseutils.sync.syncToSynapse)
+This is the best way to sync more than one file or folder to a Synapse project. It uses `synapseutils`. The library schedules all the work needed to sync a whole directory tree. To learn about the manifest file format, see [`synapseutils.syncToSynapse`](https://python-docs.synapse.org/reference/synapse_utils/#synapseutils.sync.syncToSynapse).
 ```
 import synapseclient
 import synapseutils
@@ -243,15 +242,15 @@ np.loadtxt(fname=matrix.path, skiprows=1)
 
 Authentication
 --------------
-Authentication toward [Synapse](https://www.synapse.org/#RegisterAccount:0) can be accomplished with the clients using personal access tokens. Learn more about [Synapse personal access tokens](https://help.synapse.org/docs/Managing-Your-Account.2055405596.html#ManagingYourAccount-PersonalAccessTokens)
+You log in to [Synapse](https://www.synapse.org/#RegisterAccount:0) with a personal access token. Learn more about [personal access tokens](https://help.synapse.org/docs/Managing-Your-Account.2055405596.html#ManagingYourAccount-PersonalAccessTokens).
 
-Learn about the [multiple ways one can login to Synapse](https://python-docs.synapse.org/tutorials/authentication/).
+You can also log in in [other ways](https://python-docs.synapse.org/tutorials/authentication/).
 
 
 Synapse Utilities (synapseutils)
 --------------------------------
 
-The purpose of synapseutils is to create a space filled with convenience functions that includes traversing through large projects, copying entities, recursively downloading files and many more.
+`synapseutils` holds handy helper functions. You can use them to walk through large projects, copy entities, download files, and more.
 
 ### Example
 
@@ -276,13 +275,13 @@ The purpose of synapseutils is to create a space filled with convenience functio
 
 OpenTelemetry (OTEL)
 --------------------------------
-[OpenTelemetry](https://opentelemetry.io/) helps support the analysis of traces and spans which can provide insights into latency, errors, and other performance metrics. The synapseclient is ready to provide traces should you want them. The Synapse Python client supports OTLP Exports and can be configured via environment variables as defined [here](https://opentelemetry.io/docs/specs/otel/protocol/exporter/).
+[OpenTelemetry](https://opentelemetry.io/) collects traces and spans. These show you latency, errors, and other performance data. The client can send traces when you want them. It supports OTLP exports, which you set up with environment variables (see [the spec](https://opentelemetry.io/docs/specs/otel/protocol/exporter/)).
 
-Read more about OpenTelemetry in Python [here](https://opentelemetry.io/docs/instrumentation/python/)
+Read more about [OpenTelemetry in Python](https://opentelemetry.io/docs/instrumentation/python/).
 
 
 ### Exporting Synapse Client Traces to Jaeger for developers
-The following shows an example of setting up [jaegertracing](https://www.jaegertracing.io/docs/1.50/deployment/#all-in-one) via docker and executing a simple python script that implements the Synapse Python client.
+Here is an example. It sets up [Jaeger](https://www.jaegertracing.io/docs/1.50/deployment/#all-in-one) with Docker, then runs a short Python script that uses the client.
 
 #### Running the jaeger docker container
 Start a docker container with the following options:
@@ -297,24 +296,22 @@ Explanation of ports:
 * `4318` HTTP port for OTLP data collection
 * `16686` Jaeger UI for visualizing traces
 
-Once the docker container is running you can access the Jaeger UI via: `http://localhost:16686`
+When the container is running, open the Jaeger UI at `http://localhost:16686`.
 
 #### Environment Variable Configuration
 
-By default, the OTEL exporter sends trace data to `http://localhost:4318/v1/traces`. You can customize the behavior through environment variables:
+By default, the exporter sends trace data to `http://localhost:4318/v1/traces`. You can change this with environment variables:
 
-* `OTEL_SERVICE_NAME`: Defines a unique identifier for your application or service in telemetry data (defaults to 'synapseclient'). Set this to a descriptive name that represents your specific implementation, making it easier to filter and analyze traces in your monitoring system.
-* `OTEL_EXPORTER_OTLP_ENDPOINT`: Specifies the destination URL for sending telemetry data (defaults to 'http://localhost:4318'). Configure this to direct data to your preferred OpenTelemetry collector or monitoring service.
-* `OTEL_DEBUG_CONSOLE`: Controls local visibility of telemetry data. Set to 'true' to output trace information to the console, which is useful for development and troubleshooting without an external collector.
-* `OTEL_SERVICE_INSTANCE_ID`: Distinguishes between multiple instances of the same service (e.g., 'prod', 'development', 'local'). This helps identify which specific deployment or environment generated particular traces.
-* `OTEL_EXPORTER_OTLP_HEADERS`: Configures authentication and metadata for telemetry exports. Use this to add API keys, authentication tokens, or custom metadata when sending traces to secured collectors or third-party monitoring services.
+* `OTEL_SERVICE_NAME`: A name for your app in the trace data (defaults to 'synapseclient'). Pick a clear name. It makes traces easier to find and sort.
+* `OTEL_EXPORTER_OTLP_ENDPOINT`: The URL where trace data is sent (defaults to 'http://localhost:4318'). Point it at your own collector or monitoring service.
+* `OTEL_DEBUG_CONSOLE`: Set this to 'true' to print traces to the console. This helps when you test or debug without a collector.
+* `OTEL_SERVICE_INSTANCE_ID`: Tells apart copies of the same service (for example 'prod', 'development', or 'local'). It shows which one created each trace.
+* `OTEL_EXPORTER_OTLP_HEADERS`: Adds auth and metadata to exports. Use it to send API keys or tokens to secured collectors or other services.
 
 
 #### Enabling OpenTelemetry in your code
-To enable OpenTelemetry with the Synapse Python client, simply call the
-`enable_open_telemetry()` method on the Synapse class. Additionally you can access an
-instance of the OpenTelemetry tracer via the `get_tracer()` call. This will allow you
-to create new spans for your code.
+To turn on OpenTelemetry, call `enable_open_telemetry()` on the `Synapse` class. You can
+also get the tracer with `get_tracer()`. Use the tracer to create new spans in your code.
 
 ```python
 import synapseclient
@@ -332,8 +329,8 @@ with tracer.start_as_current_span("my_function_span"):
 ### Exporting Synapse Client Traces to SigNoz Cloud for developers
 
 #### Prerequisites
-1. Create an account and obtain access to Signoz Cloud.
-2. Create an ingestion key by following the step [here](https://signoz.io/docs/ingestion/signoz-cloud/keys/).
+1. Create an account on SigNoz Cloud.
+2. Create an ingestion key. Follow the steps [here](https://signoz.io/docs/ingestion/signoz-cloud/keys/).
 
 #### Environment Variable Configuration
 The following environment variables are required to be set:
@@ -343,19 +340,17 @@ The following environment variables are required to be set:
 
 Explanation of both required and optional environment variables:
 ##### Required
-* `OTEL_EXPORTER_OTLP_ENDPOINT`: The OTLP endpoint to which telemetry is exported.
-* `OTEL_EXPORTER_OTLP_HEADERS`: Authentication/metadata for exports (e.g., API keys, tokens). For SigNoz, use `signoz-ingestion-key=<key>`.
+* `OTEL_EXPORTER_OTLP_ENDPOINT`: The OTLP endpoint where traces are sent.
+* `OTEL_EXPORTER_OTLP_HEADERS`: Auth and metadata for exports, such as API keys or tokens. For SigNoz, use `signoz-ingestion-key=<key>`.
 
 ##### Optional
-* `OTEL_SERVICE_NAME`: Unique identifier for your app/service in telemetry data (defaults to synapseclient). Use a descriptive name so you can easily filter and analyze traces per service.
-* `OTEL_DEBUG_CONSOLE`: Controls local visibility of telemetry data. Set to 'true' to output trace information to the console, which is useful for development and troubleshooting without an external collector.
-* `OTEL_SERVICE_INSTANCE_ID`: Distinguishes between multiple instances of the same service (e.g., 'prod', 'development', 'local'). This helps identify which specific deployment or environment generated particular traces.
+* `OTEL_SERVICE_NAME`: A name for your app in the trace data (defaults to synapseclient). Pick a clear name so you can sort traces by service.
+* `OTEL_DEBUG_CONSOLE`: Set this to 'true' to print traces to the console. This helps when you test or debug without a collector.
+* `OTEL_SERVICE_INSTANCE_ID`: Tells apart copies of the same service (for example 'prod', 'development', or 'local'). It shows which one created each trace.
 
 #### Enabling OpenTelemetry in your code
-To enable OpenTelemetry with the Synapse Python client, simply call the
-`enable_open_telemetry()` method on the Synapse class. Additionally you can access an
-instance of the OpenTelemetry tracer via the `get_tracer()` call. This will allow you
-to create new spans for your code.
+To turn on OpenTelemetry, call `enable_open_telemetry()` on the `Synapse` class. You can
+also get the tracer with `get_tracer()`. Use the tracer to create new spans in your code.
 
 ```python
 import synapseclient
@@ -395,29 +390,29 @@ synapseclient.Synapse.enable_open_telemetry(
 )
 ```
 
-When OpenTelemetry is enabled in the Synapse client, the following happens automatically:
+When you turn on OpenTelemetry, the client does the following for you:
 
-1. Instrumentation is set up for:
-   - **Threading** (via `ThreadingInstrumentor`): Ensures proper context propagation across threads, which is essential for maintaining trace continuity in multi-threaded applications
+1. It sets up instrumentation for:
+   - **Threading** (via `ThreadingInstrumentor`): Passes trace context across threads. This keeps traces intact in multi-threaded code.
    - **HTTP libraries**:
-     - `requests` (via `RequestsInstrumentor`): Captures all HTTP requests made using the requests library, including methods, URLs, status codes, and timing information
-     - `httpx` (via `HTTPXClientInstrumentor`): Tracks both synchronous and asynchronous HTTP requests made with the httpx library
-     - `urllib` (via `URLLibInstrumentor`): Monitors lower-level HTTP operations made directly with Python's standard library
-   - Each instrumented HTTP library includes custom hooks that extract Synapse entity IDs from URLs when possible and add them as span attributes
+     - `requests` (via `RequestsInstrumentor`): Captures every HTTP request, with its method, URL, status code, and timing.
+     - `httpx` (via `HTTPXClientInstrumentor`): Tracks both sync and async HTTP requests.
+     - `urllib` (via `URLLibInstrumentor`): Watches low-level HTTP calls from the standard library.
+   - Each HTTP library also pulls Synapse entity IDs from URLs when it can. It adds them as span attributes.
 
-2. Traces are configured to collect spans across your application:
-   - Spans automatically capture operation duration, status, and errors.
-   - An attribute propagation mechanism ensures that certain attributes (like `synapse.transfer.direction` and `synapse.operation.category`) are properly passed to child spans for uploads/downloads.
+2. It collects spans across your app:
+   - Each span records how long a step takes, plus its status and any errors.
+   - Some attributes (like `synapse.transfer.direction` and `synapse.operation.category`) pass down to child spans for uploads and downloads.
    - Trace data is exported via OTLP (OpenTelemetry Protocol).
 
-3. Resource information is automatically added to your traces, including:
+3. It adds resource details to your traces, including:
    - Python version
    - OS type
    - Synapse client version
-   - Service name (defaults to "synapseclient" but can be customized via environment variables)
+   - Service name (defaults to "synapseclient"; you can change it with environment variables)
    - Service instance ID
 
-Note that once enabled, OpenTelemetry cannot be disabled in the same process - you would need to restart your Python interpreter to disable it.
+Once you turn on OpenTelemetry, you cannot turn it off in the same process. To disable it, restart your Python interpreter.
 
 
 License and Copyright
