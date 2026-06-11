@@ -99,8 +99,6 @@ class TestEvaluation:
                 Evaluation(
                     description="Test",
                     content_source="syn123",
-                    submission_instructions_message="Inst",
-                    submission_receipt_message="Rec",
                 ),
                 "name",
             ),
@@ -108,8 +106,6 @@ class TestEvaluation:
                 Evaluation(
                     name="Test",
                     content_source="syn123",
-                    submission_instructions_message="Inst",
-                    submission_receipt_message="Rec",
                 ),
                 "description",
             ),
@@ -117,28 +113,8 @@ class TestEvaluation:
                 Evaluation(
                     name="Test",
                     description="Test",
-                    submission_instructions_message="Inst",
-                    submission_receipt_message="Rec",
                 ),
                 "content_source",
-            ),
-            (
-                Evaluation(
-                    name="Test",
-                    description="Test",
-                    content_source="syn123",
-                    submission_receipt_message="Rec",
-                ),
-                "submission_instructions_message",
-            ),
-            (
-                Evaluation(
-                    name="Test",
-                    description="Test",
-                    content_source="syn123",
-                    submission_instructions_message="Inst",
-                ),
-                "submission_receipt_message",
             ),
         ]
 
@@ -148,6 +124,36 @@ class TestEvaluation:
                 ValueError, match=f"missing the '{missing_field}' attribute"
             ):
                 evaluation.to_synapse_request(RequestType.CREATE)
+
+    def test_to_synapse_request_without_optional_message_fields(self):
+        """Test that submission_instructions_message and submission_receipt_message
+        are not required — the request body omits them when absent."""
+        # GIVEN an evaluation without message fields
+        evaluation = Evaluation(
+            name="Test Evaluation",
+            description="This is a test evaluation",
+            content_source="syn123456",
+        )
+
+        # WHEN we generate a request body for create
+        request_body = evaluation.to_synapse_request(RequestType.CREATE)
+
+        # THEN the body should not include the optional message keys
+        assert request_body == {
+            "name": "Test Evaluation",
+            "description": "This is a test evaluation",
+            "contentSource": "syn123456",
+        }
+        assert "submissionInstructionsMessage" not in request_body
+        assert "submissionReceiptMessage" not in request_body
+
+        # AND the same applies to an update request
+        evaluation.id = "9614112"
+        evaluation.etag = "abc-123-xyz"
+        update_body = evaluation.to_synapse_request(RequestType.UPDATE)
+
+        assert "submissionInstructionsMessage" not in update_body
+        assert "submissionReceiptMessage" not in update_body
 
     def test_set_last_persistent_instance(self):
         """Test setting the last persistent instance of an evaluation."""

@@ -33,11 +33,11 @@ class Evaluation(EvaluationSynchronousProtocol):
         etag: Synapse employs an Optimistic Concurrency Control (OCC) scheme to handle concurrent updates.
               The eTag changes every time an Evaluation is updated; it is used to detect when a client's copy
               of an Evaluation is out-of-date.
-        name: The name of this Evaluation.
-        description: A text description of this Evaluation.
+        name: **Required to store.** The name of this Evaluation.
+        description: **Required to store.** A text description of this Evaluation.
         owner_id: The ID of the Synapse user who created this Evaluation.
         created_on: The date on which Evaluation was created.
-        content_source: The Synapse ID of the Entity to which this Evaluation belongs,
+        content_source: **Required to store.** The Synapse ID of the Entity to which this Evaluation belongs,
                         e.g. a reference to a Synapse project.
         submission_instructions_message: Message to display to users detailing acceptable formatting for Submissions to this Evaluation.
         submission_receipt_message: Message to display to users upon successful submission to this Evaluation.
@@ -56,8 +56,6 @@ class Evaluation(EvaluationSynchronousProtocol):
             name="My Challenge Evaluation",
             description="Evaluation for my data challenge",
             content_source="syn123456",
-            submission_instructions_message="Submit CSV files only",
-            submission_receipt_message="Thank you for your submission!",
         )
         created = evaluation.store()
         ```
@@ -123,10 +121,10 @@ class Evaluation(EvaluationSynchronousProtocol):
     of an Evaluation is out-of-date."""
 
     name: Optional[str] = None
-    """The name of this Evaluation."""
+    """**Required to store.** The name of this Evaluation."""
 
     description: Optional[str] = None
-    """A text description of this Evaluation."""
+    """**Required to store.** A text description of this Evaluation."""
 
     owner_id: Optional[str] = None
     """The ID of the Synapse user who created this Evaluation."""
@@ -135,7 +133,7 @@ class Evaluation(EvaluationSynchronousProtocol):
     """The date on which Evaluation was created."""
 
     content_source: Optional[str] = None
-    """The Synapse ID of the Entity to which this Evaluation belongs,
+    """**Required to store.** The Synapse ID of the Entity to which this Evaluation belongs,
     e.g. a reference to a Synapse project."""
 
     submission_instructions_message: Optional[str] = None
@@ -255,8 +253,6 @@ class Evaluation(EvaluationSynchronousProtocol):
             "name",
             "description",
             "content_source",
-            "submission_instructions_message",
-            "submission_receipt_message",
         ]
 
         # For "update" requests, add id and etag
@@ -274,9 +270,13 @@ class Evaluation(EvaluationSynchronousProtocol):
             "name": self.name,
             "description": self.description,
             "contentSource": self.content_source,
-            "submissionInstructionsMessage": self.submission_instructions_message,
-            "submissionReceiptMessage": self.submission_receipt_message,
         }
+        if self.submission_instructions_message is not None:
+            request_body["submissionInstructionsMessage"] = (
+                self.submission_instructions_message
+            )
+        if self.submission_receipt_message is not None:
+            request_body["submissionReceiptMessage"] = self.submission_receipt_message
 
         # For UPDATE request types, add id and etag
         if request_type == RequestType.UPDATE:
