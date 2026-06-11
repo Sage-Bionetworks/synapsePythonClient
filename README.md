@@ -33,6 +33,48 @@ For release information, see:
 or by sending an email to [python-announce+subscribe@sagebase.org](mailto:python-announce+subscribe@sagebase.org) -->
 
 
+## Architecture
+
+Your Python code uses `synapseclient` either as a library or through the `synapse`
+command-line interface. The client handles authentication, models Synapse entities
+(Projects, Folders, Files, Tables, and more), and manages file upload/download. It
+issues requests to the [Synapse REST API](https://rest-docs.synapse.org/rest/), which
+is backed by the Synapse platform services (metadata storage, file storage on AWS S3,
+access control, and provenance).
+
+```mermaid
+flowchart TD
+    user["Your Python code<br/>(script, notebook, or app)"]
+    cli["<b>synapse</b> CLI<br/>(synapseclient.__main__)"]
+
+    subgraph client["synapseclient library"]
+        core["Synapse client &amp; auth<br/>(client.py, core.credentials)"]
+        models["Entity models<br/>(Project, Folder, File,<br/>Table, EntityView, Team)"]
+        transfer["Upload / download<br/>(core.upload, core.download,<br/>multithread_download)"]
+        api["REST service wrappers<br/>(synapseclient.api)"]
+    end
+
+    rest["Synapse REST API<br/>(repo-prod.prod.sagebase.org/repo/v1)"]
+
+    subgraph platform["Synapse platform services"]
+        meta["Metadata &amp; entity store"]
+        s3["File storage (AWS S3)"]
+        authsvc["Authentication &amp; access control"]
+    end
+
+    user --> core
+    cli --> core
+    core --> models
+    core --> transfer
+    models --> api
+    transfer --> api
+    api -->|HTTPS / JSON| rest
+    rest --> meta
+    rest --> s3
+    rest --> authsvc
+```
+
+
 Installation
 ------------
 
