@@ -35,7 +35,7 @@ or by sending an email to [python-announce+subscribe@sagebase.org](mailto:python
 
 ## Architecture
 
-Your Python code uses `synapseclient` either as a library or through the `synapse`
+This Python code may be used either as a library or through the `synapse`
 command-line interface. The client handles authentication, models Synapse entities
 (Projects, Folders, Files, Tables, and more), and manages file upload/download. It
 issues requests to the [Synapse REST API](https://rest-docs.synapse.org/rest/), which
