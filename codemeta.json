@@ -1,0 +1,35 @@
+{
+  "@context": "https://doi.org/10.5063/schema/codemeta-2.0",
+  "@type": "SoftwareSourceCode",
+  "name": "Synapse Python Client (synapseclient)",
+  "description": "A Python client for Sage Bionetworks' Synapse, a collaborative, open-source research platform that allows teams to share data, track analyses, and collaborate. The client can be used as a library for software that communicates with Synapse or as a command-line utility.",
+  "version": "4.13.0",
+  "codeRepository": "https://github.com/Sage-Bionetworks/synapsePythonClient",
+  "url": "https://python-docs.synapse.org",
+  "downloadUrl": "https://pypi.org/project/synapseclient/",
+  "programmingLanguage": "Python",
+  "runtimePlatform": "Python 3",
+  "applicationCategory": "Biomedical data management",
+  "keywords": [
+    "synapse",
+    "biomedical-data-management",
+    "research-data-sharing",
+    "collaborative-research",
+    "data-provenance",
+    "open-science"
+  ],
+  "license": "https://spdx.org/licenses/Apache-2.0",
+  "author": [
+    {
+      "@type": "Organization",
+      "name": "Sage Bionetworks",
+      "url": "https://sagebionetworks.org",
+      "email": "platform@sagebase.org"
+    }
+  ],
+  "maintainer": {
+    "@type": "Organization",
+    "name": "Sage Bionetworks",
+    "url": "https://sagebionetworks.org"
+  }
+}
