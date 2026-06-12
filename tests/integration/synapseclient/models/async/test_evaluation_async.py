@@ -17,18 +17,23 @@ class TestEvaluationCreation:
         self.syn = syn
         self.schedule_for_cleanup = schedule_for_cleanup
 
-    async def test_create_evaluation(self):
-        # GIVEN a project to work with
+    @pytest.fixture(scope="class")
+    async def test_project(
+        self, syn: Synapse, schedule_for_cleanup: Callable[..., None]
+    ) -> Project:
+        """Create a test project for evaluation creation tests."""
         project = await Project(name=f"test_project_{uuid.uuid4()}").store_async(
-            synapse_client=self.syn
+            synapse_client=syn
         )
-        self.schedule_for_cleanup(project.id)
+        schedule_for_cleanup(project.id)
+        return project
 
+    async def test_create_evaluation(self, test_project: Project):
         # WHEN I create an evaluation using the dataclass method
         evaluation = Evaluation(
             name=f"test_evaluation_{uuid.uuid4()}",
             description="A test evaluation for testing purposes",
-            content_source=project.id,
+            content_source=test_project.id,
             submission_instructions_message="Please submit your results in CSV format",
             submission_receipt_message="Thank you for your submission!",
         )
@@ -42,22 +47,18 @@ class TestEvaluationCreation:
         assert (
             created_evaluation.description == "A test evaluation for testing purposes"
         )
-        assert created_evaluation.content_source == project.id
+        assert created_evaluation.content_source == test_project.id
         assert created_evaluation.owner_id is not None  # Check that owner_id is set
         assert created_evaluation.created_on is not None  # Check that created_on is set
 
-    async def test_create_evaluation_without_optional_message_fields(self):
-        # GIVEN a project to work with
-        project = await Project(name=f"test_project_{uuid.uuid4()}").store_async(
-            synapse_client=self.syn
-        )
-        self.schedule_for_cleanup(project.id)
-
+    async def test_create_evaluation_without_optional_message_fields(
+        self, test_project: Project
+    ):
         # WHEN I create an evaluation without submission_instructions_message or submission_receipt_message
         evaluation = Evaluation(
             name=f"test_evaluation_{uuid.uuid4()}",
             description="A test evaluation without optional message fields",
-            content_source=project.id,
+            content_source=test_project.id,
         )
         created_evaluation = await evaluation.store_async(synapse_client=self.syn)
         self.schedule_for_cleanup(created_evaluation.id)
@@ -66,7 +67,7 @@ class TestEvaluationCreation:
         assert created_evaluation.id is not None
         assert created_evaluation.etag is not None
         assert created_evaluation.name == evaluation.name
-        assert created_evaluation.content_source == project.id
+        assert created_evaluation.content_source == test_project.id
 
 
 class TestGetEvaluation:
