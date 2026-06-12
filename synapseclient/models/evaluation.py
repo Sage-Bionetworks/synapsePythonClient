@@ -307,7 +307,7 @@ class Evaluation(EvaluationSynchronousProtocol):
 
         Example: Creating a new evaluation
             &nbsp;
-            Create a new evaluation on Synapse by storing an evaluation object with the required fields. If there are any fields missing, an error will be raised.
+            Create a new evaluation on Synapse by storing an evaluation object with the required fields.
             ```python
             from synapseclient.models import Evaluation
             from synapseclient import Synapse
@@ -321,8 +321,6 @@ class Evaluation(EvaluationSynchronousProtocol):
                     name="My Challenge Evaluation",
                     description="Evaluation for my data challenge",
                     content_source="syn123456",
-                    submission_instructions_message="Submit CSV files only",
-                    submission_receipt_message="Thank you for your submission!"
                 ).store_async()
 
                 return evaluation
