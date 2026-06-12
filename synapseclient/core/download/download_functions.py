@@ -602,6 +602,18 @@ async def download_by_file_handle(
             ):
                 span.set_attribute("synapse.storage.provider", "s3")
 
+                # Reuse the pre-signed URL already retrieved above rather than
+                # requesting a second one inside the multi-threaded downloader. The
+                # file_handle_id/object_id/object_type are still passed so the
+                # downloader can refetch the URL if it expires mid-download.
+                presigned_url_info = PresignedUrlInfo(
+                    file_name=file_handle["fileName"],
+                    url=file_handle_result["preSignedURL"],
+                    expiration_utc=_pre_signed_url_expiration_time(
+                        file_handle_result["preSignedURL"]
+                    ),
+                )
+
                 # run the download multi threaded if the file supports it, we're configured to do so,
                 # and the file is large enough that it would be broken into parts to take advantage of
                 # multiple downloading threads. otherwise it's more efficient to run the download as a simple
@@ -612,6 +624,7 @@ async def download_by_file_handle(
                     object_type=entity_type,
                     destination=destination,
                     expected_md5=actual_md5,
+                    presigned_url=presigned_url_info,
                     synapse_client=syn,
                 )
 
@@ -738,7 +751,13 @@ async def download_from_url_multi_threaded(
             # If the destination is a directory, then the file name should be the same as the file name in the presigned url
             # This is added to ensure the temp file can be copied to the desired destination without changing the file name
             destination = os.path.join(destination, presigned_url.file_name)
+        # Pass through the file handle identifiers so the downloader can refetch a
+        # fresh pre-signed URL if the seeded one expires mid-download. Callers that
+        # cannot refetch (e.g. wiki attachments) omit these, leaving them as None.
         request = DownloadRequest(
+            file_handle_id=int(file_handle_id) if file_handle_id is not None else None,
+            object_id=object_id,
+            object_type=object_type,
             path=temp_destination,
             debug=client.debug,
             presigned_url=presigned_url,
