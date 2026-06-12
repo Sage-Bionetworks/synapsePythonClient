@@ -98,6 +98,40 @@ class TestSubmissionCreationAsync:
         assert created_submission.created_on is not None
         assert created_submission.version_number is not None
 
+    async def test_store_submission_to_evaluation_without_message_fields_async(
+        self,
+        test_project: Project,
+        test_file: File,
+    ):
+        # GIVEN an evaluation created without submission_instructions_message or submission_receipt_message
+        evaluation = Evaluation(
+            name=f"test_evaluation_{uuid.uuid4()}",
+            description="Evaluation without optional message fields",
+            content_source=test_project.id,
+        )
+        created_evaluation = await evaluation.store_async(synapse_client=self.syn)
+        self.schedule_for_cleanup(created_evaluation.id)
+
+        # WHEN I submit to that evaluation
+        submission = Submission(
+            entity_id=test_file.id,
+            evaluation_id=created_evaluation.id,
+            name=f"Test Submission {uuid.uuid4()}",
+        )
+        created_submission = await submission.store_async(synapse_client=self.syn)
+        self.schedule_for_cleanup(created_submission.id)
+
+        # THEN the submission should be created successfully
+        assert created_submission.id is not None
+        assert created_submission.entity_id == test_file.id
+        assert created_submission.evaluation_id == created_evaluation.id
+
+        # AND retrieving the submission should also work
+        retrieved = await Submission(id=created_submission.id).get_async(
+            synapse_client=self.syn
+        )
+        assert retrieved.id == created_submission.id
+
     async def test_store_submission_without_entity_id_async(
         self, test_evaluation: Evaluation
     ):
