@@ -10,9 +10,12 @@ from synapseclient.models.annotations import Annotations
 from synapseclient.models.curation import (
     AuthorizationMode,
     CurationTask,
+    CurationTaskStatus,
     FileBasedMetadataTaskProperties,
     Grid,
+    GridExecutionDetails,
     RecordBasedMetadataTaskProperties,
+    TaskExecutionDetails,
     TaskState,
 )
 from synapseclient.models.dataset import Dataset, DatasetCollection, EntityRef
@@ -97,10 +100,13 @@ __all__ = [
     "TeamMembershipStatus",
     "AuthorizationMode",
     "CurationTask",
+    "CurationTaskStatus",
     "FileBasedMetadataTaskProperties",
     "RecordBasedMetadataTaskProperties",
     "TaskState",
     "Grid",
+    "GridExecutionDetails",
+    "TaskExecutionDetails",
     "UserProfile",
     "UserPreference",
     "UserGroupHeader",

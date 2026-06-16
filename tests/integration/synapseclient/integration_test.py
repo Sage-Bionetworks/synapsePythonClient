@@ -115,7 +115,8 @@ def test_entity_version(syn, project, schedule_for_cleanup):
 
     # Update the Entity and make sure the version is incremented
     entity.foo = 998877
-    entity["name"] = "foobarbat"
+    unique_name = f"foobarbat-{uuid.uuid4()}"
+    entity["name"] = unique_name
     entity["description"] = "This is a test entity..."
     entity = syn.store(entity, forceVersion=True, versionLabel="Prada remix")
     assert entity.versionNumber == 2
@@ -132,7 +133,7 @@ def test_entity_version(syn, project, schedule_for_cleanup):
     returnEntity = syn.get(entity)
     assert returnEntity.versionNumber == 2
     assert returnEntity["foo"][0] == 998877
-    assert returnEntity["name"] == "foobarbat"
+    assert returnEntity["name"] == unique_name
     assert returnEntity["description"] == "This is a test entity..."
     assert returnEntity["versionLabel"] == "Prada remix"
 

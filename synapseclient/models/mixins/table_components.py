@@ -13,7 +13,6 @@ from datetime import datetime
 from io import BytesIO
 from typing import Any, Dict, List, Optional, Protocol, Tuple, Union
 
-import pandas as pd
 from tqdm import tqdm
 from tqdm.contrib.logging import logging_redirect_tqdm
 from typing_extensions import Self
@@ -139,7 +138,7 @@ def row_labels_from_rows(rows: List[Row]) -> List[Row]:
     )
 
 
-def convert_dtypes_to_json_serializable(df) -> pd.DataFrame:
+def convert_dtypes_to_json_serializable(df) -> "DATA_FRAME_TYPE":
     """
     Prepare a DataFrame for JSON/CSV serialization by cleaning special values
     and normalizing dtypes. Mutates the passed-in DataFrame in place (and also
@@ -201,6 +200,8 @@ def convert_dtypes_to_json_serializable(df) -> pd.DataFrame:
         df = convert_dtypes_to_json_serializable(df)
         print(df)
     """
+    test_import_pandas()
+    import pandas as pd
 
     def _serialize_json_value(x):
         if isinstance(x, (list, dict)):
@@ -4581,10 +4582,14 @@ def csv_to_pandas_df(
     # Turn list columns into lists and convert items to their proper types
     if list_columns:
         for col in list_columns:
-            # Fill NA values with empty lists, it must be a string for json.loads to work
-            # json.loads will convert null values in boolean list, string list to None.
-            df.fillna({col: "[]"}, inplace=True)
-            df[col] = df[col].apply(json.loads)
+            # A CSV cell for a list column is either a JSON string like "[1, 2]"
+            # or NA. When every value is NA, convert_dtypes() infers a typed
+            # dtype (e.g. Int64) into which the string "[]" cannot be written,
+            # so fillna({col: "[]"}) raises. Parse strings and substitute []
+            # for NA in a single pass.
+            df[col] = df[col].apply(
+                lambda x: json.loads(x) if isinstance(x, str) else []
+            )
             # Convert list items to their proper types based on column type
             if list_column_types and col in list_column_types:
                 column_type = list_column_types[col]
