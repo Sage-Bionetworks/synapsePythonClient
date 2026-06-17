@@ -135,8 +135,8 @@ print(f"Created CurationTask: {task_id}")
 
 Both `create_record_based_metadata_task` and `create_file_based_metadata_task` accept an optional `suggested_authorization_mode` that tells clients how to scope access when a grid session is created for the task:
 
-- `AuthorizationMode.SESSION_OWNER` (the server default applied when the mode is omitted) limits access to the session owner and their team. Use it when curation should be restricted to a specific user or team.
-- `AuthorizationMode.SOURCE_BENEFACTOR` extends access to anyone with `EDIT` rights on the source entity. Use it when curation should be open to all editors of the source.
+- `SESSION_OWNER` (the server default applied when the mode is omitted) limits access to the session owner and their team. Use it when curation should be restricted to a specific user or team.
+- `SOURCE_BENEFACTOR` extends access to anyone with `EDIT` rights on the source entity. Use it when curation should be open to all editors of the source.
 
 ```python
 from synapseclient.models import AuthorizationMode
@@ -148,7 +148,7 @@ entity_view_id, task_id = create_file_based_metadata_task(
     instructions="Annotate each file with metadata according to the schema requirements.",
     entity_view_name="Animal Study Files View",
     schema_uri=schema_uri,
-    suggested_authorization_mode=AuthorizationMode.SOURCE_BENEFACTOR,
+    suggested_authorization_mode="SOURCE_BENEFACTOR",
 )
 ```
 
