@@ -150,7 +150,6 @@ class TestGridAsync:
         )
 
         # WHEN: Creating a grid session
-        # (authorization_mode is serialized into the CreateGridRequest sent to Synapse)
         created_grid = await grid.create_async(
             timeout=ASYNC_JOB_TIMEOUT_SEC, synapse_client=self.syn
         )
@@ -159,6 +158,7 @@ class TestGridAsync:
         assert created_grid is grid
         assert created_grid.session_id is not None
         assert created_grid.source_entity_id == record_set_fixture.id
+        assert created_grid.authorization_mode == AuthorizationMode.SOURCE_BENEFACTOR
 
     async def test_create_grid_session_and_reuse_session_async(
         self, record_set_fixture: RecordSet
