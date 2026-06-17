@@ -185,14 +185,19 @@ def create_record_based_metadata_task(
             (default), the task will be unassigned. For metadata tasks, this determines
             the owner of the grid session. Team members can all join grid sessions owned
             by their team, while user-owned grid sessions are restricted to that user only.
-        suggested_authorization_mode: The authorization mode a client should use when
-            creating a linked grid session for this task. When omitted, clients follow
-            legacy behavior: find or create a personal, unlinked grid session.
-            SESSION_OWNER limits access to the session owner and their team;
-            SOURCE_BENEFACTOR extends access to anyone with EDIT rights on the source
-            entity. Note that changing suggested_authorization_mode after the task has
-            been created causes the server to clear activeSessionId on the task status,
-            so a new grid session must be created before curation can continue.
+        suggested_authorization_mode: Recommends who is allowed to access the curation
+            grid session that a client opens for this task. The value is stored on the
+            task as a suggestion; the client applies it when it creates a new session.
+            Choose from:
+            - SESSION_OWNER: only the person or team who owns the session can access it.
+            - SOURCE_BENEFACTOR: anyone with EDIT permission on the
+              data being curated can access the session. This lets editors collaborate
+              in the same session without being added to a shared ownership team.
+            When omitted (None, the default), no recommendation is stored and clients
+            fall back to their usual behavior of finding or creating a private session
+            for the current user. Changing this value after the task already exists
+            resets the task's active session, so a new grid session must be opened
+            before curation can continue.
         synapse_client: If not passed in and caching was not disabled by
                 `Synapse.allow_client_caching(False)` this will use the last created
                 instance from the Synapse class constructor.
