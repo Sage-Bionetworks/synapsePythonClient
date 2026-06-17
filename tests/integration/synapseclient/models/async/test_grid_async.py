@@ -11,6 +11,7 @@ import pytest
 from synapseclient import Synapse
 from synapseclient.core.utils import make_bogus_data_file
 from synapseclient.models import (
+    AuthorizationMode,
     EntityView,
     File,
     Folder,
@@ -138,6 +139,26 @@ class TestGridAsync:
         )
         assert our_session.started_by == created_grid.started_by
         assert our_session.source_entity_id == record_set_fixture.id
+
+    async def test_create_grid_session_with_authorization_mode_async(
+        self, record_set_fixture: RecordSet
+    ) -> None:
+        # GIVEN: A Grid instance with a record_set_id and an explicit authorization mode
+        grid = Grid(
+            record_set_id=record_set_fixture.id,
+            authorization_mode=AuthorizationMode.SOURCE_BENEFACTOR,
+        )
+
+        # WHEN: Creating a grid session
+        # (authorization_mode is serialized into the CreateGridRequest sent to Synapse)
+        created_grid = await grid.create_async(
+            timeout=ASYNC_JOB_TIMEOUT_SEC, synapse_client=self.syn
+        )
+
+        # THEN: The server accepts the request and creates the session successfully
+        assert created_grid is grid
+        assert created_grid.session_id is not None
+        assert created_grid.source_entity_id == record_set_fixture.id
 
     async def test_create_grid_session_and_reuse_session_async(
         self, record_set_fixture: RecordSet

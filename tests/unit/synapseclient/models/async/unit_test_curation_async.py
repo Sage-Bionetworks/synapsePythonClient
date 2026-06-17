@@ -110,7 +110,9 @@ def _get_grid_session_response():
         "lastReplicaIdService": -5,
         "gridJsonSchema$Id": "my-schema-id",
         "sourceEntityId": SOURCE_ENTITY_ID,
-        "ownerPrincipalId": OWNER_PRINCIPAL_ID,
+        # The server returns ownerPrincipalId as a string; the client coerces to int.
+        "ownerPrincipalId": str(OWNER_PRINCIPAL_ID),
+        "authorizationMode": "SESSION_OWNER",
     }
 
 
@@ -1386,7 +1388,12 @@ class TestGrid:
         assert grid.last_replica_id_service == -5
         assert grid.grid_json_schema_id == "my-schema-id"
         assert grid.source_entity_id == SOURCE_ENTITY_ID
+        # AND the owner principal id is coerced from the response string to an int
         assert grid.owner_principal_id == OWNER_PRINCIPAL_ID
+        assert isinstance(grid.owner_principal_id, int)
+        # AND the authorization mode is coerced from the string to the enum
+        assert grid.authorization_mode == AuthorizationMode.SESSION_OWNER
+        assert isinstance(grid.authorization_mode, AuthorizationMode)
 
     async def test_create_async_with_record_set_id(self) -> None:
         # GIVEN a Grid with a record_set_id
@@ -1406,11 +1413,13 @@ class TestGrid:
         ):
             result = await grid.create_async(synapse_client=self.syn)
 
-            # THEN the grid should be populated with session data
+            # THEN the grid should be populated with session data, including the
+            # authorization mode coerced from the response string to the enum
             assert result.session_id == SESSION_ID
             assert result.started_by == STARTED_BY
             assert result.started_on == STARTED_ON
             assert result.source_entity_id == SOURCE_ENTITY_ID
+            assert result.authorization_mode == AuthorizationMode.SESSION_OWNER
 
     async def test_create_async_no_record_set_or_query_raises(self) -> None:
         # GIVEN a Grid with neither record_set_id nor initial_query
