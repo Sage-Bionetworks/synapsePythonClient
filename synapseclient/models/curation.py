@@ -2091,7 +2091,7 @@ class CreateGridRequest(EnumCoercionMixin, AsynchronousCommunicator):
     When a team ID is provided as the owner, all members of that team will have equal access to the grid.
     Note: If a team ID is provided, the creator of the grid must be a member of the team."""
 
-    authorization_mode: Optional[AuthorizationMode] = None
+    authorization_mode: Optional[Union[AuthorizationMode, str]] = None
     """Controls access permissions and row visibility at session creation time.
     See AuthorizationMode. When omitted, the service defaults to SESSION_OWNER."""
 
@@ -3140,7 +3140,7 @@ class Grid(EnumCoercionMixin, GridSynchronousProtocol):
     """The principal ID (user or team) that will own the created grid session.
     When not provided, the principal ID of the caller is used."""
 
-    authorization_mode: Optional[AuthorizationMode] = None
+    authorization_mode: Optional[Union[AuthorizationMode, str]] = None
     """Controls access permissions and row visibility at session creation time.
     See AuthorizationMode. When not provided, the service default (SESSION_OWNER)
     is used."""
