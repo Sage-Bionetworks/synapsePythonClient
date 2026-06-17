@@ -2166,7 +2166,9 @@ class CreateGridRequest(EnumCoercionMixin, AsynchronousCommunicator):
         )
         request_dict["ownerPrincipalId"] = self.owner_principal_id
         request_dict["authorizationMode"] = (
-            self.authorization_mode.value if self.authorization_mode else None
+            self.authorization_mode.value
+            if self.authorization_mode is not None
+            else None
         )
         delete_none_keys(request_dict)
         return request_dict
