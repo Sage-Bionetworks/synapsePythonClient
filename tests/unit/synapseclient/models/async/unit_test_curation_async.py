@@ -1421,6 +1421,30 @@ class TestGrid:
             assert result.source_entity_id == SOURCE_ENTITY_ID
             assert result.authorization_mode == AuthorizationMode.SESSION_OWNER
 
+    async def test_create_async_forwards_authorization_mode_to_request(self) -> None:
+        # GIVEN a Grid with a record_set_id and an explicit authorization mode
+        grid = Grid(
+            record_set_id=RECORD_SET_ID,
+            authorization_mode=AuthorizationMode.SOURCE_BENEFACTOR,
+        )
+
+        # WHEN I call create_async (patching the CreateGridRequest the Grid builds)
+        with patch(
+            "synapseclient.models.curation.CreateGridRequest"
+        ) as mock_request_cls:
+            mock_request = mock_request_cls.return_value
+            mock_request.send_job_and_wait_async = AsyncMock(return_value=mock_request)
+            await grid.create_async(synapse_client=self.syn)
+
+            # THEN the request is constructed once with the grid's authorization mode
+            # forwarded alongside the other session parameters
+            mock_request_cls.assert_called_once_with(
+                record_set_id=RECORD_SET_ID,
+                initial_query=None,
+                owner_principal_id=None,
+                authorization_mode=AuthorizationMode.SOURCE_BENEFACTOR,
+            )
+
     async def test_create_async_no_record_set_or_query_raises(self) -> None:
         # GIVEN a Grid with neither record_set_id nor initial_query
         grid = Grid()
@@ -1801,6 +1825,12 @@ class TestCreateGridRequest:
         assert grid.started_by == STARTED_BY
         assert grid.etag == GRID_ETAG
         assert grid.source_entity_id == SOURCE_ENTITY_ID
+        # AND the owner principal id is coerced from the response string to an int
+        assert grid.owner_principal_id == OWNER_PRINCIPAL_ID
+        assert isinstance(grid.owner_principal_id, int)
+        # AND the authorization mode is coerced from the response string to the enum
+        assert grid.authorization_mode == AuthorizationMode.SESSION_OWNER
+        assert isinstance(grid.authorization_mode, AuthorizationMode)
 
     def test_to_synapse_request_with_record_set_id(self) -> None:
         # GIVEN a CreateGridRequest with a record_set_id
@@ -1813,6 +1843,25 @@ class TestCreateGridRequest:
         assert "concreteType" in result
         assert result["recordSetId"] == RECORD_SET_ID
         assert "initialQuery" not in result
+        # AND the absent authorization mode is dropped by delete_none_keys
+        assert "authorizationMode" not in result
+
+    def test_to_synapse_request_with_authorization_mode(self) -> None:
+        # GIVEN a CreateGridRequest with the authorization mode supplied as a string
+        request = CreateGridRequest(
+            record_set_id=RECORD_SET_ID,
+            authorization_mode="SOURCE_BENEFACTOR",
+        )
+
+        # THEN the string is coerced to the enum on assignment by EnumCoercionMixin
+        assert request.authorization_mode == AuthorizationMode.SOURCE_BENEFACTOR
+        assert isinstance(request.authorization_mode, AuthorizationMode)
+
+        # WHEN I convert it to a synapse request
+        result = request.to_synapse_request()
+
+        # THEN the enum value is serialized back to its string form
+        assert result["authorizationMode"] == "SOURCE_BENEFACTOR"
 
 
 class TestUploadToTablePreviewRequest:
