@@ -136,14 +136,19 @@ class FileBasedMetadataTaskProperties(EnumCoercionMixin):
     """The synId of the FileView that shows all data of this type"""
 
     suggested_authorization_mode: Optional[Union[AuthorizationMode, str]] = None
-    """The authorization mode a client should use when creating a linked grid session for
-    this task. SESSION_OWNER limits access to the session owner and their team; use it
-    when curation should be scoped to a specific user or team. SOURCE_BENEFACTOR extends
-    access to anyone with EDIT rights on the source entity; use it when curation should
-    be open to all editors of the source. When omitted, clients follow legacy behavior:
-    find or create a personal, unlinked grid session. When this field changes, the server
-    automatically clears activeSessionId from the task status. Accepts either an
-    AuthorizationMode enum value or its string equivalent (e.g., "SOURCE_BENEFACTOR")."""
+    """Recommends who is allowed to access the curation
+        grid session that a client opens for this task. The value is stored on the
+        task as a suggestion; the client applies it when it creates a new session.
+        Choose from:
+        - SESSION_OWNER: only the person or team who owns the session can access it.
+        - SOURCE_BENEFACTOR: anyone with EDIT permission on the
+            data being curated can access the session. This lets editors collaborate
+            in the same session without being added to a shared ownership team.
+        When omitted (None, the default), no recommendation is stored and clients
+        fall back to their usual behavior of finding or creating a private session
+        for the current user. Changing this value after the task already exists
+        resets the task's active session, so a new grid session must be opened
+        before curation can continue."""
 
     collaborator_principal_ids: Optional[list[str]] = None
     """Not actively used at this time.
@@ -213,14 +218,19 @@ class RecordBasedMetadataTaskProperties(EnumCoercionMixin):
     """The synId of the RecordSet that will contain all record-based metadata"""
 
     suggested_authorization_mode: Optional[Union[AuthorizationMode, str]] = None
-    """The authorization mode a client should use when creating a linked grid session for
-    this task. SESSION_OWNER limits access to the session owner and their team; use it
-    when curation should be scoped to a specific user or team. SOURCE_BENEFACTOR extends
-    access to anyone with EDIT rights on the source entity; use it when curation should
-    be open to all editors of the source. When omitted, clients follow legacy behavior:
-    find or create a personal, unlinked grid session. When this field changes, the server
-    automatically clears activeSessionId from the task status. Accepts either an
-    AuthorizationMode enum value or its string equivalent (e.g., "SOURCE_BENEFACTOR")."""
+    """Recommends who is allowed to access the curation
+        grid session that a client opens for this task. The value is stored on the
+        task as a suggestion; the client applies it when it creates a new session.
+        Choose from:
+        - SESSION_OWNER: only the person or team who owns the session can access it.
+        - SOURCE_BENEFACTOR: anyone with EDIT permission on the
+            data being curated can access the session. This lets editors collaborate
+            in the same session without being added to a shared ownership team.
+        When omitted (None, the default), no recommendation is stored and clients
+        fall back to their usual behavior of finding or creating a private session
+        for the current user. Changing this value after the task already exists
+        resets the task's active session, so a new grid session must be opened
+        before curation can continue."""
 
     collaborator_principal_ids: Optional[list[str]] = None
     """Not actively used at this time.
