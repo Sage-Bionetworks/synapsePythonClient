@@ -205,7 +205,7 @@ class RecordBasedMetadataTaskProperties(EnumCoercionMixin):
         record_set_id: The synId of the RecordSet that will contain all record-based metadata
     """
 
-    _ENUM_FIELDS: ClassVar[Dict[str, type]] = {
+    _ENUM_FIELDS: ClassVar[dict[str, type]] = {
         "suggested_authorization_mode": AuthorizationMode
     }
 
@@ -2098,7 +2098,7 @@ class CreateGridRequest(EnumCoercionMixin, AsynchronousCommunicator):
     session_id: Optional[str] = None
     """The session ID of the created grid (populated from response)"""
 
-    _ENUM_FIELDS: ClassVar[Dict[str, type]] = {"authorization_mode": AuthorizationMode}
+    _ENUM_FIELDS: ClassVar[dict[str, type]] = {"authorization_mode": AuthorizationMode}
 
     _grid_session_data: Optional[Dict[str, Any]] = field(default=None, compare=False)
     """Internal storage of the full grid session data from the response for later use."""
@@ -3172,7 +3172,7 @@ class Grid(EnumCoercionMixin, GridSynchronousProtocol):
     validation_summary_statistics: Optional[ValidationSummary] = None
     """Summary statistics for validation results"""
 
-    _ENUM_FIELDS: ClassVar[Dict[str, type]] = {"authorization_mode": AuthorizationMode}
+    _ENUM_FIELDS: ClassVar[dict[str, type]] = {"authorization_mode": AuthorizationMode}
 
     async def create_async(
         self,
