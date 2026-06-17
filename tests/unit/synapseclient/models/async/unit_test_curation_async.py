@@ -15,6 +15,7 @@ from synapseclient.core.constants.concrete_types import (
 )
 from synapseclient.models import EntityView, RecordSet
 from synapseclient.models.curation import (
+    AuthorizationMode,
     CreateGridRequest,
     CurationTask,
     CurationTaskStatus,
@@ -177,8 +178,43 @@ class TestFileBasedMetadataTaskProperties:
         # WHEN I convert it to a request dict
         request = props.to_synapse_request()
 
-        # THEN the request should only contain concreteType
+        # THEN the request should only contain concreteType (all None-valued fields,
+        # including suggested_authorization_mode, are dropped)
         assert request == {"concreteType": FILE_BASED_METADATA_TASK_PROPERTIES}
+
+    def test_fill_from_dict_authorization_fields(self) -> None:
+        # GIVEN a response dict including the authorization fields
+        response = {
+            "uploadFolderId": UPLOAD_FOLDER_ID,
+            "fileViewId": FILE_VIEW_ID,
+            "suggestedAuthorizationMode": "SOURCE_BENEFACTOR",
+            "collaboratorPrincipalIds": ["111", "222"],
+        }
+
+        # WHEN I fill a FileBasedMetadataTaskProperties from the dict
+        props = FileBasedMetadataTaskProperties()
+        props.fill_from_dict(response)
+
+        # THEN the mode is coerced to the enum and collaborators pass through
+        assert props.suggested_authorization_mode == AuthorizationMode.SOURCE_BENEFACTOR
+        assert isinstance(props.suggested_authorization_mode, AuthorizationMode)
+        assert props.collaborator_principal_ids == ["111", "222"]
+
+    def test_to_synapse_request_authorization_fields(self) -> None:
+        # GIVEN properties with the authorization mode supplied as a plain string
+        props = FileBasedMetadataTaskProperties(
+            upload_folder_id=UPLOAD_FOLDER_ID,
+            file_view_id=FILE_VIEW_ID,
+            suggested_authorization_mode="SESSION_OWNER",
+            collaborator_principal_ids=["111"],
+        )
+
+        # WHEN I convert it to a request dict
+        request = props.to_synapse_request()
+
+        # THEN the enum value is serialized as a string and collaborators pass through
+        assert request["suggestedAuthorizationMode"] == "SESSION_OWNER"
+        assert request["collaboratorPrincipalIds"] == ["111"]
 
 
 class TestRecordBasedMetadataTaskProperties:
@@ -205,6 +241,38 @@ class TestRecordBasedMetadataTaskProperties:
         # THEN the request should contain the correct values
         assert request["concreteType"] == RECORD_BASED_METADATA_TASK_PROPERTIES
         assert request["recordSetId"] == RECORD_SET_ID
+
+    def test_fill_from_dict_authorization_fields(self) -> None:
+        # GIVEN a response dict including the authorization fields
+        response = {
+            "recordSetId": RECORD_SET_ID,
+            "suggestedAuthorizationMode": "SESSION_OWNER",
+            "collaboratorPrincipalIds": ["111"],
+        }
+
+        # WHEN I fill a RecordBasedMetadataTaskProperties from the dict
+        props = RecordBasedMetadataTaskProperties()
+        props.fill_from_dict(response)
+
+        # THEN the mode is coerced to the enum and collaborators pass through
+        assert props.suggested_authorization_mode == AuthorizationMode.SESSION_OWNER
+        assert isinstance(props.suggested_authorization_mode, AuthorizationMode)
+        assert props.collaborator_principal_ids == ["111"]
+
+    def test_to_synapse_request_authorization_fields(self) -> None:
+        # GIVEN properties with an AuthorizationMode enum value set
+        props = RecordBasedMetadataTaskProperties(
+            record_set_id=RECORD_SET_ID,
+            suggested_authorization_mode=AuthorizationMode.SOURCE_BENEFACTOR,
+        )
+
+        # WHEN I convert it to a request dict
+        request = props.to_synapse_request()
+
+        # THEN the enum value is serialized as a string and the absent collaborators
+        # are dropped by delete_none_keys
+        assert request["suggestedAuthorizationMode"] == "SOURCE_BENEFACTOR"
+        assert "collaboratorPrincipalIds" not in request
 
 
 class TestCreateTaskPropertiesFromDict:
@@ -1092,6 +1160,97 @@ class TestCurationTask:
             match="task_properties must be a FileBasedMetadataTaskProperties",
         ):
             await task.create_grid_session_async(synapse_client=self.syn)
+
+    async def test_create_grid_session_async_passes_authorization_mode_record_based(
+        self,
+    ) -> None:
+        """A record-based task forwards its suggested_authorization_mode to the Grid."""
+        # GIVEN a record-based task in SESSION_OWNER mode
+        task = CurationTask(
+            task_id=TASK_ID,
+            task_properties=RecordBasedMetadataTaskProperties(
+                record_set_id=RECORD_SET_ID,
+                suggested_authorization_mode="SESSION_OWNER",
+            ),
+        )
+
+        with (
+            patch.object(RecordSet, "get_async", new_callable=AsyncMock),
+            patch.object(task, "set_active_grid_session_async", new_callable=AsyncMock),
+            patch("synapseclient.models.curation.Grid") as mock_grid_cls,
+        ):
+            mock_grid = mock_grid_cls.return_value
+            mock_grid.session_id = SESSION_ID
+            mock_grid.create_async = AsyncMock(return_value=mock_grid)
+
+            # WHEN I create a grid session without an explicit owner
+            await task.create_grid_session_async(synapse_client=self.syn)
+
+            # THEN the Grid is constructed with the task's authorization mode and the
+            # owner is left to the caller (None) for the server to resolve
+            kwargs = mock_grid_cls.call_args.kwargs
+            assert kwargs["authorization_mode"] == AuthorizationMode.SESSION_OWNER
+            assert kwargs["owner_principal_id"] is None
+
+    async def test_create_grid_session_async_passes_authorization_mode_file_based(
+        self,
+    ) -> None:
+        """A file-based task forwards its suggested_authorization_mode to the Grid."""
+        # GIVEN a file-based task in SOURCE_BENEFACTOR mode
+        task = CurationTask(
+            task_id=TASK_ID,
+            task_properties=FileBasedMetadataTaskProperties(
+                upload_folder_id=UPLOAD_FOLDER_ID,
+                file_view_id=FILE_VIEW_ID,
+                suggested_authorization_mode="SOURCE_BENEFACTOR",
+            ),
+        )
+
+        with (
+            patch.object(EntityView, "get_async", new_callable=AsyncMock),
+            patch.object(task, "set_active_grid_session_async", new_callable=AsyncMock),
+            patch("synapseclient.models.curation.Grid") as mock_grid_cls,
+        ):
+            mock_grid = mock_grid_cls.return_value
+            mock_grid.session_id = SESSION_ID
+            mock_grid.create_async = AsyncMock(return_value=mock_grid)
+
+            # WHEN I create a grid session
+            await task.create_grid_session_async(synapse_client=self.syn)
+
+            # THEN the Grid is constructed with the task's authorization mode
+            assert (
+                mock_grid_cls.call_args.kwargs["authorization_mode"]
+                == AuthorizationMode.SOURCE_BENEFACTOR
+            )
+
+    async def test_create_grid_session_async_passes_explicit_owner(self) -> None:
+        """An explicit owner_principal_id is passed straight through to the Grid."""
+        # GIVEN a record-based task
+        task = CurationTask(
+            task_id=TASK_ID,
+            task_properties=RecordBasedMetadataTaskProperties(
+                record_set_id=RECORD_SET_ID,
+                suggested_authorization_mode="SESSION_OWNER",
+            ),
+        )
+
+        with (
+            patch.object(RecordSet, "get_async", new_callable=AsyncMock),
+            patch.object(task, "set_active_grid_session_async", new_callable=AsyncMock),
+            patch("synapseclient.models.curation.Grid") as mock_grid_cls,
+        ):
+            mock_grid = mock_grid_cls.return_value
+            mock_grid.session_id = SESSION_ID
+            mock_grid.create_async = AsyncMock(return_value=mock_grid)
+
+            # WHEN I create a grid session with an explicit owner
+            await task.create_grid_session_async(
+                owner_principal_id=555, synapse_client=self.syn
+            )
+
+            # THEN that owner is forwarded to the Grid unchanged
+            assert mock_grid_cls.call_args.kwargs["owner_principal_id"] == 555
 
     async def test_list_async_assigned_to_me_and_assignee_ids_raises(self) -> None:
         # GIVEN both assigned_to_me and assignee_ids are provided

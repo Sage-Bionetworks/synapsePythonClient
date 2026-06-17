@@ -113,7 +113,6 @@ def create_record_based_metadata_task(
     enable_derived_annotations: bool = False,
     assignee_principal_id: Optional[Union[str, int]] = None,
     suggested_authorization_mode: Optional[Union[AuthorizationMode, str]] = None,
-    collaborator_principal_ids: Optional[list[str]] = None,
     *,
     synapse_client: Optional[Synapse] = None,
     project_id: Optional[str] = None,  # Deprecated, will be removed in v5.0.0
@@ -189,10 +188,11 @@ def create_record_based_metadata_task(
         suggested_authorization_mode: The authorization mode a client should use when
             creating a linked grid session for this task. When omitted, clients follow
             legacy behavior: find or create a personal, unlinked grid session.
-        collaborator_principal_ids: The set of principal IDs that should collaborate on
-            the grid session. Used to set the owner(s) of a linked GridSession when
-            suggested_authorization_mode is SESSION_OWNER. Reserved for future
-            multi-owner support; not actively used at this time.
+            SESSION_OWNER limits access to the session owner and their team;
+            SOURCE_BENEFACTOR extends access to anyone with EDIT rights on the source
+            entity. Note that changing suggested_authorization_mode after the task has
+            been created causes the server to clear activeSessionId on the task status,
+            so a new grid session must be created before curation can continue.
         synapse_client: If not passed in and caching was not disabled by
                 `Synapse.allow_client_caching(False)` this will use the last created
                 instance from the Synapse class constructor.
@@ -298,7 +298,6 @@ def create_record_based_metadata_task(
             task_properties=RecordBasedMetadataTaskProperties(
                 record_set_id=record_set_id,
                 suggested_authorization_mode=suggested_authorization_mode,
-                collaborator_principal_ids=collaborator_principal_ids,
             ),
         ).store(synapse_client=synapse_client)
         synapse_client.logger.info(
