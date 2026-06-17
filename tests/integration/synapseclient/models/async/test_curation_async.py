@@ -131,6 +131,7 @@ class TestCurationTaskStoreAsync:
         task_properties = FileBasedMetadataTaskProperties(
             upload_folder_id=folder.id,
             file_view_id=entity_view.id,
+            suggested_authorization_mode=AuthorizationMode.SESSION_OWNER,
         )
 
         # AND a CurationTask
@@ -153,6 +154,10 @@ class TestCurationTaskStoreAsync:
         assert isinstance(stored_task.task_properties, FileBasedMetadataTaskProperties)
         assert stored_task.task_properties.upload_folder_id == folder.id
         assert stored_task.task_properties.file_view_id == entity_view.id
+        assert (
+            stored_task.task_properties.suggested_authorization_mode
+            == AuthorizationMode.SESSION_OWNER
+        )
         assert stored_task.etag is not None
         assert stored_task.created_on is not None
         assert stored_task.created_by is not None
@@ -188,14 +193,9 @@ class TestCurationTaskStoreAsync:
             stored_task.task_properties, RecordBasedMetadataTaskProperties
         )
         assert stored_task.task_properties.record_set_id == record_set.id
-        # AND the authorization mode round-trips through the server as the enum
         assert (
             stored_task.task_properties.suggested_authorization_mode
             == AuthorizationMode.SESSION_OWNER
-        )
-        assert isinstance(
-            stored_task.task_properties.suggested_authorization_mode,
-            AuthorizationMode,
         )
         assert stored_task.etag is not None
         assert stored_task.created_on is not None
