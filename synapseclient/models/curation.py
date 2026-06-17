@@ -2148,7 +2148,10 @@ class CreateGridRequest(EnumCoercionMixin, AsynchronousCommunicator):
         grid_session.last_replica_id_service = data.get("lastReplicaIdService", None)
         grid_session.grid_json_schema_id = data.get("gridJsonSchema$Id", None)
         grid_session.source_entity_id = data.get("sourceEntityId", None)
-        grid_session.owner_principal_id = data.get("ownerPrincipalId")
+        owner_principal_id = data.get("ownerPrincipalId")
+        grid_session.owner_principal_id = (
+            int(owner_principal_id) if owner_principal_id is not None else None
+        )
         grid_session.authorization_mode = data.get("authorizationMode", None)
 
         return grid_session
@@ -3350,7 +3353,10 @@ class Grid(EnumCoercionMixin, GridSynchronousProtocol):
         )
         self.grid_json_schema_id = synapse_response.get("gridJsonSchema$Id", None)
         self.source_entity_id = synapse_response.get("sourceEntityId", None)
-        self.owner_principal_id = synapse_response.get("ownerPrincipalId")
+        owner_principal_id = synapse_response.get("ownerPrincipalId")
+        self.owner_principal_id = (
+            int(owner_principal_id) if owner_principal_id is not None else None
+        )
         self.authorization_mode = synapse_response.get("authorizationMode", None)
         return self
 
