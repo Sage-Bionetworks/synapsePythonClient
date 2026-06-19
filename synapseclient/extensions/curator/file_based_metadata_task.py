@@ -37,17 +37,17 @@ LIST_TYPE_DICT = {
 }
 
 
-def create_json_schema_entity_view(
+def _create_json_schema_entity_view(
     syn: Synapse,
     synapse_entity_id: str,
     entity_view_name: str = "JSON Schema view",
     view_type_mask: Union[int, ViewTypeMask] = ViewTypeMask.FILE,
-) -> str:
+) -> EntityView:
     """
-    Creates a Synapse entity view based on a JSON Schema that is bound to a Synapse entity
-    This functionality is needed only temporarily. See note at top of module.
+    Creates a Synapse entity view based on a JSON Schema that is bound to a Synapse
+    entity and returns the stored EntityView object.
 
-    Args:
+    Arguments:
         syn: A Synapse object thats been logged in
         synapse_entity_id: The ID of the entity in Synapse to bind the JSON Schema to
         entity_view_name: The name the crated entity view will have
@@ -57,7 +57,7 @@ def create_json_schema_entity_view(
             ViewTypeMask enum member or its raw integer value.
 
     Returns:
-        The Synapse id of the crated entity view
+        The created EntityView object
     """
     entity = get(
         file_options=FileOptions(download_file=False),
@@ -82,7 +82,7 @@ def create_json_schema_entity_view(
     view.reorder_column(name="name", index=0)
     view.reorder_column(name="id", index=0)
     view.store(synapse_client=syn)
-    return view.id
+    return view
 
 
 def create_or_update_wiki_with_entity_view(
@@ -325,9 +325,13 @@ def create_file_based_metadata_task(
     enable_derived_annotations: bool = False,
     assignee_principal_id: Optional[Union[str, int]] = None,
     view_type_mask: Union[int, ViewTypeMask] = ViewTypeMask.FILE,
+    # TODO: https://sagebionetworks.jira.com/browse/SYNPY-1865
+    # In v5.0.0 make entity-returning the default: remove the return_entities
+    # parameter and change the return type to Tuple[EntityView, CurationTask].
+    return_entities: bool = False,
     *,
     synapse_client: Optional[Synapse] = None,
-) -> Tuple[str, str]:
+) -> Union[Tuple[str, str], Tuple[EntityView, CurationTask]]:
     """
     Create a file view for a schema-bound folder using schematic.
 
@@ -356,6 +360,28 @@ def create_file_based_metadata_task(
         )
         ```
 
+    Example: Returning the created EntityView and CurationTask objects
+        Pass return_entities=True to receive the full EntityView and CurationTask
+        objects instead of their ID strings. This avoids a second round-trip to
+        Synapse when you need to read or modify the created entities, and matches the
+        return shape of create_record_based_metadata_task.
+
+        ```python
+        import synapseclient
+        from synapseclient.extensions.curator import create_file_based_metadata_task
+
+        syn = synapseclient.Synapse()
+        syn.login()
+
+        entity_view, curation_task = create_file_based_metadata_task(
+            synapse_client=syn,
+            folder_id="syn12345678",
+            curation_task_name="BiospecimenMetadataTemplate",
+            instructions="Please curate this metadata according to the schema requirements",
+            return_entities=True,
+        )
+        ```
+
     Arguments:
         folder_id: The Synapse Folder ID to create the file view for.
         curation_task_name: Name for the CurationTask (used as data_type field).
@@ -377,14 +403,22 @@ def create_file_based_metadata_task(
             ViewTypeMask.FILE. Additional types can be added using bitwise OR
             (e.g., ViewTypeMask.FILE | ViewTypeMask.DOCKER). Accepts either a
             ViewTypeMask enum member or its raw integer value.
+        return_entities: If True, return the created EntityView and CurationTask
+            objects instead of their ID strings. Defaults to False for backwards
+            compatibility. The entity-returning shape will become the default in
+            v5.0.0, at which point this parameter will be removed.
         synapse_client: If not passed in and caching was not disabled by
                 `Synapse.allow_client_caching(False)` this will use the last created
                 instance from the Synapse class constructor.
 
     Returns:
-        A tuple containing:
+        If return_entities is False (default): a tuple containing
           - The Synapse ID of the entity view created
           - The task ID of the curation task created
+
+        If return_entities is True: a tuple containing
+          - The created EntityView object
+          - The created CurationTask object
 
     Raises:
         ValueError: If required parameters are missing.
@@ -423,12 +457,13 @@ def create_file_based_metadata_task(
 
     synapse_client.logger.info("Attempting to create entity view.")
     try:
-        entity_view_id = create_json_schema_entity_view(
+        entity_view = _create_json_schema_entity_view(
             syn=synapse_client,
             synapse_entity_id=folder_id,
             entity_view_name=entity_view_name,
             view_type_mask=view_type_mask,
         )
+        entity_view_id = entity_view.id
     except Exception as e:
         synapse_client.logger.exception("Error creating entity view")
         raise e
@@ -488,4 +523,17 @@ def create_file_based_metadata_task(
         raise e
     synapse_client.logger.info("Created the CurationTask.")
 
+    # TODO: https://sagebionetworks.jira.com/browse/SYNPY-1865
+    # In v5.0.0 remove this warning and the ID-tuple return below; return
+    # (entity_view, task) unconditionally.
+
+    if return_entities:
+        return (entity_view, task)
+
+    synapse_client.logger.warning(
+        "create_file_based_metadata_task will return the created EntityView and "
+        "CurationTask objects instead of their ID strings starting in v5.0.0. Pass "
+        "return_entities=True to opt in to the new return type early and silence this "
+        "warning."
+    )
     return (entity_view_id, task.task_id)
