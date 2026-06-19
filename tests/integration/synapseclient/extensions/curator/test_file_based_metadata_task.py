@@ -1,11 +1,12 @@
 """Integration tests for create_file_based_metadata_task."""
 
 import uuid
-from typing import Any, Callable
+from typing import Any, Callable, Generator
 
 import pytest
 
 from synapseclient import Synapse
+from synapseclient.core.exceptions import SynapseHTTPError
 from synapseclient.extensions.curator.file_based_metadata_task import (
     create_file_based_metadata_task,
 )
@@ -66,11 +67,19 @@ def folder(
     syn: Synapse,
     project: Project,
     schedule_for_cleanup: Callable[[Any], None],
-) -> Folder:
+) -> Generator[Folder, None, None]:
     """Returns a Synapse Folder"""
     folder = Folder(name=_test_name(), parent_id=project.id).store(synapse_client=syn)
     schedule_for_cleanup(folder.id)
-    return folder
+    yield folder
+    # Unbind any JSON schema from the folder before teardown so the module-scoped
+    # schema cleanup (which runs before the session-scoped folder deletion) is not
+    # blocked by "Cannot delete a schema that is bound to an object".
+    try:
+        folder.unbind_schema(synapse_client=syn)
+    except SynapseHTTPError:
+        # No schema bound to this folder; nothing to unbind.
+        pass
 
 
 class TestCreateFileBasedMetadataTask:
@@ -125,7 +134,7 @@ class TestCreateFileBasedMetadataTask:
 
         # AND the leading columns are ordered with "name" first
         column_names = list(view.columns.keys())
-        assert column_names[:3] == ["name", "createdBy", "id"]
+        assert column_names[:3] == ["id", "name", "createdBy"]
 
     def test_create_file_based_metadata_task_return_entities(
         self,
@@ -172,3 +181,7 @@ class TestCreateFileBasedMetadataTask:
         assert curation_task.task_id is not None
         assert curation_task.data_type == test_name
         assert curation_task.task_properties.file_view_id == entity_view.id
+
+        # AND the leading columns are ordered with "name" first
+        column_names = list(entity_view.columns.keys())
+        assert column_names[:3] == ["id", "name", "createdBy"]

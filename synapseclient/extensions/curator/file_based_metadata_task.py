@@ -65,7 +65,7 @@ def _create_json_schema_entity_view(
         synapse_client=syn,
     )
     assert isinstance(entity, (Folder, Project))
-    jsb = entity.get_schema()
+    jsb = entity.get_schema(synapse_client=syn)
     version_info = jsb.json_schema_version_info
     schema = JSONSchema(version_info.schema_name, version_info.organization_name)
     body = schema.get_body(version=version_info.semantic_version, synapse_client=syn)
