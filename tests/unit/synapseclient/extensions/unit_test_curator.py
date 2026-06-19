@@ -37,12 +37,12 @@ from synapseclient.extensions.curator.file_based_metadata_task import (
     update_wiki_with_entity_view,
 )
 from synapseclient.extensions.curator.record_based_metadata_task import (
+    _reorder_columns_with_upsert_keys_first,
     create_dataframe_from_titles,
     extract_property_titles,
     extract_schema_properties_from_dict,
     extract_schema_properties_from_web,
     project_id_from_entity_id,
-    reorder_columns_with_upsert_keys_first,
 )
 from synapseclient.extensions.curator.schema_generation import (
     generate_jsonld,
@@ -1630,7 +1630,7 @@ class TestRecordBasedHelperFunctions(unittest.TestCase):
             with self.subTest(name):
                 # WHEN I reorder the columns with the upsert keys first
                 df = pd.DataFrame(columns=columns)
-                result = reorder_columns_with_upsert_keys_first(df, upsert_keys)
+                result = _reorder_columns_with_upsert_keys_first(df, upsert_keys)
 
                 # THEN the upsert keys lead in the given order, others keep their order
                 self.assertEqual(list(result.columns), expected)

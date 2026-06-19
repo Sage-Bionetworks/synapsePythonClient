@@ -77,7 +77,7 @@ def extract_schema_properties_from_dict(schema_data: Dict[str, Any]) -> DATA_FRA
     return df
 
 
-def reorder_columns_with_upsert_keys_first(
+def _reorder_columns_with_upsert_keys_first(
     df: DATA_FRAME_TYPE, upsert_keys: list[str]
 ) -> DATA_FRAME_TYPE:
     """
@@ -277,7 +277,7 @@ def create_record_based_metadata_task(
             f"{missing_upsert_keys}. Upsert keys identify each row and must correspond "
             "to columns defined in the schema."
         )
-    template_df = reorder_columns_with_upsert_keys_first(
+    template_df = _reorder_columns_with_upsert_keys_first(
         df=template_df, upsert_keys=upsert_keys
     )
 
