@@ -13,7 +13,7 @@ import shutil
 import tempfile
 import unittest
 from typing import Any
-from unittest.mock import Mock, mock_open, patch
+from unittest.mock import Mock, call, mock_open, patch
 
 import pandas as pd
 import pytest
@@ -1553,9 +1553,13 @@ class TestFileBasedHelperFunctions(unittest.TestCase):
 
         # THEN the entity view should be created successfully
         assert result == "syn87654321"
-        mock_view.reorder_column.assert_any_call(name="createdBy", index=0)
-        mock_view.reorder_column.assert_any_call(name="name", index=0)
-        mock_view.reorder_column.assert_any_call(name="id", index=0)
+        # AND the columns are reordered so that "name" ends up at index 0,
+        # followed by "createdBy" and "id" (the last reorder to index 0 wins).
+        assert mock_view.reorder_column.call_args_list == [
+            call(name="id", index=0),
+            call(name="createdBy", index=0),
+            call(name="name", index=0),
+        ]
 
     @patch("synapseclient.extensions.curator.file_based_metadata_task.isinstance")
     @patch("synapseclient.extensions.curator.file_based_metadata_task.EntityView")
