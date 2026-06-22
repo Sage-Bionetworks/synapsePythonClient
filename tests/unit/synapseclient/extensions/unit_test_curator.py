@@ -1613,16 +1613,10 @@ class TestRecordBasedHelperFunctions(unittest.TestCase):
                 ["specimenID", "individualID", "age", "diagnosis"],
             ),
             (
-                "skips keys missing from columns",
+                "no upsert keys preserves original order",
                 ["age", "specimenID"],
-                ["specimenID", "notAColumn"],
-                ["specimenID", "age"],
-            ),
-            (
-                "empty DataFrame yields no columns",
                 [],
-                ["specimenID"],
-                [],
+                ["age", "specimenID"],
             ),
         ]
 
@@ -1634,6 +1628,16 @@ class TestRecordBasedHelperFunctions(unittest.TestCase):
 
                 # THEN the upsert keys lead in the given order, others keep their order
                 self.assertEqual(list(result.columns), expected)
+
+    def test_reorder_columns_with_upsert_keys_first_missing_key_raises(self):
+        """Callers must validate keys; a missing upsert key raises KeyError."""
+        # GIVEN a DataFrame whose columns do not contain every upsert key
+        df = pd.DataFrame(columns=["age", "specimenID"])
+
+        # WHEN I reorder with an upsert key absent from the columns
+        # THEN a KeyError is raised rather than silently dropping the key
+        with self.assertRaises(KeyError):
+            _reorder_columns_with_upsert_keys_first(df, ["specimenID", "notAColumn"])
 
 
 class TestFileBasedHelperFunctions(unittest.TestCase):

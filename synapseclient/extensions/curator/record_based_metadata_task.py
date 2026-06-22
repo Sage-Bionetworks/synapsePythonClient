@@ -86,26 +86,22 @@ def _reorder_columns_with_upsert_keys_first(
     The upsert keys serve as the row identifiers in the Grid curation UI, so they
     should always be the leftmost columns of the CSV template. The relative order of
     the upsert keys is preserved as given, followed by the remaining columns in their
-    original order. Upsert keys that are not present among the columns are skipped.
+    original order. Callers are expected to validate that every upsert key is present
+    among the columns before calling this function.
 
     Args:
         df: DataFrame whose columns should be reordered.
         upsert_keys: List of column names to move to the front, in the desired order.
 
     Returns:
-        DataFrame with the upsert key columns moved to the front. If the DataFrame has
-        no columns or no upsert keys are present, a DataFrame with the same columns in
-        their original order is returned.
+        DataFrame with the upsert key columns moved to the front.
     """
-    existing_columns = df.columns.tolist()
-
-    ordered_upsert_keys = [key for key in upsert_keys if key in existing_columns]
-    ordered_upsert_key_set = set(ordered_upsert_keys)
+    upsert_key_set = set(upsert_keys)
     remaining_columns = [
-        column for column in existing_columns if column not in ordered_upsert_key_set
+        column for column in df.columns.tolist() if column not in upsert_key_set
     ]
 
-    return df[ordered_upsert_keys + remaining_columns]
+    return df[upsert_keys + remaining_columns]
 
 
 def extract_schema_properties_from_web(
