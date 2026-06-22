@@ -37,6 +37,7 @@ from synapseclient.extensions.curator.file_based_metadata_task import (
     update_wiki_with_entity_view,
 )
 from synapseclient.extensions.curator.record_based_metadata_task import (
+    _reorder_columns_with_upsert_keys_first,
     create_dataframe_from_titles,
     extract_property_titles,
     extract_schema_properties_from_dict,
@@ -742,6 +743,100 @@ class TestCreateRecordBasedMetadataTask(unittest.TestCase):
                         suggested_authorization_mode=expected_auth_mode,
                     ),
                 )
+
+    def test_create_record_based_metadata_task_reorders_upsert_keys_first(
+        self,
+        mock_open,
+        mock_grid_cls,
+        mock_curation_task_cls,
+        mock_record_set_cls,
+        mock_temp_file,
+        mock_extract_schema,
+        mock_get_client,
+        mock_get_project_id_from_entity_id,
+    ):
+        """Test that the CSV template has the upsert keys as the leftmost columns."""
+        # GIVEN a schema whose upsert key columns are not first
+        mock_get_client.return_value = self.mock_syn
+        mock_get_project_id_from_entity_id.return_value = self.project_id
+
+        mock_df = pd.DataFrame(
+            columns=["age", "diagnosis", "individualID", "specimenID"]
+        )
+        mock_extract_schema.return_value = mock_df
+
+        mock_temp = Mock()
+        mock_temp.name = "/tmp/test.csv"
+        mock_temp_file.return_value = mock_temp
+
+        mock_record_set = Mock()
+        mock_record_set.id = "syn87654321"
+        mock_record_set_instance = Mock()
+        mock_record_set_instance.store.return_value = mock_record_set
+        mock_record_set_cls.return_value = mock_record_set_instance
+
+        mock_task = Mock()
+        mock_task.task_id = "task123"
+        mock_curation_task = Mock()
+        mock_curation_task.store.return_value = mock_task
+        mock_curation_task_cls.return_value = mock_curation_task
+
+        # WHEN I create the record-based metadata task with two upsert keys
+        create_record_based_metadata_task(
+            folder_id=self.folder_id,
+            record_set_name=self.record_set_name,
+            record_set_description=self.record_set_description,
+            curation_task_name=self.curation_task_name,
+            upsert_keys=["specimenID", "individualID"],
+            instructions=self.instructions,
+            schema_uri=self.schema_uri,
+            synapse_client=self.mock_syn,
+        )
+
+        # THEN the template logged reflects the upsert keys first in the given order
+        self.mock_syn.logger.info.assert_any_call(
+            "Extracted schema properties and created template: "
+            "['specimenID', 'individualID', 'age', 'diagnosis']"
+        )
+
+    @patch(
+        "synapseclient.extensions.curator.record_based_metadata_task.project_id_from_entity_id"
+    )
+    @patch(
+        "synapseclient.extensions.curator.record_based_metadata_task.Synapse.get_client"
+    )
+    @patch(
+        "synapseclient.extensions.curator.record_based_metadata_task.extract_schema_properties_from_web"
+    )
+    def test_create_record_based_metadata_task_raises_for_missing_upsert_keys(
+        self,
+        mock_extract_schema,
+        mock_get_client,
+        mock_get_project_id_from_entity_id,
+    ):
+        """Test that upsert keys absent from the schema properties raise ValueError."""
+        # GIVEN a schema that does not contain one of the requested upsert keys
+        mock_get_client.return_value = self.mock_syn
+        mock_get_project_id_from_entity_id.return_value = self.project_id
+        mock_extract_schema.return_value = pd.DataFrame(
+            columns=["age", "diagnosis", "specimenID"]
+        )
+
+        # WHEN I create the task with an upsert key not among the schema properties
+        # THEN a ValueError naming the missing key is raised
+        with self.assertRaises(ValueError) as context:
+            create_record_based_metadata_task(
+                folder_id=self.folder_id,
+                record_set_name=self.record_set_name,
+                record_set_description=self.record_set_description,
+                curation_task_name=self.curation_task_name,
+                upsert_keys=["specimenID", "notAColumn"],
+                instructions=self.instructions,
+                schema_uri=self.schema_uri,
+                synapse_client=self.mock_syn,
+            )
+
+        self.assertIn("notAColumn", str(context.exception))
 
     @patch(
         "synapseclient.extensions.curator.record_based_metadata_task.project_id_from_entity_id"
@@ -1621,6 +1716,49 @@ class TestRecordBasedHelperFunctions(unittest.TestCase):
         self.assertEqual(list(result.columns), expected_columns)
         mock_schema.get.assert_called_once()
         mock_schema.get_body.assert_called_once()
+
+    def test_reorder_columns_with_upsert_keys_first(self):
+        """Test reordering a DataFrame's columns to put upsert keys first."""
+        # GIVEN starting columns, upsert keys, and the expected resulting order
+        cases = [
+            (
+                "moves keys to front",
+                ["age", "diagnosis", "specimenID"],
+                ["specimenID"],
+                ["specimenID", "age", "diagnosis"],
+            ),
+            (
+                "preserves provided key order",
+                ["age", "individualID", "diagnosis", "specimenID"],
+                ["specimenID", "individualID"],
+                ["specimenID", "individualID", "age", "diagnosis"],
+            ),
+            (
+                "no upsert keys preserves original order",
+                ["age", "specimenID"],
+                [],
+                ["age", "specimenID"],
+            ),
+        ]
+
+        for name, columns, upsert_keys, expected in cases:
+            with self.subTest(name):
+                # WHEN I reorder the columns with the upsert keys first
+                df = pd.DataFrame(columns=columns)
+                result = _reorder_columns_with_upsert_keys_first(df, upsert_keys)
+
+                # THEN the upsert keys lead in the given order, others keep their order
+                self.assertEqual(list(result.columns), expected)
+
+    def test_reorder_columns_with_upsert_keys_first_missing_key_raises(self):
+        """Callers must validate keys; a missing upsert key raises KeyError."""
+        # GIVEN a DataFrame whose columns do not contain every upsert key
+        df = pd.DataFrame(columns=["age", "specimenID"])
+
+        # WHEN I reorder with an upsert key absent from the columns
+        # THEN a KeyError is raised rather than silently dropping the key
+        with self.assertRaises(KeyError):
+            _reorder_columns_with_upsert_keys_first(df, ["specimenID", "notAColumn"])
 
 
 class TestFileBasedHelperFunctions(unittest.TestCase):
