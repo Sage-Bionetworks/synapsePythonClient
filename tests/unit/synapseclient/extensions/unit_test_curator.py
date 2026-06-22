@@ -416,7 +416,7 @@ class TestCreateFileBasedMetadataTask(unittest.TestCase):
         mock_get_project_id_from_entity_id,
     ):
         """Every parameter is forwarded to CurationTask. The assignee int is coerced
-        to a string, and suggested_authorization_mode supplied as a string is coerced
+        to a string, and authorization_mode supplied as a string is coerced
         to the AuthorizationMode enum by FileBasedMetadataTaskProperties."""
         # (assignee_input, expected_assignee, auth_mode_input, expected_auth_mode)
         test_cases = [
@@ -477,7 +477,7 @@ class TestCreateFileBasedMetadataTask(unittest.TestCase):
                     schema_uri=self.schema_uri,
                     enable_derived_annotations=True,
                     assignee_principal_id=input_assignee,
-                    suggested_authorization_mode=input_auth_mode,
+                    authorization_mode=input_auth_mode,
                     synapse_client=self.mock_syn,
                 )
 
@@ -653,7 +653,7 @@ class TestCreateRecordBasedMetadataTask(unittest.TestCase):
         mock_get_project_id_from_entity_id,
     ):
         """Every parameter is forwarded to CurationTask. The assignee int is coerced
-        to a string, and suggested_authorization_mode supplied as a string is coerced
+        to a string, and authorization_mode supplied as a string is coerced
         to the AuthorizationMode enum by RecordBasedMetadataTaskProperties."""
         # (assignee_input, expected_assignee, auth_mode_input, expected_auth_mode)
         test_cases = [
@@ -725,7 +725,7 @@ class TestCreateRecordBasedMetadataTask(unittest.TestCase):
                     instructions=self.instructions,
                     schema_uri=self.schema_uri,
                     assignee_principal_id=input_assignee,
-                    suggested_authorization_mode=input_auth_mode,
+                    authorization_mode=input_auth_mode,
                     create_grid=False,
                     synapse_client=self.mock_syn,
                 )

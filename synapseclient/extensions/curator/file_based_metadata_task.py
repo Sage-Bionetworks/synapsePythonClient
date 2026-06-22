@@ -326,7 +326,7 @@ def create_file_based_metadata_task(
     enable_derived_annotations: bool = False,
     assignee_principal_id: Optional[Union[str, int]] = None,
     view_type_mask: Union[int, ViewTypeMask] = ViewTypeMask.FILE,
-    suggested_authorization_mode: Optional[Union[AuthorizationMode, str]] = None,
+    authorization_mode: Optional[Union[AuthorizationMode, str]] = None,
     *,
     synapse_client: Optional[Synapse] = None,
 ) -> Tuple[str, str]:
@@ -355,7 +355,7 @@ def create_file_based_metadata_task(
             schema_uri="sage.schemas.v2571-amp.Biospecimen.schema-0.0.1",
             assignee_principal_id=123456, # Optional: Assign to a user or team (can be str or int)
             view_type_mask=ViewTypeMask.FILE | ViewTypeMask.DOCKER, # Optional: include additional entity types in the view
-            suggested_authorization_mode=AuthorizationMode.SOURCE_BENEFACTOR,
+            authorization_mode=AuthorizationMode.SOURCE_BENEFACTOR,
         )
         ```
 
@@ -380,7 +380,7 @@ def create_file_based_metadata_task(
             ViewTypeMask.FILE. Additional types can be added using bitwise OR
             (e.g., ViewTypeMask.FILE | ViewTypeMask.DOCKER). Accepts either a
             ViewTypeMask enum member or its raw integer value.
-        suggested_authorization_mode: Recommends who is allowed to access the curation
+        authorization_mode: Recommends who is allowed to access the curation
             grid session that a client opens for this task. The value is stored on the
             task as a suggestion; the client applies it when it creates a new session.
             Choose from:
@@ -497,7 +497,7 @@ def create_file_based_metadata_task(
             task_properties=FileBasedMetadataTaskProperties(
                 upload_folder_id=folder_id,
                 file_view_id=entity_view_id,
-                suggested_authorization_mode=suggested_authorization_mode,
+                suggested_authorization_mode=authorization_mode,
             ),
         ).store(synapse_client=synapse_client)
     except Exception as e:

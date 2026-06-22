@@ -133,7 +133,7 @@ print(f"Created CurationTask: {task_id}")
 
 ### Controlling who can access the grid session
 
-Both [create_record_based_metadata_task][synapseclient.extensions.curator.create_record_based_metadata_task] and [create_file_based_metadata_task][synapseclient.extensions.curator.create_file_based_metadata_task] accept an optional `suggested_authorization_mode` that tells clients how to scope access when a grid session is created for the task:
+Both [create_record_based_metadata_task][synapseclient.extensions.curator.create_record_based_metadata_task] and [create_file_based_metadata_task][synapseclient.extensions.curator.create_file_based_metadata_task] accept an optional `authorization_mode` that tells clients how to scope access when a grid session is created for the task:
 
 - `SESSION_OWNER` (the server default applied when the mode is omitted) limits access to the session owner and their team. Use it when curation should be restricted to a specific user or team.
 - `SOURCE_BENEFACTOR` extends access to anyone with `EDIT` rights on the source entity. Use it when curation should be open to all editors of the source.
@@ -148,14 +148,14 @@ entity_view_id, task_id = create_file_based_metadata_task(
     instructions="Annotate each file with metadata according to the schema requirements.",
     entity_view_name="Animal Study Files View",
     schema_uri=schema_uri,
-    suggested_authorization_mode="SOURCE_BENEFACTOR",
+    authorization_mode="SOURCE_BENEFACTOR",
 )
 ```
 
 When [CurationTask.create_grid_session][synapseclient.models.CurationTask.create_grid_session] is later called, it forwards this mode to the new grid session and the server uses it to determine access: `SESSION_OWNER` limits access to the session owner (the caller, or an explicit `owner_principal_id`) and their team, while `SOURCE_BENEFACTOR` lets the session inherit access from the source entity's benefactor.
 
 !!! warning "Changing the mode invalidates the active session"
-    Updating `suggested_authorization_mode` on an existing task causes the server to automatically clear `activeSessionId` on the task status. The previously active grid session is no longer linked to the task, so you must create a new grid session before curation can continue.
+    Updating `authorization_mode` on an existing task causes the server to automatically clear `activeSessionId` on the task status. The previously active grid session is no longer linked to the task, so you must create a new grid session before curation can continue.
 
 ## Complete example script
 
