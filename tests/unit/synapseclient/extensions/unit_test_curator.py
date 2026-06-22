@@ -744,6 +744,22 @@ class TestCreateRecordBasedMetadataTask(unittest.TestCase):
                     ),
                 )
 
+    @patch(
+        "synapseclient.extensions.curator.record_based_metadata_task.project_id_from_entity_id"
+    )
+    @patch(
+        "synapseclient.extensions.curator.record_based_metadata_task.Synapse.get_client"
+    )
+    @patch(
+        "synapseclient.extensions.curator.record_based_metadata_task.extract_schema_properties_from_web"
+    )
+    @patch(
+        "synapseclient.extensions.curator.record_based_metadata_task.tempfile.NamedTemporaryFile"
+    )
+    @patch("synapseclient.extensions.curator.record_based_metadata_task.RecordSet")
+    @patch("synapseclient.extensions.curator.record_based_metadata_task.CurationTask")
+    @patch("synapseclient.extensions.curator.record_based_metadata_task.Grid")
+    @patch("builtins.open")
     def test_create_record_based_metadata_task_reorders_upsert_keys_first(
         self,
         mock_open,
