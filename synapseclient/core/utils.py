@@ -1427,16 +1427,16 @@ def delete_none_keys(incoming_object: typing.Dict) -> None:
                 del incoming_object[key]
 
 
-_T = TypeVar("_T")
+T = TypeVar("_T")
 
 
 def merge_dataclass_entities(
-    source: _T,
-    destination: _T,
+    source: T,
+    destination: T,
     fields_to_ignore: list[str] = None,
     fields_to_preserve_from_source: list[str] = None,
     logger: logging.Logger = None,
-) -> _T:
+) -> T:
     """
     Utility function to merge two dataclass entities together. This is used when we are
     upserting an entity from the Synapse service with the requested changes.
