@@ -37,7 +37,6 @@ from tqdm import tqdm
 from synapseclient.core.logging_setup import DEFAULT_LOGGER_NAME
 
 if TYPE_CHECKING:
-    from synapseclient.models import Column, Evaluation, File, Folder, Project, Table
     from synapseclient.models.dataset import EntityRef
 
 R = TypeVar("R")
@@ -1428,15 +1427,16 @@ def delete_none_keys(incoming_object: typing.Dict) -> None:
                 del incoming_object[key]
 
 
+_T = TypeVar("_T")
+
+
 def merge_dataclass_entities(
-    source: typing.Union["Project", "Folder", "File", "Table", "Column", "Evaluation"],
-    destination: typing.Union[
-        "Project", "Folder", "File", "Table", "Column", "Evaluation"
-    ],
-    fields_to_ignore: typing.List[str] = None,
-    fields_to_preserve_from_source: typing.List[str] = None,
+    source: _T,
+    destination: _T,
+    fields_to_ignore: list[str] = None,
+    fields_to_preserve_from_source: list[str] = None,
     logger: logging.Logger = None,
-) -> typing.Union["Project", "Folder", "File", "Table", "Column", "Evaluation"]:
+) -> _T:
     """
     Utility function to merge two dataclass entities together. This is used when we are
     upserting an entity from the Synapse service with the requested changes.
@@ -1463,12 +1463,15 @@ def merge_dataclass_entities(
         if fields_to_ignore is not None and key in fields_to_ignore:
             continue
         if is_dataclass(getattr(source, key)):
-            if hasattr(destination, key):
-                setattr(destination, key, getattr(source, key))
+            destination_value = getattr(destination, key, None)
+            if destination_value is None or not is_dataclass(destination_value):
+                modified_items[key] = getattr(source, key)
             else:
+                # Both hold a dataclass: recurse so each sub-field follows the
+                # same rule as scalars
                 modified_items[key] = merge_dataclass_entities(
-                    getattr(source, key),
-                    destination=getattr(destination, key),
+                    source=getattr(source, key),
+                    destination=destination_value,
                     fields_to_ignore=fields_to_ignore,
                     fields_to_preserve_from_source=fields_to_preserve_from_source,
                     logger=logger,
