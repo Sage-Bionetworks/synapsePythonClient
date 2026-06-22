@@ -78,11 +78,9 @@ def create_json_schema_entity_view(
         columns=columns,
     ).store(synapse_client=syn)
     # This reorder is so that these show up in the front of the EntityView in Synapse.
-    # Order matters: each call moves its column to index 0, so the LAST call wins the
-    # front slot. The resulting front order is name, then createdBy, then id.
-    view.reorder_column(name="createdBy", index=0)
-    view.reorder_column(name="id", index=0)
     view.reorder_column(name="name", index=0)
+    view.reorder_column(name="id", index=1)
+    view.reorder_column(name="createdBy", index=2)
     view.store(synapse_client=syn)
     return view.id
 
