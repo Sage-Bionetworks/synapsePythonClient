@@ -2,8 +2,6 @@
 
 from typing import Any, Callable
 
-import pytest
-
 from synapseclient import Synapse
 from synapseclient.extensions.curator.file_based_metadata_task import (
     create_file_based_metadata_task,
@@ -18,7 +16,6 @@ class TestCreateFileBasedMetadataTask:
         self,
         syn: Synapse,
         schedule_for_cleanup: Callable[[Any], None],
-        request: pytest.FixtureRequest,
         patient_schema_uri: str,
         folder: Folder,
         unique_name: Callable[[], str],
@@ -37,13 +34,7 @@ class TestCreateFileBasedMetadataTask:
             synapse_client=syn,
         )
         schedule_for_cleanup(entity_view_id)
-
-        # The CurationTask is not a deletable entity via syn.delete, so it keeps a
-        # dedicated finalizer. The EntityView it points at is cleaned up via
-        # schedule_for_cleanup above, so delete_source is not needed here.
-        request.addfinalizer(
-            lambda: CurationTask(task_id=task_id).delete(synapse_client=syn)
-        )
+        schedule_for_cleanup(CurationTask(task_id=task_id))
 
         # THEN both the entity view and the curation task were created
         assert entity_view_id is not None
@@ -70,7 +61,6 @@ class TestCreateFileBasedMetadataTask:
         self,
         syn: Synapse,
         schedule_for_cleanup: Callable[[Any], None],
-        request: pytest.FixtureRequest,
         patient_schema_uri: str,
         folder: Folder,
         unique_name: Callable[[], str],
@@ -90,15 +80,7 @@ class TestCreateFileBasedMetadataTask:
             synapse_client=syn,
         )
         schedule_for_cleanup(entity_view.id)
-
-        # The CurationTask is not a deletable entity via syn.delete, so it keeps a
-        # dedicated finalizer. The EntityView it points at is cleaned up via
-        # schedule_for_cleanup above, so delete_source is not needed here.
-        request.addfinalizer(
-            lambda: CurationTask(task_id=curation_task.task_id).delete(
-                synapse_client=syn
-            )
-        )
+        schedule_for_cleanup(curation_task)
 
         # THEN the actual EntityView and CurationTask objects are returned
         assert isinstance(entity_view, EntityView)
