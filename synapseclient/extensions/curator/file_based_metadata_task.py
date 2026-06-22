@@ -38,7 +38,7 @@ LIST_TYPE_DICT = {
 
 
 def _create_json_schema_entity_view(
-    syn: Synapse,
+    syn: Optional[Synapse],
     synapse_entity_id: str,
     entity_view_name: str = "JSON Schema view",
     view_type_mask: Union[int, ViewTypeMask] = ViewTypeMask.FILE,
