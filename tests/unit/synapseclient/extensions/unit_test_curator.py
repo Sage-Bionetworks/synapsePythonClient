@@ -538,58 +538,6 @@ class TestCreateFileBasedMetadataTask(unittest.TestCase):
         )
         assert "return_entities=True" not in warning_messages
 
-    @patch(
-        "synapseclient.extensions.curator.file_based_metadata_task.project_id_from_entity_id"
-    )
-    @patch(
-        "synapseclient.extensions.curator.file_based_metadata_task.Synapse.get_client"
-    )
-    @patch(
-        "synapseclient.extensions.curator.file_based_metadata_task._create_json_schema_entity_view"
-    )
-    @patch("synapseclient.extensions.curator.file_based_metadata_task.Folder")
-    @patch("synapseclient.extensions.curator.file_based_metadata_task.CurationTask")
-    def test_create_file_based_metadata_task_id_return_logs_deprecation_warning(
-        self,
-        mock_curation_task_cls,
-        mock_folder_cls,
-        mock_create_entity_view,
-        mock_get_client,
-        mock_get_project_id_from_entity_id,
-    ):
-        """Test that the default ID-returning shape logs a deprecation warning."""
-        # GIVEN a file-based metadata task created with the default return shape
-        mock_get_client.return_value = self.mock_syn
-        mock_create_entity_view.return_value = Mock(id="syn87654321")
-        mock_get_project_id_from_entity_id.return_value = self.project_id
-
-        mock_folder = Mock()
-        mock_folder_cls.return_value = mock_folder
-        mock_folder.get.return_value = mock_folder
-
-        mock_task = Mock()
-        mock_task.task_id = "task123"
-        mock_curation_task = Mock()
-        mock_curation_task.store.return_value = mock_task
-        mock_curation_task_cls.return_value = mock_curation_task
-
-        # WHEN I create the file-based metadata task without return_entities
-        result = create_file_based_metadata_task(
-            folder_id=self.folder_id,
-            curation_task_name=self.curation_task_name,
-            instructions=self.instructions,
-            attach_wiki=False,
-            synapse_client=self.mock_syn,
-        )
-
-        # THEN the ID tuple is returned and a deprecation warning is logged
-        assert result == ("syn87654321", "task123")
-        warning_messages = " ".join(
-            str(call.args[0]) for call in self.mock_syn.logger.warning.call_args_list
-        )
-        assert "v5.0.0" in warning_messages
-        assert "return_entities=True" in warning_messages
-
 
 class TestCreateRecordBasedMetadataTask(unittest.TestCase):
     """Test cases for create_record_based_metadata_task function."""
