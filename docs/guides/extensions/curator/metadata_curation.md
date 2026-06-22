@@ -133,7 +133,7 @@ print(f"Created CurationTask: {task_id}")
 
 ### Controlling who can access the grid session
 
-Both `create_record_based_metadata_task` and `create_file_based_metadata_task` accept an optional `suggested_authorization_mode` that tells clients how to scope access when a grid session is created for the task:
+Both [create_record_based_metadata_task][synapseclient.extensions.curator.create_record_based_metadata_task] and [create_file_based_metadata_task][synapseclient.extensions.curator.create_file_based_metadata_task] accept an optional `suggested_authorization_mode` that tells clients how to scope access when a grid session is created for the task:
 
 - `SESSION_OWNER` (the server default applied when the mode is omitted) limits access to the session owner and their team. Use it when curation should be restricted to a specific user or team.
 - `SOURCE_BENEFACTOR` extends access to anyone with `EDIT` rights on the source entity. Use it when curation should be open to all editors of the source.
