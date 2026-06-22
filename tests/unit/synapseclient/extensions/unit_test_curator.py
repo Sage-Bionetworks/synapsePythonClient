@@ -1553,12 +1553,12 @@ class TestFileBasedHelperFunctions(unittest.TestCase):
 
         # THEN the entity view should be created successfully
         assert result == "syn87654321"
-        # AND the columns are reordered so that "name" ends up at index 0,
-        # followed by "id" and "createdBy" (the last reorder to index 0 wins).
+        # AND the columns are reordered so that "name", "id", and "createdBy"
+        # appear first, in that order.
         assert mock_view.reorder_column.call_args_list == [
-            call(name="createdBy", index=0),
-            call(name="id", index=0),
             call(name="name", index=0),
+            call(name="id", index=1),
+            call(name="createdBy", index=2),
         ]
 
     @patch("synapseclient.extensions.curator.file_based_metadata_task.isinstance")
