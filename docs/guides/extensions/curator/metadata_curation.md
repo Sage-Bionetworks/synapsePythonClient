@@ -107,7 +107,7 @@ print(f"Created CurationTask: {curation_task.task_id}")
 Use this when metadata describes individual data files and is stored as annotations directly on each file.
 
 ```python
-entity_view_id, task_id = create_file_based_metadata_task(
+entity_view, task = create_file_based_metadata_task(
     synapse_client=syn,
     folder_id="syn987654321",          # Folder containing your data files
     curation_task_name="FileMetadata_Curation", # Must be unique within the project
@@ -116,11 +116,12 @@ entity_view_id, task_id = create_file_based_metadata_task(
     entity_view_name="Animal Study Files View",
     schema_uri=schema_uri,             # Schema found in Step 2
     assignee_principal_id=123456,    # Optional: Assign to a user or team
-    view_type_mask=ViewTypeMask.FILE   # Optional: include additional entity types in the view (ViewTypeMask.FILE | ViewTypeMask.DOCKER). (Defaults to ViewTypeMask.FILE)
+    view_type_mask=ViewTypeMask.FILE,  # Optional: include additional entity types in the view (ViewTypeMask.FILE | ViewTypeMask.DOCKER). (Defaults to ViewTypeMask.FILE)
+    return_entities=True               # Return EntityView and CurationTask objects (becomes the default in v5.0.0)
 )
 
-print(f"Created EntityView: {entity_view_id}")
-print(f"Created CurationTask: {task_id}")
+print(f"Created EntityView: {entity_view.id}")
+print(f"Created CurationTask: {task.task_id}")
 
 ```
 
@@ -176,7 +177,7 @@ print(f"  RecordSet: {record_set.id}")
 print(f"  CurationTask: {curation_task.task_id}")
 
 # Step 3B: Create file-based workflow
-entity_view_id, task_id = create_file_based_metadata_task(
+entity_view, task = create_file_based_metadata_task(
     synapse_client=syn,
     folder_id="syn987654321",
     curation_task_name="FileMetadata_Curation",
@@ -185,12 +186,13 @@ entity_view_id, task_id = create_file_based_metadata_task(
     entity_view_name="Animal Study Files View",
     schema_uri=schema_uri,
     assignee_principal_id=123456,  # Optional: Assign to a user or team
-    view_type_mask=ViewTypeMask.FILE   # Optional: include additional entity types in the view (ViewTypeMask.FILE | ViewTypeMask.DOCKER). (Defaults to ViewTypeMask.FILE)
+    view_type_mask=ViewTypeMask.FILE,  # Optional: include additional entity types in the view (ViewTypeMask.FILE | ViewTypeMask.DOCKER). (Defaults to ViewTypeMask.FILE)
+    return_entities=True               # Return EntityView and CurationTask objects (becomes the default in v5.0.0)
 )
 
 print("File-based workflow created:")
-print(f"  EntityView: {entity_view_id}")
-print(f"  CurationTask: {task_id}")
+print(f"  EntityView: {entity_view.id}")
+print(f"  CurationTask: {task.task_id}")
 ```
 
 ## Step 4: Work with metadata and validate (Record-based workflow)
