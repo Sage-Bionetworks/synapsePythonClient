@@ -1427,14 +1427,14 @@ def delete_none_keys(incoming_object: typing.Dict) -> None:
                 del incoming_object[key]
 
 
-T = TypeVar("_T")
+T = TypeVar("T")
 
 
 def merge_dataclass_entities(
     source: T,
     destination: T,
-    fields_to_ignore: list[str] = None,
-    fields_to_preserve_from_source: list[str] = None,
+    fields_to_ignore: list[str] | None = None,
+    fields_to_preserve_from_source: list[str] | None = None,
     logger: logging.Logger = None,
 ) -> T:
     """
