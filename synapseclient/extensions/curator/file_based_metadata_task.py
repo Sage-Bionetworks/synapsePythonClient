@@ -38,23 +38,23 @@ LIST_TYPE_DICT = {
 
 
 def _create_json_schema_entity_view(
-    syn: Optional[Synapse],
     synapse_entity_id: str,
     entity_view_name: str = "JSON Schema view",
     view_type_mask: Union[int, ViewTypeMask] = ViewTypeMask.FILE,
+    syn: Optional[Synapse] = None,
 ) -> EntityView:
     """
     Creates a Synapse entity view based on a JSON Schema that is bound to a Synapse
     entity and returns the stored EntityView object.
 
     Arguments:
-        syn: A Synapse object thats been logged in
         synapse_entity_id: The ID of the entity in Synapse to bind the JSON Schema to
         entity_view_name: The name the crated entity view will have
         view_type_mask: The view type mask for the EntityView. Defaults to
             ViewTypeMask.FILE. Additional types can be added using bitwise OR
             (e.g., ViewTypeMask.FILE | ViewTypeMask.DOCKER). Accepts either a
             ViewTypeMask enum member or its raw integer value.
+        syn: A Synapse object thats been logged in
 
     Returns:
         The created EntityView object
