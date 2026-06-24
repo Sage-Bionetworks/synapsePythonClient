@@ -1,6 +1,6 @@
 """Integration tests for create_record_based_metadata_task."""
 
-from typing import Callable
+import uuid
 
 import pytest
 
@@ -8,7 +8,68 @@ from synapseclient import Synapse
 from synapseclient.extensions.curator.record_based_metadata_task import (
     create_record_based_metadata_task,
 )
-from synapseclient.models import Folder, Project
+from synapseclient.models import Folder, JSONSchema, Project, SchemaOrganization
+
+
+def _test_name() -> str:
+    random_string = "".join(c for c in str(uuid.uuid4()) if c.isalpha())
+    return f"SYNPY.TEST.{random_string}"
+
+
+@pytest.fixture(scope="module")
+def patient_schema_uri(syn: Synapse, request: pytest.FixtureRequest) -> str:
+    """
+    Create a SchemaOrganization and a Patient JSON schema for the module.
+    Returns the schema URI.
+    """
+    org_name = _test_name()
+    schema_name = "test.schematic.Patient"
+
+    org = SchemaOrganization(name=org_name)
+    org.store(synapse_client=syn)
+
+    schema = JSONSchema(name=schema_name, organization_name=org_name)
+    schema_body = {
+        "$schema": "http://json-schema.org/draft-07/schema#",
+        "$id": f"https://example.com/schema/{org_name}-{schema_name}.json",
+        "title": "Patient",
+        "type": "object",
+        "properties": {
+            "PatientID": {"type": "string"},
+            "Sex": {"type": "string", "enum": ["Male", "Female", "Other"]},
+            "Age": {"type": "integer", "minimum": 0},
+        },
+        "required": ["PatientID"],
+    }
+    schema.store(schema_body=schema_body, synapse_client=syn)
+
+    def cleanup():
+        for js in org.get_json_schemas(synapse_client=syn):
+            js.delete(synapse_client=syn)
+        org.delete(synapse_client=syn)
+
+    request.addfinalizer(cleanup)
+
+    return schema.uri
+
+
+@pytest.fixture(scope="function")
+def folder(syn: Synapse, project: Project, request: pytest.FixtureRequest) -> Folder:
+    """Create a Folder for the test and tear it down on completion.
+
+    The finalizer unbinds any JSON schema from the folder before deletion so
+    that the module-scoped schema cleanup in patient_schema_uri can succeed
+    (the server refuses to delete a schema that is still bound to an entity).
+    """
+    folder = Folder(name=_test_name(), parent_id=project.id).store(synapse_client=syn)
+
+    def cleanup():
+        folder.unbind_schema(synapse_client=syn)
+        folder.delete(synapse_client=syn)
+
+    request.addfinalizer(cleanup)
+
+    return folder
 
 
 class TestCreateRecordBasedMetadataTask:
@@ -21,14 +82,13 @@ class TestCreateRecordBasedMetadataTask:
         request: pytest.FixtureRequest,
         patient_schema_uri: str,
         folder: Folder,
-        unique_name: Callable[[], str],
     ):
         """
         The Grid created during bootstrap is initialized from the RecordSet's
         CSV with no edits, so exporting that Grid back to the RecordSet (the
         reported bug) writes the same content as a duplicate v2.
         """
-        test_name = unique_name()
+        test_name = _test_name()
         upsert_keys = ["PatientID"]
         instructions = "Contribute Patient data."
 

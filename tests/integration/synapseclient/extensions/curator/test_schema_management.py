@@ -3,7 +3,7 @@
 import json
 import os
 import tempfile
-from typing import Callable
+import uuid
 
 import pytest
 
@@ -15,14 +15,18 @@ from synapseclient.extensions.curator.record_based_metadata_task import (
 from synapseclient.models import Folder, Project, SchemaOrganization
 
 
+def create_test_name():
+    """Creates a random string for naming test entities"""
+    random_string = "".join(i for i in str(uuid.uuid4()) if i.isalpha())
+    return f"SYNPY.TEST.{random_string}"
+
+
 @pytest.fixture(name="test_organization", scope="module")
-def fixture_test_organization(
-    syn: Synapse, request, unique_name: Callable[[], str]
-) -> SchemaOrganization:
+def fixture_test_organization(syn: Synapse, request) -> SchemaOrganization:
     """
     Returns a created organization for testing schema registration
     """
-    org = SchemaOrganization(unique_name())
+    org = SchemaOrganization(create_test_name())
     org.store(synapse_client=syn)
 
     def delete_org():
@@ -36,13 +40,11 @@ def fixture_test_organization(
 
 
 @pytest.fixture(name="test_project", scope="module")
-def fixture_test_project(
-    syn: Synapse, request, unique_name: Callable[[], str]
-) -> Project:
+def fixture_test_project(syn: Synapse, request) -> Project:
     """
     Returns a test project for binding schemas
     """
-    project = Project(name=unique_name())
+    project = Project(name=create_test_name())
     project.store(synapse_client=syn)
 
     def delete_project():
@@ -85,14 +87,10 @@ class TestRegisterJsonSchema:
     """Integration tests for register_jsonschema wrapper function"""
 
     def test_register_jsonschema_with_version(
-        self,
-        syn: Synapse,
-        test_organization: SchemaOrganization,
-        test_schema_file: str,
-        unique_name: Callable[[], str],
+        self, syn: Synapse, test_organization: SchemaOrganization, test_schema_file: str
     ):
         """Test registering a JSON schema with a specific version"""
-        schema_name = unique_name()
+        schema_name = create_test_name()
         version = "1.0.0"
 
         # Register the schema
@@ -111,14 +109,10 @@ class TestRegisterJsonSchema:
         assert test_organization.name in json_schema.uri
 
     def test_register_jsonschema_without_version(
-        self,
-        syn: Synapse,
-        test_organization: SchemaOrganization,
-        test_schema_file: str,
-        unique_name: Callable[[], str],
+        self, syn: Synapse, test_organization: SchemaOrganization, test_schema_file: str
     ):
         """Test registering a JSON schema without specifying a version"""
-        schema_name = unique_name()
+        schema_name = create_test_name()
 
         # Register the schema
         json_schema = register_jsonschema(
@@ -143,11 +137,10 @@ class TestBindJsonSchema:
         test_organization: SchemaOrganization,
         test_project: Project,
         test_schema_file: str,
-        unique_name: Callable[[], str],
     ):
         """Test binding a JSON schema to a folder"""
         # First register a schema
-        schema_name = unique_name()
+        schema_name = create_test_name()
         json_schema = register_jsonschema(
             schema_path=test_schema_file,
             organization_name=test_organization.name,
@@ -157,7 +150,7 @@ class TestBindJsonSchema:
         )
 
         # Create a test folder
-        folder = Folder(name=unique_name(), parent_id=test_project.id)
+        folder = Folder(name=create_test_name(), parent_id=test_project.id)
         folder.store(synapse_client=syn)
 
         try:
@@ -182,11 +175,10 @@ class TestBindJsonSchema:
         test_organization: SchemaOrganization,
         test_project: Project,
         test_schema_file: str,
-        unique_name: Callable[[], str],
     ):
         """Test binding a JSON schema with derived annotations enabled"""
         # Register a schema
-        schema_name = unique_name()
+        schema_name = create_test_name()
         json_schema = register_jsonschema(
             schema_path=test_schema_file,
             organization_name=test_organization.name,
@@ -196,7 +188,7 @@ class TestBindJsonSchema:
         )
 
         # Create a test folder
-        folder = Folder(name=unique_name(), parent_id=test_project.id)
+        folder = Folder(name=create_test_name(), parent_id=test_project.id)
         folder.store(synapse_client=syn)
 
         try:
@@ -225,10 +217,9 @@ class TestRegisterAndBindWorkflow:
         test_organization: SchemaOrganization,
         test_project: Project,
         test_schema_file: str,
-        unique_name: Callable[[], str],
     ):
         """Test the complete workflow: register a schema and bind it to an entity"""
-        schema_name = unique_name()
+        schema_name = create_test_name()
 
         # Step 1: Register the schema
         json_schema = register_jsonschema(
@@ -243,7 +234,7 @@ class TestRegisterAndBindWorkflow:
         assert json_schema.uri is not None
 
         # Step 2: Create a folder
-        folder = Folder(name=unique_name(), parent_id=test_project.id)
+        folder = Folder(name=create_test_name(), parent_id=test_project.id)
         folder.store(synapse_client=syn)
 
         try:
@@ -276,15 +267,13 @@ class TestRegisterAndBindWorkflow:
 
 class TestProjectIDFromEntityID:
     @pytest.fixture(scope="module")
-    def temp_hierarchy(
-        self, syn: Synapse, request, unique_name: Callable[[], str]
-    ) -> tuple[str, str, str]:
+    def temp_hierarchy(self, syn: Synapse, request) -> tuple[str, str, str]:
         """Creates a Project -> Folder -> Folder hierarchy for testing."""
-        project = Project(name=unique_name()).store(synapse_client=syn)
-        folder1 = Folder(name=unique_name(), parent_id=project.id).store(
+        project = Project(name=create_test_name()).store(synapse_client=syn)
+        folder1 = Folder(name=create_test_name(), parent_id=project.id).store(
             synapse_client=syn
         )
-        folder2 = Folder(name=unique_name(), parent_id=folder1.id).store(
+        folder2 = Folder(name=create_test_name(), parent_id=folder1.id).store(
             synapse_client=syn
         )
 
