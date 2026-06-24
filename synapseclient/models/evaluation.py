@@ -248,21 +248,26 @@ class Evaluation(EvaluationSynchronousProtocol):
             ValueError: If any required attributes are missing.
         """
 
-        # These attributes are required in our PUT requests for creating or updating an evaluation
-        required_attributes = [
-            "name",
-            "description",
-            "content_source",
-        ]
-
-        # For "update" requests, add id and etag
+        if not self.name:
+            raise ValueError(
+                f"Your evaluation object is missing the 'name' attribute. This attribute is required to {request_type.value} an evaluation"
+            )
+        if not self.description:
+            raise ValueError(
+                f"Your evaluation object is missing the 'description' attribute. This attribute is required to {request_type.value} an evaluation"
+            )
+        if not self.content_source:
+            raise ValueError(
+                f"Your evaluation object is missing the 'content_source' attribute. This attribute is required to {request_type.value} an evaluation"
+            )
         if request_type == RequestType.UPDATE:
-            required_attributes.extend(["id", "etag"])
-
-        for attribute in required_attributes:
-            if not getattr(self, attribute):
+            if not self.id:
                 raise ValueError(
-                    f"Your evaluation object is missing the '{attribute}' attribute. This attribute is required to {request_type.value} an evaluation"
+                    f"Your evaluation object is missing the 'id' attribute. This attribute is required to {request_type.value} an evaluation"
+                )
+            if not self.etag:
+                raise ValueError(
+                    f"Your evaluation object is missing the 'etag' attribute. This attribute is required to {request_type.value} an evaluation"
                 )
 
         # Build a request body for storing a brand new evaluation
