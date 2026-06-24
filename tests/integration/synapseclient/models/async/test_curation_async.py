@@ -12,6 +12,7 @@ from synapseclient import Synapse
 from synapseclient.core.exceptions import SynapseHTTPError
 from synapseclient.core.utils import make_bogus_uuid_file
 from synapseclient.models import (
+    AuthorizationMode,
     CurationTask,
     CurationTaskStatus,
     EntityView,
@@ -130,6 +131,7 @@ class TestCurationTaskStoreAsync:
         task_properties = FileBasedMetadataTaskProperties(
             upload_folder_id=folder.id,
             file_view_id=entity_view.id,
+            suggested_authorization_mode=AuthorizationMode.SESSION_OWNER,
         )
 
         # AND a CurationTask
@@ -152,6 +154,10 @@ class TestCurationTaskStoreAsync:
         assert isinstance(stored_task.task_properties, FileBasedMetadataTaskProperties)
         assert stored_task.task_properties.upload_folder_id == folder.id
         assert stored_task.task_properties.file_view_id == entity_view.id
+        assert (
+            stored_task.task_properties.suggested_authorization_mode
+            == AuthorizationMode.SESSION_OWNER
+        )
         assert stored_task.etag is not None
         assert stored_task.created_on is not None
         assert stored_task.created_by is not None
@@ -163,6 +169,7 @@ class TestCurationTaskStoreAsync:
         # AND a RecordBasedMetadataTaskProperties
         task_properties = RecordBasedMetadataTaskProperties(
             record_set_id=record_set.id,
+            suggested_authorization_mode=AuthorizationMode.SESSION_OWNER,
         )
 
         # AND a CurationTask
@@ -186,6 +193,10 @@ class TestCurationTaskStoreAsync:
             stored_task.task_properties, RecordBasedMetadataTaskProperties
         )
         assert stored_task.task_properties.record_set_id == record_set.id
+        assert (
+            stored_task.task_properties.suggested_authorization_mode
+            == AuthorizationMode.SESSION_OWNER
+        )
         assert stored_task.etag is not None
         assert stored_task.created_on is not None
         assert stored_task.created_by is not None
@@ -259,6 +270,7 @@ class TestCurationTaskGetAsync:
         task_properties = FileBasedMetadataTaskProperties(
             upload_folder_id=folder.id,
             file_view_id=entity_view.id,
+            suggested_authorization_mode=AuthorizationMode.SOURCE_BENEFACTOR,
         )
         original_task = await CurationTask(
             data_type=data_type,
@@ -282,6 +294,10 @@ class TestCurationTaskGetAsync:
         )
         assert retrieved_task.task_properties.upload_folder_id == folder.id
         assert retrieved_task.task_properties.file_view_id == entity_view.id
+        assert (
+            retrieved_task.task_properties.suggested_authorization_mode
+            == AuthorizationMode.SOURCE_BENEFACTOR
+        )
         assert retrieved_task.etag == original_task.etag
         assert retrieved_task.created_on == original_task.created_on
         assert retrieved_task.created_by == original_task.created_by
@@ -735,6 +751,7 @@ class TestCurationTaskCreateGridSessionAsync:
         task_properties = FileBasedMetadataTaskProperties(
             upload_folder_id=folder.id,
             file_view_id=entity_view.id,
+            suggested_authorization_mode=AuthorizationMode.SESSION_OWNER,
         )
         stored_task = await CurationTask(
             data_type=data_type,
@@ -743,15 +760,22 @@ class TestCurationTaskCreateGridSessionAsync:
             task_properties=task_properties,
         ).store_async(synapse_client=syn)
 
-        # WHEN I create a grid session for the task asynchronously
+        # WHEN I create a grid session for the task asynchronously, owned by the
+        # current user
+        current_user_id = int(syn.getUserProfile()["ownerId"])
         grid = await stored_task.create_grid_session_async(
-            timeout=ASYNC_JOB_TIMEOUT_SEC, synapse_client=syn
+            owner_principal_id=current_user_id,
+            timeout=ASYNC_JOB_TIMEOUT_SEC,
+            synapse_client=syn,
         )
         request.addfinalizer(lambda: grid.delete(synapse_client=syn))
 
-        # THEN a Grid is returned with a populated session_id
+        # THEN a Grid is returned with a populated session_id owned by that user
+        # AND the grid carries the task's suggested authorization mode
         assert isinstance(grid, Grid)
         assert grid.session_id is not None
+        assert grid.owner_principal_id == current_user_id
+        assert grid.authorization_mode == AuthorizationMode.SESSION_OWNER
 
         # AND the curation task status now references the new grid session
         status = await stored_task.get_status_async(synapse_client=syn)
