@@ -68,6 +68,21 @@ class TestEvaluationCreation:
         assert created_evaluation.etag is not None
         assert created_evaluation.name == evaluation.name
         assert created_evaluation.content_source == test_project.id
+        assert created_evaluation.submission_instructions_message is None
+        assert created_evaluation.submission_receipt_message is None
+
+        # WHEN I update a field without setting message fields
+        new_description = f"Updated description {uuid.uuid4()}"
+        old_etag = created_evaluation.etag
+        created_evaluation.description = new_description
+        updated_evaluation = await created_evaluation.store_async(synapse_client=self.syn)
+
+        # THEN the update should also succeed without message fields
+        assert updated_evaluation.description == new_description
+        assert updated_evaluation.id == created_evaluation.id
+        assert updated_evaluation.etag != old_etag
+        assert updated_evaluation.submission_instructions_message is None
+        assert updated_evaluation.submission_receipt_message is None
 
 
 class TestGetEvaluation:
@@ -316,31 +331,6 @@ class TestStoreEvaluation:
         # AND the etag is updated after an update operation
         assert updated_evaluation.etag is not None
         assert updated_evaluation.etag != old_etag
-
-    async def test_update_evaluation_without_optional_message_fields(
-        self, test_project: Project
-    ):
-        # GIVEN an evaluation created without submission message fields
-        evaluation = Evaluation(
-            name=f"test_evaluation_{uuid.uuid4()}",
-            description="A test evaluation without optional messages",
-            content_source=test_project.id,
-        )
-        created_evaluation = await evaluation.store_async(synapse_client=self.syn)
-        self.schedule_for_cleanup(created_evaluation.id)
-
-        # WHEN I update a field on that evaluation (still without message fields)
-        new_description = f"Updated description {uuid.uuid4()}"
-        created_evaluation.description = new_description
-        updated_evaluation = await created_evaluation.store_async(
-            synapse_client=self.syn
-        )
-
-        # THEN the update should succeed
-        assert updated_evaluation.description == new_description
-        assert updated_evaluation.id == created_evaluation.id
-        assert updated_evaluation.submission_instructions_message is None
-        assert updated_evaluation.submission_receipt_message is None
 
     async def test_store_unchanged_evaluation(
         self, test_evaluation: Evaluation, monkeypatch
