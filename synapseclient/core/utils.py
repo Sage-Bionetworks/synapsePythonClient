@@ -1466,9 +1466,14 @@ def merge_dataclass_entities(
             destination_value = getattr(destination, key, None)
             if destination_value is None or not is_dataclass(destination_value):
                 modified_items[key] = getattr(source, key)
+            elif type(getattr(source, key)) is not type(destination_value):
+                # Source and destination hold different dataclass types: keep the
+                # destination value unchanged rather than grafting source's
+                # foreign fields onto it.
+                continue
             else:
-                # Both hold a dataclass: recurse so each sub-field follows the
-                # same rule as scalars
+                # Both hold the same dataclass type: recurse so each sub-field
+                # follows the same rule as scalars
                 modified_items[key] = merge_dataclass_entities(
                     source=getattr(source, key),
                     destination=destination_value,

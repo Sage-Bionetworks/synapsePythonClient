@@ -711,6 +711,15 @@ class _NestedProperties:
 
 
 @dataclass
+class _DifferentNestedProperties:
+    """A different nested dataclass type that shares the 'note' attribute with
+    _NestedProperties but has its own distinct field."""
+
+    other_id: Optional[str] = None
+    note: Optional[str] = None
+
+
+@dataclass
 class _EntityWithProperties:
     """A dataclass whose 'properties' field holds another dataclass instance."""
 
@@ -978,3 +987,34 @@ class TestMergeDataclassEntities:
 
         # THEN the source dataclass value is used rather than crashing
         assert result.properties is source.properties
+
+    def test_nested_dataclass_field_recurse_merges_across_different_types(
+        self,
+    ) -> None:
+        """When source and destination hold different dataclass types that share
+        overlapping field names, the merge still does NOT field-by-field: the
+        destination instance is maintained."""
+        # GIVEN a source and destination whose 'properties' fields are different
+        # dataclass types that happen to share the 'note' attribute
+        source = _EntityWithProperties(
+            properties=_NestedProperties(record_set_id="synOLD", note="from-source"),
+        )
+        destination = _EntityWithProperties(
+            id="syn1",
+            properties=_DifferentNestedProperties(other_id="other", note=None),
+        )
+
+        # WHEN I merge them
+        result: _EntityWithProperties = utils.merge_dataclass_entities(
+            source=source, destination=destination
+        )
+
+        # THEN the destination instance (of its original type) is returned
+        assert result.properties is destination.properties
+        assert isinstance(result.properties, _DifferentNestedProperties)
+        # AND the destination-only field is retained
+        assert result.properties.other_id == "other"
+        # AND the overlapping None field is NOT gap-filled from the source
+        assert result.properties.note is None
+        # AND the source-only field is NOT grafted onto the destination instance
+        assert not hasattr(result.properties, "record_set_id")
