@@ -346,16 +346,16 @@ def create_file_based_metadata_task(
         syn.login()
 
         entity_view_id, task_id = create_file_based_metadata_task(
-            synapse_client=syn,
             folder_id="syn12345678",
             curation_task_name="BiospecimenMetadataTemplate",
             instructions="Please curate this metadata according to the schema requirements",
-            attach_wiki=False,
-            entity_view_name="Biospecimen Metadata View",
-            schema_uri="sage.schemas.v2571-amp.Biospecimen.schema-0.0.1",
+            attach_wiki=False, # Optional: whether to attach a Synapse Wiki
+            entity_view_name="Biospecimen Metadata View", # Optional: name for the created entity view
+            schema_uri="sage.schemas.v2571-amp.Biospecimen.schema-0.0.1", # Optional: JSON schema URI to bind to the folder
             assignee_principal_id=123456, # Optional: Assign to a user or team (can be str or int)
             view_type_mask=ViewTypeMask.FILE | ViewTypeMask.DOCKER, # Optional: include additional entity types in the view
-            authorization_mode=AuthorizationMode.SOURCE_BENEFACTOR,
+            authorization_mode=AuthorizationMode.SOURCE_BENEFACTOR, # Optional: recommended access mode for the grid session
+            synapse_client=syn, # Optional: defaults to the last created Synapse client
         )
         ```
 
