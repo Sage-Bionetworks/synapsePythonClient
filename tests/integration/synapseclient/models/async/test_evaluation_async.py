@@ -75,7 +75,9 @@ class TestEvaluationCreation:
         new_description = f"Updated description {uuid.uuid4()}"
         old_etag = created_evaluation.etag
         created_evaluation.description = new_description
-        updated_evaluation = await created_evaluation.store_async(synapse_client=self.syn)
+        updated_evaluation = await created_evaluation.store_async(
+            synapse_client=self.syn
+        )
 
         # THEN the update should also succeed without message fields
         assert updated_evaluation.description == new_description
