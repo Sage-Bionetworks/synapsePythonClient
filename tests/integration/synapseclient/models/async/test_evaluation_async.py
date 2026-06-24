@@ -556,12 +556,20 @@ class TestEvaluationValidation:
         self.syn = syn
         self.schedule_for_cleanup = schedule_for_cleanup
 
-    async def test_create_evaluation_missing_required_fields(self):
-        # WHEN I try to create an evaluation with missing required fields
-        evaluation = Evaluation(name="test_evaluation")
-
+    @pytest.mark.parametrize(
+        "evaluation,missing_field",
+        [
+            (Evaluation(description="Test", content_source="syn123"), "name"),
+            (Evaluation(name="Test", content_source="syn123"), "description"),
+            (Evaluation(name="Test", description="Test"), "content_source"),
+        ],
+    )
+    async def test_create_evaluation_missing_required_fields(
+        self, evaluation: Evaluation, missing_field: str
+    ):
+        # WHEN I try to create an evaluation with a missing required field
         # THEN it should raise a ValueError
-        with pytest.raises(ValueError, match="missing the 'description' attribute"):
+        with pytest.raises(ValueError, match=f"missing the '{missing_field}' attribute"):
             await evaluation.store_async(synapse_client=self.syn)
 
     async def test_get_evaluation_missing_id_and_name(self):
