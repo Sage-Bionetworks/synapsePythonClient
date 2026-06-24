@@ -55,6 +55,7 @@ from synapseclient.extensions.curator.schema_registry import (
 )
 from synapseclient.models import Column, ColumnType, ViewTypeMask
 from synapseclient.models.curation import (
+    AuthorizationMode,
     FileBasedMetadataTaskProperties,
     RecordBasedMetadataTaskProperties,
 )
@@ -407,7 +408,7 @@ class TestCreateFileBasedMetadataTask(unittest.TestCase):
     )
     @patch("synapseclient.extensions.curator.file_based_metadata_task.Folder")
     @patch("synapseclient.extensions.curator.file_based_metadata_task.CurationTask")
-    def test_create_file_based_metadata_task_with_assignee(
+    def test_create_file_based_metadata_task_forwards_all_params_to_curation_task(
         self,
         mock_curation_task_cls,
         mock_folder_cls,
@@ -415,15 +416,34 @@ class TestCreateFileBasedMetadataTask(unittest.TestCase):
         mock_get_client,
         mock_get_project_id_from_entity_id,
     ):
-        """Test successful creation of file-based metadata task with assignee_principal_id."""
-        # Test both string and int inputs - int should be converted to string
+        """Every parameter is forwarded to CurationTask. The assignee int is coerced
+        to a string, and authorization_mode supplied as a string is coerced
+        to the AuthorizationMode enum by FileBasedMetadataTaskProperties."""
+        # (assignee_input, expected_assignee, auth_mode_input, expected_auth_mode)
         test_cases = [
-            ("1234", "1234"),
-            (1234, "1234"),
+            (
+                "1234",
+                "1234",
+                AuthorizationMode.SOURCE_BENEFACTOR,
+                AuthorizationMode.SOURCE_BENEFACTOR,
+            ),
+            (
+                1234,
+                "1234",
+                "SESSION_OWNER",
+                AuthorizationMode.SESSION_OWNER,
+            ),
         ]
 
-        for input_assignee, expected_assignee in test_cases:
-            with self.subTest(input_assignee=input_assignee):
+        for (
+            input_assignee,
+            expected_assignee,
+            input_auth_mode,
+            expected_auth_mode,
+        ) in test_cases:
+            with self.subTest(
+                input_assignee=input_assignee, input_auth_mode=input_auth_mode
+            ):
                 # Reset mocks for each subtest
                 mock_curation_task_cls.reset_mock()
                 mock_folder_cls.reset_mock()
@@ -431,7 +451,8 @@ class TestCreateFileBasedMetadataTask(unittest.TestCase):
                 mock_get_client.reset_mock()
                 mock_get_project_id_from_entity_id.reset_mock()
 
-                # GIVEN a file-based metadata task with assignee_principal_id
+                # GIVEN a file-based metadata task with an assignee and an
+                # authorization mode
                 mock_get_client.return_value = self.mock_syn
                 mock_create_entity_view.return_value = Mock(id="test_entity_view_id")
                 mock_get_project_id_from_entity_id.return_value = self.project_id
@@ -441,18 +462,13 @@ class TestCreateFileBasedMetadataTask(unittest.TestCase):
                 mock_folder.get.return_value = mock_folder
                 mock_folder.parent_id = "syn11111111"
 
-                mock_project = Mock()
-                mock_project.concreteType = "org.sagebionetworks.repo.model.Project"
-                mock_project.id = "syn22222222"
-                self.mock_syn.get.return_value = mock_project
-
                 mock_task = Mock()
                 mock_task.task_id = "task123"
                 mock_curation_task = Mock()
                 mock_curation_task.store.return_value = mock_task
                 mock_curation_task_cls.return_value = mock_curation_task
 
-                # WHEN I create the file-based metadata task with assignee_principal_id
+                # WHEN I create the file-based metadata task
                 result = create_file_based_metadata_task(
                     folder_id=self.folder_id,
                     curation_task_name=self.curation_task_name,
@@ -462,10 +478,12 @@ class TestCreateFileBasedMetadataTask(unittest.TestCase):
                     schema_uri=self.schema_uri,
                     enable_derived_annotations=True,
                     assignee_principal_id=input_assignee,
+                    authorization_mode=input_auth_mode,
                     synapse_client=self.mock_syn,
                 )
 
-                # THEN the CurationTask should be called with assignee_principal_id as string
+                # THEN CurationTask is constructed with every parameter, the assignee
+                # coerced to a string and the authorization mode coerced to the enum
                 mock_curation_task_cls.assert_called_once_with(
                     data_type=self.curation_task_name,
                     project_id=self.project_id,
@@ -474,9 +492,10 @@ class TestCreateFileBasedMetadataTask(unittest.TestCase):
                     task_properties=FileBasedMetadataTaskProperties(
                         upload_folder_id=self.folder_id,
                         file_view_id=mock_create_entity_view.return_value.id,
+                        suggested_authorization_mode=expected_auth_mode,
                     ),
                 )
-                # AND the task should be created successfully
+                # AND the task is created successfully
                 assert result == ("test_entity_view_id", "task123")
                 mock_create_entity_view.assert_called_once_with(
                     syn=self.mock_syn,
@@ -660,6 +679,124 @@ class TestCreateRecordBasedMetadataTask(unittest.TestCase):
         self.mock_syn.logger.warning.assert_any_call(
             "A Grid object will no longer be created by this function starting in v5.0.0."
         )
+
+    @patch(
+        "synapseclient.extensions.curator.record_based_metadata_task.project_id_from_entity_id"
+    )
+    @patch(
+        "synapseclient.extensions.curator.record_based_metadata_task.Synapse.get_client"
+    )
+    @patch(
+        "synapseclient.extensions.curator.record_based_metadata_task.extract_schema_properties_from_web"
+    )
+    @patch(
+        "synapseclient.extensions.curator.record_based_metadata_task.tempfile.NamedTemporaryFile"
+    )
+    @patch("synapseclient.extensions.curator.record_based_metadata_task.RecordSet")
+    @patch("synapseclient.extensions.curator.record_based_metadata_task.CurationTask")
+    @patch("synapseclient.extensions.curator.record_based_metadata_task.Grid")
+    @patch("builtins.open")
+    def test_create_record_based_metadata_task_forwards_all_params_to_curation_task(
+        self,
+        mock_open,
+        mock_grid_cls,
+        mock_curation_task_cls,
+        mock_record_set_cls,
+        mock_temp_file,
+        mock_extract_schema,
+        mock_get_client,
+        mock_get_project_id_from_entity_id,
+    ):
+        """Every parameter is forwarded to CurationTask. The assignee int is coerced
+        to a string, and authorization_mode supplied as a string is coerced
+        to the AuthorizationMode enum by RecordBasedMetadataTaskProperties."""
+        # (assignee_input, expected_assignee, auth_mode_input, expected_auth_mode)
+        test_cases = [
+            (
+                "1234",
+                "1234",
+                AuthorizationMode.SOURCE_BENEFACTOR,
+                AuthorizationMode.SOURCE_BENEFACTOR,
+            ),
+            (
+                1234,
+                "1234",
+                "SESSION_OWNER",
+                AuthorizationMode.SESSION_OWNER,
+            ),
+        ]
+
+        for (
+            input_assignee,
+            expected_assignee,
+            input_auth_mode,
+            expected_auth_mode,
+        ) in test_cases:
+            with self.subTest(
+                input_assignee=input_assignee, input_auth_mode=input_auth_mode
+            ):
+                # Reset mocks for each subtest
+                for mock_obj in (
+                    mock_grid_cls,
+                    mock_curation_task_cls,
+                    mock_record_set_cls,
+                    mock_temp_file,
+                    mock_extract_schema,
+                    mock_get_client,
+                    mock_get_project_id_from_entity_id,
+                ):
+                    mock_obj.reset_mock()
+
+                # GIVEN a record-based metadata task with an assignee and an
+                # authorization mode
+                mock_get_client.return_value = self.mock_syn
+                mock_get_project_id_from_entity_id.return_value = self.project_id
+
+                mock_extract_schema.return_value = pd.DataFrame(columns=["specimenID"])
+
+                mock_temp = Mock()
+                mock_temp.name = "/tmp/test.csv"
+                mock_temp_file.return_value = mock_temp
+
+                mock_record_set = Mock()
+                mock_record_set.id = "syn87654321"
+                mock_record_set_instance = Mock()
+                mock_record_set_instance.store.return_value = mock_record_set
+                mock_record_set_cls.return_value = mock_record_set_instance
+
+                mock_task = Mock()
+                mock_task.task_id = "task123"
+                mock_curation_task = Mock()
+                mock_curation_task.store.return_value = mock_task
+                mock_curation_task_cls.return_value = mock_curation_task
+
+                # WHEN I create the record-based metadata task
+                create_record_based_metadata_task(
+                    folder_id=self.folder_id,
+                    record_set_name=self.record_set_name,
+                    record_set_description=self.record_set_description,
+                    curation_task_name=self.curation_task_name,
+                    upsert_keys=self.upsert_keys,
+                    instructions=self.instructions,
+                    schema_uri=self.schema_uri,
+                    assignee_principal_id=input_assignee,
+                    authorization_mode=input_auth_mode,
+                    create_grid=False,
+                    synapse_client=self.mock_syn,
+                )
+
+                # THEN CurationTask is constructed with every parameter, the assignee
+                # coerced to a string and the authorization mode coerced to the enum
+                mock_curation_task_cls.assert_called_once_with(
+                    data_type=self.curation_task_name,
+                    project_id=self.project_id,
+                    instructions=self.instructions,
+                    assignee_principal_id=expected_assignee,
+                    task_properties=RecordBasedMetadataTaskProperties(
+                        record_set_id="syn87654321",
+                        suggested_authorization_mode=expected_auth_mode,
+                    ),
+                )
 
     @patch(
         "synapseclient.extensions.curator.record_based_metadata_task.project_id_from_entity_id"

@@ -14,6 +14,7 @@ from synapseclient.core.typing_utils import DataFrame as DATA_FRAME_TYPE
 from synapseclient.core.utils import test_import_pandas
 from synapseclient.extensions.curator.utils import project_id_from_entity_id
 from synapseclient.models import (
+    AuthorizationMode,
     CurationTask,
     Grid,
     JSONSchema,
@@ -138,6 +139,7 @@ def create_record_based_metadata_task(
     bind_schema_to_record_set: bool = True,
     enable_derived_annotations: bool = False,
     assignee_principal_id: Optional[Union[str, int]] = None,
+    authorization_mode: Optional[Union[AuthorizationMode, str]] = None,
     *,
     synapse_client: Optional[Synapse] = None,
     project_id: Optional[str] = None,  # Deprecated, will be removed in v5.0.0
@@ -163,13 +165,13 @@ def create_record_based_metadata_task(
     Example: Creating a record-based metadata curation task with a schema URI
         In this example, we create a RecordSet and CurationTask for biospecimen metadata
         curation using a schema URI. By default this will also bind the schema to the
-        RecordSet, however the `bind_schema_to_record_set` parameter can be set to
+        RecordSet, however the bind_schema_to_record_set parameter can be set to
         False to skip that step.
-
 
         ```python
         import synapseclient
         from synapseclient.extensions.curator import create_record_based_metadata_task
+        from synapseclient.models import AuthorizationMode
 
         syn = synapseclient.Synapse()
         syn.login()
@@ -184,6 +186,7 @@ def create_record_based_metadata_task(
             instructions="Please curate this metadata according to the schema requirements",
             schema_uri="schema-org-schema.name.schema-v1.0.0",
             assignee_principal_id=123456,  # Optional: Assign to a user or team (can be str or int)
+            authorization_mode=AuthorizationMode.SOURCE_BENEFACTOR,
             create_grid=False,  # Opt out of deprecated Grid creation
         )
         ```
@@ -209,6 +212,19 @@ def create_record_based_metadata_task(
             (default), the task will be unassigned. For metadata tasks, this determines
             the owner of the grid session. Team members can all join grid sessions owned
             by their team, while user-owned grid sessions are restricted to that user only.
+        authorization_mode: Recommends who is allowed to access the curation
+            grid session that a client opens for this task. The value is stored on the
+            task as a suggestion; the client applies it when it creates a new session.
+            Choose from:
+            - SESSION_OWNER: only the person or team who owns the session can access it.
+            - SOURCE_BENEFACTOR: anyone with EDIT permission on the
+              data being curated can access the session. This lets editors collaborate
+              in the same session without being added to a shared ownership team.
+            When omitted (None, the default), no recommendation is stored and clients
+            fall back to their usual behavior of finding or creating a private session
+            for the current user. Changing this value after the task already exists
+            resets the task's active session, so a new grid session must be opened
+            before curation can continue.
         synapse_client: If not passed in and caching was not disabled by
                 `Synapse.allow_client_caching(False)` this will use the last created
                 instance from the Synapse class constructor.
@@ -327,6 +343,7 @@ def create_record_based_metadata_task(
             ),
             task_properties=RecordBasedMetadataTaskProperties(
                 record_set_id=record_set_id,
+                suggested_authorization_mode=authorization_mode,
             ),
         ).store(synapse_client=synapse_client)
         synapse_client.logger.info(

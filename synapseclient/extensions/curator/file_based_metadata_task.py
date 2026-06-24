@@ -12,6 +12,7 @@ from synapseclient import Wiki  # type: ignore
 from synapseclient.core.exceptions import SynapseHTTPError  # type: ignore
 from synapseclient.extensions.curator.utils import project_id_from_entity_id
 from synapseclient.models import (  # type: ignore
+    AuthorizationMode,
     Column,
     ColumnType,
     EntityView,
@@ -325,6 +326,7 @@ def create_file_based_metadata_task(
     enable_derived_annotations: bool = False,
     assignee_principal_id: Optional[Union[str, int]] = None,
     view_type_mask: Union[int, ViewTypeMask] = ViewTypeMask.FILE,
+    authorization_mode: Optional[Union[AuthorizationMode, str]] = None,
     # TODO: https://sagebionetworks.jira.com/browse/SYNPY-1865
     # In v5.0.0 make entity-returning the default: remove the return_entities
     # parameter and change the return type to Tuple[EntityView, CurationTask].
@@ -342,21 +344,22 @@ def create_file_based_metadata_task(
         ```python
         import synapseclient
         from synapseclient.extensions.curator import create_file_based_metadata_task
-        from synapseclient.models import ViewTypeMask
+        from synapseclient.models import AuthorizationMode, ViewTypeMask
 
         syn = synapseclient.Synapse()
         syn.login()
 
         entity_view_id, task_id = create_file_based_metadata_task(
-            synapse_client=syn,
             folder_id="syn12345678",
             curation_task_name="BiospecimenMetadataTemplate",
             instructions="Please curate this metadata according to the schema requirements",
-            attach_wiki=False,
-            entity_view_name="Biospecimen Metadata View",
-            schema_uri="sage.schemas.v2571-amp.Biospecimen.schema-0.0.1",
-            assignee_principal_id=123456,  # Optional: Assign to a user or team (can be str or int)
-            view_type_mask=ViewTypeMask.FILE | ViewTypeMask.DOCKER,  # Optional: include additional entity types in the view
+            attach_wiki=False, # Optional: whether to attach a Synapse Wiki
+            entity_view_name="Biospecimen Metadata View", # Optional: name for the created entity view
+            schema_uri="sage.schemas.v2571-amp.Biospecimen.schema-0.0.1", # Optional: JSON schema URI to bind to the folder
+            assignee_principal_id=123456, # Optional: Assign to a user or team (can be str or int)
+            view_type_mask=ViewTypeMask.FILE | ViewTypeMask.DOCKER, # Optional: include additional entity types in the view
+            authorization_mode=AuthorizationMode.SOURCE_BENEFACTOR, # Optional: recommended access mode for the grid session
+            synapse_client=syn, # Optional: defaults to the last created Synapse client
         )
         ```
 
@@ -403,6 +406,19 @@ def create_file_based_metadata_task(
             ViewTypeMask.FILE. Additional types can be added using bitwise OR
             (e.g., ViewTypeMask.FILE | ViewTypeMask.DOCKER). Accepts either a
             ViewTypeMask enum member or its raw integer value.
+        authorization_mode: Recommends who is allowed to access the curation
+            grid session that a client opens for this task. The value is stored on the
+            task as a suggestion; the client applies it when it creates a new session.
+            Choose from:
+            - SESSION_OWNER: only the person or team who owns the session can access it.
+            - SOURCE_BENEFACTOR: anyone with EDIT permission on the
+              data being curated can access the session. This lets editors collaborate
+              in the same session without being added to a shared ownership team.
+            When omitted (None, the default), no recommendation is stored and clients
+            fall back to their usual behavior of finding or creating a private session
+            for the current user. Changing this value after the task already exists
+            resets the task's active session, so a new grid session must be opened
+            before curation can continue.
         return_entities: If True, return the created EntityView and CurationTask
             objects instead of their ID strings. Defaults to False for backwards
             compatibility. The entity-returning shape will become the default in
@@ -516,6 +532,7 @@ def create_file_based_metadata_task(
             task_properties=FileBasedMetadataTaskProperties(
                 upload_folder_id=folder_id,
                 file_view_id=entity_view_id,
+                suggested_authorization_mode=authorization_mode,
             ),
         ).store(synapse_client=synapse_client)
     except Exception as e:
