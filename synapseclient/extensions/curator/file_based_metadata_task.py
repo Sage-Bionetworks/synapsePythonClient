@@ -77,10 +77,10 @@ def _create_json_schema_entity_view(
         view_type_mask=view_type_mask,
         columns=columns,
     ).store(synapse_client=syn)
-    # This reorder is so that these show up in the front of the EntityView in Synapse
-    view.reorder_column(name="createdBy", index=0)
+    # This reorder is so that these show up in the front of the EntityView in Synapse.
     view.reorder_column(name="name", index=0)
-    view.reorder_column(name="id", index=0)
+    view.reorder_column(name="id", index=1)
+    view.reorder_column(name="createdBy", index=2)
     view.store(synapse_client=syn)
     return view
 
