@@ -6,7 +6,7 @@ from opentelemetry import trace
 
 from synapseclient import Synapse
 from synapseclient.core.async_utils import async_to_sync
-from synapseclient.core.utils import merge_dataclass_entities
+from synapseclient.core.utils import delete_none_keys, merge_dataclass_entities
 from synapseclient.models.protocols.evaluation_protocol import (
     EvaluationSynchronousProtocol,
 )
@@ -270,13 +270,10 @@ class Evaluation(EvaluationSynchronousProtocol):
             "name": self.name,
             "description": self.description,
             "contentSource": self.content_source,
+            "submissionInstructionsMessage": self.submission_instructions_message,
+            "submissionReceiptMessage": self.submission_receipt_message,
         }
-        if self.submission_instructions_message is not None:
-            request_body["submissionInstructionsMessage"] = (
-                self.submission_instructions_message
-            )
-        if self.submission_receipt_message is not None:
-            request_body["submissionReceiptMessage"] = self.submission_receipt_message
+        delete_none_keys(request_body)
 
         # For UPDATE request types, add id and etag
         if request_type == RequestType.UPDATE:
