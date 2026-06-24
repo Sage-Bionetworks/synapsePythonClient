@@ -139,7 +139,6 @@ Both [create_record_based_metadata_task][synapseclient.extensions.curator.create
 - `SOURCE_BENEFACTOR` extends access to anyone with `EDIT` rights on the source entity. Use it when curation should be open to all editors of the source.
 
 ```python
-from synapseclient.models import AuthorizationMode
 
 entity_view_id, task_id = create_file_based_metadata_task(
     synapse_client=syn,
