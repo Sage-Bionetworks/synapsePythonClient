@@ -597,7 +597,9 @@ class TestEvaluation:
     ):
         # WHEN I try to create an evaluation with a missing required field
         # THEN it should raise a ValueError
-        with pytest.raises(ValueError, match=f"missing the '{missing_field}' attribute"):
+        with pytest.raises(
+            ValueError, match=f"missing the '{missing_field}' attribute"
+        ):
             await evaluation.store_async(synapse_client=syn)
 
     async def test_get_evaluation_missing_id_and_name(self, syn: Synapse):

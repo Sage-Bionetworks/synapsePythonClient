@@ -548,5 +548,3 @@ class TestEvaluationAccess:
             user_access is not None
         ), f"User {current_user_id} not found in updated ACL"
         assert set(user_access["accessType"]) == set(["READ", "DELETE", "SUBMIT"])
-
-
