@@ -123,6 +123,16 @@ class FileBasedMetadataTaskProperties(EnumCoercionMixin):
     Attributes:
         upload_folder_id: The synId of the folder where data files of this type are to be uploaded
         file_view_id: The synId of the FileView that shows all data of this type
+        suggested_authorization_mode: Recommends who is allowed to access the curation
+            grid session that a client opens for this task. The value is stored on the
+            task as a suggestion; the client applies it when it creates a new session.
+            Choose from SESSION_OWNER (only the person or team who owns the session can
+            access it) or SOURCE_BENEFACTOR (anyone with EDIT permission on the data being
+            curated can access the session). When omitted (None, the default), no
+            recommendation is stored and clients fall back to their usual behavior.
+        collaborator_principal_ids: Not actively used at this time. The set of principal
+            IDs that should collaborate on the grid session. Used to set the owner(s) of a
+            linked GridSession when suggested_authorization_mode is SESSION_OWNER.
     """
 
     _ENUM_FIELDS: ClassVar[dict[str, type]] = {
@@ -208,6 +218,16 @@ class RecordBasedMetadataTaskProperties(EnumCoercionMixin):
 
     Attributes:
         record_set_id: The synId of the RecordSet that will contain all record-based metadata
+        suggested_authorization_mode: Recommends who is allowed to access the curation
+            grid session that a client opens for this task. The value is stored on the
+            task as a suggestion; the client applies it when it creates a new session.
+            Choose from SESSION_OWNER (only the person or team who owns the session can
+            access it) or SOURCE_BENEFACTOR (anyone with EDIT permission on the data being
+            curated can access the session). When omitted (None, the default), no
+            recommendation is stored and clients fall back to their usual behavior.
+        collaborator_principal_ids: Not actively used at this time. The set of principal
+            IDs that should collaborate on the grid session. Used to set the owner(s) of a
+            linked GridSession when suggested_authorization_mode is SESSION_OWNER.
     """
 
     _ENUM_FIELDS: ClassVar[dict[str, type]] = {
