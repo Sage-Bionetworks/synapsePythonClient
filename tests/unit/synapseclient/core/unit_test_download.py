@@ -20,6 +20,7 @@ from synapseclient.core import utils
 from synapseclient.core.download import (
     DownloadRequest,
     PresignedUrlInfo,
+    _pre_signed_url_expiration_time,
     download_by_file_handle,
     download_file,
     download_from_url,
@@ -435,10 +436,22 @@ import pytest_asyncio
 class TestDownloadFileHandle:
     mock_file_handle = {
         "id": "123",
+        "fileName": "foo.txt",
         "concreteType": concrete_types.S3_FILE_HANDLE,
         "contentMd5": "someMD5",
         "contentSize": download_async.SYNAPSE_DEFAULT_DOWNLOAD_PART_SIZE + 1,
     }
+
+    # A syntactically valid AWS pre-signed URL that expires well in the future, so
+    # _pre_signed_url_expiration_time can parse it.
+    mock_presigned_url = (
+        "https://s3.amazonaws.com/proddata/bucket/foo.txt"
+        "?X-Amz-Algorithm=AWS4-HMAC-SHA256"
+        "&X-Amz-Date=20200101T000000Z"
+        "&X-Amz-Expires=999999999"
+        "&X-Amz-SignedHeaders=host"
+        "&X-Amz-Signature=signature-value"
+    )
 
     @pytest_asyncio.fixture(autouse=True, loop_scope="function", scope="function")
     def init_syn(self, syn: Synapse) -> None:
@@ -463,6 +476,7 @@ class TestDownloadFileHandle:
         ):
             mock_getFileHandleDownload.return_value = {
                 "fileHandle": self.mock_file_handle,
+                "preSignedURL": self.mock_presigned_url,
             }
 
             self.syn.multi_threaded = True
@@ -474,12 +488,22 @@ class TestDownloadFileHandle:
                 synapse_client=self.syn,
             )
 
+            # The pre-signed URL already retrieved is forwarded to the multi-threaded
+            # downloader (so it is not fetched a second time), while the file handle
+            # identifiers are still passed so it can refetch the URL if it expires.
             mock_multi_thread_download.assert_called_once_with(
                 file_handle_id=123,
                 object_id=456,
                 object_type="FileEntity",
                 destination="/myfakepath",
                 expected_md5="someMD5",
+                presigned_url=PresignedUrlInfo(
+                    file_name="foo.txt",
+                    url=self.mock_presigned_url,
+                    expiration_utc=_pre_signed_url_expiration_time(
+                        self.mock_presigned_url
+                    ),
+                ),
                 synapse_client=self.syn,
             )
 
