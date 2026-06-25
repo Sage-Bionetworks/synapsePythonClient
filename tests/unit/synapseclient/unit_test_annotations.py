@@ -120,6 +120,45 @@ def test__convert_to_annotations_list():
     assert expected_annos == actual_annos
 
 
+def test__convert_to_annotations_list__none_values():
+    """None values, empty lists, and lists of only None should be omitted, while
+    None elements in a mixed list should be stripped and the string "None" kept."""
+    a = {
+        "primitive_none": None,
+        "list_of_none": [None, None],
+        "empty_list": [],
+        "mixed_list": [None, "value", None],
+        "none_string": "None",
+        "kept": "stays",
+    }
+    actual_annos = _convert_to_annotations_list(a)
+
+    expected_annos = {
+        # primitive_none, list_of_none, and empty_list are omitted entirely
+        "mixed_list": {"value": ["value"], "type": "STRING"},
+        "none_string": {"value": ["None"], "type": "STRING"},
+        "kept": {"value": ["stays"], "type": "STRING"},
+    }
+    assert expected_annos == actual_annos
+
+
+def test__convert_to_annotations_list__mixed_list_preserves_type():
+    """Stripping None from a list of typed values should preserve the inferred type."""
+    a = {
+        "numbers": [None, 1234, None, 5678],
+        "floats": [None, 1.5],
+        "booleans": [True, None, False],
+    }
+    actual_annos = _convert_to_annotations_list(a)
+
+    expected_annos = {
+        "numbers": {"value": ["1234", "5678"], "type": "LONG"},
+        "floats": {"value": ["1.5"], "type": "DOUBLE"},
+        "booleans": {"value": ["true", "false"], "type": "BOOLEAN"},
+    }
+    assert expected_annos == actual_annos
+
+
 def test_annotations_unicode():
     a = Annotations(
         "syn123",
