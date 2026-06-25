@@ -333,7 +333,7 @@ def create_file_based_metadata_task(
     return_entities: bool = False,
     *,
     synapse_client: Optional[Synapse] = None,
-) -> Union[Tuple[str, str], Tuple[EntityView, CurationTask]]:
+) -> Union[Tuple[str, int], Tuple[EntityView, CurationTask]]:
     """
     Create a file view for a schema-bound folder using schematic.
 
