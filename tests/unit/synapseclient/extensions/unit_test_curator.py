@@ -27,12 +27,12 @@ from synapseclient.extensions.curator import (
 )
 from synapseclient.extensions.curator.file_based_metadata_task import (
     _create_columns_from_json_schema,
+    _create_json_schema_entity_view,
     _create_synapse_column_from_js_property,
     _get_column_type_from_js_one_of_list,
     _get_column_type_from_js_property,
     _get_list_column_type_from_js_property,
     create_entity_view_wiki,
-    create_json_schema_entity_view,
     create_or_update_wiki_with_entity_view,
     update_wiki_with_entity_view,
 )
@@ -89,7 +89,7 @@ class TestCreateFileBasedMetadataTask(unittest.TestCase):
         "synapseclient.extensions.curator.file_based_metadata_task.Synapse.get_client"
     )
     @patch(
-        "synapseclient.extensions.curator.file_based_metadata_task.create_json_schema_entity_view"
+        "synapseclient.extensions.curator.file_based_metadata_task._create_json_schema_entity_view"
     )
     @patch(
         "synapseclient.extensions.curator.file_based_metadata_task.create_or_update_wiki_with_entity_view"
@@ -110,7 +110,7 @@ class TestCreateFileBasedMetadataTask(unittest.TestCase):
         """Test successful creation with schema binding."""
         # GIVEN a file-based metadata task with schema binding
         mock_get_client.return_value = self.mock_syn
-        mock_create_entity_view.return_value = "syn87654321"
+        mock_create_entity_view.return_value = Mock(id="syn87654321")
         mock_get_project_id_from_entity_id.return_value = self.project_id
 
         mock_folder = Mock()
@@ -166,7 +166,7 @@ class TestCreateFileBasedMetadataTask(unittest.TestCase):
         "synapseclient.extensions.curator.file_based_metadata_task.Synapse.get_client"
     )
     @patch(
-        "synapseclient.extensions.curator.file_based_metadata_task.create_json_schema_entity_view"
+        "synapseclient.extensions.curator.file_based_metadata_task._create_json_schema_entity_view"
     )
     @patch("synapseclient.extensions.curator.file_based_metadata_task.Folder")
     @patch("synapseclient.extensions.curator.file_based_metadata_task.CurationTask")
@@ -181,7 +181,7 @@ class TestCreateFileBasedMetadataTask(unittest.TestCase):
         """Test successful creation without schema binding and without wiki."""
         # GIVEN a file-based metadata task without schema binding or wiki
         mock_get_client.return_value = self.mock_syn
-        mock_create_entity_view.return_value = "syn87654321"
+        mock_create_entity_view.return_value = Mock(id="syn87654321")
         mock_get_project_id_from_entity_id.return_value = self.project_id
 
         mock_folder = Mock()
@@ -306,7 +306,7 @@ class TestCreateFileBasedMetadataTask(unittest.TestCase):
         "synapseclient.extensions.curator.file_based_metadata_task.Synapse.get_client"
     )
     @patch(
-        "synapseclient.extensions.curator.file_based_metadata_task.create_json_schema_entity_view"
+        "synapseclient.extensions.curator.file_based_metadata_task._create_json_schema_entity_view"
     )
     @patch("synapseclient.extensions.curator.file_based_metadata_task.Folder")
     def test_create_file_based_metadata_task_entity_view_creation_error(
@@ -336,7 +336,7 @@ class TestCreateFileBasedMetadataTask(unittest.TestCase):
         "synapseclient.extensions.curator.file_based_metadata_task.Synapse.get_client"
     )
     @patch(
-        "synapseclient.extensions.curator.file_based_metadata_task.create_json_schema_entity_view"
+        "synapseclient.extensions.curator.file_based_metadata_task._create_json_schema_entity_view"
     )
     @patch(
         "synapseclient.extensions.curator.file_based_metadata_task.create_or_update_wiki_with_entity_view"
@@ -351,7 +351,7 @@ class TestCreateFileBasedMetadataTask(unittest.TestCase):
     ):
         """Test error handling during wiki creation."""
         mock_get_client.return_value = self.mock_syn
-        mock_create_entity_view.return_value = "syn87654321"
+        mock_create_entity_view.return_value = Mock(id="syn87654321")
         mock_create_wiki.side_effect = Exception("Wiki creation failed")
 
         mock_folder = Mock()
@@ -371,7 +371,7 @@ class TestCreateFileBasedMetadataTask(unittest.TestCase):
         "synapseclient.extensions.curator.file_based_metadata_task.Synapse.get_client"
     )
     @patch(
-        "synapseclient.extensions.curator.file_based_metadata_task.create_json_schema_entity_view"
+        "synapseclient.extensions.curator.file_based_metadata_task._create_json_schema_entity_view"
     )
     @patch("synapseclient.extensions.curator.file_based_metadata_task.Folder")
     @patch("synapseclient.extensions.curator.file_based_metadata_task.get")
@@ -380,7 +380,7 @@ class TestCreateFileBasedMetadataTask(unittest.TestCase):
     ):
         """Test error handling during schema retrieval."""
         mock_get_client.return_value = self.mock_syn
-        mock_create_entity_view.return_value = "syn87654321"
+        mock_create_entity_view.return_value = Mock(id="syn87654321")
 
         mock_folder = Mock()
         mock_folder_cls.return_value = mock_folder
@@ -404,7 +404,7 @@ class TestCreateFileBasedMetadataTask(unittest.TestCase):
         "synapseclient.extensions.curator.file_based_metadata_task.Synapse.get_client"
     )
     @patch(
-        "synapseclient.extensions.curator.file_based_metadata_task.create_json_schema_entity_view"
+        "synapseclient.extensions.curator.file_based_metadata_task._create_json_schema_entity_view"
     )
     @patch("synapseclient.extensions.curator.file_based_metadata_task.Folder")
     @patch("synapseclient.extensions.curator.file_based_metadata_task.CurationTask")
@@ -454,7 +454,7 @@ class TestCreateFileBasedMetadataTask(unittest.TestCase):
                 # GIVEN a file-based metadata task with an assignee and an
                 # authorization mode
                 mock_get_client.return_value = self.mock_syn
-                mock_create_entity_view.return_value = "test_entity_view_id"
+                mock_create_entity_view.return_value = Mock(id="test_entity_view_id")
                 mock_get_project_id_from_entity_id.return_value = self.project_id
 
                 mock_folder = Mock()
@@ -491,7 +491,7 @@ class TestCreateFileBasedMetadataTask(unittest.TestCase):
                     assignee_principal_id=expected_assignee,
                     task_properties=FileBasedMetadataTaskProperties(
                         upload_folder_id=self.folder_id,
-                        file_view_id="test_entity_view_id",
+                        file_view_id=mock_create_entity_view.return_value.id,
                         suggested_authorization_mode=expected_auth_mode,
                     ),
                 )
@@ -503,6 +503,60 @@ class TestCreateFileBasedMetadataTask(unittest.TestCase):
                     entity_view_name=self.entity_view_name,
                     view_type_mask=ViewTypeMask.FILE,
                 )
+
+    @patch(
+        "synapseclient.extensions.curator.file_based_metadata_task.project_id_from_entity_id"
+    )
+    @patch(
+        "synapseclient.extensions.curator.file_based_metadata_task.Synapse.get_client"
+    )
+    @patch(
+        "synapseclient.extensions.curator.file_based_metadata_task._create_json_schema_entity_view"
+    )
+    @patch("synapseclient.extensions.curator.file_based_metadata_task.Folder")
+    @patch("synapseclient.extensions.curator.file_based_metadata_task.CurationTask")
+    def test_create_file_based_metadata_task_return_entities(
+        self,
+        mock_curation_task_cls,
+        mock_folder_cls,
+        mock_create_entity_view,
+        mock_get_client,
+        mock_get_project_id_from_entity_id,
+    ):
+        """Test that return_entities=True returns the EntityView and CurationTask objects."""
+        # GIVEN a file-based metadata task created with return_entities=True
+        mock_get_client.return_value = self.mock_syn
+        mock_entity_view = Mock(id="syn87654321")
+        mock_create_entity_view.return_value = mock_entity_view
+        mock_get_project_id_from_entity_id.return_value = self.project_id
+
+        mock_folder = Mock()
+        mock_folder_cls.return_value = mock_folder
+        mock_folder.get.return_value = mock_folder
+
+        mock_task = Mock()
+        mock_task.task_id = "task123"
+        mock_curation_task = Mock()
+        mock_curation_task.store.return_value = mock_task
+        mock_curation_task_cls.return_value = mock_curation_task
+
+        # WHEN I create the file-based metadata task requesting entities
+        result = create_file_based_metadata_task(
+            folder_id=self.folder_id,
+            curation_task_name=self.curation_task_name,
+            instructions=self.instructions,
+            attach_wiki=False,
+            return_entities=True,
+            synapse_client=self.mock_syn,
+        )
+
+        # THEN the actual EntityView and CurationTask objects are returned
+        assert result == (mock_entity_view, mock_task)
+        # AND no return-type deprecation warning is logged for the entity-returning shape
+        warning_messages = " ".join(
+            str(call.args[0]) for call in self.mock_syn.logger.warning.call_args_list
+        )
+        assert "return_entities=True" not in warning_messages
 
 
 class TestCreateRecordBasedMetadataTask(unittest.TestCase):
@@ -1836,14 +1890,15 @@ class TestFileBasedHelperFunctions(unittest.TestCase):
         mock_entity_view_cls.return_value = mock_view
 
         # WHEN I create the JSON schema entity view
-        result = create_json_schema_entity_view(
+        result = _create_json_schema_entity_view(
             syn=self.mock_syn,
             synapse_entity_id=entity_id,
             entity_view_name=entity_view_name,
         )
 
-        # THEN the entity view should be created successfully
-        assert result == "syn87654321"
+        # THEN the created EntityView object should be returned
+        assert result is mock_view
+        assert result.id == "syn87654321"
         # AND the columns are reordered so that "name", "id", and "createdBy"
         # appear first, in that order.
         assert mock_view.reorder_column.call_args_list == [
@@ -1904,7 +1959,7 @@ class TestFileBasedHelperFunctions(unittest.TestCase):
         mock_entity_view_cls.return_value = mock_view
 
         # WHEN I create the JSON schema entity view with both file and folder types
-        result = create_json_schema_entity_view(
+        result = _create_json_schema_entity_view(
             syn=self.mock_syn,
             synapse_entity_id=entity_id,
             entity_view_name=entity_view_name,
@@ -1912,7 +1967,8 @@ class TestFileBasedHelperFunctions(unittest.TestCase):
         )
 
         # THEN the entity view should be created with the combined mask
-        assert result == "syn87654321"
+        assert result is mock_view
+        assert result.id == "syn87654321"
         _, kwargs = mock_entity_view_cls.call_args
         assert kwargs["view_type_mask"] == combined_mask
         assert kwargs["view_type_mask"] & ViewTypeMask.FILE
