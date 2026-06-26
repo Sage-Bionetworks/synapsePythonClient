@@ -2,10 +2,11 @@
 ############################################################
 
 import datetime
+import decimal
 import time
 import uuid
 from datetime import datetime as Datetime
-from math import pi
+from math import nan, pi
 from unittest.mock import patch
 
 import numpy as np
@@ -129,8 +130,12 @@ def test__convert_to_annotations_list():
         None,
         "",
         float("nan"),
+        nan,
         np.nan,
         np.float64("nan"),
+        np.float32("nan"),
+        np.float16("nan"),
+        decimal.Decimal("nan"),
         pd.NA,
         pd.NaT,
     ],
@@ -138,8 +143,12 @@ def test__convert_to_annotations_list():
         "none",
         "empty_string",
         "float_nan",
+        "math_nan",
         "numpy_nan",
         "numpy_float64_nan",
+        "numpy_float32_nan",
+        "numpy_float16_nan",
+        "decimal_nan",
         "pandas_na",
         "pandas_nat",
     ],

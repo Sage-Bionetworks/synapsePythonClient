@@ -72,7 +72,6 @@ See also:
 
 import collections
 import datetime
-import math
 from logging import Logger
 from typing import Any, Callable, Mapping, Optional, Union
 
@@ -559,12 +558,13 @@ def to_synapse_annotations(annotations: Annotations) -> dict[str, Any]:
 def _is_missing_annotation_value(value: Any) -> bool:
     """Return True if a scalar annotation value represents the absence of data and
     should be omitted rather than stored. This covers None, the empty string, NaN
-    floats (including numpy.float64 NaN, which subclasses float), and the pandas
-    missing-value sentinels pandas.NA and pandas.NaT.
+    values of any real-number type (Python float, the numpy float widths, and
+    decimal.Decimal), and the pandas missing-value sentinels pandas.NA and pandas.NaT.
 
     pandas/numpy are optional dependencies, so they are never imported here. NaN is
-    detected via the stdlib math module (NaN is never equal to itself) and the pandas
-    sentinels are detected by class name. The NA/NaN checks run before the empty-string
+    detected via the fact that NaN is the only value not equal to itself, and the pandas
+    sentinels are detected by class name. Ordering matters: the pandas check runs first
+    because pandas.NA != pandas.NA raises, and both run before the empty-string
     comparison because pandas.NA == "" returns pandas.NA, which raises when coerced to a
     bool.
 
@@ -576,12 +576,14 @@ def _is_missing_annotation_value(value: Any) -> bool:
     """
     if value is None:
         return True
-    # NaN floats are never equal to themselves. This catches both the stdlib
-    # float("nan") and numpy.nan (numpy.float64 NaN subclasses float).
-    if isinstance(value, float) and math.isnan(value):
-        return True
-    # pandas.NA / pandas.NaT — detect by class name to avoid importing pandas
+    # pandas.NA / pandas.NaT — detect by class name to avoid importing pandas. This must
+    # run before the NaN test below because pandas.NA != pandas.NA raises.
     if value.__class__.__name__ in ("NAType", "NaTType"):
+        return True
+    # NaN is the only value not equal to itself. This catches NaN of any numeric type
+    # (float, numpy float16/32/64, Decimal) without calling math.isnan on non-numbers,
+    # which return False here since any normal object equals itself.
+    if value != value:
         return True
     # Reached only for normal scalars, so the comparison is unambiguous
     return value == ""
