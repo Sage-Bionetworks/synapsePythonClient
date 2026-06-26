@@ -127,15 +127,16 @@ def test__convert_to_annotations_list__none_values():
         "primitive_none": None,
         "list_of_none": [None, None],
         "empty_list": [],
-        "mixed_list": [None, "value", None],
+        "mixed_list": [None, "None", "value", None],
         "none_string": "None",
         "kept": "stays",
     }
     actual_annos = _convert_to_annotations_list(a)
 
     expected_annos = {
-        # primitive_none, list_of_none, and empty_list are omitted entirely
-        "mixed_list": {"value": ["value"], "type": "STRING"},
+        # primitive_none, list_of_none, and empty_list are omitted entirely;
+        # the None elements are stripped while the literal string "None" survives
+        "mixed_list": {"value": ["None", "value"], "type": "STRING"},
         "none_string": {"value": ["None"], "type": "STRING"},
         "kept": {"value": ["stays"], "type": "STRING"},
     }

@@ -572,46 +572,6 @@ class TestFileStore:
         )
         assert not file_copy.annotations and isinstance(file_copy.annotations, dict)
 
-    async def test_setting_annotation_key_to_none(
-        self, project_model: Project, file: File
-    ) -> None:
-        # GIVEN a file with one annotation set to a primitive None, one set to a
-        # list of None values, one set to an empty list, one set to a list mixing
-        # None with a real value, and one set to the string "None"
-        file.name = str(uuid.uuid4())
-        file.annotations = {
-            "my_key_to_none": None,
-            "my_key_to_list_of_none": [None, None],
-            "my_key_to_empty_list": [],
-            "my_key_to_mixed_list": [None, "None"],
-            "my_key_none_string": "None",
-        }
-
-        # WHEN I store the file
-        file = await file.store_async(parent=project_model, synapse_client=self.syn)
-        self.schedule_for_cleanup(file.id)
-
-        # AND I retrieve a fresh copy of the file from Synapse
-        file_copy = await File(id=file.id, download_file=False).get_async(
-            synapse_client=self.syn
-        )
-
-        # THEN the key set to a primitive None should not be stored at all
-        assert "my_key_to_none" not in file_copy.annotations
-
-        # AND the key set to a list of None values should not be stored at all
-        assert "my_key_to_list_of_none" not in file_copy.annotations
-
-        # AND the key set to an empty list should not be stored at all
-        assert "my_key_to_empty_list" not in file_copy.annotations
-
-        # AND a list mixing None with a real value should have the None stripped out,
-        # keeping only the real value
-        assert file_copy.annotations["my_key_to_mixed_list"] == ["None"]
-
-        # AND the key set to the string "None" should be stored as a string value
-        assert file_copy.annotations["my_key_none_string"] == ["None"]
-
     async def test_store_without_upload(
         self, project_model: Project, file: File
     ) -> None:
