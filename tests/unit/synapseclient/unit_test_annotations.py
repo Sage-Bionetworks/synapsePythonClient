@@ -8,6 +8,8 @@ from datetime import datetime as Datetime
 from math import pi
 from unittest.mock import patch
 
+import numpy as np
+import pandas as pd
 import pytest
 
 import synapseclient.core.utils as utils
@@ -15,6 +17,7 @@ from synapseclient import annotations
 from synapseclient.annotations import (
     Annotations,
     _convert_to_annotations_list,
+    _is_missing_annotation_value,
     check_annotations_changed,
     convert_old_annotation_json,
     from_submission_status_annotations,
@@ -120,42 +123,111 @@ def test__convert_to_annotations_list():
     assert expected_annos == actual_annos
 
 
-def test__convert_to_annotations_list__none_values():
-    """None values, empty lists, and lists of only None should be omitted, while
-    None elements in a mixed list should be stripped and the string "None" kept."""
+@pytest.mark.parametrize(
+    "value",
+    [
+        None,
+        "",
+        float("nan"),
+        np.nan,
+        np.float64("nan"),
+        pd.NA,
+        pd.NaT,
+    ],
+    ids=[
+        "none",
+        "empty_string",
+        "float_nan",
+        "numpy_nan",
+        "numpy_float64_nan",
+        "pandas_na",
+        "pandas_nat",
+    ],
+)
+def test__is_missing_annotation_value__missing(value):
+    """None, empty string, NaN floats, and the pandas NA/NaT sentinels are missing."""
+    assert _is_missing_annotation_value(value) is True
+
+
+@pytest.mark.parametrize(
+    "value",
+    [
+        "value",
+        "None",
+        "nan",
+        0,
+        0.0,
+        1234,
+        1.5,
+        False,
+        True,
+        Datetime(1969, 4, 28),
+    ],
+    ids=[
+        "non_empty_string",
+        "none_string",
+        "nan_string",
+        "zero_int",
+        "zero_float",
+        "long",
+        "double",
+        "false",
+        "true",
+        "datetime",
+    ],
+)
+def test__is_missing_annotation_value__not_missing(value):
+    """Real scalar values, including falsy ones and the literal strings "None"/"nan",
+    are not missing. Non-scalar values (lists, dicts) are also not treated as missing
+    here; emptiness of lists is handled by the caller."""
+    assert _is_missing_annotation_value(value) is False
+
+
+def test__convert_to_annotations_list__missing_values_are_omitted():
+    """Scalar missing values (None, empty string, NaN floats, pandas.NA/NaT), empty
+    lists, and lists whose elements are all missing should be omitted entirely, leaving
+    no annotations."""
     a = {
         "primitive_none": None,
+        "primitive_empty_string": "",
+        "primitive_nan": np.nan,
+        "primitive_float_nan": float("nan"),
+        "primitive_pd_na": pd.NA,
+        "primitive_pd_nat": pd.NaT,
         "list_of_none": [None, None],
+        "list_of_empty_string": ["", ""],
+        "list_of_nan": [np.nan, np.nan],
+        "list_of_float_nan": [float("nan"), float("nan")],
+        "list_of_pd_na": [pd.NA, pd.NA],
         "empty_list": [],
-        "mixed_list": [None, "None", "value", None],
+    }
+    actual_annos = _convert_to_annotations_list(a)
+
+    assert actual_annos == {}
+
+
+def test__convert_to_annotations_list__missing_values_stripped_from_mixed_lists():
+    """Missing elements should be stripped from mixed lists without skewing the inferred
+    type or raising, while the literal string "None" and real values are kept."""
+    a = {
+        "mixed_list": [None, "", "None", "value"],
+        "mixed_floats": [np.nan, 1.5, np.nan, 2.5],
+        "mixed_longs": [pd.NA, 1234, pd.NA, 5678],
+        "mixed_booleans": [True, None, False],
         "none_string": "None",
         "kept": "stays",
     }
     actual_annos = _convert_to_annotations_list(a)
 
     expected_annos = {
-        # primitive_none, list_of_none, and empty_list are omitted entirely;
-        # the None elements are stripped while the literal string "None" survives
+        # Missing elements are stripped from mixed lists while the inferred type of the
+        # remaining real values is preserved, and the literal string "None" survives.
         "mixed_list": {"value": ["None", "value"], "type": "STRING"},
+        "mixed_floats": {"value": ["1.5", "2.5"], "type": "DOUBLE"},
+        "mixed_longs": {"value": ["1234", "5678"], "type": "LONG"},
+        "mixed_booleans": {"value": ["true", "false"], "type": "BOOLEAN"},
         "none_string": {"value": ["None"], "type": "STRING"},
         "kept": {"value": ["stays"], "type": "STRING"},
-    }
-    assert expected_annos == actual_annos
-
-
-def test__convert_to_annotations_list__mixed_list_preserves_type():
-    """Stripping None from a list of typed values should preserve the inferred type."""
-    a = {
-        "numbers": [None, 1234, None, 5678],
-        "floats": [None, 1.5],
-        "booleans": [True, None, False],
-    }
-    actual_annos = _convert_to_annotations_list(a)
-
-    expected_annos = {
-        "numbers": {"value": ["1234", "5678"], "type": "LONG"},
-        "floats": {"value": ["1.5"], "type": "DOUBLE"},
-        "booleans": {"value": ["true", "false"], "type": "BOOLEAN"},
     }
     assert expected_annos == actual_annos
 

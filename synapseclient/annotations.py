@@ -72,6 +72,7 @@ See also:
 
 import collections
 import datetime
+import math
 from logging import Logger
 from typing import Any, Callable, Mapping, Optional, Union
 
@@ -555,6 +556,37 @@ def to_synapse_annotations(annotations: Annotations) -> dict[str, Any]:
     return synapse_annos
 
 
+def _is_missing_annotation_value(value: Any) -> bool:
+    """Return True if a scalar annotation value represents the absence of data and
+    should be omitted rather than stored. This covers None, the empty string, NaN
+    floats (including numpy.float64 NaN, which subclasses float), and the pandas
+    missing-value sentinels pandas.NA and pandas.NaT.
+
+    pandas/numpy are optional dependencies, so they are never imported here. NaN is
+    detected via the stdlib math module (NaN is never equal to itself) and the pandas
+    sentinels are detected by class name. The NA/NaN checks run before the empty-string
+    comparison because pandas.NA == "" returns pandas.NA, which raises when coerced to a
+    bool.
+
+    Arguments:
+        value: A scalar annotation value (or list element) to test.
+
+    Returns:
+        True if the value should be treated as missing and omitted, otherwise False.
+    """
+    if value is None:
+        return True
+    # NaN floats are never equal to themselves. This catches both the stdlib
+    # float("nan") and numpy.nan (numpy.float64 NaN subclasses float).
+    if isinstance(value, float) and math.isnan(value):
+        return True
+    # pandas.NA / pandas.NaT — detect by class name to avoid importing pandas
+    if value.__class__.__name__ in ("NAType", "NaTType"):
+        return True
+    # Reached only for normal scalars, so the comparison is unambiguous
+    return value == ""
+
+
 def _convert_to_annotations_list(
     annotations: Mapping[str, Any],
 ) -> dict[str, dict[str, Any]]:
@@ -566,11 +598,13 @@ def _convert_to_annotations_list(
     See the https://rest-docs.synapse.org/rest/org/sagebionetworks/repo/model/annotation/v2/Annotations.html
     documentation for more information on the target format.
 
-    None elements are stripped from list values, so a value of None, an empty list, or
-    a list whose elements are all None is treated as the absence of a value and the key
-    is omitted from the result rather than being stored as the string "None" or raising
-    an error. A list mixing None with real values keeps only the real values (for
-    example [None, "value"] is stored as ["value"]).
+    Missing values are stripped from list values, where a missing value is None, an
+    empty string, a NaN float, or a pandas missing-value sentinel (pandas.NA or
+    pandas.NaT). A scalar missing value, an empty list, or a list whose elements are all
+    missing is treated as the absence of a value and the key is omitted from the result
+    rather than being stored as the string "None"/"nan" or raising an error. A list
+    mixing missing values with real values keeps only the real values (for example
+    [None, "", "value"] is stored as ["value"]).
 
     Arguments:
         annotations: A flat mapping of annotation keys to their values. A value may be
@@ -582,12 +616,16 @@ def _convert_to_annotations_list(
     """
     nested_annos = {}
     for key, value in annotations.items():
-        # None values don't become annotations
-        if value is None:
+        # Missing values (None, "", NaN, pandas.NA/NaT) don't become annotations
+        if _is_missing_annotation_value(value):
             continue
-        # Strip None elements so they aren't stored as the string "None"
-        elements = [element for element in to_list(value) if element is not None]
-        # Empty lists or lists with only None values don't become annotations
+        # Strip missing elements so they aren't stored as "None"/"nan"/etc.
+        elements = [
+            element
+            for element in to_list(value)
+            if not _is_missing_annotation_value(element)
+        ]
+        # Empty lists or lists with only missing values don't become annotations
         if not elements:
             continue
         element_cls = _annotation_value_list_element_type(elements)
