@@ -1,3 +1,4 @@
+from copy import deepcopy
 from dataclasses import dataclass, field, replace
 from datetime import date, datetime
 from typing import Optional, Protocol, Union
@@ -435,7 +436,14 @@ class SubmissionStatus(
     def _set_last_persistent_instance(self) -> None:
         """Stash the last time this object interacted with Synapse. This is used to
         determine if the object has been changed and needs to be updated in Synapse."""
+        del self._last_persistent_instance
         self._last_persistent_instance = replace(self)
+        self._last_persistent_instance.annotations = (
+            deepcopy(self.annotations) if self.annotations else {}
+        )
+        self._last_persistent_instance.submission_annotations = (
+            deepcopy(self.submission_annotations) if self.submission_annotations else {}
+        )
 
     def fill_from_dict(
         self,
