@@ -126,10 +126,21 @@ def is_synapse_annotations(annotations: Mapping) -> bool:
     return annotations.keys() >= {"id", "etag", "annotations"}
 
 
-def _annotation_value_list_element_type(annotation_values: list):
-    if not annotation_values:
-        raise ValueError("annotations value list can not be empty")
+def _annotation_value_list_element_type(annotation_values: list[Any]) -> type:
+    """Infer the common element type of a non-empty annotation value list. The type of
+    the first element is used as the candidate, and if every element is an instance of
+    that type it is returned. Otherwise object is returned to signal a heterogeneous
+    list, which the caller maps to the STRING fallback.
 
+    Callers must pre-filter empty lists, this function indexes the first element and does
+    not handle an empty input.
+
+    Arguments:
+        annotation_values: A non-empty list of annotation element values.
+
+    Returns:
+        The shared element type if the list is homogeneous, otherwise object.
+    """
     first_element_type = type(annotation_values[0])
 
     if all(isinstance(x, first_element_type) for x in annotation_values):

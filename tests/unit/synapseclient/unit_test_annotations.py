@@ -17,6 +17,7 @@ import synapseclient.core.utils as utils
 from synapseclient import annotations
 from synapseclient.annotations import (
     Annotations,
+    _annotation_value_list_element_type,
     _convert_to_annotations_list,
     _is_missing_annotation_value,
     check_annotations_changed,
@@ -71,6 +72,45 @@ def test_to_synapse_annotations__require_id_and_etag():
     """Test string annotations"""
     a = {"foo": "bar", "zoo": ["zing", "zaboo"], "species": "Platypus"}
     pytest.raises(TypeError, to_synapse_annotations, a)
+
+
+@pytest.mark.parametrize(
+    "annotation_values,expected_type",
+    [
+        ([1, 2, 3], int),
+        (["a", "b"], str),
+        ([True, False], bool),
+        ([1.5, 2.5], float),
+        ([Datetime(1969, 4, 28), Datetime(1970, 1, 1)], datetime.datetime),
+        ([42], int),
+        # numpy.float64 subclasses float, so a float list stays homogeneous
+        ([1.5, np.float64(2.5)], float),
+        # bool subclasses int: int-first stays int, but bool-first turns
+        # heterogeneous because int is not an instance of bool
+        ([1, True], int),
+        ([True, 1], object),
+        # genuinely mixed types fall back to object (caller maps this to STRING)
+        ([1, "a"], object),
+        ([1.0, 1], object),
+    ],
+    ids=[
+        "ints",
+        "strings",
+        "booleans",
+        "floats",
+        "datetimes",
+        "single_element",
+        "numpy_float64_in_float_list",
+        "int_then_bool",
+        "bool_then_int",
+        "mixed_int_str",
+        "mixed_float_int",
+    ],
+)
+def test__annotation_value_list_element_type(annotation_values, expected_type):
+    """A homogeneous list returns its shared element type (subclasses count as
+    matches); a heterogeneous list returns object."""
+    assert _annotation_value_list_element_type(annotation_values) is expected_type
 
 
 def test__convert_to_annotations_list():
