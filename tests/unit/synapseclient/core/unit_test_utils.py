@@ -5,8 +5,10 @@ import logging
 import os
 import re
 import tempfile
+from dataclasses import dataclass, field
 from enum import Enum
 from shutil import rmtree
+from typing import Optional
 from unittest.mock import MagicMock, Mock, call, mock_open, patch
 
 import pytest
@@ -648,3 +650,371 @@ class TestCoerceEnumList:
         """Raises ValueError for unrecognized strings and non-string, non-enum values."""
         with pytest.raises(ValueError, match=match):
             coerce_enum_list(_Color, input_filter)
+
+
+@dataclass
+class _SimpleEntity:
+    """A minimal dataclass with scalar fields only."""
+
+    id: Optional[str] = None
+    name: Optional[str] = None
+    description: Optional[str] = None
+
+
+@dataclass
+class _AnnotatedEntity:
+    """A dataclass with an 'annotations' dict field."""
+
+    id: Optional[str] = None
+    annotations: dict = field(default_factory=dict)
+
+
+@dataclass
+class _ColumnLike:
+    """A column-like dataclass with scalar fields only."""
+
+    id: Optional[str] = None
+    name: Optional[str] = None
+    column_type: Optional[str] = None
+
+
+@dataclass
+class _TableLike:
+    """A dataclass with a 'columns' dict-of-dataclasses field (special-cased)."""
+
+    id: Optional[str] = None
+    columns: dict = field(default_factory=dict)
+
+
+@dataclass
+class _EntityRefLike:
+    """An item-like dataclass exposing an 'id' attribute."""
+
+    id: Optional[str] = None
+    version: Optional[int] = None
+
+
+@dataclass
+class _CollectionLike:
+    """A dataclass with an 'items' list-of-dataclasses field (special-cased)."""
+
+    id: Optional[str] = None
+    items: list = field(default_factory=list)
+
+
+@dataclass
+class _NestedProperties:
+    """A nested dataclass, mirroring CurationTask's task_properties."""
+
+    record_set_id: Optional[str] = None
+    note: Optional[str] = None
+
+
+@dataclass
+class _DifferentNestedProperties:
+    """A different nested dataclass type that shares the 'note' attribute with
+    _NestedProperties but has its own distinct field."""
+
+    other_id: Optional[str] = None
+    note: Optional[str] = None
+
+
+@dataclass
+class _EntityWithProperties:
+    """A dataclass whose 'properties' field holds another dataclass instance."""
+
+    id: Optional[str] = None
+    properties: Optional[_NestedProperties] = None
+
+
+class TestMergeDataclassEntities:
+    """Tests for utils.merge_dataclass_entities."""
+
+    def test_returns_destination_instance(self) -> None:
+        """The destination object itself is returned (merged in place)."""
+        # GIVEN a source and destination entity with no missing values
+        source: _SimpleEntity = _SimpleEntity(id="s")
+        destination: _SimpleEntity = _SimpleEntity(name="d")
+        # WHEN I merge them
+        result: _SimpleEntity = utils.merge_dataclass_entities(
+            source=source, destination=destination
+        )
+        # THEN the returned object is the same destination instance
+        assert result is destination
+
+    @pytest.mark.parametrize(
+        "source, destination, kwargs, expected",
+        [
+            # Gap-fill: None destination fields are filled from source, while a
+            # field set on both is a conflict and keeps the destination value.
+            (
+                _SimpleEntity(id="s-id", name="s-name", description="s-desc"),
+                _SimpleEntity(id=None, name=None, description="d-desc"),
+                {},
+                {"id": "s-id", "name": "s-name", "description": "d-desc"},
+            ),
+            # Conflict: both have a non-None value, so the destination wins.
+            (
+                _SimpleEntity(id="s-id", name="s-name"),
+                _SimpleEntity(id="d-id", name="d-name"),
+                {},
+                {"id": "d-id", "name": "d-name"},
+            ),
+        ],
+        ids=["gap_fill", "conflict_keeps_destination"],
+    )
+    def test_scalar_merge_outcomes(
+        self,
+        source: _SimpleEntity,
+        destination: _SimpleEntity,
+        kwargs: dict,
+        expected: dict,
+    ) -> None:
+        """Scalar fields gap-fill from source, keep destination on conflict, and
+        respect fields_to_ignore."""
+        # GIVEN source and destination entities and optional merge kwargs
+        # WHEN I merge them
+        result: _SimpleEntity = utils.merge_dataclass_entities(
+            source=source, destination=destination, **kwargs
+        )
+        # THEN each field matches the expected outcome
+        for attr, value in expected.items():
+            assert getattr(result, attr) == value
+
+    def test_annotations_merge_destination_wins_on_conflict(self) -> None:
+        """Annotations dicts are merged with destination keys overriding source."""
+        # GIVEN a source with some annotations and a destination with overlapping
+        # and distinct annotation keys
+        source = _AnnotatedEntity(annotations={"shared": ["src"], "only_source": [1]})
+        destination = _AnnotatedEntity(
+            annotations={"shared": ["dest"], "only_dest": [2]}
+        )
+        # WHEN I merge them
+        result: _AnnotatedEntity = utils.merge_dataclass_entities(
+            source=source, destination=destination
+        )
+        # THEN the destination key wins on conflict, source-only keys are added,
+        # and destination-only keys are retained
+        assert result.annotations == {
+            "shared": ["dest"],
+            "only_source": [1],
+            "only_dest": [2],
+        }
+
+    def test_columns_merge_adds_new_and_merges_existing(self) -> None:
+        """New source columns are added; existing columns recurse-merge with id kept."""
+        # GIVEN a source with two columns and a destination with one overlapping column
+        source = _TableLike(
+            columns={
+                "col1": _ColumnLike(id="s1", name="col1", column_type="STRING"),
+                "col2": _ColumnLike(id="s2", name="col2", column_type="INTEGER"),
+            }
+        )
+        destination = _TableLike(
+            columns={
+                "col1": _ColumnLike(id="d1", name="col1", column_type=None),
+            }
+        )
+        # WHEN I merge them
+        result: _TableLike = utils.merge_dataclass_entities(
+            source=source, destination=destination
+        )
+        # THEN the new source column is added wholesale
+        assert "col2" in result.columns
+        assert result.columns["col2"].id == "s2"
+
+        # AND the existing column is recurse-merged: destination id is kept and
+        # the None column_type is gap-filled from source
+        merged_col1: _ColumnLike = result.columns["col1"]
+        assert merged_col1.id == "d1"
+        assert merged_col1.column_type == "STRING"
+
+    def test_items_merge_appends_only_new_ids(self) -> None:
+        """Source items are appended only when their id is not already present."""
+        # GIVEN a source with a duplicate item id and a new item id, and a
+        # destination already containing the duplicate id
+        source = _CollectionLike(
+            items=[
+                _EntityRefLike(id="syn1", version=2),
+                _EntityRefLike(id="syn2", version=1),
+            ]
+        )
+        destination = _CollectionLike(items=[_EntityRefLike(id="syn1", version=1)])
+        # WHEN I merge them
+        result: _CollectionLike = utils.merge_dataclass_entities(
+            source=source, destination=destination
+        )
+        # THEN only the new id is appended and the pre-existing item is untouched
+        ids = [item.id for item in result.items]
+        assert ids == ["syn1", "syn2"]
+        syn1: _EntityRefLike = next(item for item in result.items if item.id == "syn1")
+        assert syn1.version == 1
+
+    def test_fields_to_preserve_from_source(self) -> None:
+        """A preserved field always takes the source value."""
+        # GIVEN a source and destination whose 'id' differs based on the parameter,
+        # and 'id' is listed in fields_to_preserve_from_source
+        source = _SimpleEntity(id="server-id", name="server-name")
+        destination = _SimpleEntity(id="xxx", name="user-name")
+        # WHEN I merge with fields_to_preserve_from_source=["id"]
+        result: _SimpleEntity = utils.merge_dataclass_entities(
+            source=source,
+            destination=destination,
+            fields_to_preserve_from_source=["id"],
+        )
+        # THEN 'id' is forced to the source value regardless of destination
+        assert result.id == "server-id"
+        # AND 'name' is not preserved so the normal merge applies (destination wins)
+        assert result.name == "user-name"
+
+    @pytest.mark.parametrize(
+        "destination_id, expected_id",
+        [
+            # Destination is None: would normally gap-fill from source, but
+            # fields_to_ignore prevents the copy, so it stays None.
+            (None, None),
+            # Destination has a value: would normally keep it anyway (destination
+            # wins on conflict), but fields_to_ignore is what enforces the skip.
+            ("d-id", "d-id"),
+        ],
+        ids=["prevents_gap_fill", "prevents_source_copy_on_conflict"],
+    )
+    def test_fields_to_ignore(
+        self,
+        destination_id: Optional[str],
+        expected_id: Optional[str],
+    ) -> None:
+        """An ignored field is never copied from source, regardless of whether the
+        destination's value is None or already set."""
+        # GIVEN a source with a value for 'id' and a destination whose 'id' is
+        # either None or set, with 'id' listed in fields_to_ignore
+        source = _SimpleEntity(id="s-id", name="s-name")
+        destination = _SimpleEntity(id=destination_id, name="d-name")
+
+        # WHEN I merge with fields_to_ignore=["id"]
+        result: _SimpleEntity = utils.merge_dataclass_entities(
+            source=source, destination=destination, fields_to_ignore=["id"]
+        )
+
+        # THEN 'id' is never touched regardless of its starting value
+        assert result.id == expected_id
+        # AND non-ignored fields merge normally (destination wins on conflict)
+        assert result.name == "d-name"
+
+    def test_nested_dataclass_field_kept_when_source_is_none(self) -> None:
+        """When the source's nested dataclass field is None, the destination's
+        existing dataclass value is preserved unchanged."""
+        # GIVEN a source with a None nested dataclass field and a destination
+        # with a populated nested dataclass
+        source = _EntityWithProperties(id=None, properties=None)
+        destination = _EntityWithProperties(
+            id="syn1", properties=_NestedProperties(record_set_id="synKEEP")
+        )
+
+        # WHEN I merge them
+        result: _EntityWithProperties = utils.merge_dataclass_entities(
+            source=source, destination=destination
+        )
+
+        # THEN the destination's nested dataclass is preserved unchanged
+        assert result.properties is not None
+        assert result.properties.record_set_id == "synKEEP"
+
+    def test_nested_dataclass_field_keeps_destination_on_conflict(self) -> None:
+        """A nested dataclass set on both source and destination follows the same
+        'destination wins on conflict' rule as scalar fields."""
+        # GIVEN a source with a stale nested dataclass and a destination with a
+        # newer value for the same field (the CurationTask.task_properties scenario)
+        source = _EntityWithProperties(
+            id=None, properties=_NestedProperties(record_set_id="synOLD")
+        )
+        destination = _EntityWithProperties(
+            id="syn1", properties=_NestedProperties(record_set_id="synNEW")
+        )
+
+        # WHEN I merge them
+        result: _EntityWithProperties = utils.merge_dataclass_entities(
+            source=source, destination=destination
+        )
+
+        # THEN the destination's value is preserved (destination wins on conflict)
+        assert result.properties.record_set_id == "synNEW"
+
+    def test_nested_dataclass_field_recurse_merges_subfields(self) -> None:
+        """When both source and destination hold a nested dataclass, each sub-field
+        follows the normal rule: destination wins on conflict, None is gap-filled."""
+        # GIVEN a source whose nested dataclass has a stale conflicting sub-field
+        # and a non-None note, and a destination whose nested dataclass has a new
+        # conflicting sub-field and a None note
+        source = _EntityWithProperties(
+            properties=_NestedProperties(record_set_id="synOLD", note="from-source"),
+        )
+        destination = _EntityWithProperties(
+            id="syn1",
+            properties=_NestedProperties(record_set_id="synNEW", note=None),
+        )
+        # WHEN I merge them
+        result: _EntityWithProperties = utils.merge_dataclass_entities(
+            source=source, destination=destination
+        )
+        # THEN the conflicting sub-field keeps the destination's value
+        assert result.properties.record_set_id == "synNEW"
+        # AND the None sub-field on the destination is gap-filled from the source
+        assert result.properties.note == "from-source"
+
+    def test_nested_dataclass_source_wins_when_destination_field_is_not_a_dataclass(
+        self,
+    ) -> None:
+        """When the source field is a dataclass but the destination field holds a
+        non-dataclass non-None value (e.g. a plain string from a type mismatch),
+        the source value wins rather than raising TypeError inside merge_dataclass_entities.
+        """
+        # GIVEN a source whose 'properties' field is a proper dataclass instance and
+        # a destination whose 'properties' field has been set to a plain string
+        # (simulating a type-mismatch scenario)
+        source = _EntityWithProperties(
+            id="syn1", properties=_NestedProperties(record_set_id="synNEW")
+        )
+        destination = _EntityWithProperties(id="syn1", properties=None)
+        # Force the destination field to a non-None, non-dataclass value directly so
+        # the type annotation is bypassed
+        object.__setattr__(destination, "properties", "not-a-dataclass")
+
+        # WHEN I merge them
+        result: _EntityWithProperties = utils.merge_dataclass_entities(
+            source=source, destination=destination
+        )
+
+        # THEN the source dataclass value is used rather than crashing
+        assert result.properties is source.properties
+
+    def test_nested_dataclass_field_recurse_merges_across_different_types(
+        self,
+    ) -> None:
+        """When source and destination hold different dataclass types that share
+        overlapping field names, the merge still does NOT field-by-field: the
+        destination instance is maintained."""
+        # GIVEN a source and destination whose 'properties' fields are different
+        # dataclass types that happen to share the 'note' attribute
+        source = _EntityWithProperties(
+            properties=_NestedProperties(record_set_id="synOLD", note="from-source"),
+        )
+        destination = _EntityWithProperties(
+            id="syn1",
+            properties=_DifferentNestedProperties(other_id="other", note=None),
+        )
+
+        # WHEN I merge them
+        result: _EntityWithProperties = utils.merge_dataclass_entities(
+            source=source, destination=destination
+        )
+
+        # THEN the destination instance (of its original type) is returned
+        assert result.properties is destination.properties
+        assert isinstance(result.properties, _DifferentNestedProperties)
+        # AND the destination-only field is retained
+        assert result.properties.other_id == "other"
+        # AND the overlapping None field is NOT gap-filled from the source
+        assert result.properties.note is None
+        # AND the source-only field is NOT grafted onto the destination instance
+        assert not hasattr(result.properties, "record_set_id")

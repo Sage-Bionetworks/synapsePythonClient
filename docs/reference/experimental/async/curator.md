@@ -54,6 +54,12 @@ at your own risk.
         inherited_members: true
         members:
 ---
+[](){ #AuthorizationMode-reference-async }
+::: synapseclient.models.AuthorizationMode
+    options:
+        inherited_members: true
+        members:
+---
 [](){ #grid-reference-async }
 ::: synapseclient.models.Grid
     options:
