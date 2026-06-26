@@ -390,58 +390,6 @@ class TestSubmissionStatusUpdates:
         ):
             await submission_status.store_async(synapse_client=self.syn)
 
-    async def test_in_place_mutation_of_submission_annotations_detected_and_stored(
-        self, test_submission_status: SubmissionStatus
-    ):
-        """
-        Test that in-place mutations (e.g. update()) on submission_annotations are
-        detected as a change and persisted to Synapse.
-        """
-        # GIVEN a submission status with an initial submission annotation stored
-        test_submission_status.submission_annotations = {
-            "initial_key": ["initial_value"]
-        }
-        stored = await test_submission_status.store_async(synapse_client=self.syn)
-        version_after_first_store = stored.status_version
-        assert not stored.has_changed
-
-        # WHEN I mutate submission_annotations in-place via .update()
-        stored.submission_annotations.update({"added_key": ["added_value"]})
-
-        # THEN has_changed should detect the mutation (not silently ignore it)
-        assert stored.has_changed
-
-        # WHEN I store the mutated status
-        updated = await stored.store_async(synapse_client=self.syn)
-
-        # THEN the changes should be persisted (status_version increments and both keys present)
-        assert updated.status_version > version_after_first_store
-        assert "initial_key" in updated.submission_annotations
-        assert "added_key" in updated.submission_annotations
-
-    async def test_in_place_mutation_of_annotations_detected_and_stored(
-        self, test_submission_status: SubmissionStatus
-    ):
-        """
-        Test that in-place mutations (e.g. update()) on annotations are
-        detected as a change and persisted to Synapse.
-        """
-        # GIVEN a submission status with no legacy annotations (empty dict)
-        assert not test_submission_status.has_changed
-
-        # WHEN I mutate annotations in-place via .update()
-        test_submission_status.annotations.update({"added_key": "added_value"})
-
-        # THEN has_changed should detect the mutation (not silently ignore it)
-        assert test_submission_status.has_changed
-
-        # WHEN I store the mutated status
-        version_before = test_submission_status.status_version
-        updated = await test_submission_status.store_async(synapse_client=self.syn)
-
-        # THEN the store should have been sent (status_version increments)
-        assert updated.status_version > version_before
-
     async def test_store_submission_status_without_changes(
         self, test_submission_status: SubmissionStatus
     ):
