@@ -91,8 +91,29 @@ class TaskState(str, Enum):
     """The task has been canceled and is no longer needed."""
 
 
+class AuthorizationMode(str, Enum):
+    """
+    The authorization mode a client should use when creating a linked grid session
+    for a CurationTask.
+
+    See <https://rest-docs.synapse.org/rest/org/sagebionetworks/repo/model/grid/AuthorizationMode.html>.
+    """
+
+    SESSION_OWNER = "SESSION_OWNER"
+    """Access is limited to the session owner or members of the owner's team. This is
+    the default setting. When a view serves as the source, the owner can access all
+    available rows, while other team members see data according to the owner's
+    permission scope."""
+
+    SOURCE_BENEFACTOR = "SOURCE_BENEFACTOR"
+    """Access is granted to any user who has EDIT (UPDATE) access on all benefactor IDs
+    captured when the session was created. This mode allows project administrators to
+    enable collaborative grid access for all editors without maintaining a separate
+    ownership team. User visibility of rows depends on their individual permissions."""
+
+
 @dataclass
-class FileBasedMetadataTaskProperties:
+class FileBasedMetadataTaskProperties(EnumCoercionMixin):
     """
     A CurationTaskProperties for file-based data, describing where data is uploaded
     and a view which contains the annotations.
@@ -102,13 +123,47 @@ class FileBasedMetadataTaskProperties:
     Attributes:
         upload_folder_id: The synId of the folder where data files of this type are to be uploaded
         file_view_id: The synId of the FileView that shows all data of this type
+        suggested_authorization_mode: Recommends who is allowed to access the curation
+            grid session that a client opens for this task. The value is stored on the
+            task as a suggestion; the client applies it when it creates a new session.
+            Choose from SESSION_OWNER (only the person or team who owns the session can
+            access it) or SOURCE_BENEFACTOR (anyone with EDIT permission on the data being
+            curated can access the session). When omitted (None, the default), no
+            recommendation is stored and clients fall back to their usual behavior.
+        collaborator_principal_ids: Not actively used at this time. The set of principal
+            IDs that should collaborate on the grid session. Used to set the owner(s) of a
+            linked GridSession when suggested_authorization_mode is SESSION_OWNER.
     """
+
+    _ENUM_FIELDS: ClassVar[dict[str, type]] = {
+        "suggested_authorization_mode": AuthorizationMode
+    }
 
     upload_folder_id: Optional[str] = None
     """The synId of the folder where data files of this type are to be uploaded"""
 
     file_view_id: Optional[str] = None
     """The synId of the FileView that shows all data of this type"""
+
+    suggested_authorization_mode: Optional[Union[AuthorizationMode, str]] = None
+    """Recommends who is allowed to access the curation
+        grid session that a client opens for this task. The value is stored on the
+        task as a suggestion; the client applies it when it creates a new session.
+        Choose from:
+        - SESSION_OWNER: only the person or team who owns the session can access it.
+        - SOURCE_BENEFACTOR: anyone with EDIT permission on the
+            data being curated can access the session. This lets editors collaborate
+            in the same session without being added to a shared ownership team.
+        When omitted (None, the default), no recommendation is stored and clients
+        fall back to their usual behavior of finding or creating a private session
+        for the current user. Changing this value after the task already exists
+        resets the task's active session, so a new grid session must be opened
+        before curation can continue."""
+
+    collaborator_principal_ids: Optional[list[str]] = None
+    """Not actively used at this time.
+    The set of principal IDs that should collaborate on the grid session. Used to set
+    the owner(s) of a linked GridSession when suggested_authorization_mode is SESSION_OWNER"""
 
     def fill_from_dict(
         self, synapse_response: Union[Dict[str, Any], Any]
@@ -124,6 +179,12 @@ class FileBasedMetadataTaskProperties:
         """
         self.upload_folder_id = synapse_response.get("uploadFolderId", None)
         self.file_view_id = synapse_response.get("fileViewId", None)
+        self.suggested_authorization_mode = synapse_response.get(
+            "suggestedAuthorizationMode", None
+        )
+        self.collaborator_principal_ids = synapse_response.get(
+            "collaboratorPrincipalIds", None
+        )
         return self
 
     def to_synapse_request(self) -> Dict[str, Any]:
@@ -133,16 +194,23 @@ class FileBasedMetadataTaskProperties:
         Returns:
             A dictionary representation of this object for API requests.
         """
-        request_dict = {"concreteType": FILE_BASED_METADATA_TASK_PROPERTIES}
-        if self.upload_folder_id is not None:
-            request_dict["uploadFolderId"] = self.upload_folder_id
-        if self.file_view_id is not None:
-            request_dict["fileViewId"] = self.file_view_id
+        request_dict = {
+            "concreteType": FILE_BASED_METADATA_TASK_PROPERTIES,
+            "uploadFolderId": self.upload_folder_id,
+            "fileViewId": self.file_view_id,
+            "suggestedAuthorizationMode": (
+                self.suggested_authorization_mode.value
+                if self.suggested_authorization_mode is not None
+                else None
+            ),
+            "collaboratorPrincipalIds": self.collaborator_principal_ids,
+        }
+        delete_none_keys(request_dict)
         return request_dict
 
 
 @dataclass
-class RecordBasedMetadataTaskProperties:
+class RecordBasedMetadataTaskProperties(EnumCoercionMixin):
     """
     A CurationTaskProperties for record-based metadata.
 
@@ -150,10 +218,44 @@ class RecordBasedMetadataTaskProperties:
 
     Attributes:
         record_set_id: The synId of the RecordSet that will contain all record-based metadata
+        suggested_authorization_mode: Recommends who is allowed to access the curation
+            grid session that a client opens for this task. The value is stored on the
+            task as a suggestion; the client applies it when it creates a new session.
+            Choose from SESSION_OWNER (only the person or team who owns the session can
+            access it) or SOURCE_BENEFACTOR (anyone with EDIT permission on the data being
+            curated can access the session). When omitted (None, the default), no
+            recommendation is stored and clients fall back to their usual behavior.
+        collaborator_principal_ids: Not actively used at this time. The set of principal
+            IDs that should collaborate on the grid session. Used to set the owner(s) of a
+            linked GridSession when suggested_authorization_mode is SESSION_OWNER.
     """
+
+    _ENUM_FIELDS: ClassVar[dict[str, type]] = {
+        "suggested_authorization_mode": AuthorizationMode
+    }
 
     record_set_id: Optional[str] = None
     """The synId of the RecordSet that will contain all record-based metadata"""
+
+    suggested_authorization_mode: Optional[Union[AuthorizationMode, str]] = None
+    """Recommends who is allowed to access the curation
+        grid session that a client opens for this task. The value is stored on the
+        task as a suggestion; the client applies it when it creates a new session.
+        Choose from:
+        - SESSION_OWNER: only the person or team who owns the session can access it.
+        - SOURCE_BENEFACTOR: anyone with EDIT permission on the
+            data being curated can access the session. This lets editors collaborate
+            in the same session without being added to a shared ownership team.
+        When omitted (None, the default), no recommendation is stored and clients
+        fall back to their usual behavior of finding or creating a private session
+        for the current user. Changing this value after the task already exists
+        resets the task's active session, so a new grid session must be opened
+        before curation can continue."""
+
+    collaborator_principal_ids: Optional[list[str]] = None
+    """Not actively used at this time.
+    The set of principal IDs that should collaborate on the grid session. Used to set
+    the owner(s) of a linked GridSession when suggested_authorization_mode is SESSION_OWNER"""
 
     def fill_from_dict(
         self, synapse_response: Union[Dict[str, Any], Any]
@@ -168,6 +270,12 @@ class RecordBasedMetadataTaskProperties:
             The RecordBasedMetadataTaskProperties object.
         """
         self.record_set_id = synapse_response.get("recordSetId", None)
+        self.suggested_authorization_mode = synapse_response.get(
+            "suggestedAuthorizationMode", None
+        )
+        self.collaborator_principal_ids = synapse_response.get(
+            "collaboratorPrincipalIds", None
+        )
         return self
 
     def to_synapse_request(self) -> Dict[str, Any]:
@@ -177,9 +285,17 @@ class RecordBasedMetadataTaskProperties:
         Returns:
             A dictionary representation of this object for API requests.
         """
-        request_dict = {"concreteType": RECORD_BASED_METADATA_TASK_PROPERTIES}
-        if self.record_set_id is not None:
-            request_dict["recordSetId"] = self.record_set_id
+        request_dict = {
+            "concreteType": RECORD_BASED_METADATA_TASK_PROPERTIES,
+            "recordSetId": self.record_set_id,
+            "suggestedAuthorizationMode": (
+                self.suggested_authorization_mode.value
+                if self.suggested_authorization_mode is not None
+                else None
+            ),
+            "collaboratorPrincipalIds": self.collaborator_principal_ids,
+        }
+        delete_none_keys(request_dict)
         return request_dict
 
 
@@ -629,6 +745,15 @@ class CurationTaskSynchronousProtocol(Protocol):
 
         Always creates a new Grid session. To attach an existing session to a task,
         use set_active_grid_session instead.
+
+        The new session is created with the task's suggested_authorization_mode
+        (from task_properties), which the server uses to determine access:
+
+        - SESSION_OWNER: access is limited to the session owner (owner_principal_id,
+          or the caller when not provided) and their team.
+        - SOURCE_BENEFACTOR: access is inherited from the benefactor of the source
+          entity (anyone with EDIT rights).
+        - Unset (legacy): the caller becomes the owner.
 
         After the Grid is created, updates the CurationTaskStatus to point its
         active_session_id at the new session. If that update fails for any reason,
@@ -1654,6 +1779,15 @@ class CurationTask(CurationTaskSynchronousProtocol):
         Always creates a new Grid session. To attach an existing session to a task,
         use set_active_grid_session_async instead.
 
+        The new session is created with the task's suggested_authorization_mode
+        (from task_properties), which the server uses to determine access:
+
+        - SESSION_OWNER: access is limited to the session owner (owner_principal_id,
+          or the caller when not provided) and their team.
+        - SOURCE_BENEFACTOR: access is inherited from the benefactor of the source
+          entity (anyone with EDIT rights).
+        - Unset (legacy): the caller becomes the owner.
+
         After the Grid is created, updates the CurationTaskStatus to point its
         active_session_id at the new session. If that update fails for any reason,
         the newly created Grid is deleted on a best-effort basis and the original
@@ -1718,6 +1852,7 @@ class CurationTask(CurationTaskSynchronousProtocol):
             grid = Grid(
                 record_set_id=self.task_properties.record_set_id,
                 owner_principal_id=owner_principal_id,
+                authorization_mode=self.task_properties.suggested_authorization_mode,
             )
         elif isinstance(self.task_properties, FileBasedMetadataTaskProperties):
             if not self.task_properties.file_view_id:
@@ -1736,6 +1871,7 @@ class CurationTask(CurationTaskSynchronousProtocol):
                     sql=f"SELECT * FROM {self.task_properties.file_view_id}"
                 ),
                 owner_principal_id=owner_principal_id,
+                authorization_mode=self.task_properties.suggested_authorization_mode,
             )
         else:
             raise ValueError(
@@ -1944,7 +2080,7 @@ class CurationTask(CurationTaskSynchronousProtocol):
 
 
 @dataclass
-class CreateGridRequest(AsynchronousCommunicator):
+class CreateGridRequest(EnumCoercionMixin, AsynchronousCommunicator):
     """
     Start a job to create a new Grid session.
 
@@ -1961,6 +2097,8 @@ class CreateGridRequest(AsynchronousCommunicator):
             In order to allow other users to access the grid, set this value to the id of a team.
             When a team ID is provided as the owner, all members of that team will have equal access to the grid.
             Note: If a team ID is provided, the creator of the grid must be a member of the team.
+        authorization_mode: Controls access permissions and row visibility at session
+            creation time. See AuthorizationMode. Defaults to SESSION_OWNER when omitted.
         session_id: The session ID of the created grid (populated from response)
     """
 
@@ -1983,8 +2121,14 @@ class CreateGridRequest(AsynchronousCommunicator):
     When a team ID is provided as the owner, all members of that team will have equal access to the grid.
     Note: If a team ID is provided, the creator of the grid must be a member of the team."""
 
+    authorization_mode: Optional[Union[AuthorizationMode, str]] = None
+    """Controls access permissions and row visibility at session creation time.
+    See AuthorizationMode. When omitted, the service defaults to SESSION_OWNER."""
+
     session_id: Optional[str] = None
     """The session ID of the created grid (populated from response)"""
+
+    _ENUM_FIELDS: ClassVar[dict[str, type]] = {"authorization_mode": AuthorizationMode}
 
     _grid_session_data: Optional[Dict[str, Any]] = field(default=None, compare=False)
     """Internal storage of the full grid session data from the response for later use."""
@@ -2034,7 +2178,11 @@ class CreateGridRequest(AsynchronousCommunicator):
         grid_session.last_replica_id_service = data.get("lastReplicaIdService", None)
         grid_session.grid_json_schema_id = data.get("gridJsonSchema$Id", None)
         grid_session.source_entity_id = data.get("sourceEntityId", None)
-        grid_session.owner_principal_id = data.get("ownerPrincipalId")
+        owner_principal_id = data.get("ownerPrincipalId")
+        grid_session.owner_principal_id = (
+            int(owner_principal_id) if owner_principal_id is not None else None
+        )
+        grid_session.authorization_mode = data.get("authorizationMode", None)
 
         return grid_session
 
@@ -2051,6 +2199,11 @@ class CreateGridRequest(AsynchronousCommunicator):
             self.initial_query.to_synapse_request() if self.initial_query else None
         )
         request_dict["ownerPrincipalId"] = self.owner_principal_id
+        request_dict["authorizationMode"] = (
+            self.authorization_mode.value
+            if self.authorization_mode is not None
+            else None
+        )
         delete_none_keys(request_dict)
         return request_dict
 
@@ -2933,7 +3086,7 @@ class GridSynchronousProtocol(Protocol):
 
 @dataclass
 @async_to_sync
-class Grid(GridSynchronousProtocol):
+class Grid(EnumCoercionMixin, GridSynchronousProtocol):
     """
     A GridSession provides functionality to create and manage grid sessions in Synapse.
     Grid sessions are used for curation workflows where data can be edited in a grid format
@@ -2946,6 +3099,9 @@ class Grid(GridSynchronousProtocol):
         owner_principal_id: The principal ID (user or team) that will own the
             created grid session. When not provided, the principal ID of the
             caller is used.
+        authorization_mode: Controls access permissions and row visibility at
+            session creation time. See AuthorizationMode. When not provided, the
+            service default (SESSION_OWNER) is used.
         session_id: The unique sessionId that identifies the grid session
         started_by: The user that started this session
         started_on: The date-time when the session was started
@@ -3014,6 +3170,11 @@ class Grid(GridSynchronousProtocol):
     """The principal ID (user or team) that will own the created grid session.
     When not provided, the principal ID of the caller is used."""
 
+    authorization_mode: Optional[Union[AuthorizationMode, str]] = None
+    """Controls access permissions and row visibility at session creation time.
+    See AuthorizationMode. When not provided, the service default (SESSION_OWNER)
+    is used."""
+
     session_id: Optional[str] = None
     """The unique sessionId that identifies the grid session"""
 
@@ -3046,6 +3207,8 @@ class Grid(GridSynchronousProtocol):
 
     validation_summary_statistics: Optional[ValidationSummary] = None
     """Summary statistics for validation results"""
+
+    _ENUM_FIELDS: ClassVar[dict[str, type]] = {"authorization_mode": AuthorizationMode}
 
     async def create_async(
         self,
@@ -3132,6 +3295,7 @@ class Grid(GridSynchronousProtocol):
             record_set_id=self.record_set_id,
             initial_query=self.initial_query,
             owner_principal_id=self.owner_principal_id,
+            authorization_mode=self.authorization_mode,
         )
         result = await create_request.send_job_and_wait_async(
             timeout=timeout, synapse_client=synapse_client
@@ -3219,7 +3383,11 @@ class Grid(GridSynchronousProtocol):
         )
         self.grid_json_schema_id = synapse_response.get("gridJsonSchema$Id", None)
         self.source_entity_id = synapse_response.get("sourceEntityId", None)
-        self.owner_principal_id = synapse_response.get("ownerPrincipalId")
+        owner_principal_id = synapse_response.get("ownerPrincipalId")
+        self.owner_principal_id = (
+            int(owner_principal_id) if owner_principal_id is not None else None
+        )
+        self.authorization_mode = synapse_response.get("authorizationMode", None)
         return self
 
     @skip_async_to_sync
