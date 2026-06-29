@@ -90,7 +90,7 @@ nav:
       - Permissions: reference/permissions.md
       - Core: reference/core.md
       - REST Apis: reference/rest_apis.md
-      - Experimental:
+      - Object-Oriented Models:
           - Factory Operations: reference/experimental/sync/factory_operations.md
           - Agent: reference/experimental/sync/agent.md
           - Project: reference/experimental/sync/project.md
