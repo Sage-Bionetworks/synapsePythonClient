@@ -17,7 +17,7 @@ import urllib.parse as urllib_parse
 from synapseclient.core import utils
 from synapseclient.core.exceptions import SynapseMalformedEntityError
 from synapseclient.core.models.dict_object import DictObject
-from synapseclient.core.utils import id_of, itersubclasses
+from synapseclient.core.utils import deprecated, id_of, itersubclasses
 
 
 class Versionable(object):
@@ -53,10 +53,17 @@ class Versionable(object):
 # - giving up on hiding the difference between properties and annotations
 
 
+@deprecated(
+    version="4.14.0",
+    reason="To be removed in 5.0.0. "
+    "Use the object-oriented models from synapseclient.models instead.",
+)
 class Entity(collections.abc.MutableMapping):
     """
     A Synapse entity is an object that has metadata, access control, and potentially a file. It can represent data,
     source code, or a folder that contains other entities.
+
+    WARNING - This class is deprecated and will no longer be maintained. Please use the object-oriented models from synapseclient.models instead.
 
     Entities should typically be created using the constructors for specific subclasses
     such as [synapseclient.Project][], [synapseclient.Folder][] or [synapseclient.File][].
@@ -445,9 +452,16 @@ class Entity(collections.abc.MutableMapping):
         return f.getvalue()
 
 
+@deprecated(
+    version="4.14.0",
+    reason="To be removed in 5.0.0. "
+    "Use the Project model from synapseclient.models.Project instead.",
+)
 class Project(Entity):
     """
     Represents a project in Synapse.
+
+    WARNING - This class is deprecated and will no longer be maintained. Please use the Project model from synapseclient.models.Project instead.
 
     Projects in Synapse must be uniquely named. Trying to create a project with a name that's already taken, say
     'My project', will result in an error
@@ -493,9 +507,16 @@ class Project(Entity):
         )
 
 
+@deprecated(
+    version="4.14.0",
+    reason="To be removed in 5.0.0. "
+    "Use the Folder model from synapseclient.models.Folder instead.",
+)
 class Folder(Entity):
     """
     Represents a folder in Synapse.
+
+    WARNING - This class is deprecated and will no longer be maintained. Please use the Folder model from synapseclient.models.Folder instead.
 
     Folders must have a name and a parent and can optionally have annotations.
 
@@ -536,9 +557,16 @@ class Folder(Entity):
         )
 
 
+@deprecated(
+    version="4.14.0",
+    reason="To be removed in 5.0.0. "
+    "Use the Link model from synapseclient.models.Link instead.",
+)
 class Link(Entity):
     """
     Represents a link in Synapse.
+
+    WARNING - This class is deprecated and will no longer be maintained. Please use the Link model from synapseclient.models.Link instead.
 
     Links must have a target ID and a parent. When you do [synapseclient.Synapse.get][] on a Link object,
     the Link object is returned. If the target is desired, specify followLink=True in synapseclient.Synapse.get.
@@ -593,9 +621,16 @@ class Link(Entity):
         )
 
 
+@deprecated(
+    version="4.14.0",
+    reason="To be removed in 5.0.0. "
+    "Use the File model from synapseclient.models.File instead.",
+)
 class File(Entity, Versionable):
     """
     Represents a file in Synapse.
+
+    WARNING - This class is deprecated and will no longer be maintained. Please use the File model from synapseclient.models.File instead.
 
     When a File object is stored, the associated local file or its URL will be stored in Synapse.
     A File must have a path (or URL) and a parent. By default, the name of the file in Synapse
@@ -815,9 +850,16 @@ class File(Entity, Versionable):
         )
 
 
+@deprecated(
+    version="4.14.0",
+    reason="To be removed in 5.0.0. "
+    "Use the DockerRepository model from synapseclient.models.docker.DockerRepository instead.",
+)
 class DockerRepository(Entity):
     """
     A Docker repository is a lightweight virtual machine image.
+
+    WARNING - This class is deprecated and will no longer be maintained. Please use the DockerRepository model from synapseclient.models.docker.DockerRepository instead.
 
     NOTE: [store()][synapseclient.Synapse.store]-ing a DockerRepository created in the Python client will always result
     in it being treated as a reference to an external Docker repository that is not
