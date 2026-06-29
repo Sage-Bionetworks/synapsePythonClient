@@ -1,5 +1,5 @@
 from dataclasses import dataclass, field
-from typing import Dict, List, Optional, Union
+from typing import Dict, List, Optional
 
 from synapseclient import Synapse
 from synapseclient.api import (
@@ -9,8 +9,6 @@ from synapseclient.api import (
 )
 from synapseclient.core.async_utils import async_to_sync, otel_trace_method
 from synapseclient.models.protocols.user_protocol import UserProfileSynchronousProtocol
-from synapseclient.team import UserGroupHeader as Synapse_UserGroupHeader
-from synapseclient.team import UserProfile as Synapse_UserProfile
 
 
 @dataclass
@@ -47,7 +45,7 @@ class UserGroupHeader:
     """User's current email address"""
 
     def fill_from_dict(
-        self, synapse_user_group_header: Union[Synapse_UserGroupHeader, Dict[str, str]]
+        self, synapse_user_group_header: Dict[str, str]
     ) -> "UserGroupHeader":
         self.owner_id = synapse_user_group_header.get("ownerId", None)
         self.first_name = synapse_user_group_header.get("firstName", None)
@@ -172,9 +170,7 @@ class UserProfile(UserProfileSynchronousProtocol):
     created_on: Optional[str] = None
     """The date this profile was created."""
 
-    def fill_from_dict(
-        self, synapse_user_profile: Union[Synapse_UserProfile, Dict]
-    ) -> "UserProfile":
+    def fill_from_dict(self, synapse_user_profile: Dict) -> "UserProfile":
         """Fills the UserProfile object from a dictionary.
 
         Arguments:
