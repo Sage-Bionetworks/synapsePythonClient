@@ -8,7 +8,7 @@ import pytest
 
 from synapseclient import Synapse
 from synapseclient.core.exceptions import SynapseHTTPError
-from synapseclient.models import Evaluation, Project
+from synapseclient.models import Evaluation, Project, UserProfile
 
 
 class TestEvaluationCreation:
@@ -446,8 +446,8 @@ class TestEvaluationAccess:
 
     async def test_get_evaluation_acl(self, test_evaluation: Evaluation):
         # GIVEN the current user's ID
-        user_profile = self.syn.getUserProfile()
-        current_user_id = int(user_profile.get("ownerId"))
+        user_profile = await UserProfile().get_async(synapse_client=self.syn)
+        current_user_id = user_profile.id
 
         # WHEN we get the evaluation ACL using the dataclass method
         acl = await test_evaluation.get_acl_async(synapse_client=self.syn)
@@ -483,8 +483,8 @@ class TestEvaluationAccess:
     ):
         """Test updating ACL for an evaluation using principal_id and access_type."""
         # GIVEN the current user's ID
-        user_profile = self.syn.getUserProfile()
-        current_user_id = int(user_profile.get("ownerId"))
+        user_profile = await UserProfile().get_async(synapse_client=self.syn)
+        current_user_id = user_profile.id
 
         # WHEN we update the ACL for the current user with specific permissions
         updated_acl = await test_evaluation.update_acl_async(
@@ -520,8 +520,8 @@ class TestEvaluationAccess:
 
         # AND a modified version of the ACL with a changed permission set
         modified_acl = current_acl.copy()
-        user_profile = self.syn.getUserProfile()
-        current_user_id = int(user_profile.get("ownerId"))
+        user_profile = await UserProfile().get_async(synapse_client=self.syn)
+        current_user_id = user_profile.id
 
         # Find the current user in the ACL and update permissions
         for access in modified_acl["resourceAccess"]:
