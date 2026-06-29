@@ -501,10 +501,23 @@ class JsonSchemaOrganization:
 
 @deprecated(
     version="4.11.0",
-    reason="To be removed in 5.0.0.",
+    reason="To be removed in 5.0.0. "
+    "Use the OOP JSON Schema models instead: "
+    "`synapseclient.models.SchemaOrganization` for organization management, "
+    "`synapseclient.models.JSONSchema` for creating and retrieving schemas, and "
+    "the JSON Schema methods on entity models (e.g. File, Folder, Project) such as "
+    "`bind_schema()`, `get_schema()`, `validate_schema()`, and `unbind_schema()` "
+    "for binding and validating schemas against entities.",
 )
 class JsonSchemaService:
     """Json Schema Service
+
+    Deprecated: To be removed in 5.0.0. Use the OOP JSON Schema models instead:
+    synapseclient.models.SchemaOrganization for organization management,
+    synapseclient.models.JSONSchema for creating and retrieving schemas, and the
+    JSON Schema methods on entity models (e.g. File, Folder, Project) such as
+    bind_schema(), get_schema(), validate_schema(), and unbind_schema() for binding
+    and validating schemas against entities.
 
     Attributes
         synapse: Synapse connection

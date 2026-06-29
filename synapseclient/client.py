@@ -1666,7 +1666,7 @@ class Synapse(object):
 
     @deprecated(
         version="4.11.0",
-        reason="To be removed in 5.0.0.",
+        reason="To be removed in 5.0.0. This is a beta feature with no replacement.",
     )
     def get_available_services(self) -> typing.List[str]:
         """Get available Synapse services
@@ -1680,7 +1680,7 @@ class Synapse(object):
 
     @deprecated(
         version="4.11.0",
-        reason="To be removed in 5.0.0.",
+        reason="To be removed in 5.0.0. This is a beta feature with no replacement.",
     )
     def service(self, service_name: str):
         """Get available Synapse services
@@ -5977,7 +5977,14 @@ class Synapse(object):
             min_remaining_life=min_remaining_life,
         )
 
-    @deprecated(version="4.12.0", reason="To be removed in 5.0.0. ")
+    @deprecated(
+        version="4.12.0",
+        reason="To be removed in 5.0.0. "
+        "Use the `synapseclient.models.StorageLocation` model and its `store()` "
+        "method instead. To also create a folder and apply the storage location "
+        "as a project setting, use `Folder` together with "
+        "`set_storage_location()` on the project/folder.",
+    )
     def create_s3_storage_location(
         self,
         *,
@@ -5994,6 +6001,10 @@ class Synapse(object):
         and a ProjectSetting together, optionally creating a new folder in which to locate it,
         and optionally enabling this storage location for access via STS. If enabling an existing folder for STS,
         it must be empty.
+
+        Deprecated: To be removed in 5.0.0. Use the synapseclient.models.StorageLocation
+        model and its store() method to create the storage location, and
+        set_storage_location() on a Project or Folder to apply it as a project setting.
 
         Arguments:
             parent: The parent in which to locate the storage location (mutually exclusive with folder)
@@ -6021,7 +6032,11 @@ class Synapse(object):
 
     @deprecated(
         version="4.12.0",
-        reason="To be removed in 5.0.0. ",
+        reason="To be removed in 5.0.0. "
+        "Use the `synapseclient.models.StorageLocation` model and its "
+        "`store_async()` method instead. To also create a folder and apply the "
+        "storage location as a project setting, use `Folder` together with "
+        "`set_storage_location_async()` on the project/folder.",
     )
     async def create_s3_storage_location_async(
         self,
@@ -6035,6 +6050,11 @@ class Synapse(object):
     ) -> Tuple[Folder, Dict[str, str], Dict[str, str]]:
         """
         async version of create_s3_storage_location
+
+        Deprecated: To be removed in 5.0.0. Use the synapseclient.models.StorageLocation
+        model and its store_async() method to create the storage location, and
+        set_storage_location_async() on a Project or Folder to apply it as a project
+        setting.
         """
         if folder_name and parent:
             if folder:
