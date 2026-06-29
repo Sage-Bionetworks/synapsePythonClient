@@ -72,12 +72,19 @@ import json
 import os
 
 from synapseclient.core.models.dict_object import DictObject
-from synapseclient.core.utils import id_of
+from synapseclient.core.utils import deprecated, id_of
 
 
+@deprecated(
+    version="4.14.0",
+    reason="To be removed in 5.0.0. "
+    "Use the WikiPage model from synapseclient.models.wiki instead.",
+)
 class Wiki(DictObject):
     """
     Represents a wiki page in Synapse with content specified in markdown.
+
+    WARNING - This class is deprecated and will no longer be maintained. Please use the WikiPage model from synapseclient.models.wiki instead.
 
     Arguments:
         title: Title of the Wiki
@@ -177,6 +184,12 @@ class Wiki(DictObject):
         self["markdown"] = markdown
 
 
+@deprecated(
+    version="4.14.0",
+    reason="To be removed in 5.0.0. "
+    "Use synapseclient.models.WikiPage.get_attachment_handles() instead, "
+    "which returns the attachment file handles directly.",
+)
 class WikiAttachment(DictObject):
     """Represents a wiki page attachment."""
 

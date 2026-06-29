@@ -273,10 +273,17 @@ def _convert_to_annotation_cls(
     return values
 
 
+@deprecated(
+    version="4.14.0",
+    reason="To be removed in 5.0.0. "
+    "Use the SubmissionStatus model from synapseclient.models.submission_status instead.",
+)
 class SubmissionStatus(DictObject):
     """
     Builds an Synapse submission status object.
     <https://rest-docs.synapse.org/rest/org/sagebionetworks/evaluation/model/SubmissionStatus.html>
+
+    WARNING - This class is deprecated and will no longer be maintained. Please use the SubmissionStatus model from synapseclient.models.submission_status instead.
 
     Arguments:
         id: Unique immutable Synapse Id of the Submission

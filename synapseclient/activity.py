@@ -55,10 +55,16 @@ For example, when storing a data entity, it's a good idea to record its source:
 import collections.abc
 
 from synapseclient.core.exceptions import SynapseError, SynapseMalformedEntityError
-from synapseclient.core.utils import get_synid_and_version, is_synapse_id_str, is_url
+from synapseclient.core.utils import (
+    deprecated,
+    get_synid_and_version,
+    is_synapse_id_str,
+    is_url,
+)
 from synapseclient.entity import is_synapse_entity
 
 
+@deprecated(version="4.14.0", reason="To be removed in 5.0.0.")
 def is_used_entity(x) -> bool:
     """
     Returns:
@@ -86,6 +92,7 @@ def is_used_entity(x) -> bool:
     return True
 
 
+@deprecated(version="4.14.0", reason="To be removed in 5.0.0. ")
 def is_used_url(x) -> bool:
     """
     Returns:
@@ -130,9 +137,16 @@ def _raise_incorrect_used_usage(badargs, message):
         )
 
 
+@deprecated(
+    version="4.14.0",
+    reason="To be removed in 5.0.0. "
+    "Use the Activity model from synapseclient.models.activity instead.",
+)
 class Activity(dict):
     """
     Represents the provenance of a Synapse Entity.
+
+    WARNING - This class is deprecated and will no longer be maintained. Please use the Activity model from synapseclient.models.activity instead.
 
     Parameters:
         name: Name of the Activity
