@@ -6100,7 +6100,12 @@ class Synapse(object):
     #                   CRUD for Evaluations                   #
     ############################################################
 
-    # TODO: Deprecate method in https://sagebionetworks.jira.com/browse/SYNPY-1589
+    @deprecated(
+        version="4.14.0",
+        reason="To be removed in 5.0.0. "
+        "Use the `synapseclient.models.Evaluation` model instead, e.g. "
+        "`Evaluation(id=...).get()`.",
+    )
     def getEvaluation(self, id):
         """
         Gets an Evaluation object from Synapse.
@@ -6121,7 +6126,12 @@ class Synapse(object):
         uri = Evaluation.getURI(evaluation_id)
         return Evaluation(**self.restGET(uri))
 
-    # TODO: Deprecate method in https://sagebionetworks.jira.com/browse/SYNPY-1589
+    @deprecated(
+        version="4.14.0",
+        reason="To be removed in 5.0.0. "
+        "Use the `synapseclient.models.Evaluation` model instead, e.g. "
+        "`Evaluation(name=...).get()`.",
+    )
     def getEvaluationByName(self, name):
         """
         Gets an Evaluation object from Synapse.
@@ -6135,7 +6145,11 @@ class Synapse(object):
         uri = Evaluation.getByNameURI(name)
         return Evaluation(**self.restGET(uri))
 
-    # TODO: Deprecate method in https://sagebionetworks.jira.com/browse/SYNPY-1589
+    @deprecated(
+        version="4.14.0",
+        reason="To be removed in 5.0.0. "
+        "Use `synapseclient.models.Evaluation.get_evaluations_by_project()` instead.",
+    )
     def getEvaluationByContentSource(self, entity):
         """
         Returns a generator over evaluations that derive their content from the given entity
@@ -6701,7 +6715,12 @@ class Synapse(object):
         # Return None if no invite is sent.
         return None
 
-    # TODO: Deprecate method in https://sagebionetworks.jira.com/browse/SYNPY-1590
+    @deprecated(
+        version="4.14.0",
+        reason="To be removed in 5.0.0. "
+        "Use the `synapseclient.models.Submission` model instead, e.g. "
+        "`Submission(...).store()`.",
+    )
     def submit(
         self,
         evaluation,
@@ -6755,7 +6774,12 @@ class Synapse(object):
             )
         )
 
-    # TODO: Deprecate method in https://sagebionetworks.jira.com/browse/SYNPY-1590
+    @deprecated(
+        version="4.14.0",
+        reason="To be removed in 5.0.0. "
+        "Use the `synapseclient.models.Submission` model instead, e.g. "
+        "`await Submission(...).store_async()`.",
+    )
     async def submit_async(
         self,
         evaluation,
@@ -6981,7 +7005,12 @@ class Synapse(object):
 
         self.setPermissions(evaluation, userId, accessType=rights, overwrite=False)
 
-    # TODO: Deprecate method in https://sagebionetworks.jira.com/browse/SYNPY-1590
+    @deprecated(
+        version="4.14.0",
+        reason="To be removed in 5.0.0. "
+        "Use `synapseclient.models.Submission.get_evaluation_submissions()` (or "
+        "`get_user_submissions()` for your own submissions) instead.",
+    )
     def getSubmissions(self, evaluation, status=None, myOwn=False, limit=20, offset=0):
         """
         Arguments:
@@ -7081,7 +7110,12 @@ class Synapse(object):
 
         return self._GET_paginated(url, limit=limit, offset=offset)
 
-    # TODO: Deprecate method in https://sagebionetworks.jira.com/browse/SYNPY-1590
+    @deprecated(
+        version="4.14.0",
+        reason="To be removed in 5.0.0. "
+        "Use `synapseclient.models.SubmissionBundle.get_evaluation_submission_bundles()` "
+        "(or `get_user_submission_bundles()` for your own) instead.",
+    )
     def getSubmissionBundles(
         self, evaluation, status=None, myOwn=False, limit=20, offset=0
     ):
@@ -7179,7 +7213,12 @@ class Synapse(object):
             if next_page_token is None:
                 break
 
-    # TODO: Deprecate method in https://sagebionetworks.jira.com/browse/SYNPY-1590
+    @deprecated(
+        version="4.14.0",
+        reason="To be removed in 5.0.0. "
+        "Use the `synapseclient.models.Submission` model instead, e.g. "
+        "`Submission(id=...).get()`.",
+    )
     def getSubmission(
         self, id: typing.Union[str, int, collections.abc.Mapping], **kwargs
     ) -> Submission:
@@ -7200,7 +7239,12 @@ class Synapse(object):
         """
         return wrap_async_to_sync(self.getSubmission_async(id=id, **kwargs))
 
-    # TODO: Deprecate method in https://sagebionetworks.jira.com/browse/SYNPY-1590
+    @deprecated(
+        version="4.14.0",
+        reason="To be removed in 5.0.0. "
+        "Use the `synapseclient.models.Submission` model instead, e.g. "
+        "`await Submission(id=...).get_async()`.",
+    )
     async def getSubmission_async(
         self, id: typing.Union[str, int, collections.abc.Mapping], **kwargs
     ) -> Submission:
@@ -7249,7 +7293,12 @@ class Synapse(object):
 
         return submission
 
-    # TODO: Deprecate method in https://sagebionetworks.jira.com/browse/SYNPY-1590
+    @deprecated(
+        version="4.14.0",
+        reason="To be removed in 5.0.0. "
+        "Use the `synapseclient.models.SubmissionStatus` model instead, e.g. "
+        "`SubmissionStatus(id=...).get()`.",
+    )
     def getSubmissionStatus(
         self, submission: typing.Union[str, int, collections.abc.Mapping]
     ) -> SubmissionStatus:
@@ -7272,7 +7321,12 @@ class Synapse(object):
     #                      CRUD for Wikis                      #
     ############################################################
 
-    # TODO: Deprecate method in https://sagebionetworks.jira.com/browse/SYNPY-1351
+    @deprecated(
+        version="4.14.0",
+        reason="To be removed in 5.0.0. "
+        "Use the `synapseclient.models.WikiPage` model instead, e.g. "
+        "`WikiPage(owner_id=..., id=...).get()`.",
+    )
     def getWiki(self, owner, subpageId=None, version=None):
         """
         Get a [synapseclient.wiki.Wiki][] object from Synapse. Uses wiki2 API which supports versioning.
@@ -7289,6 +7343,12 @@ class Synapse(object):
             self.getWiki_async(owner, subpageId=subpageId, version=version)
         )
 
+    @deprecated(
+        version="4.14.0",
+        reason="To be removed in 5.0.0. "
+        "Use the `synapseclient.models.WikiPage` model instead, e.g. "
+        "`await WikiPage(owner_id=..., id=...).get_async()`.",
+    )
     async def getWiki_async(self, owner, subpageId=None, version=None):
         """
         Get a [synapseclient.wiki.Wiki][] object from Synapse. Uses wiki2 API which supports versioning.
@@ -7339,7 +7399,11 @@ class Synapse(object):
 
         return wiki
 
-    # TODO: Deprecate method in https://sagebionetworks.jira.com/browse/SYNPY-1351
+    @deprecated(
+        version="4.14.0",
+        reason="To be removed in 5.0.0. "
+        "Use `synapseclient.models.WikiHeader.get(owner_id=...)` instead.",
+    )
     def getWikiHeaders(self, owner):
         """
         Retrieves the headers of all Wikis belonging to the owner (the entity to which the Wiki is attached).
@@ -7429,7 +7493,12 @@ class Synapse(object):
                     raise
         return updated_wiki
 
-    # TODO: Deprecate method in https://sagebionetworks.jira.com/browse/SYNPY-1351
+    @deprecated(
+        version="4.14.0",
+        reason="To be removed in 5.0.0. "
+        "Use `synapseclient.models.WikiPage.get_attachment_handles()` on the WikiPage "
+        "instead.",
+    )
     def getWikiAttachments(self, wiki):
         """
         Retrieve the attachments to a wiki page.
