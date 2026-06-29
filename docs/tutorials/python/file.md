@@ -145,7 +145,6 @@ Now that you have created your files you'll be able to inspect this on the Files
 ## References used in this tutorial
 
 - [File][file-reference-sync]
+- [Folder][folder-reference-sync]
+- [Project][project-reference-sync]
 - [syn.login][synapseclient.Synapse.login]
-- [syn.findEntityId][synapseclient.Synapse.findEntityId]
-- [syn.store][synapseclient.Synapse.store]
-- [synapseutils.walk][]
