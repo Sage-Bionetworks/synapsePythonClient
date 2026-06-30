@@ -4,7 +4,6 @@ from unittest.mock import AsyncMock, patch
 
 import pytest
 
-from synapseclient.activity import Activity as Synapse_Activity
 from synapseclient.core.constants.concrete_types import USED_ENTITY, USED_URL
 from synapseclient.models import Activity, File, UsedEntity, UsedURL
 
@@ -29,11 +28,20 @@ class TestActivity:
     def init_syn(self, syn):
         self.syn = syn
 
-    def get_example_synapse_activity_output(self) -> Synapse_Activity:
-        synapse_activity = Synapse_Activity(
-            name=ACTIVITY_NAME,
-            description=DESCRIPTION,
-            used=[
+    def get_example_synapse_activity_output(self) -> dict:
+        # A REST API representation of an Activity. The used and executed resources
+        # are combined into a single "used" list, distinguished by the wasExecuted
+        # flag, which is how the Synapse REST API returns provenance.
+        return {
+            "id": SYN_123,
+            "etag": ETAG,
+            "name": ACTIVITY_NAME,
+            "description": DESCRIPTION,
+            "createdOn": CREATED_ON,
+            "modifiedOn": MODIFIED_ON,
+            "createdBy": CREATED_BY,
+            "modifiedBy": MODIFIED_BY,
+            "used": [
                 {
                     "wasExecuted": False,
                     "concreteType": USED_URL,
@@ -48,8 +56,6 @@ class TestActivity:
                         "targetVersionNumber": 1,
                     },
                 },
-            ],
-            executed=[
                 {
                     "wasExecuted": True,
                     "concreteType": USED_URL,
@@ -65,14 +71,7 @@ class TestActivity:
                     },
                 },
             ],
-        )
-        synapse_activity["id"] = SYN_123
-        synapse_activity["etag"] = ETAG
-        synapse_activity["createdOn"] = CREATED_ON
-        synapse_activity["modifiedOn"] = MODIFIED_ON
-        synapse_activity["createdBy"] = CREATED_BY
-        synapse_activity["modifiedBy"] = MODIFIED_BY
-        return synapse_activity
+        }
 
     def test_fill_from_dict(self) -> None:
         # GIVEN a blank activity
