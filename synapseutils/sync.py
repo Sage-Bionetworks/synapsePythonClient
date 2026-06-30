@@ -177,6 +177,13 @@ def syncFromSynapse(
     )
 
 
+@deprecated(
+    version="4.14.0",
+    reason=(
+        "To be removed in 5.0.0. Use StorableContainer.sync_from_synapse instead, "
+        "which generates a manifest.csv file interoperable with the Synapse UI download cart."
+    ),
+)
 async def syncFromSynapse_async(
     syn: Synapse,
     entity: Union[str, SynapseFile, SynapseProject, SynapseFolder],
@@ -738,6 +745,13 @@ def _get_file_entity_provenance_dict(syn, entity):
             raise  # unexpected error so we re-raise the exception
 
 
+@deprecated(
+    version="4.14.0",
+    reason=(
+        "To be removed in 5.0.0. Use StorableContainer.sync_from_synapse instead, "
+        "which generates a manifest.csv file interoperable with the Synapse UI download cart."
+    ),
+)
 def generate_manifest(all_files: List[File], path: str) -> None:
     """Generates a manifest file based on a list of entities objects.
 
@@ -1035,6 +1049,13 @@ def _check_path_and_normalize(f: str, syn: Synapse) -> str:
     return path_normalized
 
 
+@deprecated(
+    version="4.14.0",
+    reason=(
+        "To be removed in 5.0.0. Use Project.sync_to_synapse or "
+        "Folder.sync_to_synapse from synapseclient.models instead."
+    ),
+)
 def readManifestFile(syn: Synapse, manifestFile: str) -> DATA_FRAME_TYPE:
     """Verifies a file manifest and returns a reordered dataframe ready for upload.
 
@@ -1052,6 +1073,13 @@ def readManifestFile(syn: Synapse, manifestFile: str) -> DATA_FRAME_TYPE:
     )
 
 
+@deprecated(
+    version="4.14.0",
+    reason=(
+        "To be removed in 5.0.0. Use Project.sync_to_synapse or "
+        "Folder.sync_to_synapse from synapseclient.models instead."
+    ),
+)
 async def readManifestFile_async(syn: Synapse, manifestFile: str) -> DATA_FRAME_TYPE:
     """Verifies a file manifest and returns a reordered dataframe ready for upload.
 
