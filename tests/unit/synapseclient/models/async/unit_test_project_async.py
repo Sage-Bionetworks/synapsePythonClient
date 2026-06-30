@@ -6,7 +6,6 @@ from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
 
-from synapseclient import Project as Synapse_Project
 from synapseclient import Synapse
 from synapseclient.core.constants import concrete_types
 from synapseclient.core.constants.concrete_types import FILE_ENTITY
@@ -33,18 +32,18 @@ class TestProject:
     def init_syn(self, syn: Synapse) -> None:
         self.syn = syn
 
-    def get_example_synapse_project_output(self) -> Synapse_Project:
-        return Synapse_Project(
-            id=PROJECT_ID,
-            name=PROJECT_NAME,
-            parentId=PARENT_ID,
-            description=DERSCRIPTION_PROJECT,
-            etag=ETAG,
-            createdOn=CREATED_ON,
-            modifiedOn=MODIFIED_ON,
-            createdBy=CREATED_BY,
-            modifiedBy=MODIFIED_BY,
-        )
+    def get_example_synapse_project_output(self) -> dict[str, str]:
+        return {
+            "id": PROJECT_ID,
+            "name": PROJECT_NAME,
+            "parentId": PARENT_ID,
+            "description": DERSCRIPTION_PROJECT,
+            "etag": ETAG,
+            "createdOn": CREATED_ON,
+            "modifiedOn": MODIFIED_ON,
+            "createdBy": CREATED_BY,
+            "modifiedBy": MODIFIED_BY,
+        }
 
     def get_example_rest_api_project_output(self) -> Dict[str, str]:
         return {

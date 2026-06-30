@@ -564,6 +564,7 @@ def test_md5_for_file(mock_hashlib: MagicMock) -> None:
         mock_callback.call_count == 3
 
 
+# TODO: remove test in 5.0.0
 class TestSpinner:
     """
     Verify the Spinner object work correctly
