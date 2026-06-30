@@ -9,9 +9,9 @@ from opentelemetry import trace
 from synapseclient import Synapse
 from synapseclient.api import get_from_entity_factory
 from synapseclient.core.async_utils import async_to_sync, otel_trace_method
+from synapseclient.core.constants.concrete_types import PROJECT_ENTITY
 from synapseclient.core.exceptions import SynapseError
 from synapseclient.core.utils import delete_none_keys, merge_dataclass_entities
-from synapseclient.entity import Project as Synapse_Project
 from synapseclient.models import Annotations, File, Folder
 from synapseclient.models.mixins import (
     AccessControllable,
@@ -262,7 +262,7 @@ class Project(
 
     def fill_from_dict(
         self,
-        synapse_project: Union[Synapse_Project, Dict],
+        synapse_project: Dict,
         set_annotations: bool = True,
     ) -> "Project":
         """
@@ -361,14 +361,15 @@ class Project(
             }
         )
         if self.has_changed:
-            synapse_project = Synapse_Project(
-                id=self.id,
-                etag=self.etag,
-                name=self.name,
-                description=self.description,
-                alias=self.alias,
-                parentId=self.parent_id,
-            )
+            synapse_project = {
+                "id": self.id,
+                "etag": self.etag,
+                "name": self.name,
+                "description": self.description,
+                "alias": self.alias,
+                "parentId": self.parent_id,
+                "concreteType": PROJECT_ENTITY,
+            }
             delete_none_keys(synapse_project)
             entity = await store_entity(
                 resource=self,
