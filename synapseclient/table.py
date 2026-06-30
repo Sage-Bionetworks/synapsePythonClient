@@ -340,8 +340,8 @@ def cast_row_set(rowset):
 
 @deprecated(
     version="4.12.0",
-    reason="To be removed in 5.0.0. This is an internal query-building helper with "
-    "no public replacement.",
+    reason="To be removed in 5.0.0. Use escape_column_name from "
+    "synapseclient.core.utils instead.",
 )
 def escape_column_name(column: Union[str, collections.abc.Mapping]) -> str:
     """
@@ -362,8 +362,8 @@ def escape_column_name(column: Union[str, collections.abc.Mapping]) -> str:
 
 @deprecated(
     version="4.12.0",
-    reason="To be removed in 5.0.0. This is an internal query-building helper with "
-    "no public replacement.",
+    reason="To be removed in 5.0.0. Use join_column_names from "
+    "synapseclient.core.utils instead.",
 )
 def join_column_names(columns: Union[List, Dict[str, str]]):
     """

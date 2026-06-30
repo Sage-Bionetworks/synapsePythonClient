@@ -14,7 +14,11 @@ from unittest.mock import MagicMock, Mock, call, mock_open, patch
 import pytest
 
 from synapseclient.core import constants, utils
-from synapseclient.core.utils import coerce_enum_list
+from synapseclient.core.utils import (
+    coerce_enum_list,
+    escape_column_name,
+    join_column_names,
+)
 
 
 def test_is_url() -> None:
@@ -1019,3 +1023,33 @@ class TestMergeDataclassEntities:
         assert result.properties.note is None
         # AND the source-only field is NOT grafted onto the destination instance
         assert not hasattr(result.properties, "record_set_id")
+
+
+@pytest.mark.parametrize(
+    "column,expected_name",
+    (
+        ("foo", '"foo"'),  # all names are quoted
+        ('foo"bar', '"foo""bar"'),  # quotes are double quoted
+        (
+            "foo bar",
+            '"foo bar"',
+        ),  # other special characters e.g. spaces are left alone (within the quoted string)
+    ),
+)
+def test_escape_column_names(column, expected_name) -> None:
+    """Verify column name escaping"""
+    # test as a string
+    assert escape_column_name(column) == expected_name
+
+    # test as a dictionary/column object
+    assert escape_column_name({"name": column}) == expected_name
+
+
+def test_join_column_names() -> None:
+    """Verify the behavior of join_column_names"""
+    column_names = ["foo", 'foo"bar', "foo bar"]
+    column_dicts = [{"name": n} for n in column_names]
+    expected = '"foo","foo""bar","foo bar"'
+
+    assert join_column_names(column_names) == expected
+    assert join_column_names(column_dicts) == expected
