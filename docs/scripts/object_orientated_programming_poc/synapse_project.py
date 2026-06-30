@@ -1,11 +1,11 @@
-"""The purpose of this script is to demonstrate how to use the current synapse interface for projects.
+"""The purpose of this script is to demonstrate how to use the new OOP interface for projects.
 The following actions are shown in this script:
 1. Creating a project
 2. Getting metadata about a project
 3. Storing several files to a project
 4. Storing several folders in a project with a file in each folder
 5. Updating the annotations in bulk for a number of folders and files
-6. Using synapseutils to sync a project from and to synapse
+6. Syncing a project from Synapse to disk
 7. Deleting a project
 
 All steps also include setting a number of annotations for the objects.
@@ -16,8 +16,7 @@ import uuid
 from datetime import datetime, timedelta, timezone
 
 import synapseclient
-import synapseutils
-from synapseclient import Annotations, File, Folder, Project
+from synapseclient.models import File, Folder, Project
 
 syn = synapseclient.Synapse(debug=True)
 syn.login()
@@ -35,6 +34,7 @@ def create_random_file(
 
 
 # Creating annotations for my project ==================================================
+# Annotations are plain dictionaries on the model. Values may be single items or lists.
 my_annotations_dict = {
     "my_key_string": ["b", "a", "c"],
     "my_key_bool": [False, False, False],
@@ -56,12 +56,12 @@ project = Project(
     description="This is a project with random data.",
 )
 
-my_stored_project: Project = syn.store(project)
+my_stored_project = project.store()
 
 print(my_stored_project)
 
 # Getting metadata about a project =======================================================
-my_project = syn.get(entity=my_stored_project.id)
+my_project = Project(id=my_stored_project.id).get()
 print(my_project)
 
 # Storing several files to a project =====================================================
@@ -71,38 +71,24 @@ for loop in range(1, 10):
     create_random_file(path_to_file)
 
     # Creating and uploading a file to a project =====================================
+    # Setting the annotations directly on the model stores them with the file.
     file = File(
         path=path_to_file,
         name=name_of_file,
-        parent=my_stored_project.id,
+        parent_id=my_stored_project.id,
+        annotations=my_annotations_dict,
     )
-    my_stored_file = syn.store(obj=file)
-
-    my_annotations = Annotations(
-        id=my_stored_file.id,
-        etag=my_stored_file.etag,
-        **my_annotations_dict,
-    )
-
-    syn.set_annotations(annotations=my_annotations)
+    file.store()
 
 # Storing several folders to a project ===================================================
 for loop in range(1, 10):
     # Creating and uploading a folder to a project ===================================
     folder = Folder(
         name=f"my_folder_{loop}",
-        parent=my_stored_project.id,
+        parent_id=my_stored_project.id,
+        annotations=my_annotations_dict,
     )
-
-    my_stored_folder = syn.store(obj=folder)
-
-    my_annotations = Annotations(
-        id=my_stored_folder.id,
-        etag=my_stored_folder.etag,
-        **my_annotations_dict,
-    )
-
-    syn.set_annotations(annotations=my_annotations)
+    my_stored_folder = folder.store()
 
     # Adding a file to a folder ======================================================
     name_of_file = f"my_file_with_random_data_{uuid.uuid4()}.txt"
@@ -112,69 +98,36 @@ for loop in range(1, 10):
     file = File(
         path=path_to_file,
         name=name_of_file,
-        parent=my_stored_folder.id,
+        parent_id=my_stored_folder.id,
+        annotations=my_annotations_dict,
     )
-    my_stored_file = syn.store(obj=file)
-
-    my_annotations = Annotations(
-        id=my_stored_file.id,
-        etag=my_stored_file.etag,
-        **my_annotations_dict,
-    )
-
-    syn.set_annotations(annotations=my_annotations)
+    file.store()
 
 # Updating the annotations in bulk for a number of folders and files =====================
 new_annotations = {
     "my_key_string": ["bbbbb", "aaaaa", "ccccc"],
 }
 
-# Note: This `getChildren` function will only return the items that are directly
-# under the `parent`. You would need to recursively call this function to get all
-# of the children for all folders under the parent.
-for child in syn.getChildren(
-    parent=my_stored_project.id, includeTypes=["folder", "file"]
-):
-    is_folder = (
-        "type" in child and child["type"] == "org.sagebionetworks.repo.model.Folder"
-    )
-    is_file = (
-        "type" in child and child["type"] == "org.sagebionetworks.repo.model.FileEntity"
-    )
+# `sync_from_synapse` retrieves the project along with all of the folders and files
+# under it. Setting `download_file=False` retrieves metadata only. Use `recursive=True`
+# to also walk into nested folders.
+project_copy = Project(id=my_stored_project.id).sync_from_synapse(download_file=False)
 
-    if is_folder:
-        my_folder = syn.get(entity=child["id"])
-        new_saved_annotations = syn.set_annotations(
-            Annotations(id=child["id"], etag=my_folder.etag, **new_annotations)
-        )
-        print(new_saved_annotations)
-    elif is_file:
-        my_file = syn.get(entity=child["id"], downloadFile=False)
-        new_saved_annotations = syn.set_annotations(
-            Annotations(id=child["id"], etag=my_file.etag, **new_annotations)
-        )
-        print(new_saved_annotations)
+for file in project_copy.files:
+    file.annotations = new_annotations
+    file.store()
 
-# Using synapseutils to sync a project from and to synapse ===============================
-# This `syncFromSynapse` will download all files and folders under the project.
-# In addition it creates a manifest TSV file that contains the metadata for all
-# of the files and folders under the project.
+for folder in project_copy.folders:
+    folder.annotations = new_annotations
+    folder.store()
+
+# Syncing a project from Synapse to disk =================================================
+# This downloads all files and folders under the project and writes them to disk. A
+# manifest TSV with the metadata for everything under the project is created alongside
+# the downloaded files.
 project_download_location = os.path.expanduser("~/my_synapse_project")
-result = synapseutils.syncFromSynapse(
-    syn=syn, entity=my_stored_project, path=project_download_location
-)
-print(result)
-
-# This `syncToSynapse` will upload all files and folders under the project that
-# are defined in the manifest TSV file.
-# ---
-# 12/08/2023 note: There is a bug in the `syncToSynapse` method if you are using
-# multiple annotations for a single key. This will be fixed in the next few releases.
-# Track https://sagebionetworks.jira.com/browse/SYNPY-1357 for more information.
-synapseutils.syncToSynapse(
-    syn,
-    manifestFile=f"{project_download_location}/SYNAPSE_METADATA_MANIFEST.tsv",
-    sendMessages=False,
+Project(id=my_stored_project.id).sync_from_synapse(
+    download_file=True, path=project_download_location, recursive=True
 )
 
 # Creating and then deleting a project ===================================================
@@ -184,5 +137,5 @@ project = Project(
     description="This is a project with random data.",
 )
 
-my_stored_project: Project = syn.store(project)
-syn.delete(obj=my_stored_project.id)
+my_stored_project = project.store()
+my_stored_project.delete()

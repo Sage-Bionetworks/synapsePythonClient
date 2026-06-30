@@ -11,11 +11,16 @@ from unittest import mock
 import pytest
 
 import synapseclient.core.utils as utils
-from synapseclient import Folder as SynFolder
 from synapseclient import Synapse
 from synapseclient.api import get_upload_destination
 from synapseclient.core.retry import with_retry
-from synapseclient.models import File, Folder, Project
+from synapseclient.models import (
+    File,
+    Folder,
+    Project,
+    StorageLocation,
+    StorageLocationType,
+)
 
 try:
     boto3 = importlib.import_module("boto3")
@@ -149,7 +154,7 @@ class TestExernalStorage:
 
     async def _create_external_object_store(
         self, bucket_name: str, folder_name: str
-    ) -> Tuple[SynFolder, Dict[str, str]]:
+    ) -> Tuple[Folder, Dict[str, str]]:
         folder_id = (
             await Folder(name=folder_name, parent_id=self.project.id).store_async(
                 synapse_client=self.syn
@@ -176,14 +181,14 @@ class TestExernalStorage:
         )
 
         return (
-            await self.syn.get_async(entity=folder_id),
+            await Folder(id=folder_id).get_async(synapse_client=self.syn),
             destination,
             upload_destination["keyPrefixUUID"],
         )
 
     async def _configure_storage_location(
         self, sts_enabled: bool = False, external_object_store: bool = False
-    ) -> Tuple[Any, SynFolder, str, str]:
+    ) -> Tuple[Any, Folder, str, str]:
         folder_name = str(uuid.uuid4())
         s3_client = self._prepare_bucket_location(folder_name)
 
@@ -204,22 +209,26 @@ class TestExernalStorage:
                     storage_destination,
                 )
             else:
-                (
-                    folder,
-                    storage_location_setting,
-                    _,
-                ) = await self.syn.create_s3_storage_location_async(
-                    parent=self.project.id,
-                    folder_name=folder_name,
-                    bucket_name=bucket_name,
+                folder = await Folder(
+                    name=folder_name, parent_id=self.project.id
+                ).store_async(synapse_client=self.syn)
+
+                storage_location = await StorageLocation(
+                    storage_type=StorageLocationType.EXTERNAL_S3,
+                    bucket=bucket_name,
                     base_key=folder_name,
                     sts_enabled=sts_enabled,
+                ).store_async(synapse_client=self.syn)
+
+                await folder.set_storage_location_async(
+                    storage_location_id=storage_location.storage_location_id,
+                    synapse_client=self.syn,
                 )
 
                 return (
                     s3_client,
                     folder,
-                    storage_location_setting["storageLocationId"],
+                    storage_location.storage_location_id,
                     folder_name,
                 )
         except Exception as ex:

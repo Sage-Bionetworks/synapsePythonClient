@@ -14,10 +14,12 @@ import itertools
 import os
 import urllib.parse as urllib_parse
 
+from deprecated import deprecated
+
 from synapseclient.core import utils
 from synapseclient.core.exceptions import SynapseMalformedEntityError
 from synapseclient.core.models.dict_object import DictObject
-from synapseclient.core.utils import deprecated, id_of, itersubclasses
+from synapseclient.core.utils import id_of, itersubclasses
 
 
 class Versionable(object):
