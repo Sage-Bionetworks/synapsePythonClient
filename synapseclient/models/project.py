@@ -26,7 +26,6 @@ from synapseclient.models.services.storable_entity_components import (
     FailureStrategy,
     store_entity_components,
 )
-from synapseutils.copy_functions import copy
 
 if TYPE_CHECKING:
     from synapseclient.models import (
@@ -527,6 +526,10 @@ class Project(
         """
         if not self.id or not destination_id:
             raise ValueError("The project must have an ID and destination_id to copy.")
+
+        # Imported lazily to avoid a circular import: synapseclient.models ->
+        # project -> synapseutils -> monitor -> synapseclient.models.
+        from synapseutils.copy_functions import copy
 
         loop = asyncio.get_event_loop()
 
