@@ -4,8 +4,6 @@ import math
 import re
 import typing
 
-from deprecated import deprecated
-
 import synapseclient
 from synapseclient import (
     Activity,
@@ -327,13 +325,6 @@ def changeFileMetaData(
     return ent
 
 
-@deprecated(
-    version="4.14.0",
-    reason=(
-        "To be removed in 5.0.0. Use File.copy, Folder.copy, or Project.copy "
-        "from synapseclient.models instead."
-    ),
-)
 def copy(
     syn: synapseclient.Synapse,
     entity: str,
