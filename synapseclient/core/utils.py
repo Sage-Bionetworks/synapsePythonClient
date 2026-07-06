@@ -399,10 +399,19 @@ def guess_file_name(string):
 
 
 def normalize_path(path):
-    """Transforms a path into an absolute path with forward slashes only."""
+    """Transforms a path into an absolute path with forward slashes only.
+
+    Note: this intentionally does NOT use os.path.normcase(). On Windows
+    normcase() lowercases the entire path, which corrupted derived entity names
+    (SYNR-1534) and would rename downloaded files on disk. os.path.abspath()
+    already normalizes separators to the OS default; the re.sub then converts
+    them to forward slashes. Case-insensitive matching for the local file cache
+    is handled separately in core/cache.py so that this function can preserve
+    casing without breaking cache lookups on case-insensitive Windows volumes.
+    """
     if path is None:
         return None
-    return re.sub(r"\\", "/", os.path.normcase(os.path.abspath(path)))
+    return re.sub(r"\\", "/", os.path.abspath(path))
 
 
 def equal_paths(path1, path2):
