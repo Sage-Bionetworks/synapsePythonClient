@@ -1,4 +1,3 @@
-[](){ #submission-status-reference-sync }
 # Submission Status
 
 ## API Reference

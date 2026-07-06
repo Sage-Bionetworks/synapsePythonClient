@@ -1,4 +1,3 @@
-[](){ #submission-bundle-reference-sync }
 # Submission Bundle
 
 ## API Reference

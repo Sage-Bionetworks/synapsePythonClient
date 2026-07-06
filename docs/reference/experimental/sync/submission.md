@@ -1,4 +1,3 @@
-[](){ #submission-reference-sync }
 # Submission
 
 ## API Reference
