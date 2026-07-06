@@ -8851,7 +8851,10 @@ class Synapse(object):
                 return column
         return None
 
-    # TODO: Deprecate method in https://sagebionetworks.jira.com/browse/SYNPY-1632
+    @deprecated(
+        version="4.14.0",
+        reason="To be removed in 5.0.0. This function has no replacement.",
+    )
     def downloadTableColumns(self, table, columns, downloadLocation=None, **kwargs):
         """
         Bulk download of table-associated files.
