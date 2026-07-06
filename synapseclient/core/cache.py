@@ -77,6 +77,40 @@ def _get_modified_time(path):
     return None
 
 
+def _match_cache_map_key(
+    cache_map: dict, path: typing.Union[str, None]
+) -> typing.Union[str, None]:
+    """
+    Find the key in ``cache_map`` that corresponds to ``path``.
+
+    An exact (case-sensitive) match is always preferred, which keeps the cache
+    correct on case-sensitive filesystems -- including case-sensitive
+    directories on Windows/NTFS. When there is no exact match we fall back to a
+    case-insensitive (``os.path.normcase``) comparison. This lets cache entries
+    written by older clients -- which lowercased their keys via
+    ``os.path.normcase`` on Windows -- continue to be found, so preserving path
+    casing in ``utils.normalize_path`` does not force a re-download of already
+    cached files. On POSIX ``os.path.normcase`` is a no-op, so the fallback is
+    equivalent to the exact match and behavior is unchanged.
+
+    Arguments:
+        cache_map: The parsed ``.cacheMap`` contents (path -> entry).
+        path:      A path already run through ``utils.normalize_path``.
+
+    Returns:
+        The matching key from ``cache_map``, or ``None`` if there is no match.
+    """
+    if path is None:
+        return None
+    if path in cache_map:
+        return path
+    normalized_path = os.path.normcase(path)
+    for key in cache_map:
+        if os.path.normcase(key) == normalized_path:
+            return key
+    return None
+
+
 class Cache:
     """
     Represent a cache in which files are accessed by file handle ID.
@@ -228,7 +262,10 @@ class Cache:
 
             path = utils.normalize_path(path)
 
-            cached_time = self._get_cache_modified_time(cache_map.get(path, None))
+            matched_key = _match_cache_map_key(cache_map, path)
+            cached_time = self._get_cache_modified_time(
+                cache_map.get(matched_key, None)
+            )
 
             if cached_time:
                 return compare_timestamps(_get_modified_time(path), cached_time)
@@ -286,7 +323,12 @@ class Cache:
 
                     # iterate a copy of cache_map to allow modifying original cache_map
                     for cached_file_path, cache_map_entry in dict(cache_map).items():
-                        if path == os.path.dirname(cached_file_path):
+                        # Compare case-insensitively via os.path.normcase (a
+                        # no-op on POSIX) so directories cached by older clients
+                        # with lowercased keys on Windows are still matched.
+                        if os.path.normcase(path) == os.path.normcase(
+                            os.path.dirname(cached_file_path)
+                        ):
                             if self._cache_item_unmodified(
                                 cache_map_entry, cached_file_path
                             ):
@@ -311,7 +353,8 @@ class Cache:
 
                 # if we're given a full file path, look up a matching file in the cache
                 else:
-                    cache_map_entry = cache_map.get(path, None)
+                    matched_key = _match_cache_map_key(cache_map, path)
+                    cache_map_entry = cache_map.get(matched_key, None)
                     if cache_map_entry:
                         matching_file_path = (
                             path
@@ -357,6 +400,13 @@ class Cache:
             cache_map = self._read_cache_map(cache_dir)
 
             path = utils.normalize_path(path)
+            # Drop any pre-existing entry that refers to the same file under a
+            # different casing (e.g. a lowercased key written by an older client
+            # on Windows) so the cache map migrates to the case-preserving key
+            # instead of accumulating duplicates.
+            existing_key = _match_cache_map_key(cache_map, path)
+            if existing_key is not None and existing_key != path:
+                del cache_map[existing_key]
             # write .000 milliseconds for backward compatibility
             cache_map[path] = {
                 "modified_time": epoch_time_to_iso(
@@ -409,11 +459,12 @@ class Cache:
                 cache_map = {}
             else:
                 path = utils.normalize_path(path)
-                if path in cache_map:
-                    if delete is True and os.path.exists(path):
-                        os.remove(path)
-                    del cache_map[path]
-                    removed.append(path)
+                matched_key = _match_cache_map_key(cache_map, path)
+                if matched_key is not None:
+                    if delete is True and os.path.exists(matched_key):
+                        os.remove(matched_key)
+                    del cache_map[matched_key]
+                    removed.append(matched_key)
 
             self._write_cache_map(cache_dir, cache_map)
 

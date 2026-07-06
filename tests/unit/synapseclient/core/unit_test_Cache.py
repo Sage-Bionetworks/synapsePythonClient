@@ -230,6 +230,97 @@ def test_cache_store_get():
     assert my_cache.get(file_handle_id=101202) is None
 
 
+def test_match_cache_map_key():
+    """
+    SYNR-1534: _match_cache_map_key prefers an exact match, then falls back to a
+    case-insensitive (os.path.normcase) match so that cache entries written by
+    older clients -- which lowercased their keys on Windows -- are still found.
+    """
+    cache_map = {
+        "c:/users/me/data/file.csv": {"modified_time": "t"},
+        "c:/users/me/data/other.csv": {"modified_time": "t"},
+    }
+
+    # exact match
+    assert (
+        cache._match_cache_map_key(cache_map, "c:/users/me/data/file.csv")
+        == "c:/users/me/data/file.csv"
+    )
+    # no match / edge cases
+    assert cache._match_cache_map_key(cache_map, "c:/users/me/data/missing.csv") is None
+    assert cache._match_cache_map_key({}, "c:/x") is None
+    assert cache._match_cache_map_key(cache_map, None) is None
+
+    # case-insensitive fallback (simulate Windows os.path.normcase)
+    with patch("os.path.normcase", side_effect=str.lower):
+        assert (
+            cache._match_cache_map_key(cache_map, "C:/Users/Me/Data/File.csv")
+            == "c:/users/me/data/file.csv"
+        )
+        # an exact match is still preferred over a case-insensitive one
+        mixed = {"C:/Data/File.csv": 1, "c:/data/file.csv": 2}
+        assert (
+            cache._match_cache_map_key(mixed, "C:/Data/File.csv") == "C:/Data/File.csv"
+        )
+
+
+def test_get_matches_legacy_lowercased_key():
+    """
+    SYNR-1534: a cache map written by an older Windows client stored lowercased
+    keys. After preserving case in normalize_path, a mixed-case query must still
+    hit those legacy entries so users are not forced to re-download.
+    """
+    tmp_dir = tempfile.mkdtemp()
+    my_cache = cache.Cache(cache_root_dir=tmp_dir)
+    cache_dir = my_cache.get_cache_dir(101201)
+
+    path = utils.touch(os.path.join(cache_dir, "Mixed_Case.ext"))
+    my_cache.add(file_handle_id=101201, path=path)
+
+    normalized = utils.normalize_path(path)
+    legacy_key = normalized.lower()
+    assert legacy_key != normalized  # the file name has mixed case
+
+    # Rewrite the cache map the way an older Windows client would have: lowercased key
+    cache_map = my_cache._read_cache_map(cache_dir)
+    entry = cache_map.pop(normalized)
+    cache_map[legacy_key] = entry
+    my_cache._write_cache_map(cache_dir, cache_map)
+
+    with patch("os.path.normcase", side_effect=str.lower):
+        found = my_cache.get(file_handle_id=101201, path=path)
+    assert utils.equal_paths(found, path)
+
+
+def test_add_migrates_legacy_lowercased_key():
+    """
+    SYNR-1534: adding a case-preserving path when a legacy lowercased key already
+    exists for the same file should replace the old key rather than create a
+    duplicate cache map entry.
+    """
+    tmp_dir = tempfile.mkdtemp()
+    my_cache = cache.Cache(cache_root_dir=tmp_dir)
+    cache_dir = my_cache.get_cache_dir(101201)
+
+    path = utils.touch(os.path.join(cache_dir, "Mixed_Case.ext"))
+    normalized = utils.normalize_path(path)
+    legacy_key = normalized.lower()
+    assert legacy_key != normalized
+
+    # Pre-seed the cache map with a legacy lowercased entry
+    my_cache._write_cache_map(
+        cache_dir,
+        {legacy_key: {"modified_time": "2020-01-01T00:00:00.000Z", "content_md5": "x"}},
+    )
+
+    with patch("os.path.normcase", side_effect=str.lower):
+        cache_map = my_cache.add(file_handle_id=101201, path=path)
+
+    assert normalized in cache_map
+    assert legacy_key not in cache_map
+    assert len(cache_map) == 1
+
+
 def test_cache_modified_time():
     tmp_dir = tempfile.mkdtemp()
     my_cache = cache.Cache(cache_root_dir=tmp_dir)
