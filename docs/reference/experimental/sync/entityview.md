@@ -1,4 +1,3 @@
-[](){ #entityview-reference-sync }
 # EntityView
 
 ## API reference
