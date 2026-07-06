@@ -708,7 +708,7 @@ class TestFolder:
         # WHEN I call `copy` with the Folder object
         with (
             patch(
-                "synapseclient.models.folder.copy",
+                "synapseutils.copy",
                 return_value=(copy_mapping),
             ) as mocked_copy,
             patch(

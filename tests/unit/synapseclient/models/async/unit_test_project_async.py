@@ -606,7 +606,7 @@ class TestProject:
         # WHEN I call `copy` with the Project object
         with (
             patch(
-                "synapseclient.models.project.copy",
+                "synapseutils.copy_functions.copy",
                 return_value=(copy_mapping),
             ) as mocked_copy,
             patch(
