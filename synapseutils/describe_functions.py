@@ -79,7 +79,7 @@ def _describe_wrapper(df: DATA_FRAME_TYPE, syn: Synapse) -> dict[str, dict[str, 
     return stats
 
 
-def describe(syn: Synapse, entity: str) -> Optional[dict]:
+def describe(syn: Synapse, entity: str) -> dict[str, dict[str, Any]] | None:
     """
     Gets a synapse entity and returns summary statistics about it.
 
