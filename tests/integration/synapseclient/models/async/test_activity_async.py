@@ -8,9 +8,7 @@ import pytest
 
 import synapseclient.core.utils as utils
 from synapseclient import Synapse
-from synapseclient.models import Activity, File
-from synapseclient.models import Project as Synapse_Project
-from synapseclient.models import UsedEntity, UsedURL
+from synapseclient.models import Activity, File, Project, UsedEntity, UsedURL
 
 BOGUS_URL = "https://www.synapse.org/"
 
@@ -25,7 +23,7 @@ class TestActivity:
 
     async def create_file_with_activity(
         self,
-        project_model: Synapse_Project,
+        project_model: Project,
         activity: Activity = None,
         store_file: bool = True,
     ) -> File:
@@ -78,7 +76,7 @@ class TestActivity:
             assert activity.used == []
             assert activity.executed == []
 
-    async def test_activity_lifecycle(self, project_model: Synapse_Project) -> None:
+    async def test_activity_lifecycle(self, project_model: Project) -> None:
         """Test complete activity lifecycle - create, update, retrieve, and delete"""
         # GIVEN a file in a project
         file = await self.create_file_with_activity(project_model)
@@ -146,7 +144,7 @@ class TestActivity:
         assert activity_after_delete is None
 
     async def test_store_activity_with_no_references(
-        self, project_model: Synapse_Project
+        self, project_model: Project
     ) -> None:
         """Test storing an activity without references"""
         # GIVEN an activity with no references
@@ -170,7 +168,7 @@ class TestActivity:
         await file.activity.delete_async(parent=file, synapse_client=self.syn)
 
     async def test_store_activity_via_file_creation(
-        self, project_model: Synapse_Project
+        self, project_model: Project
     ) -> None:
         """Test storing an activity as part of file creation"""
         # GIVEN an activity with references
@@ -201,7 +199,7 @@ class TestActivity:
         # Clean up
         await file.activity.delete_async(parent=file, synapse_client=self.syn)
 
-    async def test_get_by_activity_id(self, project_model: Synapse_Project) -> None:
+    async def test_get_by_activity_id(self, project_model: Project) -> None:
         """Test retrieving an activity by its ID using async method"""
         # GIVEN a file with an activity
         activity = Activity(
@@ -235,7 +233,7 @@ class TestActivity:
         # Clean up
         await stored_activity.delete_async(parent=file, synapse_client=self.syn)
 
-    async def test_get_by_parent_id(self, project_model: Synapse_Project) -> None:
+    async def test_get_by_parent_id(self, project_model: Project) -> None:
         """Test retrieving an activity by parent entity ID using async method"""
         # GIVEN a file with an activity
         activity = Activity(
@@ -267,9 +265,7 @@ class TestActivity:
         # Clean up
         await stored_activity.delete_async(parent=file, synapse_client=self.syn)
 
-    async def test_get_by_parent_id_with_version(
-        self, project_model: Synapse_Project
-    ) -> None:
+    async def test_get_by_parent_id_with_version(self, project_model: Project) -> None:
         """Test retrieving an activity by parent entity ID with version number using async method"""
         # GIVEN a file with an activity
         activity = Activity(
@@ -318,7 +314,7 @@ class TestActivity:
         assert retrieved_activity is None
 
     async def test_get_activity_id_takes_precedence(
-        self, project_model: Synapse_Project
+        self, project_model: Project
     ) -> None:
         """Test that activity_id takes precedence over parent_id when both are provided using async method"""
         # GIVEN two files with different activities
@@ -363,7 +359,7 @@ class TestActivity:
             await Activity.get_async()
 
     async def test_store_activity_with_string_parent(
-        self, project_model: Synapse_Project
+        self, project_model: Project
     ) -> None:
         """Test storing an activity with a string parent ID"""
         # GIVEN a file in a project
@@ -399,9 +395,7 @@ class TestActivity:
         # Clean up
         await result.delete_async(parent=file.id, synapse_client=self.syn)
 
-    async def test_from_parent_with_string_parent(
-        self, project_model: Synapse_Project
-    ) -> None:
+    async def test_from_parent_with_string_parent(self, project_model: Project) -> None:
         """Test retrieving an activity using a string parent ID"""
         # GIVEN a file with an activity
         activity = Activity(
@@ -427,7 +421,7 @@ class TestActivity:
         await stored_activity.delete_async(parent=file, synapse_client=self.syn)
 
     async def test_from_parent_with_string_parent_and_version(
-        self, project_model: Synapse_Project
+        self, project_model: Project
     ) -> None:
         """Test retrieving an activity using a string parent ID with version"""
         # GIVEN a file with an activity
@@ -454,7 +448,7 @@ class TestActivity:
         await stored_activity.delete_async(parent=file, synapse_client=self.syn)
 
     async def test_from_parent_with_string_parent_with_embedded_version(
-        self, project_model: Synapse_Project
+        self, project_model: Project
     ) -> None:
         """Test retrieving an activity using a string parent ID with embedded version"""
         # GIVEN a file with an activity
@@ -479,9 +473,7 @@ class TestActivity:
         # Clean up
         await stored_activity.delete_async(parent=file, synapse_client=self.syn)
 
-    async def test_from_parent_version_precedence(
-        self, project_model: Synapse_Project
-    ) -> None:
+    async def test_from_parent_version_precedence(self, project_model: Project) -> None:
         """Test that embedded version takes precedence over parent_version_number parameter"""
         # GIVEN a file with an activity
         activity = Activity(
@@ -509,9 +501,7 @@ class TestActivity:
         # Clean up
         await stored_activity.delete_async(parent=file, synapse_client=self.syn)
 
-    async def test_delete_with_string_parent(
-        self, project_model: Synapse_Project
-    ) -> None:
+    async def test_delete_with_string_parent(self, project_model: Project) -> None:
         """Test deleting an activity using a string parent ID"""
         # GIVEN a file with an activity
         activity = Activity(
@@ -530,7 +520,7 @@ class TestActivity:
         assert activity_after_delete is None
 
     async def test_disassociate_with_string_parent(
-        self, project_model: Synapse_Project
+        self, project_model: Project
     ) -> None:
         """Test disassociating an activity using a string parent ID"""
         # GIVEN a file with an activity
