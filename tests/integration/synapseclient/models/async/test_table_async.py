@@ -15,7 +15,7 @@ from pytest_mock import MockerFixture
 
 import synapseclient.models.mixins.asynchronous_job as asynchronous_job_module
 import synapseclient.models.mixins.table_components as table_module
-from synapseclient import Evaluation, Synapse
+from synapseclient import Synapse
 from synapseclient.core import utils
 from synapseclient.core.constants import concrete_types
 from synapseclient.core.exceptions import SynapseHTTPError
@@ -24,6 +24,7 @@ from synapseclient.models import (
     Column,
     ColumnExpansionStrategy,
     ColumnType,
+    Evaluation,
     File,
     Project,
     SchemaStorageStrategy,
@@ -1548,10 +1549,10 @@ class TestUpsertRows:
         evaluation = Evaluation(
             name=name,
             description="Evaluation for testing",
-            contentSource=project_model.id,
+            content_source=project_model.id,
         )
-        # TODO: When Evaluation and Submission are implemented with Async methods update this test
-        evaluation = await self.syn.store_async(evaluation)
+        # TODO: When Submission is implemented with Async methods update this test
+        evaluation = await evaluation.store_async(synapse_client=self.syn)
         try:
             submission = await self.syn.submit_async(
                 evaluation, file.id, name="Submission 1", submitterAlias="My Team"
@@ -2084,7 +2085,7 @@ class TestUpsertRows:
 
         finally:
             # Clean up
-            self.syn.delete(evaluation)
+            await evaluation.delete_async(synapse_client=self.syn)
 
 
 class TestDeleteRows:
