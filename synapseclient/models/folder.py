@@ -231,7 +231,7 @@ class Folder(
         )
 
     def fill_from_dict(
-        self, synapse_folder: Dict, set_annotations: bool = True
+        self, synapse_folder: dict, set_annotations: bool = True
     ) -> "Folder":
         """
         Converts a response from the REST API into this dataclass.
