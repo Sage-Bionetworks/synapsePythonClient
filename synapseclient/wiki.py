@@ -71,8 +71,10 @@ choice for figures with data behind them.
 import json
 import os
 
+from deprecated import deprecated
+
 from synapseclient.core.models.dict_object import DictObject
-from synapseclient.core.utils import deprecated, id_of
+from synapseclient.core.utils import id_of
 
 
 @deprecated(
