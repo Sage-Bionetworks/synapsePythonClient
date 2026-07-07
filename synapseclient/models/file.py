@@ -609,7 +609,7 @@ class File(FileSynchronousProtocol, AccessControllable, BaseJSONSchema):
 
     def fill_from_dict(
         self,
-        synapse_file: Dict[str, Union[bool, str, int]],
+        synapse_file: dict[str, bool | str | int],
         set_annotations: bool = True,
     ) -> "File":
         """
