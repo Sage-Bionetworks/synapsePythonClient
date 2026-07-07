@@ -45,7 +45,7 @@ class UserGroupHeader:
     """User's current email address"""
 
     def fill_from_dict(
-        self, synapse_user_group_header: Dict[str, str]
+        self, synapse_user_group_header: dict[str, str]
     ) -> "UserGroupHeader":
         self.owner_id = synapse_user_group_header.get("ownerId", None)
         self.first_name = synapse_user_group_header.get("firstName", None)
