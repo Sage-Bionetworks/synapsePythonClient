@@ -884,10 +884,6 @@ class File(FileSynchronousProtocol, AccessControllable, BaseJSONSchema):
             self.path = client.cache.get(file_handle_id=self.data_file_handle_id)
 
         if self.has_changed:
-            # Only entity property keys are sent to the store API. The legacy File
-            # entity routed path/synapseStore to local state, contentType to the
-            # file handle, and contentSize to annotations, so none of those were
-            # ever part of the stored entity payload.
             synapse_file = {
                 "id": self.id,
                 "description": self.description,
