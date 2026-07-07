@@ -13,7 +13,6 @@ from synapseclient.extensions.curator.record_based_metadata_task import (
     project_id_from_entity_id,
 )
 from synapseclient.models import Folder, Project, SchemaOrganization
-from synapseclient.operations import delete
 
 
 def create_test_name():
@@ -168,7 +167,7 @@ class TestBindJsonSchema:
         finally:
             # Cleanup: unbind schema before deleting folder
             folder.unbind_schema(synapse_client=syn)
-            delete(folder.id, synapse_client=syn)
+            folder.delete(synapse_client=syn)
 
     def test_bind_jsonschema_with_derived_annotations(
         self,
@@ -206,7 +205,7 @@ class TestBindJsonSchema:
         finally:
             # Cleanup: unbind schema before deleting folder
             folder.unbind_schema(synapse_client=syn)
-            delete(folder.id, synapse_client=syn)
+            folder.delete(synapse_client=syn)
 
 
 class TestRegisterAndBindWorkflow:
@@ -263,7 +262,7 @@ class TestRegisterAndBindWorkflow:
         finally:
             # Cleanup: unbind schema before deleting folder
             folder.unbind_schema(synapse_client=syn)
-            delete(folder.id, synapse_client=syn)
+            folder.delete(synapse_client=syn)
 
 
 class TestProjectIDFromEntityID:
