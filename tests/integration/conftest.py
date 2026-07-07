@@ -20,7 +20,7 @@ from synapseclient import Synapse
 from synapseclient.core import utils
 from synapseclient.core.async_utils import wrap_async_to_sync
 from synapseclient.core.logging_setup import DEFAULT_LOGGER_NAME, SILENT_LOGGER_NAME
-from synapseclient.models import CurationTask, Grid
+from synapseclient.models import CurationTask, Evaluation, Grid
 from synapseclient.models import Project as Project_Model
 from synapseclient.models import (
     SubmissionView,
@@ -170,6 +170,7 @@ async def _cleanup(syn: Synapse, items):
             item,
             (
                 Team,
+                Evaluation,
                 SubmissionView,
                 WikiPage,
                 WikiHistorySnapshot,
