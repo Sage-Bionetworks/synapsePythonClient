@@ -5,7 +5,6 @@ from __future__ import annotations
 import importlib
 import os
 import uuid
-from typing import Callable
 
 import boto3
 import pytest
