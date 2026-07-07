@@ -4,7 +4,7 @@ from collections import defaultdict
 from typing import Optional
 
 from synapseclient import Synapse
-from synapseclient.core.exceptions import SynapseHTTPError, SynapseNotFoundError
+from synapseclient.core.exceptions import SynapseHTTPError
 from synapseclient.core.typing_utils import DataFrame as DATA_FRAME_TYPE
 from synapseclient.core.utils import test_import_pandas
 from synapseclient.operations import get
@@ -30,7 +30,7 @@ def _open_entity_as_df(syn: Synapse, entity: str) -> Optional[DATA_FRAME_TYPE]:
     try:
         entity = get(entity, synapse_client=syn)
         _, format = os.path.splitext(entity.path)
-    except (SynapseHTTPError, SynapseNotFoundError):
+    except SynapseHTTPError:
         syn.logger.exception(str(entity) + " is not a valid Synapse id")
         return dataset  # its value is None here
 
