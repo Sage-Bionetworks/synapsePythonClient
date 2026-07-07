@@ -154,7 +154,7 @@ class TestExernalStorage:
 
     async def _create_external_object_store(
         self, bucket_name: str, folder_name: str
-    ) -> Tuple[Folder, Dict[str, str]]:
+    ) -> Tuple[Folder, dict[str, str]]:
         folder_id = (
             await Folder(name=folder_name, parent_id=self.project.id).store_async(
                 synapse_client=self.syn
