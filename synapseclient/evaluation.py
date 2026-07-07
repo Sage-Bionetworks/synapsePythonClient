@@ -292,6 +292,27 @@ class SubmissionStatus(DictObject):
         submissionAnnotations: synapseclient.Annotations to store annotations of submission
         canCancel: Can this submission be cancelled?
         cancelRequested: Has user requested to cancel this submission?
+
+    Example: Migration to the object-oriented model
+        &nbsp;
+
+        ```python
+        # Old approach (DEPRECATED)
+        # status = syn.getSubmissionStatus("9700123")
+        # status.status = "SCORED"
+        # syn.store(status)
+
+        # New approach (RECOMMENDED)
+        from synapseclient import Synapse
+        from synapseclient.models import SubmissionStatus
+
+        syn = Synapse()
+        syn.login()
+
+        status = SubmissionStatus(id="9700123").get()
+        status.status = "SCORED"
+        status = status.store()
+        ```
     """
 
     @classmethod

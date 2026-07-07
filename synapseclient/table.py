@@ -352,6 +352,20 @@ def escape_column_name(column: Union[str, collections.abc.Mapping]) -> str:
 
     Returns:
         Escaped column name
+
+    Example: Migration to the new location
+        &nbsp;
+
+        This function moved to synapseclient.core.utils. Update the import; the
+        behavior is unchanged.
+
+        ```python
+        # Old approach (DEPRECATED)
+        # from synapseclient.table import escape_column_name
+
+        # New approach (RECOMMENDED)
+        from synapseclient.core.utils import escape_column_name
+        ```
     """
     col_name = (
         column["name"] if isinstance(column, collections.abc.Mapping) else str(column)
@@ -371,6 +385,20 @@ def join_column_names(columns: Union[List, Dict[str, str]]):
 
     Arguments:
         columns: A sequence of column string names or dictionary objets with column 'name' keys
+
+    Example: Migration to the new location
+        &nbsp;
+
+        This function moved to synapseclient.core.utils. Update the import; the
+        behavior is unchanged.
+
+        ```python
+        # Old approach (DEPRECATED)
+        # from synapseclient.table import join_column_names
+
+        # New approach (RECOMMENDED)
+        from synapseclient.core.utils import join_column_names
+        ```
     """
     return ",".join(escape_column_name(c) for c in columns)
 

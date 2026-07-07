@@ -92,6 +92,38 @@ def _executor(max_threads, shutdown_wait):
 class UploadAttempt:
     """
     Used to handle multi-threaded operations for uploading one or parts of a file.
+
+    Example: Migration to the async implementation
+        &nbsp;
+
+        ```python
+        # Old approach (DEPRECATED)
+        # attempt = UploadAttempt(
+        #     syn,
+        #     dest_file_name,
+        #     upload_request_payload,
+        #     part_request_body_provider_fn,
+        #     md5_fn,
+        #     max_threads,
+        #     force_restart,
+        # )
+        # result = attempt()
+
+        # New approach (RECOMMENDED)
+        from synapseclient.core.upload.multipart_upload_async import (
+            UploadAttemptAsync,
+        )
+
+        attempt = UploadAttemptAsync(
+            syn,
+            dest_file_name,
+            upload_request_payload,
+            part_request_body_provider_fn,
+            md5_fn,
+            force_restart,
+        )
+        result = await attempt()
+        ```
     """
 
     def __init__(
@@ -458,6 +490,20 @@ def multipart_upload_file(
     Keyword arguments are passed down to
     [_multipart_upload()][synapseclient.core.upload.multipart_upload._multipart_upload].
 
+    Example: Migration to the async implementation
+        &nbsp;
+
+        ```python
+        # Old approach (DEPRECATED)
+        # file_handle_id = multipart_upload_file(syn, "/path/to/file.txt")
+
+        # New approach (RECOMMENDED)
+        from synapseclient.core.upload.multipart_upload_async import (
+            multipart_upload_file_async,
+        )
+
+        file_handle_id = await multipart_upload_file_async(syn, "/path/to/file.txt")
+        ```
     """
     trace.get_current_span().set_attributes(
         {
@@ -566,6 +612,22 @@ def multipart_upload_string(
     Keyword arguments are passed down to
     [_multipart_upload()][synapseclient.core.upload.multipart_upload._multipart_upload].
 
+    Example: Migration to the async implementation
+        &nbsp;
+
+        ```python
+        # Old approach (DEPRECATED)
+        # file_handle_id = multipart_upload_string(syn, "some text to upload")
+
+        # New approach (RECOMMENDED)
+        from synapseclient.core.upload.multipart_upload_async import (
+            multipart_upload_string_async,
+        )
+
+        file_handle_id = await multipart_upload_string_async(
+            syn, "some text to upload"
+        )
+        ```
     """
     data = text.encode("utf-8")
     file_size = len(data)
@@ -651,6 +713,22 @@ def multipart_copy(
     Keyword arguments are passed down to
     [_multipart_upload()][synapseclient.core.upload.multipart_upload._multipart_upload].
 
+    Example: Migration to the async implementation
+        &nbsp;
+
+        ```python
+        # Old approach (DEPRECATED)
+        # file_handle_id = multipart_copy(syn, source_file_handle_association)
+
+        # New approach (RECOMMENDED)
+        from synapseclient.core.upload.multipart_upload_async import (
+            multipart_copy_async,
+        )
+
+        file_handle_id = await multipart_copy_async(
+            syn, source_file_handle_association
+        )
+        ```
     """
     part_size = part_size or DEFAULT_PART_SIZE
 

@@ -6018,6 +6018,37 @@ class Synapse(object):
 
         Returns:
             A 3-tuple of the synapse Folder, a the storage location setting, and the project setting dictionaries.
+
+        Example: Migration to the object-oriented model
+            &nbsp;
+
+            ```python
+            # Old approach (DEPRECATED)
+            # folder, storage_setting, project_setting = syn.create_s3_storage_location(
+            #     parent="syn123",
+            #     folder_name="my-external-storage",
+            #     bucket_name="my-bucket",
+            # )
+
+            # New approach (RECOMMENDED)
+            from synapseclient import Synapse
+            from synapseclient.models import Folder, StorageLocation, StorageLocationType
+
+            syn = Synapse()
+            syn.login()
+
+            # Create the storage location backed by your own S3 bucket
+            storage = StorageLocation(
+                storage_type=StorageLocationType.EXTERNAL_S3,
+                bucket="my-bucket",
+            ).store()
+
+            # Create a folder to hold the externally stored files
+            folder = Folder(name="my-external-storage", parent_id="syn123").store()
+
+            # Apply the storage location as the folder's upload destination
+            folder.set_storage_location(storage_location_id=storage.storage_location_id)
+            ```
         """
         return wrap_async_to_sync(
             self.create_s3_storage_location_async(
@@ -6120,6 +6151,23 @@ class Synapse(object):
             Creating an Evaluation instance
 
                 evaluation = syn.getEvaluation(2005090)
+
+        Example: Migration to the object-oriented model
+            &nbsp;
+
+            ```python
+            # Old approach (DEPRECATED)
+            # evaluation = syn.getEvaluation(2005090)
+
+            # New approach (RECOMMENDED)
+            from synapseclient import Synapse
+            from synapseclient.models import Evaluation
+
+            syn = Synapse()
+            syn.login()
+
+            evaluation = Evaluation(id="2005090").get()
+            ```
         """
 
         evaluation_id = id_of(id)
@@ -6141,6 +6189,23 @@ class Synapse(object):
 
         Returns:
             An [synapseclient.evaluation.Evaluation][] object
+
+        Example: Migration to the object-oriented model
+            &nbsp;
+
+            ```python
+            # Old approach (DEPRECATED)
+            # evaluation = syn.getEvaluationByName("My Evaluation")
+
+            # New approach (RECOMMENDED)
+            from synapseclient import Synapse
+            from synapseclient.models import Evaluation
+
+            syn = Synapse()
+            syn.login()
+
+            evaluation = Evaluation(name="My Evaluation").get()
+            ```
         """
         uri = Evaluation.getByNameURI(name)
         return Evaluation(**self.restGET(uri))
@@ -6159,6 +6224,23 @@ class Synapse(object):
 
         Yields:
             A generator over [synapseclient.evaluation.Evaluation][] objects for the given [synapseclient.entity.Project][].
+
+        Example: Migration to the object-oriented model
+            &nbsp;
+
+            ```python
+            # Old approach (DEPRECATED)
+            # evaluations = syn.getEvaluationByContentSource("syn123")
+
+            # New approach (RECOMMENDED)
+            from synapseclient import Synapse
+            from synapseclient.models import Evaluation
+
+            syn = Synapse()
+            syn.login()
+
+            evaluations = Evaluation.get_evaluations_by_project(project_id="syn123")
+            ```
         """
 
         entityId = id_of(entity)
@@ -6760,6 +6842,27 @@ class Synapse(object):
                 evaluation = syn.getEvaluation(123)
                 entity = syn.get('syn456')
                 submission = syn.submit(evaluation, entity, name='Our Final Answer', team='Blue Team')
+
+        Example: Migration to the object-oriented model
+            &nbsp;
+
+            ```python
+            # Old approach (DEPRECATED)
+            # submission = syn.submit(9614543, "syn456", name="Our Final Answer")
+
+            # New approach (RECOMMENDED)
+            from synapseclient import Synapse
+            from synapseclient.models import Submission
+
+            syn = Synapse()
+            syn.login()
+
+            submission = Submission(
+                evaluation_id="9614543",
+                entity_id="syn456",
+                name="Our Final Answer",
+            ).store()
+            ```
         """
         return wrap_async_to_sync(
             self.submit_async(
@@ -6819,6 +6922,27 @@ class Synapse(object):
                 evaluation = syn.getEvaluation(123)
                 entity = syn.get('syn456')
                 submission = syn.submit(evaluation, entity, name='Our Final Answer', team='Blue Team')
+
+        Example: Migration to the object-oriented model
+            &nbsp;
+
+            ```python
+            # Old approach (DEPRECATED)
+            # submission = await syn.submit_async(9614543, "syn456", name="Our Final Answer")
+
+            # New approach (RECOMMENDED)
+            from synapseclient import Synapse
+            from synapseclient.models import Submission
+
+            syn = Synapse()
+            syn.login()
+
+            submission = await Submission(
+                evaluation_id="9614543",
+                entity_id="syn456",
+                name="Our Final Answer",
+            ).store_async()
+            ```
         """
 
         require_param(evaluation, "evaluation")
@@ -7049,6 +7173,30 @@ class Synapse(object):
         See:
 
         - [synapseclient.evaluation][]
+
+        Example: Migration to the object-oriented model
+            &nbsp;
+
+            ```python
+            # Old approach (DEPRECATED)
+            # for submission in syn.getSubmissions(1234567):
+            #     print(submission)
+
+            # New approach (RECOMMENDED)
+            from synapseclient import Synapse
+            from synapseclient.models import Submission
+
+            syn = Synapse()
+            syn.login()
+
+            # All submissions for an evaluation
+            for submission in Submission.get_evaluation_submissions(evaluation_id="1234567"):
+                print(submission)
+
+            # Only your own submissions (equivalent to myOwn=True)
+            for submission in Submission.get_user_submissions(evaluation_id="1234567"):
+                print(submission)
+            ```
         """
 
         evaluation_id = id_of(evaluation)
@@ -7156,6 +7304,30 @@ class Synapse(object):
 
         See:
         - [synapseclient.evaluation][]
+
+        Example: Migration to the object-oriented model
+            &nbsp;
+
+            ```python
+            # Old approach (DEPRECATED)
+            # for submission, status in syn.getSubmissionBundles(1234567):
+            #     print(submission, status)
+
+            # New approach (RECOMMENDED)
+            from synapseclient import Synapse
+            from synapseclient.models import SubmissionBundle
+
+            syn = Synapse()
+            syn.login()
+
+            # All submission bundles for an evaluation
+            for bundle in SubmissionBundle.get_evaluation_submission_bundles(evaluation_id="1234567"):
+                print(bundle.submission, bundle.submission_status)
+
+            # Only your own submission bundles (equivalent to myOwn=True)
+            for bundle in SubmissionBundle.get_user_submission_bundles(evaluation_id="1234567"):
+                print(bundle.submission, bundle.submission_status)
+            ```
         """
         for bundle in self._getSubmissionBundles(
             evaluation, status=status, myOwn=myOwn, limit=limit, offset=offset
@@ -7236,6 +7408,23 @@ class Synapse(object):
 
         - [synapseclient.Synapse.get][] for information
              on the *downloadFile*, *downloadLocation*, and *ifcollision* parameters
+
+        Example: Migration to the object-oriented model
+            &nbsp;
+
+            ```python
+            # Old approach (DEPRECATED)
+            # submission = syn.getSubmission(9700123)
+
+            # New approach (RECOMMENDED)
+            from synapseclient import Synapse
+            from synapseclient.models import Submission
+
+            syn = Synapse()
+            syn.login()
+
+            submission = Submission(id="9700123").get()
+            ```
         """
         return wrap_async_to_sync(self.getSubmission_async(id=id, **kwargs))
 
@@ -7262,6 +7451,23 @@ class Synapse(object):
 
         - [synapseclient.Synapse.get][] for information
              on the *downloadFile*, *downloadLocation*, and *ifcollision* parameters
+
+        Example: Migration to the object-oriented model
+            &nbsp;
+
+            ```python
+            # Old approach (DEPRECATED)
+            # submission = await syn.getSubmission_async(9700123)
+
+            # New approach (RECOMMENDED)
+            from synapseclient import Synapse
+            from synapseclient.models import Submission
+
+            syn = Synapse()
+            syn.login()
+
+            submission = await Submission(id="9700123").get_async()
+            ```
         """
 
         submission_id = validate_submission_id(id)
@@ -7310,6 +7516,23 @@ class Synapse(object):
 
         Returns:
             A [synapseclient.evaluation.SubmissionStatus][] object
+
+        Example: Migration to the object-oriented model
+            &nbsp;
+
+            ```python
+            # Old approach (DEPRECATED)
+            # status = syn.getSubmissionStatus(9700123)
+
+            # New approach (RECOMMENDED)
+            from synapseclient import Synapse
+            from synapseclient.models import SubmissionStatus
+
+            syn = Synapse()
+            syn.login()
+
+            status = SubmissionStatus(id="9700123").get()
+            ```
         """
 
         submission_id = validate_submission_id(submission)
@@ -7338,6 +7561,23 @@ class Synapse(object):
 
         Returns:
             A [synapseclient.wiki.Wiki][] object
+
+        Example: Migration to the object-oriented model
+            &nbsp;
+
+            ```python
+            # Old approach (DEPRECATED)
+            # wiki = syn.getWiki("syn123", subpageId="456")
+
+            # New approach (RECOMMENDED)
+            from synapseclient import Synapse
+            from synapseclient.models import WikiPage
+
+            syn = Synapse()
+            syn.login()
+
+            wiki = WikiPage(owner_id="syn123", id="456").get()
+            ```
         """
         return wrap_async_to_sync(
             self.getWiki_async(owner, subpageId=subpageId, version=version)
@@ -7360,6 +7600,23 @@ class Synapse(object):
 
         Returns:
             A [synapseclient.wiki.Wiki][] object
+
+        Example: Migration to the object-oriented model
+            &nbsp;
+
+            ```python
+            # Old approach (DEPRECATED)
+            # wiki = await syn.getWiki_async("syn123", subpageId="456")
+
+            # New approach (RECOMMENDED)
+            from synapseclient import Synapse
+            from synapseclient.models import WikiPage
+
+            syn = Synapse()
+            syn.login()
+
+            wiki = await WikiPage(owner_id="syn123", id="456").get_async()
+            ```
         """
         uri = "/entity/{ownerId}/wiki2".format(ownerId=id_of(owner))
         if subpageId is not None:
@@ -7413,6 +7670,24 @@ class Synapse(object):
 
         Returns:
             A list of Objects with three fields: id, title and parentId.
+
+        Example: Migration to the object-oriented model
+            &nbsp;
+
+            ```python
+            # Old approach (DEPRECATED)
+            # headers = syn.getWikiHeaders("syn123")
+
+            # New approach (RECOMMENDED)
+            from synapseclient import Synapse
+            from synapseclient.models import WikiHeader
+
+            syn = Synapse()
+            syn.login()
+
+            for header in WikiHeader.get(owner_id="syn123"):
+                print(header)
+            ```
         """
 
         uri = "/entity/%s/wikiheadertree" % id_of(owner)
@@ -7508,6 +7783,23 @@ class Synapse(object):
 
         Returns:
             A list of file handles for the files attached to the Wiki.
+
+        Example: Migration to the object-oriented model
+            &nbsp;
+
+            ```python
+            # Old approach (DEPRECATED)
+            # attachments = syn.getWikiAttachments(wiki)
+
+            # New approach (RECOMMENDED)
+            from synapseclient import Synapse
+            from synapseclient.models import WikiPage
+
+            syn = Synapse()
+            syn.login()
+
+            attachments = WikiPage(owner_id="syn123", id="456").get_attachment_handles()
+            ```
         """
         uri = "/entity/%s/wiki/%s/attachmenthandles" % (wiki.ownerId, wiki.id)
         results = self.restGET(uri)

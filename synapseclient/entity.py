@@ -92,6 +92,29 @@ class Entity(collections.abc.MutableMapping):
         createdBy: The ID of the user that created this entity.
         modifiedOn: The date this entity was last modified.
         modifiedBy: The ID of the user that last modified this entity.
+
+    Example: Migration to the object-oriented model
+        &nbsp;
+
+        The legacy Entity class and its subclasses are created and persisted
+        through the Synapse client. The object-oriented models store and retrieve
+        themselves. Use the specific model for your entity type (Project, Folder,
+        File, Table, and so on) rather than the generic Entity base class.
+
+        ```python
+        # Old approach (DEPRECATED)
+        # entity = syn.get("syn123")
+
+        # New approach (RECOMMENDED)
+        from synapseclient import Synapse
+        from synapseclient.models import File
+
+        syn = Synapse()
+        syn.login()
+
+        file = File(id="syn123").get()
+        print(file.name)
+        ```
     """
 
     _synapse_entity_type = "org.sagebionetworks.repo.model.Entity"
@@ -481,6 +504,28 @@ class Project(Entity):
 
             project = Project('Foobarbat project')
             project = syn.store(project)
+
+    Example: Migration to the object-oriented model
+        &nbsp;
+
+        The legacy Project class is created and persisted through the Synapse
+        client. The object-oriented Project model stores itself.
+
+        ```python
+        # Old approach (DEPRECATED)
+        # from synapseclient import Project
+        # project = syn.store(Project(name="My Project"))
+
+        # New approach (RECOMMENDED)
+        from synapseclient import Synapse
+        from synapseclient.models import Project
+
+        syn = Synapse()
+        syn.login()
+
+        project = Project(name="My Project").store()
+        print(project.id)
+        ```
     """
 
     _synapse_entity_type = "org.sagebionetworks.repo.model.Project"
@@ -534,6 +579,28 @@ class Folder(Entity):
 
             folder = Folder(name='my data', parent=project)
             folder = syn.store(folder)
+
+    Example: Migration to the object-oriented model
+        &nbsp;
+
+        The legacy Folder class is created and persisted through the Synapse
+        client. The object-oriented Folder model stores itself.
+
+        ```python
+        # Old approach (DEPRECATED)
+        # from synapseclient import Folder
+        # folder = syn.store(Folder(name="data", parent="syn123"))
+
+        # New approach (RECOMMENDED)
+        from synapseclient import Synapse
+        from synapseclient.models import Folder
+
+        syn = Synapse()
+        syn.login()
+
+        folder = Folder(name="data", parent_id="syn123").store()
+        print(folder.id)
+        ```
     """
 
     _synapse_entity_type = "org.sagebionetworks.repo.model.Folder"
@@ -587,6 +654,28 @@ class Link(Entity):
 
             link = Link('targetID', parent=folder)
             link = syn.store(link)
+
+    Example: Migration to the object-oriented model
+        &nbsp;
+
+        The legacy Link class is created and persisted through the Synapse
+        client. The object-oriented Link model stores itself.
+
+        ```python
+        # Old approach (DEPRECATED)
+        # from synapseclient import Link
+        # link = syn.store(Link("syn123", parent="syn456"))
+
+        # New approach (RECOMMENDED)
+        from synapseclient import Synapse
+        from synapseclient.models import Link
+
+        syn = Synapse()
+        syn.login()
+
+        link = Link(target_id="syn123", parent_id="syn456").store()
+        print(link.id)
+        ```
     """
 
     _property_keys = Entity._property_keys + ["linksTo", "linksToClassName"]
@@ -687,6 +776,28 @@ class File(Entity, Versionable):
             # The Entity name is specified as 'my entity'
             data = File('/path/to/file/data.xyz', name="my entity", parent=folder)
             data = syn.store(data)
+
+    Example: Migration to the object-oriented model
+        &nbsp;
+
+        The legacy File class is created and persisted through the Synapse
+        client. The object-oriented File model stores itself.
+
+        ```python
+        # Old approach (DEPRECATED)
+        # from synapseclient import File
+        # file = syn.store(File("path/to/file.txt", parent="syn123"))
+
+        # New approach (RECOMMENDED)
+        from synapseclient import Synapse
+        from synapseclient.models import File
+
+        syn = Synapse()
+        syn.login()
+
+        file = File(path="path/to/file.txt", parent_id="syn123").store()
+        print(file.id)
+        ```
     """
 
     # Note: externalURL technically should not be in the keys since it's only a field/member variable of
@@ -877,6 +988,29 @@ class DockerRepository(Entity):
         properties: A map of Synapse properties
         annotations: A map of user defined annotations
         local_state: Internal use only
+
+    Example: Migration to the object-oriented model
+        &nbsp;
+
+        The legacy DockerRepository class is created and persisted through the
+        Synapse client. The object-oriented DockerRepository model stores itself.
+        The parent_id must be a Project ID.
+
+        ```python
+        # Old approach (DEPRECATED)
+        # from synapseclient import DockerRepository
+        # repo = syn.store(DockerRepository(repositoryName="org/img", parent="syn123"))
+
+        # New approach (RECOMMENDED)
+        from synapseclient import Synapse
+        from synapseclient.models import DockerRepository
+
+        syn = Synapse()
+        syn.login()
+
+        repo = DockerRepository(repository_name="org/img", parent_id="syn123").store()
+        print(repo.id)
+        ```
     """
 
     _synapse_entity_type = "org.sagebionetworks.repo.model.docker.DockerRepository"

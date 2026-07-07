@@ -75,6 +75,23 @@ def upload_file_handle(
 
     Returns:
         A dictionary of a new FileHandle as a dict that represents the uploaded file
+
+    Example: Migration to the async implementation
+        &nbsp;
+
+        ```python
+        # Old approach (DEPRECATED)
+        # file_handle = upload_file_handle(syn, parent_entity, "/path/to/file.txt")
+
+        # New approach (RECOMMENDED)
+        from synapseclient.core.upload.upload_functions_async import (
+            upload_file_handle,
+        )
+
+        file_handle = await upload_file_handle(
+            syn, parent_entity_id, "/path/to/file.txt"
+        )
+        ```
     """
     if path is None:
         raise ValueError("path can not be None")
@@ -235,6 +252,24 @@ def create_external_file_handle(
     md5: str = None,
     file_size: int = None,
 ) -> Dict[str, Union[str, int]]:
+    """Create a file handle in Synapse without uploading any files. This is used in
+    cases where one wishes to store a reference to a file that is not in Synapse.
+
+    Example: Migration to the async implementation
+        &nbsp;
+
+        ```python
+        # Old approach (DEPRECATED)
+        # file_handle = create_external_file_handle(syn, "/path/to/file.txt")
+
+        # New approach (RECOMMENDED)
+        from synapseclient.core.upload.upload_functions_async import (
+            create_external_file_handle,
+        )
+
+        file_handle = await create_external_file_handle(syn, "/path/to/file.txt")
+        ```
+    """
     is_local_file = False  # defaults to false
     url = as_url(os.path.expandvars(os.path.expanduser(path)))
     if is_url(url):
@@ -279,6 +314,27 @@ def upload_external_file_handle_sftp(
     mimetype: str = None,
     md5: str = None,
 ) -> Dict[str, Union[str, int]]:
+    """Upload a file to an SFTP server and create a file handle in Synapse.
+
+    Example: Migration to the async implementation
+        &nbsp;
+
+        ```python
+        # Old approach (DEPRECATED)
+        # file_handle = upload_external_file_handle_sftp(
+        #     syn, "/path/to/file.txt", "sftp://example.com/path"
+        # )
+
+        # New approach (RECOMMENDED)
+        from synapseclient.core.upload.upload_functions_async import (
+            upload_external_file_handle_sftp,
+        )
+
+        file_handle = await upload_external_file_handle_sftp(
+            syn, "/path/to/file.txt", "sftp://example.com/path"
+        )
+        ```
+    """
     username, password = syn._getUserCredentials(url=sftp_url)
     uploaded_url = SFTPWrapper.upload_file(
         file_path, urllib_parse.unquote(sftp_url), username, password
@@ -307,6 +363,23 @@ def upload_synapse_s3(
     max_threads: int = None,
     md5: str = None,
 ):
+    """Upload a file to Synapse storage and create a file handle in Synapse.
+
+    Example: Migration to the async implementation
+        &nbsp;
+
+        ```python
+        # Old approach (DEPRECATED)
+        # file_handle = upload_synapse_s3(syn, "/path/to/file.txt")
+
+        # New approach (RECOMMENDED)
+        from synapseclient.core.upload.upload_functions_async import (
+            upload_synapse_s3,
+        )
+
+        file_handle = await upload_synapse_s3(syn, "/path/to/file.txt")
+        ```
+    """
     file_handle_id = multipart_upload_file(
         syn=syn,
         file_path=file_path,
@@ -351,6 +424,25 @@ def upload_synapse_sts_boto_s3(
 
     Returns:
         _description_
+
+    Example: Migration to the async implementation
+        &nbsp;
+
+        ```python
+        # Old approach (DEPRECATED)
+        # file_handle = upload_synapse_sts_boto_s3(
+        #     syn, parent_id, upload_destination, "/path/to/file.txt"
+        # )
+
+        # New approach (RECOMMENDED)
+        from synapseclient.core.upload.upload_functions_async import (
+            upload_synapse_sts_boto_s3,
+        )
+
+        file_handle = await upload_synapse_sts_boto_s3(
+            syn, parent_id, upload_destination, "/path/to/file.txt"
+        )
+        ```
     """
     key_prefix = str(uuid.uuid4())
 
@@ -396,6 +488,37 @@ def upload_client_auth_s3(
     mimetype: str = None,
     md5: str = None,
 ) -> Dict[str, Union[str, int]]:
+    """Use the S3 client to upload a file to an S3 bucket.
+
+    Example: Migration to the async implementation
+        &nbsp;
+
+        ```python
+        # Old approach (DEPRECATED)
+        # file_handle = upload_client_auth_s3(
+        #     syn,
+        #     "/path/to/file.txt",
+        #     bucket,
+        #     endpoint_url,
+        #     key_prefix,
+        #     storage_location_id,
+        # )
+
+        # New approach (RECOMMENDED)
+        from synapseclient.core.upload.upload_functions_async import (
+            upload_client_auth_s3,
+        )
+
+        file_handle = await upload_client_auth_s3(
+            syn,
+            "/path/to/file.txt",
+            bucket,
+            endpoint_url,
+            key_prefix,
+            storage_location_id,
+        )
+        ```
+    """
     profile = get_client_authenticated_s3_profile(
         endpoint=endpoint_url, bucket=bucket, config_path=syn.configPath
     )

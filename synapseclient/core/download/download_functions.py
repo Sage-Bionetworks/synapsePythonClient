@@ -116,6 +116,41 @@ async def download_file_entity(
         synapse_client: If not passed in and caching was not disabled by
                 `Synapse.allow_client_caching(False)` this will use the last created
                 instance from the Synapse class constructor.
+
+    Example: Migration to the object-oriented model
+        &nbsp;
+
+        The user-facing way to download a file is now File.get(). Internally this
+        maps to download_file_entity_model, which takes a synapseclient.models.File
+        object instead of a legacy Entity.
+
+        ```python
+        # Old approach (DEPRECATED)
+        # await download_file_entity(
+        #     download_location="/tmp/data",
+        #     entity=entity,
+        #     if_collision="overwrite.local",
+        #     submission=None,
+        # )
+
+        # New approach (RECOMMENDED)
+        from synapseclient import Synapse
+        from synapseclient.models import File
+
+        syn = Synapse()
+        syn.login()
+
+        file = File(id="syn123", path="/tmp/data").get()
+
+        # Or, using the internal model function directly:
+        # from synapseclient.core.download import download_file_entity_model
+        # await download_file_entity_model(
+        #     download_location="/tmp/data",
+        #     file=File(id="syn123"),
+        #     if_collision="overwrite.local",
+        #     submission=None,
+        # )
+        ```
     """
     from synapseclient import Synapse
 

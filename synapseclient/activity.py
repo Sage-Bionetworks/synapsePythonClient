@@ -166,6 +166,30 @@ class Activity(dict):
         data: A dictionary representation of an Activity, with fields 'name', 'description' and 'used' (a list of reference objects)
 
     See also: The [W3C's provenance ontology](http://www.w3.org/TR/prov-o/)
+
+    Example: Migration to the object-oriented model
+        &nbsp;
+
+        ```python
+        # Old approach (DEPRECATED)
+        # from synapseclient import Activity
+        # act = Activity(name="clustering", used=["syn123"], executed=["syn456"])
+        # syn.setProvenance("syn789", act)
+
+        # New approach (RECOMMENDED)
+        from synapseclient import Synapse
+        from synapseclient.models import Activity, UsedEntity, File
+
+        syn = Synapse()
+        syn.login()
+
+        activity = Activity(
+            name="clustering",
+            used=[UsedEntity(target_id="syn123")],
+            executed=[UsedEntity(target_id="syn456")],
+        )
+        file = File(id="syn789", activity=activity).store()
+        ```
     """
 
     # TODO: make constructors from JSON consistent across objects
