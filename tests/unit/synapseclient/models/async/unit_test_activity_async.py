@@ -1,5 +1,6 @@
 """Unit tests for Activity."""
 
+from typing import Any
 from unittest.mock import AsyncMock, patch
 
 import pytest
@@ -28,10 +29,7 @@ class TestActivity:
     def init_syn(self, syn):
         self.syn = syn
 
-    def get_example_synapse_activity_output(self) -> dict:
-        # A REST API representation of an Activity. The used and executed resources
-        # are combined into a single "used" list, distinguished by the wasExecuted
-        # flag, which is how the Synapse REST API returns provenance.
+    def get_example_synapse_activity_output(self) -> dict[str, Any]:
         return {
             "id": SYN_123,
             "etag": ETAG,
