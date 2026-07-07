@@ -480,8 +480,7 @@ class Folder(
         if not self.id or not parent_id:
             raise ValueError("The folder must have an ID and parent_id to copy.")
 
-        # Imported lazily to avoid a circular import: synapseclient.models ->
-        # folder -> synapseutils -> monitor -> synapseclient.models.
+        # Imported lazily to avoid a circular import
         from synapseutils import copy
 
         loop = asyncio.get_event_loop()
