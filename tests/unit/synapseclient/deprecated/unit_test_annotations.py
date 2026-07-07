@@ -2,19 +2,24 @@
 ############################################################
 
 import datetime
+import decimal
 import time
 import uuid
 from datetime import datetime as Datetime
-from math import pi
+from math import nan, pi
 from unittest.mock import patch
 
+import numpy as np
+import pandas as pd
 import pytest
 
 import synapseclient.core.utils as utils
 from synapseclient import annotations
 from synapseclient.annotations import (
     Annotations,
+    _annotation_value_list_element_type,
     _convert_to_annotations_list,
+    _is_missing_annotation_value,
     check_annotations_changed,
     convert_old_annotation_json,
     from_submission_status_annotations,
@@ -69,6 +74,45 @@ def test_to_synapse_annotations__require_id_and_etag():
     pytest.raises(TypeError, to_synapse_annotations, a)
 
 
+@pytest.mark.parametrize(
+    "annotation_values,expected_type",
+    [
+        ([1, 2, 3], int),
+        (["a", "b"], str),
+        ([True, False], bool),
+        ([1.5, 2.5], float),
+        ([Datetime(1969, 4, 28), Datetime(1970, 1, 1)], datetime.datetime),
+        ([42], int),
+        # numpy.float64 subclasses float, so a float list stays homogeneous
+        ([1.5, np.float64(2.5)], float),
+        # bool subclasses int: int-first stays int, but bool-first turns
+        # heterogeneous because int is not an instance of bool
+        ([1, True], int),
+        ([True, 1], object),
+        # genuinely mixed types fall back to object (caller maps this to STRING)
+        ([1, "a"], object),
+        ([1.0, 1], object),
+    ],
+    ids=[
+        "ints",
+        "strings",
+        "booleans",
+        "floats",
+        "datetimes",
+        "single_element",
+        "numpy_float64_in_float_list",
+        "int_then_bool",
+        "bool_then_int",
+        "mixed_int_str",
+        "mixed_float_int",
+    ],
+)
+def test__annotation_value_list_element_type(annotation_values, expected_type):
+    """A homogeneous list returns its shared element type (subclasses count as
+    matches); a heterogeneous list returns object."""
+    assert _annotation_value_list_element_type(annotation_values) is expected_type
+
+
 def test__convert_to_annotations_list():
     """Test long, float and data annotations"""
     a = {
@@ -116,6 +160,123 @@ def test__convert_to_annotations_list():
         "species": {"value": ["Platypus"], "type": "STRING"},
         "birthdays": {"value": ["-21427200000"], "type": "TIMESTAMP_MS"},
         "test_boolean": {"value": ["true"], "type": "BOOLEAN"},
+    }
+    assert expected_annos == actual_annos
+
+
+@pytest.mark.parametrize(
+    "value",
+    [
+        None,
+        "",
+        float("nan"),
+        nan,
+        np.nan,
+        np.float64("nan"),
+        np.float32("nan"),
+        np.float16("nan"),
+        decimal.Decimal("nan"),
+        pd.NA,
+        pd.NaT,
+    ],
+    ids=[
+        "none",
+        "empty_string",
+        "float_nan",
+        "math_nan",
+        "numpy_nan",
+        "numpy_float64_nan",
+        "numpy_float32_nan",
+        "numpy_float16_nan",
+        "decimal_nan",
+        "pandas_na",
+        "pandas_nat",
+    ],
+)
+def test__is_missing_annotation_value__missing(value):
+    """None, empty string, NaN floats, and the pandas NA/NaT sentinels are missing."""
+    assert _is_missing_annotation_value(value) is True
+
+
+@pytest.mark.parametrize(
+    "value",
+    [
+        "value",
+        "None",
+        "nan",
+        0,
+        0.0,
+        1234,
+        1.5,
+        False,
+        True,
+        Datetime(1969, 4, 28),
+    ],
+    ids=[
+        "non_empty_string",
+        "none_string",
+        "nan_string",
+        "zero_int",
+        "zero_float",
+        "long",
+        "double",
+        "false",
+        "true",
+        "datetime",
+    ],
+)
+def test__is_missing_annotation_value__not_missing(value):
+    """Real scalar values, including falsy ones and the literal strings "None"/"nan",
+    are not missing. Non-scalar values (lists, dicts) are also not treated as missing
+    here; emptiness of lists is handled by the caller."""
+    assert _is_missing_annotation_value(value) is False
+
+
+def test__convert_to_annotations_list__missing_values_are_omitted():
+    """Scalar missing values (None, empty string, NaN floats, pandas.NA/NaT), empty
+    lists, and lists whose elements are all missing should be omitted entirely, leaving
+    no annotations."""
+    a = {
+        "primitive_none": None,
+        "primitive_empty_string": "",
+        "primitive_nan": np.nan,
+        "primitive_float_nan": float("nan"),
+        "primitive_pd_na": pd.NA,
+        "primitive_pd_nat": pd.NaT,
+        "list_of_none": [None, None],
+        "list_of_empty_string": ["", ""],
+        "list_of_nan": [np.nan, np.nan],
+        "list_of_float_nan": [float("nan"), float("nan")],
+        "list_of_pd_na": [pd.NA, pd.NA],
+        "empty_list": [],
+    }
+    actual_annos = _convert_to_annotations_list(a)
+
+    assert actual_annos == {}
+
+
+def test__convert_to_annotations_list__missing_values_stripped_from_mixed_lists():
+    """Missing elements should be stripped from mixed lists without skewing the inferred
+    type or raising, while the literal string "None" and real values are kept."""
+    a = {
+        "mixed_list": [None, "", "None", "value"],
+        "mixed_floats": [np.nan, 1.5, np.nan, 2.5],
+        "mixed_longs": [pd.NA, 1234, pd.NA, 5678],
+        "mixed_booleans": [True, None, False],
+        "none_string": "None",
+        "kept": "stays",
+    }
+    actual_annos = _convert_to_annotations_list(a)
+
+    expected_annos = {
+        # Missing elements are stripped from mixed lists while the inferred type of the
+        # remaining real values is preserved, and the literal string "None" survives.
+        "mixed_list": {"value": ["None", "value"], "type": "STRING"},
+        "mixed_floats": {"value": ["1.5", "2.5"], "type": "DOUBLE"},
+        "mixed_longs": {"value": ["1234", "5678"], "type": "LONG"},
+        "mixed_booleans": {"value": ["true", "false"], "type": "BOOLEAN"},
+        "none_string": {"value": ["None"], "type": "STRING"},
+        "kept": {"value": ["stays"], "type": "STRING"},
     }
     assert expected_annos == actual_annos
 
