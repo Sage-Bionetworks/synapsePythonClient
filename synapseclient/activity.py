@@ -64,7 +64,10 @@ from synapseclient.core.utils import (
 from synapseclient.entity import is_synapse_entity
 
 
-@deprecated(version="4.14.0", reason="To be removed in 5.0.0.")
+@deprecated(
+    version="4.14.0",
+    reason="To be removed in 5.0.0. This function will not be replaced.",
+)
 def is_used_entity(x) -> bool:
     """
     Returns:
@@ -92,7 +95,10 @@ def is_used_entity(x) -> bool:
     return True
 
 
-@deprecated(version="4.14.0", reason="To be removed in 5.0.0. ")
+@deprecated(
+    version="4.14.0",
+    reason="To be removed in 5.0.0. This function will not be replaced.",
+)
 def is_used_url(x) -> bool:
     """
     Returns:
