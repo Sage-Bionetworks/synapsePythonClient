@@ -1,5 +1,5 @@
 from dataclasses import dataclass, field
-from typing import Dict, List, Optional
+from typing import Any, List, Optional
 
 from synapseclient import Synapse
 from synapseclient.api import (
@@ -170,7 +170,7 @@ class UserProfile(UserProfileSynchronousProtocol):
     created_on: Optional[str] = None
     """The date this profile was created."""
 
-    def fill_from_dict(self, synapse_user_profile: Dict) -> "UserProfile":
+    def fill_from_dict(self, synapse_user_profile: dict[str, Any]) -> "UserProfile":
         """Fills the UserProfile object from a dictionary.
 
         Arguments:
