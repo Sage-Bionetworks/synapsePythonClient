@@ -188,7 +188,7 @@ class Team(TeamSynchronousProtocol):
     modified_by: Optional[str] = None
     """The ID of the user that last modified this team"""
 
-    def fill_from_dict(self, synapse_team: Dict[str, str]) -> "Team":
+    def fill_from_dict(self, synapse_team: dict[str, str]) -> "Team":
         """
         Converts a response from the REST API into this dataclass.
 
