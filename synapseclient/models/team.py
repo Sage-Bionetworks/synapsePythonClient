@@ -40,7 +40,7 @@ class TeamMember:
     is_admin: Optional[bool] = None
     """Whether the given member is an administrator of the team"""
 
-    def fill_from_dict(self, synapse_team_member: Dict[str, str]) -> "TeamMember":
+    def fill_from_dict(self, synapse_team_member: dict[str, str]) -> "TeamMember":
         self.team_id = (
             int(synapse_team_member.get("teamId", None))
             if synapse_team_member.get("teamId", None)
