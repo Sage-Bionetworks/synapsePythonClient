@@ -1,12 +1,13 @@
 import json
 import os
 from collections import defaultdict
-from typing import Optional
+from typing import Any, Optional
 
 from synapseclient import Synapse
 from synapseclient.core.exceptions import SynapseHTTPError
 from synapseclient.core.typing_utils import DataFrame as DATA_FRAME_TYPE
 from synapseclient.core.utils import test_import_pandas
+from synapseclient.models import File
 from synapseclient.operations import get
 
 
@@ -28,7 +29,7 @@ def _open_entity_as_df(syn: Synapse, entity: str) -> Optional[DATA_FRAME_TYPE]:
     dataset = None
 
     try:
-        entity = get(entity, synapse_client=syn)
+        entity: File = get(entity, synapse_client=syn)
         _, format = os.path.splitext(entity.path)
     except SynapseHTTPError:
         syn.logger.exception(str(entity) + " is not a valid Synapse id")
@@ -44,7 +45,7 @@ def _open_entity_as_df(syn: Synapse, entity: str) -> Optional[DATA_FRAME_TYPE]:
     return dataset
 
 
-def _describe_wrapper(df: DATA_FRAME_TYPE, syn: Synapse) -> dict:
+def _describe_wrapper(df: DATA_FRAME_TYPE, syn: Synapse) -> dict[str, dict[str, Any]]:
     """
     Returns the mode, min, max, mean, and dtype of each column in a dataframe
 
