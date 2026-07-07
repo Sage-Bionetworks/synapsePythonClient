@@ -15,6 +15,7 @@ from contextlib import contextmanager
 from typing import List, Mapping
 
 import requests
+from deprecated import deprecated
 from opentelemetry import trace
 from tqdm import tqdm
 
@@ -83,6 +84,11 @@ def _executor(max_threads, shutdown_wait):
             executor.shutdown(wait=shutdown_wait)
 
 
+@deprecated(
+    version="4.14.0",
+    reason="To be removed in 5.0.0. Use UploadAttemptAsync in "
+    "synapseclient.core.upload.multipart_upload_async instead.",
+)
 class UploadAttempt:
     """
     Used to handle multi-threaded operations for uploading one or parts of a file.
@@ -320,7 +326,6 @@ class UploadAttempt:
                 file_size,
             )
 
-            # TODO: needs to be replaced by 5.0.0
             self._syn._print_transfer_progress(
                 progress,
                 file_size,
@@ -351,7 +356,6 @@ class UploadAttempt:
 
                 if part_size and not self._is_copy():
                     progress += part_size
-                    # TODO: needs to be replaced by 5.0.0
                     self._syn._print_transfer_progress(
                         min(progress, file_size),
                         file_size,
@@ -414,6 +418,11 @@ class UploadAttempt:
         return upload_status_response
 
 
+@deprecated(
+    version="4.14.0",
+    reason="To be removed in 5.0.0. Use multipart_upload_file_async in "
+    "synapseclient.core.upload.multipart_upload_async instead.",
+)
 def multipart_upload_file(
     syn,
     file_path: str,
@@ -519,6 +528,11 @@ def multipart_upload_file(
     )
 
 
+@deprecated(
+    version="4.14.0",
+    reason="To be removed in 5.0.0. Use multipart_upload_string_async in "
+    "synapseclient.core.upload.multipart_upload_async instead.",
+)
 def multipart_upload_string(
     syn,
     text: str,
@@ -601,6 +615,11 @@ def multipart_upload_string(
     )
 
 
+@deprecated(
+    version="4.14.0",
+    reason="To be removed in 5.0.0. Use multipart_copy_async in "
+    "synapseclient.core.upload.multipart_upload_async instead.",
+)
 def multipart_copy(
     syn,
     source_file_handle_association,

@@ -7,6 +7,7 @@ import urllib.parse as urllib_parse
 import uuid
 from typing import TYPE_CHECKING, Dict, Union
 
+from deprecated import deprecated
 from opentelemetry import trace
 
 from synapseclient.api import get_client_authenticated_s3_profile
@@ -27,6 +28,12 @@ if TYPE_CHECKING:
     from synapseclient import Synapse
 
 
+@deprecated(
+    version="4.14.0",
+    reason="To be removed in 5.0.0. This synchronous upload implementation has been "
+    "replaced by the async implementation in "
+    "synapseclient.core.upload.upload_functions_async.",
+)
 def log_upload_message(syn: "Synapse", message: str) -> None:
     # if this upload is in the context of a larger, multi threaded sync upload as indicated by a cumulative progress
     # then we don't print the individual upload messages to the console since they wouldn't be properly interleaved.
@@ -34,6 +41,11 @@ def log_upload_message(syn: "Synapse", message: str) -> None:
         syn.logger.info(message)
 
 
+@deprecated(
+    version="4.14.0",
+    reason="To be removed in 5.0.0. Use upload_file_handle in "
+    "synapseclient.core.upload.upload_functions_async instead.",
+)
 def upload_file_handle(
     syn: "Synapse",
     parent_entity: Union[str, collections.abc.Mapping, numbers.Number],
@@ -211,6 +223,11 @@ def upload_file_handle(
         )
 
 
+@deprecated(
+    version="4.14.0",
+    reason="To be removed in 5.0.0. Use create_external_file_handle in "
+    "synapseclient.core.upload.upload_functions_async instead.",
+)
 def create_external_file_handle(
     syn: "Synapse",
     path: str,
@@ -250,6 +267,11 @@ def create_external_file_handle(
     return file_handle
 
 
+@deprecated(
+    version="4.14.0",
+    reason="To be removed in 5.0.0. Use upload_external_file_handle_sftp in "
+    "synapseclient.core.upload.upload_functions_async instead.",
+)
 def upload_external_file_handle_sftp(
     syn: "Synapse",
     file_path: str,
@@ -272,6 +294,11 @@ def upload_external_file_handle_sftp(
     return file_handle
 
 
+@deprecated(
+    version="4.14.0",
+    reason="To be removed in 5.0.0. Use upload_synapse_s3 in "
+    "synapseclient.core.upload.upload_functions_async instead.",
+)
 def upload_synapse_s3(
     syn: "Synapse",
     file_path: str,
@@ -293,6 +320,11 @@ def upload_synapse_s3(
     return syn._get_file_handle_as_creator(fileHandle=file_handle_id)
 
 
+@deprecated(
+    version="4.14.0",
+    reason="To be removed in 5.0.0. Use upload_synapse_sts_boto_s3 in "
+    "synapseclient.core.upload.upload_functions_async instead.",
+)
 def upload_synapse_sts_boto_s3(
     syn: "Synapse",
     parent_id: str,
@@ -349,6 +381,11 @@ def upload_synapse_sts_boto_s3(
     )
 
 
+@deprecated(
+    version="4.14.0",
+    reason="To be removed in 5.0.0. Use upload_client_auth_s3 in "
+    "synapseclient.core.upload.upload_functions_async instead.",
+)
 def upload_client_auth_s3(
     syn: "Synapse",
     file_path: str,
