@@ -20,12 +20,10 @@ from synapseclient.core.upload.multipart_upload import (
     multipart_upload_string,
 )
 from synapseclient.core.upload.multipart_upload_async import multipart_upload_file_async
-from synapseclient.models import Project as ProjectModel
+from synapseclient.models import Project
 
 
-async def test_round_trip(
-    syn: Synapse, project_model: ProjectModel, schedule_for_cleanup
-):
+async def test_round_trip(syn: Synapse, project_model: Project, schedule_for_cleanup):
     fhid = None
     filepath = utils.make_bogus_binary_file(MIN_PART_SIZE + 777771)
     try:
@@ -68,7 +66,7 @@ async def test_single_thread_upload(syn: Synapse):
 
 
 async def test_randomly_failing_parts(
-    syn: Synapse, project_model: ProjectModel, schedule_for_cleanup
+    syn: Synapse, project_model: Project, schedule_for_cleanup
 ) -> None:
     """Verify that we can recover gracefully with some randomly inserted errors
     while uploading parts."""
@@ -135,7 +133,7 @@ async def test_randomly_failing_parts(
 
 
 async def test_multipart_upload_big_string(
-    syn: Synapse, project_model: ProjectModel, schedule_for_cleanup
+    syn: Synapse, project_model: Project, schedule_for_cleanup
 ):
     cities = [
         "Seattle",
@@ -202,7 +200,7 @@ async def test_multipart_upload_big_string(
 
 
 def _multipart_copy_test(
-    syn: Synapse, project_model: ProjectModel, schedule_for_cleanup, part_size: int
+    syn: Synapse, project_model: Project, schedule_for_cleanup, part_size: int
 ):
     import logging
 
@@ -286,15 +284,13 @@ def _multipart_copy_test(
     assert file_content == dest_file_content
 
 
-def test_multipart_copy(
-    syn: Synapse, project_model: ProjectModel, schedule_for_cleanup
-):
+def test_multipart_copy(syn: Synapse, project_model: Project, schedule_for_cleanup):
     """Test multi part copy using the minimum part size."""
     _multipart_copy_test(syn, project_model, schedule_for_cleanup, MIN_PART_SIZE)
 
 
 @skip("Skip in normal testing because the large size makes it slow")
 def test_multipart_copy__big_parts(
-    syn: Synapse, project_model: ProjectModel, schedule_for_cleanup
+    syn: Synapse, project_model: Project, schedule_for_cleanup
 ):
     _multipart_copy_test(syn, project_model, schedule_for_cleanup, 100 * utils.MB)
