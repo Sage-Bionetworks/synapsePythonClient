@@ -2,7 +2,7 @@ import asyncio
 from copy import deepcopy
 from dataclasses import dataclass, field, replace
 from datetime import date, datetime
-from typing import TYPE_CHECKING, Dict, List, Optional, Union
+from typing import TYPE_CHECKING, Any, Dict, List, Optional, Union
 
 from opentelemetry import trace
 
@@ -261,7 +261,7 @@ class Project(
 
     def fill_from_dict(
         self,
-        synapse_project: Dict,
+        synapse_project: dict[str, Any],
         set_annotations: bool = True,
     ) -> "Project":
         """
@@ -527,8 +527,7 @@ class Project(
         if not self.id or not destination_id:
             raise ValueError("The project must have an ID and destination_id to copy.")
 
-        # Imported lazily to avoid a circular import: synapseclient.models ->
-        # project -> synapseutils -> monitor -> synapseclient.models.
+        # Imported lazily to avoid a circular import
         from synapseutils.copy_functions import copy
 
         loop = asyncio.get_event_loop()
