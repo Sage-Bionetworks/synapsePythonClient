@@ -21,6 +21,7 @@ from synapseclient.core.constants.concrete_types import (
 from synapseclient.core.utils import MB
 from synapseclient.models import Activity, Column
 from synapseclient.models.mixins.table_components import (
+    DEFAULT_QUERY_VALUE_COMPARISON_BUDGET,
     ColumnMixin,
     DeleteMixin,
     FailureStrategy,
@@ -35,9 +36,11 @@ from synapseclient.models.mixins.table_components import (
     ViewStoreMixin,
     ViewUpdateMixin,
     _construct_partial_rows_for_upsert,
+    _construct_select_statement_for_upsert,
     _query_table_csv,
     _query_table_next_page,
     _query_table_row_set,
+    _resolve_rows_per_query,
     convert_dtypes_to_json_serializable,
     csv_to_pandas_df,
 )
@@ -953,7 +956,7 @@ class TestTableUpsertMixin:
                 values={"col1": ["A", "B"]},
                 primary_keys=["col1"],
                 dry_run=False,
-                rows_per_query=50000,
+                rows_per_query=None,
                 update_size_bytes=1.9 * MB,
                 insert_size_bytes=900 * MB,
                 job_timeout=600,
@@ -1733,6 +1736,390 @@ class TestTableUpsertMixin:
         assert syn_id_and_etags["syn456"] == "etag1"
 
 
+class TestResolveRowsPerQuery:
+    """Test suite for _resolve_rows_per_query, which derives the query batch size
+    for an upsert when the caller does not supply one."""
+
+    def test_explicit_value_is_used_unchanged(self):
+        # GIVEN an explicit rows_per_query, even with composite primary keys
+        # WHEN it is resolved
+        # THEN it is returned unchanged (the caller's choice wins)
+        assert _resolve_rows_per_query(1000, ["a", "b", "c"]) == 1000
+
+    def test_explicit_zero_raises_value_error(self):
+        # GIVEN an explicit value of 0 (falsy but not None)
+        # WHEN it is resolved
+        # THEN a ValueError is raised, since 0 would produce a zero-step range()
+        # and crash the chunking loop in _upsert_rows_async
+        with pytest.raises(ValueError, match="must be a positive integer"):
+            _resolve_rows_per_query(0, ["a"])
+
+    def test_explicit_negative_raises_value_error(self):
+        # GIVEN an explicit negative value
+        # WHEN it is resolved
+        # THEN a ValueError is raised rather than silently misbehaving
+        with pytest.raises(ValueError, match="must be a positive integer"):
+            _resolve_rows_per_query(-5, ["a"])
+
+    def test_single_primary_key_uses_full_budget(self):
+        # GIVEN no explicit value and a single primary key
+        # WHEN it is resolved
+        # THEN the historical default (full budget) is preserved
+        assert (
+            _resolve_rows_per_query(None, ["a"])
+            == DEFAULT_QUERY_VALUE_COMPARISON_BUDGET
+        )
+
+    def test_composite_primary_keys_divide_the_budget(self):
+        # GIVEN no explicit value and composite primary keys
+        # WHEN it is resolved
+        # THEN the budget is divided by the number of key columns so the generated
+        # WHERE clause stays a similar size regardless of key count
+        assert (
+            _resolve_rows_per_query(None, ["a", "b"])
+            == DEFAULT_QUERY_VALUE_COMPARISON_BUDGET // 2
+        )
+        assert (
+            _resolve_rows_per_query(None, ["a", "b", "c"])
+            == DEFAULT_QUERY_VALUE_COMPARISON_BUDGET // 3
+        )
+
+    def test_empty_primary_keys_does_not_divide_by_zero(self):
+        # GIVEN no explicit value and (defensively) an empty primary key list
+        # WHEN it is resolved
+        # THEN it falls back to the full budget instead of raising ZeroDivisionError
+        assert (
+            _resolve_rows_per_query(None, []) == DEFAULT_QUERY_VALUE_COMPARISON_BUDGET
+        )
+
+
+class TestConstructSelectStatementForUpsert:
+    """Test suite for _construct_select_statement_for_upsert."""
+
+    class ClassForTest(TableUpsertMixin):
+        """A plain (non-etag) entity. Its class name is not in
+        CLASSES_THAT_CONTAIN_ROW_ETAG, so the SELECT starts with ``ROW_ID``."""
+
+        def __init__(self, id, columns):
+            self.id = id
+            self.columns = columns
+
+    def test_single_string_primary_key(self):
+        # GIVEN an entity with a single STRING primary key
+        entity = self.ClassForTest(
+            id="syn123",
+            columns={
+                "col1": Column(name="col1", column_type=ColumnType.STRING, id="id1"),
+                "col2": Column(name="col2", column_type=ColumnType.STRING, id="id2"),
+            },
+        )
+        df = pd.DataFrame({"col1": ["A"], "col2": ["B"]})
+
+        # WHEN I construct the select statement
+        statement = _construct_select_statement_for_upsert(
+            entity=entity,
+            df=df,
+            all_columns_from_df=['"col1"', '"col2"'],
+            primary_keys=["col1"],
+            wait_for_eventually_consistent_view=False,
+        )
+
+        # THEN the string value is quoted and only the primary key is filtered
+        assert (
+            statement
+            == 'SELECT ROW_ID, "col1", "col2" FROM syn123 WHERE "col1" IN (\'A\')'
+        )
+
+    def test_integer_primary_key_is_not_quoted(self):
+        # GIVEN an entity whose primary key is an INTEGER column
+        entity = self.ClassForTest(
+            id="syn123",
+            columns={
+                "col1": Column(name="col1", column_type=ColumnType.INTEGER, id="id1"),
+            },
+        )
+        df = pd.DataFrame({"col1": [1001]})
+
+        # WHEN I construct the select statement
+        statement = _construct_select_statement_for_upsert(
+            entity=entity,
+            df=df,
+            all_columns_from_df=['"col1"'],
+            primary_keys=["col1"],
+            wait_for_eventually_consistent_view=False,
+        )
+
+        # THEN the integer value is not quoted
+        assert statement == 'SELECT ROW_ID, "col1" FROM syn123 WHERE "col1" IN (1001)'
+
+    def test_composite_primary_keys_single_row_uses_tuple_matching(self):
+        # GIVEN an entity with two STRING primary keys
+        entity = self.ClassForTest(
+            id="syn76174997",
+            columns={
+                "view": Column(name="view", column_type=ColumnType.STRING, id="id1"),
+                "synID": Column(name="synID", column_type=ColumnType.STRING, id="id2"),
+            },
+        )
+        # AND a single-row DataFrame
+        df = pd.DataFrame({"view": ["syn64762437"], "synID": ["syn66312955"]})
+
+        # WHEN I construct the select statement
+        statement = _construct_select_statement_for_upsert(
+            entity=entity,
+            df=df,
+            all_columns_from_df=['"view"', '"synID"'],
+            primary_keys=["view", "synID"],
+            wait_for_eventually_consistent_view=False,
+        )
+
+        # THEN the two keys are matched together as an exact tuple (AND of
+        # equalities) rather than as independent IN clauses, so the query can only
+        # match the exact (view, synID) pair present in the input.
+        assert statement == (
+            'SELECT ROW_ID, "view", "synID" FROM syn76174997 WHERE '
+            "(\"view\" = 'syn64762437' AND \"synID\" = 'syn66312955')"
+        )
+
+    def test_composite_primary_keys_multiple_rows_use_or_of_ands(self):
+        # GIVEN an entity with two STRING primary keys
+        entity = self.ClassForTest(
+            id="syn123",
+            columns={
+                "view": Column(name="view", column_type=ColumnType.STRING, id="id1"),
+                "synID": Column(name="synID", column_type=ColumnType.STRING, id="id2"),
+            },
+        )
+        # AND a two-row DataFrame whose values would form a cross-product if
+        # filtered independently
+        df = pd.DataFrame({"view": ["V1", "V2"], "synID": ["S1", "S2"]})
+
+        # WHEN I construct the select statement
+        statement = _construct_select_statement_for_upsert(
+            entity=entity,
+            df=df,
+            all_columns_from_df=['"view"', '"synID"'],
+            primary_keys=["view", "synID"],
+            wait_for_eventually_consistent_view=False,
+        )
+
+        # THEN each input row becomes its own (view = ... AND synID = ...) clause,
+        # joined by OR, in input order. The spurious pairs (V1, S2) and (V2, S1)
+        # are NOT selectable.
+        assert statement == (
+            'SELECT ROW_ID, "view", "synID" FROM syn123 WHERE '
+            "(\"view\" = 'V1' AND \"synID\" = 'S1') OR "
+            "(\"view\" = 'V2' AND \"synID\" = 'S2')"
+        )
+
+    def test_none_values_are_excluded_from_in_clause(self):
+        # GIVEN a DataFrame where one primary key value is None
+        entity = self.ClassForTest(
+            id="syn123",
+            columns={
+                "col1": Column(name="col1", column_type=ColumnType.STRING, id="id1"),
+            },
+        )
+        df = pd.DataFrame({"col1": ["A", None]})
+
+        # WHEN I construct the select statement
+        statement = _construct_select_statement_for_upsert(
+            entity=entity,
+            df=df,
+            all_columns_from_df=['"col1"'],
+            primary_keys=["col1"],
+            wait_for_eventually_consistent_view=False,
+        )
+
+        # THEN only the non-None value appears in the IN clause
+        assert statement == 'SELECT ROW_ID, "col1" FROM syn123 WHERE "col1" IN (\'A\')'
+
+    def test_multiple_values_all_appear_in_in_clause(self):
+        # GIVEN a DataFrame with multiple distinct primary key values
+        entity = self.ClassForTest(
+            id="syn123",
+            columns={
+                "col1": Column(name="col1", column_type=ColumnType.STRING, id="id1"),
+            },
+        )
+        df = pd.DataFrame({"col1": ["A", "B", "A"]})
+
+        # WHEN I construct the select statement
+        statement = _construct_select_statement_for_upsert(
+            entity=entity,
+            df=df,
+            all_columns_from_df=['"col1"'],
+            primary_keys=["col1"],
+            wait_for_eventually_consistent_view=False,
+        )
+
+        # THEN both distinct values appear (order is non-deterministic because a
+        # set is used internally, so assert membership rather than exact string)
+        assert statement.startswith(
+            'SELECT ROW_ID, "col1" FROM syn123 WHERE "col1" IN ('
+        )
+        assert "'A'" in statement
+        assert "'B'" in statement
+
+    def test_json_primary_key_raises_value_error(self):
+        # GIVEN a primary key column of an unsupported type (JSON)
+        entity = self.ClassForTest(
+            id="syn123",
+            columns={
+                "col1": Column(name="col1", column_type=ColumnType.JSON, id="id1"),
+            },
+        )
+        df = pd.DataFrame({"col1": ["{}"]})
+
+        # WHEN/THEN constructing the select statement raises a ValueError
+        with pytest.raises(ValueError, match="is not supported for primary_keys"):
+            _construct_select_statement_for_upsert(
+                entity=entity,
+                df=df,
+                all_columns_from_df=['"col1"'],
+                primary_keys=["col1"],
+                wait_for_eventually_consistent_view=False,
+            )
+
+    def test_composite_primary_keys_match_exact_tuples_not_cross_product(self):
+        # GIVEN a table with two STRING primary keys
+        entity = self.ClassForTest(
+            id="syn123",
+            columns={
+                "view": Column(name="view", column_type=ColumnType.STRING, id="id1"),
+                "synID": Column(name="synID", column_type=ColumnType.STRING, id="id2"),
+            },
+        )
+        # AND a two-row input whose key values, if filtered independently, would
+        # also select the spurious pairs (V1, S2) and (V2, S1)
+        df = pd.DataFrame(
+            {
+                "view": ["V1", "V2"],
+                "synID": ["S1", "S2"],
+            }
+        )
+
+        # WHEN I construct the select statement
+        statement = _construct_select_statement_for_upsert(
+            entity=entity,
+            df=df,
+            all_columns_from_df=['"view"', '"synID"'],
+            primary_keys=["view", "synID"],
+            wait_for_eventually_consistent_view=False,
+        )
+
+        # THEN the two key columns must be constrained together so the query
+        # cannot return spurious combinations. Any correct tuple-based
+        # implementation avoids emitting two standalone single-column IN clauses.
+        # This is asserted in an implementation-agnostic way: the buggy
+        # cross-product form uses both `"view" IN (` and `"synID" IN (`.
+        uses_independent_in_clauses = (
+            '"view" IN (' in statement and '"synID" IN (' in statement
+        )
+        assert not uses_independent_in_clauses, (
+            "Composite primary keys should be matched as exact tuples, not as "
+            f"independent IN clauses. Got: {statement}"
+        )
+
+    def test_single_string_primary_key_with_embedded_quote_is_escaped(self):
+        # GIVEN a single STRING primary key whose value contains a single quote
+        entity = self.ClassForTest(
+            id="syn123",
+            columns={
+                "col1": Column(name="col1", column_type=ColumnType.STRING, id="id1"),
+            },
+        )
+        df = pd.DataFrame({"col1": ["O'Brien"]})
+
+        # WHEN I construct the select statement
+        statement = _construct_select_statement_for_upsert(
+            entity=entity,
+            df=df,
+            all_columns_from_df=['"col1"'],
+            primary_keys=["col1"],
+            wait_for_eventually_consistent_view=False,
+        )
+
+        # THEN the embedded quote is doubled so the literal stays well-formed and
+        # cannot break out of the string (no malformed / injectable WHERE clause)
+        assert statement == (
+            "SELECT ROW_ID, \"col1\" FROM syn123 WHERE \"col1\" IN ('O''Brien')"
+        )
+
+    def test_composite_primary_keys_with_embedded_quote_are_escaped(self):
+        # GIVEN composite STRING primary keys where a value contains a single quote
+        entity = self.ClassForTest(
+            id="syn123",
+            columns={
+                "view": Column(name="view", column_type=ColumnType.STRING, id="id1"),
+                "label": Column(name="label", column_type=ColumnType.STRING, id="id2"),
+            },
+        )
+        df = pd.DataFrame({"view": ["V1"], "label": ["O'Brien"]})
+
+        # WHEN I construct the select statement
+        statement = _construct_select_statement_for_upsert(
+            entity=entity,
+            df=df,
+            all_columns_from_df=['"view"', '"label"'],
+            primary_keys=["view", "label"],
+            wait_for_eventually_consistent_view=False,
+        )
+
+        # THEN the embedded quote is doubled inside the tuple-matching clause
+        assert statement == (
+            'SELECT ROW_ID, "view", "label" FROM syn123 WHERE '
+            "(\"view\" = 'V1' AND \"label\" = 'O''Brien')"
+        )
+
+    def test_single_primary_key_all_none_returns_none(self):
+        # GIVEN a single primary key where every value is None
+        entity = self.ClassForTest(
+            id="syn123",
+            columns={
+                "col1": Column(name="col1", column_type=ColumnType.STRING, id="id1"),
+            },
+        )
+        df = pd.DataFrame({"col1": [None, None]})
+
+        # WHEN I construct the select statement
+        statement = _construct_select_statement_for_upsert(
+            entity=entity,
+            df=df,
+            all_columns_from_df=['"col1"'],
+            primary_keys=["col1"],
+            wait_for_eventually_consistent_view=False,
+        )
+
+        # THEN None is returned rather than a statement ending in a bare "WHERE ",
+        # signalling the caller to skip the query and treat the rows as inserts
+        assert statement is None
+
+    def test_composite_primary_keys_all_missing_returns_none(self):
+        # GIVEN composite primary keys where every row is missing a key value
+        entity = self.ClassForTest(
+            id="syn123",
+            columns={
+                "view": Column(name="view", column_type=ColumnType.STRING, id="id1"),
+                "synID": Column(name="synID", column_type=ColumnType.STRING, id="id2"),
+            },
+        )
+        # AND each row is missing at least one primary key value
+        df = pd.DataFrame({"view": ["V1", None], "synID": [None, "S2"]})
+
+        # WHEN I construct the select statement
+        statement = _construct_select_statement_for_upsert(
+            entity=entity,
+            df=df,
+            all_columns_from_df=['"view"', '"synID"'],
+            primary_keys=["view", "synID"],
+            wait_for_eventually_consistent_view=False,
+        )
+
+        # THEN None is returned so the caller skips the query for this chunk
+        assert statement is None
+
+
 class TestQuery:
     """Test suite for the Query.to_synapse_request method."""
 
@@ -2021,7 +2408,7 @@ class TestViewUpdateMixin:
                 values={"col1": ["A", "B"]},
                 primary_keys=["col1"],
                 dry_run=False,
-                rows_per_query=50000,
+                rows_per_query=None,
                 update_size_bytes=1.9 * MB,
                 insert_size_bytes=900 * MB,
                 job_timeout=600,

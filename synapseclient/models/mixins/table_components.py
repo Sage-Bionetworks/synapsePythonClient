@@ -86,6 +86,16 @@ CLASSES_THAT_CONTAIN_ROW_ETAG = [
 ]
 CLASSES_WITH_READ_ONLY_SCHEMA = ["MaterializedView", "VirtualTable"]
 
+# When ``rows_per_query`` is not supplied to an upsert, the number of rows queried
+# from Synapse per request is derived from the number of primary key columns. A
+# single primary key is matched with a compact ``IN`` clause, but composite keys
+# must be matched as exact tuples (one ``"col" = value AND ...`` clause per row),
+# which repeats every key column, operator, and value on every row. Bounding the
+# total number of value comparisons per query keeps the generated WHERE clause a
+# similar size regardless of how many primary key columns are used. The value
+# matches the historical single-key default of 50,000 rows.
+DEFAULT_QUERY_VALUE_COMPARISON_BUDGET = 50000
+
 PANDAS_TABLE_TYPE = {
     "floating": "DOUBLE",
     "decimal": "DOUBLE",
@@ -1691,13 +1701,79 @@ class ColumnMixin:
     """Mixin class providing methods for upserting data into a `Table`-like entity."""
 
 
+def _format_primary_key_value_for_where(value: Any, column_type: ColumnType) -> str:
+    """
+    Format a single primary-key value as a SQL literal for use in the WHERE clause
+    of an upsert query.
+
+    Arguments:
+        value: The value to format.
+        column_type: The Synapse column type of the primary key column.
+
+    Returns:
+        The value formatted as a SQL literal (quoted for string-like and boolean
+        columns, unquoted otherwise). Single quotes embedded in string-like values
+        are escaped by doubling them so a value such as O'Brien produces a valid
+        SQL literal rather than a malformed (or injectable) WHERE clause.
+    """
+    if column_type in (
+        ColumnType.STRING,
+        ColumnType.MEDIUMTEXT,
+        ColumnType.LARGETEXT,
+        ColumnType.LINK,
+        ColumnType.ENTITYID,
+    ):
+        escaped_value = str(value).replace("'", "''")
+        return f"'{escaped_value}'"
+    elif column_type == ColumnType.BOOLEAN:
+        return "'true'" if value else "'false'"
+    else:
+        return str(value)
+
+
+def _resolve_rows_per_query(
+    rows_per_query: Optional[int], primary_keys: List[str]
+) -> int:
+    """
+    Determine how many rows to query from Synapse per request during an upsert.
+
+    When rows_per_query is provided by the caller it is used unchanged. When it is
+    None a value is derived from the number of primary key columns:
+
+    - A single primary key is matched with a compact IN clause, so the historical
+      default (DEFAULT_QUERY_VALUE_COMPARISON_BUDGET rows) is used.
+    - Composite primary keys are matched as exact tuples, so the per-row cost of
+      the WHERE clause scales with the number of key columns. Dividing the
+      comparison budget by the number of primary keys keeps the generated query a
+      similar size regardless of how many key columns are used, avoiding queries
+      that grow large enough for Synapse to reject.
+
+    Arguments:
+        rows_per_query: The caller-supplied value, or None to derive one.
+        primary_keys: The columns used to match already-existing rows.
+
+    Returns:
+        The number of rows to include in each query to Synapse.
+
+    Raises:
+        ValueError: If rows_per_query is supplied but is not a positive integer.
+    """
+    if rows_per_query is not None:
+        if rows_per_query < 1:
+            raise ValueError(
+                f"rows_per_query must be a positive integer, got {rows_per_query}"
+            )
+        return rows_per_query
+    return max(1, DEFAULT_QUERY_VALUE_COMPARISON_BUDGET // max(1, len(primary_keys)))
+
+
 def _construct_select_statement_for_upsert(
     entity: TableBase,
     df: DATA_FRAME_TYPE,
     all_columns_from_df: List[str],
     primary_keys: List[str],
     wait_for_eventually_consistent_view: bool,
-) -> str:
+) -> Optional[str]:
     """
     Create the select statement for a given DataFrame. This is used to select data
     from Synapse to determine if a row already exists in the table. This is used
@@ -1714,7 +1790,10 @@ def _construct_select_statement_for_upsert(
 
     Returns:
         The select statement that can be used to query Synapse to determine if a row
-        already exists in the
+        already exists in the table, or None when none of the rows have matchable
+        primary key values (e.g. every row is missing a primary key value). In that
+        case there is nothing to query for and every row should be treated as an
+        insert, so the caller should skip the query for this chunk.
     """
 
     if entity.__class__.__name__ in CLASSES_THAT_CONTAIN_ROW_ETAG:
@@ -1730,11 +1809,12 @@ def _construct_select_statement_for_upsert(
         select_statement = "SELECT ROW_ID, "
 
     select_statement += f"{', '.join(all_columns_from_df)} FROM {entity.id} WHERE "
-    where_statements = []
+
+    # Validate that every primary key column is a supported type.
     for upsert_column in primary_keys:
-        column_model = entity.columns[upsert_column]
+        column_type = entity.columns[upsert_column].column_type
         if (
-            column_model.column_type
+            column_type
             in (
                 ColumnType.STRING_LIST,
                 ColumnType.INTEGER_LIST,
@@ -1742,51 +1822,63 @@ def _construct_select_statement_for_upsert(
                 ColumnType.ENTITYID_LIST,
                 ColumnType.USERID_LIST,
             )
-            or column_model.column_type == ColumnType.JSON
+            or column_type == ColumnType.JSON
         ):
             raise ValueError(
-                f"Column type {column_model.column_type} is not supported for primary_keys"
-            )
-        elif column_model.column_type in (
-            ColumnType.STRING,
-            ColumnType.MEDIUMTEXT,
-            ColumnType.LARGETEXT,
-            ColumnType.LINK,
-            ColumnType.ENTITYID,
-        ):
-            values_for_where_statement = set(
-                [f"'{value}'" for value in df[upsert_column] if value is not None]
+                f"Column type {column_type} is not supported for primary_keys"
             )
 
-        elif column_model.column_type == ColumnType.BOOLEAN:
-            include_true = False
-            include_false = False
-            for value in df[upsert_column]:
-                if value is None:
-                    continue
-                if value:
-                    include_true = True
-                else:
-                    include_false = True
-                if include_true and include_false:
-                    break
-            if include_true and include_false:
-                values_for_where_statement = ["'true'", "'false'"]
-            elif include_true:
-                values_for_where_statement = ["'true'"]
-            elif include_false:
-                values_for_where_statement = ["'false'"]
-        else:
-            values_for_where_statement = set(
-                [str(value) for value in df[upsert_column] if value is not None]
+    if len(primary_keys) == 1:
+        # A single primary key can be matched with a simple IN clause. There is no
+        # cross-product risk with a single column.
+        upsert_column = primary_keys[0]
+        column_type = entity.columns[upsert_column].column_type
+        values_for_where_statement = set()
+        for value in df[upsert_column]:
+            if value is None:
+                continue
+            values_for_where_statement.add(
+                _format_primary_key_value_for_where(value, column_type)
             )
-        if not values_for_where_statement:
-            continue
-        where_statements.append(
+        where_statement = (
             f"\"{upsert_column}\" IN ({', '.join(values_for_where_statement)})"
+            if values_for_where_statement
+            else ""
         )
+    else:
+        # Composite primary keys must be matched as exact key tuples using
+        # OR-of-ANDs. Filtering each key column independently (e.g.
+        # "a" IN (...) AND "b" IN (...)) would match the cross-product of key
+        # values and could return rows whose exact key combination is not present
+        # in the input. e.g.
+        #   ("a" = 'x' AND "b" = 'y') OR ("a" = 'p' AND "b" = 'q')
+        row_clauses = []
+        seen_key_tuples = set()
+        for row in df[primary_keys].itertuples(index=False, name=None):
+            # A row missing any primary key value cannot match an existing row; it
+            # will be treated as an insert.
+            if any(value is None for value in row):
+                continue
+            if row in seen_key_tuples:
+                continue
+            seen_key_tuples.add(row)
+            conditions = []
+            for upsert_column, value in zip(primary_keys, row):
+                column_type = entity.columns[upsert_column].column_type
+                formatted_value = _format_primary_key_value_for_where(
+                    value, column_type
+                )
+                conditions.append(f'"{upsert_column}" = {formatted_value}')
+            row_clauses.append("(" + " AND ".join(conditions) + ")")
+        where_statement = " OR ".join(row_clauses)
 
-    where_statement = " AND ".join(where_statements)
+    # No rows in this chunk have matchable primary key values, so there is nothing
+    # to query for. Returning None (rather than a statement ending in a bare
+    # "WHERE ") signals the caller to skip the query and treat every row as an
+    # insert.
+    if not where_statement:
+        return None
+
     select_statement += where_statement
     return select_statement
 
@@ -2078,7 +2170,7 @@ async def _upsert_rows_async(
     primary_keys: List[str],
     dry_run: bool = False,
     *,
-    rows_per_query: int = 50000,
+    rows_per_query: Optional[int] = None,
     update_size_bytes: int = 1.9 * MB,
     insert_size_bytes: int = 900 * MB,
     job_timeout: int = 600,
@@ -2122,6 +2214,7 @@ async def _upsert_rows_async(
     client = Synapse.get_client(synapse_client=synapse_client)
     # Replace pd.NA with None so the columns are converted to object columns instead of 'int64' or 'float64' which are not JSON serializable
     values = convert_dtypes_to_json_serializable(values)
+    rows_per_query = _resolve_rows_per_query(rows_per_query, primary_keys)
     rows_to_update: List[PartialRow] = []
     chunk_list: List[DataFrame] = []
     for i in range(0, len(values), rows_per_query):
@@ -2148,6 +2241,13 @@ async def _upsert_rows_async(
                 primary_keys=primary_keys,
                 wait_for_eventually_consistent_view=wait_for_eventually_consistent_view,
             )
+
+            # No matchable primary key values in this chunk: nothing to query for,
+            # so every row falls through to the insert path below (its index is not
+            # added to the "changes"/"no changes" index lists).
+            if select_statement is None:
+                progress_bar.update(len(individual_chunk.index))
+                continue
 
             results = await entity.query_async(
                 query=select_statement, synapse_client=synapse_client
@@ -2242,7 +2342,7 @@ class TableUpsertMixin:
         primary_keys: List[str],
         dry_run: bool = False,
         *,
-        rows_per_query: int = 50000,
+        rows_per_query: Optional[int] = None,
         update_size_bytes: int = 1.9 * MB,
         insert_size_bytes: int = 900 * MB,
         job_timeout: int = 600,
@@ -2354,10 +2454,15 @@ class TableUpsertMixin:
                 set the log level to DEBUG by setting the debug flag when creating
                 your Synapse class instance like: `syn = Synapse(debug=True)`.
 
-            rows_per_query: The number of rows that will be queries from Synapse per
+            rows_per_query: The number of rows that will be queried from Synapse per
                 request. Since we need to query for the data that is being updated
                 this will determine the number of rows that are queried at a time.
-                The default is 50,000 rows.
+                When left as None (the default) the value is derived from the
+                number of primary keys: a single primary key uses 50,000 rows, and
+                composite primary keys use fewer rows (50,000 divided by the number
+                of primary key columns) to keep the generated query from growing
+                large enough for Synapse to reject. Pass an explicit integer to
+                override this behavior.
 
             update_size_bytes: The maximum size of the request that will be sent to Synapse
                 when updating rows of data. The default is 1.9MB.
@@ -2493,7 +2598,7 @@ class ViewUpdateMixin:
         primary_keys: List[str],
         dry_run: bool = False,
         *,
-        rows_per_query: int = 50000,
+        rows_per_query: Optional[int] = None,
         update_size_bytes: int = 1.9 * MB,
         insert_size_bytes: int = 900 * MB,
         job_timeout: int = 600,
@@ -2550,7 +2655,12 @@ class ViewUpdateMixin:
             rows_per_query: The number of rows that will be queried from Synapse per
                 request. Since we need to query for the data that is being updated
                 this will determine the number of rows that are queried at a time.
-                The default is 50,000 rows.
+                When left as None (the default) the value is derived from the
+                number of primary keys: a single primary key uses 50,000 rows, and
+                composite primary keys use fewer rows (50,000 divided by the number
+                of primary key columns) to keep the generated query from growing
+                large enough for Synapse to reject. Pass an explicit integer to
+                override this behavior.
 
             update_size_bytes: The maximum size of the request that will be sent to Synapse
                 when updating rows of data. The default is 1.9MB.
