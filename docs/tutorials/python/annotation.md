@@ -121,7 +121,6 @@ files in the synapse web UI. It should look similar to:
 
 ## References used in this tutorial
 
-- [File][file-reference-sync]
-- [Folder][folder-reference-sync]
-- [Project][project-reference-sync]
-- [syn.login][synapseclient.Synapse.login]
+- [File.store][synapseclient.models.File.store]
+- [Folder.get][synapseclient.models.Folder.get]
+- [Project.get][synapseclient.models.Project.get]
