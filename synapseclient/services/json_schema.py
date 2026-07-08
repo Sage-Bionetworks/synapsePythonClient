@@ -504,7 +504,7 @@ class JsonSchemaOrganization:
     reason="To be removed in 5.0.0. "
     "Use the OOP JSON Schema models instead, "
     "synapseclient.models.SchemaOrganization and "
-    "synapseclient.models.JSONSchema` ",
+    "synapseclient.models.JSONSchema.",
 )
 class JsonSchemaService:
     """Json Schema Service
