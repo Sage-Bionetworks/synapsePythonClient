@@ -1720,6 +1720,51 @@ def _format_primary_key_value_for_where(value: Any, column_type: ColumnType) -> 
         return str(value)
 
 
+def _construct_composite_key_where_statement(
+    entity: TableBase,
+    df: DATA_FRAME_TYPE,
+    primary_keys: list[str],
+) -> str:
+    """
+    Build the WHERE clause used to match rows on a composite (multi-column)
+    primary key.
+
+    Composite primary keys must be matched as exact key tuples using OR-of-ANDs.
+    Filtering each key column independently (e.g. "a" IN (...) AND "b" IN (...))
+    would match the cross-product of key values and could return rows whose exact
+    key combination is not present in the input. e.g.
+        ("a" = 'x' AND "b" = 'y') OR ("a" = 'p' AND "b" = 'q')
+
+    Arguments:
+        entity: The table entity whose column types are used to format values.
+        df: The DataFrame that contains the data to be upserted.
+        primary_keys: A list of the columns that are used to determine if a row
+            already exists in the table.
+
+    Returns:
+        The WHERE clause matching every unique, fully-populated primary key tuple
+        in the DataFrame, or an empty string when no row has a complete set of
+        primary key values.
+    """
+    row_clauses = []
+    seen_key_tuples = set()
+    for row in df[primary_keys].itertuples(index=False, name=None):
+        # A row missing any primary key value cannot match an existing row; it
+        # will be treated as an insert.
+        if any(value is None for value in row):
+            continue
+        if row in seen_key_tuples:
+            continue
+        seen_key_tuples.add(row)
+        conditions = []
+        for upsert_column, value in zip(primary_keys, row):
+            column_type = entity.columns[upsert_column].column_type
+            formatted_value = _format_primary_key_value_for_where(value, column_type)
+            conditions.append(f'"{upsert_column}" = {formatted_value}')
+        row_clauses.append("(" + " AND ".join(conditions) + ")")
+    return " OR ".join(row_clauses)
+
+
 def _construct_select_statement_for_upsert(
     entity: TableBase,
     df: DATA_FRAME_TYPE,
@@ -1799,31 +1844,9 @@ def _construct_select_statement_for_upsert(
             else ""
         )
     else:
-        # Composite primary keys must be matched as exact key tuples using
-        # OR-of-ANDs. Filtering each key column independently (e.g.
-        # "a" IN (...) AND "b" IN (...)) would match the cross-product of key
-        # values and could return rows whose exact key combination is not present
-        # in the input. e.g.
-        #   ("a" = 'x' AND "b" = 'y') OR ("a" = 'p' AND "b" = 'q')
-        row_clauses = []
-        seen_key_tuples = set()
-        for row in df[primary_keys].itertuples(index=False, name=None):
-            # A row missing any primary key value cannot match an existing row; it
-            # will be treated as an insert.
-            if any(value is None for value in row):
-                continue
-            if row in seen_key_tuples:
-                continue
-            seen_key_tuples.add(row)
-            conditions = []
-            for upsert_column, value in zip(primary_keys, row):
-                column_type = entity.columns[upsert_column].column_type
-                formatted_value = _format_primary_key_value_for_where(
-                    value, column_type
-                )
-                conditions.append(f'"{upsert_column}" = {formatted_value}')
-            row_clauses.append("(" + " AND ".join(conditions) + ")")
-        where_statement = " OR ".join(row_clauses)
+        where_statement = _construct_composite_key_where_statement(
+            entity, df, primary_keys
+        )
 
     # No rows in this chunk have matchable primary key values, so there is nothing
     # to query for. Returning None (rather than a statement ending in a bare

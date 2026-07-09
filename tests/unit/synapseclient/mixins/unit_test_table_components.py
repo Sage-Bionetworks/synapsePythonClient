@@ -34,6 +34,7 @@ from synapseclient.models.mixins.table_components import (
     ViewSnapshotMixin,
     ViewStoreMixin,
     ViewUpdateMixin,
+    _construct_composite_key_where_statement,
     _construct_partial_rows_for_upsert,
     _construct_select_statement_for_upsert,
     _format_primary_key_value_for_where,
@@ -2098,6 +2099,153 @@ class TestConstructSelectStatementForUpsert:
 
         # THEN None is returned so the caller skips the query for this chunk
         assert statement is None
+
+
+class TestConstructCompositeKeyWhereStatement:
+    """Test suite for _construct_composite_key_where_statement, which builds the
+    OR-of-ANDs WHERE clause used to match rows on a composite primary key."""
+
+    class ClassForTest(TableUpsertMixin):
+        """A minimal entity exposing only the attributes the helper reads."""
+
+        def __init__(self, id, columns):
+            self.id = id
+            self.columns = columns
+
+    @pytest.mark.parametrize(
+        "columns, data, primary_keys, expected",
+        [
+            pytest.param(
+                {
+                    "view": Column(
+                        name="view", column_type=ColumnType.STRING, id="id1"
+                    ),
+                    "synID": Column(
+                        name="synID", column_type=ColumnType.STRING, id="id2"
+                    ),
+                },
+                {"view": ["V1"], "synID": ["S1"]},
+                ["view", "synID"],
+                "(\"view\" = 'V1' AND \"synID\" = 'S1')",
+                id="single_row_string_keys",
+            ),
+            pytest.param(
+                {
+                    "view": Column(
+                        name="view", column_type=ColumnType.STRING, id="id1"
+                    ),
+                    "synID": Column(
+                        name="synID", column_type=ColumnType.STRING, id="id2"
+                    ),
+                },
+                {"view": ["V1", "V2"], "synID": ["S1", "S2"]},
+                ["view", "synID"],
+                (
+                    "(\"view\" = 'V1' AND \"synID\" = 'S1') OR "
+                    "(\"view\" = 'V2' AND \"synID\" = 'S2')"
+                ),
+                id="multiple_rows_use_or_of_ands",
+            ),
+            pytest.param(
+                {
+                    "view": Column(
+                        name="view", column_type=ColumnType.STRING, id="id1"
+                    ),
+                    "num": Column(name="num", column_type=ColumnType.INTEGER, id="id2"),
+                },
+                {"view": ["V1"], "num": [1001]},
+                ["view", "num"],
+                '("view" = \'V1\' AND "num" = 1001)',
+                id="integer_key_is_not_quoted",
+            ),
+            pytest.param(
+                {
+                    "view": Column(
+                        name="view", column_type=ColumnType.STRING, id="id1"
+                    ),
+                    "label": Column(
+                        name="label", column_type=ColumnType.STRING, id="id2"
+                    ),
+                },
+                {"view": ["V1"], "label": ["O'Brien"]},
+                ["view", "label"],
+                "(\"view\" = 'V1' AND \"label\" = 'O''Brien')",
+                id="embedded_quote_is_escaped",
+            ),
+        ],
+    )
+    def test_where_statement_construction(self, columns, data, primary_keys, expected):
+        # GIVEN an entity and a DataFrame of composite primary key values
+        entity = self.ClassForTest(id="syn123", columns=columns)
+        df = pd.DataFrame(data)
+
+        # WHEN I construct the composite-key WHERE statement
+        where_statement = _construct_composite_key_where_statement(
+            entity=entity, df=df, primary_keys=primary_keys
+        )
+
+        # THEN the keys are matched together as exact tuples
+        assert where_statement == expected
+
+    def test_duplicate_key_tuples_are_deduplicated(self):
+        # GIVEN a DataFrame with a repeated (view, synID) tuple
+        entity = self.ClassForTest(
+            id="syn123",
+            columns={
+                "view": Column(name="view", column_type=ColumnType.STRING, id="id1"),
+                "synID": Column(name="synID", column_type=ColumnType.STRING, id="id2"),
+            },
+        )
+        df = pd.DataFrame({"view": ["V1", "V1", "V2"], "synID": ["S1", "S1", "S2"]})
+
+        # WHEN I construct the composite-key WHERE statement
+        where_statement = _construct_composite_key_where_statement(
+            entity=entity, df=df, primary_keys=["view", "synID"]
+        )
+
+        # THEN the duplicated tuple appears only once, in first-seen order
+        assert where_statement == (
+            "(\"view\" = 'V1' AND \"synID\" = 'S1') OR "
+            "(\"view\" = 'V2' AND \"synID\" = 'S2')"
+        )
+
+    def test_rows_missing_any_key_value_are_skipped(self):
+        # GIVEN a DataFrame where some rows are missing a primary key value
+        entity = self.ClassForTest(
+            id="syn123",
+            columns={
+                "view": Column(name="view", column_type=ColumnType.STRING, id="id1"),
+                "synID": Column(name="synID", column_type=ColumnType.STRING, id="id2"),
+            },
+        )
+        df = pd.DataFrame({"view": ["V1", "V2", None], "synID": ["S1", None, "S3"]})
+
+        # WHEN I construct the composite-key WHERE statement
+        where_statement = _construct_composite_key_where_statement(
+            entity=entity, df=df, primary_keys=["view", "synID"]
+        )
+
+        # THEN only the fully-populated row contributes a clause
+        assert where_statement == "(\"view\" = 'V1' AND \"synID\" = 'S1')"
+
+    def test_all_rows_missing_key_value_returns_empty_string(self):
+        # GIVEN a DataFrame where every row is missing at least one key value
+        entity = self.ClassForTest(
+            id="syn123",
+            columns={
+                "view": Column(name="view", column_type=ColumnType.STRING, id="id1"),
+                "synID": Column(name="synID", column_type=ColumnType.STRING, id="id2"),
+            },
+        )
+        df = pd.DataFrame({"view": ["V1", None], "synID": [None, "S2"]})
+
+        # WHEN I construct the composite-key WHERE statement
+        where_statement = _construct_composite_key_where_statement(
+            entity=entity, df=df, primary_keys=["view", "synID"]
+        )
+
+        # THEN an empty string is returned, signalling nothing to query for
+        assert where_statement == ""
 
 
 class TestQuery:
