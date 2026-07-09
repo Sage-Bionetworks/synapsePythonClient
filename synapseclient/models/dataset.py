@@ -218,7 +218,7 @@ class DatasetSynchronousProtocol(Protocol):
         primary_keys: List[str],
         dry_run: bool = False,
         *,
-        rows_per_query: Optional[int] = None,
+        rows_per_query: int = 50000,
         update_size_bytes: int = 1.9 * MB,
         insert_size_bytes: int = 900 * MB,
         job_timeout: int = 600,
@@ -275,12 +275,7 @@ class DatasetSynchronousProtocol(Protocol):
             rows_per_query: The number of rows that will be queried from Synapse per
                 request. Since we need to query for the data that is being updated
                 this will determine the number of rows that are queried at a time.
-                When left as None (the default) the value is derived from the
-                number of primary keys: a single primary key uses 50,000 rows, and
-                composite primary keys use fewer rows (50,000 divided by the number
-                of primary key columns) to keep the generated query from growing
-                large enough for Synapse to reject. Pass an explicit integer to
-                override this behavior.
+                The default is 50,000 rows.
 
             update_size_bytes: The maximum size of the request that will be sent to Synapse
                 when updating rows of data. The default is 1.9MB.
@@ -1491,7 +1486,7 @@ class Dataset(
         primary_keys: List[str],
         dry_run: bool = False,
         *,
-        rows_per_query: Optional[int] = None,
+        rows_per_query: int = 50000,
         update_size_bytes: int = 1.9 * MB,
         insert_size_bytes: int = 900 * MB,
         job_timeout: int = 600,
@@ -1548,12 +1543,7 @@ class Dataset(
             rows_per_query: The number of rows that will be queried from Synapse per
                 request. Since we need to query for the data that is being updated
                 this will determine the number of rows that are queried at a time.
-                When left as None (the default) the value is derived from the
-                number of primary keys: a single primary key uses 50,000 rows, and
-                composite primary keys use fewer rows (50,000 divided by the number
-                of primary key columns) to keep the generated query from growing
-                large enough for Synapse to reject. Pass an explicit integer to
-                override this behavior.
+                The default is 50,000 rows.
 
             update_size_bytes: The maximum size of the request that will be sent to Synapse
                 when updating rows of data. The default is 1.9MB.
@@ -1843,7 +1833,7 @@ class DatasetCollectionSynchronousProtocol(Protocol):
         primary_keys: List[str],
         dry_run: bool = False,
         *,
-        rows_per_query: Optional[int] = None,
+        rows_per_query: int = 50000,
         update_size_bytes: int = 1.9 * MB,
         insert_size_bytes: int = 900 * MB,
         job_timeout: int = 600,
@@ -1900,12 +1890,7 @@ class DatasetCollectionSynchronousProtocol(Protocol):
             rows_per_query: The number of rows that will be queried from Synapse per
                 request. Since we need to query for the data that is being updated
                 this will determine the number of rows that are queried at a time.
-                When left as None (the default) the value is derived from the
-                number of primary keys: a single primary key uses 50,000 rows, and
-                composite primary keys use fewer rows (50,000 divided by the number
-                of primary key columns) to keep the generated query from growing
-                large enough for Synapse to reject. Pass an explicit integer to
-                override this behavior.
+                The default is 50,000 rows.
 
             update_size_bytes: The maximum size of the request that will be sent to Synapse
                 when updating rows of data. The default is 1.9MB.
@@ -2806,7 +2791,7 @@ class DatasetCollection(
         primary_keys: List[str],
         dry_run: bool = False,
         *,
-        rows_per_query: Optional[int] = None,
+        rows_per_query: int = 50000,
         update_size_bytes: int = 1.9 * MB,
         insert_size_bytes: int = 900 * MB,
         job_timeout: int = 600,
@@ -2863,12 +2848,7 @@ class DatasetCollection(
             rows_per_query: The number of rows that will be queried from Synapse per
                 request. Since we need to query for the data that is being updated
                 this will determine the number of rows that are queried at a time.
-                When left as None (the default) the value is derived from the
-                number of primary keys: a single primary key uses 50,000 rows, and
-                composite primary keys use fewer rows (50,000 divided by the number
-                of primary key columns) to keep the generated query from growing
-                large enough for Synapse to reject. Pass an explicit integer to
-                override this behavior.
+                The default is 50,000 rows.
 
             update_size_bytes: The maximum size of the request that will be sent to Synapse
                 when updating rows of data. The default is 1.9MB.

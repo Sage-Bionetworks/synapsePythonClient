@@ -86,11 +86,6 @@ CLASSES_THAT_CONTAIN_ROW_ETAG = [
 ]
 CLASSES_WITH_READ_ONLY_SCHEMA = ["MaterializedView", "VirtualTable"]
 
-# Caps the total value comparisons in an upsert's WHERE clause so query size stays
-# roughly constant regardless of the number of primary key columns. Matches the
-# historical single-key default of 50,000 rows.
-DEFAULT_QUERY_VALUE_COMPARISON_BUDGET = 50000
-
 PANDAS_TABLE_TYPE = {
     "floating": "DOUBLE",
     "decimal": "DOUBLE",
@@ -1725,44 +1720,6 @@ def _format_primary_key_value_for_where(value: Any, column_type: ColumnType) -> 
         return str(value)
 
 
-def _resolve_rows_per_query(rows_per_query: int | None, primary_keys: list[str]) -> int:
-    """
-    Determine how many rows to query from Synapse per request during an upsert.
-
-    When rows_per_query is provided by the caller it is used unchanged. When it is
-    None a value is derived from the number of primary key columns:
-
-    - A single primary key is matched with a compact IN clause, so the
-      default (DEFAULT_QUERY_VALUE_COMPARISON_BUDGET rows) is used.
-    - Composite primary keys are matched as exact tuples, so the per-row cost of
-      the WHERE clause scales with the number of key columns. Dividing the
-      comparison budget by the number of primary keys keeps the generated query a
-      similar size regardless of how many key columns are used, avoiding queries
-      that grow large enough for Synapse to reject.
-
-    Arguments:
-        rows_per_query: The caller-supplied value, or None to derive one.
-        primary_keys: The columns used to match already-existing rows. Must be
-            non-empty.
-
-    Returns:
-        The number of rows to include in each query to Synapse.
-
-    Raises:
-        ValueError: If primary_keys is empty, or if rows_per_query is supplied but
-            is not a positive integer.
-    """
-    if not primary_keys:
-        raise ValueError("There must be at least one primary key")
-    if rows_per_query is not None:
-        if rows_per_query < 1:
-            raise ValueError(
-                f"rows_per_query must be a positive integer, got {rows_per_query}"
-            )
-        return rows_per_query
-    return max(1, DEFAULT_QUERY_VALUE_COMPARISON_BUDGET // len(primary_keys))
-
-
 def _construct_select_statement_for_upsert(
     entity: TableBase,
     df: DATA_FRAME_TYPE,
@@ -2166,7 +2123,7 @@ async def _upsert_rows_async(
     primary_keys: List[str],
     dry_run: bool = False,
     *,
-    rows_per_query: Optional[int] = None,
+    rows_per_query: int = 50000,
     update_size_bytes: int = 1.9 * MB,
     insert_size_bytes: int = 900 * MB,
     job_timeout: int = 600,
@@ -2210,7 +2167,6 @@ async def _upsert_rows_async(
     client = Synapse.get_client(synapse_client=synapse_client)
     # Replace pd.NA with None so the columns are converted to object columns instead of 'int64' or 'float64' which are not JSON serializable
     values = convert_dtypes_to_json_serializable(values)
-    rows_per_query = _resolve_rows_per_query(rows_per_query, primary_keys)
     rows_to_update: List[PartialRow] = []
     chunk_list: List[DataFrame] = []
     for i in range(0, len(values), rows_per_query):
@@ -2338,7 +2294,7 @@ class TableUpsertMixin:
         primary_keys: List[str],
         dry_run: bool = False,
         *,
-        rows_per_query: Optional[int] = None,
+        rows_per_query: int = 50000,
         update_size_bytes: int = 1.9 * MB,
         insert_size_bytes: int = 900 * MB,
         job_timeout: int = 600,
@@ -2453,12 +2409,7 @@ class TableUpsertMixin:
             rows_per_query: The number of rows that will be queried from Synapse per
                 request. Since we need to query for the data that is being updated
                 this will determine the number of rows that are queried at a time.
-                When left as None (the default) the value is derived from the
-                number of primary keys: a single primary key uses 50,000 rows, and
-                composite primary keys use fewer rows (50,000 divided by the number
-                of primary key columns) to keep the generated query from growing
-                large enough for Synapse to reject. Pass an explicit integer to
-                override this behavior.
+                The default is 50,000 rows.
 
             update_size_bytes: The maximum size of the request that will be sent to Synapse
                 when updating rows of data. The default is 1.9MB.
@@ -2594,7 +2545,7 @@ class ViewUpdateMixin:
         primary_keys: List[str],
         dry_run: bool = False,
         *,
-        rows_per_query: Optional[int] = None,
+        rows_per_query: int = 50000,
         update_size_bytes: int = 1.9 * MB,
         insert_size_bytes: int = 900 * MB,
         job_timeout: int = 600,
@@ -2651,12 +2602,7 @@ class ViewUpdateMixin:
             rows_per_query: The number of rows that will be queried from Synapse per
                 request. Since we need to query for the data that is being updated
                 this will determine the number of rows that are queried at a time.
-                When left as None (the default) the value is derived from the
-                number of primary keys: a single primary key uses 50,000 rows, and
-                composite primary keys use fewer rows (50,000 divided by the number
-                of primary key columns) to keep the generated query from growing
-                large enough for Synapse to reject. Pass an explicit integer to
-                override this behavior.
+                The default is 50,000 rows.
 
             update_size_bytes: The maximum size of the request that will be sent to Synapse
                 when updating rows of data. The default is 1.9MB.

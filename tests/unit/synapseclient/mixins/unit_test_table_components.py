@@ -21,7 +21,6 @@ from synapseclient.core.constants.concrete_types import (
 from synapseclient.core.utils import MB
 from synapseclient.models import Activity, Column
 from synapseclient.models.mixins.table_components import (
-    DEFAULT_QUERY_VALUE_COMPARISON_BUDGET,
     ColumnMixin,
     DeleteMixin,
     FailureStrategy,
@@ -41,7 +40,6 @@ from synapseclient.models.mixins.table_components import (
     _query_table_csv,
     _query_table_next_page,
     _query_table_row_set,
-    _resolve_rows_per_query,
     convert_dtypes_to_json_serializable,
     csv_to_pandas_df,
 )
@@ -957,7 +955,7 @@ class TestTableUpsertMixin:
                 values={"col1": ["A", "B"]},
                 primary_keys=["col1"],
                 dry_run=False,
-                rows_per_query=None,
+                rows_per_query=50000,
                 update_size_bytes=1.9 * MB,
                 insert_size_bytes=900 * MB,
                 job_timeout=600,
@@ -1737,53 +1735,6 @@ class TestTableUpsertMixin:
         assert syn_id_and_etags["syn456"] == "etag1"
 
 
-class TestResolveRowsPerQuery:
-    """Test suite for _resolve_rows_per_query, which derives the query batch size
-    for an upsert when the caller does not supply one."""
-
-    def test_explicit_value_is_used_unchanged(self):
-        "When given an integer greater than 0, that value is returned"
-        assert _resolve_rows_per_query(1000, ["a", "b", "c"]) == 1000
-
-    @pytest.mark.parametrize(
-        "rows_per_query",
-        [0, -5],
-        ids=["zero", "negative"],
-    )
-    def test_invalid_explicit_value_raises_value_error(self, rows_per_query):
-        "When given an integer greater than or equal to 0, an exception is raised"
-        with pytest.raises(ValueError, match="must be a positive integer"):
-            _resolve_rows_per_query(rows_per_query, ["a"])
-
-    @pytest.mark.parametrize(
-        "primary_keys, expected_result",
-        [
-            (["a"], 50000),
-            (["a", "b"], 25000),
-            (["a", "b", "c"], 16666),
-        ],
-        ids=["single", "two", "three"],
-    )
-    def test_derived_value_divides_budget_by_key_count(
-        self, primary_keys, expected_result
-    ):
-        """
-        When no rows per query is given the number is calculated using the
-        default divided by the number of primary keys
-        """
-        assert _resolve_rows_per_query(None, primary_keys) == expected_result
-
-    @pytest.mark.parametrize(
-        "rows_per_query",
-        [None, 1000],
-        ids=["derived", "explicit"],
-    )
-    def test_empty_primary_keys_raises_value_error(self, rows_per_query):
-        "Supplying an empty list of primary keys results in an exception"
-        with pytest.raises(ValueError, match="at least one primary key"):
-            _resolve_rows_per_query(rows_per_query, [])
-
-
 class TestFormatPrimaryKeyValueForWhere:
     """Test suite for _format_primary_key_value_for_where, which renders a single
     primary-key value as a SQL literal for an upsert WHERE clause."""
@@ -2437,7 +2388,7 @@ class TestViewUpdateMixin:
                 values={"col1": ["A", "B"]},
                 primary_keys=["col1"],
                 dry_run=False,
-                rows_per_query=None,
+                rows_per_query=50000,
                 update_size_bytes=1.9 * MB,
                 insert_size_bytes=900 * MB,
                 job_timeout=600,
