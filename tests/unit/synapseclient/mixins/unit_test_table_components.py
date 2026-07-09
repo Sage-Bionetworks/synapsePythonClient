@@ -37,6 +37,7 @@ from synapseclient.models.mixins.table_components import (
     _construct_composite_key_where_statement,
     _construct_partial_rows_for_upsert,
     _construct_select_statement_for_upsert,
+    _construct_single_key_where_statement,
     _format_primary_key_value_for_where,
     _query_table_csv,
     _query_table_next_page,
@@ -2242,6 +2243,113 @@ class TestConstructCompositeKeyWhereStatement:
         # WHEN I construct the composite-key WHERE statement
         where_statement = _construct_composite_key_where_statement(
             entity=entity, df=df, primary_keys=["view", "synID"]
+        )
+
+        # THEN an empty string is returned, signalling nothing to query for
+        assert where_statement == ""
+
+
+class TestConstructSingleKeyWhereStatement:
+    """Test suite for _construct_single_key_where_statement, which builds the
+    IN-clause WHERE statement used to match rows on a single-column primary key."""
+
+    class ClassForTest(TableUpsertMixin):
+        """A minimal entity exposing only the attributes the helper reads."""
+
+        def __init__(self, id, columns):
+            self.id = id
+            self.columns = columns
+
+    @pytest.mark.parametrize(
+        "columns, data, primary_keys, expected",
+        [
+            pytest.param(
+                {"view": Column(name="view", column_type=ColumnType.STRING, id="id1")},
+                {"view": ["V1"]},
+                ["view"],
+                "\"view\" IN ('V1')",
+                id="single_string_key",
+            ),
+            pytest.param(
+                {"num": Column(name="num", column_type=ColumnType.INTEGER, id="id1")},
+                {"num": [1001]},
+                ["num"],
+                '"num" IN (1001)',
+                id="integer_key_is_not_quoted",
+            ),
+            pytest.param(
+                {
+                    "label": Column(
+                        name="label", column_type=ColumnType.STRING, id="id1"
+                    )
+                },
+                {"label": ["O'Brien"]},
+                ["label"],
+                "\"label\" IN ('O''Brien')",
+                id="embedded_quote_is_escaped",
+            ),
+            pytest.param(
+                {"view": Column(name="view", column_type=ColumnType.STRING, id="id1")},
+                {"view": ["V1", None, "V3"]},
+                ["view"],
+                None,  # order-independent; asserted separately below
+                id="none_values_are_excluded",
+            ),
+        ],
+    )
+    def test_where_statement_construction(self, columns, data, primary_keys, expected):
+        # GIVEN an entity and a DataFrame of single primary key values
+        entity = self.ClassForTest(id="syn123", columns=columns)
+        df = pd.DataFrame(data)
+
+        # WHEN I construct the single-key WHERE statement
+        where_statement = _construct_single_key_where_statement(
+            entity=entity, df=df, primary_keys=primary_keys
+        )
+
+        # THEN the values are matched with an IN clause
+        if expected is not None:
+            assert where_statement == expected
+        else:
+            # None values are excluded; remaining values appear (set order is
+            # non-deterministic, so compare membership)
+            assert where_statement.startswith('"view" IN (')
+            assert "'V1'" in where_statement
+            assert "'V3'" in where_statement
+            assert "None" not in where_statement
+
+    def test_duplicate_values_are_deduplicated(self):
+        # GIVEN a DataFrame with a repeated primary key value
+        entity = self.ClassForTest(
+            id="syn123",
+            columns={
+                "view": Column(name="view", column_type=ColumnType.STRING, id="id1")
+            },
+        )
+        df = pd.DataFrame({"view": ["V1", "V1", "V2"]})
+
+        # WHEN I construct the single-key WHERE statement
+        where_statement = _construct_single_key_where_statement(
+            entity=entity, df=df, primary_keys=["view"]
+        )
+
+        # THEN the duplicated value appears only once
+        assert where_statement.count("'V1'") == 1
+        assert where_statement.count("'V2'") == 1
+
+    def test_all_none_returns_empty_string(self):
+        # GIVEN a DataFrame where every primary key value is missing
+        entity = self.ClassForTest(
+            id="syn123",
+            columns={
+                "view": Column(name="view", column_type=ColumnType.STRING, id="id1")
+            },
+        )
+        df = pd.DataFrame({"view": [None, None]})
+
+        # WHEN I construct the single-key WHERE statement
+        where_statement = _construct_single_key_where_statement(
+            entity=entity, df=df, primary_keys=["view"]
         )
 
         # THEN an empty string is returned, signalling nothing to query for
