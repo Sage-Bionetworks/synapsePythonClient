@@ -1760,7 +1760,7 @@ def _resolve_rows_per_query(rows_per_query: int | None, primary_keys: list[str])
                 f"rows_per_query must be a positive integer, got {rows_per_query}"
             )
         return rows_per_query
-    return DEFAULT_QUERY_VALUE_COMPARISON_BUDGET // len(primary_keys)
+    return max(1, DEFAULT_QUERY_VALUE_COMPARISON_BUDGET // len(primary_keys))
 
 
 def _construct_select_statement_for_upsert(
