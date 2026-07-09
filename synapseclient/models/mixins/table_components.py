@@ -1708,8 +1708,7 @@ def _format_primary_key_value_for_where(value: Any, column_type: ColumnType) -> 
     Returns:
         The value formatted as a SQL literal (quoted for string-like and boolean
         columns, unquoted otherwise). Single quotes embedded in string-like values
-        are escaped by doubling them so a value such as O'Brien produces a valid
-        SQL literal rather than a malformed (or injectable) WHERE clause.
+        are escaped by doubling them.
     """
     if column_type in (
         ColumnType.STRING,
