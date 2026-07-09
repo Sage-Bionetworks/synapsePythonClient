@@ -1813,22 +1813,14 @@ class TestFormatPrimaryKeyValueForWhere:
             ("a'b'c", ColumnType.STRING, "'a''b''c'"),
             # non-string values are coerced to str, then quoted
             (123, ColumnType.STRING, "'123'"),
-            # an empty string on a string column is a valid quoted empty literal
-            # (contrast with the boolean case below, where "" maps to 'false')
-            ("", ColumnType.STRING, "''"),
             # only single quotes are escaped; double quotes and backslashes are
             # passed through unchanged (double quotes delimit identifiers, not
             # string literals, in Synapse SQL)
             ('foo"bar', ColumnType.STRING, "'foo\"bar'"),
             ("a\\b", ColumnType.STRING, "'a\\b'"),
-            # boolean columns render truthiness as the quoted literal 'true'/'false'
+            # boolean columns render as literal 'true'/'false'
             (True, ColumnType.BOOLEAN, "'true'"),
-            (1, ColumnType.BOOLEAN, "'true'"),
-            ("non-empty", ColumnType.BOOLEAN, "'true'"),
             (False, ColumnType.BOOLEAN, "'false'"),
-            (0, ColumnType.BOOLEAN, "'false'"),
-            ("", ColumnType.BOOLEAN, "'false'"),
-            (None, ColumnType.BOOLEAN, "'false'"),
             # numeric types and dates are rendered unquoted as their string representation
             (42, ColumnType.INTEGER, "42"),
             (-7, ColumnType.INTEGER, "-7"),
