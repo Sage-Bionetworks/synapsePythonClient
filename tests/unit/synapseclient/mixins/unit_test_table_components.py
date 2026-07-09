@@ -37,6 +37,7 @@ from synapseclient.models.mixins.table_components import (
     ViewUpdateMixin,
     _construct_partial_rows_for_upsert,
     _construct_select_statement_for_upsert,
+    _format_primary_key_value_for_where,
     _query_table_csv,
     _query_table_next_page,
     _query_table_row_set,
@@ -1791,6 +1792,52 @@ class TestResolveRowsPerQuery:
         assert (
             _resolve_rows_per_query(None, []) == DEFAULT_QUERY_VALUE_COMPARISON_BUDGET
         )
+
+
+class TestFormatPrimaryKeyValueForWhere:
+    """Test suite for _format_primary_key_value_for_where, which renders a single
+    primary-key value as a SQL literal for an upsert WHERE clause."""
+
+    @pytest.mark.parametrize(
+        "value, column_type, expected",
+        [
+            # string-like column types are wrapped in single quotes
+            ("abc", ColumnType.STRING, "'abc'"),
+            ("abc", ColumnType.MEDIUMTEXT, "'abc'"),
+            ("abc", ColumnType.LARGETEXT, "'abc'"),
+            ("abc", ColumnType.LINK, "'abc'"),
+            ("abc", ColumnType.ENTITYID, "'abc'"),
+            # embedded single quotes are escaped by doubling them (guards against
+            # SQL breakage/injection)
+            ("O'Brien", ColumnType.STRING, "'O''Brien'"),
+            ("a'b'c", ColumnType.STRING, "'a''b''c'"),
+            # non-string values are coerced to str, then quoted
+            (123, ColumnType.STRING, "'123'"),
+            # an empty string on a string column is a valid quoted empty literal
+            # (contrast with the boolean case below, where "" maps to 'false')
+            ("", ColumnType.STRING, "''"),
+            # only single quotes are escaped; double quotes and backslashes are
+            # passed through unchanged (double quotes delimit identifiers, not
+            # string literals, in Synapse SQL)
+            ('foo"bar', ColumnType.STRING, "'foo\"bar'"),
+            ("a\\b", ColumnType.STRING, "'a\\b'"),
+            # boolean columns render truthiness as the quoted literal 'true'/'false'
+            (True, ColumnType.BOOLEAN, "'true'"),
+            (1, ColumnType.BOOLEAN, "'true'"),
+            ("non-empty", ColumnType.BOOLEAN, "'true'"),
+            (False, ColumnType.BOOLEAN, "'false'"),
+            (0, ColumnType.BOOLEAN, "'false'"),
+            ("", ColumnType.BOOLEAN, "'false'"),
+            (None, ColumnType.BOOLEAN, "'false'"),
+            # numeric types and dates are rendered unquoted as their string representation
+            (42, ColumnType.INTEGER, "42"),
+            (-7, ColumnType.INTEGER, "-7"),
+            (3.14, ColumnType.DOUBLE, "3.14"),
+            (1700000000000, ColumnType.DATE, "1700000000000"),
+        ],
+    )
+    def test_format_primary_key_value_for_where(self, value, column_type, expected):
+        assert _format_primary_key_value_for_where(value, column_type) == expected
 
 
 class TestConstructSelectStatementForUpsert:
