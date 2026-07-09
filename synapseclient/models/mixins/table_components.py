@@ -86,14 +86,9 @@ CLASSES_THAT_CONTAIN_ROW_ETAG = [
 ]
 CLASSES_WITH_READ_ONLY_SCHEMA = ["MaterializedView", "VirtualTable"]
 
-# When ``rows_per_query`` is not supplied to an upsert, the number of rows queried
-# from Synapse per request is derived from the number of primary key columns. A
-# single primary key is matched with a compact ``IN`` clause, but composite keys
-# must be matched as exact tuples (one ``"col" = value AND ...`` clause per row),
-# which repeats every key column, operator, and value on every row. Bounding the
-# total number of value comparisons per query keeps the generated WHERE clause a
-# similar size regardless of how many primary key columns are used. The value
-# matches the historical single-key default of 50,000 rows.
+# Caps the total value comparisons in an upsert's WHERE clause so query size stays
+# roughly constant regardless of the number of primary key columns. Matches the
+# historical single-key default of 50,000 rows.
 DEFAULT_QUERY_VALUE_COMPARISON_BUDGET = 50000
 
 PANDAS_TABLE_TYPE = {
