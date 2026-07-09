@@ -1742,56 +1742,46 @@ class TestResolveRowsPerQuery:
     for an upsert when the caller does not supply one."""
 
     def test_explicit_value_is_used_unchanged(self):
-        # GIVEN an explicit rows_per_query, even with composite primary keys
-        # WHEN it is resolved
-        # THEN it is returned unchanged (the caller's choice wins)
+        "When given an integer greater than 0, that value is returned"
         assert _resolve_rows_per_query(1000, ["a", "b", "c"]) == 1000
 
-    def test_explicit_zero_raises_value_error(self):
-        # GIVEN an explicit value of 0 (falsy but not None)
-        # WHEN it is resolved
-        # THEN a ValueError is raised, since 0 would produce a zero-step range()
-        # and crash the chunking loop in _upsert_rows_async
+    @pytest.mark.parametrize(
+        "rows_per_query",
+        [0, -5],
+        ids=["zero", "negative"],
+    )
+    def test_invalid_explicit_value_raises_value_error(self, rows_per_query):
+        "When given an integer greater than or equal to 0, an exception is raised"
         with pytest.raises(ValueError, match="must be a positive integer"):
-            _resolve_rows_per_query(0, ["a"])
+            _resolve_rows_per_query(rows_per_query, ["a"])
 
-    def test_explicit_negative_raises_value_error(self):
-        # GIVEN an explicit negative value
-        # WHEN it is resolved
-        # THEN a ValueError is raised rather than silently misbehaving
-        with pytest.raises(ValueError, match="must be a positive integer"):
-            _resolve_rows_per_query(-5, ["a"])
+    @pytest.mark.parametrize(
+        "primary_keys, expected_result",
+        [
+            (["a"], 50000),
+            (["a", "b"], 25000),
+            (["a", "b", "c"], 16666),
+        ],
+        ids=["single", "two", "three"],
+    )
+    def test_derived_value_divides_budget_by_key_count(
+        self, primary_keys, expected_result
+    ):
+        """
+        When no rows per query is given the number is calculated using the
+        default divided by the number of primary keys
+        """
+        assert _resolve_rows_per_query(None, primary_keys) == expected_result
 
-    def test_single_primary_key_uses_full_budget(self):
-        # GIVEN no explicit value and a single primary key
-        # WHEN it is resolved
-        # THEN the historical default (full budget) is preserved
-        assert (
-            _resolve_rows_per_query(None, ["a"])
-            == DEFAULT_QUERY_VALUE_COMPARISON_BUDGET
-        )
-
-    def test_composite_primary_keys_divide_the_budget(self):
-        # GIVEN no explicit value and composite primary keys
-        # WHEN it is resolved
-        # THEN the budget is divided by the number of key columns so the generated
-        # WHERE clause stays a similar size regardless of key count
-        assert (
-            _resolve_rows_per_query(None, ["a", "b"])
-            == DEFAULT_QUERY_VALUE_COMPARISON_BUDGET // 2
-        )
-        assert (
-            _resolve_rows_per_query(None, ["a", "b", "c"])
-            == DEFAULT_QUERY_VALUE_COMPARISON_BUDGET // 3
-        )
-
-    def test_empty_primary_keys_does_not_divide_by_zero(self):
-        # GIVEN no explicit value and (defensively) an empty primary key list
-        # WHEN it is resolved
-        # THEN it falls back to the full budget instead of raising ZeroDivisionError
-        assert (
-            _resolve_rows_per_query(None, []) == DEFAULT_QUERY_VALUE_COMPARISON_BUDGET
-        )
+    @pytest.mark.parametrize(
+        "rows_per_query",
+        [None, 1000],
+        ids=["derived", "explicit"],
+    )
+    def test_empty_primary_keys_raises_value_error(self, rows_per_query):
+        "Supplying an empty list of primary keys results in an exception"
+        with pytest.raises(ValueError, match="at least one primary key"):
+            _resolve_rows_per_query(rows_per_query, [])
 
 
 class TestFormatPrimaryKeyValueForWhere:
