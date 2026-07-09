@@ -1725,16 +1725,14 @@ def _format_primary_key_value_for_where(value: Any, column_type: ColumnType) -> 
         return str(value)
 
 
-def _resolve_rows_per_query(
-    rows_per_query: Optional[int], primary_keys: List[str]
-) -> int:
+def _resolve_rows_per_query(rows_per_query: int | None, primary_keys: list[str]) -> int:
     """
     Determine how many rows to query from Synapse per request during an upsert.
 
     When rows_per_query is provided by the caller it is used unchanged. When it is
     None a value is derived from the number of primary key columns:
 
-    - A single primary key is matched with a compact IN clause, so the historical
+    - A single primary key is matched with a compact IN clause, so the
       default (DEFAULT_QUERY_VALUE_COMPARISON_BUDGET rows) is used.
     - Composite primary keys are matched as exact tuples, so the per-row cost of
       the WHERE clause scales with the number of key columns. Dividing the
@@ -1744,21 +1742,25 @@ def _resolve_rows_per_query(
 
     Arguments:
         rows_per_query: The caller-supplied value, or None to derive one.
-        primary_keys: The columns used to match already-existing rows.
+        primary_keys: The columns used to match already-existing rows. Must be
+            non-empty.
 
     Returns:
         The number of rows to include in each query to Synapse.
 
     Raises:
-        ValueError: If rows_per_query is supplied but is not a positive integer.
+        ValueError: If primary_keys is empty, or if rows_per_query is supplied but
+            is not a positive integer.
     """
+    if not primary_keys:
+        raise ValueError("There must be at least one primary key")
     if rows_per_query is not None:
         if rows_per_query < 1:
             raise ValueError(
                 f"rows_per_query must be a positive integer, got {rows_per_query}"
             )
         return rows_per_query
-    return max(1, DEFAULT_QUERY_VALUE_COMPARISON_BUDGET // max(1, len(primary_keys)))
+    return DEFAULT_QUERY_VALUE_COMPARISON_BUDGET // len(primary_keys)
 
 
 def _construct_select_statement_for_upsert(
