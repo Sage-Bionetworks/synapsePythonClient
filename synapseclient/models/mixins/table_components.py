@@ -1754,6 +1754,37 @@ def _construct_single_key_where_statement(
     return f"\"{primary_key}\" IN ({', '.join(sorted(values))})"
 
 
+def _construct_composite_key_conditions(
+    entity: TableBase,
+    primary_keys: list[str],
+    row: tuple,
+) -> list[str]:
+    """
+    Build the per-column conditions matching a single primary key tuple.
+
+    Arguments:
+        entity: The table entity whose column types are used to format values.
+        primary_keys: A list of the columns that are used to determine if a row
+            already exists in the table.
+        row: The primary key values for a single row, in the same order as
+            primary_keys.
+
+    Returns:
+        A list of SQL conditions, one per primary key column. Null components are
+        matched with IS NULL so that nullable primary key columns are handled
+        correctly.
+    """
+    conditions = []
+    for upsert_column, value in zip(primary_keys, row):
+        if value is None:
+            conditions.append(f'"{upsert_column}" IS NULL')
+            continue
+        column_type = entity.columns[upsert_column].column_type
+        formatted_value = _format_primary_key_value_for_where(value, column_type)
+        conditions.append(f'"{upsert_column}" = {formatted_value}')
+    return conditions
+
+
 def _construct_composite_key_where_statement(
     entity: TableBase,
     df: DATA_FRAME_TYPE,
@@ -1790,14 +1821,7 @@ def _construct_composite_key_where_statement(
         if row in primary_key_tuples:
             continue
         primary_key_tuples.add(row)
-        conditions = []
-        for upsert_column, value in zip(primary_keys, row):
-            if value is None:
-                conditions.append(f'"{upsert_column}" IS NULL')
-                continue
-            column_type = entity.columns[upsert_column].column_type
-            formatted_value = _format_primary_key_value_for_where(value, column_type)
-            conditions.append(f'"{upsert_column}" = {formatted_value}')
+        conditions = _construct_composite_key_conditions(entity, primary_keys, row)
         row_clauses.append("(" + " AND ".join(conditions) + ")")
     if not row_clauses:
         return None
