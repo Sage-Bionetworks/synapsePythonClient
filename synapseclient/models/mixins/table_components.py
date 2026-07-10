@@ -1845,11 +1845,10 @@ def _construct_select_statement_for_upsert(
 
     select_statement += f"{', '.join(all_columns_from_df)} FROM {entity.id} WHERE "
 
-    # Validate that every primary key column is a supported type.
     for upsert_column in primary_keys:
-        column_type = entity.columns[upsert_column].column_type
+        column_model = entity.columns[upsert_column]
         if (
-            column_type
+            column_model.column_type
             in (
                 ColumnType.STRING_LIST,
                 ColumnType.INTEGER_LIST,
@@ -1857,10 +1856,10 @@ def _construct_select_statement_for_upsert(
                 ColumnType.ENTITYID_LIST,
                 ColumnType.USERID_LIST,
             )
-            or column_type == ColumnType.JSON
+            or column_model.column_type == ColumnType.JSON
         ):
             raise ValueError(
-                f"Column type {column_type} is not supported for primary_keys"
+                f"Column type {column_model.column_type} is not supported for primary_keys"
             )
 
     if len(primary_keys) == 1:
