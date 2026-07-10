@@ -1871,10 +1871,7 @@ def _construct_select_statement_for_upsert(
             entity, df, primary_keys
         )
 
-    # No rows in this chunk have matchable primary key values, so there is nothing
-    # to query for. Returning None (rather than a statement ending in a bare
-    # "WHERE ") signals the caller to skip the query and treat every row as an
-    # insert.
+    # No rows in this chunk have matchable primary key values, so there is nothing to query for.
     if not where_statement:
         return None
 
