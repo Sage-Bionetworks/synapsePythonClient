@@ -1758,7 +1758,7 @@ def _construct_composite_key_where_statement(
     entity: TableBase,
     df: DATA_FRAME_TYPE,
     primary_keys: list[str],
-) -> str:
+) -> str | None:
     """
     Build the WHERE clause used to match rows on a composite (multi-column)
     primary key.
@@ -1776,26 +1776,31 @@ def _construct_composite_key_where_statement(
             already exists in the table.
 
     Returns:
-        The WHERE clause matching every unique, fully-populated primary key tuple
-        in the DataFrame, or an empty string when no row has a complete set of
-        primary key values.
+        The WHERE clause matching every unique primary key tuple in the DataFrame
+        that has at least one non-null primary key value. Null components are
+        matched with IS NULL so that nullable primary key columns are handled
+        correctly. Rows whose primary key values are all null are skipped.
+        If the df has no rows with at least one primary key value this returns None
     """
     row_clauses = []
-    seen_key_tuples = set()
+    primary_key_tuples = set()
     for row in df[primary_keys].itertuples(index=False, name=None):
-        # A row missing any primary key value cannot match an existing row; it
-        # will be treated as an insert.
-        if any(value is None for value in row):
+        if all(value is None for value in row):
             continue
-        if row in seen_key_tuples:
+        if row in primary_key_tuples:
             continue
-        seen_key_tuples.add(row)
+        primary_key_tuples.add(row)
         conditions = []
         for upsert_column, value in zip(primary_keys, row):
+            if value is None:
+                conditions.append(f'"{upsert_column}" IS NULL')
+                continue
             column_type = entity.columns[upsert_column].column_type
             formatted_value = _format_primary_key_value_for_where(value, column_type)
             conditions.append(f'"{upsert_column}" = {formatted_value}')
         row_clauses.append("(" + " AND ".join(conditions) + ")")
+    if not row_clauses:
+        return None
     return " OR ".join(row_clauses)
 
 
