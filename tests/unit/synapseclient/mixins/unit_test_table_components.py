@@ -2077,8 +2077,8 @@ class TestConstructSelectStatementForUpsert:
         # signalling the caller to skip the query and treat the rows as inserts
         assert statement is None
 
-    def test_composite_primary_keys_all_missing_returns_none(self):
-        # GIVEN composite primary keys where every row is missing a key value
+    def test_composite_primary_keys_partial_missing_match_with_is_null(self):
+        # GIVEN composite primary keys where each row is missing a different key value
         entity = self.ClassForTest(
             id="syn123",
             columns={
@@ -2086,8 +2086,37 @@ class TestConstructSelectStatementForUpsert:
                 "synID": Column(name="synID", column_type=ColumnType.STRING, id="id2"),
             },
         )
-        # AND each row is missing at least one primary key value
+        # AND each row is missing at least one (but not all) primary key values
         df = pd.DataFrame({"view": ["V1", None], "synID": [None, "S2"]})
+
+        # WHEN I construct the select statement
+        statement = _construct_select_statement_for_upsert(
+            entity=entity,
+            df=df,
+            all_columns_from_df=['"view"', '"synID"'],
+            primary_keys=["view", "synID"],
+            wait_for_eventually_consistent_view=False,
+        )
+
+        # THEN each null key component is matched with IS NULL so nullable
+        # primary key columns can still match existing rows
+        assert statement == (
+            'SELECT ROW_ID, "view", "synID" FROM syn123 WHERE '
+            '("view" = \'V1\' AND "synID" IS NULL) OR '
+            '("view" IS NULL AND "synID" = \'S2\')'
+        )
+
+    def test_composite_primary_keys_all_fully_null_returns_none(self):
+        # GIVEN composite primary keys where every row is missing every key value
+        entity = self.ClassForTest(
+            id="syn123",
+            columns={
+                "view": Column(name="view", column_type=ColumnType.STRING, id="id1"),
+                "synID": Column(name="synID", column_type=ColumnType.STRING, id="id2"),
+            },
+        )
+        # AND every row has all primary key values missing
+        df = pd.DataFrame({"view": [None, None], "synID": [None, None]})
 
         # WHEN I construct the select statement
         statement = _construct_select_statement_for_upsert(
