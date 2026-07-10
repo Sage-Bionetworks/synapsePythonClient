@@ -2210,8 +2210,8 @@ class TestConstructCompositeKeyWhereStatement:
             "(\"view\" = 'V2' AND \"synID\" = 'S2')"
         )
 
-    def test_rows_missing_any_key_value_are_skipped(self):
-        # GIVEN a DataFrame where some rows are missing a primary key value
+    def test_partial_null_keys_use_is_null(self):
+        # GIVEN a DataFrame where some rows have a null primary key component
         entity = self.ClassForTest(
             id="syn123",
             columns={
@@ -2226,11 +2226,16 @@ class TestConstructCompositeKeyWhereStatement:
             entity=entity, df=df, primary_keys=["view", "synID"]
         )
 
-        # THEN only the fully-populated row contributes a clause
-        assert where_statement == "(\"view\" = 'V1' AND \"synID\" = 'S1')"
+        # THEN null components are matched with IS NULL while populated
+        # components use equality, and every partially-populated row contributes
+        assert where_statement == (
+            "(\"view\" = 'V1' AND \"synID\" = 'S1') OR "
+            '("view" = \'V2\' AND "synID" IS NULL) OR '
+            '("view" IS NULL AND "synID" = \'S3\')'
+        )
 
-    def test_all_rows_missing_key_value_returns_empty_string(self):
-        # GIVEN a DataFrame where every row is missing at least one key value
+    def test_row_with_all_null_keys_is_skipped(self):
+        # GIVEN a DataFrame where one row has every primary key value null
         entity = self.ClassForTest(
             id="syn123",
             columns={
@@ -2238,15 +2243,56 @@ class TestConstructCompositeKeyWhereStatement:
                 "synID": Column(name="synID", column_type=ColumnType.STRING, id="id2"),
             },
         )
-        df = pd.DataFrame({"view": ["V1", None], "synID": [None, "S2"]})
+        df = pd.DataFrame({"view": ["V1", None], "synID": ["S1", None]})
 
         # WHEN I construct the composite-key WHERE statement
         where_statement = _construct_composite_key_where_statement(
             entity=entity, df=df, primary_keys=["view", "synID"]
         )
 
-        # THEN an empty string is returned, signalling nothing to query for
-        assert where_statement == ""
+        # THEN the fully-null row is skipped and only the populated row remains
+        assert where_statement == "(\"view\" = 'V1' AND \"synID\" = 'S1')"
+
+    def test_all_rows_fully_null_returns_none(self):
+        # GIVEN a DataFrame where every row has all primary key values null
+        entity = self.ClassForTest(
+            id="syn123",
+            columns={
+                "view": Column(name="view", column_type=ColumnType.STRING, id="id1"),
+                "synID": Column(name="synID", column_type=ColumnType.STRING, id="id2"),
+            },
+        )
+        df = pd.DataFrame({"view": [None, None], "synID": [None, None]})
+
+        # WHEN I construct the composite-key WHERE statement
+        where_statement = _construct_composite_key_where_statement(
+            entity=entity, df=df, primary_keys=["view", "synID"]
+        )
+
+        # THEN None is returned, signalling nothing to query for
+        assert where_statement is None
+
+    def test_duplicate_partial_null_tuples_are_deduplicated(self):
+        # GIVEN a DataFrame with a repeated tuple that contains a null component
+        entity = self.ClassForTest(
+            id="syn123",
+            columns={
+                "view": Column(name="view", column_type=ColumnType.STRING, id="id1"),
+                "synID": Column(name="synID", column_type=ColumnType.STRING, id="id2"),
+            },
+        )
+        df = pd.DataFrame({"view": ["V1", "V1", "V2"], "synID": [None, None, "S2"]})
+
+        # WHEN I construct the composite-key WHERE statement
+        where_statement = _construct_composite_key_where_statement(
+            entity=entity, df=df, primary_keys=["view", "synID"]
+        )
+
+        # THEN the duplicated null-bearing tuple appears only once
+        assert where_statement == (
+            '("view" = \'V1\' AND "synID" IS NULL) OR '
+            "(\"view\" = 'V2' AND \"synID\" = 'S2')"
+        )
 
 
 class TestConstructSingleKeyWhereStatement:
@@ -2261,19 +2307,19 @@ class TestConstructSingleKeyWhereStatement:
             self.columns = columns
 
     @pytest.mark.parametrize(
-        "columns, data, primary_keys, expected",
+        "columns, data, primary_key, expected",
         [
             pytest.param(
                 {"view": Column(name="view", column_type=ColumnType.STRING, id="id1")},
                 {"view": ["V1"]},
-                ["view"],
+                "view",
                 "\"view\" IN ('V1')",
                 id="single_string_key",
             ),
             pytest.param(
                 {"num": Column(name="num", column_type=ColumnType.INTEGER, id="id1")},
                 {"num": [1001]},
-                ["num"],
+                "num",
                 '"num" IN (1001)',
                 id="integer_key_is_not_quoted",
             ),
@@ -2284,27 +2330,27 @@ class TestConstructSingleKeyWhereStatement:
                     )
                 },
                 {"label": ["O'Brien"]},
-                ["label"],
+                "label",
                 "\"label\" IN ('O''Brien')",
                 id="embedded_quote_is_escaped",
             ),
             pytest.param(
                 {"view": Column(name="view", column_type=ColumnType.STRING, id="id1")},
                 {"view": ["V1", None, "V3"]},
-                ["view"],
+                "view",
                 None,  # order-independent; asserted separately below
                 id="none_values_are_excluded",
             ),
         ],
     )
-    def test_where_statement_construction(self, columns, data, primary_keys, expected):
+    def test_where_statement_construction(self, columns, data, primary_key, expected):
         # GIVEN an entity and a DataFrame of single primary key values
         entity = self.ClassForTest(id="syn123", columns=columns)
         df = pd.DataFrame(data)
 
         # WHEN I construct the single-key WHERE statement
         where_statement = _construct_single_key_where_statement(
-            entity=entity, df=df, primary_keys=primary_keys
+            entity=entity, df=df, primary_key=primary_key
         )
 
         # THEN the values are matched with an IN clause
@@ -2330,14 +2376,14 @@ class TestConstructSingleKeyWhereStatement:
 
         # WHEN I construct the single-key WHERE statement
         where_statement = _construct_single_key_where_statement(
-            entity=entity, df=df, primary_keys=["view"]
+            entity=entity, df=df, primary_key="view"
         )
 
         # THEN the duplicated value appears only once
         assert where_statement.count("'V1'") == 1
         assert where_statement.count("'V2'") == 1
 
-    def test_all_none_returns_empty_string(self):
+    def test_all_none_returns_none(self):
         # GIVEN a DataFrame where every primary key value is missing
         entity = self.ClassForTest(
             id="syn123",
@@ -2349,11 +2395,11 @@ class TestConstructSingleKeyWhereStatement:
 
         # WHEN I construct the single-key WHERE statement
         where_statement = _construct_single_key_where_statement(
-            entity=entity, df=df, primary_keys=["view"]
+            entity=entity, df=df, primary_key="view"
         )
 
-        # THEN an empty string is returned, signalling nothing to query for
-        assert where_statement == ""
+        # THEN None is returned, signalling nothing to query for
+        assert where_statement is None
 
 
 class TestQuery:
