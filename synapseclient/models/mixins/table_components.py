@@ -1723,38 +1723,35 @@ def _format_primary_key_value_for_where(value: Any, column_type: ColumnType) -> 
 def _construct_single_key_where_statement(
     entity: TableBase,
     df: DATA_FRAME_TYPE,
-    primary_keys: list[str],
-) -> str:
+    primary_key: str,
+) -> str | None:
     """
     Build the WHERE clause used to match rows on a single-column primary key.
 
     A single primary key can be matched with a simple IN clause. There is no
     cross-product risk with a single column.
 
+    This will look something like: primary_key IN ('val1', 'val2')
+
     Arguments:
         entity: The table entity whose column types are used to format values.
         df: The DataFrame that contains the data to be upserted.
-        primary_keys: A list containing the single column that is used to
-            determine if a row already exists in the table.
+        primary_key: The column that is the primary key for this table
 
     Returns:
         The WHERE clause matching every unique, non-null primary key value in the
         DataFrame, or an empty string when no row has a primary key value.
+        If the df has no primary key values this returns None
     """
-    upsert_column = primary_keys[0]
-    column_type = entity.columns[upsert_column].column_type
-    values_for_where_statement = set()
-    for value in df[upsert_column]:
-        if value is None:
-            continue
-        values_for_where_statement.add(
-            _format_primary_key_value_for_where(value, column_type)
-        )
-    return (
-        f"\"{upsert_column}\" IN ({', '.join(values_for_where_statement)})"
-        if values_for_where_statement
-        else ""
-    )
+    column_type = entity.columns[primary_key].column_type
+    values = {
+        _format_primary_key_value_for_where(value, column_type)
+        for value in df[primary_key]
+        if value is not None
+    }
+    if not values:
+        return None
+    return f"\"{primary_key}\" IN ({', '.join(sorted(values))})"
 
 
 def _construct_composite_key_where_statement(
@@ -1864,7 +1861,7 @@ def _construct_select_statement_for_upsert(
 
     if len(primary_keys) == 1:
         where_statement = _construct_single_key_where_statement(
-            entity, df, primary_keys
+            entity, df, primary_keys[0]
         )
     else:
         where_statement = _construct_composite_key_where_statement(
