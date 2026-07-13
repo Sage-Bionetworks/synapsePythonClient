@@ -12,6 +12,8 @@ The async SearchIndex query endpoint is exposed via the
 import json
 from typing import TYPE_CHECKING, Any, Dict, List, Optional
 
+from synapseclient.core.utils import delete_none_keys
+
 if TYPE_CHECKING:
     from synapseclient import Synapse
 
@@ -121,7 +123,7 @@ async def list_text_analyzers(
 
     client = Synapse.get_client(synapse_client=synapse_client)
     body = {"organizationName": organization_name, "nextPageToken": next_page_token}
-    body = {k: v for k, v in body.items() if v is not None}
+    delete_none_keys(body)
     return await client.rest_post_async(
         uri="/search/text/analyzer/list", body=json.dumps(body)
     )
@@ -197,7 +199,7 @@ async def list_column_analyzer_overrides(
 
     client = Synapse.get_client(synapse_client=synapse_client)
     body = {"organizationName": organization_name, "nextPageToken": next_page_token}
-    body = {k: v for k, v in body.items() if v is not None}
+    delete_none_keys(body)
     return await client.rest_post_async(
         uri="/search/column/analyzer/override/list", body=json.dumps(body)
     )
@@ -270,7 +272,7 @@ async def list_synonym_sets(
 
     client = Synapse.get_client(synapse_client=synapse_client)
     body = {"organizationName": organization_name, "nextPageToken": next_page_token}
-    body = {k: v for k, v in body.items() if v is not None}
+    delete_none_keys(body)
     return await client.rest_post_async(
         uri="/search/synonym/set/list", body=json.dumps(body)
     )
@@ -346,7 +348,7 @@ async def list_search_configurations(
 
     client = Synapse.get_client(synapse_client=synapse_client)
     body = {"organizationName": organization_name, "nextPageToken": next_page_token}
-    body = {k: v for k, v in body.items() if v is not None}
+    delete_none_keys(body)
     return await client.rest_post_async(
         uri="/search/configuration/list", body=json.dumps(body)
     )

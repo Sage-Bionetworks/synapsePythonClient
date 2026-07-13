@@ -727,6 +727,49 @@ class TestProject:
             assert result.files[0].id == "syn456"
             assert result.files[0].name == "example_file_1"
 
+    async def test_sync_from_synapse_populates_search_indexes(self) -> None:
+        # GIVEN a Project object
+        project = Project(id=PROJECT_ID)
+
+        # AND a SearchIndex child that exists on the project in Synapse
+        children = [
+            {
+                "id": "syn789",
+                "type": concrete_types.SEARCH_INDEX_ENTITY,
+                "name": "example_search_index",
+            }
+        ]
+
+        async def mock_get_children(*args, **kwargs):
+            for child in children:
+                yield child
+
+        from synapseclient.models import SearchIndex
+
+        # WHEN I call `sync_from_synapse` with the Project object
+        with (
+            patch(
+                "synapseclient.models.mixins.storable_container.get_children",
+                side_effect=mock_get_children,
+            ),
+            patch(
+                "synapseclient.api.entity_factory.get_entity_id_bundle2",
+                new_callable=AsyncMock,
+                return_value=(self.get_example_rest_api_project_output()),
+            ),
+            patch(
+                "synapseclient.models.search_index.SearchIndex.get_async",
+                new_callable=AsyncMock,
+                return_value=SearchIndex(id="syn789", name="example_search_index"),
+            ) as mocked_search_index_get,
+        ):
+            result = await project.sync_from_synapse_async(synapse_client=self.syn)
+
+            # THEN the SearchIndex child should be retrieved and populated
+            mocked_search_index_get.assert_called_once()
+            assert result.searchindexes[0].id == "syn789"
+            assert result.searchindexes[0].name == "example_search_index"
+
 
 class TestStorageLocationMixin:
     """Tests for StorageLocationConfigurable mixin methods on Project."""

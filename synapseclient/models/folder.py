@@ -35,6 +35,7 @@ if TYPE_CHECKING:
         EntityView,
         MaterializedView,
         Project,
+        SearchIndex,
         SubmissionView,
         Table,
         VirtualTable,
@@ -78,6 +79,7 @@ class Folder(
         datasetcollections: Dataset collections that exist within this folder.
         materializedviews: Materialized views that exist within this folder.
         virtualtables: Virtual tables that exist within this folder.
+        searchindexes: Search indexes that exist within this folder.
         annotations: Additional metadata associated with the folder. The key is the name
             of your desired annotations. The value is an object containing a list of
             values (use empty list to represent no values for key) and the value type
@@ -159,6 +161,9 @@ class Folder(
 
     virtualtables: List["VirtualTable"] = field(default_factory=list, compare=False)
     """Virtual tables that exist within this folder."""
+
+    searchindexes: List["SearchIndex"] = field(default_factory=list, compare=False)
+    """Search indexes that exist within this folder."""
 
     annotations: Optional[
         Dict[

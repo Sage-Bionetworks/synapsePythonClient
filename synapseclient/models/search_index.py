@@ -311,20 +311,25 @@ class SearchIndex(
             ValueError: If the ``id`` attribute has not been set.
 
         Example: Autocomplete titles beginning with "alz".
+            &nbsp;
 
             ```python
+            import asyncio
             from synapseclient import Synapse
             from synapseclient.models import SearchIndex
 
-            syn = Synapse()
-            syn.login()
+            async def main():
+                syn = Synapse()
+                await syn.login_async()
 
-            index = SearchIndex(id="syn12345")
-            hits = index.autocomplete(
-                query={"match_phrase_prefix": {"title": {"query": "alz"}}},
-            )
-            for hit in hits:
-                print(hit.row_id, hit.fields)
+                index = SearchIndex(id="syn12345")
+                hits = await index.autocomplete_async(
+                    query={"match_phrase_prefix": {"title": {"query": "alz"}}},
+                )
+                for hit in hits:
+                    print(hit.row_id, hit.fields)
+
+            asyncio.run(main())
             ```
         """
         from synapseclient.api import autocomplete_search
