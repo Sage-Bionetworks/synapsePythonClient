@@ -480,15 +480,15 @@ class TestStoreEvaluationRoute:
         assert result is mock_eval
 
 
-class TestStoreSchemaOrganizationRoute:
-    """Tests for SchemaOrganization entity routing in store_async."""
+class TestStoreOrganizationRoute:
+    """Tests for Organization entity routing in store_async."""
 
     async def test_store_schema_organization(self):
-        """Test that SchemaOrganization routes to store_async."""
-        # GIVEN a mock SchemaOrganization entity
-        from synapseclient.models import SchemaOrganization
+        """Test that Organization routes to store_async."""
+        # GIVEN a mock Organization entity
+        from synapseclient.models import Organization
 
-        mock_org = SchemaOrganization(name="testorg")
+        mock_org = Organization(name="testorg")
         mock_org.store_async = AsyncMock(return_value=mock_org)
 
         # WHEN I call store_async

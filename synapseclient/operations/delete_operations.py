@@ -20,9 +20,9 @@ if TYPE_CHECKING:
         Grid,
         JSONSchema,
         MaterializedView,
+        Organization,
         Project,
         RecordSet,
-        SchemaOrganization,
         SubmissionView,
         Table,
         Team,
@@ -45,7 +45,7 @@ def delete(
         "MaterializedView",
         "Project",
         "RecordSet",
-        "SchemaOrganization",
+        "Organization",
         "SubmissionView",
         "Table",
         "Team",
@@ -89,7 +89,7 @@ def delete(
 
         **Not supported for version-specific deletion:**
 
-        - Project, Folder, Evaluation, Team, SchemaOrganization, CurationTask, Grid
+        - Project, Folder, Evaluation, Team, Organization, CurationTask, Grid
 
     Arguments:
         entity: The entity instance to delete, or a Synapse ID string (e.g., "syn123456"
@@ -274,7 +274,7 @@ async def delete_async(
         "MaterializedView",
         "Project",
         "RecordSet",
-        "SchemaOrganization",
+        "Organization",
         "SubmissionView",
         "Table",
         "Team",
@@ -319,7 +319,7 @@ async def delete_async(
 
         **Not supported for version-specific deletion:**
 
-        - Project, Folder, Evaluation, Team, SchemaOrganization, CurationTask, Grid
+        - Project, Folder, Evaluation, Team, Organization, CurationTask, Grid
 
     Arguments:
         entity: The entity instance to delete, or a Synapse ID string (e.g., "syn123456"
@@ -443,9 +443,9 @@ async def delete_async(
         Grid,
         JSONSchema,
         MaterializedView,
+        Organization,
         Project,
         RecordSet,
-        SchemaOrganization,
         SubmissionView,
         Table,
         Team,
@@ -570,7 +570,7 @@ async def delete_async(
             Project,
             Evaluation,
             Team,
-            SchemaOrganization,
+            Organization,
             CurationTask,
             Grid,
             DockerRepository,
@@ -600,5 +600,5 @@ async def delete_async(
             f"Unsupported entity type: {type(entity).__name__}. "
             "Supported types are: str (Synapse ID), CurationTask, Dataset, DatasetCollection, "
             "EntityView, Evaluation, File, Folder, Grid, JSONSchema, MaterializedView, "
-            "Project, RecordSet, SchemaOrganization, SubmissionView, Table, Team, VirtualTable."
+            "Project, RecordSet, Organization, SubmissionView, Table, Team, VirtualTable."
         )

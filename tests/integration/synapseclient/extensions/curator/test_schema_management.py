@@ -12,7 +12,7 @@ from synapseclient.extensions.curator import bind_jsonschema, register_jsonschem
 from synapseclient.extensions.curator.record_based_metadata_task import (
     project_id_from_entity_id,
 )
-from synapseclient.models import Folder, Project, SchemaOrganization
+from synapseclient.models import Folder, Organization, Project
 
 
 def create_test_name():
@@ -22,11 +22,11 @@ def create_test_name():
 
 
 @pytest.fixture(name="test_organization", scope="module")
-def fixture_test_organization(syn: Synapse, request) -> SchemaOrganization:
+def fixture_test_organization(syn: Synapse, request) -> Organization:
     """
     Returns a created organization for testing schema registration
     """
-    org = SchemaOrganization(create_test_name())
+    org = Organization(create_test_name())
     org.store(synapse_client=syn)
 
     def delete_org():
@@ -87,7 +87,7 @@ class TestRegisterJsonSchema:
     """Integration tests for register_jsonschema wrapper function"""
 
     def test_register_jsonschema_with_version(
-        self, syn: Synapse, test_organization: SchemaOrganization, test_schema_file: str
+        self, syn: Synapse, test_organization: Organization, test_schema_file: str
     ):
         """Test registering a JSON schema with a specific version"""
         schema_name = create_test_name()
@@ -109,7 +109,7 @@ class TestRegisterJsonSchema:
         assert test_organization.name in json_schema.uri
 
     def test_register_jsonschema_without_version(
-        self, syn: Synapse, test_organization: SchemaOrganization, test_schema_file: str
+        self, syn: Synapse, test_organization: Organization, test_schema_file: str
     ):
         """Test registering a JSON schema without specifying a version"""
         schema_name = create_test_name()
@@ -134,7 +134,7 @@ class TestBindJsonSchema:
     def test_bind_jsonschema_to_folder(
         self,
         syn: Synapse,
-        test_organization: SchemaOrganization,
+        test_organization: Organization,
         test_project: Project,
         test_schema_file: str,
     ):
@@ -172,7 +172,7 @@ class TestBindJsonSchema:
     def test_bind_jsonschema_with_derived_annotations(
         self,
         syn: Synapse,
-        test_organization: SchemaOrganization,
+        test_organization: Organization,
         test_project: Project,
         test_schema_file: str,
     ):
@@ -214,7 +214,7 @@ class TestRegisterAndBindWorkflow:
     def test_complete_workflow(
         self,
         syn: Synapse,
-        test_organization: SchemaOrganization,
+        test_organization: Organization,
         test_project: Project,
         test_schema_file: str,
     ):

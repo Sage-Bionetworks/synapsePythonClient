@@ -348,11 +348,11 @@ class TestDeleteNonVersionableEntityRoute:
         assert result is None
 
     async def test_delete_schema_organization_entity(self):
-        """Test that a SchemaOrganization entity is deleted normally."""
-        # GIVEN a mock SchemaOrganization entity
-        from synapseclient.models import SchemaOrganization
+        """Test that a Organization entity is deleted normally."""
+        # GIVEN a mock Organization entity
+        from synapseclient.models import Organization
 
-        mock_org = SchemaOrganization(name="testorg")
+        mock_org = Organization(name="testorg")
         mock_org.delete_async = AsyncMock(return_value=None)
 
         # WHEN I call delete_async

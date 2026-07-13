@@ -5,7 +5,7 @@ JSON Schema
 
 !!! warning
     Everything in this module has been deprecated.
-    Use synapseclient.models.SchemaOrganization and synapseclient.models.JSONSchema instead.
+    Use synapseclient.models.Organization and synapseclient.models.JSONSchema instead.
 """
 
 from __future__ import annotations
@@ -285,7 +285,7 @@ class JsonSchema:
 
 @deprecated(
     version="4.11.0",
-    reason="To be removed in 5.0.0. Use synapseclient.models.SchemaOrganization instead.",
+    reason="To be removed in 5.0.0. Use synapseclient.models.Organization instead.",
 )
 class JsonSchemaOrganization:
     """Json Schema Organization

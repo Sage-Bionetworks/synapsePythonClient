@@ -23,9 +23,9 @@ if TYPE_CHECKING:
         JSONSchema,
         Link,
         MaterializedView,
+        Organization,
         Project,
         RecordSet,
-        SchemaOrganization,
         SubmissionView,
         Table,
         Team,
@@ -242,7 +242,7 @@ def store(
         "MaterializedView",
         "Project",
         "RecordSet",
-        "SchemaOrganization",
+        "Organization",
         "SubmissionView",
         "Table",
         "Team",
@@ -273,7 +273,7 @@ def store(
     "MaterializedView",
     "Project",
     "RecordSet",
-    "SchemaOrganization",
+    "Organization",
     "SubmissionView",
     "Table",
     "Team",
@@ -534,7 +534,7 @@ async def store_async(
         "MaterializedView",
         "Project",
         "RecordSet",
-        "SchemaOrganization",
+        "Organization",
         "SubmissionView",
         "Table",
         "Team",
@@ -565,7 +565,7 @@ async def store_async(
     "MaterializedView",
     "Project",
     "RecordSet",
-    "SchemaOrganization",
+    "Organization",
     "SubmissionView",
     "Table",
     "Team",
@@ -773,9 +773,9 @@ async def store_async(
         JSONSchema,
         Link,
         MaterializedView,
+        Organization,
         Project,
         RecordSet,
-        SchemaOrganization,
         SubmissionView,
         Table,
         Team,
@@ -833,7 +833,7 @@ async def store_async(
         else:
             return await entity.create_async(synapse_client=synapse_client)
 
-    elif isinstance(entity, SchemaOrganization):
+    elif isinstance(entity, Organization):
         return await entity.store_async(synapse_client=synapse_client)
 
     elif isinstance(entity, CurationTask):
@@ -875,5 +875,5 @@ async def store_async(
             "Supported types are: AgentSession, CurationTask, "
             "Dataset, DatasetCollection, EntityView, Evaluation, File, Folder, FormData, "
             "FormGroup, Grid, JSONSchema, Link, MaterializedView, Project, RecordSet, "
-            "SchemaOrganization, SubmissionView, Table, Team, VirtualTable."
+            "Organization, SubmissionView, Table, Team, VirtualTable."
         )

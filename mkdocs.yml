@@ -113,7 +113,7 @@ nav:
           - Curator: reference/experimental/sync/curator.md
           - Link: reference/experimental/sync/link_entity.md
           - Functional Interfaces: reference/experimental/functional_interfaces.md
-          - SchemaOrganization: reference/experimental/sync/schema_organization.md
+          - Organization: reference/experimental/sync/organization.md
           - JSONSchema: reference/experimental/sync/json_schema.md
           - Wiki: reference/experimental/sync/wiki.md
           - FormGroup and Form: reference/experimental/sync/form.md
@@ -143,7 +143,7 @@ nav:
               - UserProfile: reference/experimental/async/user_profile.md
               - Curator: reference/experimental/async/curator.md
               - Link: reference/experimental/async/link_entity.md
-              - SchemaOrganization: reference/experimental/async/schema_organization.md
+              - Organization: reference/experimental/async/organization.md
               - JSONSchema: reference/experimental/async/json_schema.md
               - Wiki: reference/experimental/async/wiki.md
               - FormGroup and Form: reference/experimental/async/form.md
