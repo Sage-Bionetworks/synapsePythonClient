@@ -74,9 +74,8 @@ def get_curator_grid(
         The Grid attached to the CurationTask.
 
     Raises:
-        ValueError: If the task's status does not have grid execution details,
-            or the task's properties are of an unsupported type for grid
-            creation.
+        ValueError: If the task's status has non-grid execution details, or the
+            task's properties are of an unsupported type for grid creation.
         SynapseHTTPError: If there are issues communicating with Synapse.
     """
     client = Synapse.get_client(synapse_client=synapse_client)
@@ -91,14 +90,16 @@ def get_curator_grid(
     status = task.get_status(synapse_client=client)
     client.logger.info(f"Got status for CurationTask {task_id}.")
 
-    if not isinstance(status.execution_details, GridExecutionDetails):
+    execution_details = status.execution_details
+    active_session_id = None
+    if isinstance(execution_details, GridExecutionDetails):
+        active_session_id = execution_details.active_session_id
+    elif execution_details is not None:
         raise ValueError(
-            f"CurationTask {task_id} does not have grid execution details "
-            "(got "
-            f"{type(status.execution_details).__name__}); "
+            f"CurationTask {task_id} has non-grid execution details "
+            f"(got {type(execution_details).__name__}); "
             "cannot get or create a grid for it."
         )
-    active_session_id = status.execution_details.active_session_id
 
     # Step 3: a session is attached, so get that Grid from Synapse and return it.
     if active_session_id:

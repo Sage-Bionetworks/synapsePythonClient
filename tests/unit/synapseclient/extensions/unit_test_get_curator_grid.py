@@ -131,21 +131,63 @@ class TestGetCuratorGrid:
     @patch.object(grid_module, "Grid")
     @patch.object(grid_module, "CurationTask")
     @patch.object(grid_module, "Synapse")
-    def test_raises_when_status_has_no_grid_execution_details(
+    def test_creates_grid_when_execution_details_is_none(
         self, mock_synapse, mock_curation_task_cls, mock_grid_cls
     ):
-        """When the task status has no grid execution details, a ValueError is
-        raised and neither the grid lookup nor grid creation is attempted."""
-        # GIVEN: A task whose status has no grid execution details
+        """When the task status has no execution details at all (a task that has
+        never had a grid), a new grid session is created and returned, and the
+        existing-grid lookup is not attempted."""
+        # GIVEN: A task whose status has no execution details
         client = _build_mock_client()
         mock_synapse.get_client.return_value = client
         status = CurationTaskStatus(execution_details=None)
+        task = _build_mock_task(status)
+        created_grid = Mock(session_id="new-session")
+        task.create_grid_session.return_value = created_grid
+        mock_curation_task_cls.return_value.get.return_value = task
+
+        # WHEN: Getting the curator grid for the task
+        result = get_curator_grid(
+            task_id=123,
+            owner_principal_id=42,
+            timeout=30,
+            synapse_client=client,
+        )
+
+        # THEN: A new grid session is created with the given owner and timeout
+        # and returned
+        assert result is created_grid
+        task.create_grid_session.assert_called_once_with(
+            owner_principal_id=42,
+            timeout=30,
+            synapse_client=client,
+        )
+        # AND: The existing-grid lookup is not attempted
+        mock_grid_cls.return_value.get.assert_not_called()
+
+    @patch.object(grid_module, "Grid")
+    @patch.object(grid_module, "CurationTask")
+    @patch.object(grid_module, "Synapse")
+    def test_raises_when_status_has_non_grid_execution_details(
+        self, mock_synapse, mock_curation_task_cls, mock_grid_cls
+    ):
+        """When the task status carries a non-grid execution details type, a
+        ValueError is raised and neither the grid lookup nor grid creation is
+        attempted."""
+
+        # GIVEN: A task whose status has a non-grid execution details type
+        class _NonGridExecutionDetails:
+            pass
+
+        client = _build_mock_client()
+        mock_synapse.get_client.return_value = client
+        status = CurationTaskStatus(execution_details=_NonGridExecutionDetails())
         task = _build_mock_task(status)
         mock_curation_task_cls.return_value.get.return_value = task
 
         # WHEN: Getting the curator grid for the task
         # THEN: A ValueError is raised
-        with pytest.raises(ValueError, match="grid execution details"):
+        with pytest.raises(ValueError, match="non-grid execution details"):
             get_curator_grid(task_id=123, synapse_client=client)
 
         # AND: Neither the grid lookup nor grid creation is attempted
