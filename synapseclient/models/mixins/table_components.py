@@ -2265,6 +2265,15 @@ async def _upsert_rows_async(
 
     _validate_primary_keys(values, primary_keys)
 
+    # An empty input is a no-op: there are no rows to match, update, or insert.
+    # Returning early also avoids constructing a WHERE clause from an empty
+    # DataFrame, which would produce malformed SQL.
+    if values.empty:
+        client.logger.info(
+            f"[{entity.id}:{entity.name}]: No rows provided to upsert. Nothing to do."
+        )
+        return
+
     rows_to_update: List[PartialRow] = []
     chunk_list: List[DataFrame] = []
     for i in range(0, len(values), rows_per_query):
