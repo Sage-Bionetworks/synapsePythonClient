@@ -34,6 +34,7 @@ from synapseclient.models.mixins.table_components import (
     ViewSnapshotMixin,
     ViewStoreMixin,
     ViewUpdateMixin,
+    _construct_composite_key_conditions,
     _construct_composite_key_where_statement,
     _construct_partial_rows_for_upsert,
     _construct_select_statement_for_upsert,
@@ -2032,6 +2033,121 @@ class TestConstructSelectStatementForUpsert:
             'SELECT ROW_ID, "view", "label" FROM syn123 WHERE '
             "(\"view\" = 'V1' AND \"label\" = 'O''Brien')"
         )
+
+
+class TestConstructCompositeKeyConditions:
+    """Test suite for _construct_composite_key_conditions, which builds the per-column
+    equality conditions for a single composite primary key tuple."""
+
+    class ClassForTest(TableUpsertMixin):
+        """A minimal entity exposing only the attributes the helper reads."""
+
+        def __init__(self, id, columns):
+            self.id = id
+            self.columns = columns
+
+    @pytest.mark.parametrize(
+        "columns, primary_keys, row, expected",
+        [
+            pytest.param(
+                {"view": Column(name="view", column_type=ColumnType.STRING, id="id1")},
+                ["view"],
+                ("V1",),
+                ["\"view\" = 'V1'"],
+                id="single_string_key",
+            ),
+            pytest.param(
+                {
+                    "view": Column(
+                        name="view", column_type=ColumnType.STRING, id="id1"
+                    ),
+                    "synID": Column(
+                        name="synID", column_type=ColumnType.STRING, id="id2"
+                    ),
+                },
+                ["view", "synID"],
+                ("V1", "S1"),
+                ["\"view\" = 'V1'", "\"synID\" = 'S1'"],
+                id="two_string_keys_preserve_order",
+            ),
+            pytest.param(
+                {"num": Column(name="num", column_type=ColumnType.INTEGER, id="id1")},
+                ["num"],
+                (1001,),
+                ['"num" = 1001'],
+                id="integer_key_is_not_quoted",
+            ),
+            pytest.param(
+                {"flag": Column(name="flag", column_type=ColumnType.BOOLEAN, id="id1")},
+                ["flag"],
+                (True,),
+                ["\"flag\" = 'true'"],
+                id="boolean_true_key",
+            ),
+            pytest.param(
+                {"flag": Column(name="flag", column_type=ColumnType.BOOLEAN, id="id1")},
+                ["flag"],
+                (False,),
+                ["\"flag\" = 'false'"],
+                id="boolean_false_key",
+            ),
+            pytest.param(
+                {
+                    "label": Column(
+                        name="label", column_type=ColumnType.STRING, id="id1"
+                    )
+                },
+                ["label"],
+                ("O'Brien",),
+                ["\"label\" = 'O''Brien'"],
+                id="embedded_quote_is_escaped",
+            ),
+            pytest.param(
+                {
+                    "view": Column(
+                        name="view", column_type=ColumnType.STRING, id="id1"
+                    ),
+                    "num": Column(name="num", column_type=ColumnType.INTEGER, id="id2"),
+                    "flag": Column(
+                        name="flag", column_type=ColumnType.BOOLEAN, id="id3"
+                    ),
+                },
+                ["view", "num", "flag"],
+                ("V1", 7, True),
+                ["\"view\" = 'V1'", '"num" = 7', "\"flag\" = 'true'"],
+                id="mixed_column_types",
+            ),
+        ],
+    )
+    def test_conditions_construction(self, columns, primary_keys, row, expected):
+        # GIVEN an entity and a single primary key tuple
+        entity = self.ClassForTest(id="syn123", columns=columns)
+
+        # WHEN I build the per-column conditions
+        conditions = _construct_composite_key_conditions(entity, primary_keys, row)
+
+        # THEN each column is matched with an equality condition, one per key, in
+        # primary_keys order
+        assert conditions == expected
+
+    def test_only_primary_key_columns_are_used(self):
+        # GIVEN an entity with more columns than are used as primary keys
+        entity = self.ClassForTest(
+            id="syn123",
+            columns={
+                "view": Column(name="view", column_type=ColumnType.STRING, id="id1"),
+                "synID": Column(name="synID", column_type=ColumnType.STRING, id="id2"),
+                "value": Column(name="value", column_type=ColumnType.INTEGER, id="id3"),
+            },
+        )
+
+        # WHEN I build conditions for only a subset of columns as the primary key
+        conditions = _construct_composite_key_conditions(
+            entity, ["view", "synID"], ("V1", "S1")
+        )
+
+        # THEN only the primary key columns contribute conditions
+        assert conditions == ["\"view\" = 'V1'", "\"synID\" = 'S1'"]
 
 
 class TestConstructCompositeKeyWhereStatement:
