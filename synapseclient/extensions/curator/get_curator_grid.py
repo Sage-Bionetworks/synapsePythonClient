@@ -83,20 +83,12 @@ def get_curator_grid(
 
     # Step 1: get the CurationTask.
     client.logger.info(f"Attempting to get CurationTask {task_id}.")
-    try:
-        task = CurationTask(task_id=task_id).get(synapse_client=client)
-    except Exception as e:
-        client.logger.exception(f"Error getting CurationTask {task_id}")
-        raise e
+    task = CurationTask(task_id=task_id).get(synapse_client=client)
     client.logger.info(f"Got CurationTask {task_id}.")
 
     # Step 2: check whether a grid session is already attached to the task.
     client.logger.info(f"Attempting to get status for CurationTask {task_id}.")
-    try:
-        status = task.get_status(synapse_client=client)
-    except Exception as e:
-        client.logger.exception(f"Error getting status for CurationTask {task_id}")
-        raise e
+    status = task.get_status(synapse_client=client)
     client.logger.info(f"Got status for CurationTask {task_id}.")
 
     if not isinstance(status.execution_details, GridExecutionDetails):
@@ -114,11 +106,7 @@ def get_curator_grid(
             f"CurationTask {task_id} already has grid session {active_session_id}; "
             "attempting to get the existing grid."
         )
-        try:
-            grid = Grid(session_id=active_session_id).get(synapse_client=client)
-        except Exception as e:
-            client.logger.exception(f"Error getting grid session {active_session_id}")
-            raise e
+        grid = Grid(session_id=active_session_id).get(synapse_client=client)
         client.logger.info(f"Got grid session {active_session_id}.")
         return grid
 
@@ -127,16 +115,10 @@ def get_curator_grid(
         f"CurationTask {task_id} has no attached grid session; "
         "attempting to create one."
     )
-    try:
-        grid = task.create_grid_session(
-            owner_principal_id=owner_principal_id,
-            timeout=timeout,
-            synapse_client=client,
-        )
-    except Exception as e:
-        client.logger.exception(
-            f"Error creating grid session for CurationTask {task_id}"
-        )
-        raise e
+    grid = task.create_grid_session(
+        owner_principal_id=owner_principal_id,
+        timeout=timeout,
+        synapse_client=client,
+    )
     client.logger.info(f"Created grid session for CurationTask {task_id}.")
     return grid

@@ -112,11 +112,11 @@ class TestGetCuratorGrid:
     @patch.object(grid_module, "Grid")
     @patch.object(grid_module, "CurationTask")
     @patch.object(grid_module, "Synapse")
-    def test_error_is_logged_and_reraised(
+    def test_error_propagates_to_caller(
         self, mock_synapse, mock_curation_task_cls, mock_grid_cls
     ):
-        """When a Synapse call fails, the exception is logged via
-        logger.exception and re-raised to the caller."""
+        """When a Synapse call fails, the exception propagates to the caller
+        with its original traceback."""
         # GIVEN: A task whose get call fails with an error
         client = _build_mock_client()
         mock_synapse.get_client.return_value = client
@@ -124,12 +124,12 @@ class TestGetCuratorGrid:
         mock_curation_task_cls.return_value.get.side_effect = boom
 
         # WHEN: Getting the curator grid for the task
-        # THEN: The error is re-raised to the caller
-        with pytest.raises(RuntimeError, match="boom"):
+        # THEN: The error propagates unchanged to the caller
+        with pytest.raises(RuntimeError, match="boom") as exc_info:
             get_curator_grid(task_id=123, synapse_client=client)
 
-        # AND: The error is logged via logger.exception
-        client.logger.exception.assert_called_once()
+        # AND: The propagated exception is the original one
+        assert exc_info.value is boom
 
     @patch.object(grid_module, "Grid")
     @patch.object(grid_module, "CurationTask")
