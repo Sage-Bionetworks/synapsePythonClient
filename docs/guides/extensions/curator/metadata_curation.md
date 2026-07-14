@@ -239,26 +239,34 @@ Validation results are only generated when a Grid session is exported back to th
 
 Users can access the curation task through the Synapse web interface, enter/edit data in the Grid, and click the export button. This automatically generates validation results.
 
-**Option B: Programmatically get a Grid session**
-
-When you have been assigned a CurationTask by a data manager, [get_curator_grid][synapseclient.extensions.curator.get_curator_grid] is the simplest way to open its Grid. Given only the task's ID, it returns the Grid already attached to the task, or — if none is attached yet — creates a new grid session, attaches it to the task, and returns it. This means the first call starts the session and every subsequent call returns that same session.
-
-A new grid session is created using the task's suggested authorization mode (see [Controlling who can access the grid session](#controlling-who-can-access-the-grid-session)), so you do not need to specify it here.
+**Option B: Programmatically create and export a Grid session**
 
 ```python
-import synapseclient
-from synapseclient.extensions.curator import get_curator_grid
+from synapseclient import Synapse
+from synapseclient.models import RecordSet
+from synapseclient.models.curation import Grid
 
-syn = synapseclient.Synapse()
+syn = Synapse()
 syn.login()
 
-# Get the Grid for a task you were assigned, creating one if needed
-grid = get_curator_grid(task_id=123)
-print(f"Grid session: {grid.session_id}")
+# Get your RecordSet (must have a schema bound)
+record_set = RecordSet(id="syn987654321").get()
 
+# Create a Grid session from the RecordSet
+grid = Grid(record_set_id=record_set.id).create()
+
+# At this point, users can interact with the Grid (either programmatically or via web UI)
 # When ready to save changes and generate validation results, export back to RecordSet
 grid.export_to_record_set()
+
+# Clean up the Grid session
+grid.delete()
+
+# Re-fetch the RecordSet to get the updated validation_file_handle_id
+record_set = RecordSet(id=record_set.id).get()
 ```
+
+**Important**: The `validation_file_handle_id` attribute is only populated after a Grid export operation. Until then, `get_detailed_validation_results()` will return `None`.
 
 ### Getting detailed validation results
 
@@ -536,10 +544,8 @@ print(f"Task {TASK_ID} state is now: {status.state}")
 - [query_schema_registry][synapseclient.extensions.curator.query_schema_registry] - Search for schemas in the registry
 - [create_record_based_metadata_task][synapseclient.extensions.curator.create_record_based_metadata_task] - Create RecordSet-based curation workflows
 - [create_file_based_metadata_task][synapseclient.extensions.curator.create_file_based_metadata_task] - Create EntityView-based curation workflows
-- [get_curator_grid][synapseclient.extensions.curator.get_curator_grid] - Get or create the Grid attached to a curation task
 - [RecordSet.get_detailed_validation_results][synapseclient.models.RecordSet.get_detailed_validation_results] - Get detailed validation results for RecordSet data
 - [Grid.create][synapseclient.models.curation.Grid.create] - Create a Grid session from a RecordSet or EntityView
-- [Grid.get][synapseclient.models.curation.Grid.get] - Get a Grid session from Synapse by its session id
 - [Grid.export_to_record_set][synapseclient.models.curation.Grid.export_to_record_set] - Export Grid data back to RecordSet and generate validation results
 - [Folder.bind_schema][synapseclient.models.Folder.bind_schema] - Bind schemas to folders
 - [Folder.validate_schema][synapseclient.models.Folder.validate_schema] - Validate folder schema compliance
