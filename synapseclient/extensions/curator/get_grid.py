@@ -64,9 +64,12 @@ def get_curator_grid(
         task_id: The unique identifier of the CurationTask to get or create a
             grid for.
         owner_principal_id: The principal ID (user or team) that will own a newly
-            created grid session. Ignored when a session is already attached to
-            the task. When not provided, the caller becomes the owner (subject to
-            the task's suggested authorization mode).
+            created grid session. Used whenever a new session must be created:
+            when the task has no session attached, or when the attached session
+            no longer exists and is recreated. Ignored when an existing attached
+            session is fetched successfully. When not provided, the caller
+            becomes the owner (subject to the task's suggested authorization
+            mode).
         timeout: Seconds to wait for the grid creation job when a new session must
             be created. Defaults to 120.
         synapse_client: If not passed in and caching was not disabled by
