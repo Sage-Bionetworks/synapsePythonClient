@@ -1724,7 +1724,7 @@ def _construct_single_key_where_statement(
     entity: TableBase,
     df: DATA_FRAME_TYPE,
     primary_key: str,
-) -> str | None:
+) -> str:
     """
     Build the WHERE clause used to match rows on a single-column primary key.
 
@@ -1733,24 +1733,21 @@ def _construct_single_key_where_statement(
 
     This will look something like: primary_key IN ('val1', 'val2')
 
+    Primary key values MUST BE non-null
+
     Arguments:
         entity: The table entity whose column types are used to format values.
         df: The DataFrame that contains the data to be upserted.
         primary_key: The column that is the primary key for this table
 
     Returns:
-        The WHERE clause matching every unique, non-null primary key value in the
-        DataFrame, or an empty string when no row has a primary key value.
-        If the df has no primary key values this returns None
+        The WHERE clause matching every unique primary key value in the DataFrame.
     """
     column_type = entity.columns[primary_key].column_type
     values = {
         _format_primary_key_value_for_where(value, column_type)
         for value in df[primary_key]
-        if value is not None
     }
-    if not values:
-        return None
     return f"\"{primary_key}\" IN ({', '.join(sorted(values))})"
 
 
@@ -1770,15 +1767,10 @@ def _construct_composite_key_conditions(
             primary_keys.
 
     Returns:
-        A list of SQL conditions, one per primary key column. Null components are
-        matched with IS NULL so that nullable primary key columns are handled
-        correctly.
+        A list of SQL conditions, one per primary key column.
     """
     conditions = []
     for upsert_column, value in zip(primary_keys, row):
-        if value is None:
-            conditions.append(f'"{upsert_column}" IS NULL')
-            continue
         column_type = entity.columns[upsert_column].column_type
         formatted_value = _format_primary_key_value_for_where(value, column_type)
         conditions.append(f'"{upsert_column}" = {formatted_value}')
@@ -1789,7 +1781,7 @@ def _construct_composite_key_where_statement(
     entity: TableBase,
     df: DATA_FRAME_TYPE,
     primary_keys: list[str],
-) -> str | None:
+) -> str:
     """
     Build the WHERE clause used to match rows on a composite (multi-column)
     primary key.
@@ -1800,6 +1792,8 @@ def _construct_composite_key_where_statement(
     key combination is not present in the input. e.g.
         ("a" = 'x' AND "b" = 'y') OR ("a" = 'p' AND "b" = 'q')
 
+    Primary key values MUST BE non-null,
+
     Arguments:
         entity: The table entity whose column types are used to format values.
         df: The DataFrame that contains the data to be upserted.
@@ -1807,25 +1801,62 @@ def _construct_composite_key_where_statement(
             already exists in the table.
 
     Returns:
-        The WHERE clause matching every unique primary key tuple in the DataFrame
-        that has at least one non-null primary key value. Null components are
-        matched with IS NULL so that nullable primary key columns are handled
-        correctly. Rows whose primary key values are all null are skipped.
-        If the df has no rows with at least one primary key value this returns None
+        The WHERE clause matching every unique primary key tuple in the DataFrame.
+        Duplicate key tuples are de-duplicated so each tuple appears only once.
     """
     row_clauses = []
     primary_key_tuples = set()
     for row in df[primary_keys].itertuples(index=False, name=None):
-        if all(value is None for value in row):
-            continue
         if row in primary_key_tuples:
             continue
         primary_key_tuples.add(row)
         conditions = _construct_composite_key_conditions(entity, primary_keys, row)
         row_clauses.append("(" + " AND ".join(conditions) + ")")
-    if not row_clauses:
-        return None
     return " OR ".join(row_clauses)
+
+
+def _validate_primary_keys(
+    values: DATA_FRAME_TYPE,
+    primary_keys: List[str],
+) -> None:
+    """
+    Validate the primary key columns used for an upsert.
+
+    Every primary key must be a column in the data being upserted, and none of the
+    primary key columns may contain null values. A null value cannot identify an
+    existing row, so a null primary key can never be matched for update. Rejecting
+    null primary keys up front avoids silently treating those rows as inserts, which
+    would not be idempotent.
+
+    Arguments:
+        values: The DataFrame that contains the data to be upserted.
+        primary_keys: A list of the columns that are used to determine if a row
+            already exists in the table.
+
+    Raises:
+        ValueError: If a primary key column is not present in the data, or if any
+            row has a null value in one of the primary key columns.
+    """
+    missing_primary_key_columns = [
+        key for key in primary_keys if key not in values.columns
+    ]
+    if missing_primary_key_columns:
+        raise ValueError(
+            "Primary key columns used for upsert must be present in the data being "
+            "upserted, but the following primary key column(s) are missing: "
+            f"{missing_primary_key_columns}. Add these columns to the data or update "
+            "the primary_keys argument before upserting."
+        )
+
+    null_primary_key_columns = [key for key in primary_keys if values[key].isna().any()]
+    if null_primary_key_columns:
+        raise ValueError(
+            "Primary key columns used for upsert must not contain null values, but "
+            "null values were found in the following primary key column(s): "
+            f"{null_primary_key_columns}. A null primary key cannot be matched "
+            "against an existing row. Remove these rows or populate the primary key "
+            "values before upserting."
+        )
 
 
 def _construct_select_statement_for_upsert(
@@ -1834,11 +1865,13 @@ def _construct_select_statement_for_upsert(
     all_columns_from_df: List[str],
     primary_keys: List[str],
     wait_for_eventually_consistent_view: bool,
-) -> Optional[str]:
+) -> str:
     """
     Create the select statement for a given DataFrame. This is used to select data
     from Synapse to determine if a row already exists in the table. This is used
     in the upsert method to determine if a row should be updated or inserted.
+
+    Primary key values MUST BE non-null.
 
     Arguments:
         df: The DataFrame that contains the data to be upserted.
@@ -1851,10 +1884,7 @@ def _construct_select_statement_for_upsert(
 
     Returns:
         The select statement that can be used to query Synapse to determine if a row
-        already exists in the table, or None when none of the rows have matchable
-        primary key values (e.g. every row is missing a primary key value). In that
-        case there is nothing to query for and every row should be treated as an
-        insert, so the caller should skip the query for this chunk.
+        already exists in the table.
     """
 
     if entity.__class__.__name__ in CLASSES_THAT_CONTAIN_ROW_ETAG:
@@ -1896,10 +1926,6 @@ def _construct_select_statement_for_upsert(
         where_statement = _construct_composite_key_where_statement(
             entity, df, primary_keys
         )
-
-    # No rows in this chunk have matchable primary key values, so there is nothing to query for.
-    if not where_statement:
-        return None
 
     select_statement += where_statement
     return select_statement
@@ -2236,6 +2262,9 @@ async def _upsert_rows_async(
     client = Synapse.get_client(synapse_client=synapse_client)
     # Replace pd.NA with None so the columns are converted to object columns instead of 'int64' or 'float64' which are not JSON serializable
     values = convert_dtypes_to_json_serializable(values)
+
+    _validate_primary_keys(values, primary_keys)
+
     rows_to_update: List[PartialRow] = []
     chunk_list: List[DataFrame] = []
     for i in range(0, len(values), rows_per_query):
@@ -2262,13 +2291,6 @@ async def _upsert_rows_async(
                 primary_keys=primary_keys,
                 wait_for_eventually_consistent_view=wait_for_eventually_consistent_view,
             )
-
-            # No matchable primary key values in this chunk: nothing to query for,
-            # so every row falls through to the insert path below (its index is not
-            # added to the "changes"/"no changes" index lists).
-            if select_statement is None:
-                progress_bar.update(len(individual_chunk.index))
-                continue
 
             results = await entity.query_async(
                 query=select_statement, synapse_client=synapse_client
@@ -2405,6 +2427,11 @@ class TableUpsertMixin:
         - The `primary_keys` argument must contain at least one column.
         - The `primary_keys` argument cannot contain columns that are a LIST type.
         - The `primary_keys` argument cannot contain columns that are a JSON type.
+        - The `primary_keys` columns must be present in the data being upserted. A
+            ValueError is raised if a primary key column is missing.
+        - The values in the primary_keys columns cannot be null. A null value cannot
+            be used to match an existing row, so a ValueError is raised if any row
+            has a null value in a primary key column.
         - The values used as the `primary_keys` must be unique in the table. If there
             are multiple rows with the same values in the `primary_keys` the behavior
             is that an exception will be raised.
@@ -2637,6 +2664,11 @@ class ViewUpdateMixin:
         - The `primary_keys` argument must contain at least one column.
         - The `primary_keys` argument cannot contain columns that are a LIST type.
         - The `primary_keys` argument cannot contain columns that are a JSON type.
+        - The `primary_keys` columns must be present in the data being upserted. A
+            ValueError is raised if a primary key column is missing.
+        - The values in the primary_keys columns cannot be null. A null value cannot
+            be used to match an existing row, so a ValueError is raised if any row
+            has a null value in a primary key column.
         - The values used as the `primary_keys` must be unique in the table. If there
             are multiple rows with the same values in the `primary_keys` the behavior
             is that an exception will be raised.
