@@ -46,15 +46,25 @@ from synapseclient.core.async_utils import (
     wrap_async_generator_to_sync_generator,
 )
 from synapseclient.core.constants.concrete_types import (
+    CELL_VALUE_FILTER,
+    COUNT_STAR,
     CREATE_GRID_REQUEST,
     DOWNLOAD_FROM_GRID_REQUEST,
     FILE_BASED_METADATA_TASK_PROPERTIES,
     GRID_CSV_IMPORT_REQUEST,
     GRID_EXECUTION_DETAILS,
+    GRID_QUERY_JOB_REQUEST,
     GRID_RECORD_SET_EXPORT_REQUEST,
     LIST_GRID_SESSIONS_REQUEST,
     LIST_GRID_SESSIONS_RESPONSE,
     RECORD_BASED_METADATA_TASK_PROPERTIES,
+    ROW_ID_FILTER,
+    ROW_IS_VALID_FILTER,
+    ROW_SELECTION_FILTER,
+    ROW_VALIDATION_RESULT_FILTER,
+    SELECT_ALL,
+    SELECT_BY_NAME,
+    SELECT_SELECTION,
     SYNCHRONIZE_GRID_REQUEST,
     UPLOAD_TO_TABLE_PREVIEW_REQUEST,
 )
@@ -177,6 +187,7 @@ class FileBasedMetadataTaskProperties(EnumCoercionMixin):
         Returns:
             The FileBasedMetadataTaskProperties object.
         """
+        print("fill_from_dict, suggested_authorization_mode:", synapse_response)
         self.upload_folder_id = synapse_response.get("uploadFolderId", None)
         self.file_view_id = synapse_response.get("fileViewId", None)
         self.suggested_authorization_mode = synapse_response.get(
@@ -194,6 +205,10 @@ class FileBasedMetadataTaskProperties(EnumCoercionMixin):
         Returns:
             A dictionary representation of this object for API requests.
         """
+        print(
+            "to synapse request, suggested_authorization_mode:",
+            self.suggested_authorization_mode,
+        )
         request_dict = {
             "concreteType": FILE_BASED_METADATA_TASK_PROPERTIES,
             "uploadFolderId": self.upload_folder_id,
@@ -218,16 +233,6 @@ class RecordBasedMetadataTaskProperties(EnumCoercionMixin):
 
     Attributes:
         record_set_id: The synId of the RecordSet that will contain all record-based metadata
-        suggested_authorization_mode: Recommends who is allowed to access the curation
-            grid session that a client opens for this task. The value is stored on the
-            task as a suggestion; the client applies it when it creates a new session.
-            Choose from SESSION_OWNER (only the person or team who owns the session can
-            access it) or SOURCE_BENEFACTOR (anyone with EDIT permission on the data being
-            curated can access the session). When omitted (None, the default), no
-            recommendation is stored and clients fall back to their usual behavior.
-        collaborator_principal_ids: Not actively used at this time. The set of principal
-            IDs that should collaborate on the grid session. Used to set the owner(s) of a
-            linked GridSession when suggested_authorization_mode is SESSION_OWNER.
     """
 
     _ENUM_FIELDS: ClassVar[dict[str, type]] = {
@@ -2275,6 +2280,916 @@ class GridCsvImportRequest(AsynchronousCommunicator):
             "fileHandleId": self.file_handle_id,
             "csvDescriptor": self.csv_descriptor.to_synapse_request(),
             "schema": [col.to_synapse_request() for col in self.schema],
+        }
+        delete_none_keys(request_dict)
+        return request_dict
+
+
+@dataclass
+class SelectColumn:
+    """
+    Information about a selected column in a grid query result.
+
+    Represents a [Synapse SelectColumn](https://rest-docs.synapse.org/rest/org/sagebionetworks/repo/model/grid/query/result/SelectColumn.html).
+
+    Note: This is distinct from the table
+    [SelectColumn](https://rest-docs.synapse.org/rest/org/sagebionetworks/repo/model/table/SelectColumn.html)
+    (`org.sagebionetworks.repo.model.table.SelectColumn`), which additionally carries
+    `id` and `columnType`. This grid-query `SelectColumn` only has `column_name`.
+
+    Attributes:
+        column_name: The name of the column. Will be the alias if one is
+            provided in the select item.
+    """
+
+    column_name: Optional[str] = None
+    """The name of the column. Will be the alias if one is provided in the select item."""
+
+    def fill_from_dict(self, synapse_response: Dict[str, Any]) -> "SelectColumn":
+        """
+        Converts a response from the REST API into this dataclass.
+
+        Arguments:
+            synapse_response: The response from the REST API.
+
+        Returns:
+            The SelectColumn object.
+        """
+        self.column_name = synapse_response.get("columnName", None)
+        return self
+
+
+@dataclass
+class GridRow:
+    """
+    A single row of a grid query result.
+
+    Represents a [Synapse Row](https://rest-docs.synapse.org/rest/org/sagebionetworks/repo/model/grid/query/result/Row.html).
+
+    Note: This is distinct from the SQL-based table
+    [Row](https://rest-docs.synapse.org/rest/org/sagebionetworks/repo/model/table/Row.html)
+    (`org.sagebionetworks.repo.model.table.Row`), which represents a row of a
+    table/view query result rather than a grid query result.
+
+    Attributes:
+        row_id: Logical timestamp identifying the row in compact form
+            `replicaId.sequenceNumber` (e.g. `123.456`). Used in filtering
+            operations and update/patch procedures.
+        data: The JSON object representing a single row.
+        validation_results: Results from validating this row against a JSON
+            schema, if a schema is bound. This is currently passed through as
+            a raw dictionary.
+    """
+
+    row_id: Optional[str] = None
+    """Logical timestamp identifying the row in compact form `replicaId.sequenceNumber`."""
+
+    data: Optional[Dict[str, Any]] = None
+    """The JSON object representing a single row."""
+
+    validation_results: Optional[Dict[str, Any]] = None
+    """Results from validating this row against a JSON schema, if a schema is bound."""
+
+    def fill_from_dict(self, synapse_response: Dict[str, Any]) -> "GridRow":
+        """
+        Converts a response from the REST API into this dataclass.
+
+        Arguments:
+            synapse_response: The response from the REST API.
+
+        Returns:
+            The GridRow object.
+        """
+        self.row_id = synapse_response.get("rowId", None)
+        self.data = synapse_response.get("data", None)
+        self.validation_results = synapse_response.get("validationResults", None)
+        return self
+
+
+@dataclass
+class GridQueryResult:
+    """
+    A single page of rows returned from a grid query.
+
+    Represents a [Synapse QueryResult](https://rest-docs.synapse.org/rest/org/sagebionetworks/repo/model/grid/query/result/QueryResult.html).
+
+    Note: This is distinct from the SQL-based table
+    [QueryResult](https://rest-docs.synapse.org/rest/org/sagebionetworks/repo/model/table/QueryResult.html)
+    (`org.sagebionetworks.repo.model.table.QueryResult`), which wraps SQL query
+    results rather than a grid query's SelectColumn/Row objects.
+
+    Attributes:
+        select_columns: Information about the selected columns.
+        rows: A single page of rows.
+    """
+
+    select_columns: Optional[list[SelectColumn]] = None
+    """Information about the selected columns."""
+
+    rows: Optional[list[GridRow]] = None
+    """A single page of rows."""
+
+    def fill_from_dict(self, synapse_response: Dict[str, Any]) -> "GridQueryResult":
+        """
+        Converts a response from the REST API into this dataclass.
+
+        Arguments:
+            synapse_response: The response from the REST API.
+
+        Returns:
+            The GridQueryResult object.
+        """
+        select_columns_data = synapse_response.get("selectColumns", None)
+        self.select_columns = (
+            [SelectColumn().fill_from_dict(col) for col in select_columns_data]
+            if select_columns_data is not None
+            else None
+        )
+
+        rows_data = synapse_response.get("rows", None)
+        self.rows = (
+            [GridRow().fill_from_dict(row) for row in rows_data]
+            if rows_data is not None
+            else None
+        )
+        return self
+
+
+class ValidationOperator(str, Enum):
+    """
+    The comparison operator.
+
+    See <https://rest-docs.synapse.org/rest/org/sagebionetworks/repo/model/grid/query/ValidationOperator.html>.
+    """
+
+    LIKE = "LIKE"
+    NOT_LIKE = "NOT_LIKE"
+
+
+class CellValueOperator(str, Enum):
+    """
+    The comparison operator.
+
+    See <https://rest-docs.synapse.org/rest/org/sagebionetworks/repo/model/grid/query/CellValueOperator.html>.
+    """
+
+    EQUALS = "EQUALS"
+    NOT_EQUALS = "NOT_EQUALS"
+    GREATER_THAN = "GREATER_THAN"
+    LESS_THAN = "LESS_THAN"
+    GREATER_THAN_OR_EQUALS = "GREATER_THAN_OR_EQUALS"
+    LESS_THAN_OR_EQUALS = "LESS_THAN_OR_EQUALS"
+    IN = "IN"
+    NOT_IN = "NOT_IN"
+    LIKE = "LIKE"
+    NOT_LIKE = "NOT_LIKE"
+    IS_NULL = "IS_NULL"
+    IS_NOT_NULL = "IS_NOT_NULL"
+    IS_UNDEFINED = "IS_UNDEFINED"
+    IS_DEFINED = "IS_DEFINED"
+
+
+@dataclass
+class SelectItem(ABC):
+    """
+    A generic select item.
+
+    <https://rest-docs.synapse.org/rest/org/sagebionetworks/repo/model/grid/query/SelectItem.html>
+
+    Known implementations: SelectByName, SelectAll, CountStar, SelectSelection.
+
+    The concrete subclass is determined by the concreteType field in the REST response.
+    """
+
+    @abstractmethod
+    def fill_from_dict(self, synapse_response: Dict[str, Any]) -> "SelectItem":
+        """
+        Converts a response from the REST API into this dataclass.
+
+        Arguments:
+            synapse_response: The response from the REST API.
+
+        Returns:
+            The SelectItem object.
+        """
+        ...
+
+    @abstractmethod
+    def to_synapse_request(self) -> Dict[str, Any]:
+        """
+        Converts this dataclass to a dictionary suitable for a Synapse REST API request.
+
+        Returns:
+            A dictionary representation of this object for API requests.
+        """
+        ...
+
+
+@dataclass
+class SelectByName(SelectItem):
+    """
+    A SelectItem that will result in the selection of a single column by its name.
+
+    <https://rest-docs.synapse.org/rest/org/sagebionetworks/repo/model/grid/query/SelectByName.html>
+
+    Attributes:
+        column_name: The name of the column to include in the select.
+    """
+
+    column_name: Optional[str] = None
+    """The name of the column to include in the select."""
+
+    def fill_from_dict(self, synapse_response: Dict[str, Any]) -> "SelectByName":
+        """
+        Converts a response from the REST API into this dataclass.
+
+        Arguments:
+            synapse_response: The response from the REST API.
+
+        Returns:
+            The SelectByName object.
+        """
+        self.column_name = synapse_response.get("columnName", None)
+        return self
+
+    def to_synapse_request(self) -> Dict[str, Any]:
+        """
+        Converts this dataclass to a dictionary suitable for a Synapse REST API request.
+
+        Returns:
+            A dictionary representation of this object for API requests.
+        """
+        request_dict = {"concreteType": SELECT_BY_NAME, "columnName": self.column_name}
+        delete_none_keys(request_dict)
+        return request_dict
+
+
+@dataclass
+class SelectAll(SelectItem):
+    """
+    A SelectItem that will result in the selection of all columns.
+
+    <https://rest-docs.synapse.org/rest/org/sagebionetworks/repo/model/grid/query/SelectAll.html>
+    """
+
+    def fill_from_dict(self, synapse_response: Dict[str, Any]) -> "SelectAll":
+        """
+        Converts a response from the REST API into this dataclass.
+
+        Arguments:
+            synapse_response: The response from the REST API.
+
+        Returns:
+            The SelectAll object.
+        """
+        return self
+
+    def to_synapse_request(self) -> Dict[str, Any]:
+        """
+        Converts this dataclass to a dictionary suitable for a Synapse REST API request.
+
+        Returns:
+            A dictionary representation of this object for API requests.
+        """
+        return {"concreteType": SELECT_ALL}
+
+
+@dataclass
+class CountStar(SelectItem):
+    """
+    Use this to count the total number of rows that match the query. For example,
+    for a user request like 'how many rows are there in total?', select this item.
+    The alias property can be used to name the resulting count column.
+
+    <https://rest-docs.synapse.org/rest/org/sagebionetworks/repo/model/grid/query/function/CountStar.html>
+
+    Attributes:
+        alias: Used to name the resulting count column.
+    """
+
+    alias: Optional[str] = None
+    """Used to name the resulting count column."""
+
+    def fill_from_dict(self, synapse_response: Dict[str, Any]) -> "CountStar":
+        """
+        Converts a response from the REST API into this dataclass.
+
+        Arguments:
+            synapse_response: The response from the REST API.
+
+        Returns:
+            The CountStar object.
+        """
+        self.alias = synapse_response.get("alias", None)
+        return self
+
+    def to_synapse_request(self) -> Dict[str, Any]:
+        """
+        Converts this dataclass to a dictionary suitable for a Synapse REST API request.
+
+        Returns:
+            A dictionary representation of this object for API requests.
+        """
+        request_dict = {"concreteType": COUNT_STAR, "alias": self.alias}
+        delete_none_keys(request_dict)
+        return request_dict
+
+
+@dataclass
+class SelectSelection(SelectItem):
+    """
+    A SelectItem that will result in the selection of the columns the user has
+    actively selected in the interface.
+
+    <https://rest-docs.synapse.org/rest/org/sagebionetworks/repo/model/grid/query/SelectSelection.html>
+    """
+
+    def fill_from_dict(self, synapse_response: Dict[str, Any]) -> "SelectSelection":
+        """
+        Converts a response from the REST API into this dataclass.
+
+        Arguments:
+            synapse_response: The response from the REST API.
+
+        Returns:
+            The SelectSelection object.
+        """
+        return self
+
+    def to_synapse_request(self) -> Dict[str, Any]:
+        """
+        Converts this dataclass to a dictionary suitable for a Synapse REST API request.
+
+        Returns:
+            A dictionary representation of this object for API requests.
+        """
+        return {"concreteType": SELECT_SELECTION}
+
+
+SELECT_ITEM_DICT: dict[str, type[SelectItem]] = {
+    SELECT_BY_NAME: SelectByName,
+    SELECT_ALL: SelectAll,
+    COUNT_STAR: CountStar,
+    SELECT_SELECTION: SelectSelection,
+}
+
+
+def _create_select_item_from_dict(item_dict: Dict[str, Any]) -> SelectItem:
+    """
+    Factory method to create the appropriate SelectItem subclass based on the
+    concreteType.
+
+    Arguments:
+        item_dict: Dictionary containing select item data.
+
+    Returns:
+        The appropriate SelectItem instance.
+    """
+    concrete_type = item_dict.get("concreteType", "")
+    cls = SELECT_ITEM_DICT.get(concrete_type)
+    if cls is None:
+        raise ValueError(f"Unknown concreteType for SelectItem: {concrete_type}")
+    return cls().fill_from_dict(item_dict)
+
+
+@dataclass
+class Filter(ABC):
+    """
+    There are five different types of filters that can be applied to a grid query.
+
+    <https://rest-docs.synapse.org/rest/org/sagebionetworks/repo/model/grid/query/Filter.html>
+
+    Known implementations: RowValidationResultFilter, CellValueFilter,
+    RowSelectionFilter, RowIsValidFilter, RowIdFilter.
+
+    The concrete subclass is determined by the concreteType field in the REST response.
+    """
+
+    @abstractmethod
+    def fill_from_dict(self, synapse_response: Dict[str, Any]) -> "Filter":
+        """
+        Converts a response from the REST API into this dataclass.
+
+        Arguments:
+            synapse_response: The response from the REST API.
+
+        Returns:
+            The Filter object.
+        """
+        ...
+
+    @abstractmethod
+    def to_synapse_request(self) -> Dict[str, Any]:
+        """
+        Converts this dataclass to a dictionary suitable for a Synapse REST API request.
+
+        Returns:
+            A dictionary representation of this object for API requests.
+        """
+        ...
+
+
+@dataclass
+class RowValidationResultFilter(Filter, EnumCoercionMixin):
+    """
+    Use this filter to find rows that have data quality issues or schema
+    validation errors.
+
+    <https://rest-docs.synapse.org/rest/org/sagebionetworks/repo/model/grid/query/RowValidationResultFilter.html>
+
+    To find type errors, use the LIKE operator with '%expected type:%' as the
+    validation result value.
+
+    Attributes:
+        operator: The comparison operator.
+        validation_result_value: A validation result value. For wildcards use
+            '%' to represents zero or more characters, and '_' to represents a
+            single character.
+    """
+
+    _ENUM_FIELDS: ClassVar[dict[str, type]] = {"operator": ValidationOperator}
+
+    operator: Optional[Union[ValidationOperator, str]] = None
+    """The comparison operator."""
+
+    validation_result_value: Optional[str] = None
+    """A validation result value. For wildcards use '%' to represents zero or
+    more characters, and '_' to represents a single character."""
+
+    def fill_from_dict(
+        self, synapse_response: Dict[str, Any]
+    ) -> "RowValidationResultFilter":
+        """
+        Converts a response from the REST API into this dataclass.
+
+        Arguments:
+            synapse_response: The response from the REST API.
+
+        Returns:
+            The RowValidationResultFilter object.
+        """
+        self.operator = synapse_response.get("operator", None)
+        self.validation_result_value = synapse_response.get(
+            "validationResultValue", None
+        )
+        return self
+
+    def to_synapse_request(self) -> Dict[str, Any]:
+        """
+        Converts this dataclass to a dictionary suitable for a Synapse REST API request.
+
+        Returns:
+            A dictionary representation of this object for API requests.
+        """
+        request_dict = {
+            "concreteType": ROW_VALIDATION_RESULT_FILTER,
+            "operator": self.operator.value if self.operator is not None else None,
+            "validationResultValue": self.validation_result_value,
+        }
+        delete_none_keys(request_dict)
+        return request_dict
+
+
+@dataclass
+class CellValueFilter(Filter, EnumCoercionMixin):
+    """
+    A filter used to select rows based on cell values. For example, to handle a
+    user request like 'find all rows where the Project column is Alpha', you
+    would set 'columnName' to 'Project', 'operator' to 'EQUALS', and 'value' to
+    ['Alpha'].
+
+    <https://rest-docs.synapse.org/rest/org/sagebionetworks/repo/model/grid/query/CellValueFilter.html>
+
+    Attributes:
+        column_name: The name of the column to filter by.
+        operator: The comparison operator.
+        value: Use operators like 'EQUALS' or 'LIKE' with the 'value' property
+            for standard comparisons. The 'IS_NULL' operator can be used to
+            find null values. The 'IS_UNDEFINED' operator can be used to find
+            undefined values. When using IN or NOT_IN operators, value should
+            be an array of values to compare against. When using either 'LIKE'
+            or 'NOT_LIKE', the wildcard character '%' is used to represents
+            zero or more characters, and '_' is used to represent a single
+            character.
+    """
+
+    _ENUM_FIELDS: ClassVar[dict[str, type]] = {"operator": CellValueOperator}
+
+    column_name: Optional[str] = None
+    """The name of the column to filter by."""
+
+    operator: Optional[Union[CellValueOperator, str]] = None
+    """The comparison operator."""
+
+    value: Optional[Any] = None
+    """Use operators like 'EQUALS' or 'LIKE' with the 'value' property for
+    standard comparisons. The 'IS_NULL' operator can be used to find null
+    values. The 'IS_UNDEFINED' operator can be used to find undefined values.
+    When using IN or NOT_IN operators, value should be an array of values to
+    compare against. When using either 'LIKE' or 'NOT_LIKE', the wildcard
+    character '%' is used to represents zero or more characters, and '_' is
+    used to represent a single character."""
+
+    def fill_from_dict(self, synapse_response: Dict[str, Any]) -> "CellValueFilter":
+        """
+        Converts a response from the REST API into this dataclass.
+
+        Arguments:
+            synapse_response: The response from the REST API.
+
+        Returns:
+            The CellValueFilter object.
+        """
+        self.column_name = synapse_response.get("columnName", None)
+        self.operator = synapse_response.get("operator", None)
+        self.value = synapse_response.get("value", None)
+        return self
+
+    def to_synapse_request(self) -> Dict[str, Any]:
+        """
+        Converts this dataclass to a dictionary suitable for a Synapse REST API request.
+
+        Returns:
+            A dictionary representation of this object for API requests.
+        """
+        request_dict = {
+            "concreteType": CELL_VALUE_FILTER,
+            "columnName": self.column_name,
+            "operator": self.operator.value if self.operator is not None else None,
+            "value": self.value,
+        }
+        delete_none_keys(request_dict)
+        return request_dict
+
+
+@dataclass
+class RowSelectionFilter(Filter):
+    """
+    Use this filter to narrow down results based on rows the user has actively
+    selected in the interface. For user requests like 'show me only my selected
+    items' or 'run this analysis on the rows I've checked', set the
+    'isSelected' property to true.
+
+    <https://rest-docs.synapse.org/rest/org/sagebionetworks/repo/model/grid/query/RowSelectionFilter.html>
+
+    Attributes:
+        is_selected: When true, only rows that the user has selected will be
+            returned. When false, rows that the user has selected will be
+            excluded.
+    """
+
+    is_selected: Optional[bool] = None
+    """When true, only rows that the user has selected will be returned. When
+    false, rows that the user has selected will be excluded."""
+
+    def fill_from_dict(self, synapse_response: Dict[str, Any]) -> "RowSelectionFilter":
+        """
+        Converts a response from the REST API into this dataclass.
+
+        Arguments:
+            synapse_response: The response from the REST API.
+
+        Returns:
+            The RowSelectionFilter object.
+        """
+        self.is_selected = synapse_response.get("isSelected", None)
+        return self
+
+    def to_synapse_request(self) -> Dict[str, Any]:
+        """
+        Converts this dataclass to a dictionary suitable for a Synapse REST API request.
+
+        Returns:
+            A dictionary representation of this object for API requests.
+        """
+        request_dict = {
+            "concreteType": ROW_SELECTION_FILTER,
+            "isSelected": self.is_selected,
+        }
+        delete_none_keys(request_dict)
+        return request_dict
+
+
+@dataclass
+class RowIsValidFilter(Filter):
+    """
+    Use this filter for simple requests to find all 'valid' or 'invalid' rows
+    based on their overall validation status.
+
+    <https://rest-docs.synapse.org/rest/org/sagebionetworks/repo/model/grid/query/RowIsValidFilter.html>
+
+    Attributes:
+        value: Set to true to find rows that are valid according to the
+            schema. Set to false to find rows that are invalid and have
+            validation errors.
+    """
+
+    value: Optional[bool] = None
+    """Set to true to find rows that are valid according to the schema. Set to
+    false to find rows that are invalid and have validation errors."""
+
+    def fill_from_dict(self, synapse_response: Dict[str, Any]) -> "RowIsValidFilter":
+        """
+        Converts a response from the REST API into this dataclass.
+
+        Arguments:
+            synapse_response: The response from the REST API.
+
+        Returns:
+            The RowIsValidFilter object.
+        """
+        self.value = synapse_response.get("value", None)
+        return self
+
+    def to_synapse_request(self) -> Dict[str, Any]:
+        """
+        Converts this dataclass to a dictionary suitable for a Synapse REST API request.
+
+        Returns:
+            A dictionary representation of this object for API requests.
+        """
+        request_dict = {"concreteType": ROW_IS_VALID_FILTER, "value": self.value}
+        delete_none_keys(request_dict)
+        return request_dict
+
+
+@dataclass
+class RowIdFilter(Filter):
+    """
+    Row ID inclusion filter. Use when you need to operate on specific existing
+    rows by their explicit row IDs obtained from a prior grid query (e.g., an
+    update). The filter matches any row whose ID is in the provided list
+    (logical OR semantics). Do not use for pattern matching or broad selection;
+    supply only the exact row IDs you intend to modify or retrieve.
+
+    <https://rest-docs.synapse.org/rest/org/sagebionetworks/repo/model/grid/query/RowIdFilter.html>
+
+    Attributes:
+        row_ids_in: Array of explicit row IDs. The result will include any row
+            whose ID appears in this list (logical OR). Provide only IDs
+            previously obtained from a grid query. Omit this filter if you do
+            not know the IDs. Do not include duplicates or IDs not present in
+            the current grid.
+    """
+
+    row_ids_in: Optional[list[str]] = None
+    """Array of explicit row IDs. The result will include any row whose ID
+    appears in this list (logical OR). Provide only IDs previously obtained
+    from a grid query. Omit this filter if you do not know the IDs. Do not
+    include duplicates or IDs not present in the current grid."""
+
+    def fill_from_dict(self, synapse_response: Dict[str, Any]) -> "RowIdFilter":
+        """
+        Converts a response from the REST API into this dataclass.
+
+        Arguments:
+            synapse_response: The response from the REST API.
+
+        Returns:
+            The RowIdFilter object.
+        """
+        self.row_ids_in = synapse_response.get("rowIdsIn", None)
+        return self
+
+    def to_synapse_request(self) -> Dict[str, Any]:
+        """
+        Converts this dataclass to a dictionary suitable for a Synapse REST API request.
+
+        Returns:
+            A dictionary representation of this object for API requests.
+        """
+        request_dict = {"concreteType": ROW_ID_FILTER, "rowIdsIn": self.row_ids_in}
+        delete_none_keys(request_dict)
+        return request_dict
+
+
+FILTER_DICT: dict[str, type[Filter]] = {
+    ROW_VALIDATION_RESULT_FILTER: RowValidationResultFilter,
+    CELL_VALUE_FILTER: CellValueFilter,
+    ROW_SELECTION_FILTER: RowSelectionFilter,
+    ROW_IS_VALID_FILTER: RowIsValidFilter,
+    ROW_ID_FILTER: RowIdFilter,
+}
+
+
+def _create_filter_from_dict(filter_dict: Dict[str, Any]) -> Filter:
+    """
+    Factory method to create the appropriate Filter subclass based on the
+    concreteType.
+
+    Arguments:
+        filter_dict: Dictionary containing filter data.
+
+    Returns:
+        The appropriate Filter instance.
+    """
+    concrete_type = filter_dict.get("concreteType", "")
+    cls = FILTER_DICT.get(concrete_type)
+    if cls is None:
+        raise ValueError(f"Unknown concreteType for Filter: {concrete_type}")
+    return cls().fill_from_dict(filter_dict)
+
+
+@dataclass
+class GridQuery:
+    """
+    A structured grid query, expressed with JSON SelectItem and Filter objects
+    rather than SQL syntax.
+
+    Represents a [Synapse Query](https://rest-docs.synapse.org/rest/org/sagebionetworks/repo/model/grid/query/Query.html).
+
+    Note: This is distinct from the SQL-based table
+    [Query](https://rest-docs.synapse.org/rest/org/sagebionetworks/repo/model/table/Query.html)
+    (`org.sagebionetworks.repo.model.table.Query`, imported here as `Query`), which
+    takes a SQL string rather than structured select items and filters.
+
+    Attributes:
+        column_selection: One or more SelectItem is required to define the
+            columns that will be returned by this query (e.g. SelectAll,
+            CountStar).
+        filters: Each filter must be a complete JSON object with the required
+            'concreteType' property. Multiple filters are combined with AND logic.
+        limit: Limit of the number of rows returned to avoid loading more data
+            than needed into your context window.
+        offset: Specifies where the first returned row begins in the result set.
+        include_validation_messages: Controls whether the
+            'allValidationMessages' array appears in the response. Defaults to
+            false to conserve token usage.
+    """
+
+    column_selection: list[SelectItem] = field(default_factory=list)
+    """One or more SelectItem is required to define the columns that will be
+    returned by this query."""
+
+    limit: Optional[int] = None
+    """Limit of the number of rows returned to avoid loading more data than
+    needed into your context window."""
+
+    filters: Optional[list[Filter]] = None
+    """Each filter must be a complete JSON object with the required
+    'concreteType' property. Multiple filters are combined with AND logic."""
+
+    offset: Optional[int] = None
+    """Specifies where the first returned row begins in the result set."""
+
+    include_validation_messages: Optional[bool] = None
+    """Controls whether the 'allValidationMessages' array appears in the response."""
+
+    def fill_from_dict(self, synapse_response: Dict[str, Any]) -> "GridQuery":
+        """
+        Converts a response from the REST API into this dataclass.
+
+        Arguments:
+            synapse_response: The response from the REST API.
+
+        Returns:
+            The GridQuery object.
+        """
+        self.column_selection = [
+            _create_select_item_from_dict(item)
+            for item in synapse_response.get("columnSelection", [])
+        ]
+
+        filters_data = synapse_response.get("filters", None)
+        self.filters = (
+            [_create_filter_from_dict(item) for item in filters_data]
+            if filters_data is not None
+            else None
+        )
+
+        self.limit = synapse_response.get("limit", None)
+        self.offset = synapse_response.get("offset", None)
+        self.include_validation_messages = synapse_response.get(
+            "includeValidationMessages", None
+        )
+        return self
+
+    def to_synapse_request(self) -> Dict[str, Any]:
+        """
+        Converts this dataclass to a dictionary suitable for a Synapse REST API request.
+
+        Returns:
+            A dictionary representation of this object for API requests.
+        """
+        request_dict = {
+            "columnSelection": [
+                item.to_synapse_request() for item in self.column_selection
+            ],
+            "filters": (
+                [item.to_synapse_request() for item in self.filters]
+                if self.filters is not None
+                else None
+            ),
+            "limit": self.limit,
+            "offset": self.offset,
+            "includeValidationMessages": self.include_validation_messages,
+        }
+        delete_none_keys(request_dict)
+        return request_dict
+
+
+@dataclass
+class QueryRequest:
+    """
+    Wraps a structured grid query for execution against a grid session.
+
+    Represents a [Synapse QueryRequest](https://rest-docs.synapse.org/rest/org/sagebionetworks/repo/model/grid/query/QueryRequest.html).
+
+    Attributes:
+        query: Defines a structured query using JSON SelectItems and Filters
+            objects (not SQL syntax).
+    """
+
+    query: Optional[GridQuery] = None
+    """Defines a structured query using JSON SelectItems and Filters objects (not SQL syntax)."""
+
+    def fill_from_dict(self, synapse_response: Dict[str, Any]) -> "QueryRequest":
+        """
+        Converts a response from the REST API into this dataclass.
+
+        Arguments:
+            synapse_response: The response from the REST API.
+
+        Returns:
+            The QueryRequest object.
+        """
+        query_dict = synapse_response.get("query", None)
+        self.query = GridQuery().fill_from_dict(query_dict) if query_dict else None
+        return self
+
+    def to_synapse_request(self) -> Dict[str, Any]:
+        """
+        Converts this dataclass to a dictionary suitable for a Synapse REST API request.
+
+        Returns:
+            A dictionary representation of this object for API requests.
+        """
+        request_dict = {
+            "query": self.query.to_synapse_request() if self.query else None,
+        }
+        delete_none_keys(request_dict)
+        return request_dict
+
+
+@dataclass
+class GridQueryJobRequest(AsynchronousCommunicator):
+    """
+    Asynchronous job request to query a grid session and return a single page of
+    rows with optional per-row validation data.
+
+    This request is modeled from: <https://rest-docs.synapse.org/rest/org/sagebionetworks/repo/model/grid/GridQueryJobRequest.html>
+
+    The response is modeled from: <https://rest-docs.synapse.org/rest/org/sagebionetworks/repo/model/grid/GridQueryJobResponse.html>
+    """
+
+    session_id: str
+    """The grid session ID for querying."""
+
+    replica_id: int
+    """The caller's replica ID for row filtering. Must be owned by the caller."""
+
+    query_request: QueryRequest = field(default_factory=QueryRequest)
+    """The structured query request to execute against the grid."""
+
+    concrete_type: str = GRID_QUERY_JOB_REQUEST
+    """The concrete type for this request."""
+
+    # Response fields (populated by fill_from_dict)
+    query_result: Optional[GridQueryResult] = field(default=None, compare=False)
+    """Results of a query against a grid session."""
+
+    def fill_from_dict(self, synapse_response: Dict[str, Any]) -> "GridQueryJobRequest":
+        """
+        Converts a response from the REST API into this dataclass.
+
+        Arguments:
+            synapse_response: The response from the REST API.
+
+        Returns:
+            The GridQueryJobRequest object.
+        """
+        query_result_data = synapse_response.get("queryResult", None)
+        self.query_result = (
+            GridQueryResult().fill_from_dict(query_result_data)
+            if query_result_data is not None
+            else None
+        )
+        return self
+
+    def to_synapse_request(self) -> Dict[str, Any]:
+        """
+        Converts this dataclass to a dictionary suitable for a Synapse REST API request.
+
+        Returns:
+            A dictionary representation of this object for API requests.
+        """
+        request_dict = {
+            "concreteType": self.concrete_type,
+            "sessionId": self.session_id,
+            "replicaId": self.replica_id,
+            "queryRequest": (
+                self.query_request.to_synapse_request() if self.query_request else None
+            ),
         }
         delete_none_keys(request_dict)
         return request_dict

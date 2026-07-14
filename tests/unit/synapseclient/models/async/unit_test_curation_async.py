@@ -7,28 +7,59 @@ import pytest
 
 from synapseclient import Synapse
 from synapseclient.core.constants.concrete_types import (
+    CELL_VALUE_FILTER,
+    COUNT_STAR,
     FILE_BASED_METADATA_TASK_PROPERTIES,
     GRID_CSV_IMPORT_REQUEST,
     GRID_EXECUTION_DETAILS,
+    GRID_QUERY_JOB_REQUEST,
     RECORD_BASED_METADATA_TASK_PROPERTIES,
+    ROW_ID_FILTER,
+    ROW_IS_VALID_FILTER,
+    ROW_SELECTION_FILTER,
+    ROW_VALIDATION_RESULT_FILTER,
+    SELECT_ALL,
+    SELECT_BY_NAME,
+    SELECT_SELECTION,
     UPLOAD_TO_TABLE_PREVIEW_REQUEST,
 )
 from synapseclient.models import EntityView, RecordSet
 from synapseclient.models.curation import (
     AuthorizationMode,
+    CellValueFilter,
+    CellValueOperator,
+    CountStar,
     CreateGridRequest,
     CurationTask,
     CurationTaskStatus,
     DownloadFromGridRequest,
     FileBasedMetadataTaskProperties,
+    Filter,
     Grid,
     GridCsvImportRequest,
     GridExecutionDetails,
+    GridQuery,
+    GridQueryJobRequest,
+    GridQueryResult,
     GridRecordSetExportRequest,
+    GridRow,
+    QueryRequest,
     RecordBasedMetadataTaskProperties,
+    RowIdFilter,
+    RowIsValidFilter,
+    RowSelectionFilter,
+    RowValidationResultFilter,
+    SelectAll,
+    SelectByName,
+    SelectColumn,
+    SelectItem,
+    SelectSelection,
     SynchronizeGridRequest,
     TaskState,
     UploadToTablePreviewRequest,
+    ValidationOperator,
+    _create_filter_from_dict,
+    _create_select_item_from_dict,
     _create_task_properties_from_dict,
 )
 from synapseclient.models.recordset import ValidationSummary
@@ -55,6 +86,7 @@ STARTED_BY = "user-1"
 STARTED_ON = "2024-03-01T00:00:00.000Z"
 FILE_HANDLE_ID = "1234567"
 OWNER_PRINCIPAL_ID = 987654
+REPLICA_ID = 7
 
 
 def _get_file_based_task_api_response():
@@ -2447,3 +2479,564 @@ class TestSynchronizeGrid:
                 error_message = mock_logger.error.call_args[0][0]
                 assert "sync_error_1" in error_message
                 assert "sync_error_2" in error_message
+
+
+class TestSelectColumn:
+    """Tests for the SelectColumn dataclass."""
+
+    def test_fill_from_dict(self) -> None:
+        # GIVEN a response with a column name
+        response = {"columnName": "diagnosis"}
+
+        # WHEN I fill a SelectColumn from the response
+        result = SelectColumn().fill_from_dict(response)
+
+        # THEN the column_name should be populated
+        assert result.column_name == "diagnosis"
+
+    def test_fill_from_dict_missing_column_name(self) -> None:
+        # GIVEN a response without a column name
+        # WHEN I fill a SelectColumn from the response
+        result = SelectColumn().fill_from_dict({})
+
+        # THEN the column_name should be None
+        assert result.column_name is None
+
+
+class TestGridRow:
+    """Tests for the GridRow dataclass."""
+
+    def test_fill_from_dict(self) -> None:
+        # GIVEN a response with row data and validation results
+        response = {
+            "rowId": "1.2",
+            "data": {"diagnosis": "flu"},
+            "validationResults": {"isValid": True},
+        }
+
+        # WHEN I fill a GridRow from the response
+        result = GridRow().fill_from_dict(response)
+
+        # THEN the fields should be populated
+        assert result.row_id == "1.2"
+        assert result.data == {"diagnosis": "flu"}
+        assert result.validation_results == {"isValid": True}
+
+    def test_fill_from_dict_without_validation_results(self) -> None:
+        # GIVEN a response without validation results
+        response = {"rowId": "1.3", "data": {"diagnosis": "cold"}}
+
+        # WHEN I fill a GridRow from the response
+        result = GridRow().fill_from_dict(response)
+
+        # THEN validation_results should be None
+        assert result.row_id == "1.3"
+        assert result.validation_results is None
+
+
+class TestGridQueryResult:
+    """Tests for the GridQueryResult dataclass."""
+
+    def test_fill_from_dict(self) -> None:
+        # GIVEN a response with select columns and rows
+        response = {
+            "selectColumns": [{"columnName": "diagnosis"}, {"columnName": "age"}],
+            "rows": [
+                {"rowId": "1.1", "data": {"diagnosis": "flu", "age": 30}},
+                {"rowId": "1.2", "data": {"diagnosis": "cold", "age": 40}},
+            ],
+        }
+
+        # WHEN I fill a GridQueryResult from the response
+        result = GridQueryResult().fill_from_dict(response)
+
+        # THEN the select_columns and rows should be populated
+        assert len(result.select_columns) == 2
+        assert all(isinstance(col, SelectColumn) for col in result.select_columns)
+        assert result.select_columns[0].column_name == "diagnosis"
+        assert len(result.rows) == 2
+        assert all(isinstance(row, GridRow) for row in result.rows)
+        assert result.rows[1].row_id == "1.2"
+
+    def test_fill_from_dict_empty_response(self) -> None:
+        # GIVEN a response with no select columns or rows
+        # WHEN I fill a GridQueryResult from the response
+        result = GridQueryResult().fill_from_dict({})
+
+        # THEN both fields should be None
+        assert result.select_columns is None
+        assert result.rows is None
+
+
+class TestSelectItemSubclasses:
+    """Tests for the SelectItem subclasses: SelectByName, SelectAll, CountStar,
+    and SelectSelection."""
+
+    def test_select_by_name_fill_from_dict(self) -> None:
+        # GIVEN a response for a SelectByName item
+        response = {"concreteType": SELECT_BY_NAME, "columnName": "diagnosis"}
+
+        # WHEN I fill a SelectByName from the response
+        result = SelectByName().fill_from_dict(response)
+
+        # THEN the column_name should be populated
+        assert result.column_name == "diagnosis"
+
+    def test_select_by_name_to_synapse_request(self) -> None:
+        # GIVEN a SelectByName with a column name
+        item = SelectByName(column_name="diagnosis")
+
+        # WHEN I convert it to a synapse request
+        result = item.to_synapse_request()
+
+        # THEN it should contain the concreteType and columnName
+        assert result == {"concreteType": SELECT_BY_NAME, "columnName": "diagnosis"}
+
+    def test_select_all_to_synapse_request(self) -> None:
+        # GIVEN a SelectAll item
+        item = SelectAll()
+
+        # WHEN I convert it to a synapse request
+        result = item.to_synapse_request()
+
+        # THEN it should only contain the concreteType
+        assert result == {"concreteType": SELECT_ALL}
+
+    def test_count_star_fill_from_dict(self) -> None:
+        # GIVEN a response for a CountStar item with an alias
+        response = {"concreteType": COUNT_STAR, "alias": "total"}
+
+        # WHEN I fill a CountStar from the response
+        result = CountStar().fill_from_dict(response)
+
+        # THEN the alias should be populated
+        assert result.alias == "total"
+
+    def test_count_star_to_synapse_request_without_alias(self) -> None:
+        # GIVEN a CountStar with no alias
+        item = CountStar()
+
+        # WHEN I convert it to a synapse request
+        result = item.to_synapse_request()
+
+        # THEN the alias key should be omitted
+        assert result == {"concreteType": COUNT_STAR}
+
+    def test_select_selection_to_synapse_request(self) -> None:
+        # GIVEN a SelectSelection item
+        item = SelectSelection()
+
+        # WHEN I convert it to a synapse request
+        result = item.to_synapse_request()
+
+        # THEN it should only contain the concreteType
+        assert result == {"concreteType": SELECT_SELECTION}
+
+
+class TestCreateSelectItemFromDict:
+    """Tests for the _create_select_item_from_dict factory function."""
+
+    @pytest.mark.parametrize(
+        "concrete_type,extra_fields,expected_cls",
+        [
+            (SELECT_BY_NAME, {"columnName": "diagnosis"}, SelectByName),
+            (SELECT_ALL, {}, SelectAll),
+            (COUNT_STAR, {"alias": "total"}, CountStar),
+            (SELECT_SELECTION, {}, SelectSelection),
+        ],
+    )
+    def test_dispatch(self, concrete_type, extra_fields, expected_cls) -> None:
+        # GIVEN a dict with a known concreteType
+        data = {"concreteType": concrete_type, **extra_fields}
+
+        # WHEN I create a SelectItem from the dict
+        result = _create_select_item_from_dict(data)
+
+        # THEN it should be an instance of the expected subclass
+        assert isinstance(result, expected_cls)
+        assert isinstance(result, SelectItem)
+
+    def test_unknown_concrete_type_raises_error(self) -> None:
+        # GIVEN a dict with an unknown concreteType
+        data = {"concreteType": "org.sagebionetworks.Unknown"}
+
+        # WHEN I attempt to create a SelectItem
+        # THEN it should raise a ValueError
+        with pytest.raises(ValueError, match="Unknown concreteType for SelectItem"):
+            _create_select_item_from_dict(data)
+
+
+class TestFilterSubclasses:
+    """Tests for the Filter subclasses: RowValidationResultFilter, CellValueFilter,
+    RowSelectionFilter, RowIsValidFilter, and RowIdFilter."""
+
+    def test_row_validation_result_filter_fill_from_dict(self) -> None:
+        # GIVEN a response for a RowValidationResultFilter
+        response = {
+            "concreteType": ROW_VALIDATION_RESULT_FILTER,
+            "operator": "LIKE",
+            "validationResultValue": "%expected type:%",
+        }
+
+        # WHEN I fill a RowValidationResultFilter from the response
+        result = RowValidationResultFilter().fill_from_dict(response)
+
+        # THEN the operator should be coerced to the ValidationOperator enum
+        assert result.operator == ValidationOperator.LIKE
+        assert result.validation_result_value == "%expected type:%"
+
+    def test_row_validation_result_filter_to_synapse_request(self) -> None:
+        # GIVEN a RowValidationResultFilter constructed with a string operator
+        item = RowValidationResultFilter(
+            operator="LIKE", validation_result_value="%expected type:%"
+        )
+
+        # WHEN I convert it to a synapse request
+        result = item.to_synapse_request()
+
+        # THEN the operator should be serialized as its string value
+        assert result == {
+            "concreteType": ROW_VALIDATION_RESULT_FILTER,
+            "operator": "LIKE",
+            "validationResultValue": "%expected type:%",
+        }
+
+    def test_cell_value_filter_fill_from_dict(self) -> None:
+        # GIVEN a response for a CellValueFilter
+        response = {
+            "concreteType": CELL_VALUE_FILTER,
+            "columnName": "Project",
+            "operator": "EQUALS",
+            "value": ["Alpha"],
+        }
+
+        # WHEN I fill a CellValueFilter from the response
+        result = CellValueFilter().fill_from_dict(response)
+
+        # THEN the fields should be populated and the operator coerced to an enum
+        assert result.column_name == "Project"
+        assert result.operator == CellValueOperator.EQUALS
+        assert result.value == ["Alpha"]
+
+    def test_cell_value_filter_to_synapse_request(self) -> None:
+        # GIVEN a CellValueFilter with an enum operator
+        item = CellValueFilter(
+            column_name="Project",
+            operator=CellValueOperator.EQUALS,
+            value=["Alpha"],
+        )
+
+        # WHEN I convert it to a synapse request
+        result = item.to_synapse_request()
+
+        # THEN it should contain the correct fields
+        assert result == {
+            "concreteType": CELL_VALUE_FILTER,
+            "columnName": "Project",
+            "operator": "EQUALS",
+            "value": ["Alpha"],
+        }
+
+    def test_row_selection_filter_fill_from_dict(self) -> None:
+        # GIVEN a response for a RowSelectionFilter
+        response = {"concreteType": ROW_SELECTION_FILTER, "isSelected": True}
+
+        # WHEN I fill a RowSelectionFilter from the response
+        result = RowSelectionFilter().fill_from_dict(response)
+
+        # THEN is_selected should be populated
+        assert result.is_selected is True
+
+    def test_row_selection_filter_to_synapse_request(self) -> None:
+        # GIVEN a RowSelectionFilter
+        item = RowSelectionFilter(is_selected=False)
+
+        # WHEN I convert it to a synapse request
+        result = item.to_synapse_request()
+
+        # THEN it should contain the correct fields
+        assert result == {
+            "concreteType": ROW_SELECTION_FILTER,
+            "isSelected": False,
+        }
+
+    def test_row_is_valid_filter_fill_from_dict(self) -> None:
+        # GIVEN a response for a RowIsValidFilter
+        response = {"concreteType": ROW_IS_VALID_FILTER, "value": False}
+
+        # WHEN I fill a RowIsValidFilter from the response
+        result = RowIsValidFilter().fill_from_dict(response)
+
+        # THEN value should be populated
+        assert result.value is False
+
+    def test_row_is_valid_filter_to_synapse_request(self) -> None:
+        # GIVEN a RowIsValidFilter
+        item = RowIsValidFilter(value=True)
+
+        # WHEN I convert it to a synapse request
+        result = item.to_synapse_request()
+
+        # THEN it should contain the correct fields
+        assert result == {"concreteType": ROW_IS_VALID_FILTER, "value": True}
+
+    def test_row_id_filter_fill_from_dict(self) -> None:
+        # GIVEN a response for a RowIdFilter
+        response = {"concreteType": ROW_ID_FILTER, "rowIdsIn": ["1.1", "1.2"]}
+
+        # WHEN I fill a RowIdFilter from the response
+        result = RowIdFilter().fill_from_dict(response)
+
+        # THEN row_ids_in should be populated
+        assert result.row_ids_in == ["1.1", "1.2"]
+
+    def test_row_id_filter_to_synapse_request(self) -> None:
+        # GIVEN a RowIdFilter
+        item = RowIdFilter(row_ids_in=["1.1", "1.2"])
+
+        # WHEN I convert it to a synapse request
+        result = item.to_synapse_request()
+
+        # THEN it should contain the correct fields
+        assert result == {
+            "concreteType": ROW_ID_FILTER,
+            "rowIdsIn": ["1.1", "1.2"],
+        }
+
+
+class TestCreateFilterFromDict:
+    """Tests for the _create_filter_from_dict factory function."""
+
+    @pytest.mark.parametrize(
+        "concrete_type,extra_fields,expected_cls",
+        [
+            (
+                ROW_VALIDATION_RESULT_FILTER,
+                {"operator": "LIKE"},
+                RowValidationResultFilter,
+            ),
+            (
+                CELL_VALUE_FILTER,
+                {"columnName": "Project", "operator": "EQUALS"},
+                CellValueFilter,
+            ),
+            (ROW_SELECTION_FILTER, {"isSelected": True}, RowSelectionFilter),
+            (ROW_IS_VALID_FILTER, {"value": True}, RowIsValidFilter),
+            (ROW_ID_FILTER, {"rowIdsIn": ["1.1"]}, RowIdFilter),
+        ],
+    )
+    def test_dispatch(self, concrete_type, extra_fields, expected_cls) -> None:
+        # GIVEN a dict with a known concreteType
+        data = {"concreteType": concrete_type, **extra_fields}
+
+        # WHEN I create a Filter from the dict
+        result = _create_filter_from_dict(data)
+
+        # THEN it should be an instance of the expected subclass
+        assert isinstance(result, expected_cls)
+        assert isinstance(result, Filter)
+
+    def test_unknown_concrete_type_raises_error(self) -> None:
+        # GIVEN a dict with an unknown concreteType
+        data = {"concreteType": "org.sagebionetworks.Unknown"}
+
+        # WHEN I attempt to create a Filter
+        # THEN it should raise a ValueError
+        with pytest.raises(ValueError, match="Unknown concreteType for Filter"):
+            _create_filter_from_dict(data)
+
+
+class TestGridQuery:
+    """Tests for the GridQuery dataclass."""
+
+    def test_fill_from_dict(self) -> None:
+        # GIVEN a response with column selection and filters
+        response = {
+            "columnSelection": [
+                {"concreteType": SELECT_ALL},
+                {"concreteType": SELECT_BY_NAME, "columnName": "diagnosis"},
+            ],
+            "filters": [
+                {"concreteType": ROW_IS_VALID_FILTER, "value": True},
+            ],
+            "limit": 50,
+            "offset": 10,
+            "includeValidationMessages": True,
+        }
+
+        # WHEN I fill a GridQuery from the response
+        result = GridQuery().fill_from_dict(response)
+
+        # THEN the fields should be populated with typed objects
+        assert len(result.column_selection) == 2
+        assert isinstance(result.column_selection[0], SelectAll)
+        assert isinstance(result.column_selection[1], SelectByName)
+        assert result.column_selection[1].column_name == "diagnosis"
+        assert len(result.filters) == 1
+        assert isinstance(result.filters[0], RowIsValidFilter)
+        assert result.limit == 50
+        assert result.offset == 10
+        assert result.include_validation_messages is True
+
+    def test_fill_from_dict_without_filters(self) -> None:
+        # GIVEN a response with no filters key
+        response = {
+            "columnSelection": [{"concreteType": SELECT_ALL}],
+            "limit": 100,
+        }
+
+        # WHEN I fill a GridQuery from the response
+        result = GridQuery().fill_from_dict(response)
+
+        # THEN filters should be None
+        assert result.filters is None
+        assert result.limit == 100
+
+    def test_to_synapse_request(self) -> None:
+        # GIVEN a GridQuery with select items and filters
+        query = GridQuery(
+            column_selection=[SelectAll(), SelectByName(column_name="diagnosis")],
+            filters=[RowIsValidFilter(value=True)],
+            limit=25,
+            offset=5,
+            include_validation_messages=False,
+        )
+
+        # WHEN I convert it to a synapse request
+        result = query.to_synapse_request()
+
+        # THEN it should contain the serialized select items and filters
+        assert result["columnSelection"] == [
+            {"concreteType": SELECT_ALL},
+            {"concreteType": SELECT_BY_NAME, "columnName": "diagnosis"},
+        ]
+        assert result["filters"] == [
+            {"concreteType": ROW_IS_VALID_FILTER, "value": True}
+        ]
+        assert result["limit"] == 25
+        assert result["offset"] == 5
+        assert result["includeValidationMessages"] is False
+
+    def test_to_synapse_request_without_filters(self) -> None:
+        # GIVEN a GridQuery with no filters set
+        query = GridQuery(column_selection=[SelectAll()], limit=10)
+
+        # WHEN I convert it to a synapse request
+        result = query.to_synapse_request()
+
+        # THEN the filters key should be omitted
+        assert "filters" not in result
+        assert result["columnSelection"] == [{"concreteType": SELECT_ALL}]
+        assert result["limit"] == 10
+
+
+class TestQueryRequest:
+    """Tests for the QueryRequest dataclass."""
+
+    def test_fill_from_dict(self) -> None:
+        # GIVEN a response with a nested query
+        response = {
+            "query": {
+                "columnSelection": [{"concreteType": SELECT_ALL}],
+                "limit": 10,
+            }
+        }
+
+        # WHEN I fill a QueryRequest from the response
+        result = QueryRequest().fill_from_dict(response)
+
+        # THEN the query should be populated as a GridQuery
+        assert isinstance(result.query, GridQuery)
+        assert result.query.limit == 10
+        assert isinstance(result.query.column_selection[0], SelectAll)
+
+    def test_to_synapse_request(self) -> None:
+        # GIVEN a QueryRequest with a GridQuery
+        request = QueryRequest(
+            query=GridQuery(column_selection=[SelectAll()], limit=10)
+        )
+
+        # WHEN I convert it to a synapse request
+        result = request.to_synapse_request()
+
+        # THEN it should contain the serialized query
+        assert result["query"]["columnSelection"] == [{"concreteType": SELECT_ALL}]
+        assert result["query"]["limit"] == 10
+
+    def test_to_synapse_request_without_query(self) -> None:
+        # GIVEN a QueryRequest with no query set
+        request = QueryRequest()
+
+        # WHEN I convert it to a synapse request
+        result = request.to_synapse_request()
+
+        # THEN the query key should be omitted
+        assert result == {}
+
+
+class TestGridQueryJobRequest:
+    """Tests for the GridQueryJobRequest dataclass."""
+
+    def test_to_synapse_request(self) -> None:
+        # GIVEN a GridQueryJobRequest with a query
+        job_request = GridQueryJobRequest(
+            session_id=SESSION_ID,
+            replica_id=REPLICA_ID,
+            query_request=QueryRequest(
+                query=GridQuery(column_selection=[SelectAll()], limit=50)
+            ),
+        )
+
+        # WHEN I convert it to a synapse request
+        result = job_request.to_synapse_request()
+
+        # THEN it should contain the correct fields
+        assert result["concreteType"] == GRID_QUERY_JOB_REQUEST
+        assert result["sessionId"] == SESSION_ID
+        assert result["replicaId"] == REPLICA_ID
+        assert result["queryRequest"]["query"]["columnSelection"] == [
+            {"concreteType": SELECT_ALL}
+        ]
+        assert result["queryRequest"]["query"]["limit"] == 50
+
+    def test_to_synapse_request_with_default_query_request(self) -> None:
+        # GIVEN a GridQueryJobRequest with no query_request set
+        job_request = GridQueryJobRequest(session_id=SESSION_ID, replica_id=REPLICA_ID)
+
+        # WHEN I convert it to a synapse request
+        result = job_request.to_synapse_request()
+
+        # THEN queryRequest should be an empty dict since no query was set
+        assert result["queryRequest"] == {}
+
+    def test_fill_from_dict(self) -> None:
+        # GIVEN a response with a queryResult
+        response = {
+            "concreteType": "org.sagebionetworks.repo.model.grid.GridQueryJobResponse",
+            "queryResult": {
+                "selectColumns": [{"columnName": "diagnosis"}],
+                "rows": [{"rowId": "1.1", "data": {"diagnosis": "flu"}}],
+            },
+        }
+
+        # WHEN I fill a GridQueryJobRequest from the response
+        job_request = GridQueryJobRequest(session_id=SESSION_ID, replica_id=REPLICA_ID)
+        job_request.fill_from_dict(response)
+
+        # THEN query_result should be populated as a GridQueryResult
+        assert isinstance(job_request.query_result, GridQueryResult)
+        assert job_request.query_result.select_columns[0].column_name == "diagnosis"
+        assert job_request.query_result.rows[0].row_id == "1.1"
+
+    def test_fill_from_dict_without_query_result(self) -> None:
+        # GIVEN a response without a queryResult
+        response = {
+            "concreteType": "org.sagebionetworks.repo.model.grid.GridQueryJobResponse"
+        }
+
+        # WHEN I fill a GridQueryJobRequest from the response
+        job_request = GridQueryJobRequest(session_id=SESSION_ID, replica_id=REPLICA_ID)
+        job_request.fill_from_dict(response)
+
+        # THEN query_result should be None
+        assert job_request.query_result is None
