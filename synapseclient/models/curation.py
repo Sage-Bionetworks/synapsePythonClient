@@ -34,6 +34,7 @@ from synapseclient.api import (
     get_curation_task_status,
     get_file_handle,
     get_file_handle_presigned_url,
+    get_grid_session,
     list_curation_tasks,
     list_grid_sessions,
     update_curation_task,
@@ -2786,6 +2787,37 @@ class GridSynchronousProtocol(Protocol):
         """
         return self
 
+    def get(self, *, synapse_client: Optional[Synapse] = None) -> "Grid":
+        """
+        Get a grid session from Synapse by its session_id.
+
+        Arguments:
+            synapse_client: If not passed in and caching was not disabled by
+                `Synapse.allow_client_caching(False)` this will use the last created
+                instance from the Synapse class constructor.
+
+        Returns:
+            The Grid object populated with the session data from Synapse.
+
+        Raises:
+            ValueError: If session_id is not provided.
+
+        Example: Get a grid session by its session id
+            &nbsp;
+
+            ```python
+            from synapseclient import Synapse
+            from synapseclient.models import Grid
+
+            syn = Synapse()
+            syn.login()
+
+            grid = Grid(session_id="abc-123-def").get()
+            print(f"Source entity: {grid.source_entity_id}")
+            ```
+        """
+        return self
+
     def export_to_record_set(
         self, *, timeout: int = 120, synapse_client: Optional[Synapse] = None
     ) -> "Grid":
@@ -3304,6 +3336,51 @@ class Grid(EnumCoercionMixin, GridSynchronousProtocol):
         # Fill this GridSession with the grid session data from the async job response
         result.fill_grid_session_from_response(self)
 
+        return self
+
+    @otel_trace_method(
+        method_to_trace_name=lambda self, **kwargs: f"Grid_Get: ID: {self.session_id}"
+    )
+    async def get_async(self, *, synapse_client: Optional[Synapse] = None) -> "Grid":
+        """
+        Get a grid session from Synapse by its session_id.
+
+        Arguments:
+            synapse_client: If not passed in and caching was not disabled by
+                `Synapse.allow_client_caching(False)` this will use the last created
+                instance from the Synapse class constructor.
+
+        Returns:
+            The Grid object populated with the session data from Synapse.
+
+        Raises:
+            ValueError: If session_id is not provided.
+
+        Example: Get a grid session by its session id asynchronously
+            &nbsp;
+
+            ```python
+            import asyncio
+            from synapseclient import Synapse
+            from synapseclient.models import Grid
+
+            syn = Synapse()
+            syn.login()
+
+            async def main():
+                grid = await Grid(session_id="abc-123-def").get_async()
+                print(f"Source entity: {grid.source_entity_id}")
+
+            asyncio.run(main())
+            ```
+        """
+        if not self.session_id:
+            raise ValueError("session_id is required to get a GridSession")
+
+        response = await get_grid_session(
+            session_id=self.session_id, synapse_client=synapse_client
+        )
+        self.fill_from_dict(response)
         return self
 
     async def export_to_record_set_async(

@@ -258,6 +258,33 @@ async def list_grid_sessions(
         yield item
 
 
+async def get_grid_session(
+    session_id: str,
+    *,
+    synapse_client: Optional["Synapse"] = None,
+) -> dict[str, Any]:
+    """
+    Get a single grid session by its session id.
+
+    https://rest-docs.synapse.org/rest/GET/grid/session/sessionId.html
+
+    Arguments:
+        session_id: The unique identifier of the grid session to get.
+        synapse_client: If not passed in and caching was not disabled by
+            `Synapse.allow_client_caching(False)` this will use the last created
+            instance from the Synapse class constructor.
+
+    Returns:
+        The GridSession as a dictionary.
+    """
+    from synapseclient import Synapse
+
+    client = Synapse.get_client(synapse_client=synapse_client)
+
+    response = await client.rest_get_async(uri=f"/grid/session/{session_id}")
+    return response
+
+
 async def delete_grid_session(
     session_id: str,
     *,
