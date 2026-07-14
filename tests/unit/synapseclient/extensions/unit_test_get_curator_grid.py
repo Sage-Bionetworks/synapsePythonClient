@@ -8,6 +8,7 @@ from unittest.mock import Mock, patch
 import pytest
 
 from synapseclient import Synapse
+from synapseclient.core.exceptions import SynapseHTTPError
 from synapseclient.extensions.curator.get_grid import get_curator_grid
 from synapseclient.models.curation import (
     CurationTask,
@@ -104,6 +105,75 @@ class TestGetCuratorGrid:
         assert result is fetched_grid
         mock_grid_cls.assert_called_once_with(session_id="abc-123")
         mock_grid_cls.return_value.get.assert_called_once_with(synapse_client=client)
+        task.create_grid_session.assert_not_called()
+
+    @patch.object(grid_module, "Grid")
+    @patch.object(grid_module, "CurationTask")
+    @patch.object(grid_module, "Synapse")
+    def test_recreates_grid_when_attached_session_is_gone(
+        self, mock_synapse, mock_curation_task_cls, mock_grid_cls
+    ):
+        """When the task points at a session that no longer exists (fetching it
+        returns a 404), a new grid session is created, re-linked, and returned."""
+        # GIVEN: A task pointing at a stale session whose fetch returns 404
+        client = _build_mock_client()
+        mock_synapse.get_client.return_value = client
+        status = CurationTaskStatus(
+            execution_details=GridExecutionDetails(active_session_id="stale-session")
+        )
+        task = _build_mock_task(status)
+        mock_curation_task_cls.return_value.get.return_value = task
+
+        not_found = SynapseHTTPError("not found", response=Mock(status_code=404))
+        mock_grid_cls.return_value.get.side_effect = not_found
+
+        created_grid = Mock(session_id="fresh-session")
+        task.create_grid_session.return_value = created_grid
+
+        # WHEN: Getting the curator grid for the task
+        result = get_curator_grid(
+            task_id=123,
+            owner_principal_id=42,
+            timeout=30,
+            synapse_client=client,
+        )
+
+        # THEN: The stale session is fetched (and 404s), then a new grid session
+        # is created with the given owner and timeout and returned
+        mock_grid_cls.assert_called_once_with(session_id="stale-session")
+        assert result is created_grid
+        task.create_grid_session.assert_called_once_with(
+            owner_principal_id=42,
+            timeout=30,
+            synapse_client=client,
+        )
+
+    @patch.object(grid_module, "Grid")
+    @patch.object(grid_module, "CurationTask")
+    @patch.object(grid_module, "Synapse")
+    def test_non_404_error_fetching_attached_session_propagates(
+        self, mock_synapse, mock_curation_task_cls, mock_grid_cls
+    ):
+        """When fetching the attached session fails with a non-404 error, the
+        error propagates and no new grid session is created."""
+        # GIVEN: A task pointing at a session whose fetch fails with a 403
+        client = _build_mock_client()
+        mock_synapse.get_client.return_value = client
+        status = CurationTaskStatus(
+            execution_details=GridExecutionDetails(active_session_id="abc-123")
+        )
+        task = _build_mock_task(status)
+        mock_curation_task_cls.return_value.get.return_value = task
+
+        forbidden = SynapseHTTPError("forbidden", response=Mock(status_code=403))
+        mock_grid_cls.return_value.get.side_effect = forbidden
+
+        # WHEN: Getting the curator grid for the task
+        # THEN: The error propagates unchanged
+        with pytest.raises(SynapseHTTPError, match="forbidden"):
+            get_curator_grid(task_id=123, synapse_client=client)
+
+        # AND: No new grid session is created
         task.create_grid_session.assert_not_called()
 
     @patch.object(grid_module, "Grid")

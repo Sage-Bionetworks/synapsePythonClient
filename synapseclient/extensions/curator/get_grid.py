@@ -8,6 +8,7 @@ a new grid session first if none exists yet.
 """
 
 from synapseclient import Synapse  # type: ignore
+from synapseclient.core.exceptions import SynapseHTTPError  # type: ignore
 from synapseclient.models import (  # type: ignore
     CurationTask,
     Grid,
@@ -31,7 +32,9 @@ def get_curator_grid(
 
     1. Gets the CurationTask from Synapse.
     2. Checks whether a grid session is already attached to the task.
-    3. If a session is attached, gets that Grid from Synapse and returns it.
+    3. If a session is attached, gets that Grid from Synapse and returns it. If
+       the attached session no longer exists (it was deleted out from under the
+       task), a new grid session is created and attached instead.
     4. If no session is attached, creates a new grid session, attaches it to the
        task, and returns the new Grid.
 
@@ -76,7 +79,9 @@ def get_curator_grid(
     Raises:
         ValueError: If the task's status has non-grid execution details, or the
             task's properties are of an unsupported type for grid creation.
-        SynapseHTTPError: If there are issues communicating with Synapse.
+        SynapseHTTPError: If there are issues communicating with Synapse. A 404
+            on the attached session is handled by creating a new one; any other
+            HTTP error propagates.
     """
     client = Synapse.get_client(synapse_client=synapse_client)
 
@@ -101,17 +106,26 @@ def get_curator_grid(
             "cannot get or create a grid for it."
         )
 
-    # Step 3: a session is attached, so get that Grid from Synapse and return it.
+    # Step 3: a session is attached, so try to get that Grid and return it.
     if active_session_id:
         client.logger.info(
             f"CurationTask {task_id} already has grid session {active_session_id}; "
             "attempting to get the existing grid."
         )
-        grid = Grid(session_id=active_session_id).get(synapse_client=client)
-        client.logger.info(f"Got grid session {active_session_id}.")
-        return grid
+        try:
+            grid = Grid(session_id=active_session_id).get(synapse_client=client)
+            client.logger.info(f"Got grid session {active_session_id}.")
+            return grid
+        except SynapseHTTPError as exc:
+            # The task points at a session that no longer exists
+            if exc.response is None or exc.response.status_code != 404:
+                raise
+            client.logger.info(
+                f"Linked grid session {active_session_id} no longer exists; "
+                "creating a new one."
+            )
 
-    # Step 4: no session attached, so create one, attach it, and return it.
+    # Step 4: no usable session attached, so create one, attach it, and return it.
     client.logger.info(
         f"CurationTask {task_id} has no attached grid session; "
         "attempting to create one."
