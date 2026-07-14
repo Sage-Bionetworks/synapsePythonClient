@@ -2214,7 +2214,7 @@ async def _wait_for_eventually_consistent_changes(
 
 async def _upsert_rows_async(
     entity: Union[TableBase, ViewBase],
-    values: DATA_FRAME_TYPE,
+    values: Union[str, Dict[str, Any], DATA_FRAME_TYPE],
     primary_keys: List[str],
     dry_run: bool = False,
     *,
