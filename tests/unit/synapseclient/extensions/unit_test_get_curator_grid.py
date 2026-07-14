@@ -1,5 +1,5 @@
 """
-Unit tests for synapseclient.extensions.curator.get_curator_grid.
+Unit tests for synapseclient.extensions.curator.get_grid.
 """
 
 import sys
@@ -8,17 +8,14 @@ from unittest.mock import Mock, patch
 import pytest
 
 from synapseclient import Synapse
-from synapseclient.extensions.curator.get_curator_grid import get_curator_grid
+from synapseclient.extensions.curator.get_grid import get_curator_grid
 from synapseclient.models.curation import (
     CurationTask,
     CurationTaskStatus,
     GridExecutionDetails,
 )
 
-# The `get_curator_grid` function is re-exported from the curator package, which
-# shadows the `get_curator_grid` submodule attribute. Grab the module object from
-# sys.modules so patch.object targets the module's names, not the function.
-grid_module = sys.modules["synapseclient.extensions.curator.get_curator_grid"]
+grid_module = sys.modules["synapseclient.extensions.curator.get_grid"]
 
 
 def _build_mock_client():

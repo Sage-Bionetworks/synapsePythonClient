@@ -5,7 +5,7 @@ This module provides library functions for metadata curation tasks in Synapse.
 """
 
 from .file_based_metadata_task import create_file_based_metadata_task
-from .get_curator_grid import get_curator_grid
+from .get_grid import get_curator_grid
 from .record_based_metadata_task import create_record_based_metadata_task
 from .schema_generation import generate_jsonld, generate_jsonschema
 from .schema_management import (
