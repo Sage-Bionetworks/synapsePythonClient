@@ -2,6 +2,7 @@
 
 import copy
 import os
+import tempfile
 from typing import Any, AsyncGenerator, Dict
 from unittest.mock import AsyncMock, Mock, call, mock_open, patch
 
@@ -422,81 +423,103 @@ class TestWikiPage:
         assert results == expected_results
 
     def test_to_gzip_file_with_string_content(self) -> None:
-        self.syn.cache.cache_root_dir = "temp_cache_dir"
+        temp_dir = tempfile.gettempdir()
+        try:
+            self.syn.cache.cache_root_dir = temp_dir
 
-        # WHEN I call `_to_gzip_file` with a markdown string
-        with (
-            patch("builtins.open") as mock_open_file,
-            patch("gzip.open") as mock_gzip_open,
-            patch("os.path.exists", return_value=True),
-        ):
-            file_path = self.wiki_page._to_gzip_file(self.wiki_page.markdown, self.syn)
+            # WHEN I call `_to_gzip_file` with a markdown string
+            with (
+                patch("builtins.open") as mock_open_file,
+                patch("gzip.open") as mock_gzip_open,
+                patch("os.path.exists", return_value=True),
+            ):
+                file_path = self.wiki_page._to_gzip_file(self.wiki_page.markdown, self.syn)
 
-        # THEN the content should be written to a gzipped file
-        mock_open_file.assert_not_called()
-        mock_gzip_open.assert_called_once_with(
-            os.path.join(
+            # THEN the content should be written to a gzipped file
+            mock_open_file.assert_not_called()
+            mock_gzip_open.assert_called_once_with(
+                os.path.join(
+                    self.syn.cache.cache_root_dir,
+                    "wiki_content",
+                    "wiki_markdown_Test Wiki Page.md.gz",
+                ),
+                "wt",
+                encoding="utf-8",
+            )
+            mock_gzip_open.return_value.__enter__.return_value.write.assert_called_once_with(
+                self.wiki_page.markdown
+            )
+            # normalize the file path
+            assert file_path == os.path.join(
                 self.syn.cache.cache_root_dir,
                 "wiki_content",
                 "wiki_markdown_Test Wiki Page.md.gz",
-            ),
-            "wt",
-            encoding="utf-8",
-        )
-        mock_gzip_open.return_value.__enter__.return_value.write.assert_called_once_with(
-            self.wiki_page.markdown
-        )
-        # normalize the file path
-        assert file_path == os.path.join(
-            self.syn.cache.cache_root_dir,
-            "wiki_content",
-            "wiki_markdown_Test Wiki Page.md.gz",
-        )
+            )
+        finally:
+            try:
+                os.rmdir(temp_dir)
+            except OSError:
+                pass  # Directory not empty or other error, ignore for cleanup
 
     def test_to_gzip_file_with_gzipped_file(self) -> None:
-        with (
-            patch("os.path.isfile"),
-            patch("gzip.open") as mock_gzip_open,
-            patch("builtins.open") as mock_open_file,
-        ):
-            self.syn.cache.cache_root_dir = "temp_cache_dir"
-            markdown_file_path = "wiki_markdown_Test Wiki Page.md.gz"
+        temp_dir = tempfile.gettempdir()
+        try:
+            with (
+                patch("os.path.isfile"),
+                patch("gzip.open") as mock_gzip_open,
+                patch("builtins.open") as mock_open_file,
+            ):
+                self.syn.cache.cache_root_dir = temp_dir
+                markdown_file_path = "wiki_markdown_Test Wiki Page.md.gz"
 
-            # WHEN I call `_to_gzip_file` with a gzipped file
-            file_path = self.wiki_page._to_gzip_file(markdown_file_path, self.syn)
-            mock_open_file.assert_not_called()
-            mock_gzip_open.assert_not_called()
-            assert file_path == markdown_file_path
+                # WHEN I call `_to_gzip_file` with a gzipped file
+                file_path = self.wiki_page._to_gzip_file(markdown_file_path, self.syn)
+                mock_open_file.assert_not_called()
+                mock_gzip_open.assert_not_called()
+                assert file_path == markdown_file_path
+        finally:
+            try:
+                os.rmdir(temp_dir)
+            except OSError:
+                pass  # Directory not empty or other error, ignore for cleanup
 
     def test_to_gzip_file_with_non_gzipped_file(self) -> None:
-        self.syn.cache.cache_root_dir = "temp_cache_dir"
 
-        # WHEN I call `_to_gzip_file` with a file path
-        with (
-            patch("os.path.isfile", return_value=True),
-            patch(
-                "builtins.open", new=mock_open(read_data=b"test content")
-            ) as mock_open_file,
-            patch("gzip.open") as mock_gzip_open,
-            patch("os.path.exists", return_value=True),
-        ):
-            test_file_path = os.path.join("file_path", "test.txt")
-            file_path = self.wiki_page._to_gzip_file(test_file_path, self.syn)
+        temp_dir = tempfile.gettempdir()
+        self.syn.cache.cache_root_dir = temp_dir
 
-            # THEN the file should be processed
-            mock_open_file.assert_called_once_with(test_file_path, "rb")
-            mock_gzip_open.assert_called_once_with(
-                os.path.join(
+        try:
+            # WHEN I call `_to_gzip_file` with a file path
+            with (
+                patch("os.path.isfile", return_value=True),
+                patch(
+                    "builtins.open", new=mock_open(read_data=b"test content")
+                ) as mock_open_file,
+                patch("gzip.open") as mock_gzip_open,
+                patch("os.path.exists", return_value=True),
+            ):
+                test_file_path = os.path.join("file_path", "test.txt")
+                file_path = self.wiki_page._to_gzip_file(test_file_path, self.syn)
+
+                # THEN the file should be processed
+                mock_open_file.assert_called_once_with(test_file_path, "rb")
+                mock_gzip_open.assert_called_once_with(
+                    os.path.join(
+                        self.syn.cache.cache_root_dir, "wiki_content", "test.txt.gz"
+                    ),
+                    "wb",
+                )
+                gzip_handle = mock_gzip_open.return_value.__enter__.return_value
+                open_handle = mock_open_file.return_value.__enter__.return_value
+                gzip_handle.writelines.assert_called_once_with(open_handle)
+                assert file_path == os.path.join(
                     self.syn.cache.cache_root_dir, "wiki_content", "test.txt.gz"
-                ),
-                "wb",
-            )
-            gzip_handle = mock_gzip_open.return_value.__enter__.return_value
-            open_handle = mock_open_file.return_value.__enter__.return_value
-            gzip_handle.writelines.assert_called_once_with(open_handle)
-            assert file_path == os.path.join(
-                self.syn.cache.cache_root_dir, "wiki_content", "test.txt.gz"
-            )
+                )
+        finally:
+            try:
+                os.rmdir(temp_dir)
+            except OSError:
+                pass  # Directory not empty or other error, ignore for cleanup
 
     def test_to_gzip_file_with_invalid_content(self) -> None:
         # WHEN I call `_to_gzip_file` with invalid content type
@@ -505,94 +528,118 @@ class TestWikiPage:
             self.wiki_page._to_gzip_file(123, self.syn)
 
     def test_unzip_gzipped_file_with_markdown(self) -> None:
-        self.syn.cache.cache_root_dir = "temp_cache_dir"
-        gzipped_file_path = os.path.join(self.syn.cache.cache_root_dir, "test.md.gz")
-        expected_unzipped_file_path = os.path.join(
-            self.syn.cache.cache_root_dir, "test.md"
-        )
-        markdown_content = "# Test Markdown\n\nThis is a test."
-        markdown_content_bytes = markdown_content.encode("utf-8")
+        temp_dir = tempfile.gettempdir()
+        self.syn.cache.cache_root_dir = temp_dir
 
-        # WHEN I call `_unzip_gzipped_file` with a binary file
-        with (
-            patch("gzip.open") as mock_gzip_open,
-            patch("builtins.open") as mock_open_file,
-            patch("pprint.pp") as mock_pprint,
-        ):
-            mock_gzip_open.return_value.__enter__.return_value.read.return_value = (
-                markdown_content_bytes
+        try:
+            gzipped_file_path = os.path.join(self.syn.cache.cache_root_dir, "test.md.gz")
+            expected_unzipped_file_path = os.path.join(
+                self.syn.cache.cache_root_dir, "test.md"
             )
-            unzipped_file_path = self.wiki_page.unzip_gzipped_file(gzipped_file_path)
+            markdown_content = "# Test Markdown\n\nThis is a test."
+            markdown_content_bytes = markdown_content.encode("utf-8")
 
-        # THEN the file should be unzipped correctly
-        mock_gzip_open.assert_called_once_with(gzipped_file_path, "rb")
-        mock_pprint.assert_called_once_with(markdown_content)
-        mock_open_file.assert_called_once_with(
-            expected_unzipped_file_path, "wt", encoding="utf-8"
-        )
-        mock_open_file.return_value.__enter__.return_value.write.assert_called_once_with(
-            markdown_content
-        )
-        assert unzipped_file_path == expected_unzipped_file_path
+            # WHEN I call `_unzip_gzipped_file` with a binary file
+            with (
+                patch("gzip.open") as mock_gzip_open,
+                patch("builtins.open") as mock_open_file,
+                patch("pprint.pp") as mock_pprint,
+            ):
+                mock_gzip_open.return_value.__enter__.return_value.read.return_value = (
+                    markdown_content_bytes
+                )
+                unzipped_file_path = self.wiki_page.unzip_gzipped_file(gzipped_file_path)
+
+            # THEN the file should be unzipped correctly
+            mock_gzip_open.assert_called_once_with(gzipped_file_path, "rb")
+            mock_pprint.assert_called_once_with(markdown_content)
+            mock_open_file.assert_called_once_with(
+                expected_unzipped_file_path, "wt", encoding="utf-8"
+            )
+            mock_open_file.return_value.__enter__.return_value.write.assert_called_once_with(
+                markdown_content
+            )
+            assert unzipped_file_path == expected_unzipped_file_path
+        finally:
+            try:
+                os.rmdir(temp_dir)
+            except OSError:
+                pass  # Directory not empty or other error, ignore for cleanup
 
     def test_unzip_gzipped_file_with_binary_file(self) -> None:
-        self.syn.cache.cache_root_dir = "temp_cache_dir"
-        gzipped_file_path = os.path.join(self.syn.cache.cache_root_dir, "test.bin.gz")
-        expected_unzipped_file_path = os.path.join(
-            self.syn.cache.cache_root_dir, "test.bin"
-        )
-        binary_content = b"\x00\x01\x02\x03\xff\xfe\xfd"
+        temp_dir = tempfile.gettempdir()
+        self.syn.cache.cache_root_dir = temp_dir
 
-        # WHEN I call `_unzip_gzipped_file` with a binary file
-        with (
-            patch("gzip.open") as mock_gzip_open,
-            patch("builtins.open") as mock_open_file,
-            patch("pprint.pp") as mock_pprint,
-        ):
-            mock_gzip_open.return_value.__enter__.return_value.read.return_value = (
+        try:
+            gzipped_file_path = os.path.join(self.syn.cache.cache_root_dir, "test.bin.gz")
+            expected_unzipped_file_path = os.path.join(
+                self.syn.cache.cache_root_dir, "test.bin"
+            )
+            binary_content = b"\x00\x01\x02\x03\xff\xfe\xfd"
+
+            # WHEN I call `_unzip_gzipped_file` with a binary file
+            with (
+                patch("gzip.open") as mock_gzip_open,
+                patch("builtins.open") as mock_open_file,
+                patch("pprint.pp") as mock_pprint,
+            ):
+                mock_gzip_open.return_value.__enter__.return_value.read.return_value = (
+                    binary_content
+                )
+                unzipped_file_path = self.wiki_page.unzip_gzipped_file(gzipped_file_path)
+
+            # THEN the file should be unzipped correctly
+            mock_gzip_open.assert_called_once_with(gzipped_file_path, "rb")
+            mock_pprint.assert_not_called()
+            mock_open_file.assert_called_once_with(unzipped_file_path, "wb")
+            mock_open_file.return_value.__enter__.return_value.write.assert_called_once_with(
                 binary_content
             )
-            unzipped_file_path = self.wiki_page.unzip_gzipped_file(gzipped_file_path)
-
-        # THEN the file should be unzipped correctly
-        mock_gzip_open.assert_called_once_with(gzipped_file_path, "rb")
-        mock_pprint.assert_not_called()
-        mock_open_file.assert_called_once_with(unzipped_file_path, "wb")
-        mock_open_file.return_value.__enter__.return_value.write.assert_called_once_with(
-            binary_content
-        )
-        assert unzipped_file_path == expected_unzipped_file_path
+            assert unzipped_file_path == expected_unzipped_file_path
+        finally:
+            try:
+                os.rmdir(temp_dir)
+            except OSError:
+                pass  # Directory not empty or other error, ignore for cleanup
 
     def test_unzip_gzipped_file_with_text_file(self) -> None:
-        self.syn.cache.cache_root_dir = "temp_cache_dir"
-        gzipped_file_path = os.path.join(self.syn.cache.cache_root_dir, "test.txt.gz")
-        expected_unzipped_file_path = os.path.join(
-            self.syn.cache.cache_root_dir, "test.txt"
-        )
-        text_content = "This is plain text content."
-        text_content_bytes = text_content.encode("utf-8")
+        temp_dir = tempfile.gettempdir()
+        self.syn.cache.cache_root_dir = temp_dir
 
-        # WHEN I call `_unzip_gzipped_file` with a text file
-        with (
-            patch("gzip.open") as mock_gzip_open,
-            patch("builtins.open") as mock_open_file,
-            patch("synapseclient.models.wiki.pprint.pp") as mock_pprint,
-        ):
-            mock_gzip_open.return_value.__enter__.return_value.read.return_value = (
-                text_content_bytes
+        try:
+            gzipped_file_path = os.path.join(self.syn.cache.cache_root_dir, "test.txt.gz")
+            expected_unzipped_file_path = os.path.join(
+                self.syn.cache.cache_root_dir, "test.txt"
             )
-            unzipped_file_path = self.wiki_page.unzip_gzipped_file(gzipped_file_path)
+            text_content = "This is plain text content."
+            text_content_bytes = text_content.encode("utf-8")
 
-        # THEN the file should be unzipped correctly
-        mock_gzip_open.assert_called_once_with(gzipped_file_path, "rb")
-        mock_pprint.assert_not_called()
-        mock_open_file.assert_called_once_with(
-            unzipped_file_path, "wt", encoding="utf-8"
-        )
-        mock_open_file.return_value.__enter__.return_value.write.assert_called_once_with(
-            text_content
-        )
-        assert unzipped_file_path == expected_unzipped_file_path
+            # WHEN I call `_unzip_gzipped_file` with a text file
+            with (
+                patch("gzip.open") as mock_gzip_open,
+                patch("builtins.open") as mock_open_file,
+                patch("synapseclient.models.wiki.pprint.pp") as mock_pprint,
+            ):
+                mock_gzip_open.return_value.__enter__.return_value.read.return_value = (
+                    text_content_bytes
+                )
+                unzipped_file_path = self.wiki_page.unzip_gzipped_file(gzipped_file_path)
+
+            # THEN the file should be unzipped correctly
+            mock_gzip_open.assert_called_once_with(gzipped_file_path, "rb")
+            mock_pprint.assert_not_called()
+            mock_open_file.assert_called_once_with(
+                unzipped_file_path, "wt", encoding="utf-8"
+            )
+            mock_open_file.return_value.__enter__.return_value.write.assert_called_once_with(
+                text_content
+            )
+            assert unzipped_file_path == expected_unzipped_file_path
+        finally:
+            try:
+                os.rmdir(temp_dir)
+            except OSError:
+                pass  # Directory not empty or other error, ignore for cleanup
 
     def test_get_file_size_success(self) -> None:
         # GIVEN a filehandle dictionary

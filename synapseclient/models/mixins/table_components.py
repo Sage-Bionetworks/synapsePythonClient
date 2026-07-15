@@ -35,6 +35,7 @@ from synapseclient.core.download.download_functions import (
     ensure_download_location_is_directory,
 )
 from synapseclient.core.exceptions import SynapseTimeoutError
+from synapseclient.core.transfer_bar import create_progress_bar
 from synapseclient.core.typing_utils import DataFrame as DATA_FRAME_TYPE
 from synapseclient.core.typing_utils import Series as SERIES_TYPE
 from synapseclient.core.upload.multipart_upload_async import (
@@ -2033,11 +2034,10 @@ async def _wait_for_eventually_consistent_changes(
                         original_synids_and_etags_to_track.get(entity_with_change)
                     )
         number_of_changes_to_wait_for = len(etags_to_track)
-        progress_bar = tqdm(
+        progress_bar = create_progress_bar(
             total=number_of_changes_to_wait_for,
             desc="Waiting for eventually-consistent changes to show up in the view",
-            unit_scale=True,
-            smoothing=0,
+            synapse_client=synapse_client,
         )
         start_time = time.time()
 
@@ -2134,11 +2134,10 @@ async def _upsert_rows_async(
     total_row_count_to_update = 0
     row_update_results = None
     with logging_redirect_tqdm(loggers=[client.logger]):
-        progress_bar = tqdm(
+        progress_bar = create_progress_bar(
             total=len(values),
             desc="Querying & Updating rows",
-            unit_scale=True,
-            smoothing=0,
+            synapse_client=client,
         )
         for individual_chunk in chunk_list:
             select_statement = _construct_select_statement_for_upsert(
@@ -3959,13 +3958,11 @@ class TableStoreRowMixin:
                 job_timeout=job_timeout,
             )
 
-            progress_bar = tqdm(
+            progress_bar = create_progress_bar(
                 total=file_size,
                 desc="Splitting CSV and uploading chunks",
-                unit_scale=True,
-                smoothing=0,
                 unit="B",
-                leave=None,
+                synapse_client=client,
             )
             # The original file is read twice, the reason is that on the first pass we
             # are calculating the size of the chunks that we will be uploading and the
@@ -4153,17 +4150,15 @@ class TableStoreRowMixin:
         client.logger.info(
             f"[{self.id}:{self.name}]: Found {len(chunks_to_upload)} chunks to upload into table"
         )
-        progress_bar = tqdm(
+        progress_bar = create_progress_bar(
             total=total_df_bytes,
             desc=(
                 "Splitting DataFrame and uploading chunks"
                 if len(chunks_to_upload) > 1
                 else "Uploading DataFrame"
             ),
-            unit_scale=True,
-            smoothing=0,
             unit="B",
-            leave=None,
+            synapse_client=client,
         )
 
         changes = []

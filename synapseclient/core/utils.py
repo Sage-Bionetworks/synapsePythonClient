@@ -94,7 +94,8 @@ def md5_for_file(
             data = f.read(block_size)
             if not data:
                 if progress_bar:
-                    progress_bar.update(progress_bar.total - progress_bar.n)
+                    if progress_bar.total is not None:
+                        progress_bar.update(progress_bar.total - progress_bar.n)
                     progress_bar.refresh()
                     progress_bar.close()
                 break
@@ -117,7 +118,10 @@ def md5_for_file(
 
 
 def md5_for_file_hex(
-    filename: str, block_size: int = 2 * MB, callback: typing.Callable = None
+    filename: str,
+    block_size: int = 2 * MB,
+    callback: typing.Callable = None,
+    progress_bar: Optional[tqdm] = None,
 ) -> str:
     """
     Calculates the MD5 of the given file.
@@ -129,12 +133,15 @@ def md5_for_file_hex(
                     Defaults to 2 MB
         callback: The callback function that help us show loading spinner on terminal.
                     Defaults to None
+        progress_bar: An optional TQDM progress bar to update
 
     Returns:
         The MD5 Checksum
     """
 
-    return md5_for_file(filename, block_size, callback).hexdigest()
+    return md5_for_file(
+        filename, block_size, callback, progress_bar=progress_bar
+    ).hexdigest()
 
 
 @tracer.start_as_current_span("synapse.util.md5")

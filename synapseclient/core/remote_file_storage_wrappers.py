@@ -4,16 +4,20 @@ import os
 import typing
 import urllib.parse as urllib_parse
 from contextlib import contextmanager
-from typing import Union
+from typing import TYPE_CHECKING, Optional, Union
 
 from tqdm import tqdm
 
 from synapseclient.core.retry import with_retry
 from synapseclient.core.transfer_bar import (
+    create_progress_bar,
     increment_progress_bar,
     increment_progress_bar_total,
 )
 from synapseclient.core.utils import attempt_import
+
+if TYPE_CHECKING:
+    from synapseclient import Synapse
 
 
 class S3ClientWrapper:
@@ -159,6 +163,7 @@ class S3ClientWrapper:
         show_progress: bool = True,
         transfer_config_kwargs: dict = None,
         storage_str: str = None,
+        synapse_client: Optional["Synapse"] = None,
     ) -> str:
         """
         Upload a file to s3 using boto3.
@@ -209,14 +214,12 @@ class S3ClientWrapper:
         if show_progress:
             file_size = os.stat(upload_file_path).st_size
             filename = os.path.basename(upload_file_path)
-            progress_bar = tqdm(
+            progress_bar = create_progress_bar(
                 total=file_size,
                 desc=storage_str,
                 unit="B",
-                unit_scale=True,
                 postfix=filename,
-                smoothing=0,
-                leave=None,
+                synapse_client=synapse_client,
             )
             progress_callback = S3ClientWrapper._create_progress_callback_func(
                 progress_bar
@@ -287,6 +290,8 @@ class SFTPWrapper:
         username: str = None,
         password: str = None,
         storage_str: str = None,
+        *,
+        synapse_client: Optional["Synapse"] = None,
     ) -> str:
         """
         Performs upload of a local file to an sftp server.
@@ -297,17 +302,19 @@ class SFTPWrapper:
                         sftp://sftp.example.com/path/to/file/store
             username: The username for authentication. Defaults to None.
             password: The password for authentication. Defaults to None.
+            synapse_client: If not passed in and caching was not disabled by
+                `Synapse.allow_client_caching(False)` this will use the last created
+                instance from the Synapse class constructor.
 
         Returns:
             The URL of the uploaded file.
         """
-        progress_bar = tqdm(
+        progress_bar = create_progress_bar(
+            total=None,
             desc=storage_str,
             unit="B",
-            unit_scale=True,
-            smoothing=0,
             postfix=filepath,
-            leave=None,
+            synapse_client=synapse_client,
         )
 
         def progress_callback(*args, **kwargs) -> None:

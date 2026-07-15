@@ -127,6 +127,54 @@ def _is_context_managed_download_bar() -> bool:
     return getattr(_thread_local, "progress_bar_download_context_managed", False)
 
 
+def create_progress_bar(
+    total: Optional[int],
+    desc: str,
+    unit: str = "it",
+    postfix: str = None,
+    *,
+    synapse_client: Optional["Synapse"] = None,
+) -> tqdm:
+    """Create a progress bar that honors the client's ``silent`` configuration.
+
+    The returned bar is disabled (a no-op that renders nothing) when the client
+    is running in silent mode, so callers can update ``desc``/``total`` and call
+    ``update``/``refresh``/``close`` unconditionally.
+
+    Arguments:
+        total: The total size/count for the progress bar. May be ``None`` when the
+            total is not known until later.
+        desc: The description shown as the progress bar prefix.
+        unit: The unit of measurement (e.g. ``"B"`` for bytes). Defaults to ``"it"``.
+        postfix: Optional postfix string shown after the bar.
+        synapse_client: If not passed in and caching was not disabled by
+            `Synapse.allow_client_caching(False)` this will use the last created
+            instance from the Synapse class constructor. When no client can be
+            resolved the bar is shown (as if ``silent`` were ``False``).
+
+    Returns:
+        A ``tqdm`` progress bar, disabled when the client is silent.
+    """
+    from synapseclient import Synapse
+    from synapseclient.core.exceptions import SynapseError
+
+    try:
+        silent = Synapse.get_client(synapse_client=synapse_client).silent
+    except SynapseError:
+        silent = False
+
+    return tqdm(
+        total=total,
+        desc=desc,
+        unit=unit,
+        unit_scale=True,
+        smoothing=0,
+        postfix=postfix,
+        leave=None,
+        disable=silent,
+    )
+
+
 def get_or_create_download_progress_bar(
     file_size: int,
     postfix: str = None,
@@ -158,14 +206,12 @@ def get_or_create_download_progress_bar(
 
     progress_bar: tqdm = getattr(_thread_local, "progress_bar_download", None)
     if progress_bar is None:
-        progress_bar = tqdm(
+        progress_bar = create_progress_bar(
             total=file_size,
             desc=custom_message or "Downloading files",
             unit=unit or "it",
-            unit_scale=True,
-            smoothing=0,
             postfix=postfix,
-            leave=None,
+            synapse_client=syn,
         )
         _thread_local.progress_bar_download = progress_bar
     else:

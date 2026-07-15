@@ -568,6 +568,18 @@ def test_md5_for_file(mock_hashlib: MagicMock) -> None:
         mock_callback.call_count == 3
 
 
+def test_md5_for_file_hex_forwards_progress_bar() -> None:
+    """md5_for_file_hex should pass the progress bar through to md5_for_file."""
+    file_name = "/home/foo/bar/test.txt"
+    progress_bar = Mock()
+    with patch.object(utils, "md5_for_file") as mock_md5_for_file:
+        utils.md5_for_file_hex(file_name, progress_bar=progress_bar)
+
+        mock_md5_for_file.assert_called_once_with(
+            file_name, 2 * utils.MB, None, progress_bar=progress_bar
+        )
+
+
 # TODO: remove test in 5.0.0
 class TestSpinner:
     """
