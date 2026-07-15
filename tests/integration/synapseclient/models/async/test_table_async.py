@@ -1409,6 +1409,60 @@ class TestUpsertRows:
         # Should have 9 rows now (6 from before + 3 new)
         assert len(results) == 9
 
+    async def test_upsert_with_missing_primary_key_column(
+        self, project_model: Project
+    ) -> None:
+        """Test that upserting fails when one of the primary key columns is not
+        present in the data being upserted."""
+        # GIVEN a table in Synapse
+        table_name = str(uuid.uuid4())
+        table = Table(
+            name=table_name,
+            parent_id=project_model.id,
+            columns=[
+                Column(name="column_string", column_type=ColumnType.STRING),
+                Column(name="column_key_2", column_type=ColumnType.INTEGER),
+            ],
+        )
+        table = await table.store_async(synapse_client=self.syn)
+        self.schedule_for_cleanup(table.id)
+
+        # AND data already stored in Synapse
+        data_for_table = pd.DataFrame(
+            {
+                "column_string": ["value1", "value2", "value3"],
+                "column_key_2": [1, 2, 3],
+            }
+        )
+        await table.store_rows_async(
+            values=data_for_table, schema_storage_strategy=None, synapse_client=self.syn
+        )
+
+        # AND data to upsert that is missing one of the primary key columns
+        upsert_data = pd.DataFrame(
+            {
+                "column_string": ["value1", "value4"],
+            }
+        )
+
+        # WHEN I upsert using a primary key that is not present in the data
+        # THEN a ValueError naming the missing primary key column is raised
+        with pytest.raises(
+            ValueError,
+            match=r"missing: \['column_key_2'\]",
+        ):
+            await table.upsert_rows_async(
+                values=upsert_data,
+                primary_keys=["column_string", "column_key_2"],
+                synapse_client=self.syn,
+            )
+
+        # AND the table is left untouched (no rows updated or inserted)
+        results = await query_async(
+            f"SELECT * FROM {table.id}", synapse_client=self.syn
+        )
+        assert len(results) == 3
+
     async def test_upsert_with_large_data_and_batching(
         self, project_model: Project, mocker: MockerFixture
     ) -> None:
