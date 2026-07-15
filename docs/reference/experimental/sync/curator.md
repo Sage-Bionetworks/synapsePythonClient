@@ -68,9 +68,16 @@
             - import_csv
             - delete
             - list
+            - create_replica
 ---
 [](){ #query-reference }
 ::: synapseclient.models.Query
+    options:
+        inherited_members: true
+        members:
+---
+[](){ #GridReplica-reference }
+::: synapseclient.models.GridReplica
     options:
         inherited_members: true
         members:
