@@ -2,7 +2,7 @@
 
 import copy
 import os
-from typing import Any, AsyncGenerator, Dict, List
+from typing import Any, AsyncGenerator, Dict
 from unittest.mock import AsyncMock, Mock, call, mock_open, patch
 
 import pytest

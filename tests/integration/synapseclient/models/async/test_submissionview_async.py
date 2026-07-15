@@ -6,12 +6,13 @@ from typing import Callable
 import pandas as pd
 import pytest
 
-from synapseclient import Evaluation, Synapse
+from synapseclient import Synapse
 from synapseclient.core.exceptions import SynapseHTTPError
 from synapseclient.models import (
     Activity,
     Column,
     ColumnType,
+    Evaluation,
     File,
     Project,
     SubmissionView,
@@ -32,13 +33,11 @@ class TestSubmissionViewCreation:
     ) -> None:
         # GIVEN a project to work with
         # AND an evaluation to use in the scope
-        evaluation = await self.syn.store_async(
-            Evaluation(
-                name=str(uuid.uuid4()),
-                description="Test evaluation for submission view",
-                contentSource=project_model.id,
-            )
-        )
+        evaluation = await Evaluation(
+            name=str(uuid.uuid4()),
+            description="Test evaluation for submission view",
+            content_source=project_model.id,
+        ).store_async(synapse_client=self.syn)
         self.schedule_for_cleanup(evaluation)
 
         # Test Case 1: Submissionview with default columns
@@ -144,13 +143,11 @@ class TestSubmissionViewCreation:
     ) -> None:
         # GIVEN a project to work with
         # AND an evaluation to use in the scope
-        evaluation = await self.syn.store_async(
-            Evaluation(
-                name=str(uuid.uuid4()),
-                description="Test evaluation for submission view",
-                contentSource=project_model.id,
-            )
-        )
+        evaluation = await Evaluation(
+            name=str(uuid.uuid4()),
+            description="Test evaluation for submission view",
+            content_source=project_model.id,
+        ).store_async(synapse_client=self.syn)
         self.schedule_for_cleanup(evaluation)
 
         # Test Case 1: Creating a submissionview with an invalid column
@@ -241,13 +238,11 @@ class TestColumnAndScopeModifications:
     async def test_column_modifications(self, project_model: Project) -> None:
         # GIVEN a project to work with
         # AND an evaluation to use in the scope
-        evaluation = await self.syn.store_async(
-            Evaluation(
-                name=str(uuid.uuid4()),
-                description="Test evaluation for submission view",
-                contentSource=project_model.id,
-            )
-        )
+        evaluation = await Evaluation(
+            name=str(uuid.uuid4()),
+            description="Test evaluation for submission view",
+            content_source=project_model.id,
+        ).store_async(synapse_client=self.syn)
         self.schedule_for_cleanup(evaluation)
 
         # AND a submissionview in Synapse with two columns
@@ -306,22 +301,18 @@ class TestColumnAndScopeModifications:
     async def test_scope_modifications(self, project_model: Project) -> None:
         # GIVEN a project to work with
         # AND two evaluations for testing scope changes
-        evaluation1 = await self.syn.store_async(
-            Evaluation(
-                name=str(uuid.uuid4()),
-                description="Test evaluation 1",
-                contentSource=project_model.id,
-            )
-        )
+        evaluation1 = await Evaluation(
+            name=str(uuid.uuid4()),
+            description="Test evaluation 1",
+            content_source=project_model.id,
+        ).store_async(synapse_client=self.syn)
         self.schedule_for_cleanup(evaluation1)
 
-        evaluation2 = await self.syn.store_async(
-            Evaluation(
-                name=str(uuid.uuid4()),
-                description="Test evaluation 2",
-                contentSource=project_model.id,
-            )
-        )
+        evaluation2 = await Evaluation(
+            name=str(uuid.uuid4()),
+            description="Test evaluation 2",
+            content_source=project_model.id,
+        ).store_async(synapse_client=self.syn)
         self.schedule_for_cleanup(evaluation2)
 
         # AND a submissionview with one evaluation in scope
@@ -380,13 +371,11 @@ class TestQuerying:
     async def test_query_submissionview(self, project_model: Project) -> None:
         # GIVEN a project to work with
         # AND an evaluation to use in the scope
-        evaluation = await self.syn.store_async(
-            Evaluation(
-                name=str(uuid.uuid4()),
-                description="Test evaluation for submission view",
-                contentSource=project_model.id,
-            )
-        )
+        evaluation = await Evaluation(
+            name=str(uuid.uuid4()),
+            description="Test evaluation for submission view",
+            content_source=project_model.id,
+        ).store_async(synapse_client=self.syn)
         self.schedule_for_cleanup(evaluation)
 
         # AND a submissionview with the evaluation in scope
@@ -441,13 +430,11 @@ class TestSnapshotting:
     async def test_submissionview_snapshots(self, project_model: Project) -> None:
         # GIVEN a project to work with
         # AND an evaluation to use in the scope
-        evaluation = await self.syn.store_async(
-            Evaluation(
-                name=str(uuid.uuid4()),
-                description="Test evaluation for submission view",
-                contentSource=project_model.id,
-            )
-        )
+        evaluation = await Evaluation(
+            name=str(uuid.uuid4()),
+            description="Test evaluation for submission view",
+            content_source=project_model.id,
+        ).store_async(synapse_client=self.syn)
         self.schedule_for_cleanup(evaluation)
 
         # Test Case 1: Snapshot with Activity
@@ -539,13 +526,11 @@ class TestSubmissionViewWithSubmissions:
     async def test_submission_lifecycle(self, project_model: Project) -> None:
         """Test submission lifecycle in a submission view: adding and removing submissions."""
         # GIVEN an evaluation
-        evaluation = await self.syn.store_async(
-            Evaluation(
-                name=str(uuid.uuid4()),
-                description="Test evaluation for submission view",
-                contentSource=project_model.id,
-            )
-        )
+        evaluation = await Evaluation(
+            name=str(uuid.uuid4()),
+            description="Test evaluation for submission view",
+            content_source=project_model.id,
+        ).store_async(synapse_client=self.syn)
         self.schedule_for_cleanup(evaluation)
 
         # AND a submissionview that includes the evaluation
@@ -625,13 +610,11 @@ class TestSubmissionViewWithSubmissions:
     async def test_multiple_submissions(self, project_model: Project) -> None:
         """Test that multiple submissions to an evaluation appear in a submission view."""
         # GIVEN an evaluation
-        evaluation = await self.syn.store_async(
-            Evaluation(
-                name=str(uuid.uuid4()),
-                description="Test evaluation for multiple submissions",
-                contentSource=project_model.id,
-            )
-        )
+        evaluation = await Evaluation(
+            name=str(uuid.uuid4()),
+            description="Test evaluation for multiple submissions",
+            content_source=project_model.id,
+        ).store_async(synapse_client=self.syn)
         self.schedule_for_cleanup(evaluation)
 
         # AND a submissionview that includes the evaluation

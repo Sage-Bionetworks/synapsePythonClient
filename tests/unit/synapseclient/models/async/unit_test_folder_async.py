@@ -7,7 +7,6 @@ from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
 
-from synapseclient import Folder as Synapse_Folder
 from synapseclient import Synapse
 from synapseclient.core.constants import concrete_types
 from synapseclient.core.constants.concrete_types import FILE_ENTITY, FOLDER_ENTITY
@@ -35,18 +34,19 @@ class TestFolder:
     def init_syn(self, syn: Synapse) -> None:
         self.syn = syn
 
-    def get_example_synapse_folder_output(self) -> Synapse_Folder:
-        return Synapse_Folder(
-            id=SYN_123,
-            name=FOLDER_NAME,
-            parentId=PARENT_ID,
-            description=DESCRIPTION,
-            etag=ETAG,
-            createdOn=CREATED_ON,
-            modifiedOn=MODIFIED_ON,
-            createdBy=CREATED_BY,
-            modifiedBy=MODIFIED_BY,
-        )
+    def get_example_synapse_folder_output(self) -> Dict[str, str]:
+        # A REST API representation of a Folder, as returned by the Synapse API.
+        return {
+            "id": SYN_123,
+            "name": FOLDER_NAME,
+            "parentId": PARENT_ID,
+            "description": DESCRIPTION,
+            "etag": ETAG,
+            "createdOn": CREATED_ON,
+            "modifiedOn": MODIFIED_ON,
+            "createdBy": CREATED_BY,
+            "modifiedBy": MODIFIED_BY,
+        }
 
     def get_example_rest_api_folder_output(self) -> Dict[str, str]:
         return {
@@ -213,9 +213,9 @@ class TestFolder:
             patch.object(
                 self.syn,
                 "get",
-                return_value=Synapse_Folder(
-                    id=folder.id,
-                ),
+                return_value={
+                    "id": folder.id,
+                },
             ) as mocked_get,
         ):
             result = await folder.store_async(synapse_client=self.syn)
@@ -708,7 +708,7 @@ class TestFolder:
         # WHEN I call `copy` with the Folder object
         with (
             patch(
-                "synapseclient.models.folder.copy",
+                "synapseutils.copy",
                 return_value=(copy_mapping),
             ) as mocked_copy,
             patch(
