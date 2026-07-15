@@ -2337,6 +2337,35 @@ class TestValidatePrimaryKeys:
     """Test suite for _validate_primary_keys, which rejects upserts whose primary
     key columns are missing from the data or contain null values."""
 
+    def test_empty_primary_keys_raise(self):
+        # GIVEN a DataFrame and an empty list of primary keys
+        df = pd.DataFrame({"view": ["V1", "V2"], "value": [1, 2]})
+
+        # WHEN I validate the primary keys THEN a ValueError is raised
+        with pytest.raises(
+            ValueError, match="At least one primary key column must be provided"
+        ):
+            _validate_primary_keys(df, [])
+
+    @pytest.mark.parametrize(
+        "primary_keys, offending",
+        [
+            pytest.param([1], "1", id="single_int"),
+            pytest.param(["view", 2], "2", id="mixed_string_and_int"),
+            pytest.param([None], "None", id="none"),
+            pytest.param([("view",)], "('view',)", id="tuple"),
+        ],
+    )
+    def test_non_string_primary_keys_raise(self, primary_keys, offending):
+        # GIVEN a DataFrame and a primary key that is not a string
+        df = pd.DataFrame({"view": ["V1", "V2"], "value": [1, 2]})
+
+        # WHEN I validate the primary keys THEN a ValueError naming the offending
+        # value is raised
+        with pytest.raises(ValueError, match="must be strings") as exc:
+            _validate_primary_keys(df, primary_keys)
+        assert offending in str(exc.value)
+
     def test_no_null_primary_keys_passes(self):
         # GIVEN a DataFrame whose primary key columns have no null values
         df = pd.DataFrame(

@@ -1817,7 +1817,7 @@ def _construct_composite_key_where_statement(
 
 def _validate_primary_keys(
     values: DATA_FRAME_TYPE,
-    primary_keys: List[str],
+    primary_keys: list[str],
 ) -> None:
     """
     Validate the primary key columns used for an upsert.
@@ -1834,9 +1834,26 @@ def _validate_primary_keys(
             already exists in the table.
 
     Raises:
-        ValueError: If a primary key column is not present in the data, or if any
+        ValueError: If no primary keys are provided, if any primary key is not a
+            string, if a primary key column is not present in the data, or if any
             row has a null value in one of the primary key columns.
     """
+    if len(primary_keys) < 1:
+        raise ValueError(
+            "At least one primary key column must be provided for upsert, but "
+            "the primary_keys argument was empty. Specify the column(s) that "
+            "uniquely identify a row before upserting."
+        )
+
+    non_string_primary_keys = [key for key in primary_keys if not isinstance(key, str)]
+    if non_string_primary_keys:
+        raise ValueError(
+            "Primary key columns used for upsert must be strings, but the "
+            "following primary key(s) are not strings: "
+            f"{non_string_primary_keys}. Provide the column name(s) as strings "
+            "before upserting."
+        )
+
     missing_primary_key_columns = [
         key for key in primary_keys if key not in values.columns
     ]
