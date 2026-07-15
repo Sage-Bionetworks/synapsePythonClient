@@ -15,7 +15,7 @@ from pytest_mock import MockerFixture
 
 import synapseclient.models.mixins.asynchronous_job as asynchronous_job_module
 import synapseclient.models.mixins.table_components as table_module
-from synapseclient import Evaluation, Synapse
+from synapseclient import Synapse
 from synapseclient.core import utils
 from synapseclient.core.constants import concrete_types
 from synapseclient.core.exceptions import SynapseHTTPError
@@ -24,6 +24,7 @@ from synapseclient.models import (
     Column,
     ColumnExpansionStrategy,
     ColumnType,
+    Evaluation,
     File,
     Project,
     SchemaStorageStrategy,
@@ -1548,543 +1549,539 @@ class TestUpsertRows:
         evaluation = Evaluation(
             name=name,
             description="Evaluation for testing",
-            contentSource=project_model.id,
+            content_source=project_model.id,
         )
-        # TODO: When Evaluation and Submission are implemented with Async methods update this test
-        evaluation = await self.syn.store_async(evaluation)
-        try:
-            submission = await self.syn.submit_async(
-                evaluation, file.id, name="Submission 1", submitterAlias="My Team"
-            )
 
-            # GIVEN initial data with all data types, including random null values
-            initial_data = pd.DataFrame(
-                {
-                    # Basic types
-                    "column_string": ["value1", "value2", "value3"],
-                    "column_double": [1.1, None, 2.2],
-                    "column_integer": [1, None, 3],
-                    "column_boolean": [True, None, True],
-                    "column_date": [
-                        utils.to_unix_epoch_time("2021-01-01"),
-                        None,
-                        utils.to_unix_epoch_time("2021-01-03"),
-                    ],
-                    # Reference types
-                    "column_filehandleid": [
-                        file.file_handle.id,
-                        None,
-                        file.file_handle.id,
-                    ],
-                    "column_entityid": [file.id, None, file.id],
-                    "column_submissionid": [
-                        submission.id,
-                        None,
-                        submission.id,
-                    ],
-                    "column_evaluationid": [
-                        evaluation.id,
-                        None,
-                        evaluation.id,
-                    ],
-                    # Text types
-                    "column_link": [
-                        "https://www.synapse.org/Profile:",
-                        None,
-                        "https://www.synapse.org/Profile:",
-                    ],
-                    "column_mediumtext": ["value1", None, "value3"],
-                    "column_largetext": ["value1", None, "value3"],
-                    # User IDs
-                    "column_userid": [
-                        self.syn.credentials.owner_id,
-                        None,
-                        self.syn.credentials.owner_id,
-                    ],
-                    # List types
-                    "column_string_LIST": [
-                        ["value1", "value2"],
-                        None,
-                        ["value5", "value6"],
-                    ],
-                    "column_integer_LIST": [[1, 2], None, [5, 6]],
-                    "column_boolean_LIST": [
-                        [True, False],
-                        None,
-                        [True, False],
-                    ],
-                    "column_date_LIST": [
-                        [
-                            utils.to_unix_epoch_time("2021-01-01"),
-                            utils.to_unix_epoch_time("2021-01-02"),
-                        ],
-                        None,
-                        [
-                            utils.to_unix_epoch_time("2021-01-05"),
-                            utils.to_unix_epoch_time("2021-01-06"),
-                        ],
-                    ],
-                    "column_entity_id_list": [
-                        [file.id, file.id],
-                        None,
-                        [file.id, file.id],
-                    ],
-                    "column_user_id_list": [
-                        [self.syn.credentials.owner_id, self.syn.credentials.owner_id],
-                        None,
-                        [self.syn.credentials.owner_id, self.syn.credentials.owner_id],
-                    ],
-                    # JSON type
-                    "column_json": [
-                        {"key1": "value1", "key2": 2},
-                        None,
-                        {"key5": "value5", "key6": 6},
-                    ],
-                }
-            )
-            # Store initial data
-            await table.store_rows_async(
-                values=initial_data,
-                schema_storage_strategy=None,
-                synapse_client=self.syn,
-            )
-            # THEN verify the initial data was stored correctly
-            results_after_insert = await query_async(
-                f"SELECT * FROM {table.id}",
-                synapse_client=self.syn,
-                include_row_id_and_row_version=False,
-            )
-            # Verify data types and values match for all columns
-            assert len(results_after_insert) == 3
-            # expected dataframe
-            expected_results = pd.DataFrame(
-                {
-                    "column_string": ["value1", "value2", "value3"],
-                    "column_double": [1.1, None, 2.2],
-                    "column_integer": [1, None, 3],
-                    "column_boolean": [True, None, True],
-                    "column_date": [
-                        utils.to_unix_epoch_time("2021-01-01"),
-                        None,
-                        utils.to_unix_epoch_time("2021-01-03"),
-                    ],
-                    "column_filehandleid": [
-                        file.file_handle.id,
-                        None,
-                        file.file_handle.id,
-                    ],
-                    "column_entityid": [file.id, None, file.id],
-                    "column_submissionid": [submission.id, None, submission.id],
-                    "column_evaluationid": [evaluation.id, None, evaluation.id],
-                    "column_link": [
-                        "https://www.synapse.org/Profile:",
-                        None,
-                        "https://www.synapse.org/Profile:",
-                    ],
-                    "column_mediumtext": ["value1", None, "value3"],
-                    "column_largetext": ["value1", None, "value3"],
-                    "column_userid": [
-                        self.syn.credentials.owner_id,
-                        None,
-                        self.syn.credentials.owner_id,
-                    ],
-                    "column_string_LIST": [
-                        ["value1", "value2"],
-                        [],
-                        ["value5", "value6"],
-                    ],
-                    "column_integer_LIST": [[1, 2], [], [5, 6]],
-                    "column_boolean_LIST": [
-                        [True, False],
-                        [],
-                        [True, False],
-                    ],  # empty values to [] in csv_to_pandas_df
-                    "column_date_LIST": [
-                        [
-                            utils.to_unix_epoch_time("2021-01-01"),
-                            utils.to_unix_epoch_time("2021-01-02"),
-                        ],
-                        [],
-                        [
-                            utils.to_unix_epoch_time("2021-01-05"),
-                            utils.to_unix_epoch_time("2021-01-06"),
-                        ],
-                    ],
-                    "column_entity_id_list": [
-                        [file.id, file.id],
-                        [],
-                        [file.id, file.id],
-                    ],
-                    "column_user_id_list": [
-                        [self.syn.credentials.owner_id, self.syn.credentials.owner_id],
-                        [],
-                        [self.syn.credentials.owner_id, self.syn.credentials.owner_id],
-                    ],
-                    "column_json": [
-                        {"key1": "value1", "key2": 2},
-                        [],
-                        {"key5": "value5", "key6": 6},
-                    ],
-                }
-            )
+        evaluation = await evaluation.store_async(synapse_client=self.syn)
+        self.schedule_for_cleanup(evaluation)
+        submission = await self.syn.submit_async(
+            evaluation, file.id, name="Submission 1", submitterAlias="My Team"
+        )
 
-            expected_results = expected_results.convert_dtypes()
-            expected_results = expected_results.replace({pd.NA: None})
-            pd.testing.assert_frame_equal(
-                results_after_insert, expected_results, check_dtype=False
-            )
-
-            # Create a second test file to update references
-            path2 = utils.make_bogus_data_file()
-            self.schedule_for_cleanup(path2)
-            file2 = await File(parent_id=project_model.id, path=path2).store_async(
-                synapse_client=self.syn
-            )
-
-            # WHEN I upsert with updated data for all types, including null values
-            updated_data = pd.DataFrame(
-                {
-                    # Basic types with updated values
-                    "column_string": ["value1", "value2", "value3"],
-                    "column_double": [11.2, None, 33.4],
-                    "column_integer": [11, None, 33],
-                    "column_boolean": [False, None, False],
-                    "column_date": [
-                        utils.to_unix_epoch_time("2022-01-01"),
-                        None,
-                        utils.to_unix_epoch_time("2022-01-03"),
-                    ],
-                    # Updated references
-                    "column_filehandleid": [
-                        file2.file_handle.id,
-                        None,
-                        file2.file_handle.id,
-                    ],
-                    "column_entityid": [file2.id, None, file2.id],
-                    "column_submissionid": [
-                        submission.id,
-                        None,
-                        submission.id,
-                    ],
-                    "column_evaluationid": [
-                        evaluation.id,
-                        None,
-                        evaluation.id,
-                    ],
-                    # Updated text
-                    "column_link": [
-                        "https://www.synapse.org/",
-                        None,
-                        "https://www.synapse.org/",
-                    ],
-                    "column_mediumtext": ["value11", None, "value33"],
-                    "column_largetext": ["value11", None, "value33"],
-                    # User IDs
-                    "column_userid": [
-                        self.syn.credentials.owner_id,
-                        None,
-                        self.syn.credentials.owner_id,
-                    ],
-                    # Updated list types
-                    "column_string_LIST": [
-                        ["value11", "value22"],
-                        None,
-                        ["value55", "value66"],
-                    ],
-                    "column_integer_LIST": [[11, 22], None, [55, 66]],
-                    "column_boolean_LIST": [
-                        [False, True],
-                        None,
-                        [False, True],
-                    ],
-                    "column_date_LIST": [
-                        [
-                            utils.to_unix_epoch_time("2022-01-01"),
-                            utils.to_unix_epoch_time("2022-01-02"),
-                        ],
-                        None,
-                        [
-                            utils.to_unix_epoch_time("2022-01-05"),
-                            utils.to_unix_epoch_time("2022-01-06"),
-                        ],
-                    ],
-                    "column_entity_id_list": [
-                        [file2.id, file2.id],
-                        None,
-                        [file2.id, file2.id],
-                    ],
-                    "column_user_id_list": [
-                        [
-                            self.syn.credentials.owner_id,
-                            self.syn.credentials.owner_id,
-                        ],
-                        None,
-                        [
-                            self.syn.credentials.owner_id,
-                            self.syn.credentials.owner_id,
-                        ],
-                    ],
-                    # JSON
-                    "column_json": [
-                        json.dumps({"key11": "value11", "key22": 22}),
-                        None,
-                        json.dumps({"key55": "value55", "key66": 66}),
-                    ],
-                }
-            )
-
-            # Perform upsert based on string column
-            await table.upsert_rows_async(
-                values=updated_data,
-                primary_keys=["column_string"],
-                synapse_client=self.syn,
-            )
-
-            # THEN all data types should be correctly updated
-            results = await query_async(
-                f"SELECT * FROM {table.id}",
-                synapse_client=self.syn,
-                include_row_id_and_row_version=False,
-            )
-            # Verify the upserted data matches expected values and handles nulls correctly
-            assert len(results) == 3
-            # expected dataframe
-            expected_results = pd.DataFrame(
-                {
-                    "column_string": ["value1", "value2", "value3"],
-                    "column_double": [11.2, None, 33.4],
-                    "column_integer": [11, None, 33],
-                    "column_boolean": [False, None, False],
-                    "column_date": [
-                        utils.to_unix_epoch_time("2022-01-01"),
-                        None,
-                        utils.to_unix_epoch_time("2022-01-03"),
-                    ],
-                    "column_filehandleid": [
-                        file2.file_handle.id,
-                        None,
-                        file2.file_handle.id,
-                    ],
-                    "column_entityid": [file2.id, None, file2.id],
-                    "column_submissionid": [submission.id, None, submission.id],
-                    "column_evaluationid": [evaluation.id, None, evaluation.id],
-                    "column_link": [
-                        "https://www.synapse.org/",
-                        None,
-                        "https://www.synapse.org/",
-                    ],
-                    "column_mediumtext": ["value11", None, "value33"],
-                    "column_largetext": ["value11", None, "value33"],
-                    "column_userid": [
-                        self.syn.credentials.owner_id,
-                        None,
-                        self.syn.credentials.owner_id,
-                    ],
-                    "column_string_LIST": [
-                        ["value11", "value22"],
-                        [],
-                        ["value55", "value66"],
-                    ],
-                    "column_integer_LIST": [[11, 22], [], [55, 66]],
-                    "column_boolean_LIST": [[False, True], [], [False, True]],
-                    "column_date_LIST": [
-                        [
-                            utils.to_unix_epoch_time("2022-01-01"),
-                            utils.to_unix_epoch_time("2022-01-02"),
-                        ],
-                        [],
-                        [
-                            utils.to_unix_epoch_time("2022-01-05"),
-                            utils.to_unix_epoch_time("2022-01-06"),
-                        ],
-                    ],
-                    "column_entity_id_list": [
-                        [file2.id, file2.id],
-                        [],
-                        [file2.id, file2.id],
-                    ],
-                    "column_user_id_list": [
-                        [self.syn.credentials.owner_id, self.syn.credentials.owner_id],
-                        [],
-                        [self.syn.credentials.owner_id, self.syn.credentials.owner_id],
-                    ],
-                    "column_json": [
-                        {"key11": "value11", "key22": 22},
-                        [],
-                        {"key55": "value55", "key66": 66},
-                    ],
-                }
-            )
-            expected_results = expected_results.convert_dtypes()
-            expected_results = expected_results.replace({pd.NA: None})
-            pd.testing.assert_frame_equal(results, expected_results, check_dtype=False)
-
-            # WHEN I upsert with multiple primary keys and null values
-            multi_key_data = pd.DataFrame(
-                {
-                    # Just using a subset of columns for this test case
-                    "column_string": ["this", "is", "updated"],
-                    "column_double": [1.1, 2.2, 3.3],
-                    "column_integer": [1, 2, 3],
-                    "column_boolean": [True, True, True],
-                    "column_date": [
+        # GIVEN initial data with all data types, including random null values
+        initial_data = pd.DataFrame(
+            {
+                # Basic types
+                "column_string": ["value1", "value2", "value3"],
+                "column_double": [1.1, None, 2.2],
+                "column_integer": [1, None, 3],
+                "column_boolean": [True, None, True],
+                "column_date": [
+                    utils.to_unix_epoch_time("2021-01-01"),
+                    None,
+                    utils.to_unix_epoch_time("2021-01-03"),
+                ],
+                # Reference types
+                "column_filehandleid": [
+                    file.file_handle.id,
+                    None,
+                    file.file_handle.id,
+                ],
+                "column_entityid": [file.id, None, file.id],
+                "column_submissionid": [
+                    submission.id,
+                    None,
+                    submission.id,
+                ],
+                "column_evaluationid": [
+                    evaluation.id,
+                    None,
+                    evaluation.id,
+                ],
+                # Text types
+                "column_link": [
+                    "https://www.synapse.org/Profile:",
+                    None,
+                    "https://www.synapse.org/Profile:",
+                ],
+                "column_mediumtext": ["value1", None, "value3"],
+                "column_largetext": ["value1", None, "value3"],
+                # User IDs
+                "column_userid": [
+                    self.syn.credentials.owner_id,
+                    None,
+                    self.syn.credentials.owner_id,
+                ],
+                # List types
+                "column_string_LIST": [
+                    ["value1", "value2"],
+                    None,
+                    ["value5", "value6"],
+                ],
+                "column_integer_LIST": [[1, 2], None, [5, 6]],
+                "column_boolean_LIST": [
+                    [True, False],
+                    None,
+                    [True, False],
+                ],
+                "column_date_LIST": [
+                    [
                         utils.to_unix_epoch_time("2021-01-01"),
                         utils.to_unix_epoch_time("2021-01-02"),
-                        utils.to_unix_epoch_time("2021-01-03"),
                     ],
-                    "column_filehandleid": [
-                        file.file_handle.id,
-                        None,
-                        file.file_handle.id,
+                    None,
+                    [
+                        utils.to_unix_epoch_time("2021-01-05"),
+                        utils.to_unix_epoch_time("2021-01-06"),
                     ],
-                    "column_entityid": [file.id, None, file.id],
-                    "column_submissionid": [
-                        submission.id,
-                        None,
-                        submission.id,
+                ],
+                "column_entity_id_list": [
+                    [file.id, file.id],
+                    None,
+                    [file.id, file.id],
+                ],
+                "column_user_id_list": [
+                    [self.syn.credentials.owner_id, self.syn.credentials.owner_id],
+                    None,
+                    [self.syn.credentials.owner_id, self.syn.credentials.owner_id],
+                ],
+                # JSON type
+                "column_json": [
+                    {"key1": "value1", "key2": 2},
+                    None,
+                    {"key5": "value5", "key6": 6},
+                ],
+            }
+        )
+        # Store initial data
+        await table.store_rows_async(
+            values=initial_data,
+            schema_storage_strategy=None,
+            synapse_client=self.syn,
+        )
+        # THEN verify the initial data was stored correctly
+        results_after_insert = await query_async(
+            f"SELECT * FROM {table.id}",
+            synapse_client=self.syn,
+            include_row_id_and_row_version=False,
+        )
+        # Verify data types and values match for all columns
+        assert len(results_after_insert) == 3
+        # expected dataframe
+        expected_results = pd.DataFrame(
+            {
+                "column_string": ["value1", "value2", "value3"],
+                "column_double": [1.1, None, 2.2],
+                "column_integer": [1, None, 3],
+                "column_boolean": [True, None, True],
+                "column_date": [
+                    utils.to_unix_epoch_time("2021-01-01"),
+                    None,
+                    utils.to_unix_epoch_time("2021-01-03"),
+                ],
+                "column_filehandleid": [
+                    file.file_handle.id,
+                    None,
+                    file.file_handle.id,
+                ],
+                "column_entityid": [file.id, None, file.id],
+                "column_submissionid": [submission.id, None, submission.id],
+                "column_evaluationid": [evaluation.id, None, evaluation.id],
+                "column_link": [
+                    "https://www.synapse.org/Profile:",
+                    None,
+                    "https://www.synapse.org/Profile:",
+                ],
+                "column_mediumtext": ["value1", None, "value3"],
+                "column_largetext": ["value1", None, "value3"],
+                "column_userid": [
+                    self.syn.credentials.owner_id,
+                    None,
+                    self.syn.credentials.owner_id,
+                ],
+                "column_string_LIST": [
+                    ["value1", "value2"],
+                    [],
+                    ["value5", "value6"],
+                ],
+                "column_integer_LIST": [[1, 2], [], [5, 6]],
+                "column_boolean_LIST": [
+                    [True, False],
+                    [],
+                    [True, False],
+                ],  # empty values to [] in csv_to_pandas_df
+                "column_date_LIST": [
+                    [
+                        utils.to_unix_epoch_time("2021-01-01"),
+                        utils.to_unix_epoch_time("2021-01-02"),
                     ],
-                    "column_evaluationid": [
-                        evaluation.id,
-                        None,
-                        evaluation.id,
+                    [],
+                    [
+                        utils.to_unix_epoch_time("2021-01-05"),
+                        utils.to_unix_epoch_time("2021-01-06"),
                     ],
-                    "column_link": [
-                        "https://www.synapse.org/",
-                        None,
-                        "https://www.synapse.org/",
+                ],
+                "column_entity_id_list": [
+                    [file.id, file.id],
+                    [],
+                    [file.id, file.id],
+                ],
+                "column_user_id_list": [
+                    [self.syn.credentials.owner_id, self.syn.credentials.owner_id],
+                    [],
+                    [self.syn.credentials.owner_id, self.syn.credentials.owner_id],
+                ],
+                "column_json": [
+                    {"key1": "value1", "key2": 2},
+                    [],
+                    {"key5": "value5", "key6": 6},
+                ],
+            }
+        )
+
+        expected_results = expected_results.convert_dtypes()
+        expected_results = expected_results.replace({pd.NA: None})
+        pd.testing.assert_frame_equal(
+            results_after_insert, expected_results, check_dtype=False
+        )
+
+        # Create a second test file to update references
+        path2 = utils.make_bogus_data_file()
+        self.schedule_for_cleanup(path2)
+        file2 = await File(parent_id=project_model.id, path=path2).store_async(
+            synapse_client=self.syn
+        )
+
+        # WHEN I upsert with updated data for all types, including null values
+        updated_data = pd.DataFrame(
+            {
+                # Basic types with updated values
+                "column_string": ["value1", "value2", "value3"],
+                "column_double": [11.2, None, 33.4],
+                "column_integer": [11, None, 33],
+                "column_boolean": [False, None, False],
+                "column_date": [
+                    utils.to_unix_epoch_time("2022-01-01"),
+                    None,
+                    utils.to_unix_epoch_time("2022-01-03"),
+                ],
+                # Updated references
+                "column_filehandleid": [
+                    file2.file_handle.id,
+                    None,
+                    file2.file_handle.id,
+                ],
+                "column_entityid": [file2.id, None, file2.id],
+                "column_submissionid": [
+                    submission.id,
+                    None,
+                    submission.id,
+                ],
+                "column_evaluationid": [
+                    evaluation.id,
+                    None,
+                    evaluation.id,
+                ],
+                # Updated text
+                "column_link": [
+                    "https://www.synapse.org/",
+                    None,
+                    "https://www.synapse.org/",
+                ],
+                "column_mediumtext": ["value11", None, "value33"],
+                "column_largetext": ["value11", None, "value33"],
+                # User IDs
+                "column_userid": [
+                    self.syn.credentials.owner_id,
+                    None,
+                    self.syn.credentials.owner_id,
+                ],
+                # Updated list types
+                "column_string_LIST": [
+                    ["value11", "value22"],
+                    None,
+                    ["value55", "value66"],
+                ],
+                "column_integer_LIST": [[11, 22], None, [55, 66]],
+                "column_boolean_LIST": [
+                    [False, True],
+                    None,
+                    [False, True],
+                ],
+                "column_date_LIST": [
+                    [
+                        utils.to_unix_epoch_time("2022-01-01"),
+                        utils.to_unix_epoch_time("2022-01-02"),
                     ],
-                    "column_mediumtext": ["updated1", None, "updated3"],
-                    "column_largetext": ["largetext1", None, "largetext3"],
-                    "column_userid": [
+                    None,
+                    [
+                        utils.to_unix_epoch_time("2022-01-05"),
+                        utils.to_unix_epoch_time("2022-01-06"),
+                    ],
+                ],
+                "column_entity_id_list": [
+                    [file2.id, file2.id],
+                    None,
+                    [file2.id, file2.id],
+                ],
+                "column_user_id_list": [
+                    [
                         self.syn.credentials.owner_id,
-                        None,
                         self.syn.credentials.owner_id,
                     ],
-                    # Simplified list data
-                    "column_string_LIST": [
-                        ["a", "b"],
-                        None,
-                        ["e", "f"],
+                    None,
+                    [
+                        self.syn.credentials.owner_id,
+                        self.syn.credentials.owner_id,
                     ],
-                    "column_integer_LIST": [[9, 8], None, [5, 4]],
-                    "column_boolean_LIST": [
-                        [True, True],
-                        None,
-                        [True, True],
+                ],
+                # JSON
+                "column_json": [
+                    json.dumps({"key11": "value11", "key22": 22}),
+                    None,
+                    json.dumps({"key55": "value55", "key66": 66}),
+                ],
+            }
+        )
+
+        # Perform upsert based on string column
+        await table.upsert_rows_async(
+            values=updated_data,
+            primary_keys=["column_string"],
+            synapse_client=self.syn,
+        )
+
+        # THEN all data types should be correctly updated
+        results = await query_async(
+            f"SELECT * FROM {table.id}",
+            synapse_client=self.syn,
+            include_row_id_and_row_version=False,
+        )
+        # Verify the upserted data matches expected values and handles nulls correctly
+        assert len(results) == 3
+        # expected dataframe
+        expected_results = pd.DataFrame(
+            {
+                "column_string": ["value1", "value2", "value3"],
+                "column_double": [11.2, None, 33.4],
+                "column_integer": [11, None, 33],
+                "column_boolean": [False, None, False],
+                "column_date": [
+                    utils.to_unix_epoch_time("2022-01-01"),
+                    None,
+                    utils.to_unix_epoch_time("2022-01-03"),
+                ],
+                "column_filehandleid": [
+                    file2.file_handle.id,
+                    None,
+                    file2.file_handle.id,
+                ],
+                "column_entityid": [file2.id, None, file2.id],
+                "column_submissionid": [submission.id, None, submission.id],
+                "column_evaluationid": [evaluation.id, None, evaluation.id],
+                "column_link": [
+                    "https://www.synapse.org/",
+                    None,
+                    "https://www.synapse.org/",
+                ],
+                "column_mediumtext": ["value11", None, "value33"],
+                "column_largetext": ["value11", None, "value33"],
+                "column_userid": [
+                    self.syn.credentials.owner_id,
+                    None,
+                    self.syn.credentials.owner_id,
+                ],
+                "column_string_LIST": [
+                    ["value11", "value22"],
+                    [],
+                    ["value55", "value66"],
+                ],
+                "column_integer_LIST": [[11, 22], [], [55, 66]],
+                "column_boolean_LIST": [[False, True], [], [False, True]],
+                "column_date_LIST": [
+                    [
+                        utils.to_unix_epoch_time("2022-01-01"),
+                        utils.to_unix_epoch_time("2022-01-02"),
                     ],
-                    "column_date_LIST": [
-                        [
-                            utils.to_unix_epoch_time("2023-01-01"),
-                            utils.to_unix_epoch_time("2023-01-02"),
-                        ],
-                        None,
-                        [
-                            utils.to_unix_epoch_time("2023-01-05"),
-                            utils.to_unix_epoch_time("2023-01-06"),
-                        ],
+                    [],
+                    [
+                        utils.to_unix_epoch_time("2022-01-05"),
+                        utils.to_unix_epoch_time("2022-01-06"),
                     ],
-                    "column_entity_id_list": [
-                        [file.id, file.id],
-                        None,
-                        [file.id, file.id],
-                    ],
-                    "column_user_id_list": [
-                        [
-                            self.syn.credentials.owner_id,
-                            self.syn.credentials.owner_id,
-                        ],
-                        None,
-                        [
-                            self.syn.credentials.owner_id,
-                            self.syn.credentials.owner_id,
-                        ],
-                    ],
-                    "column_json": [
-                        json.dumps({"final1": "value1"}),
-                        None,
-                        json.dumps({"final3": "value3"}),
-                    ],
-                }
-            )
+                ],
+                "column_entity_id_list": [
+                    [file2.id, file2.id],
+                    [],
+                    [file2.id, file2.id],
+                ],
+                "column_user_id_list": [
+                    [self.syn.credentials.owner_id, self.syn.credentials.owner_id],
+                    [],
+                    [self.syn.credentials.owner_id, self.syn.credentials.owner_id],
+                ],
+                "column_json": [
+                    {"key11": "value11", "key22": 22},
+                    [],
+                    {"key55": "value55", "key66": 66},
+                ],
+            }
+        )
+        expected_results = expected_results.convert_dtypes()
+        expected_results = expected_results.replace({pd.NA: None})
+        pd.testing.assert_frame_equal(results, expected_results, check_dtype=False)
 
-            # Test multiple primary keys
-            primary_keys = [
-                "column_double",
-                "column_integer",
-                "column_boolean",
-                "column_date",
-            ]
-
-            await table.upsert_rows_async(
-                values=multi_key_data,
-                primary_keys=primary_keys,
-                synapse_client=self.syn,
-            )
-
-            # THEN the new rows should be added (not updating existing)
-            results_after_multi_key = await query_async(
-                f"SELECT * FROM {table.id}",
-                synapse_client=self.syn,
-                include_row_id_and_row_version=False,
-            )
-
-            # We should have more rows now (original 3 + 3 new ones)
-            assert len(results_after_multi_key) == 6
-
-            # Verify that null values are properly handled in the newly inserted rows
-            # Find the rows with the new string values
-            new_rows = results_after_multi_key[
-                results_after_multi_key["column_string"].isin(["this", "is", "updated"])
-            ]
-            assert len(new_rows) == 3
-
-            for _, row in new_rows.iterrows():
-                if row["column_string"] == "this":
-                    assert row["column_double"] == 1.1
-                    assert row["column_integer"] == 1
-                    assert row["column_boolean"] is True
-                    assert row["column_date"] == utils.to_unix_epoch_time("2021-01-01")
-                    assert row["column_filehandleid"] == file.file_handle.id
-                    assert row["column_entityid"] == file.id
-                    assert row["column_mediumtext"] == "updated1"
-                    assert row["column_largetext"] == "largetext1"
-                    assert row["column_userid"] == self.syn.credentials.owner_id
-                    assert row["column_string_LIST"] == ["a", "b"]
-                    assert row["column_integer_LIST"] == [9, 8]
-                    assert row["column_boolean_LIST"] == [True, True]
-                    assert row["column_date_LIST"] == [
+        # WHEN I upsert with multiple primary keys and null values
+        multi_key_data = pd.DataFrame(
+            {
+                # Just using a subset of columns for this test case
+                "column_string": ["this", "is", "updated"],
+                "column_double": [1.1, 2.2, 3.3],
+                "column_integer": [1, 2, 3],
+                "column_boolean": [True, True, True],
+                "column_date": [
+                    utils.to_unix_epoch_time("2021-01-01"),
+                    utils.to_unix_epoch_time("2021-01-02"),
+                    utils.to_unix_epoch_time("2021-01-03"),
+                ],
+                "column_filehandleid": [
+                    file.file_handle.id,
+                    None,
+                    file.file_handle.id,
+                ],
+                "column_entityid": [file.id, None, file.id],
+                "column_submissionid": [
+                    submission.id,
+                    None,
+                    submission.id,
+                ],
+                "column_evaluationid": [
+                    evaluation.id,
+                    None,
+                    evaluation.id,
+                ],
+                "column_link": [
+                    "https://www.synapse.org/",
+                    None,
+                    "https://www.synapse.org/",
+                ],
+                "column_mediumtext": ["updated1", None, "updated3"],
+                "column_largetext": ["largetext1", None, "largetext3"],
+                "column_userid": [
+                    self.syn.credentials.owner_id,
+                    None,
+                    self.syn.credentials.owner_id,
+                ],
+                # Simplified list data
+                "column_string_LIST": [
+                    ["a", "b"],
+                    None,
+                    ["e", "f"],
+                ],
+                "column_integer_LIST": [[9, 8], None, [5, 4]],
+                "column_boolean_LIST": [
+                    [True, True],
+                    None,
+                    [True, True],
+                ],
+                "column_date_LIST": [
+                    [
                         utils.to_unix_epoch_time("2023-01-01"),
                         utils.to_unix_epoch_time("2023-01-02"),
-                    ]
-                    assert row["column_json"] == {"final1": "value1"}
-                elif row["column_string"] == "is":
-                    assert row["column_double"] == 2.2
-                    assert row["column_integer"] == 2
-                    assert row["column_boolean"] is True
-                    assert row["column_date"] == utils.to_unix_epoch_time("2021-01-02")
-                    assert pd.isna(row["column_filehandleid"])
-                    assert pd.isna(row["column_entityid"])
-                    assert pd.isna(row["column_mediumtext"])
-                    assert pd.isna(row["column_largetext"])
-                    assert pd.isna(row["column_userid"])
-                    assert len(row["column_string_LIST"]) == 0
-                    assert len(row["column_integer_LIST"]) == 0
-                    assert len(row["column_boolean_LIST"]) == 0
-                    assert len(row["column_date_LIST"]) == 0
-                    assert len(row["column_json"]) == 0
-                elif row["column_string"] == "updated":
-                    assert row["column_double"] == 3.3
-                    assert row["column_integer"] == 3
-                    assert row["column_boolean"] is True
-                    assert row["column_date"] == utils.to_unix_epoch_time("2021-01-03")
-                    assert row["column_filehandleid"] == file.file_handle.id
-                    assert row["column_entityid"] == file.id
-                    assert row["column_mediumtext"] == "updated3"
-                    assert row["column_largetext"] == "largetext3"
+                    ],
+                    None,
+                    [
+                        utils.to_unix_epoch_time("2023-01-05"),
+                        utils.to_unix_epoch_time("2023-01-06"),
+                    ],
+                ],
+                "column_entity_id_list": [
+                    [file.id, file.id],
+                    None,
+                    [file.id, file.id],
+                ],
+                "column_user_id_list": [
+                    [
+                        self.syn.credentials.owner_id,
+                        self.syn.credentials.owner_id,
+                    ],
+                    None,
+                    [
+                        self.syn.credentials.owner_id,
+                        self.syn.credentials.owner_id,
+                    ],
+                ],
+                "column_json": [
+                    json.dumps({"final1": "value1"}),
+                    None,
+                    json.dumps({"final3": "value3"}),
+                ],
+            }
+        )
 
-        finally:
-            # Clean up
-            self.syn.delete(evaluation)
+        # Test multiple primary keys
+        primary_keys = [
+            "column_double",
+            "column_integer",
+            "column_boolean",
+            "column_date",
+        ]
+
+        await table.upsert_rows_async(
+            values=multi_key_data,
+            primary_keys=primary_keys,
+            synapse_client=self.syn,
+        )
+
+        # THEN the new rows should be added (not updating existing)
+        results_after_multi_key = await query_async(
+            f"SELECT * FROM {table.id}",
+            synapse_client=self.syn,
+            include_row_id_and_row_version=False,
+        )
+
+        # We should have more rows now (original 3 + 3 new ones)
+        assert len(results_after_multi_key) == 6
+
+        # Verify that null values are properly handled in the newly inserted rows
+        # Find the rows with the new string values
+        new_rows = results_after_multi_key[
+            results_after_multi_key["column_string"].isin(["this", "is", "updated"])
+        ]
+        assert len(new_rows) == 3
+
+        for _, row in new_rows.iterrows():
+            if row["column_string"] == "this":
+                assert row["column_double"] == 1.1
+                assert row["column_integer"] == 1
+                assert row["column_boolean"] is True
+                assert row["column_date"] == utils.to_unix_epoch_time("2021-01-01")
+                assert row["column_filehandleid"] == file.file_handle.id
+                assert row["column_entityid"] == file.id
+                assert row["column_mediumtext"] == "updated1"
+                assert row["column_largetext"] == "largetext1"
+                assert row["column_userid"] == self.syn.credentials.owner_id
+                assert row["column_string_LIST"] == ["a", "b"]
+                assert row["column_integer_LIST"] == [9, 8]
+                assert row["column_boolean_LIST"] == [True, True]
+                assert row["column_date_LIST"] == [
+                    utils.to_unix_epoch_time("2023-01-01"),
+                    utils.to_unix_epoch_time("2023-01-02"),
+                ]
+                assert row["column_json"] == {"final1": "value1"}
+            elif row["column_string"] == "is":
+                assert row["column_double"] == 2.2
+                assert row["column_integer"] == 2
+                assert row["column_boolean"] is True
+                assert row["column_date"] == utils.to_unix_epoch_time("2021-01-02")
+                assert pd.isna(row["column_filehandleid"])
+                assert pd.isna(row["column_entityid"])
+                assert pd.isna(row["column_mediumtext"])
+                assert pd.isna(row["column_largetext"])
+                assert pd.isna(row["column_userid"])
+                assert len(row["column_string_LIST"]) == 0
+                assert len(row["column_integer_LIST"]) == 0
+                assert len(row["column_boolean_LIST"]) == 0
+                assert len(row["column_date_LIST"]) == 0
+                assert len(row["column_json"]) == 0
+            elif row["column_string"] == "updated":
+                assert row["column_double"] == 3.3
+                assert row["column_integer"] == 3
+                assert row["column_boolean"] is True
+                assert row["column_date"] == utils.to_unix_epoch_time("2021-01-03")
+                assert row["column_filehandleid"] == file.file_handle.id
+                assert row["column_entityid"] == file.id
+                assert row["column_mediumtext"] == "updated3"
+                assert row["column_largetext"] == "largetext3"
 
 
 class TestDeleteRows:

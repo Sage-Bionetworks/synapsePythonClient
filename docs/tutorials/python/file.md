@@ -144,8 +144,7 @@ Now that you have created your files you'll be able to inspect this on the Files
 
 ## References used in this tutorial
 
-- [File][file-reference-sync]
-- [syn.login][synapseclient.Synapse.login]
-- [syn.findEntityId][synapseclient.Synapse.findEntityId]
-- [syn.store][synapseclient.Synapse.store]
-- [synapseutils.walk][]
+- [File.store][synapseclient.models.File.store]
+- [Folder.get][synapseclient.models.Folder.get]
+- [Project.get][synapseclient.models.Project.get]
+- [Project.sync_from_synapse][synapseclient.models.Project.sync_from_synapse]

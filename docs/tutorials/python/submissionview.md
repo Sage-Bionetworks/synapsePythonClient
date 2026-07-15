@@ -126,13 +126,9 @@ time the snapshot was created. This is useful for historical analysis or auditin
 
 ## References
 - [SubmissionView][submissionview-reference-sync]
-- [Evaluation][synapseclient.evaluation]
-- [syn.submit][synapseclient.Synapse.submit]
-- [syn.getSubmissionStatus][synapseclient.Synapse.getSubmissionStatus]
-- [syn.getSubmission][synapseclient.Synapse.getSubmission]
-- [syn.getSubmissions][synapseclient.Synapse.getSubmissions]
-- [syn.getSubmissionBundles][synapseclient.Synapse.getSubmissionBundles]
-- [syn.store][synapseclient.Synapse.store]
+- [Evaluation][evaluation-reference-sync]
+- [Submission][submission-reference-sync]
+- [SubmissionStatus][submission-status-reference-sync]
 - [Column][column-reference-sync]
 - [Project][project-reference-sync]
 - [syn.login][synapseclient.Synapse.login]

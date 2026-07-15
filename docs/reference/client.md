@@ -1,5 +1,13 @@
 # Client
 
+!!! info "v5.0.0 is object-oriented"
+    Many `Synapse` client methods documented below are deprecated in favor of the
+    object-oriented models (see the **Object-Oriented Models** section of the API
+    reference) and the `synapseclient.operations` functions. The `Synapse` object is
+    still required for authentication via [syn.login][synapseclient.Synapse.login]. New
+    code should prefer the object-oriented models — start with the
+    [Python client tutorial](../tutorials/python_client.md).
+
 <!-- We are manually defining the members here in this case to control the ordering of
 those memebrs. We are roughly grouping these for similar functionality. -->
 ::: synapseclient.Synapse

@@ -30,14 +30,15 @@ from synapseclient import (
     Synapse,
     client,
 )
+from synapseclient.models import Project as ProjectModel
 
 
 @pytest.fixture(scope="function")
-def test_state(syn: Synapse, project: Project, schedule_for_cleanup):
+def test_state(syn: Synapse, project_model: ProjectModel, schedule_for_cleanup):
     class State:
         def __init__(self):
             self.syn = syn
-            self.project = project
+            self.project = project_model
             self.schedule_for_cleanup = schedule_for_cleanup
             self.parser = cmdline.build_parser()
             self.upload_filename = _create_temp_file_with_cleanup(schedule_for_cleanup)
@@ -587,7 +588,7 @@ def test_command_get_recursive_and_query(test_state):
 
     # Create Folders in Project
     folder_entity = test_state.syn.store(
-        Folder(name=str(uuid.uuid4()), parent=project_entity)
+        Folder(name=str(uuid.uuid4()), parent=project_entity.id)
     )
 
     folder_entity2 = test_state.syn.store(
@@ -640,7 +641,7 @@ def test_command_get_recursive_and_query(test_state):
         Schema(
             name=str(uuid.uuid4()),
             columns=cols,
-            parent=project_entity,
+            parent=project_entity.id,
         )
     )
     test_state.schedule_for_cleanup(schema1.id)
@@ -888,7 +889,7 @@ def test_table_query(test_state):
     project_entity = test_state.project
 
     schema1 = test_state.syn.store(
-        Schema(name=str(uuid.uuid4()), columns=cols, parent=project_entity)
+        Schema(name=str(uuid.uuid4()), columns=cols, parent=project_entity.id)
     )
     test_state.schedule_for_cleanup(schema1.id)
 
