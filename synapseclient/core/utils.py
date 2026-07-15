@@ -1626,15 +1626,6 @@ def coerce_enum_list(enum_class: type[E], values: list[Union[E, str]]) -> list[s
     return result
 
 
-# ----------------------------------------------------------------------------
-# Annotation conversion helpers
-#
-# These functions convert between the flat key-value form used throughout the
-# client and the various Synapse wire formats (entity Annotations v2 and
-# SubmissionStatus annotations).
-# ----------------------------------------------------------------------------
-
-
 def _annotation_value_list_element_type(annotation_values: list[Any]) -> type:
     """Infer the common element type of a non-empty annotation value list. The type of
     the first element is used as the candidate, and if every element is an instance of
