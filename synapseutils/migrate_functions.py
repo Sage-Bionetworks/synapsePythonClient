@@ -16,7 +16,7 @@ from synapseclient.core.upload.multipart_upload import (
     multipart_copy,
     shared_executor,
 )
-from synapseclient.table import join_column_names
+from synapseclient.core.utils import join_column_names
 
 """
 Contains functions for migrating the storage location of Synapse entities.

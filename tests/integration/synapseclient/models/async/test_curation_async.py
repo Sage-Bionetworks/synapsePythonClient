@@ -24,6 +24,7 @@ from synapseclient.models import (
     RecordBasedMetadataTaskProperties,
     RecordSet,
     TaskState,
+    UserProfile,
     ViewTypeMask,
 )
 from synapseclient.models.table_components import Query
@@ -762,7 +763,7 @@ class TestCurationTaskCreateGridSessionAsync:
 
         # WHEN I create a grid session for the task asynchronously, owned by the
         # current user
-        current_user_id = int(syn.getUserProfile()["ownerId"])
+        current_user_id = (await UserProfile().get_async(synapse_client=syn)).id
         grid = await stored_task.create_grid_session_async(
             owner_principal_id=current_user_id,
             timeout=ASYNC_JOB_TIMEOUT_SEC,

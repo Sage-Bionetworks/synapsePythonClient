@@ -6,6 +6,7 @@ from typing import TYPE_CHECKING
 from deprecated import deprecated
 
 from synapseclient.core.utils import printTransferProgress
+from synapseclient.models import UserProfile
 
 if TYPE_CHECKING:
     from synapseclient import Synapse
@@ -50,7 +51,7 @@ def notifyMe(syn: "Synapse", messageSubject: str = "", retries: int = 0):
         @functools.wraps(func)
         def with_retry_and_messaging(*args, **kwargs):
             attempt = 0
-            destination = syn.getUserProfile()["ownerId"]
+            destination = str(UserProfile().get(synapse_client=syn).id)
             while attempt <= retries:
                 try:
                     output = func(*args, **kwargs)
@@ -131,7 +132,7 @@ def notify_me_async(syn: "Synapse", messageSubject: str = "", retries: int = 0):
         @functools.wraps(func)
         async def with_retry_and_messaging(*args, **kwargs):
             attempt = 0
-            destination = syn.getUserProfile()["ownerId"]
+            destination = str((await UserProfile().get_async(synapse_client=syn)).id)
             while attempt <= retries:
                 try:
                     output = await func(*args, **kwargs)
