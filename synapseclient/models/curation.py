@@ -3092,13 +3092,12 @@ class GridQuery:
 @dataclass
 class QueryRequest:
     """
-    Wraps a structured grid query for execution against a grid session.
+    Request to run a query.
 
     Represents a [Synapse QueryRequest](https://rest-docs.synapse.org/rest/org/sagebionetworks/repo/model/grid/query/QueryRequest.html).
 
     Attributes:
-        query: Defines a structured query using JSON SelectItems and Filters
-            objects (not SQL syntax).
+        query: Defines a structured query using JSON SelectItems and Filters objects - NOT SQL syntax.
     """
 
     query: Optional[GridQuery] = None
@@ -3150,7 +3149,7 @@ class GridQueryJobRequest(AsynchronousCommunicator):
     """The caller's replica ID. Used for row-selection filtering and must be owned by the caller."""
 
     query_request: QueryRequest = field(default_factory=QueryRequest)
-    """Defines a structured query using JSON SelectItems and Filters objects - NOT SQL syntax. Use the predefined SelectItems and Filters with specific concreteType values."""
+    """Request to run a query."""
 
     concrete_type: str = GRID_QUERY_JOB_REQUEST
     """The concrete type for this request."""
@@ -3183,14 +3182,23 @@ class GridQueryJobRequest(AsynchronousCommunicator):
 
         Returns:
             A dictionary representation of this object for API requests.
+
+        Raises:
+            ValueError: If query_request or its nested query is not set, since
+                Synapse would reject the request regardless.
         """
+        if not self.query_request or not self.query_request.query:
+            raise ValueError(
+                "query_request.query is required to query the grid. "
+                "Set query_request=QueryRequest(query=GridQuery(...)) before "
+                "sending this request."
+            )
+
         request_dict = {
             "concreteType": self.concrete_type,
             "sessionId": self.session_id,
             "replicaId": self.replica_id,
-            "queryRequest": (
-                self.query_request.to_synapse_request() if self.query_request else None
-            ),
+            "queryRequest": self.query_request.to_synapse_request(),
         }
         delete_none_keys(request_dict)
         return request_dict
@@ -4944,3 +4952,18 @@ class Grid(EnumCoercionMixin, GridSynchronousProtocol):
                 f"no replica was returned in the Synapse response."
             )
         return GridReplica().fill_from_dict(replica_data)
+
+    async def validate_async(
+        self, *, timeout: int = 120, synapse_client: Optional[Synapse] = None
+    ) -> "GridQueryJobRequest":
+        if not self.session_id:
+            raise ValueError("session_id is required to validate a GridSession")
+
+        replica = await self.create_replica_async(synapse_client=synapse_client)
+        request = GridQueryJobRequest(
+            session_id=self.session_id, replica_id=replica.replica_id
+        )
+        result = await request.send_job_and_wait_async(
+            timeout=timeout, synapse_client=synapse_client
+        )
+        print(result)
