@@ -30,6 +30,7 @@ from synapseclient.models.curation import (
     CellValueOperator,
     CountStar,
     CreateGridRequest,
+    CreateReplicaRequest,
     CurationTask,
     CurationTaskStatus,
     DownloadFromGridRequest,
@@ -42,6 +43,7 @@ from synapseclient.models.curation import (
     GridQueryJobRequest,
     GridQueryResult,
     GridRecordSetExportRequest,
+    GridReplica,
     GridRow,
     QueryRequest,
     RecordBasedMetadataTaskProperties,
@@ -86,7 +88,7 @@ STARTED_BY = "user-1"
 STARTED_ON = "2024-03-01T00:00:00.000Z"
 FILE_HANDLE_ID = "1234567"
 OWNER_PRINCIPAL_ID = 987654
-REPLICA_ID = 7
+REPLICA_ID = 12345
 
 
 def _get_file_based_task_api_response():
@@ -3040,3 +3042,96 @@ class TestGridQueryJobRequest:
 
         # THEN query_result should be None
         assert job_request.query_result is None
+
+
+class TestGridReplica:
+    """Tests for the GridReplica dataclass."""
+
+    def test_fill_from_dict(self) -> None:
+        # GIVEN a response with replica data
+        response = {
+            "gridSessionId": SESSION_ID,
+            "replicaId": REPLICA_ID,
+            "createdBy": CREATED_BY,
+            "isAgentReplica": False,
+            "createdOn": CREATED_ON,
+        }
+
+        # WHEN I fill a GridReplica from the response
+        result = GridReplica().fill_from_dict(response)
+
+        # THEN the fields should be populated
+        assert result.grid_session_id == SESSION_ID
+        assert result.replica_id == REPLICA_ID
+        assert result.created_by == CREATED_BY
+        assert result.is_agent_replica is False
+        assert result.created_on == CREATED_ON
+
+
+class TestCreateReplicaRequest:
+    """Tests for the CreateReplicaRequest dataclass."""
+
+    def test_to_synapse_request(self) -> None:
+        # GIVEN a CreateReplicaRequest with a grid_session_id
+        request = CreateReplicaRequest(grid_session_id=SESSION_ID)
+
+        # WHEN I convert it to a synapse request
+        result = request.to_synapse_request()
+
+        # THEN it should contain the gridSessionId
+        assert result == {"gridSessionId": SESSION_ID}
+
+
+class TestGridCreateReplica:
+    """Tests for Grid.create_replica_async."""
+
+    @pytest.fixture(autouse=True, scope="function")
+    def init_syn(self, syn: Synapse) -> None:
+        self.syn = syn
+
+    async def test_create_replica_async_without_session_id_raises(self) -> None:
+        # GIVEN a Grid without a session_id
+        grid = Grid()
+
+        # WHEN I call create_replica_async
+        # THEN it should raise ValueError
+        with pytest.raises(
+            ValueError, match="session_id is required to create a replica"
+        ):
+            await grid.create_replica_async(synapse_client=self.syn)
+
+    async def test_create_replica_async_returns_grid_replica(self) -> None:
+        # GIVEN a Grid with a session_id and a mocked API response
+        grid = Grid(session_id=SESSION_ID)
+        mock_response = {
+            "replica": {
+                "gridSessionId": SESSION_ID,
+                "replicaId": REPLICA_ID,
+                "createdBy": CREATED_BY,
+                "isAgentReplica": False,
+                "createdOn": CREATED_ON,
+            }
+        }
+
+        # WHEN I call create_replica_async
+        with patch(
+            "synapseclient.models.curation.create_grid_replica",
+            new_callable=AsyncMock,
+            return_value=mock_response,
+        ) as mock_create:
+            result = await grid.create_replica_async(synapse_client=self.syn)
+
+            # THEN the API should be called with the session_id and request body
+            mock_create.assert_called_once_with(
+                session_id=SESSION_ID,
+                create_replica_request={"gridSessionId": SESSION_ID},
+                synapse_client=self.syn,
+            )
+
+            # THEN the result should be a populated GridReplica
+            assert isinstance(result, GridReplica)
+            assert result.replica_id == REPLICA_ID
+            assert result.grid_session_id == SESSION_ID
+            assert result.created_by == CREATED_BY
+            assert result.is_agent_replica is False
+            assert result.created_on == CREATED_ON
