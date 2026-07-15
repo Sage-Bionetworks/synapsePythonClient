@@ -3146,10 +3146,10 @@ class GridQueryJobRequest(AsynchronousCommunicator):
     """The grid session ID for querying."""
 
     replica_id: int
-    """The caller's replica ID for row filtering. Must be owned by the caller."""
+    """The caller's replica ID. Used for row-selection filtering and must be owned by the caller."""
 
     query_request: QueryRequest = field(default_factory=QueryRequest)
-    """The structured query request to execute against the grid."""
+    """Defines a structured query using JSON SelectItems and Filters objects - NOT SQL syntax. Use the predefined SelectItems and Filters with specific concreteType values."""
 
     concrete_type: str = GRID_QUERY_JOB_REQUEST
     """The concrete type for this request."""
