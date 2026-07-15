@@ -3135,3 +3135,19 @@ class TestGridCreateReplica:
             assert result.created_by == CREATED_BY
             assert result.is_agent_replica is False
             assert result.created_on == CREATED_ON
+
+    async def test_create_replica_async_raises_without_replica_in_response(
+        self,
+    ) -> None:
+        # GIVEN a Grid with a session_id and a response with no replica data
+        grid = Grid(session_id=SESSION_ID)
+
+        # WHEN I call create_replica_async
+        # THEN it should raise ValueError since no replica was returned
+        with patch(
+            "synapseclient.models.curation.create_grid_replica",
+            new_callable=AsyncMock,
+            return_value={},
+        ):
+            with pytest.raises(ValueError, match="Replica could not be created"):
+                await grid.create_replica_async(synapse_client=self.syn)

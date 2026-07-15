@@ -3867,7 +3867,7 @@ class GridSynchronousProtocol(Protocol):
 
     def create_replica(
         self, *, synapse_client: Optional[Synapse] = None
-    ) -> Optional["GridReplica"]:
+    ) -> "GridReplica":
         """
         Creates a new replica for this grid session.
 
@@ -3884,10 +3884,11 @@ class GridSynchronousProtocol(Protocol):
                 instance from the Synapse class constructor.
 
         Returns:
-            The newly created GridReplica, or None if the response did not contain replica information.
+            The newly created GridReplica.
 
         Raises:
-            ValueError: If session_id is not provided.
+            ValueError: If session_id is not provided, or if the Synapse response
+                did not contain replica information.
 
         Example: Create a replica for a grid session
             &nbsp;
@@ -4876,11 +4877,11 @@ class Grid(EnumCoercionMixin, GridSynchronousProtocol):
         return self
 
     @otel_trace_method(
-        method_to_trace_name=lambda self, **kwargs: f"Grid_Create_Replica: ID: {self.session_id}"
+        method_to_trace_name=lambda self, **kwargs: f"Grid_Create_Replica_Session_ID: {self.session_id}"
     )
     async def create_replica_async(
         self, *, synapse_client: Optional[Synapse] = None
-    ) -> Optional["GridReplica"]:
+    ) -> "GridReplica":
         """
         Creates a new replica for this grid session.
 
@@ -4897,10 +4898,11 @@ class Grid(EnumCoercionMixin, GridSynchronousProtocol):
                 instance from the Synapse class constructor.
 
         Returns:
-            The newly created GridReplica, or None if the response did not contain replica information.
+            The newly created GridReplica.
 
         Raises:
-            ValueError: If session_id is not provided.
+            ValueError: If session_id is not provided, or if the Synapse response
+                did not contain replica information.
 
         Example: Create a replica for a grid session
             &nbsp;
@@ -4936,4 +4938,9 @@ class Grid(EnumCoercionMixin, GridSynchronousProtocol):
             synapse_client=synapse_client,
         )
         replica_data = grid_replica.get("replica")
-        return GridReplica().fill_from_dict(replica_data) if replica_data else None
+        if not replica_data:
+            raise ValueError(
+                f"Replica could not be created for grid session '{self.session_id}': "
+                f"no replica was returned in the Synapse response."
+            )
+        return GridReplica().fill_from_dict(replica_data)
