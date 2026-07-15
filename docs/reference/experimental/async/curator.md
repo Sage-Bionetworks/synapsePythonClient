@@ -68,9 +68,16 @@
             - import_csv_async
             - delete_async
             - list_async
+            - create_replica_async
 ---
 [](){ #query-reference-async }
 ::: synapseclient.models.Query
+    options:
+        inherited_members: true
+        members:
+---
+[](){ #GridReplica-reference-async }
+::: synapseclient.models.GridReplica
     options:
         inherited_members: true
         members:

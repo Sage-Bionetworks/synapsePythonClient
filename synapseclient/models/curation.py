@@ -28,6 +28,7 @@ from opentelemetry import trace
 from synapseclient import Synapse
 from synapseclient.api import (
     create_curation_task,
+    create_grid_replica,
     delete_curation_task,
     delete_grid_session,
     get_curation_task,
@@ -3634,6 +3635,84 @@ class ListGridSessionsResponse:
         return self
 
 
+@dataclass
+class GridReplica:
+    """
+    Information about a replica.
+
+    Represents a [Synapse GridReplica](https://rest-docs.synapse.org/rest/org/sagebionetworks/repo/model/grid/GridReplica.html).
+
+    Attributes:
+        grid_session_id: The ID of the grid session.
+        replica_id: The unique identifier for the new replica.
+        created_by: The user that created this replica.
+        is_agent_replica: When true, this replica belongs to the createdBy
+            user's agent.
+        created_on: The date-time when the user created this replica.
+    """
+
+    grid_session_id: Optional[str] = None
+    """The ID of the grid session."""
+
+    replica_id: Optional[int] = None
+    """The unique identifier for the new replica."""
+
+    created_by: Optional[str] = None
+    """The user that created this replica."""
+
+    is_agent_replica: Optional[bool] = None
+    """When true, this replica belongs to the createdBy user's agent."""
+
+    created_on: Optional[str] = None
+    """The date-time when the user created this replica."""
+
+    def fill_from_dict(self, synapse_response: Dict[str, Any]) -> "GridReplica":
+        """
+        Converts a response from the REST API into this dataclass.
+
+        Arguments:
+            synapse_response: The response from the REST API.
+
+        Returns:
+            The GridReplica object.
+        """
+        self.grid_session_id = synapse_response.get("gridSessionId", None)
+        self.replica_id = synapse_response.get("replicaId", None)
+        self.created_by = synapse_response.get("createdBy", None)
+        self.is_agent_replica = synapse_response.get("isAgentReplica", None)
+        self.created_on = synapse_response.get("createdOn", None)
+        return self
+
+
+@dataclass
+class CreateReplicaRequest:
+    """
+    Request to create a new replica. A replica represents an 'in-memory' grid
+    document identified by a unique replicaId.
+
+    This request is modeled from: <https://rest-docs.synapse.org/rest/org/sagebionetworks/repo/model/grid/CreateReplicaRequest.html>
+
+    Attributes:
+        grid_session_id: The ID of the grid session.
+        replica: Information about a replica. Populated after calling the
+            create-replica endpoint.
+    """
+
+    grid_session_id: Optional[str] = None
+    """The ID of the grid session."""
+
+    def to_synapse_request(self) -> dict[str, Any]:
+        """
+        Converts this dataclass to a dictionary suitable for a Synapse REST API request.
+
+        Returns:
+            A dictionary representation of this object for API requests.
+        """
+        request_dict = {"gridSessionId": self.grid_session_id}
+        delete_none_keys(request_dict)
+        return request_dict
+
+
 class GridSynchronousProtocol(Protocol):
     """
     The protocol for methods that are asynchronous but also
@@ -3785,6 +3864,49 @@ class GridSynchronousProtocol(Protocol):
             ```
         """
         return self
+
+    def create_replica(
+        self, *, synapse_client: Optional[Synapse] = None
+    ) -> Optional["GridReplica"]:
+        """
+        Creates a new replica for this grid session.
+
+        A grid replica is an in-memory document that represents a 'copy' of the
+        grid. Each replica is identified by a unique replicaId, issued by the
+        'hub'. A user can have more than one replica at a time (i.e. using
+        multiple browser tabs/machines). A user is limited to 10 replicas
+        per-hour per-grid-session. Only the user that started the grid session
+        may create a replica.
+
+        Arguments:
+            synapse_client: If not passed in and caching was not disabled by
+                `Synapse.allow_client_caching(False)` this will use the last created
+                instance from the Synapse class constructor.
+
+        Returns:
+            The newly created GridReplica, or None if the response did not contain replica information.
+
+        Raises:
+            ValueError: If session_id is not provided.
+
+        Example: Create a replica for a grid session
+            &nbsp;
+
+            ```python
+            from synapseclient import Synapse
+            from synapseclient.models import Grid
+
+            syn = Synapse()
+            syn.login()
+
+            grid = Grid(record_set_id="syn1234567")
+            grid = grid.create()
+
+            replica = grid.create_replica()
+            print(f"Replica created with ID: {replica.replica_id}")
+            ```
+        """
+        return None
 
     def delete(self, *, synapse_client: Optional[Synapse] = None) -> None:
         """
@@ -4752,3 +4874,66 @@ class Grid(EnumCoercionMixin, GridSynchronousProtocol):
             )
 
         return self
+
+    @otel_trace_method(
+        method_to_trace_name=lambda self, **kwargs: f"Grid_Create_Replica: ID: {self.session_id}"
+    )
+    async def create_replica_async(
+        self, *, synapse_client: Optional[Synapse] = None
+    ) -> Optional["GridReplica"]:
+        """
+        Creates a new replica for this grid session.
+
+        A grid replica is an in-memory document that represents a 'copy' of the
+        grid. Each replica is identified by a unique replicaId, issued by the
+        'hub'. A user can have more than one replica at a time (i.e. using
+        multiple browser tabs/machines). A user is limited to 10 replicas
+        per-hour per-grid-session. Only the user that started the grid session
+        may create a replica.
+
+        Arguments:
+            synapse_client: If not passed in and caching was not disabled by
+                `Synapse.allow_client_caching(False)` this will use the last created
+                instance from the Synapse class constructor.
+
+        Returns:
+            The newly created GridReplica, or None if the response did not contain replica information.
+
+        Raises:
+            ValueError: If session_id is not provided.
+
+        Example: Create a replica for a grid session
+            &nbsp;
+
+            ```python
+            import asyncio
+            from synapseclient import Synapse
+            from synapseclient.models import Grid
+
+            syn = Synapse()
+            syn.login()
+
+            async def main():
+                grid = Grid(record_set_id="syn1234567")
+                grid = await grid.create_async()
+
+                replica = await grid.create_replica_async()
+                print(f"Replica created with ID: {replica.replica_id}")
+
+            asyncio.run(main())
+            ```
+        """
+        if not self.session_id:
+            raise ValueError(
+                "session_id is required to create a replica for a GridSession"
+            )
+
+        grid_replica = await create_grid_replica(
+            session_id=self.session_id,
+            create_replica_request=CreateReplicaRequest(
+                self.session_id
+            ).to_synapse_request(),
+            synapse_client=synapse_client,
+        )
+        replica_data = grid_replica.get("replica")
+        return GridReplica().fill_from_dict(replica_data) if replica_data else None
