@@ -283,7 +283,7 @@ class TableSynchronousProtocol(Protocol):
                 set the log level to DEBUG by setting the debug flag when creating
                 your Synapse class instance like: `syn = Synapse(debug=True)`.
 
-            rows_per_query: The number of rows that will be queries from Synapse per
+            rows_per_query: The number of rows that will be queried from Synapse per
                 request. Since we need to query for the data that is being updated
                 this will determine the number of rows that are queried at a time.
                 The default is 50,000 rows.
