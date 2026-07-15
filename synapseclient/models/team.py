@@ -16,8 +16,6 @@ from synapseclient.api import (
 from synapseclient.core.async_utils import async_to_sync, otel_trace_method
 from synapseclient.models.protocols.team_protocol import TeamSynchronousProtocol
 from synapseclient.models.user import UserGroupHeader
-from synapseclient.team import Team as Synapse_Team
-from synapseclient.team import TeamMember as Synapse_TeamMember
 
 
 @dataclass
@@ -42,9 +40,7 @@ class TeamMember:
     is_admin: Optional[bool] = None
     """Whether the given member is an administrator of the team"""
 
-    def fill_from_dict(
-        self, synapse_team_member: Union[Synapse_TeamMember, Dict[str, str]]
-    ) -> "TeamMember":
+    def fill_from_dict(self, synapse_team_member: dict[str, str]) -> "TeamMember":
         self.team_id = (
             int(synapse_team_member.get("teamId", None))
             if synapse_team_member.get("teamId", None)
@@ -192,9 +188,7 @@ class Team(TeamSynchronousProtocol):
     modified_by: Optional[str] = None
     """The ID of the user that last modified this team"""
 
-    def fill_from_dict(
-        self, synapse_team: Union[Synapse_Team, Dict[str, str]]
-    ) -> "Team":
+    def fill_from_dict(self, synapse_team: dict[str, str]) -> "Team":
         """
         Converts a response from the REST API into this dataclass.
 

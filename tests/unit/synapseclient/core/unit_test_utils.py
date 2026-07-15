@@ -19,7 +19,11 @@ import pandas as pd
 import pytest
 
 from synapseclient.core import constants, utils
-from synapseclient.core.utils import coerce_enum_list
+from synapseclient.core.utils import (
+    coerce_enum_list,
+    escape_column_name,
+    join_column_names,
+)
 
 
 def test_is_url() -> None:
@@ -569,6 +573,7 @@ def test_md5_for_file(mock_hashlib: MagicMock) -> None:
         mock_callback.call_count == 3
 
 
+# TODO: remove test in 5.0.0
 class TestSpinner:
     """
     Verify the Spinner object work correctly
@@ -1207,3 +1212,33 @@ class TestIsMissingAnnotationValue:
         """Real scalar values, including falsy ones and the literal strings
         "None"/"nan", are not missing. Emptiness of lists is handled by the caller."""
         assert utils._is_missing_annotation_value(value) is False
+
+
+@pytest.mark.parametrize(
+    "column,expected_name",
+    (
+        ("foo", '"foo"'),  # all names are quoted
+        ('foo"bar', '"foo""bar"'),  # quotes are double quoted
+        (
+            "foo bar",
+            '"foo bar"',
+        ),  # other special characters e.g. spaces are left alone (within the quoted string)
+    ),
+)
+def test_escape_column_names(column, expected_name) -> None:
+    """Verify column name escaping"""
+    # test as a string
+    assert escape_column_name(column) == expected_name
+
+    # test as a dictionary/column object
+    assert escape_column_name({"name": column}) == expected_name
+
+
+def test_join_column_names() -> None:
+    """Verify the behavior of join_column_names"""
+    column_names = ["foo", 'foo"bar', "foo bar"]
+    column_dicts = [{"name": n} for n in column_names]
+    expected = '"foo","foo""bar","foo bar"'
+
+    assert join_column_names(column_names) == expected
+    assert join_column_names(column_dicts) == expected

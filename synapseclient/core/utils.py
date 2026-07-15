@@ -1744,3 +1744,35 @@ def convert_to_annotations_list(
         else:
             nested_annos[key] = {"type": "STRING", "value": [str(e) for e in elements]}
     return nested_annos
+
+
+def escape_column_name(column: Union[str, collections.abc.Mapping]) -> str:
+    """
+    Escape the name of the given column for use in a Synapse table query statement
+
+    Arguments:
+        column: a string or column dictionary object with a 'name' key
+
+    Returns:
+        Escaped column name
+    """
+    col_name = (
+        column["name"] if isinstance(column, collections.abc.Mapping) else str(column)
+    )
+    escaped_name = col_name.replace('"', '""')
+    return f'"{escaped_name}"'
+
+
+def join_column_names(columns: Union[list, dict]) -> str:
+    """
+    Join the names of the given columns into a comma delimited list suitable for use
+    in a Synapse table query
+
+    Arguments:
+        columns: A sequence of column string names or dictionary objects with column
+            'name' keys
+
+    Returns:
+        Comma-separated string of escaped column names
+    """
+    return ",".join(escape_column_name(c) for c in columns)

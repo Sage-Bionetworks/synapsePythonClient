@@ -12,6 +12,7 @@ import urllib.parse as urllib_urlparse
 import urllib.request as urllib_request
 from typing import TYPE_CHECKING, Dict, Optional, Union
 
+from deprecated import deprecated
 from opentelemetry import trace
 from tqdm import tqdm
 from tqdm.contrib.logging import logging_redirect_tqdm
@@ -79,6 +80,11 @@ STANDARD_RETRY_PARAMS = {
 tracer = get_tracer()
 
 
+@deprecated(
+    version="4.14.0",
+    reason="To be removed in 5.0.0. "
+    "Use download_file_entity_model with the synapseclient.models.File object instead.",
+)
 @tracer.start_as_current_span("synapse.transfer.download")
 async def download_file_entity(
     download_location: str,
@@ -90,6 +96,9 @@ async def download_file_entity(
 ) -> None:
     """
     Download file entity
+
+    WARNING - This function is deprecated and will no longer be maintained. Please use
+    download_file_entity_model with the synapseclient.models.File object instead.
 
     Arguments:
         download_location: The location on disk where the entity will be downloaded. If
@@ -107,6 +116,41 @@ async def download_file_entity(
         synapse_client: If not passed in and caching was not disabled by
                 `Synapse.allow_client_caching(False)` this will use the last created
                 instance from the Synapse class constructor.
+
+    Example: Migration to the object-oriented model
+        &nbsp;
+
+        The user-facing way to download a file is now File.get(). Internally this
+        maps to download_file_entity_model, which takes a synapseclient.models.File
+        object instead of a legacy Entity.
+
+        ```python
+        # Old approach (DEPRECATED)
+        # await download_file_entity(
+        #     download_location="/tmp/data",
+        #     entity=entity,
+        #     if_collision="overwrite.local",
+        #     submission=None,
+        # )
+
+        # New approach (RECOMMENDED)
+        from synapseclient import Synapse
+        from synapseclient.models import File
+
+        syn = Synapse()
+        syn.login()
+
+        file = File(id="syn123", path="/tmp/data").get()
+
+        # Or, using the internal model function directly:
+        # from synapseclient.core.download import download_file_entity_model
+        # await download_file_entity_model(
+        #     download_location="/tmp/data",
+        #     file=File(id="syn123"),
+        #     if_collision="overwrite.local",
+        #     submission=None,
+        # )
+        ```
     """
     from synapseclient import Synapse
 

@@ -7,7 +7,7 @@ import pytest
 
 from synapseclient import Synapse
 from synapseclient.core.exceptions import SynapseHTTPError
-from synapseclient.models import Team
+from synapseclient.models import Team, UserProfile
 from synapseclient.models.user import UserGroupHeader
 
 
@@ -155,7 +155,8 @@ class TestTeam:
         try:
             # AND I get the membership status for the creator (who should be a member)
             creator_status = await test_team.get_user_membership_status_async(
-                user_id=self.syn.getUserProfile().ownerId, synapse_client=self.syn
+                user_id=(await UserProfile().get_async(synapse_client=self.syn)).id,
+                synapse_client=self.syn,
             )
 
             # THEN the creator should have membership status indicating they are a member
@@ -177,7 +178,11 @@ class TestTeam:
 
             # Check the invited user's status
             invited_status = await test_team.get_user_membership_status_async(
-                user_id=self.syn.getUserProfile(self.TEST_USER).ownerId,
+                user_id=(
+                    await UserProfile.from_username_async(
+                        self.TEST_USER, synapse_client=self.syn
+                    )
+                ).id,
                 synapse_client=self.syn,
             )
 
