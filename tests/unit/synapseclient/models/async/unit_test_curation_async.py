@@ -3001,15 +3001,25 @@ class TestGridQueryJobRequest:
         ]
         assert result["queryRequest"]["query"]["limit"] == 50
 
-    def test_to_synapse_request_with_default_query_request(self) -> None:
-        # GIVEN a GridQueryJobRequest with no query_request set
+    def test_to_synapse_request_with_default_query_request_raises(self) -> None:
+        # GIVEN a GridQueryJobRequest with no query set on its query_request
         job_request = GridQueryJobRequest(session_id=SESSION_ID, replica_id=REPLICA_ID)
 
         # WHEN I convert it to a synapse request
-        result = job_request.to_synapse_request()
+        # THEN it should raise ValueError since Synapse would reject the request
+        with pytest.raises(ValueError, match="query_request.query is required"):
+            job_request.to_synapse_request()
 
-        # THEN queryRequest should be an empty dict since no query was set
-        assert result["queryRequest"] == {}
+    def test_to_synapse_request_with_query_request_none_raises(self) -> None:
+        # GIVEN a GridQueryJobRequest with query_request explicitly set to None
+        job_request = GridQueryJobRequest(
+            session_id=SESSION_ID, replica_id=REPLICA_ID, query_request=None
+        )
+
+        # WHEN I convert it to a synapse request
+        # THEN it should raise ValueError since Synapse would reject the request
+        with pytest.raises(ValueError, match="query_request.query is required"):
+            job_request.to_synapse_request()
 
     def test_fill_from_dict(self) -> None:
         # GIVEN a response with a queryResult
