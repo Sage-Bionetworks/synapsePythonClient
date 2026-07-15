@@ -1838,7 +1838,7 @@ def _validate_primary_keys(
             string, if a primary key column is not present in the data, or if any
             row has a null value in one of the primary key columns.
     """
-    if len(primary_keys) < 1:
+    if not primary_keys:
         raise ValueError(
             "At least one primary key column must be provided for upsert, but "
             "the primary_keys argument was empty. Specify the column(s) that "
