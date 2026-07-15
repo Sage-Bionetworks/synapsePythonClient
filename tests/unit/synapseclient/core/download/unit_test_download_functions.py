@@ -6,18 +6,22 @@ from unittest.mock import AsyncMock, patch
 
 import pytest
 
-from synapseclient import File, Synapse
+# TODO: Remove the LegacyFile import (and its test) by 5.0.0
+from synapseclient import File as LegacyFile
+from synapseclient import Synapse
 from synapseclient.core import utils
 from synapseclient.core.constants import concrete_types
 from synapseclient.core.download import (
     PresignedUrlInfo,
     download_file_entity,
+    download_file_entity_model,
     download_functions,
     ensure_download_location_is_directory,
 )
 from synapseclient.core.download.download_async import (
     SYNAPSE_DEFAULT_DOWNLOAD_PART_SIZE,
 )
+from synapseclient.models import File
 
 
 def _presigned_url(seconds_until_expiry: int = 3600) -> str:
@@ -46,9 +50,10 @@ def test_ensure_download_location_is_directory() -> None:
             ensure_download_location_is_directory(download_location)
 
 
-async def test_download_file_entity_correct_local_state(syn: Synapse) -> None:
+# TODO: Remove this test (and the LegacyFile import) by 5.0.0
+async def test_download_file_entity_legacy_correct_local_state(syn: Synapse) -> None:
     mock_cache_path = utils.normalize_path("/i/will/show/you/the/path/yi.txt")
-    file_entity = File(parentId="syn123")
+    file_entity = LegacyFile(parentId="syn123")
     file_entity.dataFileHandleId = 123
     with patch.object(syn.cache, "get", return_value=mock_cache_path):
         await download_file_entity(
@@ -62,6 +67,20 @@ async def test_download_file_entity_correct_local_state(syn: Synapse) -> None:
         assert os.path.dirname(mock_cache_path) == file_entity.cacheDir
         assert 1 == len(file_entity.files)
         assert os.path.basename(mock_cache_path) == file_entity.files[0]
+
+
+async def test_download_file_entity_correct_local_state(syn: Synapse) -> None:
+    mock_cache_path = utils.normalize_path("/i/will/show/you/the/path/yi.txt")
+    file = File(parent_id="syn123", data_file_handle_id=123)
+    with patch.object(syn.cache, "get", return_value=mock_cache_path):
+        await download_file_entity_model(
+            download_location=None,
+            file=file,
+            if_collision="overwrite.local",
+            submission=None,
+            synapse_client=syn,
+        )
+        assert mock_cache_path == utils.normalize_path(file.path)
 
 
 class TestMultiThreadedPresignedUrlReuse:

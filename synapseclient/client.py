@@ -1666,7 +1666,7 @@ class Synapse(object):
 
     @deprecated(
         version="4.11.0",
-        reason="To be removed in 5.0.0.",
+        reason="To be removed in 5.0.0. This is a beta feature with no replacement.",
     )
     def get_available_services(self) -> typing.List[str]:
         """Get available Synapse services
@@ -1680,7 +1680,7 @@ class Synapse(object):
 
     @deprecated(
         version="4.11.0",
-        reason="To be removed in 5.0.0.",
+        reason="To be removed in 5.0.0. This is a beta feature with no replacement.",
     )
     def service(self, service_name: str):
         """Get available Synapse services
@@ -5977,7 +5977,14 @@ class Synapse(object):
             min_remaining_life=min_remaining_life,
         )
 
-    @deprecated(version="4.12.0", reason="To be removed in 5.0.0. ")
+    @deprecated(
+        version="4.12.0",
+        reason="To be removed in 5.0.0. "
+        "Use the `synapseclient.models.StorageLocation` model and its `store()` "
+        "method instead. To also create a folder and apply the storage location "
+        "as a project setting, use `Folder` together with "
+        "`set_storage_location()` on the project/folder.",
+    )
     def create_s3_storage_location(
         self,
         *,
@@ -5995,6 +6002,10 @@ class Synapse(object):
         and optionally enabling this storage location for access via STS. If enabling an existing folder for STS,
         it must be empty.
 
+        Deprecated: To be removed in 5.0.0. Use the synapseclient.models.StorageLocation
+        model and its store() method to create the storage location, and
+        set_storage_location() on a Project or Folder to apply it as a project setting.
+
         Arguments:
             parent: The parent in which to locate the storage location (mutually exclusive with folder)
             folder_name: The name of a new folder to create (mutually exclusive with folder)
@@ -6007,6 +6018,37 @@ class Synapse(object):
 
         Returns:
             A 3-tuple of the synapse Folder, a the storage location setting, and the project setting dictionaries.
+
+        Example: Migration to the object-oriented model
+            &nbsp;
+
+            ```python
+            # Old approach (DEPRECATED)
+            # folder, storage_setting, project_setting = syn.create_s3_storage_location(
+            #     parent="syn123",
+            #     folder_name="my-external-storage",
+            #     bucket_name="my-bucket",
+            # )
+
+            # New approach (RECOMMENDED)
+            from synapseclient import Synapse
+            from synapseclient.models import Folder, StorageLocation, StorageLocationType
+
+            syn = Synapse()
+            syn.login()
+
+            # Create the storage location backed by your own S3 bucket
+            storage = StorageLocation(
+                storage_type=StorageLocationType.EXTERNAL_S3,
+                bucket="my-bucket",
+            ).store()
+
+            # Create a folder to hold the externally stored files
+            folder = Folder(name="my-external-storage", parent_id="syn123").store()
+
+            # Apply the storage location as the folder's upload destination
+            folder.set_storage_location(storage_location_id=storage.storage_location_id)
+            ```
         """
         return wrap_async_to_sync(
             self.create_s3_storage_location_async(
@@ -6021,7 +6063,11 @@ class Synapse(object):
 
     @deprecated(
         version="4.12.0",
-        reason="To be removed in 5.0.0. ",
+        reason="To be removed in 5.0.0. "
+        "Use the `synapseclient.models.StorageLocation` model and its "
+        "`store_async()` method instead. To also create a folder and apply the "
+        "storage location as a project setting, use `Folder` together with "
+        "`set_storage_location_async()` on the project/folder.",
     )
     async def create_s3_storage_location_async(
         self,
@@ -6035,6 +6081,11 @@ class Synapse(object):
     ) -> Tuple[Folder, Dict[str, str], Dict[str, str]]:
         """
         async version of create_s3_storage_location
+
+        Deprecated: To be removed in 5.0.0. Use the synapseclient.models.StorageLocation
+        model and its store_async() method to create the storage location, and
+        set_storage_location_async() on a Project or Folder to apply it as a project
+        setting.
         """
         if folder_name and parent:
             if folder:
@@ -6080,7 +6131,12 @@ class Synapse(object):
     #                   CRUD for Evaluations                   #
     ############################################################
 
-    # TODO: Deprecate method in https://sagebionetworks.jira.com/browse/SYNPY-1589
+    @deprecated(
+        version="4.14.0",
+        reason="To be removed in 5.0.0. "
+        "Use the `synapseclient.models.Evaluation` model instead, e.g. "
+        "`Evaluation(id=...).get()`.",
+    )
     def getEvaluation(self, id):
         """
         Gets an Evaluation object from Synapse.
@@ -6095,13 +6151,35 @@ class Synapse(object):
             Creating an Evaluation instance
 
                 evaluation = syn.getEvaluation(2005090)
+
+        Example: Migration to the object-oriented model
+            &nbsp;
+
+            ```python
+            # Old approach (DEPRECATED)
+            # evaluation = syn.getEvaluation(2005090)
+
+            # New approach (RECOMMENDED)
+            from synapseclient import Synapse
+            from synapseclient.models import Evaluation
+
+            syn = Synapse()
+            syn.login()
+
+            evaluation = Evaluation(id="2005090").get()
+            ```
         """
 
         evaluation_id = id_of(id)
         uri = Evaluation.getURI(evaluation_id)
         return Evaluation(**self.restGET(uri))
 
-    # TODO: Deprecate method in https://sagebionetworks.jira.com/browse/SYNPY-1589
+    @deprecated(
+        version="4.14.0",
+        reason="To be removed in 5.0.0. "
+        "Use the `synapseclient.models.Evaluation` model instead, e.g. "
+        "`Evaluation(name=...).get()`.",
+    )
     def getEvaluationByName(self, name):
         """
         Gets an Evaluation object from Synapse.
@@ -6111,11 +6189,32 @@ class Synapse(object):
 
         Returns:
             An [synapseclient.evaluation.Evaluation][] object
+
+        Example: Migration to the object-oriented model
+            &nbsp;
+
+            ```python
+            # Old approach (DEPRECATED)
+            # evaluation = syn.getEvaluationByName("My Evaluation")
+
+            # New approach (RECOMMENDED)
+            from synapseclient import Synapse
+            from synapseclient.models import Evaluation
+
+            syn = Synapse()
+            syn.login()
+
+            evaluation = Evaluation(name="My Evaluation").get()
+            ```
         """
         uri = Evaluation.getByNameURI(name)
         return Evaluation(**self.restGET(uri))
 
-    # TODO: Deprecate method in https://sagebionetworks.jira.com/browse/SYNPY-1589
+    @deprecated(
+        version="4.14.0",
+        reason="To be removed in 5.0.0. "
+        "Use `synapseclient.models.Evaluation.get_evaluations_by_project()` instead.",
+    )
     def getEvaluationByContentSource(self, entity):
         """
         Returns a generator over evaluations that derive their content from the given entity
@@ -6125,6 +6224,23 @@ class Synapse(object):
 
         Yields:
             A generator over [synapseclient.evaluation.Evaluation][] objects for the given [synapseclient.entity.Project][].
+
+        Example: Migration to the object-oriented model
+            &nbsp;
+
+            ```python
+            # Old approach (DEPRECATED)
+            # evaluations = syn.getEvaluationByContentSource("syn123")
+
+            # New approach (RECOMMENDED)
+            from synapseclient import Synapse
+            from synapseclient.models import Evaluation
+
+            syn = Synapse()
+            syn.login()
+
+            evaluations = Evaluation.get_evaluations_by_project(project_id="syn123")
+            ```
         """
 
         entityId = id_of(entity)
@@ -6681,7 +6797,12 @@ class Synapse(object):
         # Return None if no invite is sent.
         return None
 
-    # TODO: Deprecate method in https://sagebionetworks.jira.com/browse/SYNPY-1590
+    @deprecated(
+        version="4.14.0",
+        reason="To be removed in 5.0.0. "
+        "Use the `synapseclient.models.Submission` model instead, e.g. "
+        "`Submission(...).store()`.",
+    )
     def submit(
         self,
         evaluation,
@@ -6721,6 +6842,27 @@ class Synapse(object):
                 evaluation = syn.getEvaluation(123)
                 entity = syn.get('syn456')
                 submission = syn.submit(evaluation, entity, name='Our Final Answer', team='Blue Team')
+
+        Example: Migration to the object-oriented model
+            &nbsp;
+
+            ```python
+            # Old approach (DEPRECATED)
+            # submission = syn.submit(9614543, "syn456", name="Our Final Answer")
+
+            # New approach (RECOMMENDED)
+            from synapseclient import Synapse
+            from synapseclient.models import Submission
+
+            syn = Synapse()
+            syn.login()
+
+            submission = Submission(
+                evaluation_id="9614543",
+                entity_id="syn456",
+                name="Our Final Answer",
+            ).store()
+            ```
         """
         return wrap_async_to_sync(
             self.submit_async(
@@ -6735,7 +6877,12 @@ class Synapse(object):
             )
         )
 
-    # TODO: Deprecate method in https://sagebionetworks.jira.com/browse/SYNPY-1590
+    @deprecated(
+        version="4.14.0",
+        reason="To be removed in 5.0.0. "
+        "Use the `synapseclient.models.Submission` model instead, e.g. "
+        "`await Submission(...).store_async()`.",
+    )
     async def submit_async(
         self,
         evaluation,
@@ -6775,6 +6922,27 @@ class Synapse(object):
                 evaluation = syn.getEvaluation(123)
                 entity = syn.get('syn456')
                 submission = syn.submit(evaluation, entity, name='Our Final Answer', team='Blue Team')
+
+        Example: Migration to the object-oriented model
+            &nbsp;
+
+            ```python
+            # Old approach (DEPRECATED)
+            # submission = await syn.submit_async(9614543, "syn456", name="Our Final Answer")
+
+            # New approach (RECOMMENDED)
+            from synapseclient import Synapse
+            from synapseclient.models import Submission
+
+            syn = Synapse()
+            syn.login()
+
+            submission = await Submission(
+                evaluation_id="9614543",
+                entity_id="syn456",
+                name="Our Final Answer",
+            ).store_async()
+            ```
         """
 
         require_param(evaluation, "evaluation")
@@ -6961,7 +7129,12 @@ class Synapse(object):
 
         self.setPermissions(evaluation, userId, accessType=rights, overwrite=False)
 
-    # TODO: Deprecate method in https://sagebionetworks.jira.com/browse/SYNPY-1590
+    @deprecated(
+        version="4.14.0",
+        reason="To be removed in 5.0.0. "
+        "Use `synapseclient.models.Submission.get_evaluation_submissions()` (or "
+        "`get_user_submissions()` for your own submissions) instead.",
+    )
     def getSubmissions(self, evaluation, status=None, myOwn=False, limit=20, offset=0):
         """
         Arguments:
@@ -7000,6 +7173,30 @@ class Synapse(object):
         See:
 
         - [synapseclient.evaluation][]
+
+        Example: Migration to the object-oriented model
+            &nbsp;
+
+            ```python
+            # Old approach (DEPRECATED)
+            # for submission in syn.getSubmissions(1234567):
+            #     print(submission)
+
+            # New approach (RECOMMENDED)
+            from synapseclient import Synapse
+            from synapseclient.models import Submission
+
+            syn = Synapse()
+            syn.login()
+
+            # All submissions for an evaluation
+            for submission in Submission.get_evaluation_submissions(evaluation_id="1234567"):
+                print(submission)
+
+            # Only your own submissions (equivalent to myOwn=True)
+            for submission in Submission.get_user_submissions(evaluation_id="1234567"):
+                print(submission)
+            ```
         """
 
         evaluation_id = id_of(evaluation)
@@ -7061,7 +7258,12 @@ class Synapse(object):
 
         return self._GET_paginated(url, limit=limit, offset=offset)
 
-    # TODO: Deprecate method in https://sagebionetworks.jira.com/browse/SYNPY-1590
+    @deprecated(
+        version="4.14.0",
+        reason="To be removed in 5.0.0. "
+        "Use `synapseclient.models.SubmissionBundle.get_evaluation_submission_bundles()` "
+        "(or `get_user_submission_bundles()` for your own) instead.",
+    )
     def getSubmissionBundles(
         self, evaluation, status=None, myOwn=False, limit=20, offset=0
     ):
@@ -7102,6 +7304,30 @@ class Synapse(object):
 
         See:
         - [synapseclient.evaluation][]
+
+        Example: Migration to the object-oriented model
+            &nbsp;
+
+            ```python
+            # Old approach (DEPRECATED)
+            # for submission, status in syn.getSubmissionBundles(1234567):
+            #     print(submission, status)
+
+            # New approach (RECOMMENDED)
+            from synapseclient import Synapse
+            from synapseclient.models import SubmissionBundle
+
+            syn = Synapse()
+            syn.login()
+
+            # All submission bundles for an evaluation
+            for bundle in SubmissionBundle.get_evaluation_submission_bundles(evaluation_id="1234567"):
+                print(bundle.submission, bundle.submission_status)
+
+            # Only your own submission bundles (equivalent to myOwn=True)
+            for bundle in SubmissionBundle.get_user_submission_bundles(evaluation_id="1234567"):
+                print(bundle.submission, bundle.submission_status)
+            ```
         """
         for bundle in self._getSubmissionBundles(
             evaluation, status=status, myOwn=myOwn, limit=limit, offset=offset
@@ -7159,7 +7385,12 @@ class Synapse(object):
             if next_page_token is None:
                 break
 
-    # TODO: Deprecate method in https://sagebionetworks.jira.com/browse/SYNPY-1590
+    @deprecated(
+        version="4.14.0",
+        reason="To be removed in 5.0.0. "
+        "Use the `synapseclient.models.Submission` model instead, e.g. "
+        "`Submission(id=...).get()`.",
+    )
     def getSubmission(
         self, id: typing.Union[str, int, collections.abc.Mapping], **kwargs
     ) -> Submission:
@@ -7177,10 +7408,32 @@ class Synapse(object):
 
         - [synapseclient.Synapse.get][] for information
              on the *downloadFile*, *downloadLocation*, and *ifcollision* parameters
+
+        Example: Migration to the object-oriented model
+            &nbsp;
+
+            ```python
+            # Old approach (DEPRECATED)
+            # submission = syn.getSubmission(9700123)
+
+            # New approach (RECOMMENDED)
+            from synapseclient import Synapse
+            from synapseclient.models import Submission
+
+            syn = Synapse()
+            syn.login()
+
+            submission = Submission(id="9700123").get()
+            ```
         """
         return wrap_async_to_sync(self.getSubmission_async(id=id, **kwargs))
 
-    # TODO: Deprecate method in https://sagebionetworks.jira.com/browse/SYNPY-1590
+    @deprecated(
+        version="4.14.0",
+        reason="To be removed in 5.0.0. "
+        "Use the `synapseclient.models.Submission` model instead, e.g. "
+        "`await Submission(id=...).get_async()`.",
+    )
     async def getSubmission_async(
         self, id: typing.Union[str, int, collections.abc.Mapping], **kwargs
     ) -> Submission:
@@ -7198,6 +7451,23 @@ class Synapse(object):
 
         - [synapseclient.Synapse.get][] for information
              on the *downloadFile*, *downloadLocation*, and *ifcollision* parameters
+
+        Example: Migration to the object-oriented model
+            &nbsp;
+
+            ```python
+            # Old approach (DEPRECATED)
+            # submission = await syn.getSubmission_async(9700123)
+
+            # New approach (RECOMMENDED)
+            from synapseclient import Synapse
+            from synapseclient.models import Submission
+
+            syn = Synapse()
+            syn.login()
+
+            submission = await Submission(id="9700123").get_async()
+            ```
         """
 
         submission_id = validate_submission_id(id)
@@ -7229,7 +7499,12 @@ class Synapse(object):
 
         return submission
 
-    # TODO: Deprecate method in https://sagebionetworks.jira.com/browse/SYNPY-1590
+    @deprecated(
+        version="4.14.0",
+        reason="To be removed in 5.0.0. "
+        "Use the `synapseclient.models.SubmissionStatus` model instead, e.g. "
+        "`SubmissionStatus(id=...).get()`.",
+    )
     def getSubmissionStatus(
         self, submission: typing.Union[str, int, collections.abc.Mapping]
     ) -> SubmissionStatus:
@@ -7241,6 +7516,23 @@ class Synapse(object):
 
         Returns:
             A [synapseclient.evaluation.SubmissionStatus][] object
+
+        Example: Migration to the object-oriented model
+            &nbsp;
+
+            ```python
+            # Old approach (DEPRECATED)
+            # status = syn.getSubmissionStatus(9700123)
+
+            # New approach (RECOMMENDED)
+            from synapseclient import Synapse
+            from synapseclient.models import SubmissionStatus
+
+            syn = Synapse()
+            syn.login()
+
+            status = SubmissionStatus(id="9700123").get()
+            ```
         """
 
         submission_id = validate_submission_id(submission)
@@ -7252,7 +7544,12 @@ class Synapse(object):
     #                      CRUD for Wikis                      #
     ############################################################
 
-    # TODO: Deprecate method in https://sagebionetworks.jira.com/browse/SYNPY-1351
+    @deprecated(
+        version="4.14.0",
+        reason="To be removed in 5.0.0. "
+        "Use the `synapseclient.models.WikiPage` model instead, e.g. "
+        "`WikiPage(owner_id=..., id=...).get()`.",
+    )
     def getWiki(self, owner, subpageId=None, version=None):
         """
         Get a [synapseclient.wiki.Wiki][] object from Synapse. Uses wiki2 API which supports versioning.
@@ -7264,11 +7561,34 @@ class Synapse(object):
 
         Returns:
             A [synapseclient.wiki.Wiki][] object
+
+        Example: Migration to the object-oriented model
+            &nbsp;
+
+            ```python
+            # Old approach (DEPRECATED)
+            # wiki = syn.getWiki("syn123", subpageId="456")
+
+            # New approach (RECOMMENDED)
+            from synapseclient import Synapse
+            from synapseclient.models import WikiPage
+
+            syn = Synapse()
+            syn.login()
+
+            wiki = WikiPage(owner_id="syn123", id="456").get()
+            ```
         """
         return wrap_async_to_sync(
             self.getWiki_async(owner, subpageId=subpageId, version=version)
         )
 
+    @deprecated(
+        version="4.14.0",
+        reason="To be removed in 5.0.0. "
+        "Use the `synapseclient.models.WikiPage` model instead, e.g. "
+        "`await WikiPage(owner_id=..., id=...).get_async()`.",
+    )
     async def getWiki_async(self, owner, subpageId=None, version=None):
         """
         Get a [synapseclient.wiki.Wiki][] object from Synapse. Uses wiki2 API which supports versioning.
@@ -7280,6 +7600,23 @@ class Synapse(object):
 
         Returns:
             A [synapseclient.wiki.Wiki][] object
+
+        Example: Migration to the object-oriented model
+            &nbsp;
+
+            ```python
+            # Old approach (DEPRECATED)
+            # wiki = await syn.getWiki_async("syn123", subpageId="456")
+
+            # New approach (RECOMMENDED)
+            from synapseclient import Synapse
+            from synapseclient.models import WikiPage
+
+            syn = Synapse()
+            syn.login()
+
+            wiki = await WikiPage(owner_id="syn123", id="456").get_async()
+            ```
         """
         uri = "/entity/{ownerId}/wiki2".format(ownerId=id_of(owner))
         if subpageId is not None:
@@ -7319,7 +7656,11 @@ class Synapse(object):
 
         return wiki
 
-    # TODO: Deprecate method in https://sagebionetworks.jira.com/browse/SYNPY-1351
+    @deprecated(
+        version="4.14.0",
+        reason="To be removed in 5.0.0. "
+        "Use `synapseclient.models.WikiHeader.get(owner_id=...)` instead.",
+    )
     def getWikiHeaders(self, owner):
         """
         Retrieves the headers of all Wikis belonging to the owner (the entity to which the Wiki is attached).
@@ -7329,6 +7670,24 @@ class Synapse(object):
 
         Returns:
             A list of Objects with three fields: id, title and parentId.
+
+        Example: Migration to the object-oriented model
+            &nbsp;
+
+            ```python
+            # Old approach (DEPRECATED)
+            # headers = syn.getWikiHeaders("syn123")
+
+            # New approach (RECOMMENDED)
+            from synapseclient import Synapse
+            from synapseclient.models import WikiHeader
+
+            syn = Synapse()
+            syn.login()
+
+            for header in WikiHeader.get(owner_id="syn123"):
+                print(header)
+            ```
         """
 
         uri = "/entity/%s/wikiheadertree" % id_of(owner)
@@ -7409,7 +7768,12 @@ class Synapse(object):
                     raise
         return updated_wiki
 
-    # TODO: Deprecate method in https://sagebionetworks.jira.com/browse/SYNPY-1351
+    @deprecated(
+        version="4.14.0",
+        reason="To be removed in 5.0.0. "
+        "Use `synapseclient.models.WikiPage.get_attachment_handles()` on the WikiPage "
+        "instead.",
+    )
     def getWikiAttachments(self, wiki):
         """
         Retrieve the attachments to a wiki page.
@@ -7419,6 +7783,23 @@ class Synapse(object):
 
         Returns:
             A list of file handles for the files attached to the Wiki.
+
+        Example: Migration to the object-oriented model
+            &nbsp;
+
+            ```python
+            # Old approach (DEPRECATED)
+            # attachments = syn.getWikiAttachments(wiki)
+
+            # New approach (RECOMMENDED)
+            from synapseclient import Synapse
+            from synapseclient.models import WikiPage
+
+            syn = Synapse()
+            syn.login()
+
+            attachments = WikiPage(owner_id="syn123", id="456").get_attachment_handles()
+            ```
         """
         uri = "/entity/%s/wiki/%s/attachmenthandles" % (wiki.ownerId, wiki.id)
         results = self.restGET(uri)
@@ -8762,7 +9143,10 @@ class Synapse(object):
                 return column
         return None
 
-    # TODO: Deprecate method in https://sagebionetworks.jira.com/browse/SYNPY-1632
+    @deprecated(
+        version="4.14.0",
+        reason="To be removed in 5.0.0. This function has no replacement.",
+    )
     def downloadTableColumns(self, table, columns, downloadLocation=None, **kwargs):
         """
         Bulk download of table-associated files.
