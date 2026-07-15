@@ -1,6 +1,5 @@
 """Functional interface for searching for entities in Synapse."""
 
-import asyncio
 from typing import TYPE_CHECKING, Optional, Union
 
 from synapseclient import Synapse
@@ -19,8 +18,8 @@ async def get_id(
 ) -> Union[str, None]:
     """
     Get the ID of the entity from either the ID field or the name/parent of the entity.
-    This is a wrapper for the [synapseclient.Synapse.findEntityId][] method that is
-    used in order to search by name/parent.
+    This is a wrapper for the [synapseclient.operations.find_entity_id_async][] function
+    that is used in order to search by name/parent.
 
     Arguments:
         failure_strategy: Determines how to handle failures when getting the entity
@@ -48,14 +47,12 @@ async def get_id(
             return None
         raise ValueError("Entity ID or Name/Parent is required")
 
-    # TODO: Remove this deprecated code with replacement method created in https://sagebionetworks.jira.com/browse/SYNPY-1623
-    loop = asyncio.get_event_loop()
-    entity_id = entity.id or await loop.run_in_executor(
-        None,
-        lambda: Synapse.get_client(synapse_client=synapse_client).findEntityId(
-            name=entity.name,
-            parent=entity.parent_id,
-        ),
+    from synapseclient.operations import find_entity_id_async
+
+    entity_id = entity.id or await find_entity_id_async(
+        name=entity.name,
+        parent=entity.parent_id,
+        synapse_client=synapse_client,
     )
 
     if not entity_id:
