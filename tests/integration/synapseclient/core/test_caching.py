@@ -14,13 +14,16 @@ from typing import Callable
 import pytest
 
 import synapseclient.core.utils as utils
-from synapseclient import Entity, File, Project, Synapse
+from synapseclient import Synapse
+from synapseclient.api import get_children
+from synapseclient.core.async_utils import wrap_async_generator_to_sync_generator
 from synapseclient.core.exceptions import SynapseError, SynapseHTTPError
+from synapseclient.models import File, Project
 
 
 @pytest.fixture(scope="module")
 def project(syn, schedule_for_cleanup):
-    project = syn.store(Project(name=str(uuid.uuid4())))
+    project = Project(name=str(uuid.uuid4())).store(synapse_client=syn)
     schedule_for_cleanup(project)
     return project
 
@@ -198,7 +201,10 @@ def thread_keep_storing_one_File(syn: Synapse, project: Project, schedule_for_cl
     path = utils.make_bogus_data_file()
     schedule_for_cleanup(path)
     myPrecious = File(
-        path, parent=project, description="This bogus file is MINE", mwa="hahahah"
+        path=path,
+        parent_id=project.id,
+        description="This bogus file is MINE",
+        annotations={"mwa": ["hahahah"]},
     )
 
     while syn.test_keepRunning:
@@ -207,10 +213,10 @@ def thread_keep_storing_one_File(syn: Synapse, project: Project, schedule_for_cl
 
         if stored is not None:
             myPrecious = stored
-        elif "id" in myPrecious:
+        elif myPrecious.id is not None:
             # only attempt to retrieve if the entity was initially saved above without encountering a 412 error
             # and thus has a retrievable synapse id
-            myPrecious = syn.get(myPrecious)
+            myPrecious = myPrecious.get(synapse_client=syn)
 
         sleep_for_a_bit()
 
@@ -237,7 +243,7 @@ def thread_get_and_update_file_from_Project(
             continue
 
         id = id[random.randrange(len(id))]
-        entity = syn.get(id)
+        entity = File(id=id).get(synapse_client=syn)
 
         # Replace the file and re-store
         path = utils.make_bogus_data_file()
@@ -265,13 +271,18 @@ def sleep_for_a_bit() -> int:
 
 def get_all_ids_from_Project(syn: Synapse, project: Project):
     """Fetches all currently available Synapse IDs from the parent Project."""
-    return [result["id"] for result in syn.getChildren(project.id)]
+    return [
+        child["id"]
+        for child in wrap_async_generator_to_sync_generator(
+            get_children, parent=project.id, synapse_client=syn
+        )
+    ]
 
 
-def store_catch_412_HTTPError(syn: Synapse, entity: Entity):
+def store_catch_412_HTTPError(syn: Synapse, entity: File):
     """Returns the stored Entity if the function succeeds or None if the 412 is caught."""
     try:
-        return syn.store(entity)
+        return entity.store(synapse_client=syn)
     except SynapseHTTPError as err:
         # Some other thread modified the Entity, so try again
         if err.response.status_code == 412:
