@@ -2321,6 +2321,68 @@ class SelectColumn:
 
 
 @dataclass
+class GridQueryValidationResult:
+    """
+    Results of a grid row against a JSON schema
+
+    Represents a [Synapse ValidationResults](https://rest-docs.synapse.org/rest/org/sagebionetworks/repo/model/grid/query/result/ValidationResults.html).
+
+    Note: This is distinct from the general-purpose
+    [ValidationResults](https://rest-docs.synapse.org/rest/org/sagebionetworks/repo/model/schema/ValidationResults.html)
+    (`org.sagebionetworks.repo.model.schema.ValidationResults`), which is used
+    for validating entities/containers against a schema and carries additional
+    fields (`objectId`, `objectType`, `objectEtag`, `schema$id`, `validatedOn`,
+    `validationException`) that this grid-row-specific type does not have.
+
+    Attributes:
+        is_valid: Will be 'true' if the row is valid according to the JSON
+            schema. Will be 'false' when the row is invalid.
+        validation_error_message: If the object is not valid according to the
+            schema, a simple one line error message will be provided.
+        all_validation_messages: If the object is not valid according to the
+            schema, a the flat list of error messages will be provided with one
+            error message per sub-schema. Included only if
+            includeValidationMessages was set to true in the query. Otherwise,
+            this array is omitted to optimize performance.
+    """
+
+    is_valid: Optional[bool] = None
+    """Will be 'true' if the row is valid according to the JSON schema. Will be
+    'false' when the row is invalid."""
+
+    validation_error_message: Optional[str] = None
+    """If the object is not valid according to the schema, a simple one line
+    error message will be provided."""
+
+    all_validation_messages: Optional[list[str]] = None
+    """If the object is not valid according to the schema, a the flat list of
+    error messages will be provided with one error message per sub-schema.
+    Included only if includeValidationMessages was set to true in the query.
+    Otherwise, this array is omitted to optimize performance."""
+
+    def fill_from_dict(
+        self, synapse_response: Dict[str, Any]
+    ) -> "GridQueryValidationResult":
+        """
+        Converts a response from the REST API into this dataclass.
+
+        Arguments:
+            synapse_response: The response from the REST API.
+
+        Returns:
+            The GridQueryValidationResult object.
+        """
+        self.is_valid = synapse_response.get("isValid", None)
+        self.validation_error_message = synapse_response.get(
+            "validationErrorMessage", None
+        )
+        self.all_validation_messages = synapse_response.get(
+            "allValidationMessages", None
+        )
+        return self
+
+
+@dataclass
 class GridRow:
     """
     A single row of a grid query result.
@@ -2337,9 +2399,8 @@ class GridRow:
             `replicaId.sequenceNumber` (e.g. `123.456`). Used in filtering
             operations and update/patch procedures.
         data: The JSON object representing a single row.
-        validation_results: Results from validating this row against a JSON
-            schema, if a schema is bound. This is currently passed through as
-            a raw dictionary.
+        validation_results: Results of validating this row against a JSON
+            schema, if a schema is bound.
     """
 
     row_id: Optional[str] = None
@@ -2348,8 +2409,8 @@ class GridRow:
     data: Optional[Dict[str, Any]] = None
     """The JSON object representing a single row."""
 
-    validation_results: Optional[Dict[str, Any]] = None
-    """Results from validating this row against a JSON schema, if a schema is bound."""
+    validation_results: Optional[GridQueryValidationResult] = None
+    """Results of validating this row against a JSON schema, if a schema is bound."""
 
     def fill_from_dict(self, synapse_response: Dict[str, Any]) -> "GridRow":
         """
@@ -2363,7 +2424,12 @@ class GridRow:
         """
         self.row_id = synapse_response.get("rowId", None)
         self.data = synapse_response.get("data", None)
-        self.validation_results = synapse_response.get("validationResults", None)
+        validation_results_data = synapse_response.get("validationResults", None)
+        self.validation_results = (
+            GridQueryValidationResult().fill_from_dict(validation_results_data)
+            if validation_results_data is not None
+            else None
+        )
         return self
 
 
@@ -3917,6 +3983,97 @@ class GridSynchronousProtocol(Protocol):
         """
         return None
 
+    def validate_rows(
+        self,
+        *,
+        timeout: int = 120,
+        query_request: "QueryRequest",
+        synapse_client: Optional[Synapse] = None,
+    ) -> "GridQueryResult":
+        """
+        Queries this grid session's rows and returns their per-row validation
+        results against the grid's bound JSON schema.
+
+        This creates a new replica for the query (see `create_replica`), then
+        submits the given query_request to the grid session and waits for the
+        job to complete.
+
+        Arguments:
+            timeout: The number of seconds to wait for the job to complete or progress
+                before raising a SynapseTimeoutError. Defaults to 120.
+            query_request: The structured query to run against the grid, wrapping a
+                GridQuery that defines the column selection, filters, and whether to
+                include the detailed `all_validation_messages` list on each row.
+            synapse_client: If not passed in and caching was not disabled by
+                `Synapse.allow_client_caching(False)` this will use the last created
+                instance from the Synapse class constructor.
+
+        Returns:
+            The GridQueryResult containing the selected columns and rows, each with
+            its own validation_results.
+
+        Raises:
+            ValueError: If session_id is not provided, or if the Synapse response
+                did not contain any rows.
+
+        Example: Validate every row of a grid session
+            &nbsp;
+
+            ```python
+            from synapseclient import Synapse
+            from synapseclient.models import Grid, GridQuery, QueryRequest, SelectAll
+
+            syn = Synapse()
+            syn.login()
+
+            grid = Grid(record_set_id="syn1234567")
+            grid = grid.create()
+
+            # SelectAll() selects every column in the grid, so each row's full
+            # data is returned alongside its validation results.
+            query_request = QueryRequest(query=GridQuery(column_selection=[SelectAll()]))
+            query_result = grid.validate_rows(query_request=query_request)
+
+            for row in query_result.rows:
+                validation = row.validation_results
+                print(f"Row ID: {row.row_id}, Validation Result: {validation}")
+            ```
+
+        Example: Validate only the currently invalid rows of a grid session
+            &nbsp;
+
+            ```python
+            from synapseclient import Synapse
+            from synapseclient.models import (
+                Grid,
+                GridQuery,
+                QueryRequest,
+                RowIsValidFilter,
+                SelectAll,
+            )
+
+            syn = Synapse()
+            syn.login()
+
+            grid = Grid(session_id="abc-123-def")
+
+            # Filter to only the rows that are currently invalid, and request the
+            # detailed allValidationMessages list on each one.
+            query_request = QueryRequest(
+                query=GridQuery(
+                    column_selection=[SelectAll()],
+                    filters=[RowIsValidFilter(value=False)],
+                    include_validation_messages=True,
+                )
+            )
+            query_result = grid.validate_rows(query_request=query_request)
+
+            for row in query_result.rows:
+                print(f"Invalid row {row.row_id}: {row.validation_results}")
+            ```
+        """
+        return None
+
     def delete(self, *, synapse_client: Optional[Synapse] = None) -> None:
         """
         Delete the grid session.
@@ -4953,17 +5110,121 @@ class Grid(EnumCoercionMixin, GridSynchronousProtocol):
             )
         return GridReplica().fill_from_dict(replica_data)
 
-    async def validate_async(
-        self, *, timeout: int = 120, synapse_client: Optional[Synapse] = None
-    ) -> "GridQueryJobRequest":
+    async def validate_rows_async(
+        self,
+        *,
+        timeout: int = 120,
+        query_request: QueryRequest,
+        synapse_client: Optional[Synapse] = None,
+    ) -> "GridQueryResult":
+        """
+        Queries this grid session's rows and returns their per-row validation
+        results against the grid's bound JSON schema.
+
+        This creates a new replica for the query (see `create_replica_async`),
+        then submits the given query_request to the grid session and waits for
+        the job to complete.
+
+        Arguments:
+            timeout: The number of seconds to wait for the job to complete or progress
+                before raising a SynapseTimeoutError. Defaults to 120.
+            query_request: The structured query to run against the grid, wrapping a
+                GridQuery that defines the column selection, filters, and whether to
+                include the detailed `all_validation_messages` list on each row.
+            synapse_client: If not passed in and caching was not disabled by
+                `Synapse.allow_client_caching(False)` this will use the last created
+                instance from the Synapse class constructor.
+
+        Returns:
+            The GridQueryResult containing the selected columns and rows, each with
+            its own validation_results.
+
+        Raises:
+            ValueError: If session_id is not provided, or if the Synapse response
+                did not contain any rows.
+
+        Example: Validate every row of a grid session
+            &nbsp;
+
+            ```python
+            import asyncio
+            from synapseclient import Synapse
+            from synapseclient.models import Grid, GridQuery, QueryRequest, SelectAll
+
+            syn = Synapse()
+            syn.login()
+
+            async def main():
+                grid = Grid(record_set_id="syn1234567")
+                grid = await grid.create_async()
+
+                # SelectAll() selects every column in the grid, so each row's
+                # full data is returned alongside its validation results.
+                query_request = QueryRequest(
+                    query=GridQuery(column_selection=[SelectAll()])
+                )
+                query_result = await grid.validate_rows_async(query_request=query_request)
+
+                for row in query_result.rows:
+                    validation = row.validation_results
+                    print(f"Row ID: {row.row_id}, Validation Result: {validation}")
+
+            asyncio.run(main())
+            ```
+
+        Example: Validate only the currently invalid rows of a grid session
+            &nbsp;
+
+            ```python
+            import asyncio
+            from synapseclient import Synapse
+            from synapseclient.models import (
+                Grid,
+                GridQuery,
+                QueryRequest,
+                RowIsValidFilter,
+                SelectAll,
+            )
+
+            syn = Synapse()
+            syn.login()
+
+            async def main():
+                grid = Grid(session_id="abc-123-def")
+
+                # Filter to only the rows that are currently invalid, and request
+                # the detailed allValidationMessages list on each one.
+                query_request = QueryRequest(
+                    query=GridQuery(
+                        column_selection=[SelectAll()],
+                        filters=[RowIsValidFilter(value=False)],
+                        include_validation_messages=True,
+                    )
+                )
+                query_result = await grid.validate_rows_async(query_request=query_request)
+
+                for row in query_result.rows:
+                    print(f"Invalid row {row.row_id}: {row.validation_results}")
+
+            asyncio.run(main())
+            ```
+        """
         if not self.session_id:
             raise ValueError("session_id is required to validate a GridSession")
 
         replica = await self.create_replica_async(synapse_client=synapse_client)
         request = GridQueryJobRequest(
-            session_id=self.session_id, replica_id=replica.replica_id
+            session_id=self.session_id,
+            replica_id=replica.replica_id,
+            query_request=query_request,
         )
-        result = await request.send_job_and_wait_async(
+        await request.send_job_and_wait_async(
             timeout=timeout, synapse_client=synapse_client
         )
-        print(result)
+
+        if not request.query_result or not request.query_result.rows:
+            raise ValueError(
+                f"Validation job for grid session '{self.session_id}' completed but "
+                "did not return any row validation results. The validation may have failed silently."
+            )
+        return request.query_result

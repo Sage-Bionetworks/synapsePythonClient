@@ -69,6 +69,7 @@
             - delete
             - list
             - create_replica
+            - validate_rows
 ---
 [](){ #query-reference }
 ::: synapseclient.models.Query
@@ -78,6 +79,96 @@
 ---
 [](){ #GridReplica-reference }
 ::: synapseclient.models.GridReplica
+    options:
+        inherited_members: true
+        members:
+---
+[](){ #GridQuery-reference }
+::: synapseclient.models.GridQuery
+    options:
+        inherited_members: true
+        members:
+---
+[](){ #QueryRequest-reference }
+::: synapseclient.models.QueryRequest
+    options:
+        inherited_members: true
+        members:
+---
+[](){ #SelectItem-reference }
+::: synapseclient.models.SelectItem
+    options:
+        inherited_members: true
+        members:
+---
+[](){ #SelectByName-reference }
+::: synapseclient.models.SelectByName
+    options:
+        inherited_members: true
+        members:
+---
+[](){ #SelectAll-reference }
+::: synapseclient.models.SelectAll
+    options:
+        inherited_members: true
+        members:
+---
+[](){ #CountStar-reference }
+::: synapseclient.models.CountStar
+    options:
+        inherited_members: true
+        members:
+---
+[](){ #SelectSelection-reference }
+::: synapseclient.models.SelectSelection
+    options:
+        inherited_members: true
+        members:
+---
+[](){ #Filter-reference }
+::: synapseclient.models.Filter
+    options:
+        inherited_members: true
+        members:
+---
+[](){ #RowValidationResultFilter-reference }
+::: synapseclient.models.RowValidationResultFilter
+    options:
+        inherited_members: true
+        members:
+---
+[](){ #CellValueFilter-reference }
+::: synapseclient.models.CellValueFilter
+    options:
+        inherited_members: true
+        members:
+---
+[](){ #RowSelectionFilter-reference }
+::: synapseclient.models.RowSelectionFilter
+    options:
+        inherited_members: true
+        members:
+---
+[](){ #RowIsValidFilter-reference }
+::: synapseclient.models.RowIsValidFilter
+    options:
+        inherited_members: true
+        members:
+---
+[](){ #RowIdFilter-reference }
+::: synapseclient.models.RowIdFilter
+    options:
+        inherited_members: true
+        members:
+---
+[](){ #ValidationOperator-reference }
+::: synapseclient.models.ValidationOperator
+    options:
+        inherited_members: true
+        members:
+---
+[](){ #CellValueOperator-reference }
+::: synapseclient.models.CellValueOperator
     options:
         inherited_members: true
         members:
