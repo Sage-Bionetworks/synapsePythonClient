@@ -152,9 +152,7 @@ class MigrationResult:
 
         This class is replaced by the MigrationResult class in
         synapseclient.models.services, which is returned by the new migration
-        methods on the Project and Folder models. The new class offers the same
-        methods plus async variants of each, and no longer requires a Synapse
-        object to be passed in.
+        methods on the Project and Folder models.
 
         ```python
         # Old approach (DEPRECATED)
@@ -163,7 +161,6 @@ class MigrationResult:
         # counts = result.get_counts_by_status()
         # for migration in result.get_migrations():
         #     print(migration)
-        # result.as_csv("/tmp/migration.csv")
 
         # New approach (RECOMMENDED)
         from synapseclient import Synapse
@@ -180,13 +177,6 @@ class MigrationResult:
 
         # Inspect the counts of files by migration status
         print(result.get_counts_by_status())
-
-        # Iterate over each file/version in the migration index
-        for migration in result.get_migrations():
-            print(migration)
-
-        # Write the contents of the migration index to a csv file
-        result.as_csv("/tmp/migration.csv")
         ```
     """
 
