@@ -42,6 +42,7 @@ from synapseclient.models.curation import (
     GridQuery,
     GridQueryJobRequest,
     GridQueryResult,
+    GridQueryValidationResult,
     GridRecordSetExportRequest,
     GridReplica,
     GridRow,
@@ -2522,7 +2523,8 @@ class TestGridRow:
         # THEN the fields should be populated
         assert result.row_id == "1.2"
         assert result.data == {"diagnosis": "flu"}
-        assert result.validation_results == {"isValid": True}
+        assert isinstance(result.validation_results, GridQueryValidationResult)
+        assert result.validation_results.is_valid is True
 
     def test_fill_from_dict_without_validation_results(self) -> None:
         # GIVEN a response without validation results
@@ -2534,6 +2536,40 @@ class TestGridRow:
         # THEN validation_results should be None
         assert result.row_id == "1.3"
         assert result.validation_results is None
+
+
+class TestGridQueryValidationResult:
+    """Tests for the GridQueryValidationResult dataclass."""
+
+    def test_fill_from_dict(self) -> None:
+        # GIVEN a response with validation result data
+        response = {
+            "isValid": False,
+            "validationErrorMessage": "#: only 1 subschema matches out of 2",
+            "allValidationMessages": ["error one", "error two"],
+        }
+
+        # WHEN I fill a GridQueryValidationResult from the response
+        result = GridQueryValidationResult().fill_from_dict(response)
+
+        # THEN the fields should be populated
+        assert result.is_valid is False
+        assert result.validation_error_message == (
+            "#: only 1 subschema matches out of 2"
+        )
+        assert result.all_validation_messages == ["error one", "error two"]
+
+    def test_fill_from_dict_valid_row(self) -> None:
+        # GIVEN a response for a valid row with no error messages
+        response = {"isValid": True}
+
+        # WHEN I fill a GridQueryValidationResult from the response
+        result = GridQueryValidationResult().fill_from_dict(response)
+
+        # THEN is_valid should be True and the message fields should be None
+        assert result.is_valid is True
+        assert result.validation_error_message is None
+        assert result.all_validation_messages is None
 
 
 class TestGridQueryResult:
