@@ -69,6 +69,7 @@
             - delete
             - list
             - create_replica
+            - connect
             - validate_rows
 ---
 [](){ #query-reference }

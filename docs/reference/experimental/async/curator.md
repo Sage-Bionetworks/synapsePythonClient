@@ -69,6 +69,7 @@
             - delete_async
             - list_async
             - create_replica_async
+            - connect_async
             - validate_rows_async
 ---
 [](){ #query-reference-async }
