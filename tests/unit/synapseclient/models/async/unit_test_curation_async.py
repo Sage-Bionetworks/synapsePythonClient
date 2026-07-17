@@ -3199,6 +3199,79 @@ class TestGridCreateReplica:
                 await grid.create_replica_async(synapse_client=self.syn)
 
 
+class TestGridConnect:
+    """Tests for Grid.connect_async."""
+
+    @pytest.fixture(autouse=True, scope="function")
+    def init_syn(self, syn: Synapse) -> None:
+        self.syn = syn
+
+    async def test_connect_async_creates_session_when_no_session_id(self) -> None:
+        # GIVEN a Grid with no session_id, so a new session needs to be created
+        grid = Grid(record_set_id=RECORD_SET_ID)
+
+        with (
+            patch.object(
+                Grid,
+                "create_async",
+                new_callable=AsyncMock,
+                side_effect=lambda **kwargs: grid,
+            ) as mock_create_async,
+            patch.object(
+                Grid,
+                "create_replica_async",
+                new_callable=AsyncMock,
+                return_value=GridReplica(replica_id=REPLICA_ID),
+            ) as mock_create_replica,
+        ):
+            # WHEN I connect to the grid
+            async with grid.connect_async(synapse_client=self.syn) as session:
+                # THEN create_async should be called since no session_id was set
+                mock_create_async.assert_called_once_with(
+                    attach_to_previous_session=False,
+                    timeout=120,
+                    synapse_client=self.syn,
+                )
+                # AND create_replica_async should be called to bind a replica
+                mock_create_replica.assert_called_once_with(synapse_client=self.syn)
+                # AND the replica_id should be bound on the yielded Grid
+                assert session._replica_id == REPLICA_ID
+
+            # THEN the replica_id should be cleared after exiting the block
+            assert grid._replica_id is None
+
+    async def test_connect_async_does_not_create_session_when_session_id_provided(
+        self,
+    ) -> None:
+        # GIVEN a Grid that already has a session_id (e.g. an existing session)
+        grid = Grid(session_id=SESSION_ID)
+
+        with (
+            patch.object(
+                Grid, "create_async", new_callable=AsyncMock
+            ) as mock_create_async,
+            patch.object(
+                Grid,
+                "create_replica_async",
+                new_callable=AsyncMock,
+                return_value=GridReplica(replica_id=REPLICA_ID),
+            ) as mock_create_replica,
+        ):
+            # WHEN I connect to the grid
+            async with grid.connect_async(synapse_client=self.syn) as session:
+                # THEN create_async should NOT be called since session_id was
+                # already set
+                mock_create_async.assert_not_called()
+                # AND create_replica_async should still be called to bind a
+                # replica to the existing session
+                mock_create_replica.assert_called_once_with(synapse_client=self.syn)
+                assert session.session_id == SESSION_ID
+                assert session._replica_id == REPLICA_ID
+
+            # THEN the replica_id should be cleared after exiting the block
+            assert grid._replica_id is None
+
+
 class TestGridValidateRows:
     """Tests for Grid.validate_rows_async."""
 
