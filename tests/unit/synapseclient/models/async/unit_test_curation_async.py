@@ -2967,6 +2967,15 @@ class TestGridQuery:
         assert result["columnSelection"] == [{"concreteType": SELECT_ALL}]
         assert result["limit"] == 10
 
+    def test_to_synapse_request_with_empty_column_selection_raises(self) -> None:
+        # GIVEN a GridQuery with no column_selection set
+        query = GridQuery()
+
+        # WHEN I convert it to a synapse request
+        # THEN it should raise ValueError
+        with pytest.raises(ValueError, match="column_selection is required"):
+            query.to_synapse_request()
+
 
 class TestQueryRequest:
     """Tests for the QueryRequest dataclass."""

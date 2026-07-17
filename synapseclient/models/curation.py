@@ -3143,7 +3143,16 @@ class GridQuery:
 
         Returns:
             A dictionary representation of this object for API requests.
+
+        Raises:
+            ValueError: If column_selection is empty.
         """
+        if not self.column_selection:
+            raise ValueError(
+                "column_selection is required and must contain at least one "
+                "SelectItem."
+            )
+
         request_dict = {
             "columnSelection": [
                 item.to_synapse_request() for item in self.column_selection
