@@ -93,7 +93,7 @@ def md5_for_file(
                 callback()
             data = f.read(block_size)
             if not data:
-                if progress_bar:
+                if progress_bar is not None:
                     if progress_bar.total is not None:
                         progress_bar.update(progress_bar.total - progress_bar.n)
                     progress_bar.refresh()
@@ -102,7 +102,7 @@ def md5_for_file(
             md5.update(data)
             data_length = len(data)
             data_read += data_length
-            if progress_bar:
+            if progress_bar is not None:
                 progress_bar.update(data_length)
             del data
             # Garbage collect every 100 iterations
