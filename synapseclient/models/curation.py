@@ -5149,7 +5149,7 @@ class Grid(EnumCoercionMixin, GridSynchronousProtocol):
         Yields:
             The connected Grid, with a replica bound to it.
 
-        Example: Validate rows using a connected grid session
+        Example: Validate rows using a newly created grid session
             &nbsp;
 
             ```python
@@ -5162,6 +5162,35 @@ class Grid(EnumCoercionMixin, GridSynchronousProtocol):
 
             async def main():
                 async with Grid(record_set_id="syn1234567").connect_async() as session:
+                    query_request = QueryRequest(
+                        query=GridQuery(column_selection=[SelectAll()])
+                    )
+                    result = await session.validate_rows_async(query_request=query_request)
+                    for row in result.rows:
+                        print(f"Row ID: {row.row_id}, Validation Result: {row.validation_results}")
+
+            asyncio.run(main())
+            ```
+
+        Example: Validate rows using an existing grid session
+            &nbsp;
+
+            If a session_id is already set, connect_async will not create a new
+            grid session
+
+            ```python
+            import asyncio
+            from synapseclient import Synapse
+            from synapseclient.models import Grid, GridQuery, QueryRequest, SelectAll, CurationTask
+
+            syn = Synapse()
+            syn.login()
+
+            task = CurationTask(task_id="1234")
+            grid = task.create_grid_session()
+
+            async def main():
+                async with Grid(session_id="abc-123-def").connect_async() as session:
                     query_request = QueryRequest(
                         query=GridQuery(column_selection=[SelectAll()])
                     )
@@ -5224,7 +5253,7 @@ class Grid(EnumCoercionMixin, GridSynchronousProtocol):
         Yields:
             The connected Grid, with a replica bound to it.
 
-        Example: Validate rows using a connected grid session
+        Example: Validate rows using a newly created grid session
             &nbsp;
 
             ```python
@@ -5235,6 +5264,31 @@ class Grid(EnumCoercionMixin, GridSynchronousProtocol):
             syn.login()
 
             with Grid(record_set_id="syn1234567").connect() as session:
+                query_request = QueryRequest(
+                    query=GridQuery(column_selection=[SelectAll()])
+                )
+                result = session.validate_rows(query_request=query_request)
+                for row in result.rows:
+                    print(f"Row ID: {row.row_id}, Validation Result: {row.validation_results}")
+            ```
+
+        Example: Validate rows using an existing grid session
+            &nbsp;
+
+            If a session_id is already set, connect will not create a new grid
+            session.
+
+            ```python
+            from synapseclient import Synapse
+            from synapseclient.models import Grid, GridQuery, QueryRequest, SelectAll, CurationTask
+
+            syn = Synapse()
+            syn.login()
+
+            task = CurationTask(task_id="1234")
+            grid = task.create_grid_session()
+
+            with Grid(session_id="abc-123-def").connect() as session:
                 query_request = QueryRequest(
                     query=GridQuery(column_selection=[SelectAll()])
                 )
