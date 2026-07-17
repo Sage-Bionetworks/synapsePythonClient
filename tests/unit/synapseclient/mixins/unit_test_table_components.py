@@ -34,6 +34,7 @@ from synapseclient.models.mixins.table_components import (
     ViewSnapshotMixin,
     ViewStoreMixin,
     ViewUpdateMixin,
+    _construct_composite_key_conditions,
     _construct_composite_key_where_statement,
     _construct_partial_rows_for_upsert,
     _construct_select_statement_for_upsert,
@@ -42,6 +43,7 @@ from synapseclient.models.mixins.table_components import (
     _query_table_csv,
     _query_table_next_page,
     _query_table_row_set,
+    _validate_primary_keys,
     convert_dtypes_to_json_serializable,
     csv_to_pandas_df,
 )
@@ -1894,28 +1896,6 @@ class TestConstructSelectStatementForUpsert:
             "(\"view\" = 'V2' AND \"synID\" = 'S2')"
         )
 
-    def test_none_values_are_excluded_from_in_clause(self):
-        # GIVEN a DataFrame where one primary key value is None
-        entity = self.ClassForTest(
-            id="syn123",
-            columns={
-                "col1": Column(name="col1", column_type=ColumnType.STRING, id="id1"),
-            },
-        )
-        df = pd.DataFrame({"col1": ["A", None]})
-
-        # WHEN I construct the select statement
-        statement = _construct_select_statement_for_upsert(
-            entity=entity,
-            df=df,
-            all_columns_from_df=['"col1"'],
-            primary_keys=["col1"],
-            wait_for_eventually_consistent_view=False,
-        )
-
-        # THEN only the non-None value appears in the IN clause
-        assert statement == 'SELECT ROW_ID, "col1" FROM syn123 WHERE "col1" IN (\'A\')'
-
     def test_multiple_values_all_appear_in_in_clause(self):
         # GIVEN a DataFrame with multiple distinct primary key values
         entity = self.ClassForTest(
@@ -2054,81 +2034,120 @@ class TestConstructSelectStatementForUpsert:
             "(\"view\" = 'V1' AND \"label\" = 'O''Brien')"
         )
 
-    def test_single_primary_key_all_none_returns_none(self):
-        # GIVEN a single primary key where every value is None
-        entity = self.ClassForTest(
-            id="syn123",
-            columns={
-                "col1": Column(name="col1", column_type=ColumnType.STRING, id="id1"),
-            },
-        )
-        df = pd.DataFrame({"col1": [None, None]})
 
-        # WHEN I construct the select statement
-        statement = _construct_select_statement_for_upsert(
-            entity=entity,
-            df=df,
-            all_columns_from_df=['"col1"'],
-            primary_keys=["col1"],
-            wait_for_eventually_consistent_view=False,
-        )
+class TestConstructCompositeKeyConditions:
+    """Test suite for _construct_composite_key_conditions, which builds the per-column
+    equality conditions for a single composite primary key tuple."""
 
-        # THEN None is returned rather than a statement ending in a bare "WHERE ",
-        # signalling the caller to skip the query and treat the rows as inserts
-        assert statement is None
+    class ClassForTest(TableUpsertMixin):
+        """A minimal entity exposing only the attributes the helper reads."""
 
-    def test_composite_primary_keys_partial_missing_match_with_is_null(self):
-        # GIVEN composite primary keys where each row is missing a different key value
+        def __init__(self, id, columns):
+            self.id = id
+            self.columns = columns
+
+    @pytest.mark.parametrize(
+        "columns, primary_keys, row, expected",
+        [
+            pytest.param(
+                {"view": Column(name="view", column_type=ColumnType.STRING, id="id1")},
+                ["view"],
+                ("V1",),
+                ["\"view\" = 'V1'"],
+                id="single_string_key",
+            ),
+            pytest.param(
+                {
+                    "view": Column(
+                        name="view", column_type=ColumnType.STRING, id="id1"
+                    ),
+                    "synID": Column(
+                        name="synID", column_type=ColumnType.STRING, id="id2"
+                    ),
+                },
+                ["view", "synID"],
+                ("V1", "S1"),
+                ["\"view\" = 'V1'", "\"synID\" = 'S1'"],
+                id="two_string_keys_preserve_order",
+            ),
+            pytest.param(
+                {"num": Column(name="num", column_type=ColumnType.INTEGER, id="id1")},
+                ["num"],
+                (1001,),
+                ['"num" = 1001'],
+                id="integer_key_is_not_quoted",
+            ),
+            pytest.param(
+                {"flag": Column(name="flag", column_type=ColumnType.BOOLEAN, id="id1")},
+                ["flag"],
+                (True,),
+                ["\"flag\" = 'true'"],
+                id="boolean_true_key",
+            ),
+            pytest.param(
+                {"flag": Column(name="flag", column_type=ColumnType.BOOLEAN, id="id1")},
+                ["flag"],
+                (False,),
+                ["\"flag\" = 'false'"],
+                id="boolean_false_key",
+            ),
+            pytest.param(
+                {
+                    "label": Column(
+                        name="label", column_type=ColumnType.STRING, id="id1"
+                    )
+                },
+                ["label"],
+                ("O'Brien",),
+                ["\"label\" = 'O''Brien'"],
+                id="embedded_quote_is_escaped",
+            ),
+            pytest.param(
+                {
+                    "view": Column(
+                        name="view", column_type=ColumnType.STRING, id="id1"
+                    ),
+                    "num": Column(name="num", column_type=ColumnType.INTEGER, id="id2"),
+                    "flag": Column(
+                        name="flag", column_type=ColumnType.BOOLEAN, id="id3"
+                    ),
+                },
+                ["view", "num", "flag"],
+                ("V1", 7, True),
+                ["\"view\" = 'V1'", '"num" = 7', "\"flag\" = 'true'"],
+                id="mixed_column_types",
+            ),
+        ],
+    )
+    def test_conditions_construction(self, columns, primary_keys, row, expected):
+        # GIVEN an entity and a single primary key tuple
+        entity = self.ClassForTest(id="syn123", columns=columns)
+
+        # WHEN I build the per-column conditions
+        conditions = _construct_composite_key_conditions(entity, primary_keys, row)
+
+        # THEN each column is matched with an equality condition, one per key, in
+        # primary_keys order
+        assert conditions == expected
+
+    def test_only_primary_key_columns_are_used(self):
+        # GIVEN an entity with more columns than are used as primary keys
         entity = self.ClassForTest(
             id="syn123",
             columns={
                 "view": Column(name="view", column_type=ColumnType.STRING, id="id1"),
                 "synID": Column(name="synID", column_type=ColumnType.STRING, id="id2"),
+                "value": Column(name="value", column_type=ColumnType.INTEGER, id="id3"),
             },
         )
-        # AND each row is missing at least one (but not all) primary key values
-        df = pd.DataFrame({"view": ["V1", None], "synID": [None, "S2"]})
 
-        # WHEN I construct the select statement
-        statement = _construct_select_statement_for_upsert(
-            entity=entity,
-            df=df,
-            all_columns_from_df=['"view"', '"synID"'],
-            primary_keys=["view", "synID"],
-            wait_for_eventually_consistent_view=False,
+        # WHEN I build conditions for only a subset of columns as the primary key
+        conditions = _construct_composite_key_conditions(
+            entity, ["view", "synID"], ("V1", "S1")
         )
 
-        # THEN each null key component is matched with IS NULL so nullable
-        # primary key columns can still match existing rows
-        assert statement == (
-            'SELECT ROW_ID, "view", "synID" FROM syn123 WHERE '
-            '("view" = \'V1\' AND "synID" IS NULL) OR '
-            '("view" IS NULL AND "synID" = \'S2\')'
-        )
-
-    def test_composite_primary_keys_all_fully_null_returns_none(self):
-        # GIVEN composite primary keys where every row is missing every key value
-        entity = self.ClassForTest(
-            id="syn123",
-            columns={
-                "view": Column(name="view", column_type=ColumnType.STRING, id="id1"),
-                "synID": Column(name="synID", column_type=ColumnType.STRING, id="id2"),
-            },
-        )
-        # AND every row has all primary key values missing
-        df = pd.DataFrame({"view": [None, None], "synID": [None, None]})
-
-        # WHEN I construct the select statement
-        statement = _construct_select_statement_for_upsert(
-            entity=entity,
-            df=df,
-            all_columns_from_df=['"view"', '"synID"'],
-            primary_keys=["view", "synID"],
-            wait_for_eventually_consistent_view=False,
-        )
-
-        # THEN None is returned so the caller skips the query for this chunk
-        assert statement is None
+        # THEN only the primary key columns contribute conditions
+        assert conditions == ["\"view\" = 'V1'", "\"synID\" = 'S1'"]
 
 
 class TestConstructCompositeKeyWhereStatement:
@@ -2239,90 +2258,6 @@ class TestConstructCompositeKeyWhereStatement:
             "(\"view\" = 'V2' AND \"synID\" = 'S2')"
         )
 
-    def test_partial_null_keys_use_is_null(self):
-        # GIVEN a DataFrame where some rows have a null primary key component
-        entity = self.ClassForTest(
-            id="syn123",
-            columns={
-                "view": Column(name="view", column_type=ColumnType.STRING, id="id1"),
-                "synID": Column(name="synID", column_type=ColumnType.STRING, id="id2"),
-            },
-        )
-        df = pd.DataFrame({"view": ["V1", "V2", None], "synID": ["S1", None, "S3"]})
-
-        # WHEN I construct the composite-key WHERE statement
-        where_statement = _construct_composite_key_where_statement(
-            entity=entity, df=df, primary_keys=["view", "synID"]
-        )
-
-        # THEN null components are matched with IS NULL while populated
-        # components use equality, and every partially-populated row contributes
-        assert where_statement == (
-            "(\"view\" = 'V1' AND \"synID\" = 'S1') OR "
-            '("view" = \'V2\' AND "synID" IS NULL) OR '
-            '("view" IS NULL AND "synID" = \'S3\')'
-        )
-
-    def test_row_with_all_null_keys_is_skipped(self):
-        # GIVEN a DataFrame where one row has every primary key value null
-        entity = self.ClassForTest(
-            id="syn123",
-            columns={
-                "view": Column(name="view", column_type=ColumnType.STRING, id="id1"),
-                "synID": Column(name="synID", column_type=ColumnType.STRING, id="id2"),
-            },
-        )
-        df = pd.DataFrame({"view": ["V1", None], "synID": ["S1", None]})
-
-        # WHEN I construct the composite-key WHERE statement
-        where_statement = _construct_composite_key_where_statement(
-            entity=entity, df=df, primary_keys=["view", "synID"]
-        )
-
-        # THEN the fully-null row is skipped and only the populated row remains
-        assert where_statement == "(\"view\" = 'V1' AND \"synID\" = 'S1')"
-
-    def test_all_rows_fully_null_returns_none(self):
-        # GIVEN a DataFrame where every row has all primary key values null
-        entity = self.ClassForTest(
-            id="syn123",
-            columns={
-                "view": Column(name="view", column_type=ColumnType.STRING, id="id1"),
-                "synID": Column(name="synID", column_type=ColumnType.STRING, id="id2"),
-            },
-        )
-        df = pd.DataFrame({"view": [None, None], "synID": [None, None]})
-
-        # WHEN I construct the composite-key WHERE statement
-        where_statement = _construct_composite_key_where_statement(
-            entity=entity, df=df, primary_keys=["view", "synID"]
-        )
-
-        # THEN None is returned, signalling nothing to query for
-        assert where_statement is None
-
-    def test_duplicate_partial_null_tuples_are_deduplicated(self):
-        # GIVEN a DataFrame with a repeated tuple that contains a null component
-        entity = self.ClassForTest(
-            id="syn123",
-            columns={
-                "view": Column(name="view", column_type=ColumnType.STRING, id="id1"),
-                "synID": Column(name="synID", column_type=ColumnType.STRING, id="id2"),
-            },
-        )
-        df = pd.DataFrame({"view": ["V1", "V1", "V2"], "synID": [None, None, "S2"]})
-
-        # WHEN I construct the composite-key WHERE statement
-        where_statement = _construct_composite_key_where_statement(
-            entity=entity, df=df, primary_keys=["view", "synID"]
-        )
-
-        # THEN the duplicated null-bearing tuple appears only once
-        assert where_statement == (
-            '("view" = \'V1\' AND "synID" IS NULL) OR '
-            "(\"view\" = 'V2' AND \"synID\" = 'S2')"
-        )
-
 
 class TestConstructSingleKeyWhereStatement:
     """Test suite for _construct_single_key_where_statement, which builds the
@@ -2363,13 +2298,6 @@ class TestConstructSingleKeyWhereStatement:
                 "\"label\" IN ('O''Brien')",
                 id="embedded_quote_is_escaped",
             ),
-            pytest.param(
-                {"view": Column(name="view", column_type=ColumnType.STRING, id="id1")},
-                {"view": ["V1", None, "V3"]},
-                "view",
-                None,  # order-independent; asserted separately below
-                id="none_values_are_excluded",
-            ),
         ],
     )
     def test_where_statement_construction(self, columns, data, primary_key, expected):
@@ -2383,15 +2311,7 @@ class TestConstructSingleKeyWhereStatement:
         )
 
         # THEN the values are matched with an IN clause
-        if expected is not None:
-            assert where_statement == expected
-        else:
-            # None values are excluded; remaining values appear (set order is
-            # non-deterministic, so compare membership)
-            assert where_statement.startswith('"view" IN (')
-            assert "'V1'" in where_statement
-            assert "'V3'" in where_statement
-            assert "None" not in where_statement
+        assert where_statement == expected
 
     def test_duplicate_values_are_deduplicated(self):
         # GIVEN a DataFrame with a repeated primary key value
@@ -2412,23 +2332,172 @@ class TestConstructSingleKeyWhereStatement:
         assert where_statement.count("'V1'") == 1
         assert where_statement.count("'V2'") == 1
 
-    def test_all_none_returns_none(self):
-        # GIVEN a DataFrame where every primary key value is missing
-        entity = self.ClassForTest(
-            id="syn123",
-            columns={
-                "view": Column(name="view", column_type=ColumnType.STRING, id="id1")
-            },
-        )
-        df = pd.DataFrame({"view": [None, None]})
 
-        # WHEN I construct the single-key WHERE statement
-        where_statement = _construct_single_key_where_statement(
-            entity=entity, df=df, primary_key="view"
+class TestValidatePrimaryKeys:
+    """Test suite for _validate_primary_keys, which rejects upserts whose primary
+    key columns are missing from the data or contain null values."""
+
+    def test_empty_primary_keys_raise(self):
+        # GIVEN a DataFrame and an empty list of primary keys
+        df = pd.DataFrame({"view": ["V1", "V2"], "value": [1, 2]})
+
+        # WHEN I validate the primary keys THEN a ValueError is raised
+        with pytest.raises(
+            ValueError, match="At least one primary key column must be provided"
+        ):
+            _validate_primary_keys(df, [])
+
+    @pytest.mark.parametrize(
+        "primary_keys, offending",
+        [
+            pytest.param([1], "1", id="single_int"),
+            pytest.param(["view", 2], "2", id="mixed_string_and_int"),
+            pytest.param([None], "None", id="none"),
+            pytest.param([("view",)], "('view',)", id="tuple"),
+        ],
+    )
+    def test_non_string_primary_keys_raise(self, primary_keys, offending):
+        # GIVEN a DataFrame and a primary key that is not a string
+        df = pd.DataFrame({"view": ["V1", "V2"], "value": [1, 2]})
+
+        # WHEN I validate the primary keys THEN a ValueError naming the offending
+        # value is raised
+        with pytest.raises(ValueError, match="must be strings") as exc:
+            _validate_primary_keys(df, primary_keys)
+        assert offending in str(exc.value)
+
+    def test_no_null_primary_keys_passes(self):
+        # GIVEN a DataFrame whose primary key columns have no null values
+        df = pd.DataFrame(
+            {"view": ["V1", "V2"], "synID": ["S1", "S2"], "value": [1, 2]}
         )
 
-        # THEN None is returned, signalling nothing to query for
-        assert where_statement is None
+        # WHEN I validate the primary keys THEN no error is raised
+        _validate_primary_keys(df, ["view", "synID"])
+
+    def test_null_in_a_non_primary_key_column_is_allowed(self):
+        # GIVEN a DataFrame with a null value only in a non-primary-key column
+        df = pd.DataFrame(
+            {"view": ["V1", "V2"], "synID": ["S1", "S2"], "value": [1, None]}
+        )
+
+        # WHEN I validate the primary keys THEN no error is raised
+        _validate_primary_keys(df, ["view", "synID"])
+
+    def test_empty_dataframe_passes(self):
+        # GIVEN a DataFrame with primary key columns but no rows
+        df = pd.DataFrame({"view": [], "synID": []})
+
+        # WHEN I validate the primary keys THEN no error is raised (there are no
+        # null values because there are no values at all)
+        _validate_primary_keys(df, ["view", "synID"])
+
+    @pytest.mark.parametrize(
+        "data, primary_keys, expected_columns",
+        [
+            pytest.param(
+                {"view": ["V1", "V2"], "value": [1, 2]},
+                ["view", "synID"],
+                ["synID"],
+                id="one_of_two_keys_missing",
+            ),
+            pytest.param(
+                {"value": [1, 2]},
+                ["view", "synID"],
+                ["view", "synID"],
+                id="all_keys_missing",
+            ),
+        ],
+    )
+    def test_missing_primary_key_columns_raise(
+        self, data, primary_keys, expected_columns
+    ):
+        # GIVEN a DataFrame that is missing one or more primary key columns
+        df = pd.DataFrame(data)
+
+        # WHEN I validate the primary keys THEN a ValueError naming the missing
+        # column(s) is raised
+        with pytest.raises(ValueError, match="are missing") as exc:
+            _validate_primary_keys(df, primary_keys)
+        for column in expected_columns:
+            assert column in str(exc.value)
+
+    def test_missing_column_is_reported_before_null_column(self):
+        # GIVEN a DataFrame missing one primary key and with a null in another
+        df = pd.DataFrame({"view": ["V1", None], "value": [1, 2]})
+
+        # WHEN I validate primary keys where one is missing and one has a null
+        # THEN the missing-column error is raised (presence is checked first, so
+        # the null check never dereferences the absent column)
+        with pytest.raises(ValueError, match="are missing") as exc:
+            _validate_primary_keys(df, ["view", "synID"])
+        assert "synID" in str(exc.value)
+
+    @pytest.mark.parametrize(
+        "null_value",
+        [
+            pytest.param(None, id="none"),
+            pytest.param(np.nan, id="numpy_nan"),
+            pytest.param(pd.NA, id="pandas_na"),
+        ],
+    )
+    def test_all_null_representations_are_detected(self, null_value):
+        # GIVEN a primary key column whose null is expressed as None, np.nan, or pd.NA
+        df = pd.DataFrame({"view": ["V1", null_value], "value": [1, 2]})
+
+        # WHEN I validate the primary keys THEN each null representation is detected
+        with pytest.raises(ValueError, match="must not contain null values"):
+            _validate_primary_keys(df, ["view"])
+
+    def test_null_in_numeric_primary_key_is_detected(self):
+        # GIVEN a numeric primary key column that contains a null value
+        df = pd.DataFrame(
+            {"num": pd.array([1, None, 3], dtype="Int64"), "value": [1, 2, 3]}
+        )
+
+        # WHEN I validate the primary keys THEN the null is detected
+        with pytest.raises(ValueError, match="must not contain null values") as exc:
+            _validate_primary_keys(df, ["num"])
+        assert "num" in str(exc.value)
+
+    @pytest.mark.parametrize(
+        "data, primary_keys, expected_columns",
+        [
+            pytest.param(
+                {"view": ["V1", None], "value": [1, 2]},
+                ["view"],
+                ["view"],
+                id="single_primary_key_with_null",
+            ),
+            pytest.param(
+                {"view": ["V1", "V2"], "synID": ["S1", None], "value": [1, 2]},
+                ["view", "synID"],
+                ["synID"],
+                id="composite_key_with_partial_null",
+            ),
+            pytest.param(
+                {"view": [None, None], "synID": [None, None], "value": [1, 2]},
+                ["view", "synID"],
+                ["view", "synID"],
+                id="composite_key_all_null",
+            ),
+        ],
+    )
+    def test_null_primary_keys_raise(self, data, primary_keys, expected_columns):
+        # GIVEN a DataFrame whose primary key column(s) contain null values
+        df = pd.DataFrame(data)
+
+        # WHEN I validate the primary keys THEN a ValueError naming the offending
+        # column(s) is raised
+        with pytest.raises(ValueError, match="must not contain null values") as exc:
+            _validate_primary_keys(df, primary_keys)
+        # AND only the offending columns are reported
+        message = str(exc.value)
+        for column in expected_columns:
+            assert column in message
+        non_offending = {"view", "synID"} - set(expected_columns)
+        for column in non_offending:
+            assert f"'{column}'" not in message
 
 
 class TestQuery:
