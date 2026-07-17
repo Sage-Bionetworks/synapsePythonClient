@@ -5264,6 +5264,9 @@ class Grid(EnumCoercionMixin, GridSynchronousProtocol):
         finally:
             self._replica_id = None
 
+    @otel_trace_method(
+        method_to_trace_name=lambda self, **kwargs: f"Grid_Validate_Rows_Session_ID: {self.session_id}"
+    )
     async def validate_rows_async(
         self,
         *,
