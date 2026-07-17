@@ -8,6 +8,7 @@ data or metadata in Synapse.
 import asyncio
 import os
 from abc import ABC, abstractmethod
+from contextlib import asynccontextmanager, contextmanager
 from copy import deepcopy
 from dataclasses import dataclass, field, replace
 from datetime import datetime, timezone
@@ -3994,9 +3995,10 @@ class GridSynchronousProtocol(Protocol):
         Queries this grid session's rows and returns their per-row validation
         results against the grid's bound JSON schema.
 
-        This creates a new replica for the query (see `create_replica`), then
-        submits the given query_request to the grid session and waits for the
-        job to complete.
+        This Grid must have been obtained from `connect_async` (or `connect`),
+        which binds a replica to it. The given query_request is then submitted
+        to the grid session using that replica, and this waits for the job to
+        complete.
 
         Arguments:
             timeout: The number of seconds to wait for the job to complete or progress
@@ -4013,8 +4015,9 @@ class GridSynchronousProtocol(Protocol):
             its own validation_results.
 
         Raises:
-            ValueError: If session_id is not provided, or if the Synapse response
-                did not contain any rows.
+            ValueError: If session_id is not provided, if no replica is bound to
+                this Grid (see `connect_async`/`connect`), or if the Synapse
+                response did not contain any rows.
 
         Example: Validate every row of a grid session
             &nbsp;
@@ -4026,17 +4029,15 @@ class GridSynchronousProtocol(Protocol):
             syn = Synapse()
             syn.login()
 
-            grid = Grid(record_set_id="syn1234567")
-            grid = grid.create()
+            with Grid(record_set_id="syn1234567").connect() as grid:
+                # SelectAll() selects every column in the grid, so each row's full
+                # data is returned alongside its validation results.
+                query_request = QueryRequest(query=GridQuery(column_selection=[SelectAll()]))
+                query_result = grid.validate_rows(query_request=query_request)
 
-            # SelectAll() selects every column in the grid, so each row's full
-            # data is returned alongside its validation results.
-            query_request = QueryRequest(query=GridQuery(column_selection=[SelectAll()]))
-            query_result = grid.validate_rows(query_request=query_request)
-
-            for row in query_result.rows:
-                validation = row.validation_results
-                print(f"Row ID: {row.row_id}, Validation Result: {validation}")
+                for row in query_result.rows:
+                    validation = row.validation_results
+                    print(f"Row ID: {row.row_id}, Validation Result: {validation}")
             ```
 
         Example: Validate only the currently invalid rows of a grid session
@@ -4055,21 +4056,20 @@ class GridSynchronousProtocol(Protocol):
             syn = Synapse()
             syn.login()
 
-            grid = Grid(session_id="abc-123-def")
-
-            # Filter to only the rows that are currently invalid, and request the
-            # detailed allValidationMessages list on each one.
-            query_request = QueryRequest(
-                query=GridQuery(
-                    column_selection=[SelectAll()],
-                    filters=[RowIsValidFilter(value=False)],
-                    include_validation_messages=True,
+            with Grid(record_set_id="syn1234567").connect() as grid:
+                # Filter to only the rows that are currently invalid, and request the
+                # detailed allValidationMessages list on each one.
+                query_request = QueryRequest(
+                    query=GridQuery(
+                        column_selection=[SelectAll()],
+                        filters=[RowIsValidFilter(value=False)],
+                        include_validation_messages=True,
+                    )
                 )
-            )
-            query_result = grid.validate_rows(query_request=query_request)
+                query_result = grid.validate_rows(query_request=query_request)
 
-            for row in query_result.rows:
-                print(f"Invalid row {row.row_id}: {row.validation_results}")
+                for row in query_result.rows:
+                    print(f"Invalid row {row.row_id}: {row.validation_results}")
             ```
         """
         return None
@@ -4410,6 +4410,10 @@ class Grid(EnumCoercionMixin, GridSynchronousProtocol):
 
     validation_summary_statistics: Optional[ValidationSummary] = None
     """Summary statistics for validation results"""
+
+    _replica_id: Optional[int] = field(default=None, repr=False, compare=False)
+    """The replica ID bound to this instance by `connect_async`. Reused by
+    `validate_rows_async` so repeated calls do not each create a new replica."""
 
     _ENUM_FIELDS: ClassVar[dict[str, type]] = {"authorization_mode": AuthorizationMode}
 
@@ -5110,6 +5114,135 @@ class Grid(EnumCoercionMixin, GridSynchronousProtocol):
             )
         return GridReplica().fill_from_dict(replica_data)
 
+    @skip_async_to_sync
+    @asynccontextmanager
+    async def connect_async(
+        self,
+        *,
+        attach_to_previous_session: bool = False,
+        timeout: int = 120,
+        synapse_client: Optional[Synapse] = None,
+    ) -> AsyncGenerator["Grid", None]:
+        """
+        Connects to a grid session for a record set and binds a single replica to
+        it for the duration of the `async with` block.
+
+        This creates the grid session (see `create_async`), then creates one
+        replica (see `create_replica_async`) that is reused by every
+        `validate_rows_async` call made on the yielded Grid within the block,
+        instead of a new replica being created per call.
+
+        Arguments:
+            attach_to_previous_session: If True, will attach to an existing active
+                session for this record set if one exists. Defaults to False.
+            timeout: The number of seconds to wait for the job to complete or progress
+                before raising a SynapseTimeoutError. Defaults to 120.
+            synapse_client: If not passed in and caching was not disabled by
+                `Synapse.allow_client_caching(False)` this will use the last created
+                instance from the Synapse class constructor.
+
+        Yields:
+            The connected Grid, with a replica bound to it.
+
+        Example: Validate rows using a connected grid session
+            &nbsp;
+
+            ```python
+            import asyncio
+            from synapseclient import Synapse
+            from synapseclient.models import Grid, GridQuery, QueryRequest, SelectAll
+
+            syn = Synapse()
+            syn.login()
+
+            async def main():
+                async with Grid(record_set_id="syn1234567").connect_async() as session:
+                    query_request = QueryRequest(
+                        query=GridQuery(column_selection=[SelectAll()])
+                    )
+                    result = await session.validate_rows_async(query_request=query_request)
+                    for row in result.rows:
+                        print(f"Row ID: {row.row_id}, Validation Result: {row.validation_results}")
+
+            asyncio.run(main())
+            ```
+        """
+        await self.create_async(
+            attach_to_previous_session=attach_to_previous_session,
+            timeout=timeout,
+            synapse_client=synapse_client,
+        )
+
+        replica = await self.create_replica_async(synapse_client=synapse_client)
+        self._replica_id = replica.replica_id
+        try:
+            yield self
+        finally:
+            self._replica_id = None
+
+    @contextmanager
+    def connect(
+        self,
+        *,
+        attach_to_previous_session: bool = False,
+        timeout: int = 120,
+        synapse_client: Optional[Synapse] = None,
+    ) -> Generator["Grid", None, None]:
+        """
+        Synchronous equivalent of `connect_async`.
+
+        Connects to a grid session for a record set and binds a single replica to
+        it for the duration of the `with` block.
+
+        This creates the grid session (see `create`), then creates one replica
+        (see `create_replica`) that is reused by every `validate_rows` call made
+        on the yielded Grid within the block, instead of a new replica being
+        created per call.
+
+        Arguments:
+            attach_to_previous_session: If True, will attach to an existing active
+                session for this record set if one exists. Defaults to False.
+            timeout: The number of seconds to wait for the job to complete or progress
+                before raising a SynapseTimeoutError. Defaults to 120.
+            synapse_client: If not passed in and caching was not disabled by
+                `Synapse.allow_client_caching(False)` this will use the last created
+                instance from the Synapse class constructor.
+
+        Yields:
+            The connected Grid, with a replica bound to it.
+
+        Example: Validate rows using a connected grid session
+            &nbsp;
+
+            ```python
+            from synapseclient import Synapse
+            from synapseclient.models import Grid, GridQuery, QueryRequest, SelectAll
+
+            syn = Synapse()
+            syn.login()
+
+            with Grid(record_set_id="syn1234567").connect() as session:
+                query_request = QueryRequest(
+                    query=GridQuery(column_selection=[SelectAll()])
+                )
+                result = session.validate_rows(query_request=query_request)
+                for row in result.rows:
+                    print(f"Row ID: {row.row_id}, Validation Result: {row.validation_results}")
+            ```
+        """
+        self.create(
+            attach_to_previous_session=attach_to_previous_session,
+            timeout=timeout,
+            synapse_client=synapse_client,
+        )
+
+        replica = self.create_replica(synapse_client=synapse_client)
+        self._replica_id = replica.replica_id
+        try:
+            yield self
+        finally:
+            self._replica_id = None
+
     async def validate_rows_async(
         self,
         *,
@@ -5121,9 +5254,10 @@ class Grid(EnumCoercionMixin, GridSynchronousProtocol):
         Queries this grid session's rows and returns their per-row validation
         results against the grid's bound JSON schema.
 
-        This creates a new replica for the query (see `create_replica_async`),
-        then submits the given query_request to the grid session and waits for
-        the job to complete.
+        This Grid must have been obtained from `connect_async` (or `connect`),
+        which binds a replica to it. The given query_request is then submitted
+        to the grid session using that replica, and this waits for the job to
+        complete.
 
         Arguments:
             timeout: The number of seconds to wait for the job to complete or progress
@@ -5140,8 +5274,9 @@ class Grid(EnumCoercionMixin, GridSynchronousProtocol):
             its own validation_results.
 
         Raises:
-            ValueError: If session_id is not provided, or if the Synapse response
-                did not contain any rows.
+            ValueError: If session_id is not provided, if no replica is bound to
+                this Grid (see `connect_async`/`connect`), or if the Synapse
+                response did not contain any rows.
 
         Example: Validate every row of a grid session
             &nbsp;
@@ -5155,19 +5290,17 @@ class Grid(EnumCoercionMixin, GridSynchronousProtocol):
             syn.login()
 
             async def main():
-                grid = Grid(record_set_id="syn1234567")
-                grid = await grid.create_async()
+                async with Grid(record_set_id="syn1234567").connect_async() as grid:
+                    # SelectAll() selects every column in the grid, so each row's
+                    # full data is returned alongside its validation results.
+                    query_request = QueryRequest(
+                        query=GridQuery(column_selection=[SelectAll()])
+                    )
+                    query_result = await grid.validate_rows_async(query_request=query_request)
 
-                # SelectAll() selects every column in the grid, so each row's
-                # full data is returned alongside its validation results.
-                query_request = QueryRequest(
-                    query=GridQuery(column_selection=[SelectAll()])
-                )
-                query_result = await grid.validate_rows_async(query_request=query_request)
-
-                for row in query_result.rows:
-                    validation = row.validation_results
-                    print(f"Row ID: {row.row_id}, Validation Result: {validation}")
+                    for row in query_result.rows:
+                        validation = row.validation_results
+                        print(f"Row ID: {row.row_id}, Validation Result: {validation}")
 
             asyncio.run(main())
             ```
@@ -5190,35 +5323,40 @@ class Grid(EnumCoercionMixin, GridSynchronousProtocol):
             syn.login()
 
             async def main():
-                grid = Grid(session_id="abc-123-def")
-
-                # Filter to only the rows that are currently invalid, and request
-                # the detailed allValidationMessages list on each one.
-                query_request = QueryRequest(
-                    query=GridQuery(
-                        column_selection=[SelectAll()],
-                        filters=[RowIsValidFilter(value=False)],
-                        include_validation_messages=True,
+                async with Grid(record_set_id="syn1234567").connect_async() as grid:
+                    # Filter to only the rows that are currently invalid, and request
+                    # the detailed allValidationMessages list on each one.
+                    query_request = QueryRequest(
+                        query=GridQuery(
+                            column_selection=[SelectAll()],
+                            filters=[RowIsValidFilter(value=False)],
+                            include_validation_messages=True,
+                        )
                     )
-                )
-                query_result = await grid.validate_rows_async(query_request=query_request)
+                    query_result = await grid.validate_rows_async(query_request=query_request)
 
-                for row in query_result.rows:
-                    print(f"Invalid row {row.row_id}: {row.validation_results}")
+                    for row in query_result.rows:
+                        print(f"Invalid row {row.row_id}: {row.validation_results}")
 
             asyncio.run(main())
             ```
         """
         if not self.session_id:
-            raise ValueError("session_id is required to validate a GridSession")
+            raise ValueError("session_id is required to validate rows")
 
-        replica = await self.create_replica_async(synapse_client=synapse_client)
+        if self._replica_id is None:
+            raise ValueError(
+                "No replica is bound to this Grid. Use `connect_async` (or "
+                "`connect`) to connect to a grid session before calling "
+                "validate_rows_async."
+            )
+
         request = GridQueryJobRequest(
             session_id=self.session_id,
-            replica_id=replica.replica_id,
+            replica_id=self._replica_id,
             query_request=query_request,
         )
-        await request.send_job_and_wait_async(
+        request = await request.send_job_and_wait_async(
             timeout=timeout, synapse_client=synapse_client
         )
 

@@ -3197,3 +3197,100 @@ class TestGridCreateReplica:
         ):
             with pytest.raises(ValueError, match="Replica could not be created"):
                 await grid.create_replica_async(synapse_client=self.syn)
+
+
+class TestGridValidateRows:
+    """Tests for Grid.validate_rows_async."""
+
+    @pytest.fixture(autouse=True, scope="function")
+    def init_syn(self, syn: Synapse) -> None:
+        self.syn = syn
+
+    async def test_validate_rows_async_without_session_id_raises(self) -> None:
+        # GIVEN a Grid without a session_id
+        grid = Grid()
+
+        # WHEN I call validate_rows_async
+        # THEN it should raise ValueError
+        with pytest.raises(ValueError, match="session_id is required to validate rows"):
+            await grid.validate_rows_async(
+                synapse_client=self.syn, query_request=QueryRequest()
+            )
+
+    async def test_validate_rows_async_without_replica_id_raises(self) -> None:
+        # GIVEN a Grid with a session_id but no replica bound to it
+        grid = Grid(session_id=SESSION_ID)
+
+        # WHEN I call validate_rows_async
+        # THEN it should raise ValueError
+        with pytest.raises(ValueError, match="No replica is bound to this Grid"):
+            await grid.validate_rows_async(
+                synapse_client=self.syn, query_request=QueryRequest()
+            )
+
+    async def test_validate_rows_async_returns_query_result(self) -> None:
+        # GIVEN a Grid with a session_id and a replica already bound to it (as
+        # would be the case after `connect_async`/`connect`), and a mocked API
+        # response
+        grid = Grid(session_id=SESSION_ID)
+        grid._replica_id = REPLICA_ID
+
+        # Build a GridQueryJobRequest with query_result already populated
+        mock_job_request = GridQueryJobRequest(
+            session_id=SESSION_ID, replica_id=REPLICA_ID
+        )
+        grid_query_result = GridQueryResult().fill_from_dict(
+            {
+                "selectColumns": [
+                    {"columnName": "Sex"},
+                    {"columnName": "Diagnosis"},
+                ],
+                "rows": [
+                    {
+                        "rowId": "123",
+                        "data": {"Sex": "Female", "Diagnosis": "Cancer"},
+                        "validationResults": {
+                            "isValid": False,
+                            "validationErrorMessage": "#: only 1 subschema matches out of 2",
+                        },
+                    },
+                    {
+                        "rowId": "456",
+                        "data": {"Sex": "Male", "Diagnosis": "Cancer"},
+                        "validationResults": {
+                            "isValid": False,
+                            "validationErrorMessage": "#: only 1 subschema matches out of 2",
+                        },
+                    },
+                ],
+            }
+        )
+        mock_job_request.query_result = grid_query_result
+
+        # WHEN I call validate_rows_async
+        with patch.object(
+            GridQueryJobRequest,
+            "send_job_and_wait_async",
+            new_callable=AsyncMock,
+            return_value=mock_job_request,
+        ):
+            query_request = QueryRequest(
+                query=GridQuery(column_selection=[SelectAll()])
+            )
+            result = await grid.validate_rows_async(
+                synapse_client=self.syn,
+                query_request=query_request,
+            )
+
+            # THEN the result should be a populated GridQueryResult
+            assert isinstance(result, GridQueryResult)
+            assert result.select_columns[0].column_name == "Sex"
+            assert result.select_columns[1].column_name == "Diagnosis"
+            assert result.rows[0].row_id == "123"
+            assert result.rows[0].data == {"Sex": "Female", "Diagnosis": "Cancer"}
+            assert result.rows[0].validation_results.is_valid is False
+            assert result.rows[1].row_id == "456"
+            assert result.rows[1].data == {"Sex": "Male", "Diagnosis": "Cancer"}
+            assert result.rows[1].validation_results.is_valid is False
+            # AND the replica_id is cached on the Grid instance
+            assert grid._replica_id == REPLICA_ID
