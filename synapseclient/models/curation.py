@@ -3995,7 +3995,7 @@ class GridSynchronousProtocol(Protocol):
         timeout: int = 120,
         query_request: "QueryRequest",
         synapse_client: Optional[Synapse] = None,
-    ) -> "GridQueryResult":
+    ) -> Optional["GridQueryResult"]:
         """
         Queries this grid session's rows and returns their per-row validation
         results against the grid's bound JSON schema.
@@ -4017,12 +4017,12 @@ class GridSynchronousProtocol(Protocol):
 
         Returns:
             The GridQueryResult containing the selected columns and rows, each with
-            its own validation_results.
+            its own validation_results. Returns None (and logs a warning) if the
+            job completed but no rows matched the query.
 
         Raises:
-            ValueError: If session_id is not provided, if no replica is bound to
-                this Grid (see `connect_async`/`connect`), or if the Synapse
-                response did not contain any rows.
+            ValueError: If session_id is not provided, or if no replica is bound
+                to this Grid (see `connect_async`/`connect`).
 
         Example: Validate every row of a grid session
             &nbsp;
@@ -5172,11 +5172,19 @@ class Grid(EnumCoercionMixin, GridSynchronousProtocol):
             asyncio.run(main())
             ```
         """
-        await self.create_async(
-            attach_to_previous_session=attach_to_previous_session,
-            timeout=timeout,
-            synapse_client=synapse_client,
+        trace.get_current_span().set_attributes(
+            {
+                "synapse.record_set_id": self.record_set_id or "",
+                "synapse.session_id": self.session_id or "",
+            }
         )
+
+        if not self.session_id:
+            await self.create_async(
+                attach_to_previous_session=attach_to_previous_session,
+                timeout=timeout,
+                synapse_client=synapse_client,
+            )
 
         replica = await self.create_replica_async(synapse_client=synapse_client)
         self._replica_id = replica.replica_id
@@ -5235,11 +5243,19 @@ class Grid(EnumCoercionMixin, GridSynchronousProtocol):
                     print(f"Row ID: {row.row_id}, Validation Result: {row.validation_results}")
             ```
         """
-        self.create(
-            attach_to_previous_session=attach_to_previous_session,
-            timeout=timeout,
-            synapse_client=synapse_client,
+        trace.get_current_span().set_attributes(
+            {
+                "synapse.record_set_id": self.record_set_id or "",
+                "synapse.session_id": self.session_id or "",
+            }
         )
+
+        if not self.session_id:
+            self.create(
+                attach_to_previous_session=attach_to_previous_session,
+                timeout=timeout,
+                synapse_client=synapse_client,
+            )
 
         replica = self.create_replica(synapse_client=synapse_client)
         self._replica_id = replica.replica_id
@@ -5254,7 +5270,7 @@ class Grid(EnumCoercionMixin, GridSynchronousProtocol):
         timeout: int = 120,
         query_request: QueryRequest,
         synapse_client: Optional[Synapse] = None,
-    ) -> "GridQueryResult":
+    ) -> Optional["GridQueryResult"]:
         """
         Queries this grid session's rows and returns their per-row validation
         results against the grid's bound JSON schema.
@@ -5276,12 +5292,12 @@ class Grid(EnumCoercionMixin, GridSynchronousProtocol):
 
         Returns:
             The GridQueryResult containing the selected columns and rows, each with
-            its own validation_results.
+            its own validation_results. Returns None (and logs a warning) if the
+            job completed but no rows matched the query.
 
         Raises:
-            ValueError: If session_id is not provided, if no replica is bound to
-                this Grid (see `connect_async`/`connect`), or if the Synapse
-                response did not contain any rows.
+            ValueError: If session_id is not provided, or if no replica is bound
+                to this Grid (see `connect_async`/`connect`).
 
         Example: Validate every row of a grid session
             &nbsp;
@@ -5366,8 +5382,11 @@ class Grid(EnumCoercionMixin, GridSynchronousProtocol):
         )
 
         if not request.query_result or not request.query_result.rows:
-            raise ValueError(
+            client = Synapse.get_client(synapse_client=synapse_client)
+            client.logger.warning(
                 f"Validation job for grid session '{self.session_id}' completed but "
-                "did not return any row validation results. The validation may have failed silently."
+                "did not return any row validation results. This grid may not have "
+                "any rows matching the query."
             )
+            return None
         return request.query_result

@@ -3294,3 +3294,39 @@ class TestGridValidateRows:
             assert result.rows[1].validation_results.is_valid is False
             # AND the replica_id is cached on the Grid instance
             assert grid._replica_id == REPLICA_ID
+
+    async def test_validate_rows_async_no_rows_returns_none_and_warns(self) -> None:
+        # GIVEN a Grid with a session_id and a replica already bound to it, and
+        # a mocked API response with no query_result rows
+        grid = Grid(session_id=SESSION_ID)
+        grid._replica_id = REPLICA_ID
+
+        mock_job_request = GridQueryJobRequest(
+            session_id=SESSION_ID, replica_id=REPLICA_ID
+        )
+        mock_job_request.query_result = GridQueryResult().fill_from_dict(
+            {"selectColumns": [], "rows": []}
+        )
+
+        # WHEN I call validate_rows_async
+        with (
+            patch.object(
+                GridQueryJobRequest,
+                "send_job_and_wait_async",
+                new_callable=AsyncMock,
+                return_value=mock_job_request,
+            ),
+            patch.object(self.syn.logger, "warning") as mock_warning,
+        ):
+            query_request = QueryRequest(
+                query=GridQuery(column_selection=[SelectAll()])
+            )
+            result = await grid.validate_rows_async(
+                synapse_client=self.syn,
+                query_request=query_request,
+            )
+
+            # THEN it should return None and log a warning instead of raising
+            assert result is None
+            mock_warning.assert_called_once()
+            assert SESSION_ID in mock_warning.call_args[0][0]
