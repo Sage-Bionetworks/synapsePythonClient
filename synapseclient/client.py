@@ -45,7 +45,6 @@ from opentelemetry.instrumentation.requests import RequestsInstrumentor
 from opentelemetry.instrumentation.threading import ThreadingInstrumentor
 from opentelemetry.instrumentation.urllib import URLLibInstrumentor
 from opentelemetry.trace import Span
-from tqdm import tqdm
 
 import synapseclient
 import synapseclient.core.multithread_download as multithread_download
@@ -102,6 +101,7 @@ from synapseclient.core.retry import (
     with_retry,
     with_retry_time_based_async,
 )
+from synapseclient.core.transfer_bar import create_progress_bar
 from synapseclient.core.upload.multipart_upload_async import (
     multipart_upload_file_async,
     multipart_upload_string_async,
@@ -7822,7 +7822,7 @@ class Synapse(object):
         sleep = self.table_query_sleep
         start_time = time.time()
         lastMessage, lastProgress, lastTotal = "", 0, 1
-        progress_bar = tqdm(desc=uri, unit_scale=True, smoothing=0, leave=None)
+        progress_bar = create_progress_bar(total=None, desc=uri, synapse_client=self)
         while time.time() - start_time < self.table_query_timeout:
             result = self.restGET(
                 uri + "/get/%s" % async_job_id["token"], endpoint=endpoint

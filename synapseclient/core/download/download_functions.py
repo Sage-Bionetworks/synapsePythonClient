@@ -52,6 +52,7 @@ from synapseclient.core.retry import (
 )
 from synapseclient.core.transfer_bar import (
     close_download_progress_bar,
+    create_progress_bar,
     get_or_create_download_progress_bar,
     increment_progress_bar,
     increment_progress_bar_total,
@@ -817,7 +818,16 @@ async def download_from_url_multi_threaded(
     await download_file(client=client, download_request=request)
 
     if expected_md5:  # if md5 not set (should be the case for all except http download)
-        actual_md5 = utils.md5_for_file_hex(filename=temp_destination)
+        md5_progress_bar = create_progress_bar(
+            total=os.path.getsize(temp_destination),
+            desc="Calculating MD5",
+            unit="B",
+            postfix=os.path.basename(destination),
+            synapse_client=client,
+        )
+        actual_md5 = utils.md5_for_file_hex(
+            filename=temp_destination, progress_bar=md5_progress_bar
+        )
         # check md5 if given
         if actual_md5 != expected_md5:
             try:
@@ -1163,7 +1173,16 @@ def download_from_url(
     if (
         actual_md5 is None
     ):  # if md5 not set (should be the case for all except http download)
-        actual_md5 = utils.md5_for_file_hex(filename=destination)
+        md5_progress_bar = create_progress_bar(
+            total=os.path.getsize(destination),
+            desc="Calculating MD5",
+            unit="B",
+            postfix=os.path.basename(destination),
+            synapse_client=client,
+        )
+        actual_md5 = utils.md5_for_file_hex(
+            filename=destination, progress_bar=md5_progress_bar
+        )
 
     # check md5 if given
     if expected_md5 and actual_md5 != expected_md5:
