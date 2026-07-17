@@ -5,7 +5,6 @@ from dataclasses import dataclass
 from enum import Enum
 from typing import Any, Dict, Optional
 
-from tqdm import tqdm
 from tqdm.contrib.logging import logging_redirect_tqdm
 from typing_extensions import Self
 
@@ -30,6 +29,7 @@ from synapseclient.core.exceptions import (
     SynapseHTTPError,
     SynapseTimeoutError,
 )
+from synapseclient.core.transfer_bar import create_progress_bar
 
 ASYNC_JOB_URIS = {
     AGENT_CHAT_REQUEST: "/agent/chat/async",
@@ -452,11 +452,10 @@ async def get_job_async(
     last_progress = 0
     last_total = 1
     progressed = False
-    progress_bar = tqdm(
+    progress_bar = create_progress_bar(
         total=last_total,
-        unit_scale=True,
-        smoothing=0,
-        leave=None,
+        desc="",
+        synapse_client=client,
     )
     with logging_redirect_tqdm(loggers=[client.logger]):
         while time.time() - start_time < timeout:

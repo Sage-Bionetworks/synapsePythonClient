@@ -568,6 +568,48 @@ def test_md5_for_file(mock_hashlib: MagicMock) -> None:
         mock_callback.call_count == 3
 
 
+def test_md5_for_file_hex_forwards_progress_bar() -> None:
+    """md5_for_file_hex should pass the progress bar through to md5_for_file."""
+    file_name = "/home/foo/bar/test.txt"
+    progress_bar = Mock()
+    with patch.object(utils, "md5_for_file") as mock_md5_for_file:
+        utils.md5_for_file_hex(file_name, progress_bar=progress_bar)
+
+        mock_md5_for_file.assert_called_once_with(
+            file_name, 2 * utils.MB, None, progress_bar=progress_bar
+        )
+
+
+def test_md5_for_file_closes_progress_bar_for_empty_file(tmp_path, syn) -> None:
+    """md5_for_file should close the progress bar even when the file is empty.
+
+    The download code sizes the MD5 progress bar with os.path.getsize, which is
+    0 for an empty file. A tqdm bar with total=0 is falsy, so a truthiness check
+    on the bar must not be used to guard the final refresh/close.
+    """
+    from synapseclient.core.transfer_bar import create_progress_bar
+
+    # GIVEN an empty downloaded file
+    empty_file = tmp_path / "empty_file.txt"
+    empty_file.touch()
+
+    # AND a progress bar created exactly as the download code creates it
+    with patch.object(syn, "silent", False):
+        progress_bar = create_progress_bar(
+            total=os.path.getsize(empty_file),
+            desc="Calculating MD5",
+            unit="B",
+            postfix=empty_file.name,
+            synapse_client=syn,
+        )
+
+    # WHEN the MD5 is calculated
+    utils.md5_for_file(filename=str(empty_file), progress_bar=progress_bar)
+
+    # THEN the progress bar is closed (tqdm marks a closed bar as disabled)
+    assert progress_bar.disable is True
+
+
 # TODO: remove test in 5.0.0
 class TestSpinner:
     """
