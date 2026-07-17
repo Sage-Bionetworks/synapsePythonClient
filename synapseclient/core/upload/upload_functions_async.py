@@ -279,6 +279,7 @@ async def upload_external_file_handle_sftp(
         username,
         password,
         storage_str=storage_str,
+        synapse_client=syn,
     )
 
     file_md5 = md5 or utils.md5_for_file_hex(filename=file_path)
@@ -394,6 +395,7 @@ async def upload_synapse_sts_boto_s3(
             credentials=credentials,
             transfer_config_kwargs={"max_concurrency": syn.max_threads},
             storage_str=storage_str,
+            synapse_client=syn,
         )
 
     loop = asyncio.get_event_loop()
@@ -453,6 +455,7 @@ async def upload_client_auth_s3(
             profile_name=profile,
             credentials=_get_aws_credentials(),
             storage_str=storage_str,
+            synapse_client=syn,
         ),
     )
 
