@@ -3760,7 +3760,7 @@ class GridSynchronousProtocol(Protocol):
         timeout: int = 120,
         query_request: "QueryRequest",
         synapse_client: Optional[Synapse] = None,
-    ) -> Optional["GridQueryResult"]:
+    ) -> "GridQueryResult":
         """
         Queries this grid session's rows and returns their per-row validation
         results against the grid's bound JSON schema.
@@ -3781,7 +3781,7 @@ class GridSynchronousProtocol(Protocol):
                 instance from the Synapse class constructor.
 
         Returns:
-            The GridQueryResult containing the selected columns and rows, each with its own validation_results. Returns None (and logs a warning) if the job completed but no rows matched the query.
+            The GridQueryResult containing the selected columns and rows, each with its own validation_results. Returns an empty GridQueryResult (and logs a warning) if the job completed but no rows matched the query.
 
         Raises:
             ValueError: If session_id is not provided, or if no replica is bound
@@ -5099,7 +5099,7 @@ class Grid(EnumCoercionMixin, GridSynchronousProtocol):
         timeout: int = 120,
         query_request: QueryRequest,
         synapse_client: Optional[Synapse] = None,
-    ) -> Optional["GridQueryResult"]:
+    ) -> "GridQueryResult":
         """
         Queries this grid session's rows and returns their per-row validation
         results against the grid's bound JSON schema.
@@ -5120,7 +5120,7 @@ class Grid(EnumCoercionMixin, GridSynchronousProtocol):
                 instance from the Synapse class constructor.
 
         Returns:
-            The GridQueryResult containing the selected columns and rows, each with its own validation_results. Returns None (and logs a warning) if the job completed but no rows matched the query.
+            The GridQueryResult containing the selected columns and rows, each with its own validation_results. Returns an empty GridQueryResult (and logs a warning) if the job completed but no rows matched the query.
 
         Raises:
             ValueError: If session_id is not provided, or if no replica is bound
@@ -5216,5 +5216,4 @@ class Grid(EnumCoercionMixin, GridSynchronousProtocol):
                 "did not return any row validation results. This grid may not have "
                 "any rows matching the query."
             )
-            return None
         return request.query_result
