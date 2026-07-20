@@ -35,7 +35,6 @@ from synapseclient.models.curation import (
     CurationTaskStatus,
     DownloadFromGridRequest,
     FileBasedMetadataTaskProperties,
-    Filter,
     Grid,
     GridCsvImportRequest,
     GridExecutionDetails,
@@ -55,14 +54,10 @@ from synapseclient.models.curation import (
     SelectAll,
     SelectByName,
     SelectColumn,
-    SelectItem,
     SelectSelection,
     SynchronizeGridRequest,
     TaskState,
     UploadToTablePreviewRequest,
-    ValidationOperator,
-    _create_filter_from_dict,
-    _create_select_item_from_dict,
     _create_task_properties_from_dict,
 )
 from synapseclient.models.recordset import ValidationSummary
@@ -2610,16 +2605,6 @@ class TestSelectItemSubclasses:
     """Tests for the SelectItem subclasses: SelectByName, SelectAll, CountStar,
     and SelectSelection."""
 
-    def test_select_by_name_fill_from_dict(self) -> None:
-        # GIVEN a response for a SelectByName item
-        response = {"concreteType": SELECT_BY_NAME, "columnName": "diagnosis"}
-
-        # WHEN I fill a SelectByName from the response
-        result = SelectByName().fill_from_dict(response)
-
-        # THEN the column_name should be populated
-        assert result.column_name == "diagnosis"
-
     def test_select_by_name_to_synapse_request(self) -> None:
         # GIVEN a SelectByName with a column name
         item = SelectByName(column_name="diagnosis")
@@ -2639,16 +2624,6 @@ class TestSelectItemSubclasses:
 
         # THEN it should only contain the concreteType
         assert result == {"concreteType": SELECT_ALL}
-
-    def test_count_star_fill_from_dict(self) -> None:
-        # GIVEN a response for a CountStar item with an alias
-        response = {"concreteType": COUNT_STAR, "alias": "total"}
-
-        # WHEN I fill a CountStar from the response
-        result = CountStar().fill_from_dict(response)
-
-        # THEN the alias should be populated
-        assert result.alias == "total"
 
     def test_count_star_to_synapse_request_without_alias(self) -> None:
         # GIVEN a CountStar with no alias
@@ -2671,57 +2646,9 @@ class TestSelectItemSubclasses:
         assert result == {"concreteType": SELECT_SELECTION}
 
 
-class TestCreateSelectItemFromDict:
-    """Tests for the _create_select_item_from_dict factory function."""
-
-    @pytest.mark.parametrize(
-        "concrete_type,extra_fields,expected_cls",
-        [
-            (SELECT_BY_NAME, {"columnName": "diagnosis"}, SelectByName),
-            (SELECT_ALL, {}, SelectAll),
-            (COUNT_STAR, {"alias": "total"}, CountStar),
-            (SELECT_SELECTION, {}, SelectSelection),
-        ],
-    )
-    def test_dispatch(self, concrete_type, extra_fields, expected_cls) -> None:
-        # GIVEN a dict with a known concreteType
-        data = {"concreteType": concrete_type, **extra_fields}
-
-        # WHEN I create a SelectItem from the dict
-        result = _create_select_item_from_dict(data)
-
-        # THEN it should be an instance of the expected subclass
-        assert isinstance(result, expected_cls)
-        assert isinstance(result, SelectItem)
-
-    def test_unknown_concrete_type_raises_error(self) -> None:
-        # GIVEN a dict with an unknown concreteType
-        data = {"concreteType": "org.sagebionetworks.Unknown"}
-
-        # WHEN I attempt to create a SelectItem
-        # THEN it should raise a ValueError
-        with pytest.raises(ValueError, match="Unknown concreteType for SelectItem"):
-            _create_select_item_from_dict(data)
-
-
 class TestFilterSubclasses:
     """Tests for the Filter subclasses: RowValidationResultFilter, CellValueFilter,
     RowSelectionFilter, RowIsValidFilter, and RowIdFilter."""
-
-    def test_row_validation_result_filter_fill_from_dict(self) -> None:
-        # GIVEN a response for a RowValidationResultFilter
-        response = {
-            "concreteType": ROW_VALIDATION_RESULT_FILTER,
-            "operator": "LIKE",
-            "validationResultValue": "%expected type:%",
-        }
-
-        # WHEN I fill a RowValidationResultFilter from the response
-        result = RowValidationResultFilter().fill_from_dict(response)
-
-        # THEN the operator should be coerced to the ValidationOperator enum
-        assert result.operator == ValidationOperator.LIKE
-        assert result.validation_result_value == "%expected type:%"
 
     def test_row_validation_result_filter_to_synapse_request(self) -> None:
         # GIVEN a RowValidationResultFilter constructed with a string operator
@@ -2738,23 +2665,6 @@ class TestFilterSubclasses:
             "operator": "LIKE",
             "validationResultValue": "%expected type:%",
         }
-
-    def test_cell_value_filter_fill_from_dict(self) -> None:
-        # GIVEN a response for a CellValueFilter
-        response = {
-            "concreteType": CELL_VALUE_FILTER,
-            "columnName": "Project",
-            "operator": "EQUALS",
-            "value": ["Alpha"],
-        }
-
-        # WHEN I fill a CellValueFilter from the response
-        result = CellValueFilter().fill_from_dict(response)
-
-        # THEN the fields should be populated and the operator coerced to an enum
-        assert result.column_name == "Project"
-        assert result.operator == CellValueOperator.EQUALS
-        assert result.value == ["Alpha"]
 
     def test_cell_value_filter_to_synapse_request(self) -> None:
         # GIVEN a CellValueFilter with an enum operator
@@ -2775,16 +2685,6 @@ class TestFilterSubclasses:
             "value": ["Alpha"],
         }
 
-    def test_row_selection_filter_fill_from_dict(self) -> None:
-        # GIVEN a response for a RowSelectionFilter
-        response = {"concreteType": ROW_SELECTION_FILTER, "isSelected": True}
-
-        # WHEN I fill a RowSelectionFilter from the response
-        result = RowSelectionFilter().fill_from_dict(response)
-
-        # THEN is_selected should be populated
-        assert result.is_selected is True
-
     def test_row_selection_filter_to_synapse_request(self) -> None:
         # GIVEN a RowSelectionFilter
         item = RowSelectionFilter(is_selected=False)
@@ -2798,16 +2698,6 @@ class TestFilterSubclasses:
             "isSelected": False,
         }
 
-    def test_row_is_valid_filter_fill_from_dict(self) -> None:
-        # GIVEN a response for a RowIsValidFilter
-        response = {"concreteType": ROW_IS_VALID_FILTER, "value": False}
-
-        # WHEN I fill a RowIsValidFilter from the response
-        result = RowIsValidFilter().fill_from_dict(response)
-
-        # THEN value should be populated
-        assert result.value is False
-
     def test_row_is_valid_filter_to_synapse_request(self) -> None:
         # GIVEN a RowIsValidFilter
         item = RowIsValidFilter(value=True)
@@ -2817,16 +2707,6 @@ class TestFilterSubclasses:
 
         # THEN it should contain the correct fields
         assert result == {"concreteType": ROW_IS_VALID_FILTER, "value": True}
-
-    def test_row_id_filter_fill_from_dict(self) -> None:
-        # GIVEN a response for a RowIdFilter
-        response = {"concreteType": ROW_ID_FILTER, "rowIdsIn": ["1.1", "1.2"]}
-
-        # WHEN I fill a RowIdFilter from the response
-        result = RowIdFilter().fill_from_dict(response)
-
-        # THEN row_ids_in should be populated
-        assert result.row_ids_in == ["1.1", "1.2"]
 
     def test_row_id_filter_to_synapse_request(self) -> None:
         # GIVEN a RowIdFilter
@@ -2842,93 +2722,8 @@ class TestFilterSubclasses:
         }
 
 
-class TestCreateFilterFromDict:
-    """Tests for the _create_filter_from_dict factory function."""
-
-    @pytest.mark.parametrize(
-        "concrete_type,extra_fields,expected_cls",
-        [
-            (
-                ROW_VALIDATION_RESULT_FILTER,
-                {"operator": "LIKE"},
-                RowValidationResultFilter,
-            ),
-            (
-                CELL_VALUE_FILTER,
-                {"columnName": "Project", "operator": "EQUALS"},
-                CellValueFilter,
-            ),
-            (ROW_SELECTION_FILTER, {"isSelected": True}, RowSelectionFilter),
-            (ROW_IS_VALID_FILTER, {"value": True}, RowIsValidFilter),
-            (ROW_ID_FILTER, {"rowIdsIn": ["1.1"]}, RowIdFilter),
-        ],
-    )
-    def test_dispatch(self, concrete_type, extra_fields, expected_cls) -> None:
-        # GIVEN a dict with a known concreteType
-        data = {"concreteType": concrete_type, **extra_fields}
-
-        # WHEN I create a Filter from the dict
-        result = _create_filter_from_dict(data)
-
-        # THEN it should be an instance of the expected subclass
-        assert isinstance(result, expected_cls)
-        assert isinstance(result, Filter)
-
-    def test_unknown_concrete_type_raises_error(self) -> None:
-        # GIVEN a dict with an unknown concreteType
-        data = {"concreteType": "org.sagebionetworks.Unknown"}
-
-        # WHEN I attempt to create a Filter
-        # THEN it should raise a ValueError
-        with pytest.raises(ValueError, match="Unknown concreteType for Filter"):
-            _create_filter_from_dict(data)
-
-
 class TestGridQuery:
     """Tests for the GridQuery dataclass."""
-
-    def test_fill_from_dict(self) -> None:
-        # GIVEN a response with column selection and filters
-        response = {
-            "columnSelection": [
-                {"concreteType": SELECT_ALL},
-                {"concreteType": SELECT_BY_NAME, "columnName": "diagnosis"},
-            ],
-            "filters": [
-                {"concreteType": ROW_IS_VALID_FILTER, "value": True},
-            ],
-            "limit": 50,
-            "offset": 10,
-            "includeValidationMessages": True,
-        }
-
-        # WHEN I fill a GridQuery from the response
-        result = GridQuery().fill_from_dict(response)
-
-        # THEN the fields should be populated with typed objects
-        assert len(result.column_selection) == 2
-        assert isinstance(result.column_selection[0], SelectAll)
-        assert isinstance(result.column_selection[1], SelectByName)
-        assert result.column_selection[1].column_name == "diagnosis"
-        assert len(result.filters) == 1
-        assert isinstance(result.filters[0], RowIsValidFilter)
-        assert result.limit == 50
-        assert result.offset == 10
-        assert result.include_validation_messages is True
-
-    def test_fill_from_dict_without_filters(self) -> None:
-        # GIVEN a response with no filters key
-        response = {
-            "columnSelection": [{"concreteType": SELECT_ALL}],
-            "limit": 100,
-        }
-
-        # WHEN I fill a GridQuery from the response
-        result = GridQuery().fill_from_dict(response)
-
-        # THEN filters should be None
-        assert result.filters is None
-        assert result.limit == 100
 
     def test_to_synapse_request(self) -> None:
         # GIVEN a GridQuery with select items and filters
@@ -2979,23 +2774,6 @@ class TestGridQuery:
 
 class TestQueryRequest:
     """Tests for the QueryRequest dataclass."""
-
-    def test_fill_from_dict(self) -> None:
-        # GIVEN a response with a nested query
-        response = {
-            "query": {
-                "columnSelection": [{"concreteType": SELECT_ALL}],
-                "limit": 10,
-            }
-        }
-
-        # WHEN I fill a QueryRequest from the response
-        result = QueryRequest().fill_from_dict(response)
-
-        # THEN the query should be populated as a GridQuery
-        assert isinstance(result.query, GridQuery)
-        assert result.query.limit == 10
-        assert isinstance(result.query.column_selection[0], SelectAll)
 
     def test_to_synapse_request(self) -> None:
         # GIVEN a QueryRequest with a GridQuery

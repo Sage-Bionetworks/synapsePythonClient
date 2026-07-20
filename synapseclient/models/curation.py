@@ -2535,19 +2535,6 @@ class SelectItem(ABC):
     """
 
     @abstractmethod
-    def fill_from_dict(self, synapse_response: Dict[str, Any]) -> "SelectItem":
-        """
-        Converts a response from the REST API into this dataclass.
-
-        Arguments:
-            synapse_response: The response from the REST API.
-
-        Returns:
-            The SelectItem object.
-        """
-        ...
-
-    @abstractmethod
     def to_synapse_request(self) -> Dict[str, Any]:
         """
         Converts this dataclass to a dictionary suitable for a Synapse REST API request.
@@ -2572,19 +2559,6 @@ class SelectByName(SelectItem):
     column_name: Optional[str] = None
     """The name of the column to include in the select."""
 
-    def fill_from_dict(self, synapse_response: Dict[str, Any]) -> "SelectByName":
-        """
-        Converts a response from the REST API into this dataclass.
-
-        Arguments:
-            synapse_response: The response from the REST API.
-
-        Returns:
-            The SelectByName object.
-        """
-        self.column_name = synapse_response.get("columnName", None)
-        return self
-
     def to_synapse_request(self) -> Dict[str, Any]:
         """
         Converts this dataclass to a dictionary suitable for a Synapse REST API request.
@@ -2604,18 +2578,6 @@ class SelectAll(SelectItem):
 
     <https://rest-docs.synapse.org/rest/org/sagebionetworks/repo/model/grid/query/SelectAll.html>
     """
-
-    def fill_from_dict(self, synapse_response: Dict[str, Any]) -> "SelectAll":
-        """
-        Converts a response from the REST API into this dataclass.
-
-        Arguments:
-            synapse_response: The response from the REST API.
-
-        Returns:
-            The SelectAll object.
-        """
-        return self
 
     def to_synapse_request(self) -> Dict[str, Any]:
         """
@@ -2643,19 +2605,6 @@ class CountStar(SelectItem):
     alias: Optional[str] = None
     """Used to name the resulting count column."""
 
-    def fill_from_dict(self, synapse_response: Dict[str, Any]) -> "CountStar":
-        """
-        Converts a response from the REST API into this dataclass.
-
-        Arguments:
-            synapse_response: The response from the REST API.
-
-        Returns:
-            The CountStar object.
-        """
-        self.alias = synapse_response.get("alias", None)
-        return self
-
     def to_synapse_request(self) -> Dict[str, Any]:
         """
         Converts this dataclass to a dictionary suitable for a Synapse REST API request.
@@ -2677,18 +2626,6 @@ class SelectSelection(SelectItem):
     <https://rest-docs.synapse.org/rest/org/sagebionetworks/repo/model/grid/query/SelectSelection.html>
     """
 
-    def fill_from_dict(self, synapse_response: Dict[str, Any]) -> "SelectSelection":
-        """
-        Converts a response from the REST API into this dataclass.
-
-        Arguments:
-            synapse_response: The response from the REST API.
-
-        Returns:
-            The SelectSelection object.
-        """
-        return self
-
     def to_synapse_request(self) -> Dict[str, Any]:
         """
         Converts this dataclass to a dictionary suitable for a Synapse REST API request.
@@ -2697,32 +2634,6 @@ class SelectSelection(SelectItem):
             A dictionary representation of this object for API requests.
         """
         return {"concreteType": SELECT_SELECTION}
-
-
-SELECT_ITEM_DICT: dict[str, type[SelectItem]] = {
-    SELECT_BY_NAME: SelectByName,
-    SELECT_ALL: SelectAll,
-    COUNT_STAR: CountStar,
-    SELECT_SELECTION: SelectSelection,
-}
-
-
-def _create_select_item_from_dict(item_dict: Dict[str, Any]) -> SelectItem:
-    """
-    Factory method to create the appropriate SelectItem subclass based on the
-    concreteType.
-
-    Arguments:
-        item_dict: Dictionary containing select item data.
-
-    Returns:
-        The appropriate SelectItem instance.
-    """
-    concrete_type = item_dict.get("concreteType", "")
-    cls = SELECT_ITEM_DICT.get(concrete_type)
-    if cls is None:
-        raise ValueError(f"Unknown concreteType for SelectItem: {concrete_type}")
-    return cls().fill_from_dict(item_dict)
 
 
 @dataclass
@@ -2737,19 +2648,6 @@ class Filter(ABC):
 
     The concrete subclass is determined by the concreteType field in the REST response.
     """
-
-    @abstractmethod
-    def fill_from_dict(self, synapse_response: Dict[str, Any]) -> "Filter":
-        """
-        Converts a response from the REST API into this dataclass.
-
-        Arguments:
-            synapse_response: The response from the REST API.
-
-        Returns:
-            The Filter object.
-        """
-        ...
 
     @abstractmethod
     def to_synapse_request(self) -> Dict[str, Any]:
@@ -2788,24 +2686,6 @@ class RowValidationResultFilter(Filter, EnumCoercionMixin):
     validation_result_value: Optional[str] = None
     """A validation result value. For wildcards use '%' to represents zero or
     more characters, and '_' to represents a single character."""
-
-    def fill_from_dict(
-        self, synapse_response: Dict[str, Any]
-    ) -> "RowValidationResultFilter":
-        """
-        Converts a response from the REST API into this dataclass.
-
-        Arguments:
-            synapse_response: The response from the REST API.
-
-        Returns:
-            The RowValidationResultFilter object.
-        """
-        self.operator = synapse_response.get("operator", None)
-        self.validation_result_value = synapse_response.get(
-            "validationResultValue", None
-        )
-        return self
 
     def to_synapse_request(self) -> Dict[str, Any]:
         """
@@ -2863,21 +2743,6 @@ class CellValueFilter(Filter, EnumCoercionMixin):
     character '%' is used to represents zero or more characters, and '_' is
     used to represent a single character."""
 
-    def fill_from_dict(self, synapse_response: Dict[str, Any]) -> "CellValueFilter":
-        """
-        Converts a response from the REST API into this dataclass.
-
-        Arguments:
-            synapse_response: The response from the REST API.
-
-        Returns:
-            The CellValueFilter object.
-        """
-        self.column_name = synapse_response.get("columnName", None)
-        self.operator = synapse_response.get("operator", None)
-        self.value = synapse_response.get("value", None)
-        return self
-
     def to_synapse_request(self) -> Dict[str, Any]:
         """
         Converts this dataclass to a dictionary suitable for a Synapse REST API request.
@@ -2915,19 +2780,6 @@ class RowSelectionFilter(Filter):
     """When true, only rows that the user has selected will be returned. When
     false, rows that the user has selected will be excluded."""
 
-    def fill_from_dict(self, synapse_response: Dict[str, Any]) -> "RowSelectionFilter":
-        """
-        Converts a response from the REST API into this dataclass.
-
-        Arguments:
-            synapse_response: The response from the REST API.
-
-        Returns:
-            The RowSelectionFilter object.
-        """
-        self.is_selected = synapse_response.get("isSelected", None)
-        return self
-
     def to_synapse_request(self) -> Dict[str, Any]:
         """
         Converts this dataclass to a dictionary suitable for a Synapse REST API request.
@@ -2960,19 +2812,6 @@ class RowIsValidFilter(Filter):
     value: Optional[bool] = None
     """Set to true to find rows that are valid according to the schema. Set to
     false to find rows that are invalid and have validation errors."""
-
-    def fill_from_dict(self, synapse_response: Dict[str, Any]) -> "RowIsValidFilter":
-        """
-        Converts a response from the REST API into this dataclass.
-
-        Arguments:
-            synapse_response: The response from the REST API.
-
-        Returns:
-            The RowIsValidFilter object.
-        """
-        self.value = synapse_response.get("value", None)
-        return self
 
     def to_synapse_request(self) -> Dict[str, Any]:
         """
@@ -3011,19 +2850,6 @@ class RowIdFilter(Filter):
     from a grid query. Omit this filter if you do not know the IDs. Do not
     include duplicates or IDs not present in the current grid."""
 
-    def fill_from_dict(self, synapse_response: Dict[str, Any]) -> "RowIdFilter":
-        """
-        Converts a response from the REST API into this dataclass.
-
-        Arguments:
-            synapse_response: The response from the REST API.
-
-        Returns:
-            The RowIdFilter object.
-        """
-        self.row_ids_in = synapse_response.get("rowIdsIn", None)
-        return self
-
     def to_synapse_request(self) -> Dict[str, Any]:
         """
         Converts this dataclass to a dictionary suitable for a Synapse REST API request.
@@ -3034,33 +2860,6 @@ class RowIdFilter(Filter):
         request_dict = {"concreteType": ROW_ID_FILTER, "rowIdsIn": self.row_ids_in}
         delete_none_keys(request_dict)
         return request_dict
-
-
-FILTER_DICT: dict[str, type[Filter]] = {
-    ROW_VALIDATION_RESULT_FILTER: RowValidationResultFilter,
-    CELL_VALUE_FILTER: CellValueFilter,
-    ROW_SELECTION_FILTER: RowSelectionFilter,
-    ROW_IS_VALID_FILTER: RowIsValidFilter,
-    ROW_ID_FILTER: RowIdFilter,
-}
-
-
-def _create_filter_from_dict(filter_dict: Dict[str, Any]) -> Filter:
-    """
-    Factory method to create the appropriate Filter subclass based on the
-    concreteType.
-
-    Arguments:
-        filter_dict: Dictionary containing filter data.
-
-    Returns:
-        The appropriate Filter instance.
-    """
-    concrete_type = filter_dict.get("concreteType", "")
-    cls = FILTER_DICT.get(concrete_type)
-    if cls is None:
-        raise ValueError(f"Unknown concreteType for Filter: {concrete_type}")
-    return cls().fill_from_dict(filter_dict)
 
 
 @dataclass
@@ -3108,35 +2907,6 @@ class GridQuery:
     include_validation_messages: Optional[bool] = None
     """Controls whether the 'allValidationMessages' array appears in the response."""
 
-    def fill_from_dict(self, synapse_response: Dict[str, Any]) -> "GridQuery":
-        """
-        Converts a response from the REST API into this dataclass.
-
-        Arguments:
-            synapse_response: The response from the REST API.
-
-        Returns:
-            The GridQuery object.
-        """
-        self.column_selection = [
-            _create_select_item_from_dict(item)
-            for item in synapse_response.get("columnSelection", [])
-        ]
-
-        filters_data = synapse_response.get("filters", None)
-        self.filters = (
-            [_create_filter_from_dict(item) for item in filters_data]
-            if filters_data is not None
-            else None
-        )
-
-        self.limit = synapse_response.get("limit", None)
-        self.offset = synapse_response.get("offset", None)
-        self.include_validation_messages = synapse_response.get(
-            "includeValidationMessages", None
-        )
-        return self
-
     def to_synapse_request(self) -> Dict[str, Any]:
         """
         Converts this dataclass to a dictionary suitable for a Synapse REST API request.
@@ -3183,20 +2953,6 @@ class QueryRequest:
 
     query: Optional[GridQuery] = None
     """Defines a structured query using JSON SelectItems and Filters objects (not SQL syntax)."""
-
-    def fill_from_dict(self, synapse_response: Dict[str, Any]) -> "QueryRequest":
-        """
-        Converts a response from the REST API into this dataclass.
-
-        Arguments:
-            synapse_response: The response from the REST API.
-
-        Returns:
-            The QueryRequest object.
-        """
-        query_dict = synapse_response.get("query", None)
-        self.query = GridQuery().fill_from_dict(query_dict) if query_dict else None
-        return self
 
     def to_synapse_request(self) -> Dict[str, Any]:
         """
