@@ -5138,17 +5138,19 @@ class Grid(EnumCoercionMixin, GridSynchronousProtocol):
         synapse_client: Optional[Synapse] = None,
     ) -> AsyncGenerator["Grid", None]:
         """
-        Connects to a grid session for a record set and binds a single replica to
-        it for the duration of the `async with` block.
+        Connects to a grid session and binds a single replica to it for the
+        duration of the `async with` block.
 
-        This creates the grid session (see `create_async`), then creates one
-        replica (see `_create_replica_async`) that is reused by every
-        `validate_rows_async` call made on the yielded Grid within the block,
-        instead of a new replica being created per call.
+        If `session_id` is not already set (e.g. from `create_grid_session`),
+        creates a new grid session first via `record_set_id` or
+        `initial_query`, same as `create_async`. Either way, one replica is
+        then created (see `_create_replica_async`) that is reused by every
+        `validate_rows_async` call made within the block.
 
         Arguments:
-            attach_to_previous_session: If True, will attach to an existing active
-                session for this record set if one exists. Defaults to False.
+            attach_to_previous_session: Only applies when creating a new
+                session from `record_set_id`. If True, attaches to an existing
+                active session instead of creating a new one. Defaults to False.
             timeout: The number of seconds to wait for the job to complete or progress
                 before raising a SynapseTimeoutError. Defaults to 120.
             synapse_client: If not passed in and caching was not disabled by
@@ -5242,17 +5244,19 @@ class Grid(EnumCoercionMixin, GridSynchronousProtocol):
         """
         Synchronous equivalent of `connect_async`.
 
-        Connects to a grid session for a record set and binds a single replica to
-        it for the duration of the `with` block.
+        Connects to a grid session and binds a single replica to it for the
+        duration of the `with` block.
 
-        This creates the grid session (see `create`), then creates one replica
-        (see `_create_replica`) that is reused by every `validate_rows` call made
-        on the yielded Grid within the block, instead of a new replica being
-        created per call.
+        If `session_id` is not already set (e.g. from `create_grid_session`),
+        creates a new grid session first via `record_set_id` or
+        `initial_query`, same as `create`. Either way, one replica is then
+        created (see `_create_replica`) that is reused by every
+        `validate_rows` call made within the block.
 
         Arguments:
-            attach_to_previous_session: If True, will attach to an existing active
-                session for this record set if one exists. Defaults to False.
+            attach_to_previous_session: Only applies when creating a new
+                session from `record_set_id`. If True, attaches to an existing
+                active session instead of creating a new one. Defaults to False.
             timeout: The number of seconds to wait for the job to complete or progress
                 before raising a SynapseTimeoutError. Defaults to 120.
             synapse_client: If not passed in and caching was not disabled by
