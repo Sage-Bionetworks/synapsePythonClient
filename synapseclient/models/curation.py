@@ -4958,7 +4958,7 @@ class Grid(EnumCoercionMixin, GridSynchronousProtocol):
             grid = task.create_grid_session()
 
             async def main():
-                async with Grid(session_id="abc-123-def").connect_async() as session:
+                async with Grid(session_id=grid.session_id).connect_async() as session:
                     query_request = QueryRequest(
                         query=GridQuery(column_selection=[SelectAll()])
                     )
@@ -5060,7 +5060,7 @@ class Grid(EnumCoercionMixin, GridSynchronousProtocol):
             task = CurationTask(task_id="1234")
             grid = task.create_grid_session()
 
-            with Grid(session_id="abc-123-def").connect() as session:
+            with Grid(session_id=grid.session_id).connect() as session:
                 query_request = QueryRequest(
                     query=GridQuery(column_selection=[SelectAll()])
                 )
