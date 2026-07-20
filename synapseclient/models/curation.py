@@ -3781,9 +3781,7 @@ class GridSynchronousProtocol(Protocol):
                 instance from the Synapse class constructor.
 
         Returns:
-            The GridQueryResult containing the selected columns and rows, each with
-            its own validation_results. Returns None (and logs a warning) if the
-            job completed but no rows matched the query.
+            The GridQueryResult containing the selected columns and rows, each with its own validation_results. Returns None (and logs a warning) if the job completed but no rows matched the query.
 
         Raises:
             ValueError: If session_id is not provided, or if no replica is bound
@@ -3794,7 +3792,8 @@ class GridSynchronousProtocol(Protocol):
 
             ```python
             from synapseclient import Synapse
-            from synapseclient.models import Grid, GridQuery, QueryRequest, SelectAll
+            from synapseclient.models import Grid
+            from synapseclient.models.curation import GridQuery, QueryRequest, SelectAll
 
             syn = Synapse()
             syn.login()
@@ -3815,8 +3814,8 @@ class GridSynchronousProtocol(Protocol):
 
             ```python
             from synapseclient import Synapse
-            from synapseclient.models import (
-                Grid,
+            from synapseclient.models import Grid
+            from synapseclient.models.curation import (
                 GridQuery,
                 QueryRequest,
                 RowIsValidFilter,
@@ -4922,7 +4921,8 @@ class Grid(EnumCoercionMixin, GridSynchronousProtocol):
             ```python
             import asyncio
             from synapseclient import Synapse
-            from synapseclient.models import Grid, GridQuery, QueryRequest, SelectAll
+            from synapseclient.models import Grid
+            from synapseclient.models.curation import GridQuery, QueryRequest, SelectAll
 
             syn = Synapse()
             syn.login()
@@ -4948,7 +4948,8 @@ class Grid(EnumCoercionMixin, GridSynchronousProtocol):
             ```python
             import asyncio
             from synapseclient import Synapse
-            from synapseclient.models import Grid, GridQuery, QueryRequest, SelectAll, CurationTask
+            from synapseclient.models import CurationTask, Grid
+            from synapseclient.models.curation import GridQuery, QueryRequest, SelectAll
 
             syn = Synapse()
             syn.login()
@@ -5027,7 +5028,8 @@ class Grid(EnumCoercionMixin, GridSynchronousProtocol):
 
             ```python
             from synapseclient import Synapse
-            from synapseclient.models import Grid, GridQuery, QueryRequest, SelectAll
+            from synapseclient.models import Grid
+            from synapseclient.models.curation import GridQuery, QueryRequest, SelectAll
 
             syn = Synapse()
             syn.login()
@@ -5049,7 +5051,8 @@ class Grid(EnumCoercionMixin, GridSynchronousProtocol):
 
             ```python
             from synapseclient import Synapse
-            from synapseclient.models import Grid, GridQuery, QueryRequest, SelectAll, CurationTask
+            from synapseclient.models import CurationTask, Grid
+            from synapseclient.models.curation import GridQuery, QueryRequest, SelectAll
 
             syn = Synapse()
             syn.login()
@@ -5117,9 +5120,7 @@ class Grid(EnumCoercionMixin, GridSynchronousProtocol):
                 instance from the Synapse class constructor.
 
         Returns:
-            The GridQueryResult containing the selected columns and rows, each with
-            its own validation_results. Returns None (and logs a warning) if the
-            job completed but no rows matched the query.
+            The GridQueryResult containing the selected columns and rows, each with its own validation_results. Returns None (and logs a warning) if the job completed but no rows matched the query.
 
         Raises:
             ValueError: If session_id is not provided, or if no replica is bound
@@ -5131,7 +5132,8 @@ class Grid(EnumCoercionMixin, GridSynchronousProtocol):
             ```python
             import asyncio
             from synapseclient import Synapse
-            from synapseclient.models import Grid, GridQuery, QueryRequest, SelectAll
+            from synapseclient.models import Grid
+            from synapseclient.models.curation import GridQuery, QueryRequest, SelectAll
 
             syn = Synapse()
             syn.login()
@@ -5158,8 +5160,8 @@ class Grid(EnumCoercionMixin, GridSynchronousProtocol):
             ```python
             import asyncio
             from synapseclient import Synapse
-            from synapseclient.models import (
-                Grid,
+            from synapseclient.models import Grid
+            from synapseclient.models.curation import (
                 GridQuery,
                 QueryRequest,
                 RowIsValidFilter,
