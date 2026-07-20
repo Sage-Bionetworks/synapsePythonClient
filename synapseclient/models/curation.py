@@ -4092,6 +4092,7 @@ class Grid(EnumCoercionMixin, GridSynchronousProtocol):
         ```python
         from synapseclient import Synapse
         from synapseclient.models import Grid
+        from synapseclient.models.curation import GridQuery, QueryRequest, SelectAll
 
         syn = Synapse()
         syn.login()
@@ -4100,6 +4101,14 @@ class Grid(EnumCoercionMixin, GridSynchronousProtocol):
         grid = Grid(record_set_id="syn1234567")
         grid = grid.create()
         print(f"Created grid session: {grid.session_id}")
+
+        # Validate rows. SelectAll() selects every column, so each row's full
+        # data is returned alongside its validation results.
+        with Grid(session_id=grid.session_id).connect() as session:
+            query_request = QueryRequest(query=GridQuery(column_selection=[SelectAll()]))
+            result = session.validate_rows(query_request=query_request)
+            for row in result.rows:
+                print(f"Row ID: {row.row_id}, Validation Result: {row.validation_results}")
 
         # Later, export the modified data back to the record set
         grid = grid.export_to_record_set()
@@ -4116,6 +4125,7 @@ class Grid(EnumCoercionMixin, GridSynchronousProtocol):
         from synapseclient import Synapse
         from synapseclient.models import Grid
         from synapseclient.models.table_components import Query
+        from synapseclient.models.curation import GridQuery, QueryRequest, SelectAll
 
         syn = Synapse()
         syn.login()
@@ -4125,7 +4135,14 @@ class Grid(EnumCoercionMixin, GridSynchronousProtocol):
         grid = Grid(initial_query=query)
         grid = grid.create()
 
-        # Work with the grid session...
+        # Validate rows. SelectAll() selects every column, so each row's full
+        # data is returned alongside its validation results.
+        with Grid(session_id=grid.session_id).connect() as session:
+            query_request = QueryRequest(query=GridQuery(column_selection=[SelectAll()]))
+            result = session.validate_rows(query_request=query_request)
+            for row in result.rows:
+                print(f"Row ID: {row.row_id}, Validation Result: {row.validation_results}")
+
         # Export when ready
         grid = grid.export_to_record_set()
         ```
