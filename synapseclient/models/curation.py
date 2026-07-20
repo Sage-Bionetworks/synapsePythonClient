@@ -3954,7 +3954,7 @@ class GridSynchronousProtocol(Protocol):
         """
         return self
 
-    def create_replica(
+    def _create_replica(
         self, *, synapse_client: Optional[Synapse] = None
     ) -> "GridReplica":
         """
@@ -3992,7 +3992,7 @@ class GridSynchronousProtocol(Protocol):
             grid = Grid(record_set_id="syn1234567")
             grid = grid.create()
 
-            replica = grid.create_replica()
+            replica = grid._create_replica()
             print(f"Replica created with ID: {replica.replica_id}")
             ```
         """
@@ -5062,7 +5062,7 @@ class Grid(EnumCoercionMixin, GridSynchronousProtocol):
     @otel_trace_method(
         method_to_trace_name=lambda self, **kwargs: f"Grid_Create_Replica_Session_ID: {self.session_id}"
     )
-    async def create_replica_async(
+    async def _create_replica_async(
         self, *, synapse_client: Optional[Synapse] = None
     ) -> "GridReplica":
         """
@@ -5102,7 +5102,7 @@ class Grid(EnumCoercionMixin, GridSynchronousProtocol):
                 grid = Grid(record_set_id="syn1234567")
                 grid = await grid.create_async()
 
-                replica = await grid.create_replica_async()
+                replica = await grid._create_replica_async()
                 print(f"Replica created with ID: {replica.replica_id}")
 
             asyncio.run(main())
@@ -5142,7 +5142,7 @@ class Grid(EnumCoercionMixin, GridSynchronousProtocol):
         it for the duration of the `async with` block.
 
         This creates the grid session (see `create_async`), then creates one
-        replica (see `create_replica_async`) that is reused by every
+        replica (see `_create_replica_async`) that is reused by every
         `validate_rows_async` call made on the yielded Grid within the block,
         instead of a new replica being created per call.
 
@@ -5224,7 +5224,7 @@ class Grid(EnumCoercionMixin, GridSynchronousProtocol):
                 synapse_client=synapse_client,
             )
 
-        replica = await self.create_replica_async(synapse_client=synapse_client)
+        replica = await self._create_replica_async(synapse_client=synapse_client)
         self._replica_id = replica.replica_id
         try:
             yield self
@@ -5246,7 +5246,7 @@ class Grid(EnumCoercionMixin, GridSynchronousProtocol):
         it for the duration of the `with` block.
 
         This creates the grid session (see `create`), then creates one replica
-        (see `create_replica`) that is reused by every `validate_rows` call made
+        (see `_create_replica`) that is reused by every `validate_rows` call made
         on the yielded Grid within the block, instead of a new replica being
         created per call.
 
@@ -5320,7 +5320,7 @@ class Grid(EnumCoercionMixin, GridSynchronousProtocol):
                 synapse_client=synapse_client,
             )
 
-        replica = self.create_replica(synapse_client=synapse_client)
+        replica = self._create_replica(synapse_client=synapse_client)
         self._replica_id = replica.replica_id
         try:
             yield self

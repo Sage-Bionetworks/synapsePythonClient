@@ -3138,7 +3138,7 @@ class TestCreateReplicaRequest:
 
 
 class TestGridCreateReplica:
-    """Tests for Grid.create_replica_async."""
+    """Tests for Grid._create_replica_async."""
 
     @pytest.fixture(autouse=True, scope="function")
     def init_syn(self, syn: Synapse) -> None:
@@ -3148,12 +3148,12 @@ class TestGridCreateReplica:
         # GIVEN a Grid without a session_id
         grid = Grid()
 
-        # WHEN I call create_replica_async
+        # WHEN I call _create_replica_async
         # THEN it should raise ValueError
         with pytest.raises(
             ValueError, match="session_id is required to create a replica"
         ):
-            await grid.create_replica_async(synapse_client=self.syn)
+            await grid._create_replica_async(synapse_client=self.syn)
 
     async def test_create_replica_async_returns_grid_replica(self) -> None:
         # GIVEN a Grid with a session_id and a mocked API response
@@ -3168,13 +3168,13 @@ class TestGridCreateReplica:
             }
         }
 
-        # WHEN I call create_replica_async
+        # WHEN I call _create_replica_async
         with patch(
             "synapseclient.models.curation.create_grid_replica",
             new_callable=AsyncMock,
             return_value=mock_response,
         ) as mock_create:
-            result = await grid.create_replica_async(synapse_client=self.syn)
+            result = await grid._create_replica_async(synapse_client=self.syn)
 
             # THEN the API should be called with the session_id and request body
             mock_create.assert_called_once_with(
@@ -3197,7 +3197,7 @@ class TestGridCreateReplica:
         # GIVEN a Grid with a session_id and a response with no replica data
         grid = Grid(session_id=SESSION_ID)
 
-        # WHEN I call create_replica_async
+        # WHEN I call _create_replica_async
         # THEN it should raise ValueError since no replica was returned
         with patch(
             "synapseclient.models.curation.create_grid_replica",
@@ -3205,7 +3205,7 @@ class TestGridCreateReplica:
             return_value={},
         ):
             with pytest.raises(ValueError, match="Replica could not be created"):
-                await grid.create_replica_async(synapse_client=self.syn)
+                await grid._create_replica_async(synapse_client=self.syn)
 
 
 class TestGridConnect:
@@ -3228,7 +3228,7 @@ class TestGridConnect:
             ) as mock_create_async,
             patch.object(
                 Grid,
-                "create_replica_async",
+                "_create_replica_async",
                 new_callable=AsyncMock,
                 return_value=GridReplica(replica_id=REPLICA_ID),
             ) as mock_create_replica,
@@ -3241,7 +3241,7 @@ class TestGridConnect:
                     timeout=120,
                     synapse_client=self.syn,
                 )
-                # AND create_replica_async should be called to bind a replica
+                # AND _create_replica_async should be called to bind a replica
                 mock_create_replica.assert_called_once_with(synapse_client=self.syn)
                 # AND the replica_id should be bound on the yielded Grid
                 assert session._replica_id == REPLICA_ID
@@ -3261,7 +3261,7 @@ class TestGridConnect:
             ) as mock_create_async,
             patch.object(
                 Grid,
-                "create_replica_async",
+                "_create_replica_async",
                 new_callable=AsyncMock,
                 return_value=GridReplica(replica_id=REPLICA_ID),
             ) as mock_create_replica,
@@ -3271,7 +3271,7 @@ class TestGridConnect:
                 # THEN create_async should NOT be called since session_id was
                 # already set
                 mock_create_async.assert_not_called()
-                # AND create_replica_async should still be called to bind a
+                # AND _create_replica_async should still be called to bind a
                 # replica to the existing session
                 mock_create_replica.assert_called_once_with(synapse_client=self.syn)
                 assert session.session_id == SESSION_ID

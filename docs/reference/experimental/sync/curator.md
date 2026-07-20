@@ -68,7 +68,6 @@
             - import_csv
             - delete
             - list
-            - create_replica
             - connect
             - validate_rows
 ---
