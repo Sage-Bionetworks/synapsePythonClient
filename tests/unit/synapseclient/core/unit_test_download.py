@@ -619,6 +619,7 @@ class TestDownloadFromUrlMultiThreaded:
         with (
             patch("synapseclient.core.download.download_functions.download_file"),
             patch.object(utils, "md5_for_file") as mock_md5_for_file,
+            patch.object(os.path, "getsize", return_value=100),
             patch.object(os, "remove") as mock_os_remove,
             patch.object(shutil, "move") as mock_move,
         ):
@@ -651,6 +652,7 @@ class TestDownloadFromUrlMultiThreaded:
                 "md5_for_file_hex",
                 return_value=expected_md5,
             ),
+            patch.object(os.path, "getsize", return_value=100),
             patch.object(os, "remove") as mock_os_remove,
             patch.object(shutil, "move") as mock_move,
         ):
@@ -678,6 +680,7 @@ class TestDownloadFromUrlMultiThreaded:
             ) as mock_download_file,
             patch.object(utils, "temp_download_filename", return_value="/temp/path"),
             patch.object(utils, "md5_for_file_hex", return_value="expectedMd5"),
+            patch.object(os.path, "getsize", return_value=100),
             patch.object(os, "remove") as mock_os_remove,
             patch.object(shutil, "move") as mock_move,
         ):
@@ -719,6 +722,7 @@ class TestDownloadFromUrlMultiThreaded:
             ) as mock_download_file,
             patch.object(utils, "temp_download_filename", return_value="/temp/path"),
             patch.object(utils, "md5_for_file_hex", return_value="anotherMd5"),
+            patch.object(os.path, "getsize", return_value=100),
             patch.object(os, "remove") as mock_os_remove,
             patch.object(shutil, "move") as mock_move,
         ):
@@ -846,6 +850,7 @@ class TestDownloadFromUrlMultiThreaded:
             patch.object(
                 utils, "temp_download_filename", return_value="/temp/path"
             ) as mock_temp_filename,
+            patch.object(os.path, "getsize", return_value=100),
             patch.object(os, "remove") as mock_os_remove,
             patch.object(shutil, "move") as mock_move,
         ):
@@ -1076,6 +1081,7 @@ class TestDownloadFromUrl:
                 "md5_for_file_hex",
                 return_value="Some other incorrect md5",
             ) as mocked_md5_for_file,
+            patch.object(os.path, "getsize", return_value=100),
             patch("os.remove") as mocked_remove,
         ):
             # function under test
