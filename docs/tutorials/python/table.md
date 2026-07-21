@@ -24,7 +24,7 @@ In this tutorial you will:
 
 ```python
 import synapseclient
-from synapseclient.models import Column, Project, query, SchemaStorageStrategy, Table, query
+from synapseclient.models import Column, Project, query, SchemaStorageStrategy, Table
 from datetime import date, datetime, timezone
 import pandas as pd
 
