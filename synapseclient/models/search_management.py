@@ -197,7 +197,7 @@ class TextAnalyzer(OrgScopedResource):
     """A shareable, named OpenSearch custom analyzer. Used to configure how text
     is tokenized for a search index.
 
-    REST: <https://rest-docs.synapse.org/rest/org/sagebionetworks/repo/model/search/table/TextAnalyzer.html>
+    Represents a [Synapse TextAnalyzer](https://rest-docs.synapse.org/rest/org/sagebionetworks/repo/model/search/table/TextAnalyzer.html).
     """
 
     _CREATE_FN = staticmethod(create_text_analyzer)
@@ -206,9 +206,20 @@ class TextAnalyzer(OrgScopedResource):
     _LIST_FN = staticmethod(list_text_analyzers)
 
     id: Optional[str] = None
+    """The unique immutable ID for this text analyzer."""
+
     organization_name: Optional[str] = None
+    """The name of the organization that owns this analyzer.
+    Immutable after creation."""
+
     name: Optional[str] = None
+    """The name of this analyzer. Must start with a letter and
+    contain only letters, digits, and underscores; unique within the
+    organization."""
+
     description: Optional[str] = None
+    """Optional description of this analyzer."""
+
     settings: Optional[Dict[str, Any]] = None
     """Required. JSON object holding the *contents of* the `settings.analysis`
     block of an OpenSearch create-index request body. Allowed root keys are
@@ -218,10 +229,21 @@ class TextAnalyzer(OrgScopedResource):
     registry resolves to a SynonymSet at index-build time."""
 
     etag: Optional[str] = None
+    """Synapse employs an Optimistic Concurrency Control (OCC) scheme to handle
+    concurrent updates. The eTag changes every time this analyzer is updated;
+    it is used to detect when a client's copy is out-of-date."""
+
     created_on: Optional[str] = None
+    """The date on which this analyzer was created."""
+
     created_by: Optional[str] = None
+    """The ID of the Synapse user who created this analyzer."""
+
     modified_on: Optional[str] = None
+    """The date on which this analyzer was last modified."""
+
     modified_by: Optional[str] = None
+    """The ID of the Synapse user who last modified this analyzer."""
 
     @property
     def qualified_name(self) -> Optional[str]:
@@ -261,7 +283,7 @@ class TextAnalyzer(OrgScopedResource):
 class ColumnAnalyzerOverrideEntry:
     """Assigns one TextAnalyzer to one column.
 
-    REST: <https://rest-docs.synapse.org/rest/org/sagebionetworks/repo/model/search/table/ColumnAnalyzerOverrideEntry.html>
+    Represents a [Synapse ColumnAnalyzerOverrideEntry](https://rest-docs.synapse.org/rest/org/sagebionetworks/repo/model/search/table/ColumnAnalyzerOverrideEntry.html).
     """
 
     column_name: Optional[str] = None
@@ -290,7 +312,7 @@ class ColumnAnalyzerOverrideEntry:
 class ColumnAnalyzerOverride(OrgScopedResource):
     """A shared resource containing per-column analyzer override entries.
 
-    REST: <https://rest-docs.synapse.org/rest/org/sagebionetworks/repo/model/search/table/ColumnAnalyzerOverride.html>
+    Represents a [Synapse ColumnAnalyzerOverride](https://rest-docs.synapse.org/rest/org/sagebionetworks/repo/model/search/table/ColumnAnalyzerOverride.html).
     """
 
     _CREATE_FN = staticmethod(create_column_analyzer_override)
@@ -354,7 +376,7 @@ class SynonymSet(OrgScopedResource):
     Referenced by qualified name `{organizationName}-{name}` from a TextAnalyzer's
     `settings.filter` registry map via `{"$ref": "{organizationName}-{name}"}`.
 
-    REST: <https://rest-docs.synapse.org/rest/org/sagebionetworks/repo/model/search/table/SynonymSet.html>
+    Represents a [Synapse SynonymSet](https://rest-docs.synapse.org/rest/org/sagebionetworks/repo/model/search/table/SynonymSet.html).
     """
 
     _CREATE_FN = staticmethod(create_synonym_set)
@@ -414,7 +436,7 @@ class SearchConfiguration(OrgScopedResource):
     """Bundles the index-wide default analyzer and per-column overrides used to
     build a SearchIndex.
 
-    REST: <https://rest-docs.synapse.org/rest/org/sagebionetworks/repo/model/search/table/SearchConfiguration.html>
+    Represents a [Synapse SearchConfiguration](https://rest-docs.synapse.org/rest/org/sagebionetworks/repo/model/search/table/SearchConfiguration.html).
     """
 
     _CREATE_FN = staticmethod(create_search_configuration)
@@ -611,7 +633,7 @@ class SearchQuery:
     keys Synapse accepts. Each slot's contents are pass-through OpenSearch query
     DSL carried as raw JSON.
 
-    REST: <https://rest-docs.synapse.org/rest/org/sagebionetworks/repo/model/search/SearchQuery.html>
+    Represents a [Synapse SearchQuery](https://rest-docs.synapse.org/rest/org/sagebionetworks/repo/model/search/SearchQuery.html).
     """
 
     query: Optional[Dict[str, Any]] = None
@@ -696,7 +718,7 @@ class SearchAutocompleteRequest:
     autocomplete endpoint allowlists only `query` (restricted to `prefix`,
     `match_phrase_prefix`, or `match_bool_prefix`) and `_source`.
 
-    REST: <https://rest-docs.synapse.org/rest/org/sagebionetworks/repo/model/search/table/SearchAutocompleteRequest.html>
+    Represents a [Synapse SearchAutocompleteRequest](https://rest-docs.synapse.org/rest/org/sagebionetworks/repo/model/search/table/SearchAutocompleteRequest.html).
     """
 
     search_index_id: Optional[str] = None
@@ -728,7 +750,7 @@ class SearchAutocompleteRequest:
 class SearchFieldValue:
     """A name/value pair returned in a SearchHit's `fields`.
 
-    REST: <https://rest-docs.synapse.org/rest/org/sagebionetworks/repo/model/search/SearchFieldValue.html>
+    Represents a [Synapse SearchFieldValue](https://rest-docs.synapse.org/rest/org/sagebionetworks/repo/model/search/SearchFieldValue.html).
     """
 
     name: Optional[str] = None
@@ -747,7 +769,7 @@ class SearchFieldValue:
 class SearchHighlight:
     """A per-field highlight payload on a SearchHit.
 
-    REST: <https://rest-docs.synapse.org/rest/org/sagebionetworks/repo/model/search/SearchHighlight.html>
+    Represents a [Synapse SearchHighlight](https://rest-docs.synapse.org/rest/org/sagebionetworks/repo/model/search/SearchHighlight.html).
     """
 
     name: Optional[str] = None
@@ -767,7 +789,7 @@ class SearchHighlight:
 class SearchHit:
     """A single matching document in a SearchQueryResults response.
 
-    REST: <https://rest-docs.synapse.org/rest/org/sagebionetworks/repo/model/search/SearchHit.html>
+    Represents a [Synapse SearchHit](https://rest-docs.synapse.org/rest/org/sagebionetworks/repo/model/search/SearchHit.html).
     """
 
     row_id: Optional[int] = None
@@ -808,7 +830,7 @@ class SearchIndexQuery(AsynchronousCommunicator):
     fields (`hits`, `total_hits`, `select_columns`, `aggregation_results`,
     `next_search_after`, `offset`) on this same instance.
 
-    REST: <https://rest-docs.synapse.org/rest/org/sagebionetworks/repo/model/search/table/SearchIndexQuery.html>
+    Represents a [Synapse SearchIndexQuery](https://rest-docs.synapse.org/rest/org/sagebionetworks/repo/model/search/table/SearchIndexQuery.html).
 
     Example: Run a search query.
 
@@ -890,7 +912,7 @@ class SearchIndexQuery(AsynchronousCommunicator):
         Called by `AsynchronousCommunicator.send_job_and_wait_async()` once the
         async job completes. Leaves request fields untouched.
 
-        REST: <https://rest-docs.synapse.org/rest/org/sagebionetworks/repo/model/search/SearchQueryResults.html>
+        Modeled from [Synapse SearchQueryResults](https://rest-docs.synapse.org/rest/org/sagebionetworks/repo/model/search/SearchQueryResults.html).
         """
         self.hits = [
             SearchHit().fill_from_dict(h)
