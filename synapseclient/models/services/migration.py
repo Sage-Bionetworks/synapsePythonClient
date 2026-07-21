@@ -39,10 +39,12 @@ from synapseclient.core.exceptions import SynapseError
 from synapseclient.core.upload.multipart_upload import MAX_NUMBER_OF_PARTS
 from synapseclient.core.upload.multipart_upload_async import multipart_copy_async
 from synapseclient.core.utils import test_import_sqlite3
-from synapseclient.entity import Entity
 
 if TYPE_CHECKING:
-    from synapseclient.models import Table
+    from synapseclient.models import File, Folder, Project, Table
+
+    # The OOP entity models that the migration functions operate on at runtime.
+    Migratable = Union[Project, Folder, File, Table]
 
 from synapseclient.models.table_components import (
     AppendableRowSetRequest,
@@ -681,7 +683,7 @@ def _get_file_migration_status(
 # Indexing Functions
 # =============================================================================
 async def index_files_for_migration_async(
-    entity: Entity,
+    entity: "Migratable",
     dest_storage_location_id: str,
     db_path: Optional[str] = None,
     *,
@@ -794,7 +796,7 @@ async def index_files_for_migration_async(
 async def _index_entity_async(
     conn: sqlite3.Connection,
     cursor: sqlite3.Cursor,
-    entity: Entity,
+    entity: "Migratable",
     parent_id: Optional[str],
     dest_storage_location_id: str,
     source_storage_location_ids: List[str],
@@ -889,7 +891,7 @@ async def _index_entity_async(
 
 async def _index_file_entity_async(
     cursor: sqlite3.Cursor,
-    entity: Entity,
+    entity: "Migratable",
     parent_id: Optional[str],
     dest_storage_location_id: str,
     source_storage_location_ids: List[str],

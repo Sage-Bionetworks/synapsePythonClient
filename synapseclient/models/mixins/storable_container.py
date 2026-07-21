@@ -41,7 +41,10 @@ from synapseclient.core.constants.concrete_types import (
 )
 from synapseclient.core.constants.method_flags import COLLISION_OVERWRITE_LOCAL
 from synapseclient.core.exceptions import SynapseError
-from synapseclient.core.transfer_bar import shared_download_progress_bar
+from synapseclient.core.transfer_bar import (
+    create_progress_bar,
+    shared_download_progress_bar,
+)
 from synapseclient.core.upload.multipart_upload_async import (
     shared_progress_bar as upload_shared_progress_bar,
 )
@@ -659,8 +662,6 @@ class StorableContainer(StorableContainerSynchronousProtocol):
             asyncio.run(main())
             ```
         """
-        from tqdm import tqdm
-
         from synapseutils.monitor import notify_me_async
 
         syn = Synapse.get_client(synapse_client=synapse_client)
@@ -683,13 +684,11 @@ class StorableContainer(StorableContainerSynchronousProtocol):
         if not items:
             return []
 
-        progress_bar = tqdm(
+        progress_bar = create_progress_bar(
             total=total_size,
             desc=f"Uploading {len(items)} files",
             unit="B",
-            unit_scale=True,
-            smoothing=0,
-            leave=None,
+            synapse_client=syn,
         )
         with upload_shared_progress_bar(progress_bar):
             try:

@@ -167,7 +167,7 @@ class TestBindJsonSchema:
         finally:
             # Cleanup: unbind schema before deleting folder
             folder.unbind_schema(synapse_client=syn)
-            syn.delete(folder.id)
+            folder.delete(synapse_client=syn)
 
     def test_bind_jsonschema_with_derived_annotations(
         self,
@@ -205,7 +205,7 @@ class TestBindJsonSchema:
         finally:
             # Cleanup: unbind schema before deleting folder
             folder.unbind_schema(synapse_client=syn)
-            syn.delete(folder.id)
+            folder.delete(synapse_client=syn)
 
 
 class TestRegisterAndBindWorkflow:
@@ -262,7 +262,7 @@ class TestRegisterAndBindWorkflow:
         finally:
             # Cleanup: unbind schema before deleting folder
             folder.unbind_schema(synapse_client=syn)
-            syn.delete(folder.id)
+            folder.delete(synapse_client=syn)
 
 
 class TestProjectIDFromEntityID:

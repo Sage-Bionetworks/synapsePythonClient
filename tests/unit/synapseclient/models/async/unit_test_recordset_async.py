@@ -1,6 +1,5 @@
 """Unit tests for the RecordSet model."""
 
-import os
 from contextlib import asynccontextmanager
 from unittest.mock import AsyncMock, MagicMock, patch
 

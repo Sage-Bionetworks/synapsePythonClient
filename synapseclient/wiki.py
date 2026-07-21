@@ -71,13 +71,22 @@ choice for figures with data behind them.
 import json
 import os
 
+from deprecated import deprecated
+
 from synapseclient.core.models.dict_object import DictObject
 from synapseclient.core.utils import id_of
 
 
+@deprecated(
+    version="4.14.0",
+    reason="To be removed in 5.0.0. "
+    "Use the WikiPage model from synapseclient.models.wiki instead.",
+)
 class Wiki(DictObject):
     """
     Represents a wiki page in Synapse with content specified in markdown.
+
+    WARNING - This class is deprecated and will no longer be maintained. Please use the WikiPage model from synapseclient.models.wiki instead.
 
     Arguments:
         title: Title of the Wiki
@@ -87,6 +96,29 @@ class Wiki(DictObject):
         attachments: List of paths to files to attach
         fileHandles: List of file handle IDs representing files to be attached
         parentWikiId: (optional) For sub-pages, specify parent wiki page
+
+    Example: Migration to the object-oriented model
+        &nbsp;
+
+        ```python
+        # Old approach (DEPRECATED)
+        # from synapseclient import Wiki
+        # wiki = Wiki(owner=project, title="Home", markdown="# Welcome")
+        # wiki = syn.store(wiki)
+
+        # New approach (RECOMMENDED)
+        from synapseclient import Synapse
+        from synapseclient.models import WikiPage
+
+        syn = Synapse()
+        syn.login()
+
+        wiki_page = WikiPage(
+            owner_id="syn123",
+            title="Home",
+            markdown="# Welcome",
+        ).store()
+        ```
     """
 
     __PROPERTIES = (
@@ -177,8 +209,41 @@ class Wiki(DictObject):
         self["markdown"] = markdown
 
 
+@deprecated(
+    version="4.14.0",
+    reason="To be removed in 5.0.0. "
+    "Use synapseclient.models.WikiPage.get_attachment_handles() instead, "
+    "which returns the attachment file handles directly.",
+)
 class WikiAttachment(DictObject):
-    """Represents a wiki page attachment."""
+    """Represents a wiki page attachment.
+
+    Example: Migration to the object-oriented model
+        &nbsp;
+
+        Attachments are managed directly on the WikiPage model. Provide local file
+        paths through the attachments field when storing a page, and retrieve the
+        attachment file handles with get_attachment_handles on the WikiPage model.
+        ```python
+        # New approach (RECOMMENDED)
+        from synapseclient import Synapse
+        from synapseclient.models import WikiPage
+
+        syn = Synapse()
+        syn.login()
+
+        wiki_page = WikiPage(
+            owner_id="syn123",
+            title="Home",
+            markdown="# Welcome",
+            attachments=["/path/to/attachment.txt"],
+        ).store()
+
+        attachment_handles = WikiPage(
+            owner_id="syn123", id=wiki_page.id
+        ).get_attachment_handles()
+        ```
+    """
 
     __PROPERTIES = ("contentType", "fileName", "contentMd5", "contentSize")
 

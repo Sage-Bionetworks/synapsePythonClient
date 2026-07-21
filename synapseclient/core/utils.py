@@ -93,15 +93,16 @@ def md5_for_file(
                 callback()
             data = f.read(block_size)
             if not data:
-                if progress_bar:
-                    progress_bar.update(progress_bar.total - progress_bar.n)
+                if progress_bar is not None:
+                    if progress_bar.total is not None:
+                        progress_bar.update(progress_bar.total - progress_bar.n)
                     progress_bar.refresh()
                     progress_bar.close()
                 break
             md5.update(data)
             data_length = len(data)
             data_read += data_length
-            if progress_bar:
+            if progress_bar is not None:
                 progress_bar.update(data_length)
             del data
             # Garbage collect every 100 iterations
@@ -117,7 +118,10 @@ def md5_for_file(
 
 
 def md5_for_file_hex(
-    filename: str, block_size: int = 2 * MB, callback: typing.Callable = None
+    filename: str,
+    block_size: int = 2 * MB,
+    callback: typing.Callable = None,
+    progress_bar: Optional[tqdm] = None,
 ) -> str:
     """
     Calculates the MD5 of the given file.
@@ -129,12 +133,15 @@ def md5_for_file_hex(
                     Defaults to 2 MB
         callback: The callback function that help us show loading spinner on terminal.
                     Defaults to None
+        progress_bar: An optional TQDM progress bar to update
 
     Returns:
         The MD5 Checksum
     """
 
-    return md5_for_file(filename, block_size, callback).hexdigest()
+    return md5_for_file(
+        filename, block_size, callback, progress_bar=progress_bar
+    ).hexdigest()
 
 
 @tracer.start_as_current_span("synapse.util.md5")
@@ -1624,3 +1631,35 @@ def coerce_enum_list(enum_class: type[E], values: list[Union[E, str]]) -> list[s
                 f"Invalid value {value!r}. Valid values are: {[e.value for e in enum_class]}"
             ) from exc
     return result
+
+
+def escape_column_name(column: Union[str, collections.abc.Mapping]) -> str:
+    """
+    Escape the name of the given column for use in a Synapse table query statement
+
+    Arguments:
+        column: a string or column dictionary object with a 'name' key
+
+    Returns:
+        Escaped column name
+    """
+    col_name = (
+        column["name"] if isinstance(column, collections.abc.Mapping) else str(column)
+    )
+    escaped_name = col_name.replace('"', '""')
+    return f'"{escaped_name}"'
+
+
+def join_column_names(columns: Union[list, dict]) -> str:
+    """
+    Join the names of the given columns into a comma delimited list suitable for use
+    in a Synapse table query
+
+    Arguments:
+        columns: A sequence of column string names or dictionary objects with column
+            'name' keys
+
+    Returns:
+        Comma-separated string of escaped column names
+    """
+    return ",".join(escape_column_name(c) for c in columns)
