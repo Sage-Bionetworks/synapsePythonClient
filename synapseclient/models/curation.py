@@ -4104,7 +4104,7 @@ class Grid(EnumCoercionMixin, GridSynchronousProtocol):
 
         # Validate rows. SelectAll() selects every column, so each row's full
         # data is returned alongside its validation results.
-        with Grid(session_id=grid.session_id).connect() as session:
+        with grid.connect() as session:
             query_request = QueryRequest(query=GridQuery(column_selection=[SelectAll()]))
             result = session.validate_rows(query_request=query_request)
             for row in result.rows:
@@ -4137,7 +4137,7 @@ class Grid(EnumCoercionMixin, GridSynchronousProtocol):
 
         # Validate rows. SelectAll() selects every column, so each row's full
         # data is returned alongside its validation results.
-        with Grid(session_id=grid.session_id).connect() as session:
+        with grid.connect() as session:
             query_request = QueryRequest(query=GridQuery(column_selection=[SelectAll()]))
             result = session.validate_rows(query_request=query_request)
             for row in result.rows:
@@ -4975,7 +4975,7 @@ class Grid(EnumCoercionMixin, GridSynchronousProtocol):
             grid = task.create_grid_session()
 
             async def main():
-                async with Grid(session_id=grid.session_id).connect_async() as session:
+                async with grid.connect_async() as session:
                     query_request = QueryRequest(
                         query=GridQuery(column_selection=[SelectAll()])
                     )
@@ -5077,7 +5077,7 @@ class Grid(EnumCoercionMixin, GridSynchronousProtocol):
             task = CurationTask(task_id="1234")
             grid = task.create_grid_session()
 
-            with Grid(session_id=grid.session_id).connect() as session:
+            with grid.connect() as session:
                 query_request = QueryRequest(
                     query=GridQuery(column_selection=[SelectAll()])
                 )
