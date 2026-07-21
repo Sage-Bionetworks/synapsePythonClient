@@ -508,7 +508,7 @@ class Organization(OrganizationProtocol):
                 `Synapse.allow_client_caching(False)` this will use the last created
                 instance from the Synapse class constructor
 
-            Example: Update the ACL for a Organization
+        Example: Update the ACL for a Organization
             &nbsp;
 
             ```python
@@ -528,7 +528,7 @@ class Organization(OrganizationProtocol):
                 )
 
             asyncio.run(update_acl())
-
+            ```
         """
         acl = await self.get_acl_async(synapse_client=synapse_client)
 
