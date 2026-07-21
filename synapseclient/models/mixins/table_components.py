@@ -4646,9 +4646,7 @@ def _convert_df_date_cols_to_epoch_time(df: DATA_FRAME_TYPE) -> DATA_FRAME_TYPE:
     Convert date columns with datetime values to epoch time in milliseconds.
 
     Arguments:
-        df: The pandas dataframe
-        date_columns: The name of date columns
-
+        df: The pandas dataframe.
     Returns:
         A dataframe with datetime columns converted to epoch time in milliseconds
     """
