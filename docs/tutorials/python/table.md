@@ -228,17 +228,17 @@ value is converted depends on whether it carries timezone information. The
 examples below create a small table with a `DATE` column and walk through the
 different ways datetime data can be stored and queried.
 
-    ```python
-    table = Table(
+~~~python
+table = Table(
     name="Sample Collection Dates",
     parent_id=project.id,
     columns=[
         Column(name="sample_id", column_type="STRING", maximum_size=20),
         Column(name="collected_on", column_type="DATE"),
-        ],
-    )
-    table = table.store()
-    ```
+    ],
+)
+table = table.store()
+~~~
 ### Storing timezone-aware datetimes (recommended)
 
 A timezone-aware datetime is converted to UTC exactly — the stored value does
