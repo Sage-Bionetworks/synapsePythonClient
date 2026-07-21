@@ -287,7 +287,7 @@ class ColumnAnalyzerOverrideEntry:
     """
 
     column_name: Optional[str] = None
-    """The name of the column to override."""
+    """The name of the column to override. Silently skipped at index-build time if the column is not present in the target SearchIndex's schema — a single override bundle can therefore be applied across several indexes that share some column names"""
 
     analyzer: Optional[Dict[str, Any]] = None
     """The analyzer to use for this column. Either a reference to a saved
