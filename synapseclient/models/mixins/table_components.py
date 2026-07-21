@@ -9,7 +9,7 @@ import time
 import uuid
 from collections import OrderedDict
 from dataclasses import dataclass, field
-from datetime import datetime
+from datetime import date, datetime
 from io import BytesIO
 from typing import Any, Dict, List, Optional, Protocol, Tuple, Union
 
@@ -4815,9 +4815,28 @@ def _convert_df_date_cols_to_datetime(
     return df
 
 
+def _is_date_list_column(series: SERIES_TYPE) -> bool:
+    """
+    Check if a series is a DATE_LIST column.
+
+    Arguments:
+        series: The series to check.
+
+    Returns:
+        True if the series is a DATE_LIST column, False otherwise.
+    """
+    return any(
+        isinstance(cell, (list, tuple))
+        and any(isinstance(item, (date, datetime)) for item in cell if item is not None)
+        for cell in series
+        if cell is not None
+    )
+
+
 def _convert_df_date_cols_to_epoch_time(df: DATA_FRAME_TYPE) -> DATA_FRAME_TYPE:
     """
-    Convert date columns with datetime values to epoch time in milliseconds.
+    Convert date columns with datetime values, and DATE_LIST columns holding a
+    Python list of date/datetime values per cell, to epoch time in milliseconds.
 
     Arguments:
         df: The pandas dataframe.
@@ -4827,26 +4846,26 @@ def _convert_df_date_cols_to_epoch_time(df: DATA_FRAME_TYPE) -> DATA_FRAME_TYPE:
     import pandas as pd
     from pandas.api.types import infer_dtype
 
-    # "datetime64" catches naive/tz-aware datetime64 columns; "datetime" catches
-    # object columns of `datetime.datetime`/`Timestamp` that weren't coerced to
-    # datetime64; "date" catches object columns of plain `datetime.date` values
-    date_columns = [
-        col
-        for col in df.columns
-        if infer_dtype(df[col], skipna=True) in ("datetime64", "datetime", "date")
-    ]
-    if date_columns:
-        # The nullable Int64 dtype keeps columns containing null values as integers.
-        # Columns are assigned individually rather than via DataFrame.apply — on an
-        # empty (zero-row) DataFrame, apply does not reliably invoke the per-column
-        # conversion, leaving the column at its original datetime64 dtype.
-        for col in date_columns:
+    for col in df.columns:
+        dtype = infer_dtype(df[col], skipna=True)
+        if dtype in ("datetime64", "datetime", "date"):
             df[col] = (
                 df[col]
                 .apply(
                     lambda cell: to_unix_epoch_time(cell) if pd.notna(cell) else None
                 )
                 .astype("Int64")
+            )
+        elif dtype == "mixed" and _is_date_list_column(df[col]):
+            df[col] = df[col].apply(
+                lambda cell: (
+                    [
+                        to_unix_epoch_time(item) if item is not None else None
+                        for item in cell
+                    ]
+                    if isinstance(cell, (list, tuple))
+                    else None
+                )
             )
     return df
 

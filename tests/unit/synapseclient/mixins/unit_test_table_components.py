@@ -41,12 +41,13 @@ from synapseclient.models.mixins.table_components import (
     _construct_composite_key_conditions,
     _construct_composite_key_where_statement,
     _construct_partial_rows_for_upsert,
-    _convert_csv_date_cols_to_epoch_time,
-    _convert_df_date_cols_to_epoch_time,
-    _parse_df_date_cols_to_datetime,
     _construct_select_statement_for_upsert,
     _construct_single_key_where_statement,
+    _convert_csv_date_cols_to_epoch_time,
+    _convert_df_date_cols_to_epoch_time,
     _format_primary_key_value_for_where,
+    _is_date_list_column,
+    _parse_df_date_cols_to_datetime,
     _query_table_csv,
     _query_table_next_page,
     _query_table_row_set,
@@ -5052,6 +5053,64 @@ class TestConvertDtypesToJsonSerializable:
         assert is_object_dtype(result.nullable_int_col)
 
 
+@pytest.mark.parametrize(
+    "series,expected",
+    [
+        pytest.param(
+            pd.Series(
+                [[datetime(2021, 1, 1), datetime(2021, 1, 2)], None], dtype=object
+            ),
+            True,
+            id="list_of_datetimes",
+        ),
+        pytest.param(
+            pd.Series([[date(2021, 1, 1), date(2021, 1, 2)], None], dtype=object),
+            True,
+            id="list_of_dates",
+        ),
+        pytest.param(
+            pd.Series([(date(2021, 1, 1), date(2021, 1, 2))], dtype=object),
+            True,
+            id="tuple_of_dates",
+        ),
+        pytest.param(
+            pd.Series([[None, date(2021, 1, 1)]], dtype=object),
+            True,
+            id="list_with_none_items_and_a_date",
+        ),
+        pytest.param(
+            pd.Series([[1, 2], [5, 6], None], dtype=object),
+            False,
+            id="list_of_non_date_values",
+        ),
+        pytest.param(
+            pd.Series([["a", "b"], None], dtype=object),
+            False,
+            id="list_of_strings",
+        ),
+        pytest.param(
+            # a plain (non-list) datetime column, which
+            # _convert_df_date_cols_to_epoch_time handles via a separate branch
+            pd.Series([datetime(2021, 1, 1), None], dtype=object),
+            False,
+            id="scalar_datetime_column",
+        ),
+        pytest.param(
+            pd.Series([None, None], dtype=object),
+            False,
+            id="all_null_column",
+        ),
+        pytest.param(
+            pd.Series([[], []], dtype=object),
+            False,
+            id="empty_lists_only",
+        ),
+    ],
+)
+def test_is_date_list_column(series, expected):
+    assert _is_date_list_column(series) is expected
+
+
 class TestConvertDfDateColsToEpochTime:
     """Tests for _convert_df_date_cols_to_epoch_time. Unit tests run with
     TZ=UTC by default, so naive datetimes convert deterministically."""
@@ -5167,6 +5226,49 @@ class TestConvertDfDateColsToEpochTime:
         ).convert_dtypes()
         pd.testing.assert_frame_equal(result, expected_result, check_dtype=False)
         assert is_integer_dtype(result["date_col"])
+
+    def test_date_list_columns_are_converted(self):
+        # GIVEN a DATE_LIST column: each cell is a Python list of datetimes,
+        # which pandas can only ever infer as "mixed" dtype, not "datetime"
+        df = pd.DataFrame(
+            {
+                "other": ["a", None],
+                "date_list_col": [
+                    [
+                        datetime(2017, 2, 14, 11, 23, 11, 240000),
+                        datetime(2018, 10, 1),
+                    ],
+                    None,
+                ],
+                "date_list_col": [[date(2017, 2, 14), date(2018, 10, 1)], None],
+            }
+        )
+
+        result = _convert_df_date_cols_to_epoch_time(df=df)
+
+        # THEN every element of every list cell is converted to epoch ms
+        # (midnight local timezone for the date-only value; unit tests run
+        # with TZ=UTC)
+        expected_result = pd.DataFrame(
+            {
+                "other": ["a", None],
+                "date_list_col": [
+                    [1487071391240, 1538352000000],
+                    None,
+                ],
+                "date_list_col": [[1487030400000, 1538352000000], None],
+            }
+        )
+        pd.testing.assert_frame_equal(result, expected_result, check_dtype=False)
+
+    def test_integer_list_columns_are_unaffected(self):
+        # GIVEN an INTEGER_LIST column, which also infers as "mixed" dtype but
+        # holds no date/datetime values
+        df = pd.DataFrame({"int_list_col": [[1, 2], None, [5, 6]]})
+
+        result = _convert_df_date_cols_to_epoch_time(df=df)
+
+        pd.testing.assert_frame_equal(result, df)
 
 
 class TestParseDfDateColsToDatetime:

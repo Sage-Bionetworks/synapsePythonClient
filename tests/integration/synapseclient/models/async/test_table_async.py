@@ -1938,9 +1938,9 @@ class TestUpsertRows:
                 "column_integer": [1, None, 3],
                 "column_boolean": [True, None, True],
                 "column_date": [
-                    utils.to_unix_epoch_time("2021-01-01"),
+                    datetime(2021, 1, 1),
                     None,
-                    utils.to_unix_epoch_time("2021-01-03"),
+                    datetime(2021, 1, 3),
                 ],
                 # Reference types
                 "column_filehandleid": [
@@ -1987,13 +1987,13 @@ class TestUpsertRows:
                 ],
                 "column_date_LIST": [
                     [
-                        utils.to_unix_epoch_time("2021-01-01"),
-                        utils.to_unix_epoch_time("2021-01-02"),
+                        datetime(2021, 1, 1),
+                        datetime(2021, 1, 2),
                     ],
                     None,
                     [
-                        utils.to_unix_epoch_time("2021-01-05"),
-                        utils.to_unix_epoch_time("2021-01-06"),
+                        datetime(2021, 1, 5),
+                        datetime(2021, 1, 6),
                     ],
                 ],
                 "column_entity_id_list": [
@@ -2171,13 +2171,13 @@ class TestUpsertRows:
                 ],
                 "column_date_LIST": [
                     [
-                        utils.to_unix_epoch_time("2022-01-01"),
-                        utils.to_unix_epoch_time("2022-01-02"),
+                        datetime(2022, 1, 1),
+                        datetime(2022, 1, 2),
                     ],
                     None,
                     [
-                        utils.to_unix_epoch_time("2022-01-05"),
-                        utils.to_unix_epoch_time("2022-01-06"),
+                        datetime(2022, 1, 5),
+                        datetime(2022, 1, 6),
                     ],
                 ],
                 "column_entity_id_list": [
@@ -2228,13 +2228,9 @@ class TestUpsertRows:
                 "column_integer": [11, None, 33],
                 "column_boolean": [False, None, False],
                 "column_date": [
-                    utils.to_unix_epoch_time(
-                      datetime(2022, 1, 1, tzinfo=timezone.utc)
-                    ),
+                    utils.to_unix_epoch_time(datetime(2022, 1, 1, tzinfo=timezone.utc)),
                     None,
-                    utils.to_unix_epoch_time(
-                      datetime(2022, 1, 3, tzinfo=timezone.utc
-                    ),
+                    utils.to_unix_epoch_time(datetime(2022, 1, 3, tzinfo=timezone.utc)),
                 ],
                 "column_filehandleid": [
                     file2.file_handle.id,
@@ -2304,9 +2300,9 @@ class TestUpsertRows:
                 "column_integer": [1, 2, 3],
                 "column_boolean": [True, True, True],
                 "column_date": [
-                    utils.to_unix_epoch_time("2021-01-01"),
-                    utils.to_unix_epoch_time("2021-01-02"),
-                    utils.to_unix_epoch_time("2021-01-03"),
+                    datetime(2021, 1, 1),
+                    datetime(2021, 1, 2),
+                    datetime(2021, 1, 3),
                 ],
                 "column_filehandleid": [
                     file.file_handle.id,
@@ -2350,13 +2346,13 @@ class TestUpsertRows:
                 ],
                 "column_date_LIST": [
                     [
-                        utils.to_unix_epoch_time("2023-01-01"),
-                        utils.to_unix_epoch_time("2023-01-02"),
+                        datetime(2023, 1, 1),
+                        datetime(2023, 1, 2),
                     ],
                     None,
                     [
-                        utils.to_unix_epoch_time("2023-01-05"),
-                        utils.to_unix_epoch_time("2023-01-06"),
+                        datetime(2023, 1, 5),
+                        datetime(2023, 1, 6),
                     ],
                 ],
                 "column_entity_id_list": [
