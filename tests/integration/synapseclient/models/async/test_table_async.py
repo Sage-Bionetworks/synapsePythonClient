@@ -5,8 +5,10 @@ import re
 import string
 import tempfile
 import uuid
+from datetime import date, datetime, timezone
 from typing import Callable
 from unittest import skip
+from zoneinfo import ZoneInfo
 
 import pandas as pd
 import pytest
@@ -916,6 +918,321 @@ class TestRowStorage:
         # Note: DataFrames have a minimum of 100 rows per batch
         assert spy_send_job.call_count == 3
 
+    async def test_store_rows_from_df_with_datetime_columns(
+        self, project_model: Project
+    ) -> None:
+        table_name = str(uuid.uuid4())
+        table = Table(
+            name=table_name,
+            parent_id=project_model.id,
+            columns=[
+                Column(name="column_string", column_type=ColumnType.STRING),
+                Column(name="column_date_tz_aware", column_type=ColumnType.DATE),
+                Column(name="column_date_dst", column_type=ColumnType.DATE),
+                Column(name="column_date_naive", column_type=ColumnType.DATE),
+            ],
+        )
+        table = await table.store_async(synapse_client=self.syn)
+        self.schedule_for_cleanup(table.id)
+
+        # AND a DataFrame with tz-aware and naive datetime values, including nulls.
+        # The DST column uses a zone that observes daylight saving time, with one
+        # winter value (PST, UTC-8) and one summer value (PDT, UTC-7)
+        tz_aware_dates = [
+            datetime(2021, 1, 1, 12, 0, 0, tzinfo=timezone.utc),
+            None,
+            datetime(2021, 1, 3, 12, 0, 0, tzinfo=timezone.utc),
+        ]
+        dst_dates = [
+            datetime(2021, 1, 1, 12, 0, 0, tzinfo=ZoneInfo("America/Los_Angeles")),
+            None,
+            datetime(2021, 7, 1, 12, 0, 0, tzinfo=ZoneInfo("America/Los_Angeles")),
+        ]
+        naive_dates = [
+            datetime(2021, 1, 1, 12, 0, 0),
+            None,
+            datetime(2021, 1, 3, 12, 0, 0),
+        ]
+        data_for_table = pd.DataFrame(
+            {
+                "column_string": ["value1", "value2", "value3"],
+                "column_date_tz_aware": tz_aware_dates,
+                "column_date_dst": dst_dates,
+                "column_date_naive": naive_dates,
+            }
+        )
+
+        await table.store_rows_async(
+            values=data_for_table,
+            schema_storage_strategy=None,
+            synapse_client=self.syn,
+        )
+
+        results = await query_async(
+            f"SELECT * FROM {table.id}",
+            synapse_client=self.syn,
+            include_row_id_and_row_version=False,
+        )
+
+        # The DST column expectations are hardcoded to prove each value converts using the
+        # UTC offset in effect on its own date (12:00-08:00 -> 20:00 UTC and
+        # 12:00-07:00 -> 19:00 UTC), independent of the machine running the test
+        expected_results = pd.DataFrame(
+            {
+                "column_string": ["value1", "value2", "value3"],
+                "column_date_tz_aware": [
+                    utils.to_unix_epoch_time(date) if date else None
+                    for date in tz_aware_dates
+                ],
+                "column_date_dst": [1609531200000, None, 1625166000000],
+                "column_date_naive": [
+                    utils.to_unix_epoch_time(date) if date else None
+                    for date in naive_dates
+                ],
+            }
+        )
+        pd.testing.assert_frame_equal(results, expected_results, check_dtype=False)
+
+    async def test_store_rows_from_df_with_date_object_column(
+        self, project_model: Project
+    ) -> None:
+        table_name = str(uuid.uuid4())
+        table = Table(
+            name=table_name,
+            parent_id=project_model.id,
+            columns=[
+                Column(name="column_string", column_type=ColumnType.STRING),
+                Column(name="column_date", column_type=ColumnType.DATE),
+            ],
+        )
+        table = await table.store_async(synapse_client=self.syn)
+        self.schedule_for_cleanup(table.id)
+
+        date_values = [date(2021, 1, 1), date(2021, 7, 1)]
+        data_for_table = pd.DataFrame(
+            {
+                "column_string": ["value1", "value2"],
+                "column_date": date_values,
+            }
+        )
+
+        await table.store_rows_async(
+            values=data_for_table,
+            schema_storage_strategy=None,
+            synapse_client=self.syn,
+        )
+
+        results = await query_async(
+            f"SELECT * FROM {table.id}",
+            synapse_client=self.syn,
+            include_row_id_and_row_version=False,
+        )
+
+        expected_results = pd.DataFrame(
+            {
+                "column_string": ["value1", "value2"],
+                "column_date": [
+                    utils.to_unix_epoch_time(value)
+                    for value in date_values  # date columns are converted to epoch ms (midnight local timezone, unit tests run with TZ=UTC)
+                ],
+            }
+        )
+        pd.testing.assert_frame_equal(results, expected_results, check_dtype=False)
+
+    async def test_store_rows_from_csv_with_date_columns(
+        self, project_model: Project
+    ) -> None:
+        table_name = str(uuid.uuid4())
+        table = Table(
+            name=table_name,
+            parent_id=project_model.id,
+            columns=[
+                Column(name="column_string", column_type=ColumnType.STRING),
+                Column(name="column_date", column_type=ColumnType.DATE),
+            ],
+        )
+        table = await table.store_async(synapse_client=self.syn)
+        self.schedule_for_cleanup(table.id)
+
+        with tempfile.NamedTemporaryFile(
+            mode="w", suffix=".csv", delete=False
+        ) as csv_file:
+            csv_file.write(
+                "column_string,column_date\n"
+                "value1,01/15/2024\n"
+                "value2,\n"
+                "value3,02/20/2024\n"
+            )
+
+        try:
+            await table.store_rows_async(
+                values=csv_file.name,
+                schema_storage_strategy=None,
+                date_columns=["column_date"],
+                date_format="%m/%d/%Y",
+                synapse_client=self.syn,
+            )
+        finally:
+            os.remove(csv_file.name)
+
+        results = await query_async(
+            f"SELECT * FROM {table.id}",
+            synapse_client=self.syn,
+            include_row_id_and_row_version=False,
+        )
+
+        expected_results = pd.DataFrame(
+            {
+                "column_string": ["value1", "value2", "value3"],
+                "column_date": [
+                    utils.to_unix_epoch_time(datetime(2024, 1, 15)),
+                    None,
+                    utils.to_unix_epoch_time(datetime(2024, 2, 20)),
+                ],
+            }
+        )
+        pd.testing.assert_frame_equal(results, expected_results, check_dtype=False)
+
+    async def test_store_rows_from_csv_with_tz_aware_date_columns(
+        self, project_model: Project
+    ) -> None:
+        table_name = str(uuid.uuid4())
+        table = Table(
+            name=table_name,
+            parent_id=project_model.id,
+            columns=[
+                Column(name="column_string", column_type=ColumnType.STRING),
+                Column(name="column_date", column_type=ColumnType.DATE),
+            ],
+        )
+        table = await table.store_async(synapse_client=self.syn)
+        self.schedule_for_cleanup(table.id)
+
+        # AND a CSV file whose date strings carry an explicit UTC offset. These
+        # parse into timezone-aware values
+        with tempfile.NamedTemporaryFile(
+            mode="w", suffix=".csv", delete=False
+        ) as csv_file:
+            csv_file.write(
+                "column_string,column_date\n"
+                "value1,01/15/2024 12:00 -0800\n"
+                "value2,\n"
+                "value3,02/20/2024 12:00 -0800\n"
+            )
+
+        try:
+            await table.store_rows_async(
+                values=csv_file.name,
+                schema_storage_strategy=None,
+                date_columns=["column_date"],
+                date_format="%m/%d/%Y %H:%M %z",
+                synapse_client=self.syn,
+            )
+        finally:
+            os.remove(csv_file.name)
+
+        results = await query_async(
+            f"SELECT * FROM {table.id}",
+            synapse_client=self.syn,
+            include_row_id_and_row_version=False,
+        )
+
+        expected_results = pd.DataFrame(
+            {
+                "column_string": ["value1", "value2", "value3"],
+                "column_date": [
+                    1705348800000,
+                    None,
+                    1708459200000,
+                ],  # date columns are converted to epoch ms
+            }
+        )
+        pd.testing.assert_frame_equal(results, expected_results, check_dtype=False)
+
+    async def test_store_rows_from_csv_with_row_ids_and_date_columns_updates_rows(
+        self, project_model: Project
+    ) -> None:
+        table_name = str(uuid.uuid4())
+        table = Table(
+            name=table_name,
+            parent_id=project_model.id,
+            columns=[
+                Column(name="column_string", column_type=ColumnType.STRING),
+                Column(name="column_date", column_type=ColumnType.DATE),
+            ],
+        )
+        table = await table.store_async(synapse_client=self.syn)
+        self.schedule_for_cleanup(table.id)
+
+        with tempfile.NamedTemporaryFile(
+            mode="w", suffix=".csv", delete=False
+        ) as csv_file:
+            csv_file.write(
+                "column_string,column_date\n"
+                "value1,01/15/2024\n"
+                "value2,02/20/2024\n"
+            )
+        try:
+            await table.store_rows_async(
+                values=csv_file.name,
+                schema_storage_strategy=None,
+                date_columns=["column_date"],
+                date_format="%m/%d/%Y",
+                synapse_client=self.syn,
+            )
+        finally:
+            os.remove(csv_file.name)
+
+        stored_rows = await query_async(
+            f"SELECT * FROM {table.id}",
+            synapse_client=self.syn,
+        )
+
+        updated_values = [("updated1", "03/10/2024"), ("updated2", "04/25/2024")]
+        update_lines = [
+            f"{row.ROW_ID},{row.ROW_VERSION},{new_string},{new_date}"
+            for row, (new_string, new_date) in zip(
+                stored_rows.itertuples(), updated_values
+            )
+        ]
+        with tempfile.NamedTemporaryFile(
+            mode="w", suffix=".csv", delete=False
+        ) as update_file:
+            update_file.write(
+                "ROW_ID,ROW_VERSION,column_string,column_date\n"
+                + "\n".join(update_lines)
+                + "\n"
+            )
+
+        try:
+            await table.store_rows_async(
+                values=update_file.name,
+                schema_storage_strategy=None,
+                date_columns=["column_date"],
+                date_format="%m/%d/%Y",
+                synapse_client=self.syn,
+            )
+        finally:
+            os.remove(update_file.name)
+
+        # AND I query the table again
+        results = await query_async(
+            f"SELECT * FROM {table.id}",
+            synapse_client=self.syn,
+            include_row_id_and_row_version=False,
+        )
+
+        expected_results = pd.DataFrame(
+            {
+                "column_string": ["updated1", "updated2"],
+                "column_date": [
+                    utils.to_unix_epoch_time(datetime(2024, 3, 10)),
+                    utils.to_unix_epoch_time(datetime(2024, 4, 25)),
+                ],
+            }
+        )
+        pd.testing.assert_frame_equal(results, expected_results, check_dtype=False)
+
     @skip("Skip in normal testing because the large size makes it slow")
     async def test_store_rows_as_large_df_being_split_and_uploaded(
         self, project_model: Project, mocker: MockerFixture
@@ -1750,9 +2067,9 @@ class TestUpsertRows:
                     "column_integer": [11, None, 33],
                     "column_boolean": [False, None, False],
                     "column_date": [
-                        utils.to_unix_epoch_time("2022-01-01"),
+                        datetime(2022, 1, 1, tzinfo=timezone.utc),
                         None,
-                        utils.to_unix_epoch_time("2022-01-03"),
+                        datetime(2022, 1, 3, tzinfo=timezone.utc),
                     ],
                     # Updated references
                     "column_filehandleid": [
@@ -1856,9 +2173,13 @@ class TestUpsertRows:
                     "column_integer": [11, None, 33],
                     "column_boolean": [False, None, False],
                     "column_date": [
-                        utils.to_unix_epoch_time("2022-01-01"),
+                        utils.to_unix_epoch_time(
+                            datetime(2022, 1, 1, tzinfo=timezone.utc)
+                        ),
                         None,
-                        utils.to_unix_epoch_time("2022-01-03"),
+                        utils.to_unix_epoch_time(
+                            datetime(2022, 1, 3, tzinfo=timezone.utc)
+                        ),
                     ],
                     "column_filehandleid": [
                         file2.file_handle.id,
