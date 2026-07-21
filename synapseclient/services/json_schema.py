@@ -501,13 +501,52 @@ class JsonSchemaOrganization:
 
 @deprecated(
     version="4.11.0",
-    reason="To be removed in 5.0.0.",
+    reason="To be removed in 5.0.0. "
+    "Use the OOP JSON Schema models instead, "
+    "synapseclient.models.SchemaOrganization and "
+    "synapseclient.models.JSONSchema.",
 )
 class JsonSchemaService:
     """Json Schema Service
 
+    Deprecated: To be removed in 5.0.0. Use the OOP JSON Schema models instead:
+    synapseclient.models.SchemaOrganization for organization management,
+    synapseclient.models.JSONSchema for creating and retrieving schemas, and the
+    JSON Schema methods on entity models (e.g. File, Folder, Project) such as
+    bind_schema(), get_schema(), validate_schema(), and unbind_schema() for binding
+    and validating schemas against entities.
+
     Attributes
         synapse: Synapse connection
+
+    Example: Migration to the object-oriented models
+        &nbsp;
+
+        ```python
+        # Old approach (DEPRECATED)
+        # js = JsonSchemaService(syn)
+        # js.create_organization("my.organization")
+        # js.create_json_schema(schema_body)
+        # js.bind_json_schema(schema_uri, "syn123")
+        # js.validate("syn123")
+
+        # New approach (RECOMMENDED)
+        from synapseclient import Synapse
+        from synapseclient.models import SchemaOrganization, JSONSchema, Folder
+
+        syn = Synapse()
+        syn.login()
+
+        organization = SchemaOrganization(name="my.organization").store()
+        schema = JSONSchema(
+            organization_name="my.organization", name="my.schema"
+        )
+        schema.store(schema_body={"properties": {"foo": {"type": "string"}}})
+
+        folder = Folder(id="syn123")
+        folder.bind_schema(json_schema_uri=schema.uri)
+        folder.validate_schema()
+        ```
     """
 
     def __init__(self, synapse: Synapse = None) -> None:
