@@ -310,7 +310,7 @@ class ColumnAnalyzerOverrideEntry:
 
 @dataclass
 class ColumnAnalyzerOverride(OrgScopedResource):
-    """A shared resource containing per-column analyzer override entries.
+    """A shareable bundle of per-column analyzer assignments. Each entry binds one column to an analyzer;
 
     Represents a [Synapse ColumnAnalyzerOverride](https://rest-docs.synapse.org/rest/org/sagebionetworks/repo/model/search/table/ColumnAnalyzerOverride.html).
     """
@@ -321,15 +321,38 @@ class ColumnAnalyzerOverride(OrgScopedResource):
     _LIST_FN = staticmethod(list_column_analyzer_overrides)
 
     id: Optional[str] = None
+    """The unique ID of this column analyzer override."""
+
     organization_name: Optional[str] = None
+    """The name of the Organization this resource belongs to. Immutable after
+    creation."""
+
     name: Optional[str] = None
+    """The resource name. Must start with a letter and contain only letters,
+    digits, and underscores. Unique within the organization and immutable
+    after creation. Used as part of the qualified name
+    ({organizationName}-{name}) when referenced by other resources."""
+
     description: Optional[str] = None
+    """Optional description."""
+
     overrides: Optional[List[ColumnAnalyzerOverrideEntry]] = field(default_factory=list)
+    """The per-column analyzer assignments -- see ColumnAnalyzerOverrideEntry."""
+
     etag: Optional[str] = None
+    """Synapse employs an Optimistic Concurrency Control (OCC) scheme."""
+
     created_on: Optional[str] = None
+    """The date this resource was created."""
+
     created_by: Optional[str] = None
+    """The ID of the user that created this resource."""
+
     modified_on: Optional[str] = None
+    """The date this resource was last modified."""
+
     modified_by: Optional[str] = None
+    """The ID of the user that last modified this resource."""
 
     @property
     def qualified_name(self) -> Optional[str]:
@@ -385,19 +408,41 @@ class SynonymSet(OrgScopedResource):
     _LIST_FN = staticmethod(list_synonym_sets)
 
     id: Optional[str] = None
+    """The unique ID of this synonym set."""
+
     organization_name: Optional[str] = None
+    """The name of the Organization this resource belongs to. Immutable after
+    creation."""
+
     name: Optional[str] = None
+    """The resource name. Must start with a letter and contain only letters,
+    digits, and underscores. Unique within the organization and immutable
+    after creation. Used as part of the qualified name
+    ({organizationName}-{name}) when referenced by other resources."""
+
     description: Optional[str] = None
+    """Optional description of the synonym set."""
+
     definition: Optional[Dict[str, Any]] = None
     """Required. The full OpenSearch token filter definition as a JSON object,
     exactly as documented for the synonym_graph / synonym token filters, e.g.
     `{"type": "synonym_graph", "synonyms": ["tumor, neoplasm, cancer",
     "AD => Alzheimer's disease"]}`."""
+
     etag: Optional[str] = None
+    """Synapse employs an Optimistic Concurrency Control (OCC) scheme."""
+
     created_on: Optional[str] = None
+    """The date this resource was created."""
+
     created_by: Optional[str] = None
+    """The ID of the user that created this resource."""
+
     modified_on: Optional[str] = None
+    """The date this resource was last modified."""
+
     modified_by: Optional[str] = None
+    """The ID of the user that last modified this resource."""
 
     @property
     def qualified_name(self) -> Optional[str]:
