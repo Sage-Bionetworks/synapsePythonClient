@@ -490,9 +490,21 @@ class SearchConfiguration(OrgScopedResource):
     _LIST_FN = staticmethod(list_search_configurations)
 
     id: Optional[str] = None
+    """The unique ID of this search configuration."""
+
     organization_name: Optional[str] = None
+    """The name of the Organization this resource belongs to. Immutable after
+    creation."""
+
     name: Optional[str] = None
+    """The resource name. Must start with a letter and contain only letters,
+    digits, and underscores. Unique within the organization and immutable
+    after creation. Used as part of the qualified name
+    ({organizationName}-{name}) when referenced by other resources."""
+
     description: Optional[str] = None
+    """Optional description."""
+
     default_analyzer: Optional[Dict[str, Any]] = None
     """Optional. The analyzer that supplies this index's `analysis.analyzer.default`
     slot. Either a reference to a saved TextAnalyzer written as
@@ -504,11 +516,21 @@ class SearchConfiguration(OrgScopedResource):
     """Optional ordered list of ColumnAnalyzerOverride entries. Each entry is
     either a reference `{"$ref": "{organizationName}-{name}"}` or an inline
     ColumnAnalyzerOverride literal."""
+
     etag: Optional[str] = None
+    """Synapse employs an Optimistic Concurrency Control (OCC) scheme."""
+
     created_on: Optional[str] = None
+    """The date this resource was created."""
+
     created_by: Optional[str] = None
+    """The ID of the user that created this resource."""
+
     modified_on: Optional[str] = None
+    """The date this resource was last modified."""
+
     modified_by: Optional[str] = None
+    """The ID of the user that last modified this resource."""
 
     @property
     def qualified_name(self) -> Optional[str]:
