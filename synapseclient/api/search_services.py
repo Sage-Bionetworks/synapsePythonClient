@@ -18,9 +18,6 @@ if TYPE_CHECKING:
     from synapseclient import Synapse
 
 
-# ---------- Text Analyzer ----------
-
-
 async def create_text_analyzer(
     request: Dict[str, Any],
     *,
@@ -129,9 +126,6 @@ async def list_text_analyzers(
     )
 
 
-# ---------- Column Analyzer Override ----------
-
-
 async def create_column_analyzer_override(
     request: Dict[str, Any],
     *,
@@ -205,9 +199,6 @@ async def list_column_analyzer_overrides(
     )
 
 
-# ---------- Synonym Set ----------
-
-
 async def create_synonym_set(
     request: Dict[str, Any],
     *,
@@ -276,9 +267,6 @@ async def list_synonym_sets(
     return await client.rest_post_async(
         uri="/search/synonym/set/list", body=json.dumps(body)
     )
-
-
-# ---------- Search Configuration ----------
 
 
 async def create_search_configuration(
@@ -354,9 +342,6 @@ async def list_search_configurations(
     )
 
 
-# ---------- Search Configuration Bindings ----------
-
-
 async def bind_search_config_to_entity(
     entity_id: str,
     search_configuration_id: str,
@@ -420,7 +405,6 @@ async def clear_search_config_binding(
     await client.rest_delete_async(uri=f"/entity/{entity_id}/searchconfig/binding")
 
 
-# ---------- Search Queries ----------
 #
 # The async search query endpoint (POST /search/query/async/start +
 # GET /search/query/async/get/{token}) is exposed through the shared

@@ -55,8 +55,6 @@ from synapseclient.models.table_components import SelectColumn
 if TYPE_CHECKING:
     from synapseclient import Synapse
 
-# ---------- Enums ----------
-
 
 class SearchIndexState(str, Enum):
     """The state of a SearchIndex's OpenSearch index."""
@@ -75,9 +73,6 @@ class SearchQueryPart(str, Enum):
     HITS = "HITS"
     TOTAL_HITS = "TOTAL_HITS"
     SELECT_COLUMNS = "SELECT_COLUMNS"
-
-
-# ---------- Shared org-scoped resource base ----------
 
 
 class OrgScopedResourceProtocol(Protocol):
@@ -197,9 +192,6 @@ class OrgScopedResource(OrgScopedResourceProtocol):
         return results
 
 
-# ---------- Text Analyzer ----------
-
-
 @dataclass
 class TextAnalyzer(OrgScopedResource):
     """A shareable, named OpenSearch custom analyzer. Used to configure how text
@@ -263,9 +255,6 @@ class TextAnalyzer(OrgScopedResource):
         }
         delete_none_keys(body)
         return body
-
-
-# ---------- Column Analyzer Override ----------
 
 
 @dataclass
@@ -359,9 +348,6 @@ class ColumnAnalyzerOverride(OrgScopedResource):
         return body
 
 
-# ---------- Synonym Set ----------
-
-
 @dataclass
 class SynonymSet(OrgScopedResource):
     """A shareable OpenSearch synonym_graph (or legacy synonym) token filter.
@@ -421,9 +407,6 @@ class SynonymSet(OrgScopedResource):
         }
         delete_none_keys(body)
         return body
-
-
-# ---------- Search Configuration ----------
 
 
 @dataclass
@@ -492,9 +475,6 @@ class SearchConfiguration(OrgScopedResource):
         }
         delete_none_keys(body)
         return body
-
-
-# ---------- Search Config Binding ----------
 
 
 class SearchConfigBindingProtocol(Protocol):
@@ -607,9 +587,6 @@ class SearchConfigBinding(SearchConfigBindingProtocol):
         await clear_search_config_binding(self.object_id, synapse_client=synapse_client)
 
 
-# ---------- Search Index Status ----------
-
-
 @dataclass
 class SearchIndexStatus:
     """The build status of a SearchIndex's OpenSearch index."""
@@ -626,9 +603,6 @@ class SearchIndexStatus:
         self.changed_on = data.get("changedOn", None)
         self.error_message = data.get("errorMessage", None)
         return self
-
-
-# ---------- Search Query ----------
 
 
 @dataclass
@@ -716,9 +690,6 @@ class SearchQuery:
         return body
 
 
-# ---------- Autocomplete ----------
-
-
 @dataclass
 class SearchAutocompleteRequest:
     """Body of a synchronous autocomplete request against a SearchIndex. The
@@ -751,9 +722,6 @@ class SearchAutocompleteRequest:
         }
         delete_none_keys(body)
         return body
-
-
-# ---------- Search Results ----------
 
 
 @dataclass
