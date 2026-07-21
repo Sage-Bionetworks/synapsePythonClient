@@ -400,13 +400,14 @@ timezone-aware datetimes in UTC instead of raw epoch-millisecond integers.
 4        S5  2017-02-14 19:23:00+00:00
 5        S6  2018-10-01 16:30:00+00:00
 ```
+</details>
 
-    ```python
-        # DATE columns are returned as timezone-aware datetimes in UTC. Use
-        # tz_convert to view them on another wall clock:
-        results["collected_on"] = results["collected_on"].dt.tz_convert("America/Los_Angeles")
-        print(results)
-    ```
+~~~python
+# DATE columns are returned as timezone-aware datetimes in UTC. Use tz_convert to view them on another wall clock:
+results["collected_on"] = results["collected_on"].dt.tz_convert("America/Los_Angeles")
+print(results)
+~~~
+
 <details class="example">
   <summary>The collected_on column now displays timezone-aware datetimes converted to America/Los_Angeles time:</summary>
 ```
