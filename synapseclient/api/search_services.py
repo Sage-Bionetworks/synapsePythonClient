@@ -10,7 +10,7 @@ The async SearchIndex query endpoint is exposed via the
 """
 
 import json
-from typing import TYPE_CHECKING, Any, Dict, List, Optional
+from typing import TYPE_CHECKING, Any, Dict, Optional
 
 from synapseclient.core.utils import delete_none_keys
 
@@ -442,27 +442,3 @@ async def autocomplete_search(
     return await client.rest_post_async(
         uri="/search/autocomplete", body=json.dumps(request)
     )
-
-
-__all__: List[str] = [
-    "create_text_analyzer",
-    "get_text_analyzer",
-    "update_text_analyzer",
-    "list_text_analyzers",
-    "create_column_analyzer_override",
-    "get_column_analyzer_override",
-    "update_column_analyzer_override",
-    "list_column_analyzer_overrides",
-    "create_synonym_set",
-    "get_synonym_set",
-    "update_synonym_set",
-    "list_synonym_sets",
-    "create_search_configuration",
-    "get_search_configuration",
-    "update_search_configuration",
-    "list_search_configurations",
-    "bind_search_config_to_entity",
-    "get_search_config_binding",
-    "clear_search_config_binding",
-    "autocomplete_search",
-]
