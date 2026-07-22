@@ -1,5 +1,6 @@
 """Integration tests for the synapseclient.models.Grid class (async)."""
 
+import asyncio
 import os
 import tempfile
 import uuid
