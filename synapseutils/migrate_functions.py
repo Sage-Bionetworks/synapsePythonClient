@@ -176,7 +176,17 @@ class MigrationResult:
         )
 
         # Inspect the counts of files by migration status
-        print(result.get_counts_by_status())
+        project = Project(id="syn123").get()
+        index_result = my_migration_folder.index_files_for_migration(
+        dest_storage_location_id = "123456",
+        db_path="/path/to/your/migration.db",
+        include_table_files=False,  # Set True if you also want table-attached files
+        )
+
+        index_result.as_csv("/path/to/your/index_results.csv")
+        print(f"Migration index database: {index_result.db_path}")
+        print(f"Indexed counts by status: {index_result.counts_by_status}")
+
         ```
     """
 
