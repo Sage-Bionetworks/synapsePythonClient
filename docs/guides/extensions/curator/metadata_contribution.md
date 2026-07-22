@@ -172,12 +172,8 @@ with latest_grid.connect() as grid:
 If you're landing here with only a `record_set_id` (no session yet), `connect()` will create — or, with `attach_to_previous_session=True`, reattach to — a session for you:
 
 ```python
-from synapseclient import Synapse
 from synapseclient.models import Grid
 from synapseclient.models.curation import GridQuery, QueryRequest, SelectAll
-
-syn = Synapse()
-syn.login()
 
 with Grid(record_set_id="syn123456789").connect() as grid:
     query_request = QueryRequest(query=GridQuery(column_selection=[SelectAll()]))
