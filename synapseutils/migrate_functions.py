@@ -172,7 +172,7 @@ class MigrationResult:
         # The new MigrationResult is returned by the migration methods on the
         # Project and Folder models
         result = Project(id="syn123").index_files_for_migration(
-            dest_storage_location_id="12345",
+            dest_storage_location_id=12345,
         )
 
         # Inspect the counts of files by migration status
@@ -602,7 +602,7 @@ def index_files_for_migration(
 
         project = Project(id="syn123").get()
         result = project.index_files_for_migration(
-            dest_storage_location_id="12345",
+            dest_storage_location_id=12345,
             db_path="/tmp/migration.db",
             file_version_strategy="new",
         )
@@ -795,7 +795,7 @@ def migrate_indexed_files(
 
         # Index the files first
         index_result = project.index_files_for_migration(
-            dest_storage_location_id="12345",
+            dest_storage_location_id=12345,
         )
 
         # Then migrate using the same database path
