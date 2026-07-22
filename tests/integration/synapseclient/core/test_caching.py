@@ -200,7 +200,7 @@ def thread_keep_storing_one_File(syn: Synapse, project: Project, schedule_for_cl
     # Make a local file to continuously store
     path = utils.make_bogus_data_file()
     schedule_for_cleanup(path)
-    myPrecious = File(
+    my_precious = File(
         path=path,
         parent_id=project.id,
         description="This bogus file is MINE",
@@ -209,14 +209,14 @@ def thread_keep_storing_one_File(syn: Synapse, project: Project, schedule_for_cl
 
     while syn.test_keepRunning:
         stored = None
-        stored = store_catch_412_HTTPError(syn, myPrecious)
+        stored = store_catch_412_HTTPError(syn, my_precious)
 
         if stored is not None:
-            myPrecious = stored
-        elif myPrecious.id is not None:
+            my_precious = stored
+        elif my_precious.id is not None:
             # only attempt to retrieve if the entity was initially saved above without encountering a 412 error
             # and thus has a retrievable synapse id
-            myPrecious = myPrecious.get(synapse_client=syn)
+            my_precious = my_precious.get(synapse_client=syn)
 
         sleep_for_a_bit()
 
