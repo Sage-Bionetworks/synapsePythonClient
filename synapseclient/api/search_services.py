@@ -405,18 +405,6 @@ async def clear_search_config_binding(
     await client.rest_delete_async(uri=f"/entity/{entity_id}/searchconfig/binding")
 
 
-#
-# The async search query endpoint (POST /search/query/async/start +
-# GET /search/query/async/get/{token}) is exposed through the shared
-# AsynchronousCommunicator mixin. Use:
-#
-#     query = SearchIndexQuery(search_index_id=..., search_query=SearchQuery(...))
-#     await query.send_job_and_wait_async()
-#
-# The synchronous autocomplete endpoint stays here because it is not an
-# async job. Build its body with SearchAutocompleteRequest.to_synapse_request().
-
-
 async def autocomplete_search(
     request: Dict[str, Any],
     *,
