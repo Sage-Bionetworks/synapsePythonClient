@@ -791,7 +791,7 @@ def migrate_indexed_files(
         syn = Synapse()
         syn.login()
 
-        project = Project(id="syn123")
+        project = Project(id="syn123").get()
 
         # Index the files first
         index_result = project.index_files_for_migration(
