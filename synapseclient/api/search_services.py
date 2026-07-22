@@ -23,18 +23,20 @@ async def create_text_analyzer(
     *,
     synapse_client: Optional["Synapse"] = None,
 ) -> Dict[str, Any]:
-    """Create a TextAnalyzer.
+    """Create a new TextAnalyzer within the specified Organization.
 
     <https://rest-docs.synapse.org/rest/POST/search/text/analyzer.html>
 
     Arguments:
-        request: TextAnalyzer body. Must include organizationName, name, settings.
+        request: The TextAnalyzer object body. The analyzer's `settings` JSON is
+            parsed and any `$ref` entries inside its `filter` registry are
+            checked for qualified-name format and existence.
         synapse_client: If not passed in and caching was not disabled by
             `Synapse.allow_client_caching(False)` this will use the last created
             instance from the Synapse class constructor.
 
     Returns:
-        The created TextAnalyzer.
+        A dictionary representing the created TextAnalyzer.
     """
     from synapseclient import Synapse
 
@@ -49,7 +51,7 @@ async def get_text_analyzer(
     *,
     synapse_client: Optional["Synapse"] = None,
 ) -> Dict[str, Any]:
-    """Get a TextAnalyzer by ID.
+    """Get a TextAnalyzer by its ID.
 
     <https://rest-docs.synapse.org/rest/GET/search/text/analyzer/id.html>
 
@@ -60,7 +62,7 @@ async def get_text_analyzer(
             instance from the Synapse class constructor.
 
     Returns:
-        The requested TextAnalyzer.
+        A dictionary representing the requested TextAnalyzer.
     """
     from synapseclient import Synapse
 
@@ -79,14 +81,17 @@ async def update_text_analyzer(
     <https://rest-docs.synapse.org/rest/PUT/search/text/analyzer/id.html>
 
     Arguments:
-        analyzer_id: The path ID (must match the request body's ID).
-        request: The updated TextAnalyzer.
+        analyzer_id: The path ID of the text analyzer (must match the request
+            body's ID).
+        request: The updated TextAnalyzer object body. The `organizationName`
+            and `name` fields are immutable and cannot be modified after
+            creation.
         synapse_client: If not passed in and caching was not disabled by
             `Synapse.allow_client_caching(False)` this will use the last created
             instance from the Synapse class constructor.
 
     Returns:
-        The updated TextAnalyzer.
+        A dictionary representing the updated TextAnalyzer.
     """
     from synapseclient import Synapse
 
@@ -102,19 +107,21 @@ async def list_text_analyzers(
     *,
     synapse_client: Optional["Synapse"] = None,
 ) -> Dict[str, Any]:
-    """List TextAnalyzers, optionally filtered by Organization.
+    """List TextAnalyzer objects, optionally filtered by Organization.
 
     <https://rest-docs.synapse.org/rest/POST/search/text/analyzer/list.html>
 
     Arguments:
-        organization_name: Optional filter by organization name.
-        next_page_token: Optional pagination token.
+        organization_name: If `organizationName` is null, all text analyzers
+            across all Organizations are returned.
+        next_page_token: Results are paginated using a next page token.
         synapse_client: If not passed in and caching was not disabled by
             `Synapse.allow_client_caching(False)` this will use the last created
             instance from the Synapse class constructor.
 
     Returns:
-        Page of TextAnalyzers and a nextPageToken if more results exist.
+        A dictionary representing the ListTextAnalyzersResponse, containing a
+        page of TextAnalyzers and a nextPageToken if more results exist.
     """
     from synapseclient import Synapse
 
@@ -131,9 +138,18 @@ async def create_column_analyzer_override(
     *,
     synapse_client: Optional["Synapse"] = None,
 ) -> Dict[str, Any]:
-    """Create a ColumnAnalyzerOverride.
+    """Create a new ColumnAnalyzerOverride within the specified Organization.
 
     <https://rest-docs.synapse.org/rest/POST/search/column/analyzer/override.html>
+
+    Arguments:
+        request: The ColumnAnalyzerOverride object body.
+        synapse_client: If not passed in and caching was not disabled by
+            `Synapse.allow_client_caching(False)` this will use the last created
+            instance from the Synapse class constructor.
+
+    Returns:
+        A dictionary representing the created ColumnAnalyzerOverride.
     """
     from synapseclient import Synapse
 
@@ -148,9 +164,19 @@ async def get_column_analyzer_override(
     *,
     synapse_client: Optional["Synapse"] = None,
 ) -> Dict[str, Any]:
-    """Get a ColumnAnalyzerOverride by ID.
+    """Get a ColumnAnalyzerOverride by its ID.
 
     <https://rest-docs.synapse.org/rest/GET/search/column/analyzer/override/columnAnalyzerOverrideId.html>
+
+    Arguments:
+        column_analyzer_override_id: The ID of the column analyzer override to
+            retrieve.
+        synapse_client: If not passed in and caching was not disabled by
+            `Synapse.allow_client_caching(False)` this will use the last created
+            instance from the Synapse class constructor.
+
+    Returns:
+        A dictionary representing the requested ColumnAnalyzerOverride.
     """
     from synapseclient import Synapse
 
@@ -169,6 +195,18 @@ async def update_column_analyzer_override(
     """Update a ColumnAnalyzerOverride.
 
     <https://rest-docs.synapse.org/rest/PUT/search/column/analyzer/override/columnAnalyzerOverrideId.html>
+
+    Arguments:
+        column_analyzer_override_id: The path ID (must match the request
+            body's ID).
+        request: The updated ColumnAnalyzerOverride object body. Concurrency
+            is managed via the `etag` field.
+        synapse_client: If not passed in and caching was not disabled by
+            `Synapse.allow_client_caching(False)` this will use the last created
+            instance from the Synapse class constructor.
+
+    Returns:
+        A dictionary representing the updated ColumnAnalyzerOverride.
     """
     from synapseclient import Synapse
 
@@ -185,9 +223,22 @@ async def list_column_analyzer_overrides(
     *,
     synapse_client: Optional["Synapse"] = None,
 ) -> Dict[str, Any]:
-    """List ColumnAnalyzerOverrides, optionally filtered by Organization.
+    """List ColumnAnalyzerOverride objects, optionally filtered by Organization.
 
     <https://rest-docs.synapse.org/rest/POST/search/column/analyzer/override/list.html>
+
+    Arguments:
+        organization_name: If organizationName is null, all column analyzer
+            overrides across all Organizations are returned.
+        next_page_token: Results are paginated using a next page token.
+        synapse_client: If not passed in and caching was not disabled by
+            `Synapse.allow_client_caching(False)` this will use the last created
+            instance from the Synapse class constructor.
+
+    Returns:
+        A dictionary representing the ListColumnAnalyzerOverridesResponse,
+        containing a page of ColumnAnalyzerOverrides and a nextPageToken if
+        more results exist.
     """
     from synapseclient import Synapse
 
@@ -204,9 +255,21 @@ async def create_synonym_set(
     *,
     synapse_client: Optional["Synapse"] = None,
 ) -> Dict[str, Any]:
-    """Create a SynonymSet.
+    """Create a new SynonymSet within the specified Organization.
 
     <https://rest-docs.synapse.org/rest/POST/search/synonym/set.html>
+
+    Arguments:
+        request: The SynonymSet object body. The supplied `definition` is
+            parsed to confirm it is valid JSON before being passed to AOSS;
+            supply synonym lists inline via the `synonyms` array rather than
+            using file-based parameters.
+        synapse_client: If not passed in and caching was not disabled by
+            `Synapse.allow_client_caching(False)` this will use the last created
+            instance from the Synapse class constructor.
+
+    Returns:
+        A dictionary representing the created SynonymSet.
     """
     from synapseclient import Synapse
 
@@ -221,9 +284,18 @@ async def get_synonym_set(
     *,
     synapse_client: Optional["Synapse"] = None,
 ) -> Dict[str, Any]:
-    """Get a SynonymSet by ID.
+    """Get a SynonymSet by its ID.
 
     <https://rest-docs.synapse.org/rest/GET/search/synonym/set/synonymSetId.html>
+
+    Arguments:
+        synonym_set_id: The ID of the synonym set to retrieve.
+        synapse_client: If not passed in and caching was not disabled by
+            `Synapse.allow_client_caching(False)` this will use the last created
+            instance from the Synapse class constructor.
+
+    Returns:
+        A dictionary representing the requested SynonymSet.
     """
     from synapseclient import Synapse
 
@@ -240,6 +312,19 @@ async def update_synonym_set(
     """Update a SynonymSet.
 
     <https://rest-docs.synapse.org/rest/PUT/search/synonym/set/synonymSetId.html>
+
+    Arguments:
+        synonym_set_id: The path ID (must match the request body's ID).
+        request: The updated SynonymSet object body. The `definition` field is
+            re-parsed to validate JSON formatting. The `organizationName` and
+            `name` fields are immutable after creation. Concurrency is managed
+            via `etag`; mismatches return a 409 Conflict.
+        synapse_client: If not passed in and caching was not disabled by
+            `Synapse.allow_client_caching(False)` this will use the last created
+            instance from the Synapse class constructor.
+
+    Returns:
+        A dictionary representing the updated SynonymSet.
     """
     from synapseclient import Synapse
 
@@ -255,9 +340,21 @@ async def list_synonym_sets(
     *,
     synapse_client: Optional["Synapse"] = None,
 ) -> Dict[str, Any]:
-    """List SynonymSets, optionally filtered by Organization.
+    """List SynonymSet objects, optionally filtered by Organization.
 
     <https://rest-docs.synapse.org/rest/POST/search/synonym/set/list.html>
+
+    Arguments:
+        organization_name: If organizationName is null, all synonym sets
+            across all Organizations are returned.
+        next_page_token: Results are paginated using a next page token.
+        synapse_client: If not passed in and caching was not disabled by
+            `Synapse.allow_client_caching(False)` this will use the last created
+            instance from the Synapse class constructor.
+
+    Returns:
+        A dictionary representing the ListSynonymSetsResponse, containing a
+        page of SynonymSets and a nextPageToken if more results exist.
     """
     from synapseclient import Synapse
 
@@ -274,9 +371,18 @@ async def create_search_configuration(
     *,
     synapse_client: Optional["Synapse"] = None,
 ) -> Dict[str, Any]:
-    """Create a SearchConfiguration.
+    """Create a new SearchConfiguration within the specified Organization.
 
     <https://rest-docs.synapse.org/rest/POST/search/configuration.html>
+
+    Arguments:
+        request: The SearchConfiguration object body.
+        synapse_client: If not passed in and caching was not disabled by
+            `Synapse.allow_client_caching(False)` this will use the last created
+            instance from the Synapse class constructor.
+
+    Returns:
+        A dictionary representing the created SearchConfiguration.
     """
     from synapseclient import Synapse
 
@@ -291,9 +397,19 @@ async def get_search_configuration(
     *,
     synapse_client: Optional["Synapse"] = None,
 ) -> Dict[str, Any]:
-    """Get a SearchConfiguration by ID.
+    """Get a SearchConfiguration by its ID.
 
     <https://rest-docs.synapse.org/rest/GET/search/configuration/searchConfigurationId.html>
+
+    Arguments:
+        search_configuration_id: The ID of the search configuration to
+            retrieve.
+        synapse_client: If not passed in and caching was not disabled by
+            `Synapse.allow_client_caching(False)` this will use the last created
+            instance from the Synapse class constructor.
+
+    Returns:
+        A dictionary representing the requested SearchConfiguration.
     """
     from synapseclient import Synapse
 
@@ -312,6 +428,17 @@ async def update_search_configuration(
     """Update a SearchConfiguration.
 
     <https://rest-docs.synapse.org/rest/PUT/search/configuration/searchConfigurationId.html>
+
+    Arguments:
+        search_configuration_id: The path ID (must match the request body's
+            ID).
+        request: The updated SearchConfiguration object body.
+        synapse_client: If not passed in and caching was not disabled by
+            `Synapse.allow_client_caching(False)` this will use the last created
+            instance from the Synapse class constructor.
+
+    Returns:
+        A dictionary representing the updated SearchConfiguration.
     """
     from synapseclient import Synapse
 
@@ -328,9 +455,22 @@ async def list_search_configurations(
     *,
     synapse_client: Optional["Synapse"] = None,
 ) -> Dict[str, Any]:
-    """List SearchConfigurations, optionally filtered by Organization.
+    """List SearchConfiguration objects, optionally filtered by Organization.
 
     <https://rest-docs.synapse.org/rest/POST/search/configuration/list.html>
+
+    Arguments:
+        organization_name: If organizationName is null, all search
+            configurations across all Organizations are returned.
+        next_page_token: Results are paginated using a next page token.
+        synapse_client: If not passed in and caching was not disabled by
+            `Synapse.allow_client_caching(False)` this will use the last created
+            instance from the Synapse class constructor.
+
+    Returns:
+        A dictionary representing the ListSearchConfigurationsResponse,
+        containing a page of SearchConfigurations and a nextPageToken if more
+        results exist.
     """
     from synapseclient import Synapse
 
@@ -348,7 +488,9 @@ async def bind_search_config_to_entity(
     *,
     synapse_client: Optional["Synapse"] = None,
 ) -> Dict[str, Any]:
-    """Bind a SearchConfiguration to an entity. Replaces any existing binding.
+    """Bind a SearchConfiguration to an entity (typically a project). The
+    caller must have EDIT permission on the entity. Replaces any existing
+    binding on that entity.
 
     <https://rest-docs.synapse.org/rest/PUT/entity/entityId/searchconfig/binding.html>
 
@@ -360,7 +502,7 @@ async def bind_search_config_to_entity(
             instance from the Synapse class constructor.
 
     Returns:
-        The created SearchConfigBinding.
+        A dictionary representing the created SearchConfigBinding.
     """
     from synapseclient import Synapse
 
@@ -379,10 +521,20 @@ async def get_search_config_binding(
     *,
     synapse_client: Optional["Synapse"] = None,
 ) -> Dict[str, Any]:
-    """Get the effective SearchConfigBinding for an entity by walking up the
-    hierarchy.
+    """Get the effective SearchConfigBinding for an entity. Walks up the
+    entity hierarchy (entity -> folder -> project) and returns the first
+    binding found on the entity or any ancestor.
 
     <https://rest-docs.synapse.org/rest/GET/entity/entityId/searchconfig/binding.html>
+
+    Arguments:
+        entity_id: The ID of the entity to look up.
+        synapse_client: If not passed in and caching was not disabled by
+            `Synapse.allow_client_caching(False)` this will use the last created
+            instance from the Synapse class constructor.
+
+    Returns:
+        A dictionary representing the effective SearchConfigBinding.
     """
     from synapseclient import Synapse
 
@@ -398,6 +550,15 @@ async def clear_search_config_binding(
     """Clear the SearchConfigBinding on a specific entity.
 
     <https://rest-docs.synapse.org/rest/DELETE/entity/entityId/searchconfig/binding.html>
+
+    Arguments:
+        entity_id: The ID of the entity whose binding to clear.
+        synapse_client: If not passed in and caching was not disabled by
+            `Synapse.allow_client_caching(False)` this will use the last created
+            instance from the Synapse class constructor.
+
+    Returns:
+        None
     """
     from synapseclient import Synapse
 
@@ -410,19 +571,25 @@ async def autocomplete_search(
     *,
     synapse_client: Optional["Synapse"] = None,
 ) -> Dict[str, Any]:
-    """Synchronous autocomplete search. Caps results at 8.
+    """Perform a synchronous autocomplete search query against a SearchIndex.
+    Purpose-built for type-ahead input: no pagination, sorting customization,
+    or aggregations are available; the server caps every response at 8 hits,
+    ordered by relevance. For more complex search needs, use the asynchronous
+    search endpoint instead.
 
     <https://rest-docs.synapse.org/rest/POST/search/autocomplete.html>
 
     Arguments:
-        request: SearchAutocompleteRequest body (must include searchIndexId and
-            a searchQuery with a prefix-style query).
+        request: The SearchAutocompleteRequest body. Only two top-level keys
+            are permitted in the `searchQuery`: `query` (required, must use
+            one of `prefix`, `match_phrase_prefix`, or `match_bool_prefix`) and
+            `_source` (optional, a source filter to narrow returned fields).
         synapse_client: If not passed in and caching was not disabled by
             `Synapse.allow_client_caching(False)` this will use the last created
             instance from the Synapse class constructor.
 
     Returns:
-        SearchQueryResults.
+        A dictionary representing the SearchQueryResults, capped at 8 hits.
     """
     from synapseclient import Synapse
 
