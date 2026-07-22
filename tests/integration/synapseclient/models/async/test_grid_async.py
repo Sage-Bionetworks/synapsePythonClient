@@ -491,8 +491,7 @@ CELL_VALUE_FILTER_CASES = [
 class TestGridValidateRowsAsync:
     """Tests for Grid.validate_rows_async, covering every SelectItem and
     Filter option, using one shared bound-schema grid session for the whole
-    class rather than recreating the (slow) org/schema/RecordSet/session
-    setup per test method. Every query in this class is read-only, so
+    class. Every query in this class is read-only, so
     sharing the same session across tests is safe."""
 
     @pytest.fixture(autouse=True, scope="function")
