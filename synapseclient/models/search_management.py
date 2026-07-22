@@ -478,7 +478,85 @@ class SynonymSet(OrgScopedResource):
     Referenced by qualified name `{organizationName}-{name}` from a TextAnalyzer's
     `settings.filter` registry map via `{"$ref": "{organizationName}-{name}"}`.
 
+    A SynonymSet belongs to an Organization, referenced by `organization_name`.
+    Find an Organization you already have access to with
+    `synapseclient.models.organization.list_organizations()`, or create one with
+    `synapseclient.models.Organization` before creating a SynonymSet.
+
     Represents a [Synapse SynonymSet](https://rest-docs.synapse.org/rest/org/sagebionetworks/repo/model/search/table/SynonymSet.html).
+
+    Example: Create a SynonymSet.
+        &nbsp;
+
+        ```python
+        from synapseclient import Synapse
+        from synapseclient.models import SynonymSet
+
+        syn = Synapse()
+        syn.login()
+
+        synonyms = SynonymSet(
+            organization_name="my.existing.organization",
+            name="disease_synonyms",
+            description="Common synonyms for disease terms",
+            definition={
+                "type": "synonym_graph",
+                "synonyms": [
+                    # comma-separated = equivalence set, matches either way
+                    "tumor, neoplasm, cancer",
+                    # "=>" = one-way mapping, "AD" expands to the right side only
+                    "AD => Alzheimer's disease",
+                ],
+            },
+        )
+        synonyms = synonyms.store()
+        print(f"Created SynonymSet: {synonyms.id} ({synonyms.qualified_name})")
+        ```
+
+    Example: Get an existing SynonymSet by ID.
+        &nbsp;
+
+        ```python
+        from synapseclient import Synapse
+        from synapseclient.models import SynonymSet
+
+        syn = Synapse()
+        syn.login()
+
+        synonyms = SynonymSet(id="12345").get()
+        print(synonyms.name, synonyms.definition)
+        ```
+
+    Example: Update an existing SynonymSet.
+        &nbsp;
+
+        ```python
+        from synapseclient import Synapse
+        from synapseclient.models import SynonymSet
+
+        syn = Synapse()
+        syn.login()
+
+        synonyms = SynonymSet(id="12345").get()
+        synonyms.definition["synonyms"].append("MI, myocardial infarction, heart attack")
+        synonyms = synonyms.store()
+        print(f"Updated SynonymSet etag: {synonyms.etag}")
+        ```
+
+    Example: List SynonymSets in an Organization.
+        &nbsp;
+
+        ```python
+        from synapseclient import Synapse
+        from synapseclient.models import SynonymSet
+
+        syn = Synapse()
+        syn.login()
+
+        synonym_sets = SynonymSet.list(organization_name="my.existing.organization")
+        for synonyms in synonym_sets:
+            print(synonyms.id, synonyms.qualified_name)
+        ```
     """
 
     _CREATE_FN = staticmethod(create_synonym_set)
@@ -560,7 +638,80 @@ class SearchConfiguration(OrgScopedResource):
     """Bundles the index-wide default analyzer and per-column overrides used to
     build a SearchIndex.
 
+    A SearchConfiguration belongs to an Organization, referenced by
+    `organization_name`. Find an Organization you already have access to with
+    `synapseclient.models.organization.list_organizations()`, or create one with
+    `synapseclient.models.Organization` before creating a SearchConfiguration.
+
     Represents a [Synapse SearchConfiguration](https://rest-docs.synapse.org/rest/org/sagebionetworks/repo/model/search/table/SearchConfiguration.html).
+
+    Example: Create a SearchConfiguration.
+        &nbsp;
+
+        ```python
+        from synapseclient import Synapse
+        from synapseclient.models import SearchConfiguration
+
+        syn = Synapse()
+        syn.login()
+
+        config = SearchConfiguration(
+            organization_name="my.existing.organization",
+            name="default_config",
+            description="Default search configuration for this project's indexes",
+            # Reference a previously-created TextAnalyzer by its qualified name...
+            default_analyzer={"$ref": "my.existing.organization-stemmed_english"},
+        )
+        config = config.store()
+        print(f"Created SearchConfiguration: {config.id} ({config.qualified_name})")
+        ```
+
+    Example: Get an existing SearchConfiguration by ID.
+        &nbsp;
+
+        ```python
+        from synapseclient import Synapse
+        from synapseclient.models import SearchConfiguration
+
+        syn = Synapse()
+        syn.login()
+
+        config = SearchConfiguration(id="12345").get()
+        print(config.name, config.default_analyzer)
+        ```
+
+    Example: Update an existing SearchConfiguration.
+        &nbsp;
+
+        ```python
+        from synapseclient import Synapse
+        from synapseclient.models import SearchConfiguration
+
+        syn = Synapse()
+        syn.login()
+
+        config = SearchConfiguration(id="12345").get()
+        config.column_analyzer_overrides.append(
+            {"$ref": "my.existing.organization-abstract_overrides"}
+        )
+        config = config.store()
+        print(f"Updated SearchConfiguration etag: {config.etag}")
+        ```
+
+    Example: List SearchConfigurations in an Organization.
+        &nbsp;
+
+        ```python
+        from synapseclient import Synapse
+        from synapseclient.models import SearchConfiguration
+
+        syn = Synapse()
+        syn.login()
+
+        configs = SearchConfiguration.list(organization_name="my.existing.organization")
+        for config in configs:
+            print(config.id, config.qualified_name)
+        ```
     """
 
     _CREATE_FN = staticmethod(create_search_configuration)
@@ -714,6 +865,25 @@ class SearchConfigBinding(SearchConfigBindingProtocol):
 
         Raises:
             ValueError: If ``object_id`` or ``search_configuration_id`` is not set.
+
+        Example: Bind a SearchConfiguration to a Project.
+            &nbsp;
+
+            ```python
+            from synapseclient import Synapse
+            from synapseclient.models import SearchConfigBinding
+
+            syn = Synapse()
+            syn.login()
+
+            binding = SearchConfigBinding(
+                object_id="syn12345",
+                search_configuration_id="6789",
+            )
+            binding = binding.store()
+            print(f"Bound SearchConfiguration {binding.search_configuration_id} "
+                  f"to {binding.object_id}")
+            ```
         """
         if not self.object_id:
             raise ValueError("SearchConfigBinding must have an object_id set.")
@@ -742,6 +912,20 @@ class SearchConfigBinding(SearchConfigBindingProtocol):
 
         Raises:
             ValueError: If ``object_id`` is not set.
+
+        Example: Get the effective binding for a Project.
+            &nbsp;
+
+            ```python
+            from synapseclient import Synapse
+            from synapseclient.models import SearchConfigBinding
+
+            syn = Synapse()
+            syn.login()
+
+            binding = SearchConfigBinding(object_id="syn12345").get()
+            print(binding.search_configuration_id)
+            ```
         """
         if not self.object_id:
             raise ValueError("SearchConfigBinding must have an object_id set.")
@@ -760,6 +944,19 @@ class SearchConfigBinding(SearchConfigBindingProtocol):
 
         Raises:
             ValueError: If ``object_id`` is not set.
+
+        Example: Clear the binding on a Project.
+            &nbsp;
+
+            ```python
+            from synapseclient import Synapse
+            from synapseclient.models import SearchConfigBinding
+
+            syn = Synapse()
+            syn.login()
+
+            SearchConfigBinding(object_id="syn12345").delete()
+            ```
         """
         if not self.object_id:
             raise ValueError("SearchConfigBinding must have an object_id set.")
