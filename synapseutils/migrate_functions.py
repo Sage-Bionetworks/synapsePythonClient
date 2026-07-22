@@ -8,6 +8,8 @@ import traceback
 import typing
 from enum import Enum
 
+from deprecated import deprecated
+
 import synapseclient
 from synapseclient.core import pool_provider, utils
 from synapseclient.core.constants import concrete_types
@@ -25,7 +27,34 @@ in the new location.
 """
 
 
+@deprecated(
+    version="4.14.0",
+    reason=(
+        "To be removed in 5.0.0. "
+        "Use synapseclient.core.utils.test_import_sqlite3 instead."
+    ),
+)
 def test_import_sqlite3():
+    """
+    Verify that the sqlite3 module is importable, raising an ImportError with
+    an explanatory message if it is not.
+
+    Example: Migration to the new location
+        &nbsp;
+
+        This function moved to synapseclient.core.utils. Update the import; the
+        behavior is unchanged.
+
+        ```python
+        # Old approach (DEPRECATED)
+        # from synapseutils.migrate_functions import test_import_sqlite3
+
+        # New approach (RECOMMENDED)
+        from synapseclient.core.utils import test_import_sqlite3
+
+        test_import_sqlite3()
+        ```
+    """
     # sqlite3 is part of the Python standard library and is available on the vast majority
     # of Python installations and doesn't require any additional software on the system.
     # it may be unavailable in some rare cases though (for example Python compiled from source
@@ -101,6 +130,13 @@ def _get_row_dict(cursor, row, include_empty):
     }
 
 
+@deprecated(
+    version="4.14.0",
+    reason=(
+        "To be removed in 5.0.0. "
+        "Use the MigrationResult class from synapseclient.models.services instead."
+    ),
+)
 class MigrationResult:
     """A MigrationResult is a proxy object to the underlying sqlite db.
     It provides a programmatic interface that allows the caller to iterate over the
@@ -110,6 +146,48 @@ class MigrationResult:
     migrating a huge project of hundreds of thousands/millions of entities.
 
     As this proxy object is not thread safe since it accesses an underlying sqlite db.
+
+    Example: Migration to the new class
+        &nbsp;
+
+        This class is replaced by the MigrationResult class in
+        synapseclient.models.services, which is returned by the new migration
+        methods on the Project and Folder models.
+
+        ```python
+        # Old approach (DEPRECATED)
+        # result returned by synapseutils.index_files_for_migration or
+        # synapseutils.migrate_indexed_files
+        # counts = result.get_counts_by_status()
+        # for migration in result.get_migrations():
+        #     print(migration)
+
+        # New approach (RECOMMENDED)
+        from synapseclient import Synapse
+        from synapseclient.models import Project
+
+        syn = Synapse()
+        syn.login()
+
+        # The new MigrationResult is returned by the migration methods on the
+        # Project and Folder models
+        result = Project(id="syn123").index_files_for_migration(
+            dest_storage_location_id=12345,
+        )
+
+        # Inspect the counts of files by migration status
+        project = Project(id="syn123").get()
+        index_result = my_migration_folder.index_files_for_migration(
+        dest_storage_location_id = "123456",
+        db_path="/path/to/your/migration.db",
+        include_table_files=False,  # Set True if you also want table-attached files
+        )
+
+        index_result.as_csv("/path/to/your/index_results.csv")
+        print(f"Migration index database: {index_result.db_path}")
+        print(f"Indexed counts by status: {index_result.counts_by_status}")
+
+        ```
     """
 
     def __init__(self, syn, db_path):
@@ -433,6 +511,16 @@ def _wait_futures(conn, cursor, futures, pending_keys, return_when, continue_on_
     return futures, completed_file_handle_ids
 
 
+@deprecated(
+    version="4.14.0",
+    reason=(
+        "To be removed in 5.0.0. "
+        "Use the index_files_for_migration method on the Project or Folder models "
+        "from synapseclient.models instead, or the "
+        "synapseclient.models.services.index_files_for_migration_async function "
+        "for File and Table entities."
+    ),
+)
 def index_files_for_migration(
     syn: synapseclient.Synapse,
     entity,
@@ -479,6 +567,48 @@ def index_files_for_migration(
 
     Returns:
         A MigrationResult object that can be used to inspect the contents of the index or output the index to a CSV for manual inspection.
+
+    Example: Migration to the new approach
+        &nbsp;
+
+        Use the index_files_for_migration method on the Project or Folder models
+        from synapseclient.models instead. The new method is called on the model
+        instance, uses the logged in Synapse client automatically, and db_path is
+        optional (a temporary location is used if not provided and is available
+        on the returned MigrationResult as result.db_path). For File and Table
+        entities, use the index_files_for_migration_async function from
+        synapseclient.models.services.
+
+        ```python
+        # Old approach (DEPRECATED)
+        # import synapseclient
+        # import synapseutils
+        #
+        # syn = synapseclient.login()
+        # result = synapseutils.index_files_for_migration(
+        #     syn,
+        #     "syn123",
+        #     dest_storage_location_id="12345",
+        #     db_path="/tmp/migration.db",
+        #     file_version_strategy="new",
+        # )
+
+        # New approach (RECOMMENDED)
+        from synapseclient import Synapse
+        from synapseclient.models import Project
+
+        syn = Synapse()
+        syn.login()
+
+        project = Project(id="syn123").get()
+        result = project.index_files_for_migration(
+            dest_storage_location_id=12345,
+            db_path="/tmp/migration.db",
+            file_version_strategy="new",
+        )
+        print(f"Indexed files stored in the database at: {result.db_path}")
+        print(f"Counts by status: {result.get_counts_by_status()}")
+        ```
     """  # noqa
     root_id = utils.id_of(entity)
 
@@ -598,6 +728,15 @@ def _check_file_handle_exists(cursor, from_file_handle_id):
     return row[0] if row else None
 
 
+@deprecated(
+    version="4.14.0",
+    reason=(
+        "To be removed in 5.0.0. "
+        "Use the migrate_indexed_files method on the Project or Folder models "
+        "from synapseclient.models instead, or the "
+        "synapseclient.models.services.migrate_indexed_files_async function."
+    ),
+)
 def migrate_indexed_files(
     syn: synapseclient.Synapse,
     db_path: str,
@@ -623,6 +762,49 @@ def migrate_indexed_files(
 
     Returns:
         A MigrationResult object that can be used to inspect the results of the migration.
+
+    Example: Migration to the new approach
+        &nbsp;
+
+        Use the migrate_indexed_files method on the Project or Folder models
+        from synapseclient.models instead. The new method is called on the model
+        instance and uses the logged in Synapse client automatically. For File
+        and Table entities, use the migrate_indexed_files_async function from
+        synapseclient.models.services.
+
+        ```python
+        # Old approach (DEPRECATED)
+        # import synapseclient
+        # import synapseutils
+        #
+        # syn = synapseclient.login()
+        # result = synapseutils.migrate_indexed_files(
+        #     syn,
+        #     db_path="/tmp/migration.db",
+        #     force=True,
+        # )
+
+        # New approach (RECOMMENDED)
+        from synapseclient import Synapse
+        from synapseclient.models import Project
+
+        syn = Synapse()
+        syn.login()
+
+        project = Project(id="syn123").get()
+
+        # Index the files first
+        index_result = project.index_files_for_migration(
+            dest_storage_location_id=12345,
+        )
+
+        # Then migrate using the same database path
+        result = project.migrate_indexed_files(
+            db_path=index_result.db_path,
+            force=True,  # Skip the interactive confirmation prompt
+        )
+        print(f"Counts by status: {result.get_counts_by_status()}")
+        ```
     """
     executor, max_concurrent_file_copies = _get_executor(syn)
 
