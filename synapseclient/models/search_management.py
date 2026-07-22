@@ -50,6 +50,9 @@ from synapseclient.core.async_utils import async_to_sync
 from synapseclient.core.constants import concrete_types
 from synapseclient.core.utils import delete_none_keys
 from synapseclient.models.mixins.asynchronous_job import AsynchronousCommunicator
+from synapseclient.models.protocols.search_management_protocol import (
+    SearchConfigBindingSynchronousProtocol,
+)
 from synapseclient.models.table_components import SelectColumn
 
 if TYPE_CHECKING:
@@ -796,25 +799,9 @@ class SearchConfiguration(OrgScopedResource):
         return body
 
 
-class SearchConfigBindingProtocol(Protocol):
-    """Synchronous interface for SearchConfigBinding operations."""
-
-    def store(self, *, synapse_client: Optional["Synapse"] = None) -> "Self":
-        """Bind ``search_configuration_id`` to the entity ``object_id``."""
-        return self
-
-    def get(self, *, synapse_client: Optional["Synapse"] = None) -> "Self":
-        """Get the effective binding for the entity ``object_id``."""
-        return self
-
-    def delete(self, *, synapse_client: Optional["Synapse"] = None) -> None:
-        """Clear the binding on the entity ``object_id``."""
-        return None
-
-
 @dataclass
 @async_to_sync
-class SearchConfigBinding(SearchConfigBindingProtocol):
+class SearchConfigBinding(SearchConfigBindingSynchronousProtocol):
     """Attaches a SearchConfiguration to an entity. When a SearchIndex is built,
     the effective SearchConfiguration is resolved by walking up the entity
     hierarchy (entity -> folder -> project) and using the first binding found.
