@@ -600,7 +600,7 @@ def index_files_for_migration(
         syn = Synapse()
         syn.login()
 
-        project = Project(id="syn123")
+        project = Project(id="syn123").get()
         result = project.index_files_for_migration(
             dest_storage_location_id="12345",
             db_path="/tmp/migration.db",
