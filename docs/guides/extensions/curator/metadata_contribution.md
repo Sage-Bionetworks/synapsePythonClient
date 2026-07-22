@@ -58,9 +58,9 @@ for task in all_tasks:
 curation_task = all_tasks[0]
 ```
 
-#### Option B: Filter the list by assignee, state, or name
+#### Option B: Filter the list by assignee, state, or data type
 
-Use this when you want to find tasks assigned to you, tasks in a specific state, or locate a task by name. Each filter still returns a list — pick the one you want from it.
+Use this when you want to find tasks assigned to you, tasks in a specific state, or locate a task by its data type. Each filter still returns a list — pick the one you want from it.
 
 ```python
 from synapseclient.models import CurationTask
@@ -78,12 +78,12 @@ in_progress_tasks = list(
     CurationTask.list(project_id=PROJECT_ID, state_filter=["IN_PROGRESS"])
 )
 
-# Find a task by name (list() does not support name filtering directly — filter after listing)
-target_name = "AnimalMetadata_Curation"
-named_tasks = [
+# Find a task by data type (list() does not support data type filtering directly — filter after listing)
+target_data_type = "AnimalMetadata"
+matching_tasks = [
     task
     for task in CurationTask.list(project_id=PROJECT_ID)
-    if task.name == target_name
+    if task.data_type == target_data_type
 ]
 
 # Select the task you want from whichever list you built above
