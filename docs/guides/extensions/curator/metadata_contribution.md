@@ -208,9 +208,9 @@ with latest_grid.connect() as grid:
 ```
 
 !!! note "Requires a bound schema"
-    In-session validation only produces results when the administrator bound a
+    In-session validation only produces results when the administrator has bound a
     JSON schema to the RecordSet. Without one, rows still return but their
-    `validation_results` are empty.
+    `validation_results` is `None` for each row.
 
 In-session `validate_rows()` checks the current Grid rows without creating a new RecordSet version — use it to iterate quickly. The export report reviewed in Step 8 (`get_detailed_validation_results()`) reflects the last export from Step 7. Each method has a matching `_async` counterpart (`connect_async`, `validate_rows_async`) for async contexts.
 
