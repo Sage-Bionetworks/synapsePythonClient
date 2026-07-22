@@ -183,7 +183,7 @@ with Grid(record_set_id="syn123456789").connect() as grid:
         print(f"Row ID: {row.row_id}, Validation Result: {row.validation_results}")
 ```
 
-To focus on just the rows that currently fail, add a `RowIsValidFilter` and set `include_validation_messages=True` so each row carries the full `all_validation_messages` list:
+To focus on just the rows that currently fail, add a `RowIsValidFilter` and set `include_validation_messages=True` so each row’s `validation_results` includes the full `all_validation_messages` list:
 
 ```python
 from synapseclient.models.curation import (
