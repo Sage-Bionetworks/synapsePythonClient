@@ -110,6 +110,10 @@ ANNO_TYPE_TO_FUNC: dict[
 )
 
 
+@deprecated(
+    version="4.14.0",
+    reason="To be removed in 5.0.0. No replacement is provided.",
+)
 def is_synapse_annotations(annotations: Mapping) -> bool:
     """Tests if the given object is a Synapse-style Annotations object.
 
@@ -149,6 +153,11 @@ def _annotation_value_list_element_type(annotation_values: list[Any]) -> type:
     return object
 
 
+@deprecated(
+    version="4.14.0",
+    reason="To be removed in 5.0.0. No longer part of the public API; it is now an "
+    "internal helper at synapseclient/models/submission_status.py::_is_submission_status_annotations.",
+)
 def is_submission_status_annotations(annotations: collections.abc.Mapping) -> bool:
     """Tests if the given dictionary is in the form of annotations to submission
     status.
@@ -167,6 +176,11 @@ def is_submission_status_annotations(annotations: collections.abc.Mapping) -> bo
     return all([key in keys for key in annotations.keys()])
 
 
+@deprecated(
+    version="4.14.0",
+    reason="To be removed in 5.0.0. No longer part of the public API; it is now an "
+    "internal helper at synapseclient/models/submission_status.py::_to_submission_status_annotations.",
+)
 def to_submission_status_annotations(annotations, is_private=True):
     """
     Converts a normal dictionary to the format used to annotate submission statuses, which is different from the format
@@ -240,6 +254,11 @@ def to_submission_status_annotations(annotations, is_private=True):
     return synapseAnnos
 
 
+@deprecated(
+    version="4.14.0",
+    reason="To be removed in 5.0.0. No longer part of the public API; it is now an "
+    "internal helper at synapseclient/models/submission_status.py::_to_submission_annotations.",
+)
 def to_submission_annotations(
     id: Union[str, int],
     etag: str,
@@ -361,7 +380,9 @@ def to_submission_annotations(
     return submission_annos
 
 
-# TODO: this should accept a status object and return its annotations or an empty dict if there are none
+# TODO: https://sagebionetworks.jira.com/browse/SYNPY-1874
+# This function is still used by Synapse.store_async
+# Deprecate this function once its not used anymore
 def from_submission_status_annotations(annotations) -> dict:
     """
     Convert back from submission status annotation format to a normal dictionary.
@@ -390,6 +411,10 @@ def from_submission_status_annotations(annotations) -> dict:
     return dictionary
 
 
+@deprecated(
+    version="4.14.0",
+    reason="To be removed in 5.0.0. No replacement is provided.",
+)
 def set_privacy(
     annotations,
     key,
@@ -537,6 +562,10 @@ class Annotations(dict):
         self._etag = str(value)
 
 
+@deprecated(
+    version="4.14.0",
+    reason="To be removed in 5.0.0. No replacement is provided.",
+)
 def to_synapse_annotations(annotations: Annotations) -> dict[str, Any]:
     """Transforms a simple flat dictionary to a Synapse-style Annotation object. See
     the [Synapse API](https://rest-docs.synapse.org/rest/org/sagebionetworks/repo/model/annotation/v2/Annotations.html)
@@ -663,6 +692,10 @@ def _convert_to_annotations_list(
     return nested_annos
 
 
+@deprecated(
+    version="4.14.0",
+    reason="To be removed in 5.0.0. No replacement is provided.",
+)
 def from_synapse_annotations(raw_annotations: dict[str, Any]) -> Annotations:
     """Transforms a Synapse-style Annotation object to a simple flat dictionary.
 
@@ -687,11 +720,18 @@ def from_synapse_annotations(raw_annotations: dict[str, Any]) -> Annotations:
     return annos
 
 
+# TODO: https://sagebionetworks.jira.com/browse/SYNPY-1874
+# This function is still used by Synapse.store_async
+# Deprecate this function once its not used anymore
 def check_annotations_changed(bundle_annotations, new_annotations):
     converted_annos = _convert_to_annotations_list(new_annotations)
     return bundle_annotations["annotations"] != converted_annos
 
 
+@deprecated(
+    version="4.14.0",
+    reason="To be removed in 5.0.0. No replacement is provided.",
+)
 def convert_old_annotation_json(annotations):
     """Transforms a parsed JSON dictionary of old style annotations
     into a new style consistent with the entity bundle v2 format.
