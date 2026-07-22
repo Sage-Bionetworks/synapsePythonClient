@@ -197,7 +197,86 @@ class TextAnalyzer(OrgScopedResource):
     """A shareable, named OpenSearch custom analyzer. Used to configure how text
     is tokenized for a search index.
 
+    A TextAnalyzer belongs to an Organization, referenced by `organization_name`.
+    Find an Organization you already have access to with
+    `synapseclient.models.organization.list_organizations()`, or create one with
+    `synapseclient.models.Organization` before creating a TextAnalyzer.
+
     Represents a [Synapse TextAnalyzer](https://rest-docs.synapse.org/rest/org/sagebionetworks/repo/model/search/table/TextAnalyzer.html).
+
+    Example: Create a TextAnalyzer.
+        &nbsp;
+
+        ```python
+        from synapseclient import Synapse
+        from synapseclient.models import TextAnalyzer
+
+        syn = Synapse()
+        syn.login()
+
+        analyzer = TextAnalyzer(
+            organization_name="my.existing.organization",
+            name="stemmed_english",
+            description="English analyzer with stemming and lowercase filtering",
+            settings={
+                "analyzer": {
+                    "default": {
+                        "type": "custom",
+                        "tokenizer": "standard",
+                        "filter": ["lowercase", "porter_stem"],
+                    }
+                }
+            },
+        )
+        analyzer = analyzer.store()
+        print(f"Created TextAnalyzer: {analyzer.id} ({analyzer.qualified_name})")
+        ```
+
+    Example: Get an existing TextAnalyzer by ID.
+        &nbsp;
+
+        ```python
+        from synapseclient import Synapse
+        from synapseclient.models import TextAnalyzer
+
+        syn = Synapse()
+        syn.login()
+
+        analyzer = TextAnalyzer(id="12345").get()
+        print(analyzer.name, analyzer.settings)
+        ```
+
+    Example: Update an existing TextAnalyzer.
+        &nbsp;
+
+        ```python
+        from synapseclient import Synapse
+        from synapseclient.models import TextAnalyzer
+
+        syn = Synapse()
+        syn.login()
+
+        analyzer = TextAnalyzer(id="12345").get()
+        analyzer.description = "Updated description"
+        analyzer.settings["analyzer"]["default"]["filter"].append("asciifolding")
+        analyzer = analyzer.store()
+        print(f"Updated TextAnalyzer etag: {analyzer.etag}")
+        ```
+
+    Example: List TextAnalyzers in an Organization.
+        &nbsp;
+
+        ```python
+        from synapseclient import Synapse
+        from synapseclient.models import TextAnalyzer
+
+        syn = Synapse()
+        syn.login()
+
+        analyzers = TextAnalyzer.list(organization_name="my.existing.organization")
+        for analyzer in analyzers:
+            print(analyzer.id, analyzer.qualified_name)
+        ```
     """
 
     _CREATE_FN = staticmethod(create_text_analyzer)
