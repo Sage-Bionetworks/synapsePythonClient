@@ -93,6 +93,7 @@ class SearchIndex(
         index = SearchIndex(
             name="My Search Index",
             parent_id="syn12345",
+            # syn67890 must be a table or a view; multi-entity JOINs are not supported
             defining_sql="SELECT * FROM syn67890",
         )
         index = index.store()
@@ -101,18 +102,50 @@ class SearchIndex(
     """
 
     id: Optional[str] = None
+    """The unique immutable ID for this entity. A new ID will be generated for
+    new Entities. Once issued, this ID is guaranteed to never change or be
+    re-issued."""
+
     name: Optional[str] = None
+    """The name of this entity. Must be 256 characters or less. Names may only
+    contain: letters, numbers, spaces, underscores, hyphens, periods, plus
+    signs, apostrophes, and parentheses."""
+
     description: Optional[str] = None
+    """The description of this entity. Must be 1000 characters or less."""
+
     etag: Optional[str] = field(default=None, compare=False)
+    """Synapse employs an Optimistic Concurrency Control (OCC) scheme to handle
+    concurrent updates. Since the E-Tag changes every time an entity is
+    updated it is used to detect when a client's current representation of an
+    entity is out-of-date."""
+
     created_on: Optional[str] = field(default=None, compare=False)
+    """The date this entity was created."""
+
     modified_on: Optional[str] = field(default=None, compare=False)
+    """The date this entity was last modified."""
+
     created_by: Optional[str] = field(default=None, compare=False)
+    """The ID of the user that created this entity."""
+
     modified_by: Optional[str] = field(default=None, compare=False)
+    """The ID of the user that last modified this entity."""
+
     parent_id: Optional[str] = None
+    """The ID of the Entity that is the parent of this Entity."""
+
     version_number: Optional[int] = field(default=None, compare=False)
+    """The version number issued to this version on the object."""
+
     version_label: Optional[str] = None
+    """The version label for this entity."""
+
     version_comment: Optional[str] = None
+    """The version comment for this entity."""
+
     is_latest_version: Optional[bool] = field(default=None, compare=False)
+    """If this is the latest version of the object."""
 
     columns: Optional[OrderedDict[str, Column]] = field(
         default_factory=OrderedDict, compare=False
@@ -221,7 +254,49 @@ class SearchIndex(
         job_timeout: int = 600,
         synapse_client: Optional[Synapse] = None,
     ) -> "Self":
-        """Asynchronously store the SearchIndex entity."""
+        """Asynchronously store the SearchIndex entity. Creates a new SearchIndex
+        if `id` is not set, or updates the existing one otherwise. `defining_sql`
+        must be set before calling this.
+
+        Arguments:
+            dry_run: If True, will not actually store the SearchIndex but will log
+                to the console what would be created or updated.
+            job_timeout: The maximum amount of time to wait for the index-build job
+                to complete before raising an error.
+            synapse_client: If not passed in and caching was not disabled by
+                `Synapse.allow_client_caching(False)` this will use the last created
+                instance from the Synapse class constructor.
+
+        Returns:
+            Itself, populated with the server-assigned ID, etag, and columns.
+
+        Raises:
+            ValueError: If `defining_sql` is not set.
+
+        Example: Create a new SearchIndex.
+            &nbsp;
+
+            ```python
+            import asyncio
+            from synapseclient import Synapse
+            from synapseclient.models import SearchIndex
+
+            async def main():
+                syn = Synapse()
+                syn.login()
+
+                index = SearchIndex(
+                    name="My Search Index",
+                    parent_id="syn12345",
+                    # syn67890 must be a table or a view;
+                    defining_sql="SELECT * FROM syn67890",
+                )
+                index = await index.store_async()
+                print(f"Created SearchIndex: {index.id}")
+
+            asyncio.run(main())
+            ```
+        """
         if not self.defining_sql:
             raise ValueError(
                 "The defining_sql attribute must be set for a SearchIndex."
@@ -237,7 +312,39 @@ class SearchIndex(
         *,
         synapse_client: Optional[Synapse] = None,
     ) -> "Self":
-        """Asynchronously fetch the SearchIndex metadata."""
+        """Asynchronously fetch the SearchIndex metadata. Either `id`, or `name`
+        and `parent_id`, must be set before calling this.
+
+        Arguments:
+            include_columns: If True, will include the columns derived from
+                `defining_sql` on the returned SearchIndex.
+            include_activity: If True, will include the provenance activity on
+                the returned SearchIndex.
+            synapse_client: If not passed in and caching was not disabled by
+                `Synapse.allow_client_caching(False)` this will use the last created
+                instance from the Synapse class constructor.
+
+        Returns:
+            Itself, populated from the Synapse response.
+
+        Example: Get a SearchIndex by ID.
+            &nbsp;
+
+            ```python
+            import asyncio
+            from synapseclient import Synapse
+            from synapseclient.models import SearchIndex
+
+            async def main():
+                syn = Synapse()
+                await syn.login_async()
+
+                index = await SearchIndex(id="syn12345").get_async()
+                print(index.name, index.defining_sql)
+
+            asyncio.run(main())
+            ```
+        """
         return await super().get_async(
             include_columns=include_columns,
             include_activity=include_activity,
@@ -245,7 +352,31 @@ class SearchIndex(
         )
 
     async def delete_async(self, *, synapse_client: Optional[Synapse] = None) -> None:
-        """Asynchronously delete this SearchIndex from Synapse."""
+        """Asynchronously delete this SearchIndex from Synapse. `id` must be set
+        before calling this.
+
+        Arguments:
+            synapse_client: If not passed in and caching was not disabled by
+                `Synapse.allow_client_caching(False)` this will use the last created
+                instance from the Synapse class constructor.
+
+        Example: Delete a SearchIndex by ID.
+            &nbsp;
+
+            ```python
+            import asyncio
+            from synapseclient import Synapse
+            from synapseclient.models import SearchIndex
+
+            async def main():
+                syn = Synapse()
+                await syn.login_async()
+
+                await SearchIndex(id="syn12345").delete_async()
+
+            asyncio.run(main())
+            ```
+        """
         await super().delete_async(synapse_client=synapse_client)
 
     async def autocomplete_async(
