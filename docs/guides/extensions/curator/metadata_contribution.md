@@ -102,14 +102,14 @@ curation_task = CurationTask(task_id=12345).get()
 
 ### Step 3: Get or create a Grid session for the task
 
-Each option in Step 2 leaves you with a single `curation_task`. Open its Grid with [get_curator_grid][synapseclient.extensions.curator.get_curator_grid]. Given the task's ID, it returns the Grid already linked to the task, or — if none is linked yet — creates a new Grid session, links it to the task, and returns it. The first call starts the session; every subsequent call returns that same session, so you can pick up where you left off without accidentally starting over.
+Each option in Step 2 leaves you with a single `curation_task`. Open its Grid with [get_or_create_curator_grid][synapseclient.extensions.curator.get_or_create_curator_grid]. Given the task's ID, it returns the Grid already linked to the task, or — if none is linked yet — creates a new Grid session, links it to the task, and returns it. The first call starts the session; every subsequent call returns that same session, so you can pick up where you left off without accidentally starting over.
 
 The `record_set_id` and the authorization mode are taken from the task properties automatically, so you do not need to specify them here.
 
 ```python
-from synapseclient.extensions.curator import get_curator_grid
+from synapseclient.extensions.curator import get_or_create_curator_grid
 
-latest_grid = get_curator_grid(task_id=curation_task.task_id)
+latest_grid = get_or_create_curator_grid(task_id=curation_task.task_id)
 ```
 
 ### Step 4: Download record-based metadata as a local CSV
@@ -234,7 +234,7 @@ Row 2:
 
 #### Fix and re-export
 
-If any rows are invalid, re-open the Grid session (see Step 3 — `get_curator_grid` returns the session already linked to the task), correct the offending rows, and re-run Steps 4–6 to re-export. The validation report is regenerated on each export, so iterate until the report is clean before letting the administrator know your task is ready.
+If any rows are invalid, re-open the Grid session (see Step 3 — `get_or_create_curator_grid` returns the session already linked to the task), correct the offending rows, and re-run Steps 4–6 to re-export. The validation report is regenerated on each export, so iterate until the report is clean before letting the administrator know your task is ready.
 
 > **If get_detailed_validation_results returns None after exporting:** check that record_set.validation_file_handle_id is set after the re-fetch. If it isn't, the export did not complete — re-run export_to_record_set() on an active Grid session against the same RecordSet.
 
@@ -280,7 +280,7 @@ status.execution_details = None
 curation_task.update_status(curation_task_status=status)
 ```
 
-Deleting is permanent — you can no longer re-export from this session. If you spot more issues later, get a fresh Grid session via Step 3: `get_curator_grid` creates a new one and links it to the task.
+Deleting is permanent — you can no longer re-export from this session. If you spot more issues later, get a fresh Grid session via Step 3: `get_or_create_curator_grid` creates a new one and links it to the task.
 
 ## References
 
@@ -289,7 +289,7 @@ Deleting is permanent — you can no longer re-export from this session. If you 
 <!-- markdownlint-disable MD052 -->
 - [CurationTask.list][synapseclient.models.CurationTask.list] - List curation tasks in a project
 - [CurationTask.get][synapseclient.models.CurationTask.get] - Fetch a CurationTask by id
-- [get_curator_grid][synapseclient.extensions.curator.get_curator_grid] - Get the Grid attached to a CurationTask, creating and linking one if needed
+- [get_or_create_curator_grid][synapseclient.extensions.curator.get_or_create_curator_grid] - Get the Grid attached to a CurationTask, creating and linking one if needed
 - [CurationTask.create_grid_session][synapseclient.models.CurationTask.create_grid_session] - Always create a new Grid session for a CurationTask and link it to the task status
 - [CurationTask.set_task_state][synapseclient.models.CurationTask.set_task_state] - Set the state on a CurationTask's status
 - [Grid.download_csv][synapseclient.models.Grid.download_csv] - Download Grid contents as a local CSV

@@ -1,5 +1,5 @@
 """
-Unit tests for synapseclient.extensions.curator.get_grid.
+Unit tests for synapseclient.extensions.curator.get_or_create_grid.
 """
 
 import sys
@@ -9,14 +9,16 @@ import pytest
 
 from synapseclient import Synapse
 from synapseclient.core.exceptions import SynapseHTTPError
-from synapseclient.extensions.curator.get_grid import get_curator_grid
+from synapseclient.extensions.curator.get_or_create_grid import (
+    get_or_create_curator_grid,
+)
 from synapseclient.models.curation import (
     CurationTask,
     CurationTaskStatus,
     GridExecutionDetails,
 )
 
-grid_module = sys.modules["synapseclient.extensions.curator.get_grid"]
+grid_module = sys.modules["synapseclient.extensions.curator.get_or_create_grid"]
 
 
 def _build_mock_client():
@@ -33,8 +35,8 @@ def _build_mock_task(status):
     return task
 
 
-class TestGetCuratorGrid:
-    """Test cases for the get_curator_grid function."""
+class TestGetOrCreateCuratorGrid:
+    """Test cases for the get_or_create_curator_grid function."""
 
     @patch.object(grid_module, "Grid")
     @patch.object(grid_module, "CurationTask")
@@ -58,7 +60,7 @@ class TestGetCuratorGrid:
         mock_curation_task_cls.return_value.get.return_value = task
 
         # WHEN: Getting the curator grid for the task
-        result = get_curator_grid(
+        result = get_or_create_curator_grid(
             task_id=123,
             owner_principal_id=42,
             timeout=30,
@@ -98,7 +100,7 @@ class TestGetCuratorGrid:
         mock_grid_cls.return_value.get.return_value = fetched_grid
 
         # WHEN: Getting the curator grid for the task
-        result = get_curator_grid(task_id=123, synapse_client=client)
+        result = get_or_create_curator_grid(task_id=123, synapse_client=client)
 
         # THEN: The existing grid is fetched directly by its session id and
         # returned, and no new grid session is created
@@ -131,7 +133,7 @@ class TestGetCuratorGrid:
         task.create_grid_session.return_value = created_grid
 
         # WHEN: Getting the curator grid for the task
-        result = get_curator_grid(
+        result = get_or_create_curator_grid(
             task_id=123,
             owner_principal_id=42,
             timeout=30,
@@ -171,7 +173,7 @@ class TestGetCuratorGrid:
         # WHEN: Getting the curator grid for the task
         # THEN: The error propagates unchanged
         with pytest.raises(SynapseHTTPError, match="forbidden"):
-            get_curator_grid(task_id=123, synapse_client=client)
+            get_or_create_curator_grid(task_id=123, synapse_client=client)
 
         # AND: No new grid session is created
         task.create_grid_session.assert_not_called()
@@ -193,7 +195,7 @@ class TestGetCuratorGrid:
         # WHEN: Getting the curator grid for the task
         # THEN: The error propagates unchanged to the caller
         with pytest.raises(RuntimeError, match="boom") as exc_info:
-            get_curator_grid(task_id=123, synapse_client=client)
+            get_or_create_curator_grid(task_id=123, synapse_client=client)
 
         # AND: The propagated exception is the original one
         assert exc_info.value is boom
@@ -217,7 +219,7 @@ class TestGetCuratorGrid:
         mock_curation_task_cls.return_value.get.return_value = task
 
         # WHEN: Getting the curator grid for the task
-        result = get_curator_grid(
+        result = get_or_create_curator_grid(
             task_id=123,
             owner_principal_id=42,
             timeout=30,
@@ -258,7 +260,7 @@ class TestGetCuratorGrid:
         # WHEN: Getting the curator grid for the task
         # THEN: A ValueError is raised
         with pytest.raises(ValueError, match="non-grid execution details"):
-            get_curator_grid(task_id=123, synapse_client=client)
+            get_or_create_curator_grid(task_id=123, synapse_client=client)
 
         # AND: Neither the grid lookup nor grid creation is attempted
         mock_grid_cls.return_value.get.assert_not_called()

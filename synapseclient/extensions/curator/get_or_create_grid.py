@@ -1,7 +1,7 @@
 """
 High-level helper for getting or creating a Grid for a CurationTask.
 
-This module provides a single library function, get_curator_grid, that a data
+This module provides a single library function, get_or_create_curator_grid, that a data
 contributor can call after being assigned a CurationTask by a data manager. It
 returns the Grid that is currently attached to the task, creating and attaching
 a new grid session first if none exists yet.
@@ -16,7 +16,7 @@ from synapseclient.models import (  # type: ignore
 )
 
 
-def get_curator_grid(
+def get_or_create_curator_grid(
     task_id: int,
     *,
     owner_principal_id: int | None = None,
@@ -51,12 +51,12 @@ def get_curator_grid(
         subsequent calls return that same grid.
         ```python
         import synapseclient
-        from synapseclient.extensions.curator import get_curator_grid
+        from synapseclient.extensions.curator import get_or_create_curator_grid
 
         syn = synapseclient.Synapse()
         syn.login()
 
-        grid = get_curator_grid(task_id=123)
+        grid = get_or_create_curator_grid(task_id=123)
         print(f"Grid session: {grid.session_id}")
         ```
 
