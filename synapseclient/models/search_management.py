@@ -585,19 +585,30 @@ class SearchConfigBindingProtocol(Protocol):
 @dataclass
 @async_to_sync
 class SearchConfigBinding(SearchConfigBindingProtocol):
-    """A binding between a SearchConfiguration and an entity.
+    """Attaches a SearchConfiguration to an entity. When a SearchIndex is built,
+    the effective SearchConfiguration is resolved by walking up the entity
+    hierarchy (entity -> folder -> project) and using the first binding found.
 
-    Effective configuration for an entity is resolved by walking up the
-    hierarchy (entity -> folder -> project).
+    Represents a [Synapse SearchConfigBinding](https://rest-docs.synapse.org/rest/org/sagebionetworks/repo/model/search/table/SearchConfigBinding.html).
     """
 
     bind_id: Optional[str] = None
+    """The unique ID of this binding."""
+
     search_configuration_id: Optional[str] = None
+    """The ID of the SearchConfiguration bound to this entity."""
+
     object_id: Optional[str] = None
-    """The ID of the entity the SearchConfiguration is bound to."""
+    """The ID of the entity this configuration is bound to."""
+
     object_type: Optional[str] = None
+    """The type of the object this configuration is bound to."""
+
     created_by: Optional[str] = None
+    """The ID of the user that created this binding."""
+
     created_on: Optional[str] = None
+    """The date this binding was created."""
 
     def fill_from_dict(self, data: Dict[str, Any]) -> "Self":
         self.bind_id = data.get("bindId", None)
@@ -678,12 +689,28 @@ class SearchConfigBinding(SearchConfigBindingProtocol):
 
 @dataclass
 class SearchIndexStatus:
-    """The build status of a SearchIndex's OpenSearch index."""
+    """Build status of a SearchIndex's OpenSearch index. Read it to find out
+    whether the index is ready, still being built, or in a failed state --
+    and, if FAILED, what went wrong.
+
+    Represents a [Synapse SearchIndexStatus](https://rest-docs.synapse.org/rest/org/sagebionetworks/repo/model/search/table/SearchIndexStatus.html).
+    """
 
     search_index_id: Optional[str] = None
+    """The ID of the SearchIndex entity."""
+
     state: Optional[SearchIndexState] = None
+    """The state of a search index's OpenSearch index."""
+
     changed_on: Optional[str] = None
+    """The date-time when the status last changed."""
+
     error_message: Optional[str] = None
+    """Set when state is FAILED. Captures the diagnostic from the failed build --
+    pre-flight validation errors (e.g. 'TextAnalyzer X does not resolve'), AOSS
+    rejection messages from index creation, or sample per-document failures
+    from bulk indexing. Capped at 3000 characters; the most-recent failure
+    replaces any earlier message."""
 
     def fill_from_dict(self, data: Dict[str, Any]) -> "Self":
         self.search_index_id = data.get("searchIndexId", None)
