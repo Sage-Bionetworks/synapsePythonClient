@@ -7,21 +7,49 @@ from synapseclient.core.exceptions import SynapseNotFoundError
 from synapseclient.models.services.storable_entity_components import FailureStrategy
 
 if TYPE_CHECKING:
-    from synapseclient.models import File, Folder, Project
+    from synapseclient.models import (
+        Dataset,
+        DatasetCollection,
+        EntityView,
+        File,
+        Folder,
+        Link,
+        MaterializedView,
+        Project,
+        RecordSet,
+        SubmissionView,
+        Table,
+        VirtualTable,
+    )
 
 
 async def get_id(
-    entity: Union["Project", "Folder", "File"],
+    entity: Union[
+        "Dataset",
+        "DatasetCollection",
+        "EntityView",
+        "File",
+        "Folder",
+        "Link",
+        "MaterializedView",
+        "Project",
+        "RecordSet",
+        "SubmissionView",
+        "Table",
+        "VirtualTable",
+    ],
     failure_strategy: Optional[FailureStrategy] = FailureStrategy.RAISE_EXCEPTION,
     *,
     synapse_client: Optional[Synapse] = None,
-) -> Union[str, None]:
+) -> Optional[str]:
     """
     Get the ID of the entity from either the ID field or the name/parent of the entity.
     This is a wrapper for the [synapseclient.operations.find_entity_id_async][] function
     that is used in order to search by name/parent.
 
     Arguments:
+        entity: The entity to resolve the ID for. Resolution uses the id field if
+            set, otherwise the name and parent_id fields.
         failure_strategy: Determines how to handle failures when getting the entity
             from Synapse and an exception occurs. Only RAISE_EXCEPTION and None are
             supported.
