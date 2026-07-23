@@ -83,14 +83,10 @@ class TestSearchIndex:
         # THEN it is created with an ID
         assert index.id is not None
 
-        # AND when retrieving it, the metadata and derived columns are present
+        # AND when retrieving it, the metadata is present
         retrieved = await SearchIndex(id=index.id).get_async(synapse_client=self.syn)
         assert retrieved.name == index_name
         assert retrieved.defining_sql == f"SELECT * FROM {table.id}"
-        # Columns are read-only, derived from the defining SQL.
-        assert retrieved.columns is not None
-        assert "title" in retrieved.columns
-        assert "disease_code" in retrieved.columns
 
     async def test_query_search_index_match_all(self, project_model: Project) -> None:
         # GIVEN a SearchIndex over a populated table

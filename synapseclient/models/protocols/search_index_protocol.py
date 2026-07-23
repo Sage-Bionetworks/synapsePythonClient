@@ -35,7 +35,7 @@ class SearchIndexSynchronousProtocol(Protocol):
                 instance from the Synapse class constructor.
 
         Returns:
-            Itself, populated with the server-assigned ID, etag, and columns.
+            Itself.
 
         Raises:
             ValueError: If `defining_sql` is not set.
@@ -64,7 +64,6 @@ class SearchIndexSynchronousProtocol(Protocol):
 
     def get(
         self,
-        include_columns: bool = True,
         include_activity: bool = False,
         *,
         synapse_client: Optional[Synapse] = None,
@@ -73,8 +72,6 @@ class SearchIndexSynchronousProtocol(Protocol):
         `name` and `parent_id`, must be set before calling this.
 
         Arguments:
-            include_columns: If True, will include the columns derived from
-                `defining_sql` on the returned SearchIndex.
             include_activity: If True, will include the provenance activity on
                 the returned SearchIndex.
             synapse_client: If not passed in and caching was not disabled by

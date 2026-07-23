@@ -143,9 +143,10 @@ class TestSearchIndex:
             mock_super_get_async.return_value = index
             # WHEN I get it
             result = await index.get_async(synapse_client=self.syn)
-            # THEN the super().get_async method is called with the default arguments
+            # THEN the super().get_async method is called with include_columns
+            # forced to False, since SearchIndex has no columns field
             mock_super_get_async.assert_called_once_with(
-                include_columns=True,
+                include_columns=False,
                 include_activity=False,
                 synapse_client=self.syn,
             )
