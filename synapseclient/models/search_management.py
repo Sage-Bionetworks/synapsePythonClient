@@ -207,6 +207,10 @@ class TextAnalyzer(OrgScopedResource):
 
     Represents a [Synapse TextAnalyzer](https://rest-docs.synapse.org/rest/org/sagebionetworks/repo/model/search/table/TextAnalyzer.html).
 
+    Note: TextAnalyzer has no delete endpoint on the Synapse REST API. Once
+    created, it cannot be removed, and its owning Organization can no longer be
+    deleted either. Choose `organization_name` and `name` deliberately.
+
     Example: Create a TextAnalyzer.
         &nbsp;
 
@@ -401,6 +405,10 @@ class ColumnAnalyzerOverride(OrgScopedResource):
 
     Represents a [Synapse ColumnAnalyzerOverride](https://rest-docs.synapse.org/rest/org/sagebionetworks/repo/model/search/table/ColumnAnalyzerOverride.html).
 
+    Note: ColumnAnalyzerOverride has no delete endpoint on the Synapse REST API.
+    Once created, it cannot be removed, and its owning Organization can no
+    longer be deleted either. Choose `organization_name` and `name` deliberately.
+
     Example: Create a ColumnAnalyzerOverride.
         &nbsp;
 
@@ -568,6 +576,10 @@ class SynonymSet(OrgScopedResource):
 
     Represents a [Synapse SynonymSet](https://rest-docs.synapse.org/rest/org/sagebionetworks/repo/model/search/table/SynonymSet.html).
 
+    Note: SynonymSet has no delete endpoint on the Synapse REST API. Once
+    created, it cannot be removed, and its owning Organization can no longer be
+    deleted either. Choose `organization_name` and `name` deliberately.
+
     Example: Create a SynonymSet.
         &nbsp;
 
@@ -727,6 +739,10 @@ class SearchConfiguration(OrgScopedResource):
     `synapseclient.models.Organization` before creating a SearchConfiguration.
 
     Represents a [Synapse SearchConfiguration](https://rest-docs.synapse.org/rest/org/sagebionetworks/repo/model/search/table/SearchConfiguration.html).
+
+    Note: SearchConfiguration has no delete endpoint on the Synapse REST API.
+    Once created, it cannot be removed, and its owning Organization can no
+    longer be deleted either. Choose `organization_name` and `name` deliberately.
 
     Example: Create a SearchConfiguration.
         &nbsp;
