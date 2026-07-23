@@ -28,7 +28,11 @@ from synapseclient.models.form import FormData, FormGroup
 from synapseclient.models.link import Link
 from synapseclient.models.materializedview import MaterializedView
 from synapseclient.models.mixins.table_components import QueryMixin
-from synapseclient.models.organization import JSONSchema, Organization
+from synapseclient.models.organization import (
+    JSONSchema,
+    Organization,
+    SchemaOrganization,
+)
 from synapseclient.models.project import Project
 from synapseclient.models.project_setting import ProjectSetting
 from synapseclient.models.recordset import RecordSet
@@ -185,6 +189,7 @@ __all__ = [
     "WikiHeader",
     # JSON Schema models
     "Organization",
+    "SchemaOrganization",
     "JSONSchema",
     # Form models
     "FormGroup",

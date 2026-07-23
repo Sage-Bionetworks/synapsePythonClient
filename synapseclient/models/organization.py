@@ -7,6 +7,8 @@ import re
 from dataclasses import dataclass, field
 from typing import Any, AsyncGenerator, Generator, Optional, Protocol
 
+from deprecated import deprecated
+
 from synapseclient import Synapse
 from synapseclient.api import (
     create_organization,
@@ -569,6 +571,18 @@ class Organization(OrganizationProtocol):
         self.created_on = response.get("createdOn")
         self.created_by = response.get("createdBy")
         return self
+
+
+@deprecated(
+    version="5.0.0",
+    reason="SchemaOrganization has been renamed to Organization. "
+    "This alias will be removed in a future release; use Organization instead.",
+)
+class SchemaOrganization(Organization):
+    """Deprecated alias for [Organization][synapseclient.models.Organization].
+
+    This class will be removed in a future release. Use `Organization` instead.
+    """
 
 
 class JSONSchemaProtocol(Protocol):
@@ -1422,6 +1436,23 @@ def list_organizations(
         for org in list_organizations_sync(synapse_client=synapse_client)
     ]
     return all_orgs
+
+
+@deprecated(
+    version="5.0.0",
+    reason="Renamed to list_organizations. "
+    "This alias will be removed in a future release; use list_organizations instead.",
+)
+def list_json_schema_organizations(
+    synapse_client: Optional["Synapse"] = None,
+) -> list[Organization]:
+    """Deprecated alias for
+    [list_organizations][synapseclient.models.organization.list_organizations].
+
+    This function will be removed in a future release. Use `list_organizations`
+    instead.
+    """
+    return list_organizations(synapse_client=synapse_client)
 
 
 def _check_org_name(name: str) -> None:
