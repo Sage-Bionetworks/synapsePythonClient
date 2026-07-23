@@ -268,7 +268,7 @@ class SearchIndex(
                 instance from the Synapse class constructor.
 
         Returns:
-            Itself, populated with the server-assigned ID, etag, and columns.
+            Itself.
 
         Raises:
             ValueError: If `defining_sql` is not set.
