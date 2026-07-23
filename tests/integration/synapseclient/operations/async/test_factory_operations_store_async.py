@@ -737,9 +737,7 @@ class TestFactoryOperationsStoreAsync:
 
         # THEN the schema organization should no longer be retrievable
         with pytest.raises(Exception):
-            await Organization(organization_name=stored_org.name).get_async(
-                synapse_client=self.syn
-            )
+            await Organization(name=stored_org.name).get_async(synapse_client=self.syn)
 
     async def test_store_async_unsupported_entity_raises_error(self) -> None:
         """Test that storing an unsupported entity type raises an error."""
