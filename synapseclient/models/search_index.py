@@ -5,7 +5,6 @@ A SearchIndex is a Synapse entity whose content is defined by a Synapse SQL quer
 full-text search, faceted search, and autocomplete.
 """
 
-from collections import OrderedDict
 from copy import deepcopy
 from dataclasses import dataclass, field, replace
 from datetime import date, datetime
@@ -29,7 +28,6 @@ from synapseclient.models.mixins.table_components import (
 from synapseclient.models.protocols.search_index_protocol import (
     SearchIndexSynchronousProtocol,
 )
-from synapseclient.models.table_components import Column
 
 if TYPE_CHECKING:
     from synapseclient.models.search_management import SearchHit
@@ -73,7 +71,6 @@ class SearchIndex(
         version_label: The version label for this entity.
         version_comment: The version comment for this entity.
         is_latest_version: If this is the latest version of the object.
-        columns: (Read Only) Columns derived from `defining_sql`.
         defining_sql: The Synapse SQL statement that defines which columns and
             rows are indexed.
         search_configuration_id: ID of the SearchConfiguration to apply when
@@ -146,11 +143,6 @@ class SearchIndex(
 
     is_latest_version: Optional[bool] = field(default=None, compare=False)
     """If this is the latest version of the object."""
-
-    columns: Optional[OrderedDict[str, Column]] = field(
-        default_factory=OrderedDict, compare=False
-    )
-    """(Read Only) Columns of a SearchIndex are derived from the defining SQL."""
 
     defining_sql: Optional[str] = None
     """The Synapse SQL statement that defines which columns and rows are indexed.
@@ -307,7 +299,6 @@ class SearchIndex(
 
     async def get_async(
         self,
-        include_columns: bool = True,
         include_activity: bool = False,
         *,
         synapse_client: Optional[Synapse] = None,
@@ -316,8 +307,6 @@ class SearchIndex(
         and `parent_id`, must be set before calling this.
 
         Arguments:
-            include_columns: If True, will include the columns derived from
-                `defining_sql` on the returned SearchIndex.
             include_activity: If True, will include the provenance activity on
                 the returned SearchIndex.
             synapse_client: If not passed in and caching was not disabled by
@@ -346,7 +335,7 @@ class SearchIndex(
             ```
         """
         return await super().get_async(
-            include_columns=include_columns,
+            include_columns=False,
             include_activity=include_activity,
             synapse_client=synapse_client,
         )
