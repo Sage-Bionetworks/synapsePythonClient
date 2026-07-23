@@ -7,7 +7,6 @@ from unittest.mock import AsyncMock, Mock, patch
 
 import pytest
 
-from synapseclient import Synapse
 from synapseclient.core.exceptions import SynapseHTTPError
 from synapseclient.extensions.curator.get_or_create_grid import (
     get_or_create_curator_grid_async,
@@ -19,13 +18,6 @@ from synapseclient.models.curation import (
 )
 
 grid_module = sys.modules["synapseclient.extensions.curator.get_or_create_grid"]
-
-
-def _build_mock_client():
-    """A Synapse-spec mock with a usable logger."""
-    client = Mock(spec=Synapse)
-    client.logger = Mock()
-    return client
 
 
 def _build_mock_task(status):
@@ -43,14 +35,14 @@ class TestGetOrCreateCuratorGridAsync:
     @patch.object(grid_module, "CurationTask")
     @patch.object(grid_module, "Synapse")
     async def test_creates_grid_when_no_session_attached(
-        self, mock_synapse, mock_curation_task_cls, mock_grid_cls
+        self, mock_synapse, mock_curation_task_cls, mock_grid_cls, mock_synapse_client
     ):
         """When the task has grid execution details but no active session id,
         a new grid session is created (with the given owner and timeout) and
         returned, and the existing-grid lookup is not attempted."""
         # GIVEN: A task whose status has grid execution details but no active
         # session id set
-        client = _build_mock_client()
+        client = mock_synapse_client
         mock_synapse.get_client.return_value = client
         status = CurationTaskStatus(
             execution_details=GridExecutionDetails(active_session_id=None)
@@ -83,13 +75,13 @@ class TestGetOrCreateCuratorGridAsync:
     @patch.object(grid_module, "CurationTask")
     @patch.object(grid_module, "Synapse")
     async def test_gets_existing_grid_by_session_id(
-        self, mock_synapse, mock_curation_task_cls, mock_grid_cls
+        self, mock_synapse, mock_curation_task_cls, mock_grid_cls, mock_synapse_client
     ):
         """When the task already has an active grid session, that grid is
         fetched directly by its session id and returned, and no new grid
         session is created."""
         # GIVEN: A task whose status has an active grid session id
-        client = _build_mock_client()
+        client = mock_synapse_client
         mock_synapse.get_client.return_value = client
         status = CurationTaskStatus(
             execution_details=GridExecutionDetails(active_session_id="abc-123")
@@ -118,12 +110,12 @@ class TestGetOrCreateCuratorGridAsync:
     @patch.object(grid_module, "CurationTask")
     @patch.object(grid_module, "Synapse")
     async def test_recreates_grid_when_attached_session_is_gone(
-        self, mock_synapse, mock_curation_task_cls, mock_grid_cls
+        self, mock_synapse, mock_curation_task_cls, mock_grid_cls, mock_synapse_client
     ):
         """When the task points at a session that no longer exists (fetching it
         returns a 404), a new grid session is created, re-linked, and returned."""
         # GIVEN: A task pointing at a stale session whose fetch returns 404
-        client = _build_mock_client()
+        client = mock_synapse_client
         mock_synapse.get_client.return_value = client
         status = CurationTaskStatus(
             execution_details=GridExecutionDetails(active_session_id="stale-session")
@@ -159,12 +151,12 @@ class TestGetOrCreateCuratorGridAsync:
     @patch.object(grid_module, "CurationTask")
     @patch.object(grid_module, "Synapse")
     async def test_non_404_error_fetching_attached_session_propagates(
-        self, mock_synapse, mock_curation_task_cls, mock_grid_cls
+        self, mock_synapse, mock_curation_task_cls, mock_grid_cls, mock_synapse_client
     ):
         """When fetching the attached session fails with a non-404 error, the
         error propagates and no new grid session is created."""
         # GIVEN: A task pointing at a session whose fetch fails with a 403
-        client = _build_mock_client()
+        client = mock_synapse_client
         mock_synapse.get_client.return_value = client
         status = CurationTaskStatus(
             execution_details=GridExecutionDetails(active_session_id="abc-123")
@@ -187,12 +179,12 @@ class TestGetOrCreateCuratorGridAsync:
     @patch.object(grid_module, "CurationTask")
     @patch.object(grid_module, "Synapse")
     async def test_error_propagates_to_caller(
-        self, mock_synapse, mock_curation_task_cls, mock_grid_cls
+        self, mock_synapse, mock_curation_task_cls, mock_grid_cls, mock_synapse_client
     ):
         """When a Synapse call fails, the exception propagates to the caller
         with its original traceback."""
         # GIVEN: A task whose get call fails with an error
-        client = _build_mock_client()
+        client = mock_synapse_client
         mock_synapse.get_client.return_value = client
         boom = RuntimeError("boom")
         mock_curation_task_cls.return_value.get_async = AsyncMock(side_effect=boom)
@@ -209,13 +201,13 @@ class TestGetOrCreateCuratorGridAsync:
     @patch.object(grid_module, "CurationTask")
     @patch.object(grid_module, "Synapse")
     async def test_creates_grid_when_execution_details_is_none(
-        self, mock_synapse, mock_curation_task_cls, mock_grid_cls
+        self, mock_synapse, mock_curation_task_cls, mock_grid_cls, mock_synapse_client
     ):
         """When the task status has no execution details at all (a task that has
         never had a grid), a new grid session is created and returned, and the
         existing-grid lookup is not attempted."""
         # GIVEN: A task whose status has no execution details
-        client = _build_mock_client()
+        client = mock_synapse_client
         mock_synapse.get_client.return_value = client
         status = CurationTaskStatus(execution_details=None)
         task = _build_mock_task(status)
@@ -246,7 +238,7 @@ class TestGetOrCreateCuratorGridAsync:
     @patch.object(grid_module, "CurationTask")
     @patch.object(grid_module, "Synapse")
     async def test_raises_when_status_has_non_grid_execution_details(
-        self, mock_synapse, mock_curation_task_cls, mock_grid_cls
+        self, mock_synapse, mock_curation_task_cls, mock_grid_cls, mock_synapse_client
     ):
         """When the task status carries a non-grid execution details type, a
         ValueError is raised and neither the grid lookup nor grid creation is
@@ -256,7 +248,7 @@ class TestGetOrCreateCuratorGridAsync:
         class _NonGridExecutionDetails:
             pass
 
-        client = _build_mock_client()
+        client = mock_synapse_client
         mock_synapse.get_client.return_value = client
         status = CurationTaskStatus(execution_details=_NonGridExecutionDetails())
         task = _build_mock_task(status)
