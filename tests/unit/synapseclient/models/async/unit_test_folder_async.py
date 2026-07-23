@@ -397,11 +397,11 @@ class TestFolder:
                 new_callable=AsyncMock,
                 return_value=(self.get_example_synapse_folder_output()),
             ) as mocked_client_call,
-            patch.object(
-                self.syn,
-                "findEntityId",
+            patch(
+                "synapseclient.operations.find_entity_id_async",
+                new_callable=AsyncMock,
                 return_value=SYN_123,
-            ) as mocked_get,
+            ) as mocked_find_entity_id,
             patch(
                 "synapseclient.api.entity_factory.get_entity_id_bundle2",
                 new_callable=AsyncMock,
@@ -420,7 +420,7 @@ class TestFolder:
             # THEN we should call the method with this data
             mocked_client_call.assert_called_once()
             call_args = mocked_client_call.call_args
-            assert call_args.kwargs["entity_id"] == SYN_123  # From findEntityId mock
+            assert call_args.kwargs["entity_id"] == SYN_123
             assert call_args.kwargs["new_version"] is False
             assert call_args.kwargs["synapse_client"] == self.syn
             # The request should be a dict with the folder properties
@@ -435,8 +435,8 @@ class TestFolder:
             # AND we should call the get method
             mocked_get.assert_called_once()
 
-            # AND findEntityId should be called
-            mocked_get.assert_called_once()
+            # AND find_entity_id_async should be called
+            mocked_find_entity_id.assert_called_once()
 
             # AND the folder should be stored
             assert result.id == SYN_123
@@ -466,11 +466,11 @@ class TestFolder:
                 new_callable=AsyncMock,
                 return_value=(self.get_example_synapse_folder_output()),
             ) as mocked_client_call,
-            patch.object(
-                self.syn,
-                "findEntityId",
+            patch(
+                "synapseclient.operations.find_entity_id_async",
+                new_callable=AsyncMock,
                 return_value=SYN_123,
-            ) as mocked_get,
+            ) as mocked_find_entity_id,
             patch(
                 "synapseclient.api.entity_factory.get_entity_id_bundle2",
                 new_callable=AsyncMock,
@@ -491,7 +491,7 @@ class TestFolder:
             # THEN we should call the method with this data
             mocked_client_call.assert_called_once()
             call_args = mocked_client_call.call_args
-            assert call_args.kwargs["entity_id"] == SYN_123  # From findEntityId mock
+            assert call_args.kwargs["entity_id"] == SYN_123
             assert call_args.kwargs["new_version"] is False
             assert call_args.kwargs["synapse_client"] == self.syn
             # The request should be a dict with the folder properties
@@ -506,8 +506,8 @@ class TestFolder:
             # AND we should call the get method
             mocked_get.assert_called_once()
 
-            # AND findEntityId should be called
-            mocked_get.assert_called_once()
+            # AND find_entity_id_async should be called
+            mocked_find_entity_id.assert_called_once()
 
             # AND the folder should be stored
             assert result.id == SYN_123
@@ -601,9 +601,9 @@ class TestFolder:
 
         # WHEN I call `get` with the Folder object
         with (
-            patch.object(
-                self.syn,
-                "findEntityId",
+            patch(
+                "synapseclient.operations.find_entity_id_async",
+                new_callable=AsyncMock,
                 return_value=(SYN_123),
             ) as mocked_client_search,
             patch(
@@ -623,6 +623,7 @@ class TestFolder:
             mocked_client_search.assert_called_once_with(
                 name=folder.name,
                 parent=folder.parent_id,
+                synapse_client=self.syn,
             )
 
             # AND the folder should be stored
@@ -644,9 +645,9 @@ class TestFolder:
         )
 
         # WHEN I call `get` with the Folder object
-        with patch.object(
-            self.syn,
-            "findEntityId",
+        with patch(
+            "synapseclient.operations.find_entity_id_async",
+            new_callable=AsyncMock,
             return_value=(None),
         ) as mocked_client_search:
             with pytest.raises(SynapseNotFoundError) as e:
@@ -659,6 +660,7 @@ class TestFolder:
             mocked_client_search.assert_called_once_with(
                 name=folder.name,
                 parent=folder.parent_id,
+                synapse_client=self.syn,
             )
 
     async def test_delete_with_id(self) -> None:
