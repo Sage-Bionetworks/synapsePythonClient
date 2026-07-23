@@ -1,6 +1,5 @@
 """Functional interface for searching for entities in Synapse."""
 
-import asyncio
 from typing import TYPE_CHECKING, Optional, Union
 
 from synapseclient import Synapse
@@ -8,21 +7,49 @@ from synapseclient.core.exceptions import SynapseNotFoundError
 from synapseclient.models.services.storable_entity_components import FailureStrategy
 
 if TYPE_CHECKING:
-    from synapseclient.models import File, Folder, Project
+    from synapseclient.models import (
+        Dataset,
+        DatasetCollection,
+        EntityView,
+        File,
+        Folder,
+        Link,
+        MaterializedView,
+        Project,
+        RecordSet,
+        SubmissionView,
+        Table,
+        VirtualTable,
+    )
 
 
 async def get_id(
-    entity: Union["Project", "Folder", "File"],
+    entity: Union[
+        "Dataset",
+        "DatasetCollection",
+        "EntityView",
+        "File",
+        "Folder",
+        "Link",
+        "MaterializedView",
+        "Project",
+        "RecordSet",
+        "SubmissionView",
+        "Table",
+        "VirtualTable",
+    ],
     failure_strategy: Optional[FailureStrategy] = FailureStrategy.RAISE_EXCEPTION,
     *,
     synapse_client: Optional[Synapse] = None,
-) -> Union[str, None]:
+) -> Optional[str]:
     """
     Get the ID of the entity from either the ID field or the name/parent of the entity.
-    This is a wrapper for the [synapseclient.Synapse.findEntityId][] method that is
-    used in order to search by name/parent.
+    This is a wrapper for the [synapseclient.operations.find_entity_id_async][] function
+    that is used in order to search by name/parent.
 
     Arguments:
+        entity: The entity to resolve the ID for. Resolution uses the id field if
+            set, otherwise the name and parent_id fields.
         failure_strategy: Determines how to handle failures when getting the entity
             from Synapse and an exception occurs. Only RAISE_EXCEPTION and None are
             supported.
@@ -48,14 +75,12 @@ async def get_id(
             return None
         raise ValueError("Entity ID or Name/Parent is required")
 
-    # TODO: Remove this deprecated code with replacement method created in https://sagebionetworks.jira.com/browse/SYNPY-1623
-    loop = asyncio.get_event_loop()
-    entity_id = entity.id or await loop.run_in_executor(
-        None,
-        lambda: Synapse.get_client(synapse_client=synapse_client).findEntityId(
-            name=entity.name,
-            parent=entity.parent_id,
-        ),
+    from synapseclient.operations import find_entity_id_async
+
+    entity_id = entity.id or await find_entity_id_async(
+        name=entity.name,
+        parent=entity.parent_id,
+        synapse_client=synapse_client,
     )
 
     if not entity_id:
