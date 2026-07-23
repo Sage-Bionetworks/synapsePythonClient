@@ -394,7 +394,87 @@ class ColumnAnalyzerOverrideEntry:
 class ColumnAnalyzerOverride(OrgScopedResource):
     """A shareable bundle of per-column analyzer assignments. Each entry binds one column to an analyzer;
 
+    A ColumnAnalyzerOverride belongs to an Organization, referenced by
+    `organization_name`. Find an Organization you already have access to with
+    `synapseclient.models.organization.list_organizations()`, or create one with
+    `synapseclient.models.Organization` before creating a ColumnAnalyzerOverride.
+
     Represents a [Synapse ColumnAnalyzerOverride](https://rest-docs.synapse.org/rest/org/sagebionetworks/repo/model/search/table/ColumnAnalyzerOverride.html).
+
+    Example: Create a ColumnAnalyzerOverride.
+        &nbsp;
+
+        ```python
+        from synapseclient import Synapse
+        from synapseclient.models import ColumnAnalyzerOverride, ColumnAnalyzerOverrideEntry
+
+        syn = Synapse()
+        syn.login()
+
+        override = ColumnAnalyzerOverride(
+            organization_name="my.existing.organization",
+            name="disease_column_overrides",
+            description="Use a keyword analyzer for the disease_code column",
+            overrides=[
+                ColumnAnalyzerOverrideEntry(
+                    column_name="disease_code",
+                    analyzer={"analyzer": {"default": {"type": "keyword"}}},
+                ),
+            ],
+        )
+        override = override.store()
+        print(f"Created ColumnAnalyzerOverride: {override.id} ({override.qualified_name})")
+        ```
+
+    Example: Get an existing ColumnAnalyzerOverride by ID.
+        &nbsp;
+
+        ```python
+        from synapseclient import Synapse
+        from synapseclient.models import ColumnAnalyzerOverride
+
+        syn = Synapse()
+        syn.login()
+
+        override = ColumnAnalyzerOverride(id="12345").get()
+        print(override.name, override.overrides)
+        ```
+
+    Example: Update an existing ColumnAnalyzerOverride.
+        &nbsp;
+
+        ```python
+        from synapseclient import Synapse
+        from synapseclient.models import ColumnAnalyzerOverride, ColumnAnalyzerOverrideEntry
+
+        syn = Synapse()
+        syn.login()
+
+        override = ColumnAnalyzerOverride(id="12345").get()
+        override.overrides.append(
+            ColumnAnalyzerOverrideEntry(
+                column_name="title",
+                analyzer={"analyzer": {"default": {"type": "standard"}}},
+            )
+        )
+        override = override.store()
+        print(f"Updated ColumnAnalyzerOverride etag: {override.etag}")
+        ```
+
+    Example: List ColumnAnalyzerOverrides in an Organization.
+        &nbsp;
+
+        ```python
+        from synapseclient import Synapse
+        from synapseclient.models import ColumnAnalyzerOverride
+
+        syn = Synapse()
+        syn.login()
+
+        overrides = ColumnAnalyzerOverride.list(organization_name="my.existing.organization")
+        for override in overrides:
+            print(override.id, override.qualified_name)
+        ```
     """
 
     _CREATE_FN = staticmethod(create_column_analyzer_override)
