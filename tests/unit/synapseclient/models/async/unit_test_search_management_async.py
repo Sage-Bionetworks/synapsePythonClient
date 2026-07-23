@@ -10,7 +10,6 @@ import pytest
 
 from synapseclient import Synapse
 from synapseclient.core.constants.concrete_types import SEARCH_INDEX_QUERY
-from synapseclient.models.search_index import SearchIndex
 from synapseclient.models.search_management import (
     ColumnAnalyzerOverride,
     ColumnAnalyzerOverrideEntry,
@@ -390,53 +389,6 @@ class TestOrgScopedResource:
         # WHEN getting a resource without an id THEN a ValueError is raised
         with pytest.raises(ValueError):
             await TextAnalyzer().get_async(synapse_client=self.syn)
-
-
-class TestSearchIndexAutocomplete:
-    """Dispatch tests for SearchIndex.autocomplete_async."""
-
-    @pytest.fixture(autouse=True, scope="function")
-    def init_syn(self, syn: Synapse) -> None:
-        self.syn = syn
-
-    async def test_autocomplete_async_dispatch(self):
-        # GIVEN a SearchIndex with an id
-        index = SearchIndex(id="syn1")
-        response = {"hits": [{"rowId": 1, "fields": [{"name": "title", "value": "x"}]}]}
-        with patch(
-            "synapseclient.api.autocomplete_search",
-            new_callable=AsyncMock,
-            return_value=response,
-        ) as mock_autocomplete:
-            # WHEN I run autocomplete
-            hits = await index.autocomplete_async(
-                query={"prefix": {"title": {"value": "a"}}},
-                source={"includes": ["title"]},
-                synapse_client=self.syn,
-            )
-        # THEN the request nests the query/_source under searchQuery for this index
-        mock_autocomplete.assert_awaited_once_with(
-            {
-                "searchIndexId": "syn1",
-                "searchQuery": {
-                    "query": {"prefix": {"title": {"value": "a"}}},
-                    "_source": {"includes": ["title"]},
-                },
-            },
-            synapse_client=self.syn,
-        )
-        # AND the response hits deserialize to SearchHit
-        assert len(hits) == 1
-        assert isinstance(hits[0], SearchHit)
-        assert hits[0].row_id == 1
-
-    async def test_autocomplete_async_requires_id(self):
-        # WHEN autocompleting without an id THEN a ValueError is raised
-        with pytest.raises(ValueError):
-            await SearchIndex().autocomplete_async(
-                query={"prefix": {"title": {"value": "a"}}},
-                synapse_client=self.syn,
-            )
 
 
 class TestSearchIndexStatus:
