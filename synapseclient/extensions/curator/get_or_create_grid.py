@@ -89,14 +89,10 @@ def get_or_create_curator_grid(
     client = Synapse.get_client(synapse_client=synapse_client)
 
     # Step 1: get the CurationTask.
-    client.logger.info(f"Attempting to get CurationTask {task_id}.")
     task = CurationTask(task_id=task_id).get(synapse_client=client)
-    client.logger.info(f"Got CurationTask {task_id}.")
 
     # Step 2: check whether a grid session is already attached to the task.
-    client.logger.info(f"Attempting to get status for CurationTask {task_id}.")
     status = task.get_status(synapse_client=client)
-    client.logger.info(f"Got status for CurationTask {task_id}.")
 
     execution_details = status.execution_details
     active_session_id = None
@@ -111,14 +107,8 @@ def get_or_create_curator_grid(
 
     # Step 3: a session is attached, so try to get that Grid and return it.
     if active_session_id:
-        client.logger.info(
-            f"CurationTask {task_id} already has grid session {active_session_id}; "
-            "attempting to get the existing grid."
-        )
         try:
-            grid = Grid(session_id=active_session_id).get(synapse_client=client)
-            client.logger.info(f"Got grid session {active_session_id}.")
-            return grid
+            return Grid(session_id=active_session_id).get(synapse_client=client)
         except SynapseHTTPError as exc:
             # The task points at a session that no longer exists
             if exc.response is None or exc.response.status_code != 404:
@@ -129,14 +119,8 @@ def get_or_create_curator_grid(
             )
 
     # Step 4: no usable session attached, so create one, attach it, and return it.
-    client.logger.info(
-        f"CurationTask {task_id} has no attached grid session; "
-        "attempting to create one."
-    )
-    grid = task.create_grid_session(
+    return task.create_grid_session(
         owner_principal_id=owner_principal_id,
         timeout=timeout,
         synapse_client=client,
     )
-    client.logger.info(f"Created grid session for CurationTask {task_id}.")
-    return grid
