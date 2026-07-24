@@ -13,24 +13,34 @@ from typing import TYPE_CHECKING, Any, Dict, List, Optional, Union
 from typing_extensions import Self
 
 from synapseclient import Synapse
-from synapseclient.core.async_utils import async_to_sync
+from synapseclient.core.async_utils import async_to_sync, otel_trace_method
 from synapseclient.core.constants import concrete_types
-from synapseclient.core.utils import delete_none_keys
+from synapseclient.core.utils import (
+    delete_none_keys,
+    log_dataclass_diff,
+    merge_dataclass_entities,
+)
 from synapseclient.models.activity import Activity
 from synapseclient.models.mixins.access_control import AccessControllable
-from synapseclient.models.mixins.table_components import (
-    DeleteMixin,
-    GetMixin,
-    QueryMixin,
-    TableBase,
-    TableStoreMixin,
-)
+from synapseclient.models.mixins.table_components import DeleteMixin, GetMixin
 from synapseclient.models.protocols.search_index_protocol import (
     SearchIndexSynchronousProtocol,
 )
+from synapseclient.models.search_dsl import Query, SourceFilter
+from synapseclient.models.services.search import get_id
+from synapseclient.models.services.storable_entity import store_entity
+from synapseclient.models.services.storable_entity_components import (
+    FailureStrategy,
+    store_entity_components,
+)
 
 if TYPE_CHECKING:
-    from synapseclient.models.search_management import SearchHit
+    from synapseclient.models.search_management import (
+        SearchHit,
+        SearchIndexQuery,
+        SearchQuery,
+        SearchQueryPart,
+    )
 
 
 @dataclass
@@ -38,11 +48,8 @@ if TYPE_CHECKING:
 class SearchIndex(
     SearchIndexSynchronousProtocol,
     AccessControllable,
-    TableBase,
-    TableStoreMixin,
     DeleteMixin,
     GetMixin,
-    QueryMixin,
 ):
     """
     A SearchIndex is a Synapse entity whose content is defined by a Synapse SQL
@@ -215,7 +222,8 @@ class SearchIndex(
         return self
 
     def to_synapse_request(self) -> Dict[str, Any]:
-        """Convert the request to the body expected by the Synapse REST API."""
+        """Convert this dataclass into the entity body expected by the Synapse
+        REST API."""
         entity = {
             "name": self.name,
             "description": self.description,
@@ -235,15 +243,15 @@ class SearchIndex(
             "searchConfigurationId": self.search_configuration_id,
         }
         delete_none_keys(entity)
-        result = {"entity": entity}
-        delete_none_keys(result)
-        return result
+        return entity
 
+    @otel_trace_method(
+        method_to_trace_name=lambda self, **kwargs: f"SearchIndex_Store: {self.name}"
+    )
     async def store_async(
         self,
         dry_run: bool = False,
         *,
-        job_timeout: int = 600,
         synapse_client: Optional[Synapse] = None,
     ) -> "Self":
         """Asynchronously store the SearchIndex entity. Creates a new SearchIndex
@@ -253,8 +261,6 @@ class SearchIndex(
         Arguments:
             dry_run: If True, will not actually store the SearchIndex but will log
                 to the console what would be created or updated.
-            job_timeout: The maximum amount of time to wait for the index-build job
-                to complete before raising an error.
             synapse_client: If not passed in and caching was not disabled by
                 `Synapse.allow_client_caching(False)` this will use the last created
                 instance from the Synapse class constructor.
@@ -293,9 +299,57 @@ class SearchIndex(
             raise ValueError(
                 "The defining_sql attribute must be set for a SearchIndex."
             )
-        return await super().store_async(
-            dry_run=dry_run, job_timeout=job_timeout, synapse_client=synapse_client
+        client = Synapse.get_client(synapse_client=synapse_client)
+
+        if (
+            (not self._last_persistent_instance)
+            and (
+                existing_id := await get_id(
+                    entity=self, failure_strategy=None, synapse_client=synapse_client
+                )
+            )
+            and (
+                existing_index := await SearchIndex(id=existing_id).get_async(
+                    synapse_client=synapse_client
+                )
+            )
+        ):
+            merge_dataclass_entities(
+                source=existing_index, destination=self, logger=client.logger
+            )
+
+        if dry_run:
+            client.logger.info(
+                f"[{self.id}:{self.name}]: Dry run enabled. No changes will be made."
+            )
+            if self.has_changed:
+                log_dataclass_diff(
+                    logger=client.logger,
+                    prefix=f"[{self.id}:{self.name}]: ",
+                    obj1=self._last_persistent_instance or SearchIndex(),
+                    obj2=self,
+                    fields_to_ignore=["_last_persistent_instance"],
+                )
+            return self
+
+        if self.has_changed:
+            entity = await store_entity(
+                resource=self,
+                entity=self.to_synapse_request(),
+                synapse_client=synapse_client,
+            )
+            self.fill_from_dict(entity=entity, set_annotations=False)
+
+        re_read_required = await store_entity_components(
+            root_resource=self,
+            failure_strategy=FailureStrategy.RAISE_EXCEPTION,
+            synapse_client=synapse_client,
         )
+        if re_read_required:
+            await self.get_async(synapse_client=synapse_client)
+        self._set_last_persistent_instance()
+
+        return self
 
     async def get_async(
         self,
@@ -368,23 +422,104 @@ class SearchIndex(
         """
         await super().delete_async(synapse_client=synapse_client)
 
+    @otel_trace_method(
+        method_to_trace_name=lambda self, **kwargs: f"SearchIndex_Query: {self.id}"
+    )
+    async def query_async(
+        self,
+        search_query: "SearchQuery",
+        response_parts: Optional[List["SearchQueryPart"]] = None,
+        *,
+        job_timeout: int = 600,
+        synapse_client: Optional[Synapse] = None,
+    ) -> "SearchIndexQuery":
+        """Asynchronously query this search index. Unlike a SQL-backed Table, a
+        SearchIndex is queried with the
+        [OpenSearch Query DSL](https://docs.opensearch.org/latest/query-dsl/)
+        carried by a [SearchQuery][synapseclient.models.SearchQuery] — not with
+        Synapse SQL. See [Query][synapseclient.models.search_dsl.Query] for the
+        supported clause kinds.
+
+        Arguments:
+            search_query: The OpenSearch
+                [`_search`](https://docs.opensearch.org/latest/api-reference/search-apis/search/)
+                body to execute against this index.
+            response_parts: Additional response parts to request beyond the
+                default hits, such as the total hit count or the select columns.
+            job_timeout: The maximum amount of time to wait for the query job to
+                complete before raising a `SynapseTimeoutError`.
+            synapse_client: If not passed in and caching was not disabled by
+                `Synapse.allow_client_caching(False)` this will use the last created
+                instance from the Synapse class constructor.
+
+        Returns:
+            The completed
+            [SearchIndexQuery][synapseclient.models.SearchIndexQuery], carrying
+            the `hits` and any requested response parts.
+
+        Raises:
+            ValueError: If the `id` attribute has not been set.
+
+        Example: Query an index for documents mentioning "alzheimer".
+            &nbsp;
+
+            ```python
+            import asyncio
+            from synapseclient import Synapse
+            from synapseclient.models import SearchIndex, SearchQuery, SearchQueryPart
+
+            async def main():
+                syn = Synapse()
+                await syn.login_async()
+
+                results = await SearchIndex(id="syn12345").query_async(
+                    search_query=SearchQuery(
+                        query={"match": {"title": {"query": "alzheimer"}}},
+                        size=10,
+                    ),
+                    response_parts=[SearchQueryPart.TOTAL_HITS],
+                )
+                print(results.total_hits)
+                for hit in results.hits:
+                    print(hit.row_id, hit.fields)
+
+            asyncio.run(main())
+            ```
+        """
+        from synapseclient.models.search_management import SearchIndexQuery
+
+        if not self.id:
+            raise ValueError("The id attribute must be set to query a SearchIndex.")
+        return await SearchIndexQuery(
+            search_index_id=self.id,
+            search_query=search_query,
+            response_parts=response_parts or [],
+        ).send_job_and_wait_async(timeout=job_timeout, synapse_client=synapse_client)
+
+    @otel_trace_method(
+        method_to_trace_name=lambda self, **kwargs: f"SearchIndex_Autocomplete: {self.id}"
+    )
     async def autocomplete_async(
         self,
-        query: Dict[str, Any],
-        source: Optional[Dict[str, Any]] = None,
+        query: Query,
+        source: Optional[SourceFilter] = None,
         *,
         synapse_client: Optional[Synapse] = None,
     ) -> List["SearchHit"]:
         """Run a synchronous autocomplete search against this index. The
-        autocomplete endpoint allowlists only prefix-style queries (`prefix`,
-        `match_phrase_prefix`, or `match_bool_prefix`) and caps results at 8.
+        autocomplete endpoint allowlists only prefix-style queries
+        ([`prefix`](https://docs.opensearch.org/latest/query-dsl/term/prefix/),
+        [`match_phrase_prefix`](https://docs.opensearch.org/latest/query-dsl/full-text/match-phrase-prefix/),
+        or [`match_bool_prefix`](https://docs.opensearch.org/latest/query-dsl/full-text/match-bool-prefix/))
+        and caps results at 8.
 
         Arguments:
-            query: The top-level OpenSearch Query DSL clause; restricted
-                server-side to `prefix`, `match_phrase_prefix`, or
+            query: The top-level [OpenSearch Query DSL](https://docs.opensearch.org/latest/query-dsl/)
+                clause -- see [Query][synapseclient.models.search_dsl.Query];
+                restricted server-side to `prefix`, `match_phrase_prefix`, or
                 `match_bool_prefix`.
-            source: Optional source filter selecting which columns are returned
-                on each hit.
+            source: Optional [source filter](https://docs.opensearch.org/latest/search-plugins/searching-data/retrieve-specific-fields/)
+                selecting which columns are returned on each hit.
             synapse_client: If not passed in and caching was not disabled by
                 `Synapse.allow_client_caching(False)` this will use the last created
                 instance from the Synapse class constructor.

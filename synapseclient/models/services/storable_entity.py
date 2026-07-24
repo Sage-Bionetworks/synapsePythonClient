@@ -44,14 +44,15 @@ async def store_entity(
     if resource.id:
         trace.get_current_span().set_attributes({"synapse.id": resource.id})
         if hasattr(resource, "version_number"):
+            last_persistent_instance = resource._last_persistent_instance
             if (
                 resource.version_label
-                and resource.version_label
-                != resource._last_persistent_instance.version_label
+                and last_persistent_instance
+                and resource.version_label != last_persistent_instance.version_label
             ):
                 # a versionLabel implicitly implies incrementing
                 increment_version = True
-            elif resource.force_version and resource.version_number:
+            elif getattr(resource, "force_version", False) and resource.version_number:
                 increment_version = True
                 entity["versionLabel"] = str(resource.version_number + 1)
 

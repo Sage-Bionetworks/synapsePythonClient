@@ -26,6 +26,7 @@ if TYPE_CHECKING:
         Organization,
         Project,
         RecordSet,
+        SearchIndex,
         SubmissionView,
         Table,
         Team,
@@ -243,6 +244,7 @@ def store(
         "Project",
         "RecordSet",
         "Organization",
+        "SearchIndex",
         "SubmissionView",
         "Table",
         "Team",
@@ -274,6 +276,7 @@ def store(
     "Project",
     "RecordSet",
     "Organization",
+    "SearchIndex",
     "SubmissionView",
     "Table",
     "Team",
@@ -535,6 +538,7 @@ async def store_async(
         "Project",
         "RecordSet",
         "Organization",
+        "SearchIndex",
         "SubmissionView",
         "Table",
         "Team",
@@ -566,6 +570,7 @@ async def store_async(
     "Project",
     "RecordSet",
     "Organization",
+    "SearchIndex",
     "SubmissionView",
     "Table",
     "Team",
@@ -776,6 +781,7 @@ async def store_async(
         Organization,
         Project,
         RecordSet,
+        SearchIndex,
         SubmissionView,
         Table,
         Team,
@@ -821,6 +827,12 @@ async def store_async(
         return await _handle_store_link_entity(
             entity=entity,
             parent=parent,
+            synapse_client=synapse_client,
+        )
+
+    elif isinstance(entity, SearchIndex):
+        return await entity.store_async(
+            dry_run=table_options.dry_run if table_options else False,
             synapse_client=synapse_client,
         )
 
@@ -875,5 +887,5 @@ async def store_async(
             "Supported types are: AgentSession, CurationTask, "
             "Dataset, DatasetCollection, EntityView, Evaluation, File, Folder, FormData, "
             "FormGroup, Grid, JSONSchema, Link, MaterializedView, Project, RecordSet, "
-            "Organization, SubmissionView, Table, Team, VirtualTable."
+            "Organization, SearchIndex, SubmissionView, Table, Team, VirtualTable."
         )
