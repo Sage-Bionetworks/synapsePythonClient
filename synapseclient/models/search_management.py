@@ -1349,6 +1349,7 @@ class SearchIndexQuery(AsynchronousCommunicator):
     Represents a [Synapse SearchIndexQuery](https://rest-docs.synapse.org/rest/org/sagebionetworks/repo/model/search/table/SearchIndexQuery.html).
 
     Example: Run a search query.
+        &nbsp;
 
         ```python
         import asyncio

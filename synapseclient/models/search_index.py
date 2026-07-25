@@ -86,6 +86,7 @@ class SearchIndex(
         activity: Provenance for this entity.
 
     Example: Create a new SearchIndex.
+        &nbsp;
 
         ```python
         from synapseclient import Synapse
