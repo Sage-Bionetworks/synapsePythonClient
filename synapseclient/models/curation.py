@@ -3545,8 +3545,6 @@ class CreateReplicaRequest:
 
     Attributes:
         grid_session_id: The ID of the grid session.
-        replica: Information about a replica. Populated after calling the
-            create-replica endpoint.
     """
 
     grid_session_id: Optional[str] = None
@@ -5231,6 +5229,7 @@ class Grid(EnumCoercionMixin, GridSynchronousProtocol):
         request = await request.send_job_and_wait_async(
             timeout=timeout, synapse_client=synapse_client
         )
+        print("result", request)
 
         if not request.query_result or not request.query_result.rows:
             client = Synapse.get_client(synapse_client=synapse_client)
