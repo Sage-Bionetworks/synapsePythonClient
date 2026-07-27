@@ -18,6 +18,7 @@ from .configuration_services import (
 )
 from .curation_services import (
     create_curation_task,
+    create_grid_replica,
     delete_curation_task,
     delete_grid_session,
     get_curation_task,
@@ -361,6 +362,7 @@ __all__ = [
     "list_grid_sessions",
     "update_curation_task",
     "update_curation_task_status",
+    "create_grid_replica",
     # download_list_services
     "add_to_download_list_async",
     "clear_download_list_async",

@@ -20,8 +20,6 @@ from synapseclient.models.search_management import (
     SearchHighlight,
     SearchHit,
     SearchIndexQuery,
-    SearchIndexState,
-    SearchIndexStatus,
     SearchQuery,
     SearchQueryPart,
     SynonymSet,
@@ -389,32 +387,6 @@ class TestOrgScopedResource:
         # WHEN getting a resource without an id THEN a ValueError is raised
         with pytest.raises(ValueError):
             await TextAnalyzer().get_async(synapse_client=self.syn)
-
-
-class TestSearchIndexStatus:
-    def test_fill_from_dict(self):
-        # WHEN I fill a status from a response
-        status = SearchIndexStatus().fill_from_dict(
-            {
-                "searchIndexId": "syn1",
-                "state": "ACTIVE",
-                "changedOn": "2024-01-01T00:00:00.000Z",
-                "errorMessage": None,
-            }
-        )
-        # THEN the state coerces to the enum
-        assert status.search_index_id == "syn1"
-        assert status.state is SearchIndexState.ACTIVE
-
-    def test_fill_from_dict_unknown_state(self):
-        # WHEN Synapse returns a state this client version does not know about
-        status = SearchIndexStatus().fill_from_dict(
-            {"searchIndexId": "syn1", "state": "SOME_NEW_STATE"}
-        )
-        # THEN it is preserved instead of raising
-        assert status.state == "SOME_NEW_STATE"
-        assert status.state.value == "SOME_NEW_STATE"
-        assert isinstance(status.state, SearchIndexState)
 
 
 class TestSearchAutocompleteRequest:

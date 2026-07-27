@@ -48,7 +48,6 @@ from synapseclient.models.search_management import (
     SearchHit,
     SearchIndexQuery,
     SearchIndexState,
-    SearchIndexStatus,
     SearchQuery,
     SearchQueryPart,
     SynonymSet,
@@ -203,7 +202,6 @@ __all__ = [
     # SearchIndex / Search Management models
     "SearchIndex",
     "SearchIndexQuery",
-    "SearchIndexStatus",
     "SearchIndexState",
     "SearchQuery",
     "SearchQueryPart",
