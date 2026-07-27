@@ -84,6 +84,12 @@ class TaskState(str, Enum):
     IN_PROGRESS = "IN_PROGRESS"
     """The assignee has actively started the task."""
 
+    EXECUTING = "EXECUTING"
+    """An automated execution (async job) is currently running for this task."""
+
+    IN_REVIEW = "IN_REVIEW"
+    """The automated execution completed successfully and the results are pending human review."""
+
     COMPLETED = "COMPLETED"
     """The task has been completed and verified."""
 

@@ -1,16 +1,21 @@
 # unit tests for utils.py
 
 import base64
+import datetime
+import decimal
 import logging
 import os
 import re
 import tempfile
 from dataclasses import dataclass, field
 from enum import Enum
+from math import nan
 from shutil import rmtree
 from typing import Optional
 from unittest.mock import MagicMock, Mock, call, mock_open, patch
 
+import numpy as np
+import pandas as pd
 import pytest
 
 from synapseclient.core import constants, utils
@@ -568,6 +573,48 @@ def test_md5_for_file(mock_hashlib: MagicMock) -> None:
         mock_callback.call_count == 3
 
 
+def test_md5_for_file_hex_forwards_progress_bar() -> None:
+    """md5_for_file_hex should pass the progress bar through to md5_for_file."""
+    file_name = "/home/foo/bar/test.txt"
+    progress_bar = Mock()
+    with patch.object(utils, "md5_for_file") as mock_md5_for_file:
+        utils.md5_for_file_hex(file_name, progress_bar=progress_bar)
+
+        mock_md5_for_file.assert_called_once_with(
+            file_name, 2 * utils.MB, None, progress_bar=progress_bar
+        )
+
+
+def test_md5_for_file_closes_progress_bar_for_empty_file(tmp_path, syn) -> None:
+    """md5_for_file should close the progress bar even when the file is empty.
+
+    The download code sizes the MD5 progress bar with os.path.getsize, which is
+    0 for an empty file. A tqdm bar with total=0 is falsy, so a truthiness check
+    on the bar must not be used to guard the final refresh/close.
+    """
+    from synapseclient.core.transfer_bar import create_progress_bar
+
+    # GIVEN an empty downloaded file
+    empty_file = tmp_path / "empty_file.txt"
+    empty_file.touch()
+
+    # AND a progress bar created exactly as the download code creates it
+    with patch.object(syn, "silent", False):
+        progress_bar = create_progress_bar(
+            total=os.path.getsize(empty_file),
+            desc="Calculating MD5",
+            unit="B",
+            postfix=empty_file.name,
+            synapse_client=syn,
+        )
+
+    # WHEN the MD5 is calculated
+    utils.md5_for_file(filename=str(empty_file), progress_bar=progress_bar)
+
+    # THEN the progress bar is closed (tqdm marks a closed bar as disabled)
+    assert progress_bar.disable is True
+
+
 # TODO: remove test in 5.0.0
 class TestSpinner:
     """
@@ -1023,6 +1070,190 @@ class TestMergeDataclassEntities:
         assert result.properties.note is None
         # AND the source-only field is NOT grafted onto the destination instance
         assert not hasattr(result.properties, "record_set_id")
+
+
+class TestConvertToAnnotationsList:
+    def test_multiple_and_single_values(self) -> None:
+        """Long, double, string, timestamp and boolean values are typed correctly for
+        both list and scalar inputs."""
+        a = {
+            "foo": 1234,
+            "zoo": [123.1, 456.2, 789.3],
+            "species": "Platypus",
+            "birthdays": [
+                datetime.datetime(1969, 4, 28),
+                datetime.datetime(1973, 12, 8),
+                datetime.datetime(2008, 1, 3),
+            ],
+            "test_boolean": True,
+            "test_mo_booleans": [False, True, True, False],
+        }
+        expected = {
+            "foo": {"value": ["1234"], "type": "LONG"},
+            "zoo": {"value": ["123.1", "456.2", "789.3"], "type": "DOUBLE"},
+            "species": {"value": ["Platypus"], "type": "STRING"},
+            "birthdays": {
+                "value": ["-21427200000", "124156800000", "1199318400000"],
+                "type": "TIMESTAMP_MS",
+            },
+            "test_boolean": {"value": ["true"], "type": "BOOLEAN"},
+            "test_mo_booleans": {
+                "value": ["false", "true", "true", "false"],
+                "type": "BOOLEAN",
+            },
+        }
+        assert utils.convert_to_annotations_list(a) == expected
+
+    def test_scalar_values_are_wrapped(self) -> None:
+        a = {
+            "foo": 1234,
+            "zoo": 123.1,
+            "species": "Platypus",
+            "birthday": datetime.datetime(1969, 4, 28),
+            "test_boolean": True,
+        }
+        expected = {
+            "foo": {"value": ["1234"], "type": "LONG"},
+            "zoo": {"value": ["123.1"], "type": "DOUBLE"},
+            "species": {"value": ["Platypus"], "type": "STRING"},
+            "birthday": {"value": ["-21427200000"], "type": "TIMESTAMP_MS"},
+            "test_boolean": {"value": ["true"], "type": "BOOLEAN"},
+        }
+        assert utils.convert_to_annotations_list(a) == expected
+
+    def test_mixed_type_list_falls_back_to_string(self) -> None:
+        result = utils.convert_to_annotations_list({"mixed": [1, "a", True]})
+        assert result["mixed"]["type"] == "STRING"
+        assert result["mixed"]["value"] == ["1", "a", "True"]
+
+    @pytest.mark.parametrize("missing", [None, "", nan])
+    def test_scalar_missing_values_are_omitted(self, missing) -> None:
+        """A scalar None/empty-string/NaN value produces no annotation entry."""
+        assert utils.convert_to_annotations_list({"key": missing}) == {}
+
+    def test_empty_list_is_omitted(self) -> None:
+        assert utils.convert_to_annotations_list({"key": []}) == {}
+
+    def test_list_of_only_missing_values_is_omitted(self) -> None:
+        assert utils.convert_to_annotations_list({"key": [None, "", nan]}) == {}
+
+    def test_missing_values_stripped_from_mixed_list(self) -> None:
+        result = utils.convert_to_annotations_list({"key": [None, "", "value", nan]})
+        assert result == {"key": {"type": "STRING", "value": ["value"]}}
+
+
+class TestAnnotationValueListElementType:
+    @pytest.mark.parametrize(
+        "annotation_values, expected_type",
+        [
+            ([1, 2, 3], int),
+            (["a", "b"], str),
+            ([True, False], bool),
+            ([1.5, 2.5], float),
+            (
+                [datetime.datetime(1969, 4, 28), datetime.datetime(1970, 1, 1)],
+                datetime.datetime,
+            ),
+            ([42], int),
+            # numpy.float64 subclasses float, so a float list stays homogeneous
+            ([1.5, np.float64(2.5)], float),
+            # bool subclasses int: int-first stays int, but bool-first turns
+            # heterogeneous because int is not an instance of bool
+            ([1, True], int),
+            ([True, 1], object),
+            # genuinely mixed types fall back to object (caller maps this to STRING)
+            ([1, "a"], object),
+            ([1.0, 1], object),
+        ],
+        ids=[
+            "ints",
+            "strings",
+            "booleans",
+            "floats",
+            "datetimes",
+            "single_element",
+            "numpy_float64_in_float_list",
+            "int_then_bool",
+            "bool_then_int",
+            "mixed_int_str",
+            "mixed_float_int",
+        ],
+    )
+    def test_returns_expected_type(self, annotation_values, expected_type) -> None:
+        """A homogeneous list returns its shared element type (subclasses count as
+        matches); a heterogeneous list returns object."""
+        assert (
+            utils._annotation_value_list_element_type(annotation_values)
+            is expected_type
+        )
+
+
+class TestIsMissingAnnotationValue:
+    @pytest.mark.parametrize(
+        "value",
+        [
+            None,
+            "",
+            float("nan"),
+            nan,
+            np.nan,
+            np.float64("nan"),
+            np.float32("nan"),
+            np.float16("nan"),
+            decimal.Decimal("nan"),
+            pd.NA,
+            pd.NaT,
+        ],
+        ids=[
+            "none",
+            "empty_string",
+            "float_nan",
+            "math_nan",
+            "numpy_nan",
+            "numpy_float64_nan",
+            "numpy_float32_nan",
+            "numpy_float16_nan",
+            "decimal_nan",
+            "pandas_na",
+            "pandas_nat",
+        ],
+    )
+    def test_missing(self, value) -> None:
+        """None, empty string, NaN floats, and the pandas NA/NaT sentinels are
+        missing."""
+        assert utils._is_missing_annotation_value(value) is True
+
+    @pytest.mark.parametrize(
+        "value",
+        [
+            "value",
+            "None",
+            "nan",
+            0,
+            0.0,
+            1234,
+            1.5,
+            False,
+            True,
+            datetime.datetime(1969, 4, 28),
+        ],
+        ids=[
+            "non_empty_string",
+            "none_string",
+            "nan_string",
+            "zero_int",
+            "zero_float",
+            "long",
+            "double",
+            "false",
+            "true",
+            "datetime",
+        ],
+    )
+    def test_not_missing(self, value) -> None:
+        """Real scalar values, including falsy ones and the literal strings
+        "None"/"nan", are not missing. Emptiness of lists is handled by the caller."""
+        assert utils._is_missing_annotation_value(value) is False
 
 
 @pytest.mark.parametrize(

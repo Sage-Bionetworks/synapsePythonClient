@@ -3,6 +3,7 @@
 import contextlib
 import copy
 import os
+import tempfile
 from typing import Any, AsyncGenerator, Dict
 from unittest.mock import ANY, AsyncMock, Mock, call, mock_open, patch
 
@@ -430,7 +431,7 @@ class TestWikiPage:
         assert results == expected_results
 
     def test_to_gzip_file_with_string_content(self) -> None:
-        self.syn.cache.cache_root_dir = "temp_cache_dir"
+        self.syn.cache.cache_root_dir = tempfile.gettempdir()
 
         # WHEN I call `_to_gzip_file` with a markdown string
         with (
@@ -467,7 +468,7 @@ class TestWikiPage:
             patch("gzip.open") as mock_gzip_open,
             patch("builtins.open") as mock_open_file,
         ):
-            self.syn.cache.cache_root_dir = "temp_cache_dir"
+            self.syn.cache.cache_root_dir = tempfile.gettempdir()
             markdown_file_path = "wiki_markdown_Test Wiki Page.md.gz"
 
             # WHEN I call `_to_gzip_file` with a gzipped file
@@ -477,7 +478,7 @@ class TestWikiPage:
             assert file_path == markdown_file_path
 
     def test_to_gzip_file_with_non_gzipped_file(self) -> None:
-        self.syn.cache.cache_root_dir = "temp_cache_dir"
+        self.syn.cache.cache_root_dir = tempfile.gettempdir()
 
         # WHEN I call `_to_gzip_file` with a file path
         with (
@@ -513,7 +514,8 @@ class TestWikiPage:
             self.wiki_page._to_gzip_file(123, self.syn)
 
     def test_unzip_gzipped_file_with_markdown(self) -> None:
-        self.syn.cache.cache_root_dir = "temp_cache_dir"
+        self.syn.cache.cache_root_dir = tempfile.gettempdir()
+
         gzipped_file_path = os.path.join(self.syn.cache.cache_root_dir, "test.md.gz")
         expected_unzipped_file_path = os.path.join(
             self.syn.cache.cache_root_dir, "test.md"
@@ -544,7 +546,8 @@ class TestWikiPage:
         assert unzipped_file_path == expected_unzipped_file_path
 
     def test_unzip_gzipped_file_with_binary_file(self) -> None:
-        self.syn.cache.cache_root_dir = "temp_cache_dir"
+        self.syn.cache.cache_root_dir = tempfile.gettempdir()
+
         gzipped_file_path = os.path.join(self.syn.cache.cache_root_dir, "test.bin.gz")
         expected_unzipped_file_path = os.path.join(
             self.syn.cache.cache_root_dir, "test.bin"
@@ -572,7 +575,8 @@ class TestWikiPage:
         assert unzipped_file_path == expected_unzipped_file_path
 
     def test_unzip_gzipped_file_with_text_file(self) -> None:
-        self.syn.cache.cache_root_dir = "temp_cache_dir"
+        self.syn.cache.cache_root_dir = tempfile.gettempdir()
+
         gzipped_file_path = os.path.join(self.syn.cache.cache_root_dir, "test.txt.gz")
         expected_unzipped_file_path = os.path.join(
             self.syn.cache.cache_root_dir, "test.txt"
