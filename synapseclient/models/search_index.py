@@ -164,6 +164,8 @@ class SearchIndex(
     _last_persistent_instance: Optional["SearchIndex"] = field(
         default=None, repr=False, compare=False
     )
+    """The last persistent instance of this object. This is used to determine if the
+    object has been changed and needs to be updated in Synapse."""
 
     annotations: Optional[
         Dict[
