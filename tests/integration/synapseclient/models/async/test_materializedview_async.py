@@ -350,13 +350,6 @@ class TestMaterializedViewWithData:
             synapse_client=self.syn,
             timeout=QUERY_TIMEOUT_SEC,
         )
-        await asyncio.sleep(2)
-        query_result = await materialized_view.query_async(
-            f"SELECT * FROM {materialized_view.id}",
-            synapse_client=self.syn,
-            timeout=QUERY_TIMEOUT_SEC,
-        )
-
         # THEN the query results should reflect the added data
         assert len(query_result) == 2
         assert query_result["name"].tolist() == ["Alice", "Bob"]
