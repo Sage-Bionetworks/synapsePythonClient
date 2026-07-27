@@ -53,7 +53,6 @@ from synapseclient.core.async_utils import async_to_sync
 from synapseclient.core.constants import concrete_types
 from synapseclient.core.utils import delete_none_keys
 from synapseclient.models.mixins.asynchronous_job import AsynchronousCommunicator
-from synapseclient.models.mixins.enum_coercion import ForwardCompatibleStrEnum
 from synapseclient.models.protocols.search_management_protocol import (
     SearchConfigBindingSynchronousProtocol,
 )
@@ -71,15 +70,6 @@ from synapseclient.models.table_components import SelectColumn
 
 if TYPE_CHECKING:
     from synapseclient import Synapse
-
-
-class SearchIndexState(ForwardCompatibleStrEnum):
-    """The state of a SearchIndex's OpenSearch index. A state Synapse returns
-    that is not declared here is preserved as-is rather than raising."""
-
-    CREATING = "CREATING"
-    ACTIVE = "ACTIVE"
-    FAILED = "FAILED"
 
 
 class SearchQueryPart(str, Enum):
