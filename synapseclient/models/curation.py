@@ -8,6 +8,7 @@ data or metadata in Synapse.
 import asyncio
 import os
 from abc import ABC, abstractmethod
+from contextlib import asynccontextmanager, contextmanager
 from copy import deepcopy
 from dataclasses import dataclass, field, replace
 from datetime import datetime, timezone
@@ -28,6 +29,7 @@ from opentelemetry import trace
 from synapseclient import Synapse
 from synapseclient.api import (
     create_curation_task,
+    create_grid_replica,
     delete_curation_task,
     delete_grid_session,
     get_curation_task,
@@ -46,15 +48,25 @@ from synapseclient.core.async_utils import (
     wrap_async_generator_to_sync_generator,
 )
 from synapseclient.core.constants.concrete_types import (
+    CELL_VALUE_FILTER,
+    COUNT_STAR,
     CREATE_GRID_REQUEST,
     DOWNLOAD_FROM_GRID_REQUEST,
     FILE_BASED_METADATA_TASK_PROPERTIES,
     GRID_CSV_IMPORT_REQUEST,
     GRID_EXECUTION_DETAILS,
+    GRID_QUERY_JOB_REQUEST,
     GRID_RECORD_SET_EXPORT_REQUEST,
     LIST_GRID_SESSIONS_REQUEST,
     LIST_GRID_SESSIONS_RESPONSE,
     RECORD_BASED_METADATA_TASK_PROPERTIES,
+    ROW_ID_FILTER,
+    ROW_IS_VALID_FILTER,
+    ROW_SELECTION_FILTER,
+    ROW_VALIDATION_RESULT_FILTER,
+    SELECT_ALL,
+    SELECT_BY_NAME,
+    SELECT_SELECTION,
     SYNCHRONIZE_GRID_REQUEST,
     UPLOAD_TO_TABLE_PREVIEW_REQUEST,
 )
@@ -2287,6 +2299,755 @@ class GridCsvImportRequest(AsynchronousCommunicator):
 
 
 @dataclass
+class SelectColumn:
+    """
+    Information about a selected column in a grid query result.
+
+    Represents a [Synapse SelectColumn](https://rest-docs.synapse.org/rest/org/sagebionetworks/repo/model/grid/query/result/SelectColumn.html).
+
+    Note: This is distinct from the table
+    [SelectColumn](https://rest-docs.synapse.org/rest/org/sagebionetworks/repo/model/table/SelectColumn.html)
+    (`org.sagebionetworks.repo.model.table.SelectColumn`), which additionally carries
+    `id` and `columnType`. This grid-query `SelectColumn` only has `column_name`.
+
+    Attributes:
+        column_name: The name of the column. Will be the alias if one is
+            provided in the select item.
+    """
+
+    column_name: Optional[str] = None
+    """The name of the column. Will be the alias if one is provided in the select item."""
+
+    def fill_from_dict(self, synapse_response: Dict[str, Any]) -> "SelectColumn":
+        """
+        Converts a response from the REST API into this dataclass.
+
+        Arguments:
+            synapse_response: The response from the REST API.
+
+        Returns:
+            The SelectColumn object.
+        """
+        self.column_name = synapse_response.get("columnName", None)
+        return self
+
+
+@dataclass
+class GridQueryValidationResult:
+    """
+    Results of a grid row against a JSON schema
+
+    Represents a [Synapse ValidationResults](https://rest-docs.synapse.org/rest/org/sagebionetworks/repo/model/grid/query/result/ValidationResults.html).
+
+    Note: This is distinct from the general-purpose
+    [ValidationResults](https://rest-docs.synapse.org/rest/org/sagebionetworks/repo/model/schema/ValidationResults.html)
+    (`org.sagebionetworks.repo.model.schema.ValidationResults`), which is used
+    for validating entities/containers against a schema and carries additional
+    fields (`objectId`, `objectType`, `objectEtag`, `schema$id`, `validatedOn`,
+    `validationException`) that this grid-row-specific type does not have.
+
+    Attributes:
+        is_valid: Will be 'true' if the row is valid according to the JSON
+            schema. Will be 'false' when the row is invalid.
+        validation_error_message: If the object is not valid according to the
+            schema, a simple one line error message will be provided.
+        all_validation_messages: If the object is not valid according to the
+            schema, a the flat list of error messages will be provided with one
+            error message per sub-schema. Included only if
+            includeValidationMessages was set to true in the query. Otherwise,
+            this array is omitted to optimize performance.
+    """
+
+    is_valid: Optional[bool] = None
+    """Will be 'true' if the row is valid according to the JSON schema. Will be
+    'false' when the row is invalid."""
+
+    validation_error_message: Optional[str] = None
+    """If the object is not valid according to the schema, a simple one line
+    error message will be provided."""
+
+    all_validation_messages: Optional[list[str]] = None
+    """If the object is not valid according to the schema, a the flat list of
+    error messages will be provided with one error message per sub-schema.
+    Included only if includeValidationMessages was set to true in the query.
+    Otherwise, this array is omitted to optimize performance."""
+
+    def fill_from_dict(
+        self, synapse_response: Dict[str, Any]
+    ) -> "GridQueryValidationResult":
+        """
+        Converts a response from the REST API into this dataclass.
+
+        Arguments:
+            synapse_response: The response from the REST API.
+
+        Returns:
+            The GridQueryValidationResult object.
+        """
+        self.is_valid = synapse_response.get("isValid", None)
+        self.validation_error_message = synapse_response.get(
+            "validationErrorMessage", None
+        )
+        self.all_validation_messages = synapse_response.get(
+            "allValidationMessages", None
+        )
+        return self
+
+
+@dataclass
+class GridRow:
+    """
+    A single row of a grid query result.
+
+    Represents a [Synapse Row](https://rest-docs.synapse.org/rest/org/sagebionetworks/repo/model/grid/query/result/Row.html).
+
+    Note: This is distinct from the SQL-based table
+    [Row](https://rest-docs.synapse.org/rest/org/sagebionetworks/repo/model/table/Row.html)
+    (`org.sagebionetworks.repo.model.table.Row`), which represents a row of a
+    table/view query result rather than a grid query result.
+
+    Attributes:
+        row_id: Logical timestamp identifying the row in compact form
+            `replicaId.sequenceNumber` (e.g. `123.456`). Used in filtering
+            operations and update/patch procedures.
+        data: The JSON object representing a single row.
+        validation_results: Results of validating this row against a JSON
+            schema, if a schema is bound.
+    """
+
+    row_id: Optional[str] = None
+    """Logical timestamp identifying the row in compact form `replicaId.sequenceNumber`."""
+
+    data: Optional[Dict[str, Any]] = None
+    """The JSON object representing a single row."""
+
+    validation_results: Optional[GridQueryValidationResult] = None
+    """Results of validating this row against a JSON schema, if a schema is bound."""
+
+    def fill_from_dict(self, synapse_response: Dict[str, Any]) -> "GridRow":
+        """
+        Converts a response from the REST API into this dataclass.
+
+        Arguments:
+            synapse_response: The response from the REST API.
+
+        Returns:
+            The GridRow object.
+        """
+        self.row_id = synapse_response.get("rowId", None)
+        self.data = synapse_response.get("data", None)
+        validation_results_data = synapse_response.get("validationResults", None)
+        self.validation_results = (
+            GridQueryValidationResult().fill_from_dict(validation_results_data)
+            if validation_results_data is not None
+            else None
+        )
+        return self
+
+
+@dataclass
+class GridQueryResult:
+    """
+    A single page of rows returned from a grid query.
+
+    Represents a [Synapse QueryResult](https://rest-docs.synapse.org/rest/org/sagebionetworks/repo/model/grid/query/result/QueryResult.html).
+
+    Note: This is distinct from the SQL-based table
+    [QueryResult](https://rest-docs.synapse.org/rest/org/sagebionetworks/repo/model/table/QueryResult.html)
+    (`org.sagebionetworks.repo.model.table.QueryResult`), which wraps SQL query
+    results rather than a grid query's SelectColumn/Row objects.
+
+    Attributes:
+        select_columns: Information about the selected columns.
+        rows: A single page of rows.
+    """
+
+    select_columns: Optional[list[SelectColumn]] = None
+    """Information about the selected columns."""
+
+    rows: Optional[list[GridRow]] = None
+    """A single page of rows."""
+
+    def fill_from_dict(self, synapse_response: Dict[str, Any]) -> "GridQueryResult":
+        """
+        Converts a response from the REST API into this dataclass.
+
+        Arguments:
+            synapse_response: The response from the REST API.
+
+        Returns:
+            The GridQueryResult object.
+        """
+        select_columns_data = synapse_response.get("selectColumns", None)
+        self.select_columns = (
+            [SelectColumn().fill_from_dict(col) for col in select_columns_data]
+            if select_columns_data is not None
+            else None
+        )
+
+        rows_data = synapse_response.get("rows", None)
+        self.rows = (
+            [GridRow().fill_from_dict(row) for row in rows_data]
+            if rows_data is not None
+            else None
+        )
+        return self
+
+
+class ValidationOperator(str, Enum):
+    """
+    The comparison operator.
+
+    See <https://rest-docs.synapse.org/rest/org/sagebionetworks/repo/model/grid/query/ValidationOperator.html>.
+    """
+
+    LIKE = "LIKE"
+    NOT_LIKE = "NOT_LIKE"
+
+
+class CellValueOperator(str, Enum):
+    """
+    The comparison operator.
+
+    See <https://rest-docs.synapse.org/rest/org/sagebionetworks/repo/model/grid/query/CellValueOperator.html>.
+    """
+
+    EQUALS = "EQUALS"
+    NOT_EQUALS = "NOT_EQUALS"
+    GREATER_THAN = "GREATER_THAN"
+    LESS_THAN = "LESS_THAN"
+    GREATER_THAN_OR_EQUALS = "GREATER_THAN_OR_EQUALS"
+    LESS_THAN_OR_EQUALS = "LESS_THAN_OR_EQUALS"
+    IN = "IN"
+    NOT_IN = "NOT_IN"
+    LIKE = "LIKE"
+    NOT_LIKE = "NOT_LIKE"
+    IS_NULL = "IS_NULL"
+    IS_NOT_NULL = "IS_NOT_NULL"
+    IS_UNDEFINED = "IS_UNDEFINED"
+    IS_DEFINED = "IS_DEFINED"
+
+
+@dataclass
+class SelectItem(ABC):
+    """
+    A generic select item.
+
+    <https://rest-docs.synapse.org/rest/org/sagebionetworks/repo/model/grid/query/SelectItem.html>
+
+    Known implementations: SelectByName, SelectAll, CountStar, SelectSelection.
+
+    The concrete subclass is determined by the concreteType field in the REST response.
+    """
+
+    @abstractmethod
+    def to_synapse_request(self) -> Dict[str, Any]:
+        """
+        Converts this dataclass to a dictionary suitable for a Synapse REST API request.
+
+        Returns:
+            A dictionary representation of this object for API requests.
+        """
+        ...
+
+
+@dataclass
+class SelectByName(SelectItem):
+    """
+    A SelectItem that will result in the selection of a single column by its name.
+
+    <https://rest-docs.synapse.org/rest/org/sagebionetworks/repo/model/grid/query/SelectByName.html>
+
+    Attributes:
+        column_name: The name of the column to include in the select.
+    """
+
+    column_name: Optional[str] = None
+    """The name of the column to include in the select."""
+
+    def to_synapse_request(self) -> Dict[str, Any]:
+        """
+        Converts this dataclass to a dictionary suitable for a Synapse REST API request.
+
+        Returns:
+            A dictionary representation of this object for API requests.
+        """
+        request_dict = {"concreteType": SELECT_BY_NAME, "columnName": self.column_name}
+        delete_none_keys(request_dict)
+        return request_dict
+
+
+@dataclass
+class SelectAll(SelectItem):
+    """
+    A SelectItem that will result in the selection of all columns.
+
+    <https://rest-docs.synapse.org/rest/org/sagebionetworks/repo/model/grid/query/SelectAll.html>
+    """
+
+    def to_synapse_request(self) -> Dict[str, Any]:
+        """
+        Converts this dataclass to a dictionary suitable for a Synapse REST API request.
+
+        Returns:
+            A dictionary representation of this object for API requests.
+        """
+        return {"concreteType": SELECT_ALL}
+
+
+@dataclass
+class CountStar(SelectItem):
+    """
+    Use this to count the total number of rows that match the query. For example,
+    for a user request like 'how many rows are there in total?', select this item.
+    The alias property can be used to name the resulting count column.
+
+    <https://rest-docs.synapse.org/rest/org/sagebionetworks/repo/model/grid/query/function/CountStar.html>
+
+    Attributes:
+        alias: Used to name the resulting count column.
+    """
+
+    alias: Optional[str] = None
+    """Used to name the resulting count column."""
+
+    def to_synapse_request(self) -> Dict[str, Any]:
+        """
+        Converts this dataclass to a dictionary suitable for a Synapse REST API request.
+
+        Returns:
+            A dictionary representation of this object for API requests.
+        """
+        request_dict = {"concreteType": COUNT_STAR, "alias": self.alias}
+        delete_none_keys(request_dict)
+        return request_dict
+
+
+@dataclass
+class SelectSelection(SelectItem):
+    """
+    A SelectItem that will result in the selection of the columns the user has
+    actively selected in the interface.
+
+    <https://rest-docs.synapse.org/rest/org/sagebionetworks/repo/model/grid/query/SelectSelection.html>
+    """
+
+    def to_synapse_request(self) -> Dict[str, Any]:
+        """
+        Converts this dataclass to a dictionary suitable for a Synapse REST API request.
+
+        Returns:
+            A dictionary representation of this object for API requests.
+        """
+        return {"concreteType": SELECT_SELECTION}
+
+
+@dataclass
+class Filter(ABC):
+    """
+    There are five different types of filters that can be applied to a grid query.
+
+    <https://rest-docs.synapse.org/rest/org/sagebionetworks/repo/model/grid/query/Filter.html>
+
+    Known implementations: RowValidationResultFilter, CellValueFilter,
+    RowSelectionFilter, RowIsValidFilter, RowIdFilter.
+
+    The concrete subclass is determined by the concreteType field in the REST response.
+    """
+
+    @abstractmethod
+    def to_synapse_request(self) -> Dict[str, Any]:
+        """
+        Converts this dataclass to a dictionary suitable for a Synapse REST API request.
+
+        Returns:
+            A dictionary representation of this object for API requests.
+        """
+        ...
+
+
+@dataclass
+class RowValidationResultFilter(Filter, EnumCoercionMixin):
+    """
+    Use this filter to find rows that have data quality issues or schema
+    validation errors.
+
+    <https://rest-docs.synapse.org/rest/org/sagebionetworks/repo/model/grid/query/RowValidationResultFilter.html>
+
+    To find type errors, use the LIKE operator with '%expected type:%' as the
+    validation result value.
+
+    Attributes:
+        operator: The comparison operator.
+        validation_result_value: A validation result value. For wildcards use
+            '%' to represents zero or more characters, and '_' to represents a
+            single character.
+    """
+
+    _ENUM_FIELDS: ClassVar[dict[str, type]] = {"operator": ValidationOperator}
+
+    operator: Optional[Union[ValidationOperator, str]] = None
+    """The comparison operator."""
+
+    validation_result_value: Optional[str] = None
+    """A validation result value. For wildcards use '%' to represents zero or
+    more characters, and '_' to represents a single character."""
+
+    def to_synapse_request(self) -> Dict[str, Any]:
+        """
+        Converts this dataclass to a dictionary suitable for a Synapse REST API request.
+
+        Returns:
+            A dictionary representation of this object for API requests.
+        """
+        request_dict = {
+            "concreteType": ROW_VALIDATION_RESULT_FILTER,
+            "operator": self.operator.value if self.operator is not None else None,
+            "validationResultValue": self.validation_result_value,
+        }
+        delete_none_keys(request_dict)
+        return request_dict
+
+
+@dataclass
+class CellValueFilter(Filter, EnumCoercionMixin):
+    """
+    A filter used to select rows based on cell values. For example, to handle a
+    user request like 'find all rows where the Project column is Alpha', you
+    would set 'columnName' to 'Project', 'operator' to 'EQUALS', and 'value' to
+    ['Alpha'].
+
+    <https://rest-docs.synapse.org/rest/org/sagebionetworks/repo/model/grid/query/CellValueFilter.html>
+
+    Attributes:
+        column_name: The name of the column to filter by.
+        operator: The comparison operator.
+        value: Use operators like 'EQUALS' or 'LIKE' with the 'value' property
+            for standard comparisons. The 'IS_NULL' operator can be used to
+            find null values. The 'IS_UNDEFINED' operator can be used to find
+            undefined values. When using IN or NOT_IN operators, value should
+            be an array of values to compare against. When using either 'LIKE'
+            or 'NOT_LIKE', the wildcard character '%' is used to represents
+            zero or more characters, and '_' is used to represent a single
+            character.
+    """
+
+    _ENUM_FIELDS: ClassVar[dict[str, type]] = {"operator": CellValueOperator}
+
+    column_name: Optional[str] = None
+    """The name of the column to filter by."""
+
+    operator: Optional[Union[CellValueOperator, str]] = None
+    """The comparison operator."""
+
+    value: Optional[Any] = None
+    """Use operators like 'EQUALS' or 'LIKE' with the 'value' property for
+    standard comparisons. The 'IS_NULL' operator can be used to find null
+    values. The 'IS_UNDEFINED' operator can be used to find undefined values.
+    When using IN or NOT_IN operators, value should be an array of values to
+    compare against. When using either 'LIKE' or 'NOT_LIKE', the wildcard
+    character '%' is used to represents zero or more characters, and '_' is
+    used to represent a single character."""
+
+    def to_synapse_request(self) -> Dict[str, Any]:
+        """
+        Converts this dataclass to a dictionary suitable for a Synapse REST API request.
+
+        Returns:
+            A dictionary representation of this object for API requests.
+        """
+        request_dict = {
+            "concreteType": CELL_VALUE_FILTER,
+            "columnName": self.column_name,
+            "operator": self.operator.value if self.operator is not None else None,
+            "value": self.value,
+        }
+        delete_none_keys(request_dict)
+        return request_dict
+
+
+@dataclass
+class RowSelectionFilter(Filter):
+    """
+    Use this filter to narrow down results based on rows the user has actively
+    selected in the interface. For user requests like 'show me only my selected
+    items' or 'run this analysis on the rows I've checked', set the
+    'isSelected' property to true.
+
+    <https://rest-docs.synapse.org/rest/org/sagebionetworks/repo/model/grid/query/RowSelectionFilter.html>
+
+    Attributes:
+        is_selected: When true, only rows that the user has selected will be
+            returned. When false, rows that the user has selected will be
+            excluded.
+    """
+
+    is_selected: Optional[bool] = None
+    """When true, only rows that the user has selected will be returned. When
+    false, rows that the user has selected will be excluded."""
+
+    def to_synapse_request(self) -> Dict[str, Any]:
+        """
+        Converts this dataclass to a dictionary suitable for a Synapse REST API request.
+
+        Returns:
+            A dictionary representation of this object for API requests.
+        """
+        request_dict = {
+            "concreteType": ROW_SELECTION_FILTER,
+            "isSelected": self.is_selected,
+        }
+        delete_none_keys(request_dict)
+        return request_dict
+
+
+@dataclass
+class RowIsValidFilter(Filter):
+    """
+    Use this filter for simple requests to find all 'valid' or 'invalid' rows
+    based on their overall validation status.
+
+    <https://rest-docs.synapse.org/rest/org/sagebionetworks/repo/model/grid/query/RowIsValidFilter.html>
+
+    Attributes:
+        value: Set to true to find rows that are valid according to the
+            schema. Set to false to find rows that are invalid and have
+            validation errors.
+    """
+
+    value: Optional[bool] = None
+    """Set to true to find rows that are valid according to the schema. Set to
+    false to find rows that are invalid and have validation errors."""
+
+    def to_synapse_request(self) -> Dict[str, Any]:
+        """
+        Converts this dataclass to a dictionary suitable for a Synapse REST API request.
+
+        Returns:
+            A dictionary representation of this object for API requests.
+        """
+        request_dict = {"concreteType": ROW_IS_VALID_FILTER, "value": self.value}
+        delete_none_keys(request_dict)
+        return request_dict
+
+
+@dataclass
+class RowIdFilter(Filter):
+    """
+    Row ID inclusion filter. Use when you need to operate on specific existing
+    rows by their explicit row IDs obtained from a prior grid query (e.g., an
+    update). The filter matches any row whose ID is in the provided list
+    (logical OR semantics). Do not use for pattern matching or broad selection;
+    supply only the exact row IDs you intend to modify or retrieve.
+
+    <https://rest-docs.synapse.org/rest/org/sagebionetworks/repo/model/grid/query/RowIdFilter.html>
+
+    Attributes:
+        row_ids_in: Array of explicit row IDs. The result will include any row
+            whose ID appears in this list (logical OR). Provide only IDs
+            previously obtained from a grid query. Omit this filter if you do
+            not know the IDs. Do not include duplicates or IDs not present in
+            the current grid.
+    """
+
+    row_ids_in: Optional[list[str]] = None
+    """Array of explicit row IDs. The result will include any row whose ID
+    appears in this list (logical OR). Provide only IDs previously obtained
+    from a grid query. Omit this filter if you do not know the IDs. Do not
+    include duplicates or IDs not present in the current grid."""
+
+    def to_synapse_request(self) -> Dict[str, Any]:
+        """
+        Converts this dataclass to a dictionary suitable for a Synapse REST API request.
+
+        Returns:
+            A dictionary representation of this object for API requests.
+        """
+        request_dict = {"concreteType": ROW_ID_FILTER, "rowIdsIn": self.row_ids_in}
+        delete_none_keys(request_dict)
+        return request_dict
+
+
+@dataclass
+class GridQuery:
+    """
+    A structured grid query, expressed with JSON SelectItem and Filter objects
+    rather than SQL syntax.
+
+    Represents a [Synapse Query](https://rest-docs.synapse.org/rest/org/sagebionetworks/repo/model/grid/query/Query.html).
+
+    Note: This is distinct from the SQL-based table
+    [Query](https://rest-docs.synapse.org/rest/org/sagebionetworks/repo/model/table/Query.html)
+    (`org.sagebionetworks.repo.model.table.Query`, imported here as `Query`), which
+    takes a SQL string rather than structured select items and filters.
+
+    Attributes:
+        column_selection: One or more SelectItem is required to define the
+            columns that will be returned by this query (e.g. SelectAll,
+            CountStar).
+        filters: Each filter must be a complete JSON object with the required
+            'concreteType' property. Multiple filters are combined with AND logic.
+        limit: Limit of the number of rows returned to avoid loading more data
+            than needed into your context window.
+        offset: Specifies where the first returned row begins in the result set.
+        include_validation_messages: Controls whether the
+            'allValidationMessages' array appears in the response. Defaults to
+            false to conserve token usage.
+    """
+
+    column_selection: list[SelectItem] = field(default_factory=list)
+    """One or more SelectItem is required to define the columns that will be
+    returned by this query."""
+
+    limit: Optional[int] = None
+    """Limit of the number of rows returned to avoid loading more data than
+    needed into your context window."""
+
+    filters: Optional[list[Filter]] = None
+    """Each filter must be a complete JSON object with the required
+    'concreteType' property. Multiple filters are combined with AND logic."""
+
+    offset: Optional[int] = None
+    """Specifies where the first returned row begins in the result set."""
+
+    include_validation_messages: Optional[bool] = None
+    """Controls whether the 'allValidationMessages' array appears in the response."""
+
+    def to_synapse_request(self) -> Dict[str, Any]:
+        """
+        Converts this dataclass to a dictionary suitable for a Synapse REST API request.
+
+        Returns:
+            A dictionary representation of this object for API requests.
+
+        Raises:
+            ValueError: If column_selection is empty.
+        """
+        if not self.column_selection:
+            raise ValueError(
+                "column_selection is required and must contain at least one "
+                "SelectItem."
+            )
+
+        request_dict = {
+            "columnSelection": [
+                item.to_synapse_request() for item in self.column_selection
+            ],
+            "filters": (
+                [item.to_synapse_request() for item in self.filters]
+                if self.filters is not None
+                else None
+            ),
+            "limit": self.limit,
+            "offset": self.offset,
+            "includeValidationMessages": self.include_validation_messages,
+        }
+        delete_none_keys(request_dict)
+        return request_dict
+
+
+@dataclass
+class QueryRequest:
+    """
+    Request to run a query.
+
+    Represents a [Synapse QueryRequest](https://rest-docs.synapse.org/rest/org/sagebionetworks/repo/model/grid/query/QueryRequest.html).
+
+    Attributes:
+        query: Defines a structured query using JSON SelectItems and Filters objects - NOT SQL syntax.
+    """
+
+    query: Optional[GridQuery] = None
+    """Defines a structured query using JSON SelectItems and Filters objects (not SQL syntax)."""
+
+    def to_synapse_request(self) -> Dict[str, Any]:
+        """
+        Converts this dataclass to a dictionary suitable for a Synapse REST API request.
+
+        Returns:
+            A dictionary representation of this object for API requests.
+        """
+        request_dict = {
+            "query": self.query.to_synapse_request() if self.query else None,
+        }
+        delete_none_keys(request_dict)
+        return request_dict
+
+
+@dataclass
+class GridQueryJobRequest(AsynchronousCommunicator):
+    """
+    Asynchronous job request to query a grid session and return a single page of
+    rows with optional per-row validation data.
+
+    This request is modeled from: <https://rest-docs.synapse.org/rest/org/sagebionetworks/repo/model/grid/GridQueryJobRequest.html>
+
+    The response is modeled from: <https://rest-docs.synapse.org/rest/org/sagebionetworks/repo/model/grid/GridQueryJobResponse.html>
+    """
+
+    session_id: str
+    """The grid session ID for querying."""
+
+    replica_id: int
+    """The caller's replica ID. Used for row-selection filtering and must be owned by the caller."""
+
+    query_request: QueryRequest = field(default_factory=QueryRequest)
+    """Request to run a query."""
+
+    concrete_type: str = GRID_QUERY_JOB_REQUEST
+    """The concrete type for this request."""
+
+    # Response fields (populated by fill_from_dict)
+    query_result: Optional[GridQueryResult] = field(default=None, compare=False)
+    """Results of a query against a grid session."""
+
+    def fill_from_dict(self, synapse_response: Dict[str, Any]) -> "GridQueryJobRequest":
+        """
+        Converts a response from the REST API into this dataclass.
+
+        Arguments:
+            synapse_response: The response from the REST API.
+
+        Returns:
+            The GridQueryJobRequest object.
+        """
+        query_result_data = synapse_response.get("queryResult", None)
+        self.query_result = (
+            GridQueryResult().fill_from_dict(query_result_data)
+            if query_result_data is not None
+            else None
+        )
+        return self
+
+    def to_synapse_request(self) -> Dict[str, Any]:
+        """
+        Converts this dataclass to a dictionary suitable for a Synapse REST API request.
+
+        Returns:
+            A dictionary representation of this object for API requests.
+
+        Raises:
+            ValueError: If query_request or its nested query is not set, since
+                Synapse would reject the request regardless.
+        """
+        if not self.query_request or not self.query_request.query:
+            raise ValueError(
+                "query_request.query is required to query the grid. "
+                "Set query_request=QueryRequest(query=GridQuery(...)) before "
+                "sending this request."
+            )
+
+        request_dict = {
+            "concreteType": self.concrete_type,
+            "sessionId": self.session_id,
+            "replicaId": self.replica_id,
+            "queryRequest": self.query_request.to_synapse_request(),
+        }
+        delete_none_keys(request_dict)
+        return request_dict
+
+
+@dataclass
 class DownloadFromGridRequest(AsynchronousCommunicator):
     """
     A CSV Grid download request.
@@ -2725,6 +3486,82 @@ class ListGridSessionsResponse:
         return self
 
 
+@dataclass
+class GridReplica:
+    """
+    Information about a replica.
+
+    Represents a [Synapse GridReplica](https://rest-docs.synapse.org/rest/org/sagebionetworks/repo/model/grid/GridReplica.html).
+
+    Attributes:
+        grid_session_id: The ID of the grid session.
+        replica_id: The unique identifier for the new replica.
+        created_by: The user that created this replica.
+        is_agent_replica: When true, this replica belongs to the createdBy
+            user's agent.
+        created_on: The date-time when the user created this replica.
+    """
+
+    grid_session_id: Optional[str] = None
+    """The ID of the grid session."""
+
+    replica_id: Optional[int] = None
+    """The unique identifier for the new replica."""
+
+    created_by: Optional[str] = None
+    """The user that created this replica."""
+
+    is_agent_replica: Optional[bool] = None
+    """When true, this replica belongs to the createdBy user's agent."""
+
+    created_on: Optional[str] = None
+    """The date-time when the user created this replica."""
+
+    def fill_from_dict(self, synapse_response: Dict[str, Any]) -> "GridReplica":
+        """
+        Converts a response from the REST API into this dataclass.
+
+        Arguments:
+            synapse_response: The response from the REST API.
+
+        Returns:
+            The GridReplica object.
+        """
+        self.grid_session_id = synapse_response.get("gridSessionId", None)
+        self.replica_id = synapse_response.get("replicaId", None)
+        self.created_by = synapse_response.get("createdBy", None)
+        self.is_agent_replica = synapse_response.get("isAgentReplica", None)
+        self.created_on = synapse_response.get("createdOn", None)
+        return self
+
+
+@dataclass
+class CreateReplicaRequest:
+    """
+    Request to create a new replica. A replica represents an 'in-memory' grid
+    document identified by a unique replicaId.
+
+    This request is modeled from: <https://rest-docs.synapse.org/rest/org/sagebionetworks/repo/model/grid/CreateReplicaRequest.html>
+
+    Attributes:
+        grid_session_id: The ID of the grid session.
+    """
+
+    grid_session_id: Optional[str] = None
+    """The ID of the grid session."""
+
+    def to_synapse_request(self) -> dict[str, Any]:
+        """
+        Converts this dataclass to a dictionary suitable for a Synapse REST API request.
+
+        Returns:
+            A dictionary representation of this object for API requests.
+        """
+        request_dict = {"gridSessionId": self.grid_session_id}
+        delete_none_keys(request_dict)
+        return request_dict
+
+
 class GridSynchronousProtocol(Protocol):
     """
     The protocol for methods that are asynchronous but also
@@ -2876,6 +3713,138 @@ class GridSynchronousProtocol(Protocol):
             ```
         """
         return self
+
+    def _create_replica(
+        self, *, synapse_client: Optional[Synapse] = None
+    ) -> "GridReplica":
+        """
+        Creates a new replica for this grid session.
+
+        A grid replica is an in-memory document that represents a 'copy' of the
+        grid. Each replica is identified by a unique replicaId, issued by the
+        'hub'. A user can have more than one replica at a time (i.e. using
+        multiple browser tabs/machines). Only the user that started the grid session
+        may create a replica.
+
+        Arguments:
+            synapse_client: If not passed in and caching was not disabled by
+                `Synapse.allow_client_caching(False)` this will use the last created
+                instance from the Synapse class constructor.
+
+        Returns:
+            The newly created GridReplica.
+
+        Raises:
+            ValueError: If session_id is not provided, or if the Synapse response
+                did not contain replica information.
+
+        Example: Create a replica for a grid session
+            &nbsp;
+
+            ```python
+            from synapseclient import Synapse
+            from synapseclient.models import Grid
+
+            syn = Synapse()
+            syn.login()
+
+            grid = Grid(record_set_id="syn1234567")
+            grid = grid.create()
+
+            replica = grid._create_replica()
+            print(f"Replica created with ID: {replica.replica_id}")
+            ```
+        """
+        return None
+
+    def validate_rows(
+        self,
+        *,
+        timeout: int = 120,
+        query_request: "QueryRequest",
+        synapse_client: Optional[Synapse] = None,
+    ) -> Optional["GridQueryResult"]:
+        """
+        Queries this grid session's rows and returns their per-row validation
+        results against the grid's bound JSON schema.
+
+        This Grid must have been obtained from `connect_async` (or `connect`),
+        which binds a replica to it. The given query_request is then submitted
+        to the grid session using that replica, and this waits for the job to
+        complete.
+
+        Arguments:
+            timeout: The number of seconds to wait for the job to complete or progress
+                before raising a SynapseTimeoutError. Defaults to 120.
+            query_request: The structured query to run against the grid, wrapping a
+                GridQuery that defines the column selection, filters, and whether to
+                include the detailed `all_validation_messages` list on each row.
+            synapse_client: If not passed in and caching was not disabled by
+                `Synapse.allow_client_caching(False)` this will use the last created
+                instance from the Synapse class constructor.
+
+        Returns:
+            The GridQueryResult containing the selected columns and rows, each with its own validation_results, or None if the completed job did not return a query_result. Logs a warning if the job completed but no rows matched the query.
+
+        Raises:
+            ValueError: If session_id is not provided, or if no replica is bound
+                to this Grid (see `connect_async`/`connect`).
+
+        Example: Validate every row of a grid session
+            &nbsp;
+
+            ```python
+            from synapseclient import Synapse
+            from synapseclient.models import Grid
+            from synapseclient.models.curation import GridQuery, QueryRequest, SelectAll
+
+            syn = Synapse()
+            syn.login()
+
+            with Grid(record_set_id="syn1234567").connect() as grid:
+                # SelectAll() selects every column in the grid, so each row's full
+                # data is returned alongside its validation results.
+                query_request = QueryRequest(query=GridQuery(column_selection=[SelectAll()]))
+                query_result = grid.validate_rows(query_request=query_request)
+
+                for row in query_result.rows:
+                    validation = row.validation_results
+                    print(f"Row ID: {row.row_id}, Validation Result: {validation}")
+            ```
+
+        Example: Validate only the currently invalid rows of a grid session
+            &nbsp;
+
+            ```python
+            from synapseclient import Synapse
+            from synapseclient.models import Grid
+            from synapseclient.models.curation import (
+                GridQuery,
+                QueryRequest,
+                RowIsValidFilter,
+                SelectAll,
+            )
+
+            syn = Synapse()
+            syn.login()
+
+            with Grid(record_set_id="syn1234567").connect() as grid:
+                # Filter to only the rows that are currently invalid, and request the
+                # detailed allValidationMessages list on each one.
+                query_request = QueryRequest(
+                    query=GridQuery(
+                        column_selection=[SelectAll()],
+                        filters=[RowIsValidFilter(value=False)],
+                        include_validation_messages=True,
+                    )
+                )
+                query_result = grid.validate_rows(query_request=query_request)
+
+                for row in query_result.rows:
+                    print(f"Invalid row {row.row_id}: {row.validation_results}")
+            ```
+        """
+        return None
 
     def delete(self, *, synapse_client: Optional[Synapse] = None) -> None:
         """
@@ -3126,6 +4095,7 @@ class Grid(EnumCoercionMixin, GridSynchronousProtocol):
         ```python
         from synapseclient import Synapse
         from synapseclient.models import Grid
+        from synapseclient.models.curation import GridQuery, QueryRequest, SelectAll
 
         syn = Synapse()
         syn.login()
@@ -3134,6 +4104,14 @@ class Grid(EnumCoercionMixin, GridSynchronousProtocol):
         grid = Grid(record_set_id="syn1234567")
         grid = grid.create()
         print(f"Created grid session: {grid.session_id}")
+
+        # Validate rows. SelectAll() selects every column, so each row's full
+        # data is returned alongside its validation results.
+        with grid.connect() as session:
+            query_request = QueryRequest(query=GridQuery(column_selection=[SelectAll()]))
+            result = session.validate_rows(query_request=query_request)
+            for row in result.rows:
+                print(f"Row ID: {row.row_id}, Validation Result: {row.validation_results}")
 
         # Later, export the modified data back to the record set
         grid = grid.export_to_record_set()
@@ -3150,6 +4128,7 @@ class Grid(EnumCoercionMixin, GridSynchronousProtocol):
         from synapseclient import Synapse
         from synapseclient.models import Grid
         from synapseclient.models.table_components import Query
+        from synapseclient.models.curation import GridQuery, QueryRequest, SelectAll
 
         syn = Synapse()
         syn.login()
@@ -3159,7 +4138,14 @@ class Grid(EnumCoercionMixin, GridSynchronousProtocol):
         grid = Grid(initial_query=query)
         grid = grid.create()
 
-        # Work with the grid session...
+        # Validate rows. SelectAll() selects every column, so each row's full
+        # data is returned alongside its validation results.
+        with grid.connect() as session:
+            query_request = QueryRequest(query=GridQuery(column_selection=[SelectAll()]))
+            result = session.validate_rows(query_request=query_request)
+            for row in result.rows:
+                print(f"Row ID: {row.row_id}, Validation Result: {row.validation_results}")
+
         # Export when ready
         grid = grid.export_to_record_set()
         ```
@@ -3213,6 +4199,10 @@ class Grid(EnumCoercionMixin, GridSynchronousProtocol):
 
     validation_summary_statistics: Optional[ValidationSummary] = None
     """Summary statistics for validation results"""
+
+    _replica_id: Optional[int] = field(default=None, repr=False, compare=False)
+    """The replica ID bound to this instance by `connect_async`. Reused by
+    `validate_rows_async` so repeated calls do not each create a new replica."""
 
     _ENUM_FIELDS: ClassVar[dict[str, type]] = {"authorization_mode": AuthorizationMode}
 
@@ -3843,3 +4833,406 @@ class Grid(EnumCoercionMixin, GridSynchronousProtocol):
             )
 
         return self
+
+    @otel_trace_method(
+        method_to_trace_name=lambda self, **kwargs: f"Grid_Create_Replica_Session_ID: {self.session_id}"
+    )
+    async def _create_replica_async(
+        self, *, synapse_client: Optional[Synapse] = None
+    ) -> "GridReplica":
+        """
+        Creates a new replica for this grid session.
+
+        A grid replica is an in-memory document that represents a 'copy' of the
+        grid. Each replica is identified by a unique replicaId, issued by the
+        'hub'. A user can have more than one replica at a time (i.e. using
+        multiple browser tabs/machines). Only the user that started the grid session
+        may create a replica.
+
+        Arguments:
+            synapse_client: If not passed in and caching was not disabled by
+                `Synapse.allow_client_caching(False)` this will use the last created
+                instance from the Synapse class constructor.
+
+        Returns:
+            The newly created GridReplica.
+
+        Raises:
+            ValueError: If session_id is not provided, or if the Synapse response
+                did not contain replica information.
+
+        Example: Create a replica for a grid session
+            &nbsp;
+
+            ```python
+            import asyncio
+            from synapseclient import Synapse
+            from synapseclient.models import Grid
+
+            syn = Synapse()
+            syn.login()
+
+            async def main():
+                grid = Grid(record_set_id="syn1234567")
+                grid = await grid.create_async()
+
+                replica = await grid._create_replica_async()
+                print(f"Replica created with ID: {replica.replica_id}")
+
+            asyncio.run(main())
+            ```
+        """
+        if not self.session_id:
+            raise ValueError(
+                "session_id is required to create a replica for a GridSession"
+            )
+
+        grid_replica = await create_grid_replica(
+            session_id=self.session_id,
+            create_replica_request=CreateReplicaRequest(
+                self.session_id
+            ).to_synapse_request(),
+            synapse_client=synapse_client,
+        )
+        replica_data = grid_replica.get("replica")
+        if not replica_data:
+            raise ValueError(
+                f"Replica could not be created for grid session '{self.session_id}': "
+                f"no replica was returned in the Synapse response."
+            )
+        return GridReplica().fill_from_dict(replica_data)
+
+    @skip_async_to_sync
+    @asynccontextmanager
+    async def connect_async(
+        self,
+        *,
+        attach_to_previous_session: bool = False,
+        timeout: int = 120,
+        synapse_client: Optional[Synapse] = None,
+    ) -> AsyncGenerator["Grid", None]:
+        """
+        Connects to a grid session and binds a single replica to it for the
+        duration of the `async with` block.
+
+        If `session_id` is not already set (e.g. from `create_grid_session`),
+        creates a new grid session first via `record_set_id` or
+        `initial_query`, same as `create_async`. Either way, one replica is
+        then created (see `_create_replica_async`) that is reused by every
+        `validate_rows_async` call made within the block.
+
+        Arguments:
+            attach_to_previous_session: Only applies when creating a new
+                session from `record_set_id`. If True, attaches to an existing
+                active session instead of creating a new one. Defaults to False.
+            timeout: The number of seconds to wait for the job to complete or progress
+                before raising a SynapseTimeoutError. Defaults to 120.
+            synapse_client: If not passed in and caching was not disabled by
+                `Synapse.allow_client_caching(False)` this will use the last created
+                instance from the Synapse class constructor.
+
+        Yields:
+            The connected Grid, with a replica bound to it.
+
+        Example: Validate rows using a newly created grid session
+            &nbsp;
+
+            ```python
+            import asyncio
+            from synapseclient import Synapse
+            from synapseclient.models import Grid
+            from synapseclient.models.curation import GridQuery, QueryRequest, SelectAll
+
+            syn = Synapse()
+            syn.login()
+
+            async def main():
+                async with Grid(record_set_id="syn1234567").connect_async() as session:
+                    query_request = QueryRequest(
+                        query=GridQuery(column_selection=[SelectAll()])
+                    )
+                    result = await session.validate_rows_async(query_request=query_request)
+                    for row in result.rows:
+                        print(f"Row ID: {row.row_id}, Validation Result: {row.validation_results}")
+
+            asyncio.run(main())
+            ```
+
+        Example: Validate rows using an existing grid session
+            &nbsp;
+
+            If a session_id is already set, connect_async will not create a new
+            grid session
+
+            ```python
+            import asyncio
+            from synapseclient import Synapse
+            from synapseclient.models import CurationTask, Grid
+            from synapseclient.models.curation import GridQuery, QueryRequest, SelectAll
+
+            syn = Synapse()
+            syn.login()
+
+            task = CurationTask(task_id="1234")
+            grid = task.create_grid_session()
+
+            async def main():
+                async with grid.connect_async() as session:
+                    query_request = QueryRequest(
+                        query=GridQuery(column_selection=[SelectAll()])
+                    )
+                    result = await session.validate_rows_async(query_request=query_request)
+                    for row in result.rows:
+                        print(f"Row ID: {row.row_id}, Validation Result: {row.validation_results}")
+
+            asyncio.run(main())
+            ```
+        """
+        trace.get_current_span().set_attributes(
+            {
+                "synapse.record_set_id": self.record_set_id or "",
+                "synapse.session_id": self.session_id or "",
+            }
+        )
+
+        if not self.session_id:
+            await self.create_async(
+                attach_to_previous_session=attach_to_previous_session,
+                timeout=timeout,
+                synapse_client=synapse_client,
+            )
+
+        replica = await self._create_replica_async(synapse_client=synapse_client)
+        self._replica_id = replica.replica_id
+        try:
+            yield self
+        finally:
+            self._replica_id = None
+
+    @contextmanager
+    def connect(
+        self,
+        *,
+        attach_to_previous_session: bool = False,
+        timeout: int = 120,
+        synapse_client: Optional[Synapse] = None,
+    ) -> Generator["Grid", None, None]:
+        """
+        Synchronous equivalent of `connect_async`.
+
+        Connects to a grid session and binds a single replica to it for the
+        duration of the `with` block.
+
+        If `session_id` is not already set (e.g. from `create_grid_session`),
+        creates a new grid session first via `record_set_id` or
+        `initial_query`, same as `create`. Either way, one replica is then
+        created (see `_create_replica`) that is reused by every
+        `validate_rows` call made within the block.
+
+        Arguments:
+            attach_to_previous_session: Only applies when creating a new
+                session from `record_set_id`. If True, attaches to an existing
+                active session instead of creating a new one. Defaults to False.
+            timeout: The number of seconds to wait for the job to complete or progress
+                before raising a SynapseTimeoutError. Defaults to 120.
+            synapse_client: If not passed in and caching was not disabled by
+                `Synapse.allow_client_caching(False)` this will use the last created
+                instance from the Synapse class constructor.
+
+        Yields:
+            The connected Grid, with a replica bound to it.
+
+        Example: Validate rows using a newly created grid session
+            &nbsp;
+
+            ```python
+            from synapseclient import Synapse
+            from synapseclient.models import Grid
+            from synapseclient.models.curation import GridQuery, QueryRequest, SelectAll
+
+            syn = Synapse()
+            syn.login()
+
+            with Grid(record_set_id="syn1234567").connect() as session:
+                query_request = QueryRequest(
+                    query=GridQuery(column_selection=[SelectAll()])
+                )
+                result = session.validate_rows(query_request=query_request)
+                for row in result.rows:
+                    print(f"Row ID: {row.row_id}, Validation Result: {row.validation_results}")
+            ```
+
+        Example: Validate rows using an existing grid session
+            &nbsp;
+
+            If a session_id is already set, connect will not create a new grid
+            session.
+
+            ```python
+            from synapseclient import Synapse
+            from synapseclient.models import CurationTask, Grid
+            from synapseclient.models.curation import GridQuery, QueryRequest, SelectAll
+
+            syn = Synapse()
+            syn.login()
+
+            task = CurationTask(task_id="1234")
+            grid = task.create_grid_session()
+
+            with grid.connect() as session:
+                query_request = QueryRequest(
+                    query=GridQuery(column_selection=[SelectAll()])
+                )
+                result = session.validate_rows(query_request=query_request)
+                for row in result.rows:
+                    print(f"Row ID: {row.row_id}, Validation Result: {row.validation_results}")
+            ```
+        """
+        trace.get_current_span().set_attributes(
+            {
+                "synapse.record_set_id": self.record_set_id or "",
+                "synapse.session_id": self.session_id or "",
+            }
+        )
+
+        if not self.session_id:
+            self.create(
+                attach_to_previous_session=attach_to_previous_session,
+                timeout=timeout,
+                synapse_client=synapse_client,
+            )
+
+        replica = self._create_replica(synapse_client=synapse_client)
+        self._replica_id = replica.replica_id
+        try:
+            yield self
+        finally:
+            self._replica_id = None
+
+    @otel_trace_method(
+        method_to_trace_name=lambda self, **kwargs: f"Grid_Validate_Rows_Session_ID: {self.session_id}"
+    )
+    async def validate_rows_async(
+        self,
+        *,
+        timeout: int = 120,
+        query_request: QueryRequest,
+        synapse_client: Optional[Synapse] = None,
+    ) -> Optional["GridQueryResult"]:
+        """
+        Queries this grid session's rows and returns their per-row validation
+        results against the grid's bound JSON schema.
+
+        This Grid must have been obtained from `connect_async` (or `connect`),
+        which binds a replica to it. The given query_request is then submitted
+        to the grid session using that replica, and this waits for the job to
+        complete.
+
+        Arguments:
+            timeout: The number of seconds to wait for the job to complete or progress
+                before raising a SynapseTimeoutError. Defaults to 120.
+            query_request: The structured query to run against the grid, wrapping a
+                GridQuery that defines the column selection, filters, and whether to
+                include the detailed `all_validation_messages` list on each row.
+            synapse_client: If not passed in and caching was not disabled by
+                `Synapse.allow_client_caching(False)` this will use the last created
+                instance from the Synapse class constructor.
+
+        Returns:
+            The GridQueryResult containing the selected columns and rows, each with its own validation_results, or None if the completed job did not return a query_result. Logs a warning if the job completed but no rows matched the query.
+
+        Raises:
+            ValueError: If session_id is not provided, or if no replica is bound
+                to this Grid (see `connect_async`/`connect`).
+
+        Example: Validate every row of a grid session
+            &nbsp;
+
+            ```python
+            import asyncio
+            from synapseclient import Synapse
+            from synapseclient.models import Grid
+            from synapseclient.models.curation import GridQuery, QueryRequest, SelectAll
+
+            syn = Synapse()
+            syn.login()
+
+            async def main():
+                async with Grid(record_set_id="syn1234567").connect_async() as grid:
+                    # SelectAll() selects every column in the grid, so each row's
+                    # full data is returned alongside its validation results.
+                    query_request = QueryRequest(
+                        query=GridQuery(column_selection=[SelectAll()])
+                    )
+                    query_result = await grid.validate_rows_async(query_request=query_request)
+
+                    for row in query_result.rows:
+                        validation = row.validation_results
+                        print(f"Row ID: {row.row_id}, Validation Result: {validation}")
+
+            asyncio.run(main())
+            ```
+
+        Example: Validate only the currently invalid rows of a grid session
+            &nbsp;
+
+            ```python
+            import asyncio
+            from synapseclient import Synapse
+            from synapseclient.models import Grid
+            from synapseclient.models.curation import (
+                GridQuery,
+                QueryRequest,
+                RowIsValidFilter,
+                SelectAll,
+            )
+
+            syn = Synapse()
+            syn.login()
+
+            async def main():
+                async with Grid(record_set_id="syn1234567").connect_async() as grid:
+                    # Filter to only the rows that are currently invalid, and request
+                    # the detailed allValidationMessages list on each one.
+                    query_request = QueryRequest(
+                        query=GridQuery(
+                            column_selection=[SelectAll()],
+                            filters=[RowIsValidFilter(value=False)],
+                            include_validation_messages=True,
+                        )
+                    )
+                    query_result = await grid.validate_rows_async(query_request=query_request)
+
+                    for row in query_result.rows:
+                        print(f"Invalid row {row.row_id}: {row.validation_results}")
+
+            asyncio.run(main())
+            ```
+        """
+        if not self.session_id:
+            raise ValueError("session_id is required to validate rows")
+
+        if self._replica_id is None:
+            raise ValueError(
+                "No replica is bound to this Grid. Use `connect_async` (or "
+                "`connect`) to connect to a grid session before calling "
+                "validate_rows_async."
+            )
+
+        request = GridQueryJobRequest(
+            session_id=self.session_id,
+            replica_id=self._replica_id,
+            query_request=query_request,
+        )
+        request = await request.send_job_and_wait_async(
+            timeout=timeout, synapse_client=synapse_client
+        )
+
+        if not request.query_result or not request.query_result.rows:
+            client = Synapse.get_client(synapse_client=synapse_client)
+            client.logger.warning(
+                f"Validation job for grid session '{self.session_id}' completed but "
+                "did not return any row validation results. This grid may not have "
+                "any rows matching the query."
+            )
+        return request.query_result
