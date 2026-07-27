@@ -17,6 +17,7 @@ from synapseclient.core.constants.concrete_types import (
     DOWNLOAD_LIST_MANIFEST_REQUEST,
     GET_VALIDATION_SCHEMA_REQUEST,
     GRID_CSV_IMPORT_REQUEST,
+    GRID_QUERY_JOB_REQUEST,
     GRID_RECORD_SET_EXPORT_REQUEST,
     QUERY_BUNDLE_REQUEST,
     QUERY_TABLE_CSV_REQUEST,
@@ -44,6 +45,7 @@ ASYNC_JOB_URIS = {
     QUERY_TABLE_CSV_REQUEST: "/entity/{entityId}/table/download/csv/async",
     QUERY_BUNDLE_REQUEST: "/entity/{entityId}/table/query/async",
     GRID_CSV_IMPORT_REQUEST: "/grid/import/csv/async",
+    GRID_QUERY_JOB_REQUEST: "/grid/session/query/async",
     UPLOAD_TO_TABLE_PREVIEW_REQUEST: "/table/upload/csv/preview/async",
 }
 
