@@ -299,7 +299,6 @@ async def create_grid_replica(
     https://rest-docs.synapse.org/rest/POST/grid/session/sessionId/replica.html
 
     Note: Only the user that started the grid session may create a replica.
-    A user is limited to 10 replicas per-hour per-grid-session.
 
     Arguments:
         create_replica_request: The complete CreateReplicaRequest object.

@@ -3723,8 +3723,7 @@ class GridSynchronousProtocol(Protocol):
         A grid replica is an in-memory document that represents a 'copy' of the
         grid. Each replica is identified by a unique replicaId, issued by the
         'hub'. A user can have more than one replica at a time (i.e. using
-        multiple browser tabs/machines). A user is limited to 10 replicas
-        per-hour per-grid-session. Only the user that started the grid session
+        multiple browser tabs/machines). Only the user that started the grid session
         may create a replica.
 
         Arguments:
@@ -4847,8 +4846,7 @@ class Grid(EnumCoercionMixin, GridSynchronousProtocol):
         A grid replica is an in-memory document that represents a 'copy' of the
         grid. Each replica is identified by a unique replicaId, issued by the
         'hub'. A user can have more than one replica at a time (i.e. using
-        multiple browser tabs/machines). A user is limited to 10 replicas
-        per-hour per-grid-session. Only the user that started the grid session
+        multiple browser tabs/machines). Only the user that started the grid session
         may create a replica.
 
         Arguments:
