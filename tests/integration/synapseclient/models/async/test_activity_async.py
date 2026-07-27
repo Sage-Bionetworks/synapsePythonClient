@@ -7,9 +7,8 @@ from typing import Callable
 import pytest
 
 import synapseclient.core.utils as utils
-from synapseclient import Project as Synapse_Project
 from synapseclient import Synapse
-from synapseclient.models import Activity, File, UsedEntity, UsedURL
+from synapseclient.models import Activity, File, Project, UsedEntity, UsedURL
 
 BOGUS_URL = "https://www.synapse.org/"
 
@@ -24,14 +23,14 @@ class TestActivity:
 
     async def create_file_with_activity(
         self,
-        project: Synapse_Project,
+        project_model: Project,
         activity: Activity = None,
         store_file: bool = True,
     ) -> File:
         """Helper to create a file with optional activity"""
         path = utils.make_bogus_uuid_file()
         file = File(
-            parent_id=project["id"],
+            parent_id=project_model.id,
             path=path,
             name=f"bogus_file_{str(uuid.uuid4())}",
             activity=activity,
@@ -77,10 +76,10 @@ class TestActivity:
             assert activity.used == []
             assert activity.executed == []
 
-    async def test_activity_lifecycle(self, project: Synapse_Project) -> None:
+    async def test_activity_lifecycle(self, project_model: Project) -> None:
         """Test complete activity lifecycle - create, update, retrieve, and delete"""
         # GIVEN a file in a project
-        file = await self.create_file_with_activity(project)
+        file = await self.create_file_with_activity(project_model)
 
         # AND an activity with references
         activity = Activity(
@@ -145,7 +144,7 @@ class TestActivity:
         assert activity_after_delete is None
 
     async def test_store_activity_with_no_references(
-        self, project: Synapse_Project
+        self, project_model: Project
     ) -> None:
         """Test storing an activity without references"""
         # GIVEN an activity with no references
@@ -155,7 +154,7 @@ class TestActivity:
         )
 
         # AND a file with that activity
-        file = await self.create_file_with_activity(project, activity=activity)
+        file = await self.create_file_with_activity(project_model, activity=activity)
 
         # THEN I expect the activity to have been stored properly
         await self.verify_activity_properties(
@@ -169,7 +168,7 @@ class TestActivity:
         await file.activity.delete_async(parent=file, synapse_client=self.syn)
 
     async def test_store_activity_via_file_creation(
-        self, project: Synapse_Project
+        self, project_model: Project
     ) -> None:
         """Test storing an activity as part of file creation"""
         # GIVEN an activity with references
@@ -187,7 +186,7 @@ class TestActivity:
         )
 
         # WHEN I create a file with the activity
-        file = await self.create_file_with_activity(project, activity=activity)
+        file = await self.create_file_with_activity(project_model, activity=activity)
 
         # THEN I expect the activity to have been stored with the file
         await self.verify_activity_properties(
@@ -200,7 +199,7 @@ class TestActivity:
         # Clean up
         await file.activity.delete_async(parent=file, synapse_client=self.syn)
 
-    async def test_get_by_activity_id(self, project: Synapse_Project) -> None:
+    async def test_get_by_activity_id(self, project_model: Project) -> None:
         """Test retrieving an activity by its ID using async method"""
         # GIVEN a file with an activity
         activity = Activity(
@@ -211,7 +210,7 @@ class TestActivity:
                 UsedEntity(target_id="syn456", target_version_number=1),
             ],
         )
-        file = await self.create_file_with_activity(project, activity=activity)
+        file = await self.create_file_with_activity(project_model, activity=activity)
         stored_activity = file.activity
 
         # WHEN I retrieve the activity by its ID
@@ -234,7 +233,7 @@ class TestActivity:
         # Clean up
         await stored_activity.delete_async(parent=file, synapse_client=self.syn)
 
-    async def test_get_by_parent_id(self, project: Synapse_Project) -> None:
+    async def test_get_by_parent_id(self, project_model: Project) -> None:
         """Test retrieving an activity by parent entity ID using async method"""
         # GIVEN a file with an activity
         activity = Activity(
@@ -242,7 +241,7 @@ class TestActivity:
             description="activity for get by parent test async",
             used=[UsedURL(name="example", url=BOGUS_URL)],
         )
-        file = await self.create_file_with_activity(project, activity=activity)
+        file = await self.create_file_with_activity(project_model, activity=activity)
         stored_activity = file.activity
         await asyncio.sleep(1)
 
@@ -266,16 +265,14 @@ class TestActivity:
         # Clean up
         await stored_activity.delete_async(parent=file, synapse_client=self.syn)
 
-    async def test_get_by_parent_id_with_version(
-        self, project: Synapse_Project
-    ) -> None:
+    async def test_get_by_parent_id_with_version(self, project_model: Project) -> None:
         """Test retrieving an activity by parent entity ID with version number using async method"""
         # GIVEN a file with an activity
         activity = Activity(
             name=f"test_get_by_parent_version_async_{str(uuid.uuid4())}",
             description="activity for get by parent version test async",
         )
-        file = await self.create_file_with_activity(project, activity=activity)
+        file = await self.create_file_with_activity(project_model, activity=activity)
         stored_activity = file.activity
         await asyncio.sleep(1)
 
@@ -317,7 +314,7 @@ class TestActivity:
         assert retrieved_activity is None
 
     async def test_get_activity_id_takes_precedence(
-        self, project: Synapse_Project
+        self, project_model: Project
     ) -> None:
         """Test that activity_id takes precedence over parent_id when both are provided using async method"""
         # GIVEN two files with different activities
@@ -330,8 +327,8 @@ class TestActivity:
             description="second activity async",
         )
 
-        file1 = await self.create_file_with_activity(project, activity=activity1)
-        file2 = await self.create_file_with_activity(project, activity=activity2)
+        file1 = await self.create_file_with_activity(project_model, activity=activity1)
+        file2 = await self.create_file_with_activity(project_model, activity=activity2)
 
         stored_activity1 = file1.activity
         stored_activity2 = file2.activity
@@ -362,11 +359,11 @@ class TestActivity:
             await Activity.get_async()
 
     async def test_store_activity_with_string_parent(
-        self, project: Synapse_Project
+        self, project_model: Project
     ) -> None:
         """Test storing an activity with a string parent ID"""
         # GIVEN a file in a project
-        file = await self.create_file_with_activity(project)
+        file = await self.create_file_with_activity(project_model)
 
         # AND an activity with references
         activity = Activity(
@@ -398,9 +395,7 @@ class TestActivity:
         # Clean up
         await result.delete_async(parent=file.id, synapse_client=self.syn)
 
-    async def test_from_parent_with_string_parent(
-        self, project: Synapse_Project
-    ) -> None:
+    async def test_from_parent_with_string_parent(self, project_model: Project) -> None:
         """Test retrieving an activity using a string parent ID"""
         # GIVEN a file with an activity
         activity = Activity(
@@ -408,7 +403,7 @@ class TestActivity:
             description="testing from_parent with string",
             used=[UsedURL(name="example", url=BOGUS_URL)],
         )
-        file = await self.create_file_with_activity(project, activity=activity)
+        file = await self.create_file_with_activity(project_model, activity=activity)
         stored_activity = file.activity
 
         # WHEN I retrieve the activity using a string parent ID
@@ -426,7 +421,7 @@ class TestActivity:
         await stored_activity.delete_async(parent=file, synapse_client=self.syn)
 
     async def test_from_parent_with_string_parent_and_version(
-        self, project: Synapse_Project
+        self, project_model: Project
     ) -> None:
         """Test retrieving an activity using a string parent ID with version"""
         # GIVEN a file with an activity
@@ -434,7 +429,7 @@ class TestActivity:
             name=f"from_parent_string_version_test_{str(uuid.uuid4())}",
             description="testing from_parent with string and version",
         )
-        file = await self.create_file_with_activity(project, activity=activity)
+        file = await self.create_file_with_activity(project_model, activity=activity)
         stored_activity = file.activity
 
         # WHEN I retrieve the activity using a string parent ID with version parameter
@@ -453,7 +448,7 @@ class TestActivity:
         await stored_activity.delete_async(parent=file, synapse_client=self.syn)
 
     async def test_from_parent_with_string_parent_with_embedded_version(
-        self, project: Synapse_Project
+        self, project_model: Project
     ) -> None:
         """Test retrieving an activity using a string parent ID with embedded version"""
         # GIVEN a file with an activity
@@ -461,7 +456,7 @@ class TestActivity:
             name=f"from_parent_embedded_version_test_{str(uuid.uuid4())}",
             description="testing from_parent with embedded version",
         )
-        file = await self.create_file_with_activity(project, activity=activity)
+        file = await self.create_file_with_activity(project_model, activity=activity)
         stored_activity = file.activity
 
         # WHEN I retrieve the activity using a string parent ID with embedded version
@@ -478,16 +473,14 @@ class TestActivity:
         # Clean up
         await stored_activity.delete_async(parent=file, synapse_client=self.syn)
 
-    async def test_from_parent_version_precedence(
-        self, project: Synapse_Project
-    ) -> None:
+    async def test_from_parent_version_precedence(self, project_model: Project) -> None:
         """Test that embedded version takes precedence over parent_version_number parameter"""
         # GIVEN a file with an activity
         activity = Activity(
             name=f"version_precedence_test_{str(uuid.uuid4())}",
             description="testing version precedence",
         )
-        file = await self.create_file_with_activity(project, activity=activity)
+        file = await self.create_file_with_activity(project_model, activity=activity)
         stored_activity = file.activity
 
         # WHEN I retrieve the activity using a string parent ID with embedded version
@@ -508,14 +501,14 @@ class TestActivity:
         # Clean up
         await stored_activity.delete_async(parent=file, synapse_client=self.syn)
 
-    async def test_delete_with_string_parent(self, project: Synapse_Project) -> None:
+    async def test_delete_with_string_parent(self, project_model: Project) -> None:
         """Test deleting an activity using a string parent ID"""
         # GIVEN a file with an activity
         activity = Activity(
             name=f"delete_string_test_{str(uuid.uuid4())}",
             description="testing delete with string parent",
         )
-        file = await self.create_file_with_activity(project, activity=activity)
+        file = await self.create_file_with_activity(project_model, activity=activity)
 
         # WHEN I delete the activity using a string parent ID
         await Activity.delete_async(parent=file.id, synapse_client=self.syn)
@@ -527,7 +520,7 @@ class TestActivity:
         assert activity_after_delete is None
 
     async def test_disassociate_with_string_parent(
-        self, project: Synapse_Project
+        self, project_model: Project
     ) -> None:
         """Test disassociating an activity using a string parent ID"""
         # GIVEN a file with an activity
@@ -535,7 +528,7 @@ class TestActivity:
             name=f"disassociate_string_test_{str(uuid.uuid4())}",
             description="testing disassociate with string parent",
         )
-        file = await self.create_file_with_activity(project, activity=activity)
+        file = await self.create_file_with_activity(project_model, activity=activity)
 
         # WHEN I disassociate the activity using a string parent ID
         await Activity.disassociate_from_entity_async(

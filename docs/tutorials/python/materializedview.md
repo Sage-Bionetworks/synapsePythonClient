@@ -30,7 +30,7 @@ You will want to replace `"My uniquely named project about Alzheimer's Disease"`
 the name of your project.
 
 ```python
-{!docs/tutorials/python/tutorial_scripts/materializedview.py!lines=3-72}
+--8<-- "docs/tutorials/python/tutorial_scripts/materializedview.py:setup"
 ```
 
 ## 2. Create and query a Materialized View
@@ -39,7 +39,7 @@ First, we will create a simple Materialized View that selects all rows from a ta
 then query it to retrieve the results.
 
 ```python
-{!docs/tutorials/python/tutorial_scripts/materializedview.py!lines=75-97}
+--8<-- "docs/tutorials/python/tutorial_scripts/materializedview.py:basic_view"
 ```
 
 <details class="example">
@@ -62,7 +62,7 @@ Next, we will create a Materialized View that combines data from two tables usin
 clause and then query it to retrieve the results.
 
 ```python
-{!docs/tutorials/python/tutorial_scripts/materializedview.py!lines=100-130}
+--8<-- "docs/tutorials/python/tutorial_scripts/materializedview.py:join_view"
 ```
 
 <details class="example">
@@ -86,7 +86,7 @@ rows from another table using a LEFT JOIN clause and then query it to retrieve t
 results.
 
 ```python
-{!docs/tutorials/python/tutorial_scripts/materializedview.py!lines=133-163}
+--8<-- "docs/tutorials/python/tutorial_scripts/materializedview.py:left_join_view"
 ```
 
 <details class="example">
@@ -111,7 +111,7 @@ matches rows from another table using a RIGHT JOIN clause and then query it to r
 the results.
 
 ```python
-{!docs/tutorials/python/tutorial_scripts/materializedview.py!lines=166-196}
+--8<-- "docs/tutorials/python/tutorial_scripts/materializedview.py:right_join_view"
 ```
 
 <details class="example">
@@ -135,7 +135,7 @@ Finally, we can create a Materialized View that combines rows from two tables us
 UNION clause and then query it to retrieve the results.
 
 ```python
-{!docs/tutorials/python/tutorial_scripts/materializedview.py!lines=199-229}
+--8<-- "docs/tutorials/python/tutorial_scripts/materializedview.py:union_view"
 ```
 
 <details class="example">
@@ -160,7 +160,7 @@ Results from the materialized view with UNION:
   <summary>Click to show me</summary>
 
 ```python
-{!docs/tutorials/python/tutorial_scripts/materializedview.py!}
+--8<-- "docs/tutorials/python/tutorial_scripts/materializedview.py"
 ```
 </details>
 

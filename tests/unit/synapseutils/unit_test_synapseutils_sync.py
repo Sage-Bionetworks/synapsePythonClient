@@ -1924,9 +1924,9 @@ class TestSyncFromSynapseDeprecation:
     def test_syncFromSynapse_emits_deprecation_warning(self, syn: Synapse) -> None:
         # GIVEN the legacy syncFromSynapse function
         # WHEN it is called
-        # THEN a DeprecationWarning is raised pointing to StorableContainer
+        # THEN a DeprecationWarning is raised pointing to Project or Folder
         with pytest.warns(
-            DeprecationWarning, match="StorableContainer.sync_from_synapse"
+            DeprecationWarning, match="sync_from_synapse method on a Project or"
         ):
             with patch.object(
                 sync,

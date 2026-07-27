@@ -300,3 +300,59 @@ class StorableContainerSynchronousProtocol(Protocol):
             ```
         """
         return []
+
+    def generate_sync_manifest(
+        self: Self,
+        directory_path: str,
+        manifest_path: str,
+        *,
+        synapse_client: Synapse | None = None,
+    ) -> None:
+        """Walk a local directory, mirror its folder hierarchy under this
+        container in Synapse, and write a CSV manifest ready for
+        [sync_to_synapse][synapseclient.models.mixins.StorableContainer.sync_to_synapse].
+
+        The manifest has two columns: path (absolute, symlink-resolved) and
+        parentId (the Synapse ID of the file's containing folder). Existing
+        Synapse folders with matching names and parents are reused. Directory
+        symlinks inside directory_path are not followed; file symlinks record
+        the symlink path and upload the target's contents. Zero-byte files are
+        skipped with a warning — Synapse rejects empty files. I/O errors during
+        walk are logged and skipped; an empty source directory produces a
+        warning and a header-only manifest.
+
+        Arguments:
+            directory_path: Path to the local directory to be pushed to
+                Synapse.
+            manifest_path: Path where the generated manifest CSV will be
+                written.
+            synapse_client: If not passed in and caching was not disabled by
+                Synapse.allow_client_caching(False) this will use the last
+                created instance from the Synapse class constructor.
+
+        Raises:
+            ValueError: If this container's id is None, or if directory_path
+                does not exist or is not a directory, or if this container's
+                id exists in Synapse but is not a Folder or Project.
+            SynapseHTTPError: If this container's id does not exist in
+                Synapse.
+
+        Example: Generate a manifest and upload the files
+            Mirror ./my_data under a Synapse project and then upload it.
+
+            ```python
+            from synapseclient import Synapse
+            from synapseclient.models import Project
+
+            syn = Synapse()
+            syn.login()
+
+            project = Project(id="syn12345")
+            project.generate_sync_manifest(
+                directory_path="./my_data",
+                manifest_path="manifest.csv",
+            )
+            project.sync_to_synapse(manifest_path="manifest.csv")
+            ```
+        """
+        return None

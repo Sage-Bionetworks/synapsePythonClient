@@ -40,7 +40,10 @@ from synapseclient.core.constants.concrete_types import (
 )
 from synapseclient.core.constants.method_flags import COLLISION_OVERWRITE_LOCAL
 from synapseclient.core.exceptions import SynapseError
-from synapseclient.core.transfer_bar import shared_download_progress_bar
+from synapseclient.core.transfer_bar import (
+    create_progress_bar,
+    shared_download_progress_bar,
+)
 from synapseclient.core.upload.multipart_upload_async import (
     shared_progress_bar as upload_shared_progress_bar,
 )
@@ -50,6 +53,7 @@ from synapseclient.models.protocols.storable_container_protocol import (
 )
 from synapseclient.models.services.manifest import (
     generate_manifest_csv,
+    generate_sync_manifest,
     read_manifest_for_upload,
     upload_sync_files,
 )
@@ -653,8 +657,6 @@ class StorableContainer(StorableContainerSynchronousProtocol):
             asyncio.run(main())
             ```
         """
-        from tqdm import tqdm
-
         from synapseutils.monitor import notify_me_async
 
         syn = Synapse.get_client(synapse_client=synapse_client)
@@ -677,13 +679,11 @@ class StorableContainer(StorableContainerSynchronousProtocol):
         if not items:
             return []
 
-        progress_bar = tqdm(
+        progress_bar = create_progress_bar(
             total=total_size,
             desc=f"Uploading {len(items)} files",
             unit="B",
-            unit_scale=True,
-            smoothing=0,
-            leave=None,
+            synapse_client=syn,
         )
         with upload_shared_progress_bar(progress_bar):
             try:
@@ -701,6 +701,80 @@ class StorableContainer(StorableContainerSynchronousProtocol):
             finally:
                 progress_bar.close()
         return uploaded_files
+
+    @otel_trace_method(
+        method_to_trace_name=lambda self, **kwargs: f"{self.__class__.__name__}_generate_sync_manifest: {self.id}"
+    )
+    async def generate_sync_manifest_async(
+        self: Self,
+        directory_path: str,
+        manifest_path: str,
+        *,
+        synapse_client: Synapse | None = None,
+    ) -> None:
+        """Walk a local directory, mirror its folder hierarchy under this
+        container in Synapse, and write a CSV manifest ready for
+        [sync_to_synapse_async][synapseclient.models.mixins.StorableContainer.sync_to_synapse_async].
+
+        The manifest has two columns: path (absolute, symlink-resolved) and
+        parentId (the Synapse ID of the file's containing folder). Existing
+        Synapse folders with matching names and parents are reused. Directory
+        symlinks inside directory_path are not followed; file symlinks record
+        the symlink path and upload the target's contents. Zero-byte files are
+        skipped with a warning — Synapse rejects empty files. I/O errors during
+        walk are logged and skipped; an empty source directory produces a
+        warning and a header-only manifest.
+
+        Arguments:
+            directory_path: Path to the local directory to be pushed to
+                Synapse.
+            manifest_path: Path where the generated manifest CSV will be
+                written.
+            synapse_client: If not passed in and caching was not disabled by
+                Synapse.allow_client_caching(False) this will use the last
+                created instance from the Synapse class constructor.
+
+        Raises:
+            ValueError: If this container's id is None, or if directory_path
+                does not exist or is not a directory, or if this container's
+                id exists in Synapse but is not a Folder or Project.
+            SynapseHTTPError: If this container's id does not exist in
+                Synapse.
+
+        Example: Generate a manifest and upload the files
+            Mirror ./my_data under a Synapse project and then upload it.
+
+            ```python
+            import asyncio
+            from synapseclient import Synapse
+            from synapseclient.models import Project
+
+            async def main():
+                syn = Synapse()
+                syn.login()
+
+                project = Project(id="syn12345")
+                await project.generate_sync_manifest_async(
+                    directory_path="./my_data",
+                    manifest_path="manifest.csv",
+                )
+                await project.sync_to_synapse_async(manifest_path="manifest.csv")
+
+            asyncio.run(main())
+            ```
+        """
+        if self.id is None:
+            raise ValueError(
+                f"Cannot generate a sync manifest for a {type(self).__name__}"
+                " that has not been stored in Synapse. Set id on this"
+                " container (or store it) first."
+            )
+        await generate_sync_manifest(
+            directory_path=directory_path,
+            parent_id=self.id,
+            manifest_path=manifest_path,
+            synapse_client=synapse_client,
+        )
 
     def flatten_file_list(self) -> List["File"]:
         """

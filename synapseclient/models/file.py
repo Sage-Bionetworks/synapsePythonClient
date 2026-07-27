@@ -10,11 +10,13 @@ from typing import TYPE_CHECKING, Dict, List, Optional, Union
 
 from opentelemetry import trace
 
+# TODO: delete this import in v5.0.0
 from synapseclient import File as SynapseFile
 from synapseclient import Synapse
 from synapseclient.api import get_from_entity_factory
 from synapseclient.core import utils
 from synapseclient.core.async_utils import async_to_sync, otel_trace_method
+from synapseclient.core.constants.concrete_types import FILE_ENTITY
 from synapseclient.core.exceptions import (
     SynapseError,
     SynapseFileNotFoundError,
@@ -26,7 +28,6 @@ from synapseclient.core.utils import (
     guess_file_name,
     merge_dataclass_entities,
 )
-from synapseclient.entity import File as Synapse_File
 from synapseclient.models import Activity, Annotations
 from synapseclient.models.mixins import AccessControllable, BaseJSONSchema
 from synapseclient.models.protocols.file_protocol import FileSynchronousProtocol
@@ -608,7 +609,7 @@ class File(FileSynchronousProtocol, AccessControllable, BaseJSONSchema):
 
     def fill_from_dict(
         self,
-        synapse_file: Union[Synapse_File, Dict[str, Union[bool, str, int]]],
+        synapse_file: dict[str, bool | str | int],
         set_annotations: bool = True,
     ) -> "File":
         """
@@ -883,22 +884,22 @@ class File(FileSynchronousProtocol, AccessControllable, BaseJSONSchema):
             self.path = client.cache.get(file_handle_id=self.data_file_handle_id)
 
         if self.has_changed:
-            synapse_file = Synapse_File(
-                id=self.id,
-                path=self.path,
-                description=self.description,
-                etag=self.etag,
-                name=self.name,
-                parent=parent.id if parent else self.parent_id,
-                contentType=self.content_type,
-                contentSize=self.content_size,
-                dataFileHandleId=self.data_file_handle_id,
-                synapseStore=self.synapse_store,
-                modifiedOn=self.modified_on,
-                versionLabel=self.version_label,
-                versionNumber=self.version_number,
-                versionComment=self.version_comment,
-            )
+            synapse_file = {
+                "id": self.id,
+                "description": self.description,
+                "etag": self.etag,
+                "name": self.name,
+                "parentId": parent.id if parent else self.parent_id,
+                "contentType": self.content_type,
+                "contentSize": self.content_size,
+                "dataFileHandleId": self.data_file_handle_id,
+                "synapseStore": self.synapse_store,
+                "modifiedOn": self.modified_on,
+                "versionLabel": self.version_label,
+                "versionNumber": self.version_number,
+                "versionComment": self.version_comment,
+                "concreteType": FILE_ENTITY,
+            }
             delete_none_keys(synapse_file)
 
             entity = await store_entity(
@@ -1267,6 +1268,7 @@ class File(FileSynchronousProtocol, AccessControllable, BaseJSONSchema):
         )
         return file_copy
 
+    # TODO: delete this method in v5.0.0
     def _convert_into_legacy_file(self) -> SynapseFile:
         """Convert the file object into a SynapseFile object."""
         return_data = SynapseFile(

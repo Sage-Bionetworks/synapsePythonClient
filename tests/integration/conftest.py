@@ -16,10 +16,11 @@ from opentelemetry.sdk.trace import TracerProvider
 from opentelemetry.sdk.trace.sampling import ALWAYS_OFF
 from pytest_asyncio import is_async_test
 
-from synapseclient import Entity, Project, Synapse
+from synapseclient import Synapse
 from synapseclient.core import utils
 from synapseclient.core.async_utils import wrap_async_to_sync
 from synapseclient.core.logging_setup import DEFAULT_LOGGER_NAME, SILENT_LOGGER_NAME
+from synapseclient.models import CurationTask, Evaluation, Grid
 from synapseclient.models import Project as Project_Model
 from synapseclient.models import (
     SubmissionView,
@@ -29,6 +30,7 @@ from synapseclient.models import (
     WikiOrderHint,
     WikiPage,
 )
+from synapseclient.operations import delete_async
 
 tracer = trace.get_tracer("synapseclient")
 working_directory = tempfile.mkdtemp(prefix="someTestFolder")
@@ -121,24 +123,6 @@ async def project_model(request, syn: Synapse) -> Project_Model:
 
 
 @pytest_asyncio.fixture(loop_scope="session", scope="session")
-def project(request, syn: Synapse) -> Project:
-    """
-    Create a project to be shared by all tests in the session. If xdist is being used
-    a project is created for each worker node.
-    """
-
-    # Make one project for all the tests to use
-    proj = syn.store(Project(name="integration_test_project" + str(uuid.uuid4())))
-
-    def project_teardown():
-        wrap_async_to_sync(_cleanup(syn, [working_directory, proj]))
-
-    request.addfinalizer(project_teardown)
-
-    return proj
-
-
-@pytest_asyncio.fixture(loop_scope="session", scope="session")
 async def schedule_for_cleanup(request, syn: Synapse):
     """Returns a closure that takes an item that should be scheduled for cleanup.
     The cleanup will occur after the session finish to allow the deletes to take
@@ -160,13 +144,9 @@ async def schedule_for_cleanup(request, syn: Synapse):
 async def _cleanup(syn: Synapse, items):
     """cleanup junk created during testing"""
     for item in reversed(items):
-        if (
-            isinstance(item, Entity)
-            or utils.is_synapse_id_str(item)
-            or hasattr(item, "deleteURI")
-        ):
+        if utils.is_synapse_id_str(item) or hasattr(item, "deleteURI"):
             try:
-                syn.delete(item)
+                await delete_async(item, synapse_client=syn)
             except Exception as ex:
                 if hasattr(ex, "response") and ex.response.status_code in [404, 403]:
                     pass
@@ -190,11 +170,14 @@ async def _cleanup(syn: Synapse, items):
             item,
             (
                 Team,
+                Evaluation,
                 SubmissionView,
                 WikiPage,
                 WikiHistorySnapshot,
                 WikiHeader,
                 WikiOrderHint,
+                CurationTask,
+                Grid,
             ),
         ):
             try:

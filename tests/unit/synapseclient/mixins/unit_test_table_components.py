@@ -9,6 +9,7 @@ from unittest.mock import MagicMock, patch
 import numpy as np
 import pandas as pd
 import pytest
+from pandas.api.types import is_integer_dtype, is_object_dtype
 
 from synapseclient import Synapse
 from synapseclient.api import ViewEntityType, ViewTypeMask
@@ -33,10 +34,17 @@ from synapseclient.models.mixins.table_components import (
     ViewSnapshotMixin,
     ViewStoreMixin,
     ViewUpdateMixin,
+    _construct_composite_key_conditions,
+    _construct_composite_key_where_statement,
     _construct_partial_rows_for_upsert,
+    _construct_select_statement_for_upsert,
+    _construct_single_key_where_statement,
+    _format_primary_key_value_for_where,
     _query_table_csv,
     _query_table_next_page,
     _query_table_row_set,
+    _validate_primary_keys,
+    convert_dtypes_to_json_serializable,
     csv_to_pandas_df,
 )
 from synapseclient.models.table_components import (
@@ -75,7 +83,7 @@ _UPSERT_ROWS_ASYNC_PATCH = (
 )
 DEFAULT_QUOTE_CHARACTER = '"'
 DEFAULT_SEPARATOR = ","
-DEFAULT_ESCAPSE_CHAR = "\\"
+DEFAULT_ESCAPE_CHAR = "\\"
 
 
 class TestTableStoreMixin:
@@ -1729,6 +1737,767 @@ class TestTableUpsertMixin:
         assert rows_to_update[0].etag == "etag1"
         assert len(syn_id_and_etags) == 1
         assert syn_id_and_etags["syn456"] == "etag1"
+
+
+class TestFormatPrimaryKeyValueForWhere:
+    """Test suite for _format_primary_key_value_for_where, which renders a single
+    primary-key value as a SQL literal for an upsert WHERE clause."""
+
+    @pytest.mark.parametrize(
+        "value, column_type, expected",
+        [
+            # string-like column types are wrapped in single quotes
+            ("abc", ColumnType.STRING, "'abc'"),
+            ("abc", ColumnType.MEDIUMTEXT, "'abc'"),
+            ("abc", ColumnType.LARGETEXT, "'abc'"),
+            ("abc", ColumnType.LINK, "'abc'"),
+            ("abc", ColumnType.ENTITYID, "'abc'"),
+            # embedded single quotes are escaped by doubling them (guards against
+            # SQL breakage/injection)
+            ("O'Brien", ColumnType.STRING, "'O''Brien'"),
+            ("a'b'c", ColumnType.STRING, "'a''b''c'"),
+            # non-string values are coerced to str, then quoted
+            (123, ColumnType.STRING, "'123'"),
+            # only single quotes are escaped; double quotes and backslashes are
+            # passed through unchanged (double quotes delimit identifiers, not
+            # string literals, in Synapse SQL)
+            ('foo"bar', ColumnType.STRING, "'foo\"bar'"),
+            ("a\\b", ColumnType.STRING, "'a\\b'"),
+            # boolean columns render as literal 'true'/'false'
+            (True, ColumnType.BOOLEAN, "'true'"),
+            (False, ColumnType.BOOLEAN, "'false'"),
+            # numeric types and dates are rendered unquoted as their string representation
+            (42, ColumnType.INTEGER, "42"),
+            (-7, ColumnType.INTEGER, "-7"),
+            (3.14, ColumnType.DOUBLE, "3.14"),
+            (1700000000000, ColumnType.DATE, "1700000000000"),
+        ],
+    )
+    def test_format_primary_key_value_for_where(self, value, column_type, expected):
+        assert _format_primary_key_value_for_where(value, column_type) == expected
+
+
+class TestConstructSelectStatementForUpsert:
+    """Test suite for _construct_select_statement_for_upsert."""
+
+    class ClassForTest(TableUpsertMixin):
+        """A plain (non-etag) entity. Its class name is not in
+        CLASSES_THAT_CONTAIN_ROW_ETAG, so the SELECT starts with ``ROW_ID``."""
+
+        def __init__(self, id, columns):
+            self.id = id
+            self.columns = columns
+
+    def test_single_string_primary_key(self):
+        # GIVEN an entity with a single STRING primary key
+        entity = self.ClassForTest(
+            id="syn123",
+            columns={
+                "col1": Column(name="col1", column_type=ColumnType.STRING, id="id1"),
+                "col2": Column(name="col2", column_type=ColumnType.STRING, id="id2"),
+            },
+        )
+        df = pd.DataFrame({"col1": ["A"], "col2": ["B"]})
+
+        # WHEN I construct the select statement
+        statement = _construct_select_statement_for_upsert(
+            entity=entity,
+            df=df,
+            all_columns_from_df=['"col1"', '"col2"'],
+            primary_keys=["col1"],
+            wait_for_eventually_consistent_view=False,
+        )
+
+        # THEN the string value is quoted and only the primary key is filtered
+        assert (
+            statement
+            == 'SELECT ROW_ID, "col1", "col2" FROM syn123 WHERE "col1" IN (\'A\')'
+        )
+
+    def test_integer_primary_key_is_not_quoted(self):
+        # GIVEN an entity whose primary key is an INTEGER column
+        entity = self.ClassForTest(
+            id="syn123",
+            columns={
+                "col1": Column(name="col1", column_type=ColumnType.INTEGER, id="id1"),
+            },
+        )
+        df = pd.DataFrame({"col1": [1001]})
+
+        # WHEN I construct the select statement
+        statement = _construct_select_statement_for_upsert(
+            entity=entity,
+            df=df,
+            all_columns_from_df=['"col1"'],
+            primary_keys=["col1"],
+            wait_for_eventually_consistent_view=False,
+        )
+
+        # THEN the integer value is not quoted
+        assert statement == 'SELECT ROW_ID, "col1" FROM syn123 WHERE "col1" IN (1001)'
+
+    def test_composite_primary_keys_single_row_uses_tuple_matching(self):
+        # GIVEN an entity with two STRING primary keys
+        entity = self.ClassForTest(
+            id="syn76174997",
+            columns={
+                "view": Column(name="view", column_type=ColumnType.STRING, id="id1"),
+                "synID": Column(name="synID", column_type=ColumnType.STRING, id="id2"),
+            },
+        )
+        # AND a single-row DataFrame
+        df = pd.DataFrame({"view": ["syn64762437"], "synID": ["syn66312955"]})
+
+        # WHEN I construct the select statement
+        statement = _construct_select_statement_for_upsert(
+            entity=entity,
+            df=df,
+            all_columns_from_df=['"view"', '"synID"'],
+            primary_keys=["view", "synID"],
+            wait_for_eventually_consistent_view=False,
+        )
+
+        # THEN the two keys are matched together as an exact tuple (AND of
+        # equalities) rather than as independent IN clauses, so the query can only
+        # match the exact (view, synID) pair present in the input.
+        assert statement == (
+            'SELECT ROW_ID, "view", "synID" FROM syn76174997 WHERE '
+            "(\"view\" = 'syn64762437' AND \"synID\" = 'syn66312955')"
+        )
+
+    def test_composite_primary_keys_multiple_rows_use_or_of_ands(self):
+        # GIVEN an entity with two STRING primary keys
+        entity = self.ClassForTest(
+            id="syn123",
+            columns={
+                "view": Column(name="view", column_type=ColumnType.STRING, id="id1"),
+                "synID": Column(name="synID", column_type=ColumnType.STRING, id="id2"),
+            },
+        )
+        # AND a two-row DataFrame whose values would form a cross-product if
+        # filtered independently
+        df = pd.DataFrame({"view": ["V1", "V2"], "synID": ["S1", "S2"]})
+
+        # WHEN I construct the select statement
+        statement = _construct_select_statement_for_upsert(
+            entity=entity,
+            df=df,
+            all_columns_from_df=['"view"', '"synID"'],
+            primary_keys=["view", "synID"],
+            wait_for_eventually_consistent_view=False,
+        )
+
+        # THEN each input row becomes its own (view = ... AND synID = ...) clause,
+        # joined by OR, in input order. The spurious pairs (V1, S2) and (V2, S1)
+        # are NOT selectable.
+        assert statement == (
+            'SELECT ROW_ID, "view", "synID" FROM syn123 WHERE '
+            "(\"view\" = 'V1' AND \"synID\" = 'S1') OR "
+            "(\"view\" = 'V2' AND \"synID\" = 'S2')"
+        )
+
+    def test_multiple_values_all_appear_in_in_clause(self):
+        # GIVEN a DataFrame with multiple distinct primary key values
+        entity = self.ClassForTest(
+            id="syn123",
+            columns={
+                "col1": Column(name="col1", column_type=ColumnType.STRING, id="id1"),
+            },
+        )
+        df = pd.DataFrame({"col1": ["A", "B", "A"]})
+
+        # WHEN I construct the select statement
+        statement = _construct_select_statement_for_upsert(
+            entity=entity,
+            df=df,
+            all_columns_from_df=['"col1"'],
+            primary_keys=["col1"],
+            wait_for_eventually_consistent_view=False,
+        )
+
+        # THEN both distinct values appear (order is non-deterministic because a
+        # set is used internally, so assert membership rather than exact string)
+        assert statement.startswith(
+            'SELECT ROW_ID, "col1" FROM syn123 WHERE "col1" IN ('
+        )
+        assert "'A'" in statement
+        assert "'B'" in statement
+
+    def test_json_primary_key_raises_value_error(self):
+        # GIVEN a primary key column of an unsupported type (JSON)
+        entity = self.ClassForTest(
+            id="syn123",
+            columns={
+                "col1": Column(name="col1", column_type=ColumnType.JSON, id="id1"),
+            },
+        )
+        df = pd.DataFrame({"col1": ["{}"]})
+
+        # WHEN/THEN constructing the select statement raises a ValueError
+        with pytest.raises(ValueError, match="is not supported for primary_keys"):
+            _construct_select_statement_for_upsert(
+                entity=entity,
+                df=df,
+                all_columns_from_df=['"col1"'],
+                primary_keys=["col1"],
+                wait_for_eventually_consistent_view=False,
+            )
+
+    def test_composite_primary_keys_match_exact_tuples_not_cross_product(self):
+        # GIVEN a table with two STRING primary keys
+        entity = self.ClassForTest(
+            id="syn123",
+            columns={
+                "view": Column(name="view", column_type=ColumnType.STRING, id="id1"),
+                "synID": Column(name="synID", column_type=ColumnType.STRING, id="id2"),
+            },
+        )
+        # AND a two-row input whose key values, if filtered independently, would
+        # also select the spurious pairs (V1, S2) and (V2, S1)
+        df = pd.DataFrame(
+            {
+                "view": ["V1", "V2"],
+                "synID": ["S1", "S2"],
+            }
+        )
+
+        # WHEN I construct the select statement
+        statement = _construct_select_statement_for_upsert(
+            entity=entity,
+            df=df,
+            all_columns_from_df=['"view"', '"synID"'],
+            primary_keys=["view", "synID"],
+            wait_for_eventually_consistent_view=False,
+        )
+
+        # THEN the two key columns must be constrained together so the query
+        # cannot return spurious combinations. Any correct tuple-based
+        # implementation avoids emitting two standalone single-column IN clauses.
+        # This is asserted in an implementation-agnostic way: the buggy
+        # cross-product form uses both `"view" IN (` and `"synID" IN (`.
+        uses_independent_in_clauses = (
+            '"view" IN (' in statement and '"synID" IN (' in statement
+        )
+        assert not uses_independent_in_clauses, (
+            "Composite primary keys should be matched as exact tuples, not as "
+            f"independent IN clauses. Got: {statement}"
+        )
+
+    def test_single_string_primary_key_with_embedded_quote_is_escaped(self):
+        # GIVEN a single STRING primary key whose value contains a single quote
+        entity = self.ClassForTest(
+            id="syn123",
+            columns={
+                "col1": Column(name="col1", column_type=ColumnType.STRING, id="id1"),
+            },
+        )
+        df = pd.DataFrame({"col1": ["O'Brien"]})
+
+        # WHEN I construct the select statement
+        statement = _construct_select_statement_for_upsert(
+            entity=entity,
+            df=df,
+            all_columns_from_df=['"col1"'],
+            primary_keys=["col1"],
+            wait_for_eventually_consistent_view=False,
+        )
+
+        # THEN the embedded quote is doubled so the literal stays well-formed and
+        # cannot break out of the string (no malformed / injectable WHERE clause)
+        assert statement == (
+            "SELECT ROW_ID, \"col1\" FROM syn123 WHERE \"col1\" IN ('O''Brien')"
+        )
+
+    def test_composite_primary_keys_with_embedded_quote_are_escaped(self):
+        # GIVEN composite STRING primary keys where a value contains a single quote
+        entity = self.ClassForTest(
+            id="syn123",
+            columns={
+                "view": Column(name="view", column_type=ColumnType.STRING, id="id1"),
+                "label": Column(name="label", column_type=ColumnType.STRING, id="id2"),
+            },
+        )
+        df = pd.DataFrame({"view": ["V1"], "label": ["O'Brien"]})
+
+        # WHEN I construct the select statement
+        statement = _construct_select_statement_for_upsert(
+            entity=entity,
+            df=df,
+            all_columns_from_df=['"view"', '"label"'],
+            primary_keys=["view", "label"],
+            wait_for_eventually_consistent_view=False,
+        )
+
+        # THEN the embedded quote is doubled inside the tuple-matching clause
+        assert statement == (
+            'SELECT ROW_ID, "view", "label" FROM syn123 WHERE '
+            "(\"view\" = 'V1' AND \"label\" = 'O''Brien')"
+        )
+
+
+class TestConstructCompositeKeyConditions:
+    """Test suite for _construct_composite_key_conditions, which builds the per-column
+    equality conditions for a single composite primary key tuple."""
+
+    class ClassForTest(TableUpsertMixin):
+        """A minimal entity exposing only the attributes the helper reads."""
+
+        def __init__(self, id, columns):
+            self.id = id
+            self.columns = columns
+
+    @pytest.mark.parametrize(
+        "columns, primary_keys, row, expected",
+        [
+            pytest.param(
+                {"view": Column(name="view", column_type=ColumnType.STRING, id="id1")},
+                ["view"],
+                ("V1",),
+                ["\"view\" = 'V1'"],
+                id="single_string_key",
+            ),
+            pytest.param(
+                {
+                    "view": Column(
+                        name="view", column_type=ColumnType.STRING, id="id1"
+                    ),
+                    "synID": Column(
+                        name="synID", column_type=ColumnType.STRING, id="id2"
+                    ),
+                },
+                ["view", "synID"],
+                ("V1", "S1"),
+                ["\"view\" = 'V1'", "\"synID\" = 'S1'"],
+                id="two_string_keys_preserve_order",
+            ),
+            pytest.param(
+                {"num": Column(name="num", column_type=ColumnType.INTEGER, id="id1")},
+                ["num"],
+                (1001,),
+                ['"num" = 1001'],
+                id="integer_key_is_not_quoted",
+            ),
+            pytest.param(
+                {"flag": Column(name="flag", column_type=ColumnType.BOOLEAN, id="id1")},
+                ["flag"],
+                (True,),
+                ["\"flag\" = 'true'"],
+                id="boolean_true_key",
+            ),
+            pytest.param(
+                {"flag": Column(name="flag", column_type=ColumnType.BOOLEAN, id="id1")},
+                ["flag"],
+                (False,),
+                ["\"flag\" = 'false'"],
+                id="boolean_false_key",
+            ),
+            pytest.param(
+                {
+                    "label": Column(
+                        name="label", column_type=ColumnType.STRING, id="id1"
+                    )
+                },
+                ["label"],
+                ("O'Brien",),
+                ["\"label\" = 'O''Brien'"],
+                id="embedded_quote_is_escaped",
+            ),
+            pytest.param(
+                {
+                    "view": Column(
+                        name="view", column_type=ColumnType.STRING, id="id1"
+                    ),
+                    "num": Column(name="num", column_type=ColumnType.INTEGER, id="id2"),
+                    "flag": Column(
+                        name="flag", column_type=ColumnType.BOOLEAN, id="id3"
+                    ),
+                },
+                ["view", "num", "flag"],
+                ("V1", 7, True),
+                ["\"view\" = 'V1'", '"num" = 7', "\"flag\" = 'true'"],
+                id="mixed_column_types",
+            ),
+        ],
+    )
+    def test_conditions_construction(self, columns, primary_keys, row, expected):
+        # GIVEN an entity and a single primary key tuple
+        entity = self.ClassForTest(id="syn123", columns=columns)
+
+        # WHEN I build the per-column conditions
+        conditions = _construct_composite_key_conditions(entity, primary_keys, row)
+
+        # THEN each column is matched with an equality condition, one per key, in
+        # primary_keys order
+        assert conditions == expected
+
+    def test_only_primary_key_columns_are_used(self):
+        # GIVEN an entity with more columns than are used as primary keys
+        entity = self.ClassForTest(
+            id="syn123",
+            columns={
+                "view": Column(name="view", column_type=ColumnType.STRING, id="id1"),
+                "synID": Column(name="synID", column_type=ColumnType.STRING, id="id2"),
+                "value": Column(name="value", column_type=ColumnType.INTEGER, id="id3"),
+            },
+        )
+
+        # WHEN I build conditions for only a subset of columns as the primary key
+        conditions = _construct_composite_key_conditions(
+            entity, ["view", "synID"], ("V1", "S1")
+        )
+
+        # THEN only the primary key columns contribute conditions
+        assert conditions == ["\"view\" = 'V1'", "\"synID\" = 'S1'"]
+
+
+class TestConstructCompositeKeyWhereStatement:
+    """Test suite for _construct_composite_key_where_statement, which builds the
+    OR-of-ANDs WHERE clause used to match rows on a composite primary key."""
+
+    class ClassForTest(TableUpsertMixin):
+        """A minimal entity exposing only the attributes the helper reads."""
+
+        def __init__(self, id, columns):
+            self.id = id
+            self.columns = columns
+
+    @pytest.mark.parametrize(
+        "columns, data, primary_keys, expected",
+        [
+            pytest.param(
+                {
+                    "view": Column(
+                        name="view", column_type=ColumnType.STRING, id="id1"
+                    ),
+                    "synID": Column(
+                        name="synID", column_type=ColumnType.STRING, id="id2"
+                    ),
+                },
+                {"view": ["V1"], "synID": ["S1"]},
+                ["view", "synID"],
+                "(\"view\" = 'V1' AND \"synID\" = 'S1')",
+                id="single_row_string_keys",
+            ),
+            pytest.param(
+                {
+                    "view": Column(
+                        name="view", column_type=ColumnType.STRING, id="id1"
+                    ),
+                    "synID": Column(
+                        name="synID", column_type=ColumnType.STRING, id="id2"
+                    ),
+                },
+                {"view": ["V1", "V2"], "synID": ["S1", "S2"]},
+                ["view", "synID"],
+                (
+                    "(\"view\" = 'V1' AND \"synID\" = 'S1') OR "
+                    "(\"view\" = 'V2' AND \"synID\" = 'S2')"
+                ),
+                id="multiple_rows_use_or_of_ands",
+            ),
+            pytest.param(
+                {
+                    "view": Column(
+                        name="view", column_type=ColumnType.STRING, id="id1"
+                    ),
+                    "num": Column(name="num", column_type=ColumnType.INTEGER, id="id2"),
+                },
+                {"view": ["V1"], "num": [1001]},
+                ["view", "num"],
+                '("view" = \'V1\' AND "num" = 1001)',
+                id="integer_key_is_not_quoted",
+            ),
+            pytest.param(
+                {
+                    "view": Column(
+                        name="view", column_type=ColumnType.STRING, id="id1"
+                    ),
+                    "label": Column(
+                        name="label", column_type=ColumnType.STRING, id="id2"
+                    ),
+                },
+                {"view": ["V1"], "label": ["O'Brien"]},
+                ["view", "label"],
+                "(\"view\" = 'V1' AND \"label\" = 'O''Brien')",
+                id="embedded_quote_is_escaped",
+            ),
+        ],
+    )
+    def test_where_statement_construction(self, columns, data, primary_keys, expected):
+        # GIVEN an entity and a DataFrame of composite primary key values
+        entity = self.ClassForTest(id="syn123", columns=columns)
+        df = pd.DataFrame(data)
+
+        # WHEN I construct the composite-key WHERE statement
+        where_statement = _construct_composite_key_where_statement(
+            entity=entity, df=df, primary_keys=primary_keys
+        )
+
+        # THEN the keys are matched together as exact tuples
+        assert where_statement == expected
+
+    def test_duplicate_key_tuples_are_deduplicated(self):
+        # GIVEN a DataFrame with a repeated (view, synID) tuple
+        entity = self.ClassForTest(
+            id="syn123",
+            columns={
+                "view": Column(name="view", column_type=ColumnType.STRING, id="id1"),
+                "synID": Column(name="synID", column_type=ColumnType.STRING, id="id2"),
+            },
+        )
+        df = pd.DataFrame({"view": ["V1", "V1", "V2"], "synID": ["S1", "S1", "S2"]})
+
+        # WHEN I construct the composite-key WHERE statement
+        where_statement = _construct_composite_key_where_statement(
+            entity=entity, df=df, primary_keys=["view", "synID"]
+        )
+
+        # THEN the duplicated tuple appears only once, in first-seen order
+        assert where_statement == (
+            "(\"view\" = 'V1' AND \"synID\" = 'S1') OR "
+            "(\"view\" = 'V2' AND \"synID\" = 'S2')"
+        )
+
+
+class TestConstructSingleKeyWhereStatement:
+    """Test suite for _construct_single_key_where_statement, which builds the
+    IN-clause WHERE statement used to match rows on a single-column primary key."""
+
+    class ClassForTest(TableUpsertMixin):
+        """A minimal entity exposing only the attributes the helper reads."""
+
+        def __init__(self, id, columns):
+            self.id = id
+            self.columns = columns
+
+    @pytest.mark.parametrize(
+        "columns, data, primary_key, expected",
+        [
+            pytest.param(
+                {"view": Column(name="view", column_type=ColumnType.STRING, id="id1")},
+                {"view": ["V1"]},
+                "view",
+                "\"view\" IN ('V1')",
+                id="single_string_key",
+            ),
+            pytest.param(
+                {"num": Column(name="num", column_type=ColumnType.INTEGER, id="id1")},
+                {"num": [1001]},
+                "num",
+                '"num" IN (1001)',
+                id="integer_key_is_not_quoted",
+            ),
+            pytest.param(
+                {
+                    "label": Column(
+                        name="label", column_type=ColumnType.STRING, id="id1"
+                    )
+                },
+                {"label": ["O'Brien"]},
+                "label",
+                "\"label\" IN ('O''Brien')",
+                id="embedded_quote_is_escaped",
+            ),
+        ],
+    )
+    def test_where_statement_construction(self, columns, data, primary_key, expected):
+        # GIVEN an entity and a DataFrame of single primary key values
+        entity = self.ClassForTest(id="syn123", columns=columns)
+        df = pd.DataFrame(data)
+
+        # WHEN I construct the single-key WHERE statement
+        where_statement = _construct_single_key_where_statement(
+            entity=entity, df=df, primary_key=primary_key
+        )
+
+        # THEN the values are matched with an IN clause
+        assert where_statement == expected
+
+    def test_duplicate_values_are_deduplicated(self):
+        # GIVEN a DataFrame with a repeated primary key value
+        entity = self.ClassForTest(
+            id="syn123",
+            columns={
+                "view": Column(name="view", column_type=ColumnType.STRING, id="id1")
+            },
+        )
+        df = pd.DataFrame({"view": ["V1", "V1", "V2"]})
+
+        # WHEN I construct the single-key WHERE statement
+        where_statement = _construct_single_key_where_statement(
+            entity=entity, df=df, primary_key="view"
+        )
+
+        # THEN the duplicated value appears only once
+        assert where_statement.count("'V1'") == 1
+        assert where_statement.count("'V2'") == 1
+
+
+class TestValidatePrimaryKeys:
+    """Test suite for _validate_primary_keys, which rejects upserts whose primary
+    key columns are missing from the data or contain null values."""
+
+    def test_empty_primary_keys_raise(self):
+        # GIVEN a DataFrame and an empty list of primary keys
+        df = pd.DataFrame({"view": ["V1", "V2"], "value": [1, 2]})
+
+        # WHEN I validate the primary keys THEN a ValueError is raised
+        with pytest.raises(
+            ValueError, match="At least one primary key column must be provided"
+        ):
+            _validate_primary_keys(df, [])
+
+    @pytest.mark.parametrize(
+        "primary_keys, offending",
+        [
+            pytest.param([1], "1", id="single_int"),
+            pytest.param(["view", 2], "2", id="mixed_string_and_int"),
+            pytest.param([None], "None", id="none"),
+            pytest.param([("view",)], "('view',)", id="tuple"),
+        ],
+    )
+    def test_non_string_primary_keys_raise(self, primary_keys, offending):
+        # GIVEN a DataFrame and a primary key that is not a string
+        df = pd.DataFrame({"view": ["V1", "V2"], "value": [1, 2]})
+
+        # WHEN I validate the primary keys THEN a ValueError naming the offending
+        # value is raised
+        with pytest.raises(ValueError, match="must be strings") as exc:
+            _validate_primary_keys(df, primary_keys)
+        assert offending in str(exc.value)
+
+    def test_no_null_primary_keys_passes(self):
+        # GIVEN a DataFrame whose primary key columns have no null values
+        df = pd.DataFrame(
+            {"view": ["V1", "V2"], "synID": ["S1", "S2"], "value": [1, 2]}
+        )
+
+        # WHEN I validate the primary keys THEN no error is raised
+        _validate_primary_keys(df, ["view", "synID"])
+
+    def test_null_in_a_non_primary_key_column_is_allowed(self):
+        # GIVEN a DataFrame with a null value only in a non-primary-key column
+        df = pd.DataFrame(
+            {"view": ["V1", "V2"], "synID": ["S1", "S2"], "value": [1, None]}
+        )
+
+        # WHEN I validate the primary keys THEN no error is raised
+        _validate_primary_keys(df, ["view", "synID"])
+
+    def test_empty_dataframe_passes(self):
+        # GIVEN a DataFrame with primary key columns but no rows
+        df = pd.DataFrame({"view": [], "synID": []})
+
+        # WHEN I validate the primary keys THEN no error is raised (there are no
+        # null values because there are no values at all)
+        _validate_primary_keys(df, ["view", "synID"])
+
+    @pytest.mark.parametrize(
+        "data, primary_keys, expected_columns",
+        [
+            pytest.param(
+                {"view": ["V1", "V2"], "value": [1, 2]},
+                ["view", "synID"],
+                ["synID"],
+                id="one_of_two_keys_missing",
+            ),
+            pytest.param(
+                {"value": [1, 2]},
+                ["view", "synID"],
+                ["view", "synID"],
+                id="all_keys_missing",
+            ),
+        ],
+    )
+    def test_missing_primary_key_columns_raise(
+        self, data, primary_keys, expected_columns
+    ):
+        # GIVEN a DataFrame that is missing one or more primary key columns
+        df = pd.DataFrame(data)
+
+        # WHEN I validate the primary keys THEN a ValueError naming the missing
+        # column(s) is raised
+        with pytest.raises(ValueError, match="are missing") as exc:
+            _validate_primary_keys(df, primary_keys)
+        for column in expected_columns:
+            assert column in str(exc.value)
+
+    def test_missing_column_is_reported_before_null_column(self):
+        # GIVEN a DataFrame missing one primary key and with a null in another
+        df = pd.DataFrame({"view": ["V1", None], "value": [1, 2]})
+
+        # WHEN I validate primary keys where one is missing and one has a null
+        # THEN the missing-column error is raised (presence is checked first, so
+        # the null check never dereferences the absent column)
+        with pytest.raises(ValueError, match="are missing") as exc:
+            _validate_primary_keys(df, ["view", "synID"])
+        assert "synID" in str(exc.value)
+
+    @pytest.mark.parametrize(
+        "null_value",
+        [
+            pytest.param(None, id="none"),
+            pytest.param(np.nan, id="numpy_nan"),
+            pytest.param(pd.NA, id="pandas_na"),
+        ],
+    )
+    def test_all_null_representations_are_detected(self, null_value):
+        # GIVEN a primary key column whose null is expressed as None, np.nan, or pd.NA
+        df = pd.DataFrame({"view": ["V1", null_value], "value": [1, 2]})
+
+        # WHEN I validate the primary keys THEN each null representation is detected
+        with pytest.raises(ValueError, match="must not contain null values"):
+            _validate_primary_keys(df, ["view"])
+
+    def test_null_in_numeric_primary_key_is_detected(self):
+        # GIVEN a numeric primary key column that contains a null value
+        df = pd.DataFrame(
+            {"num": pd.array([1, None, 3], dtype="Int64"), "value": [1, 2, 3]}
+        )
+
+        # WHEN I validate the primary keys THEN the null is detected
+        with pytest.raises(ValueError, match="must not contain null values") as exc:
+            _validate_primary_keys(df, ["num"])
+        assert "num" in str(exc.value)
+
+    @pytest.mark.parametrize(
+        "data, primary_keys, expected_columns",
+        [
+            pytest.param(
+                {"view": ["V1", None], "value": [1, 2]},
+                ["view"],
+                ["view"],
+                id="single_primary_key_with_null",
+            ),
+            pytest.param(
+                {"view": ["V1", "V2"], "synID": ["S1", None], "value": [1, 2]},
+                ["view", "synID"],
+                ["synID"],
+                id="composite_key_with_partial_null",
+            ),
+            pytest.param(
+                {"view": [None, None], "synID": [None, None], "value": [1, 2]},
+                ["view", "synID"],
+                ["view", "synID"],
+                id="composite_key_all_null",
+            ),
+        ],
+    )
+    def test_null_primary_keys_raise(self, data, primary_keys, expected_columns):
+        # GIVEN a DataFrame whose primary key column(s) contain null values
+        df = pd.DataFrame(data)
+
+        # WHEN I validate the primary keys THEN a ValueError naming the offending
+        # column(s) is raised
+        with pytest.raises(ValueError, match="must not contain null values") as exc:
+            _validate_primary_keys(df, primary_keys)
+        # AND only the offending columns are reported
+        message = str(exc.value)
+        for column in expected_columns:
+            assert column in message
+        non_offending = {"view", "synID"} - set(expected_columns)
+        for column in non_offending:
+            assert f"'{column}'" not in message
 
 
 class TestQuery:
@@ -3968,3 +4737,294 @@ class TestCsvToPandasDf:
         ).convert_dtypes()  # resolve datatype issue such as StringDtype vs object
         # THEN assert the dataframe is equal to the expected dataframe
         pd.testing.assert_frame_equal(df, expected_df)
+
+    @pytest.mark.parametrize(
+        "list_column_types",
+        [
+            {"empty_list": "INTEGER_LIST"},
+            {"empty_list": "BOOLEAN_LIST"},
+            {"empty_list": "STRING_LIST"},
+            {"empty_list": "USERID_LIST"},
+            {"empty_list": "ENTITYID_LIST"},
+            None,
+        ],
+        ids=[
+            "INTEGER_LIST",
+            "BOOLEAN_LIST",
+            "STRING_LIST",
+            "USERID_LIST",
+            "ENTITYID_LIST",
+            "no_types",
+        ],
+    )
+    def test_csv_to_pandas_df_all_na_list_column(self, list_column_types):
+        """Reproducer for the bug where querying a table with a list column whose
+        values are all NA in the result set raised
+        TypeError: Invalid value '[]' for dtype 'Int64'.
+
+        pandas' read_csv().convert_dtypes() infers an all-empty column as the
+        nullable Int64 dtype; the previous fillna({col: '[]'}) implementation
+        could not store a string into that column."""
+        # GIVEN a CSV where every row has an empty value for the list column
+        csv_content = "name,empty_list\n" "Alice,\n" "Bob,\n" "Charlie,"
+        csv_file = BytesIO(csv_content.encode("utf-8"))
+
+        # WHEN csv_to_pandas_df is called for that list column
+        df = csv_to_pandas_df(
+            filepath=csv_file,
+            list_columns=["empty_list"],
+            list_column_types=list_column_types,
+        )
+
+        # THEN the all-NA column should become a column of empty lists, and the
+        # other columns should still parse normally
+        assert list(df["name"]) == ["Alice", "Bob", "Charlie"]
+        assert list(df["empty_list"]) == [[], [], []]
+
+    def test_csv_to_pandas_df_mixed_all_na_and_populated_list_columns(self):
+        """When two list columns are present and only one is all-NA, the
+        populated one must still parse correctly."""
+        # GIVEN a CSV with one populated list column and one all-NA list column
+        csv_content = (
+            "name,populated_list,empty_list\n"
+            'Alice,"[1, 2, 3]",\n'
+            'Bob,"[4, 5]",\n'
+            'Charlie,"[6]",'
+        )
+        csv_file = BytesIO(csv_content.encode("utf-8"))
+
+        # WHEN csv_to_pandas_df is called
+        df = csv_to_pandas_df(
+            filepath=csv_file,
+            list_columns=["populated_list", "empty_list"],
+            list_column_types={
+                "populated_list": "INTEGER_LIST",
+                "empty_list": "INTEGER_LIST",
+            },
+        )
+
+        # THEN both columns should have the correct contents
+        assert list(df["populated_list"]) == [[1, 2, 3], [4, 5], [6]]
+        assert list(df["empty_list"]) == [[], [], []]
+
+
+class TestConvertDtypesToJsonSerializable:
+    """Tests for convert_dtypes_to_json_serializable function"""
+
+    def test_int_and_float_columns_converted_to_object(self):
+        """Test that int64 and float64 columns are always cast to object dtype,
+        even when no NA is present (values are preserved)."""
+        df = pd.DataFrame({"int_col": [1, 2, 3, 4], "float_col": [1.1, 2.2, 3.3, 4.4]})
+        assert df["int_col"].dtype == "int64"
+        assert df["float_col"].dtype == "float64"
+
+        result = convert_dtypes_to_json_serializable(df)
+        assert is_object_dtype(result.int_col)
+        assert is_object_dtype(result.float_col)
+        assert list(result["int_col"]) == [1, 2, 3, 4]
+        assert list(result["float_col"]) == [1.1, 2.2, 3.3, 4.4]
+
+    def test_convert_na_and_columns_to_object(self):
+        """Test that pd.NA values are converted to None for int64 and float64 columns by _serialize_json_value"""
+        df = pd.DataFrame(
+            {
+                "int_col": pd.array([1, 2, pd.NA, 4], dtype="Int64"),
+                "float_col": pd.array([1.1, 2.2, pd.NA, 4.4], dtype="Float64"),
+            }
+        )
+        result = convert_dtypes_to_json_serializable(df)
+        assert is_object_dtype(result.int_col)
+        assert is_object_dtype(result.float_col)
+        assert list(result["int_col"]) == [1, 2, None, 4]
+        assert list(result["float_col"]) == [1.1, 2.2, None, 4.4]
+
+    def test_row_columns_remain_int(self):
+        """Test that ROW_ID, ROW_VERSION, and ROW_ID.1 columns remain as int while other columns become object"""
+        # GIVEN a dataframe with special columns (ROW_ID, ROW_VERSION, ROW_ID.1) and a regular column
+        df = pd.DataFrame(
+            {
+                "ROW_ID": pd.array([1, 2, 3, 4], dtype="Int64"),
+                "ROW_VERSION": pd.array([5, 6, 7, 8], dtype="Int64"),
+                "ROW_ID.1": pd.array([9, 10, 11, 12], dtype="Int64"),
+                "other_col": [10, 20, 30, 40],  # Use regular list without pd.NA
+            }
+        )
+
+        # WHEN convert_dtypes_to_json_serializable is called
+        result = convert_dtypes_to_json_serializable(df)
+
+        # THEN all special columns should remain as int while other_col should become object
+        assert is_integer_dtype(result.ROW_ID), "ROW_ID should remain integer dtype"
+        assert is_integer_dtype(
+            result.ROW_VERSION
+        ), "ROW_VERSION should remain int64 dtype"
+        assert is_integer_dtype(
+            result["ROW_ID.1"]
+        ), "ROW_ID.1 should remain int64 dtype"
+        assert is_object_dtype(result.other_col), "other_col should become object dtype"
+
+    def test_ellipsis_handling_in_list(self):
+        """Test that Ellipsis (...) objects in lists are converted to '...' strings"""
+        # GIVEN a dataframe with Ellipsis in a list
+        df = pd.DataFrame({"list_with_ellipsis": [[1, 2, ...], [4, ..., 6]]})
+
+        # WHEN convert_dtypes_to_json_serializable is called
+        result = convert_dtypes_to_json_serializable(df)
+
+        # THEN Ellipsis should be converted to "..." in JSON string
+        assert result["list_with_ellipsis"].iloc[0] == [1, 2, "..."]
+        assert result["list_with_ellipsis"].iloc[1] == [4, "...", 6]
+        assert is_object_dtype(result.list_with_ellipsis)
+
+    def test_ellipsis_handling_in_dict(self):
+        """Test that Ellipsis (...) objects in dicts are converted to '...' strings"""
+        # GIVEN a dataframe with Ellipsis in a dict
+        df = pd.DataFrame(
+            {
+                "dict_with_ellipsis": [
+                    {"id": 1, "data": ...},
+                    {"id": 2, "items": [1, ...]},
+                ]
+            }
+        )
+
+        # WHEN convert_dtypes_to_json_serializable is called
+        result = convert_dtypes_to_json_serializable(df)
+
+        # THEN Ellipsis should be converted to "..." in JSON string
+        assert result.dict_with_ellipsis.iloc[0] == {"id": 1, "data": "..."}
+        assert result.dict_with_ellipsis.iloc[1] == {"id": 2, "items": [1, "..."]}
+        assert is_object_dtype(result.dict_with_ellipsis)
+
+    def test_standalone_ellipsis(self):
+        """Test that standalone Ellipsis objects are converted to '...' strings"""
+        # GIVEN a dataframe with standalone Ellipsis
+        df = pd.DataFrame({"ellipsis_col": [1, ..., 3]})
+
+        # WHEN convert_dtypes_to_json_serializable is called
+        result = convert_dtypes_to_json_serializable(df)
+
+        # THEN Ellipsis should be converted to "..."
+        assert result["ellipsis_col"].iloc[0] == 1
+        assert result["ellipsis_col"].iloc[1] == "..."
+        assert result["ellipsis_col"].iloc[2] == 3
+
+    def test_none_in_list_column_remains_none(self):
+        """Test that pd.NA values in a column of lists are normalized to None
+        (not to an empty list)."""
+        # GIVEN a dataframe with None in list column
+        df = pd.DataFrame({"list_col": [[1, 2, 3], pd.NA, [7, 8, 9]]})
+
+        # WHEN convert_dtypes_to_json_serializable is called
+        result = convert_dtypes_to_json_serializable(df)
+
+        # THEN the pd.NA entry should become None (and surrounding lists preserved)
+        assert result["list_col"].iloc[0] == [1, 2, 3]
+        assert result["list_col"].iloc[1] is None
+        assert result["list_col"].iloc[2] == [7, 8, 9]
+
+    def test_dict_with_quotes_in_values(self):
+        """Test that dicts with quotes in string values are properly handled"""
+        # GIVEN a dataframe with dict containing quotes
+        df = pd.DataFrame(
+            {
+                "dict_col": [
+                    {"description": 'Text with "quotes" here'},
+                    {"description": 'Another "quoted" text'},
+                ]
+            }
+        )
+
+        # WHEN convert_dtypes_to_json_serializable is called
+        result = convert_dtypes_to_json_serializable(df)
+
+        # THEN the JSON string should be properly formatted
+        assert result["dict_col"].iloc[0] == {"description": 'Text with "quotes" here'}
+        assert result["dict_col"].iloc[1] == {"description": 'Another "quoted" text'}
+        assert is_object_dtype(result.dict_col)
+
+    def test_empty_dataframe(self):
+        """Test that empty dataframe is handled correctly"""
+        # GIVEN an empty dataframe
+        df = pd.DataFrame()
+
+        # WHEN convert_dtypes_to_json_serializable is called
+        result = convert_dtypes_to_json_serializable(df)
+
+        # THEN it should return an empty dataframe
+        assert len(result) == 0
+        assert len(result.columns) == 0
+
+    def test_mixed_column_types_no_conversion_needed(self):
+        """Test that multiple column types without NA are handled correctly
+        together: values are preserved, ROW_* stays int, other columns become
+        object dtype."""
+        # GIVEN a dataframe with mixed column types
+        df = pd.DataFrame(
+            {
+                "ROW_ID": pd.array([1, 2, 3], dtype="Int64"),
+                "ROW_VERSION": pd.array([1, 1, 1], dtype="Int64"),
+                "int_col": [10, 20, 30],  # Use regular list without pd.NA
+                "float_col": [1.1, 2.2, 3.3],
+                "string_col": ["a", "b", "c"],
+                "list_col": [[1, 2], [3, 4], None],
+                "dict_col": [{"id": 1}, {"id": 2}, {"id": 3}],
+                "bool_col": [True, False, True],
+            }
+        )
+        # Snapshot before the function mutates df in place
+        original = df.copy(deep=True)
+
+        # WHEN convert_dtypes_to_json_serializable is called
+        result = convert_dtypes_to_json_serializable(df)
+
+        # THEN values are preserved against the pre-call snapshot, ROW_* stay
+        # int, and other columns are object dtype
+        assert is_integer_dtype(result.ROW_ID)
+        assert is_integer_dtype(result.ROW_VERSION)
+        assert is_object_dtype(result.int_col)
+        assert is_object_dtype(result.float_col)
+        assert is_object_dtype(result.string_col)
+        assert is_object_dtype(result.list_col)
+        assert is_object_dtype(result.dict_col)
+        assert is_object_dtype(result.bool_col)
+
+        for col in original.columns:
+            assert list(result[col]) == list(original[col])
+
+    def test_nested_dict_with_ellipsis(self):
+        """Test that nested dicts with Ellipsis are properly handled"""
+        # GIVEN a dataframe with nested dict containing Ellipsis
+        df = pd.DataFrame(
+            {
+                "nested_dict": [
+                    {"outer": {"inner": ...}},
+                    {"data": {"list": [1, 2, ...]}},
+                ]
+            }
+        )
+
+        # WHEN convert_dtypes_to_json_serializable is called
+        result = convert_dtypes_to_json_serializable(df)
+
+        # THEN Ellipsis should be converted in nested structures
+        assert result["nested_dict"].iloc[0] == {"outer": {"inner": "..."}}
+        assert result["nested_dict"].iloc[1] == {"data": {"list": [1, 2, "..."]}}
+
+    def test_nullable_int64_with_pd_na(self):
+        """Test that Int64 columns with pd.NA get pd.NA converted to None by _serialize_json_value"""
+        # GIVEN a dataframe with nullable Int64 column containing pd.NA
+        df = pd.DataFrame(
+            {"nullable_int_col": pd.array([1, 2, pd.NA, 4, pd.NA], dtype="Int64")}
+        )
+
+        # WHEN convert_dtypes_to_json_serializable is called
+        result = convert_dtypes_to_json_serializable(df)
+
+        # THEN the column should be object type and pd.NA should be converted to None
+        assert is_object_dtype(result.nullable_int_col)
+        expected_result = pd.DataFrame(
+            {"nullable_int_col": [1, 2, None, 4, None]}
+        ).convert_dtypes()
+        pd.testing.assert_frame_equal(result, expected_result, check_dtype=False)
+        assert is_object_dtype(result.nullable_int_col)

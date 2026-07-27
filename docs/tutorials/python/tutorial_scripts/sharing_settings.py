@@ -14,6 +14,7 @@ Examples of principal IDs:
 - Public access: 273949
 """
 
+# --8<-- [start:setup_and_project]
 import synapseclient
 from synapseclient.models import Folder, Project
 
@@ -32,7 +33,9 @@ syn = synapseclient.login()
 # Step 1: Get or create a project for this tutorial
 print("=== Step 1: Getting project ===")
 project = Project(name="My uniquely named project about Alzheimer's Disease").get()
+# --8<-- [end:setup_and_project]
 
+# --8<-- [start:create_main_folder]
 # Step 2: Create a main folder to set custom sharing settings
 print("\n=== Step 2: Creating main to set custom permissions ===")
 main_folder = Folder(
@@ -43,11 +46,15 @@ main_folder = Folder(
 main_folder = main_folder.store()
 print(f"Created main folder: {main_folder.name} (ID: {main_folder.id})")
 
+# --8<-- [end:create_main_folder]
+# --8<-- [start:get_permissions]
 # Step 3: Demonstrate get_permissions() - Get current user's permissions
 print("\n=== Step 3: Getting current user's permissions ===")
 permissions = main_folder.get_permissions()
 print(f"Current user permissions on main folder: {permissions.access_types}")
+# --8<-- [end:get_permissions]
 
+# --8<-- [start:get_acl]
 # Step 4: Demonstrate get_acl() - Get ACL for specific principal
 print("\n=== Step 4: Getting ACL for specific principal ===")
 # First check what permissions the principal currently has (likely inherited from project)
@@ -60,6 +67,8 @@ print(
 folder_only_acl = main_folder.get_acl(principal_id=PRINCIPAL_ID, check_benefactor=False)
 print(f"Principal {PRINCIPAL_ID} permissions on folder only: {folder_only_acl}")
 
+# --8<-- [end:get_acl]
+# --8<-- [start:set_permissions]
 # Step 5: Demonstrate set_permissions() - Set specific permissions for the main folder
 print("\n=== Step 5: Setting permissions on main folder ===")
 main_folder_permissions = ["READ", "DOWNLOAD"]
@@ -77,6 +86,8 @@ print(
 new_acl = main_folder.get_acl(principal_id=PRINCIPAL_ID, check_benefactor=False)
 print(f"Verified new permissions: {new_acl}")
 
+# --8<-- [end:set_permissions]
+# --8<-- [start:create_sub_folder]
 # Step 6: Create a sub-folder with different sharing settings
 print("\n=== Step 6: Creating sub-folder with different permissions ===")
 sub_folder = Folder(
@@ -99,6 +110,8 @@ print(
     f"Set more restrictive permissions for principal {PRINCIPAL_ID} on sub-folder: {sub_folder_permissions}"
 )
 
+# --8<-- [end:create_sub_folder]
+# --8<-- [start:list_acl]
 # Step 7: Demonstrate list_acl() - List all ACLs
 print("\n=== Step 7: Listing ACLs ===")
 
@@ -115,6 +128,8 @@ for entity_acl in recursive_acl_result.all_entity_acls:
     for acl_entry in entity_acl.acl_entries:
         print(f"  Principal {acl_entry.principal_id}: {acl_entry.permissions}")
 
+# --8<-- [end:list_acl]
+# --8<-- [start:advanced_permissions]
 # Step 8: Demonstrate additional set_permissions() options
 print("\n=== Step 8: Demonstrating additional permission options ===")
 
@@ -130,6 +145,8 @@ main_folder.set_permissions(
 updated_acl = main_folder.get_acl(principal_id=PRINCIPAL_ID)
 print(f"Updated permissions after adding UPDATE: {updated_acl}")
 
+# --8<-- [end:advanced_permissions]
+# --8<-- [start:remove_permissions]
 # Step 9: Demonstrate permission removal using set_permissions with empty list
 print("\n=== Step 9: Removing specific permissions ===")
 print(
@@ -145,7 +162,9 @@ main_folder.set_permissions(
 
 removed_acl = main_folder.get_acl(principal_id=PRINCIPAL_ID)
 print(f"After removal - Principal {PRINCIPAL_ID} permissions: {removed_acl}")
+# --8<-- [end:remove_permissions]
 
+# --8<-- [start:delete_acls]
 # Step 10: Demonstrate delete_permissions() with dry run
 print("\n=== Step 10: Demonstrating delete_permissions() ===")
 
@@ -165,8 +184,11 @@ sub_folder.delete_permissions(include_self=True)
 inherited_acl = sub_folder.get_acl(principal_id=PRINCIPAL_ID)
 print(f"Sub-folder now inherits permissions: {inherited_acl}")
 
+# --8<-- [end:delete_acls]
+# --8<-- [start:final_overview]
 # Step 11: Final ACL overview
 print("\n=== Step 11: Final ACL overview ===")
 final_overview = main_folder.list_acl(
     recursive=True, include_container_content=True, log_tree=True
 )
+# --8<-- [end:final_overview]

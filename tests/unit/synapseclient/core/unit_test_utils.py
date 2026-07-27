@@ -1,16 +1,29 @@
 # unit tests for utils.py
 
 import base64
+import datetime
+import decimal
 import logging
 import os
 import re
 import tempfile
+from dataclasses import dataclass, field
+from enum import Enum
+from math import nan
 from shutil import rmtree
+from typing import Optional
 from unittest.mock import MagicMock, Mock, call, mock_open, patch
 
+import numpy as np
+import pandas as pd
 import pytest
 
 from synapseclient.core import constants, utils
+from synapseclient.core.utils import (
+    coerce_enum_list,
+    escape_column_name,
+    join_column_names,
+)
 
 
 def test_is_url() -> None:
@@ -560,6 +573,49 @@ def test_md5_for_file(mock_hashlib: MagicMock) -> None:
         mock_callback.call_count == 3
 
 
+def test_md5_for_file_hex_forwards_progress_bar() -> None:
+    """md5_for_file_hex should pass the progress bar through to md5_for_file."""
+    file_name = "/home/foo/bar/test.txt"
+    progress_bar = Mock()
+    with patch.object(utils, "md5_for_file") as mock_md5_for_file:
+        utils.md5_for_file_hex(file_name, progress_bar=progress_bar)
+
+        mock_md5_for_file.assert_called_once_with(
+            file_name, 2 * utils.MB, None, progress_bar=progress_bar
+        )
+
+
+def test_md5_for_file_closes_progress_bar_for_empty_file(tmp_path, syn) -> None:
+    """md5_for_file should close the progress bar even when the file is empty.
+
+    The download code sizes the MD5 progress bar with os.path.getsize, which is
+    0 for an empty file. A tqdm bar with total=0 is falsy, so a truthiness check
+    on the bar must not be used to guard the final refresh/close.
+    """
+    from synapseclient.core.transfer_bar import create_progress_bar
+
+    # GIVEN an empty downloaded file
+    empty_file = tmp_path / "empty_file.txt"
+    empty_file.touch()
+
+    # AND a progress bar created exactly as the download code creates it
+    with patch.object(syn, "silent", False):
+        progress_bar = create_progress_bar(
+            total=os.path.getsize(empty_file),
+            desc="Calculating MD5",
+            unit="B",
+            postfix=empty_file.name,
+            synapse_client=syn,
+        )
+
+    # WHEN the MD5 is calculated
+    utils.md5_for_file(filename=str(empty_file), progress_bar=progress_bar)
+
+    # THEN the progress bar is closed (tqdm marks a closed bar as disabled)
+    assert progress_bar.disable is True
+
+
+# TODO: remove test in 5.0.0
 class TestSpinner:
     """
     Verify the Spinner object work correctly
@@ -608,3 +664,623 @@ class TestSpinner:
         mock_sys.stdout.write.assert_not_called()
         mock_sys.stdout.flush.assert_not_called()
         assert self.spinner._tick == 1
+
+
+class _Color(Enum):
+    RED = "RED"
+    BLUE = "BLUE"
+
+
+class TestCoerceEnumList:
+    """Tests for coerce_enum_list."""
+
+    @pytest.mark.parametrize(
+        "input_filter,expected",
+        [
+            ([_Color.RED], ["RED"]),
+            ([_Color.BLUE], ["BLUE"]),
+            ([_Color.RED, _Color.BLUE], ["RED", "BLUE"]),
+            (["RED"], ["RED"]),
+            (["BLUE"], ["BLUE"]),
+            ([_Color.RED, "BLUE"], ["RED", "BLUE"]),
+            ([], []),
+        ],
+    )
+    def test_valid_inputs(self, input_filter, expected) -> None:
+        """Accepts enum members, matching strings, mixed lists, and empty lists."""
+        assert coerce_enum_list(_Color, input_filter) == expected
+
+    @pytest.mark.parametrize(
+        "input_filter,match",
+        [
+            (["NOT_A_COLOR"], "Invalid value"),
+            ([42], "Invalid value"),
+            (["red"], "Invalid value"),
+        ],
+    )
+    def test_invalid_inputs_raise_value_error(self, input_filter, match) -> None:
+        """Raises ValueError for unrecognized strings and non-string, non-enum values."""
+        with pytest.raises(ValueError, match=match):
+            coerce_enum_list(_Color, input_filter)
+
+
+@dataclass
+class _SimpleEntity:
+    """A minimal dataclass with scalar fields only."""
+
+    id: Optional[str] = None
+    name: Optional[str] = None
+    description: Optional[str] = None
+
+
+@dataclass
+class _AnnotatedEntity:
+    """A dataclass with an 'annotations' dict field."""
+
+    id: Optional[str] = None
+    annotations: dict = field(default_factory=dict)
+
+
+@dataclass
+class _ColumnLike:
+    """A column-like dataclass with scalar fields only."""
+
+    id: Optional[str] = None
+    name: Optional[str] = None
+    column_type: Optional[str] = None
+
+
+@dataclass
+class _TableLike:
+    """A dataclass with a 'columns' dict-of-dataclasses field (special-cased)."""
+
+    id: Optional[str] = None
+    columns: dict = field(default_factory=dict)
+
+
+@dataclass
+class _EntityRefLike:
+    """An item-like dataclass exposing an 'id' attribute."""
+
+    id: Optional[str] = None
+    version: Optional[int] = None
+
+
+@dataclass
+class _CollectionLike:
+    """A dataclass with an 'items' list-of-dataclasses field (special-cased)."""
+
+    id: Optional[str] = None
+    items: list = field(default_factory=list)
+
+
+@dataclass
+class _NestedProperties:
+    """A nested dataclass, mirroring CurationTask's task_properties."""
+
+    record_set_id: Optional[str] = None
+    note: Optional[str] = None
+
+
+@dataclass
+class _DifferentNestedProperties:
+    """A different nested dataclass type that shares the 'note' attribute with
+    _NestedProperties but has its own distinct field."""
+
+    other_id: Optional[str] = None
+    note: Optional[str] = None
+
+
+@dataclass
+class _EntityWithProperties:
+    """A dataclass whose 'properties' field holds another dataclass instance."""
+
+    id: Optional[str] = None
+    properties: Optional[_NestedProperties] = None
+
+
+class TestMergeDataclassEntities:
+    """Tests for utils.merge_dataclass_entities."""
+
+    def test_returns_destination_instance(self) -> None:
+        """The destination object itself is returned (merged in place)."""
+        # GIVEN a source and destination entity with no missing values
+        source: _SimpleEntity = _SimpleEntity(id="s")
+        destination: _SimpleEntity = _SimpleEntity(name="d")
+        # WHEN I merge them
+        result: _SimpleEntity = utils.merge_dataclass_entities(
+            source=source, destination=destination
+        )
+        # THEN the returned object is the same destination instance
+        assert result is destination
+
+    @pytest.mark.parametrize(
+        "source, destination, kwargs, expected",
+        [
+            # Gap-fill: None destination fields are filled from source, while a
+            # field set on both is a conflict and keeps the destination value.
+            (
+                _SimpleEntity(id="s-id", name="s-name", description="s-desc"),
+                _SimpleEntity(id=None, name=None, description="d-desc"),
+                {},
+                {"id": "s-id", "name": "s-name", "description": "d-desc"},
+            ),
+            # Conflict: both have a non-None value, so the destination wins.
+            (
+                _SimpleEntity(id="s-id", name="s-name"),
+                _SimpleEntity(id="d-id", name="d-name"),
+                {},
+                {"id": "d-id", "name": "d-name"},
+            ),
+        ],
+        ids=["gap_fill", "conflict_keeps_destination"],
+    )
+    def test_scalar_merge_outcomes(
+        self,
+        source: _SimpleEntity,
+        destination: _SimpleEntity,
+        kwargs: dict,
+        expected: dict,
+    ) -> None:
+        """Scalar fields gap-fill from source, keep destination on conflict, and
+        respect fields_to_ignore."""
+        # GIVEN source and destination entities and optional merge kwargs
+        # WHEN I merge them
+        result: _SimpleEntity = utils.merge_dataclass_entities(
+            source=source, destination=destination, **kwargs
+        )
+        # THEN each field matches the expected outcome
+        for attr, value in expected.items():
+            assert getattr(result, attr) == value
+
+    def test_annotations_merge_destination_wins_on_conflict(self) -> None:
+        """Annotations dicts are merged with destination keys overriding source."""
+        # GIVEN a source with some annotations and a destination with overlapping
+        # and distinct annotation keys
+        source = _AnnotatedEntity(annotations={"shared": ["src"], "only_source": [1]})
+        destination = _AnnotatedEntity(
+            annotations={"shared": ["dest"], "only_dest": [2]}
+        )
+        # WHEN I merge them
+        result: _AnnotatedEntity = utils.merge_dataclass_entities(
+            source=source, destination=destination
+        )
+        # THEN the destination key wins on conflict, source-only keys are added,
+        # and destination-only keys are retained
+        assert result.annotations == {
+            "shared": ["dest"],
+            "only_source": [1],
+            "only_dest": [2],
+        }
+
+    def test_columns_merge_adds_new_and_merges_existing(self) -> None:
+        """New source columns are added; existing columns recurse-merge with id kept."""
+        # GIVEN a source with two columns and a destination with one overlapping column
+        source = _TableLike(
+            columns={
+                "col1": _ColumnLike(id="s1", name="col1", column_type="STRING"),
+                "col2": _ColumnLike(id="s2", name="col2", column_type="INTEGER"),
+            }
+        )
+        destination = _TableLike(
+            columns={
+                "col1": _ColumnLike(id="d1", name="col1", column_type=None),
+            }
+        )
+        # WHEN I merge them
+        result: _TableLike = utils.merge_dataclass_entities(
+            source=source, destination=destination
+        )
+        # THEN the new source column is added wholesale
+        assert "col2" in result.columns
+        assert result.columns["col2"].id == "s2"
+
+        # AND the existing column is recurse-merged: destination id is kept and
+        # the None column_type is gap-filled from source
+        merged_col1: _ColumnLike = result.columns["col1"]
+        assert merged_col1.id == "d1"
+        assert merged_col1.column_type == "STRING"
+
+    def test_items_merge_appends_only_new_ids(self) -> None:
+        """Source items are appended only when their id is not already present."""
+        # GIVEN a source with a duplicate item id and a new item id, and a
+        # destination already containing the duplicate id
+        source = _CollectionLike(
+            items=[
+                _EntityRefLike(id="syn1", version=2),
+                _EntityRefLike(id="syn2", version=1),
+            ]
+        )
+        destination = _CollectionLike(items=[_EntityRefLike(id="syn1", version=1)])
+        # WHEN I merge them
+        result: _CollectionLike = utils.merge_dataclass_entities(
+            source=source, destination=destination
+        )
+        # THEN only the new id is appended and the pre-existing item is untouched
+        ids = [item.id for item in result.items]
+        assert ids == ["syn1", "syn2"]
+        syn1: _EntityRefLike = next(item for item in result.items if item.id == "syn1")
+        assert syn1.version == 1
+
+    def test_fields_to_preserve_from_source(self) -> None:
+        """A preserved field always takes the source value."""
+        # GIVEN a source and destination whose 'id' differs based on the parameter,
+        # and 'id' is listed in fields_to_preserve_from_source
+        source = _SimpleEntity(id="server-id", name="server-name")
+        destination = _SimpleEntity(id="xxx", name="user-name")
+        # WHEN I merge with fields_to_preserve_from_source=["id"]
+        result: _SimpleEntity = utils.merge_dataclass_entities(
+            source=source,
+            destination=destination,
+            fields_to_preserve_from_source=["id"],
+        )
+        # THEN 'id' is forced to the source value regardless of destination
+        assert result.id == "server-id"
+        # AND 'name' is not preserved so the normal merge applies (destination wins)
+        assert result.name == "user-name"
+
+    @pytest.mark.parametrize(
+        "destination_id, expected_id",
+        [
+            # Destination is None: would normally gap-fill from source, but
+            # fields_to_ignore prevents the copy, so it stays None.
+            (None, None),
+            # Destination has a value: would normally keep it anyway (destination
+            # wins on conflict), but fields_to_ignore is what enforces the skip.
+            ("d-id", "d-id"),
+        ],
+        ids=["prevents_gap_fill", "prevents_source_copy_on_conflict"],
+    )
+    def test_fields_to_ignore(
+        self,
+        destination_id: Optional[str],
+        expected_id: Optional[str],
+    ) -> None:
+        """An ignored field is never copied from source, regardless of whether the
+        destination's value is None or already set."""
+        # GIVEN a source with a value for 'id' and a destination whose 'id' is
+        # either None or set, with 'id' listed in fields_to_ignore
+        source = _SimpleEntity(id="s-id", name="s-name")
+        destination = _SimpleEntity(id=destination_id, name="d-name")
+
+        # WHEN I merge with fields_to_ignore=["id"]
+        result: _SimpleEntity = utils.merge_dataclass_entities(
+            source=source, destination=destination, fields_to_ignore=["id"]
+        )
+
+        # THEN 'id' is never touched regardless of its starting value
+        assert result.id == expected_id
+        # AND non-ignored fields merge normally (destination wins on conflict)
+        assert result.name == "d-name"
+
+    def test_nested_dataclass_field_kept_when_source_is_none(self) -> None:
+        """When the source's nested dataclass field is None, the destination's
+        existing dataclass value is preserved unchanged."""
+        # GIVEN a source with a None nested dataclass field and a destination
+        # with a populated nested dataclass
+        source = _EntityWithProperties(id=None, properties=None)
+        destination = _EntityWithProperties(
+            id="syn1", properties=_NestedProperties(record_set_id="synKEEP")
+        )
+
+        # WHEN I merge them
+        result: _EntityWithProperties = utils.merge_dataclass_entities(
+            source=source, destination=destination
+        )
+
+        # THEN the destination's nested dataclass is preserved unchanged
+        assert result.properties is not None
+        assert result.properties.record_set_id == "synKEEP"
+
+    def test_nested_dataclass_field_keeps_destination_on_conflict(self) -> None:
+        """A nested dataclass set on both source and destination follows the same
+        'destination wins on conflict' rule as scalar fields."""
+        # GIVEN a source with a stale nested dataclass and a destination with a
+        # newer value for the same field (the CurationTask.task_properties scenario)
+        source = _EntityWithProperties(
+            id=None, properties=_NestedProperties(record_set_id="synOLD")
+        )
+        destination = _EntityWithProperties(
+            id="syn1", properties=_NestedProperties(record_set_id="synNEW")
+        )
+
+        # WHEN I merge them
+        result: _EntityWithProperties = utils.merge_dataclass_entities(
+            source=source, destination=destination
+        )
+
+        # THEN the destination's value is preserved (destination wins on conflict)
+        assert result.properties.record_set_id == "synNEW"
+
+    def test_nested_dataclass_field_recurse_merges_subfields(self) -> None:
+        """When both source and destination hold a nested dataclass, each sub-field
+        follows the normal rule: destination wins on conflict, None is gap-filled."""
+        # GIVEN a source whose nested dataclass has a stale conflicting sub-field
+        # and a non-None note, and a destination whose nested dataclass has a new
+        # conflicting sub-field and a None note
+        source = _EntityWithProperties(
+            properties=_NestedProperties(record_set_id="synOLD", note="from-source"),
+        )
+        destination = _EntityWithProperties(
+            id="syn1",
+            properties=_NestedProperties(record_set_id="synNEW", note=None),
+        )
+        # WHEN I merge them
+        result: _EntityWithProperties = utils.merge_dataclass_entities(
+            source=source, destination=destination
+        )
+        # THEN the conflicting sub-field keeps the destination's value
+        assert result.properties.record_set_id == "synNEW"
+        # AND the None sub-field on the destination is gap-filled from the source
+        assert result.properties.note == "from-source"
+
+    def test_nested_dataclass_source_wins_when_destination_field_is_not_a_dataclass(
+        self,
+    ) -> None:
+        """When the source field is a dataclass but the destination field holds a
+        non-dataclass non-None value (e.g. a plain string from a type mismatch),
+        the source value wins rather than raising TypeError inside merge_dataclass_entities.
+        """
+        # GIVEN a source whose 'properties' field is a proper dataclass instance and
+        # a destination whose 'properties' field has been set to a plain string
+        # (simulating a type-mismatch scenario)
+        source = _EntityWithProperties(
+            id="syn1", properties=_NestedProperties(record_set_id="synNEW")
+        )
+        destination = _EntityWithProperties(id="syn1", properties=None)
+        # Force the destination field to a non-None, non-dataclass value directly so
+        # the type annotation is bypassed
+        object.__setattr__(destination, "properties", "not-a-dataclass")
+
+        # WHEN I merge them
+        result: _EntityWithProperties = utils.merge_dataclass_entities(
+            source=source, destination=destination
+        )
+
+        # THEN the source dataclass value is used rather than crashing
+        assert result.properties is source.properties
+
+    def test_nested_dataclass_field_recurse_merges_across_different_types(
+        self,
+    ) -> None:
+        """When source and destination hold different dataclass types that share
+        overlapping field names, the merge still does NOT field-by-field: the
+        destination instance is maintained."""
+        # GIVEN a source and destination whose 'properties' fields are different
+        # dataclass types that happen to share the 'note' attribute
+        source = _EntityWithProperties(
+            properties=_NestedProperties(record_set_id="synOLD", note="from-source"),
+        )
+        destination = _EntityWithProperties(
+            id="syn1",
+            properties=_DifferentNestedProperties(other_id="other", note=None),
+        )
+
+        # WHEN I merge them
+        result: _EntityWithProperties = utils.merge_dataclass_entities(
+            source=source, destination=destination
+        )
+
+        # THEN the destination instance (of its original type) is returned
+        assert result.properties is destination.properties
+        assert isinstance(result.properties, _DifferentNestedProperties)
+        # AND the destination-only field is retained
+        assert result.properties.other_id == "other"
+        # AND the overlapping None field is NOT gap-filled from the source
+        assert result.properties.note is None
+        # AND the source-only field is NOT grafted onto the destination instance
+        assert not hasattr(result.properties, "record_set_id")
+
+
+class TestConvertToAnnotationsList:
+    def test_multiple_and_single_values(self) -> None:
+        """Long, double, string, timestamp and boolean values are typed correctly for
+        both list and scalar inputs."""
+        a = {
+            "foo": 1234,
+            "zoo": [123.1, 456.2, 789.3],
+            "species": "Platypus",
+            "birthdays": [
+                datetime.datetime(1969, 4, 28),
+                datetime.datetime(1973, 12, 8),
+                datetime.datetime(2008, 1, 3),
+            ],
+            "test_boolean": True,
+            "test_mo_booleans": [False, True, True, False],
+        }
+        expected = {
+            "foo": {"value": ["1234"], "type": "LONG"},
+            "zoo": {"value": ["123.1", "456.2", "789.3"], "type": "DOUBLE"},
+            "species": {"value": ["Platypus"], "type": "STRING"},
+            "birthdays": {
+                "value": ["-21427200000", "124156800000", "1199318400000"],
+                "type": "TIMESTAMP_MS",
+            },
+            "test_boolean": {"value": ["true"], "type": "BOOLEAN"},
+            "test_mo_booleans": {
+                "value": ["false", "true", "true", "false"],
+                "type": "BOOLEAN",
+            },
+        }
+        assert utils.convert_to_annotations_list(a) == expected
+
+    def test_scalar_values_are_wrapped(self) -> None:
+        a = {
+            "foo": 1234,
+            "zoo": 123.1,
+            "species": "Platypus",
+            "birthday": datetime.datetime(1969, 4, 28),
+            "test_boolean": True,
+        }
+        expected = {
+            "foo": {"value": ["1234"], "type": "LONG"},
+            "zoo": {"value": ["123.1"], "type": "DOUBLE"},
+            "species": {"value": ["Platypus"], "type": "STRING"},
+            "birthday": {"value": ["-21427200000"], "type": "TIMESTAMP_MS"},
+            "test_boolean": {"value": ["true"], "type": "BOOLEAN"},
+        }
+        assert utils.convert_to_annotations_list(a) == expected
+
+    def test_mixed_type_list_falls_back_to_string(self) -> None:
+        result = utils.convert_to_annotations_list({"mixed": [1, "a", True]})
+        assert result["mixed"]["type"] == "STRING"
+        assert result["mixed"]["value"] == ["1", "a", "True"]
+
+    @pytest.mark.parametrize("missing", [None, "", nan])
+    def test_scalar_missing_values_are_omitted(self, missing) -> None:
+        """A scalar None/empty-string/NaN value produces no annotation entry."""
+        assert utils.convert_to_annotations_list({"key": missing}) == {}
+
+    def test_empty_list_is_omitted(self) -> None:
+        assert utils.convert_to_annotations_list({"key": []}) == {}
+
+    def test_list_of_only_missing_values_is_omitted(self) -> None:
+        assert utils.convert_to_annotations_list({"key": [None, "", nan]}) == {}
+
+    def test_missing_values_stripped_from_mixed_list(self) -> None:
+        result = utils.convert_to_annotations_list({"key": [None, "", "value", nan]})
+        assert result == {"key": {"type": "STRING", "value": ["value"]}}
+
+
+class TestAnnotationValueListElementType:
+    @pytest.mark.parametrize(
+        "annotation_values, expected_type",
+        [
+            ([1, 2, 3], int),
+            (["a", "b"], str),
+            ([True, False], bool),
+            ([1.5, 2.5], float),
+            (
+                [datetime.datetime(1969, 4, 28), datetime.datetime(1970, 1, 1)],
+                datetime.datetime,
+            ),
+            ([42], int),
+            # numpy.float64 subclasses float, so a float list stays homogeneous
+            ([1.5, np.float64(2.5)], float),
+            # bool subclasses int: int-first stays int, but bool-first turns
+            # heterogeneous because int is not an instance of bool
+            ([1, True], int),
+            ([True, 1], object),
+            # genuinely mixed types fall back to object (caller maps this to STRING)
+            ([1, "a"], object),
+            ([1.0, 1], object),
+        ],
+        ids=[
+            "ints",
+            "strings",
+            "booleans",
+            "floats",
+            "datetimes",
+            "single_element",
+            "numpy_float64_in_float_list",
+            "int_then_bool",
+            "bool_then_int",
+            "mixed_int_str",
+            "mixed_float_int",
+        ],
+    )
+    def test_returns_expected_type(self, annotation_values, expected_type) -> None:
+        """A homogeneous list returns its shared element type (subclasses count as
+        matches); a heterogeneous list returns object."""
+        assert (
+            utils._annotation_value_list_element_type(annotation_values)
+            is expected_type
+        )
+
+
+class TestIsMissingAnnotationValue:
+    @pytest.mark.parametrize(
+        "value",
+        [
+            None,
+            "",
+            float("nan"),
+            nan,
+            np.nan,
+            np.float64("nan"),
+            np.float32("nan"),
+            np.float16("nan"),
+            decimal.Decimal("nan"),
+            pd.NA,
+            pd.NaT,
+        ],
+        ids=[
+            "none",
+            "empty_string",
+            "float_nan",
+            "math_nan",
+            "numpy_nan",
+            "numpy_float64_nan",
+            "numpy_float32_nan",
+            "numpy_float16_nan",
+            "decimal_nan",
+            "pandas_na",
+            "pandas_nat",
+        ],
+    )
+    def test_missing(self, value) -> None:
+        """None, empty string, NaN floats, and the pandas NA/NaT sentinels are
+        missing."""
+        assert utils._is_missing_annotation_value(value) is True
+
+    @pytest.mark.parametrize(
+        "value",
+        [
+            "value",
+            "None",
+            "nan",
+            0,
+            0.0,
+            1234,
+            1.5,
+            False,
+            True,
+            datetime.datetime(1969, 4, 28),
+        ],
+        ids=[
+            "non_empty_string",
+            "none_string",
+            "nan_string",
+            "zero_int",
+            "zero_float",
+            "long",
+            "double",
+            "false",
+            "true",
+            "datetime",
+        ],
+    )
+    def test_not_missing(self, value) -> None:
+        """Real scalar values, including falsy ones and the literal strings
+        "None"/"nan", are not missing. Emptiness of lists is handled by the caller."""
+        assert utils._is_missing_annotation_value(value) is False
+
+
+@pytest.mark.parametrize(
+    "column,expected_name",
+    (
+        ("foo", '"foo"'),  # all names are quoted
+        ('foo"bar', '"foo""bar"'),  # quotes are double quoted
+        (
+            "foo bar",
+            '"foo bar"',
+        ),  # other special characters e.g. spaces are left alone (within the quoted string)
+    ),
+)
+def test_escape_column_names(column, expected_name) -> None:
+    """Verify column name escaping"""
+    # test as a string
+    assert escape_column_name(column) == expected_name
+
+    # test as a dictionary/column object
+    assert escape_column_name({"name": column}) == expected_name
+
+
+def test_join_column_names() -> None:
+    """Verify the behavior of join_column_names"""
+    column_names = ["foo", 'foo"bar', "foo bar"]
+    column_dicts = [{"name": n} for n in column_names]
+    expected = '"foo","foo""bar","foo bar"'
+
+    assert join_column_names(column_names) == expected
+    assert join_column_names(column_dicts) == expected

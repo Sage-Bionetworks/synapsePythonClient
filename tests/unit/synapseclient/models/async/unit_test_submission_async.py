@@ -1,13 +1,11 @@
 """Async unit tests for the synapseclient.models.Submission class."""
 
-import uuid
 from typing import Dict, List, Union
-from unittest.mock import AsyncMock, MagicMock, call, patch
+from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
 
 from synapseclient import Synapse
-from synapseclient.core.exceptions import SynapseHTTPError
 from synapseclient.models import Submission
 
 SUBMISSION_ID = "9614543"

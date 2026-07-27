@@ -84,7 +84,7 @@ MAX_NUM_TABLE_COLUMNS = 152
 
 DEFAULT_QUOTE_CHARACTER = '"'
 DEFAULT_SEPARATOR = ","
-DEFAULT_ESCAPSE_CHAR = "\\"
+DEFAULT_ESCAPE_CHAR = "\\"
 
 
 # This Enum is used to help users determine which Entity types they want in their view
@@ -338,7 +338,11 @@ def cast_row_set(rowset):
     return rowset
 
 
-@deprecated(version="4.12.0", reason="To be removed in 5.0.0. ")
+@deprecated(
+    version="4.12.0",
+    reason="To be removed in 5.0.0. Use escape_column_name from "
+    "synapseclient.core.utils instead.",
+)
 def escape_column_name(column: Union[str, collections.abc.Mapping]) -> str:
     """
     Escape the name of the given column for use in a Synapse table query statement
@@ -348,6 +352,20 @@ def escape_column_name(column: Union[str, collections.abc.Mapping]) -> str:
 
     Returns:
         Escaped column name
+
+    Example: Migration to the new location
+        &nbsp;
+
+        This function moved to synapseclient.core.utils. Update the import; the
+        behavior is unchanged.
+
+        ```python
+        # Old approach (DEPRECATED)
+        # from synapseclient.table import escape_column_name
+
+        # New approach (RECOMMENDED)
+        from synapseclient.core.utils import escape_column_name
+        ```
     """
     col_name = (
         column["name"] if isinstance(column, collections.abc.Mapping) else str(column)
@@ -356,13 +374,31 @@ def escape_column_name(column: Union[str, collections.abc.Mapping]) -> str:
     return f'"{escaped_name}"'
 
 
-@deprecated(version="4.12.0", reason="To be removed in 5.0.0. ")
+@deprecated(
+    version="4.12.0",
+    reason="To be removed in 5.0.0. Use join_column_names from "
+    "synapseclient.core.utils instead.",
+)
 def join_column_names(columns: Union[List, Dict[str, str]]):
     """
     Join the names of the given columns into a comma delimited list suitable for use in a Synapse table query
 
     Arguments:
         columns: A sequence of column string names or dictionary objets with column 'name' keys
+
+    Example: Migration to the new location
+        &nbsp;
+
+        This function moved to synapseclient.core.utils. Update the import; the
+        behavior is unchanged.
+
+        ```python
+        # Old approach (DEPRECATED)
+        # from synapseclient.table import join_column_names
+
+        # New approach (RECOMMENDED)
+        from synapseclient.core.utils import join_column_names
+        ```
     """
     return ",".join(escape_column_name(c) for c in columns)
 
@@ -404,7 +440,7 @@ def _csv_to_pandas_df(
     filepath: str,
     separator: str = DEFAULT_SEPARATOR,
     quote_char: str = DEFAULT_QUOTE_CHARACTER,
-    escape_char: str = DEFAULT_ESCAPSE_CHAR,
+    escape_char: str = DEFAULT_ESCAPE_CHAR,
     contain_headers: bool = True,
     lines_to_skip: int = 0,
     date_columns: Optional[List[str]] = None,
@@ -426,7 +462,7 @@ def _csv_to_pandas_df(
                     Passed as `quotechar` to pandas. If `quotechar` is supplied as a `kwarg`
                     it will be used instead of this `quote_char` argument.
         escape_char: The escape character for the file,
-                    Defaults to `DEFAULT_ESCAPSE_CHAR`.
+                    Defaults to `DEFAULT_ESCAPE_CHAR`.
         contain_headers: Whether the file contains headers,
                     Defaults to `True`.
         lines_to_skip: The number of lines to skip at the beginning of the file,
@@ -2500,7 +2536,7 @@ class CsvFileTable(TableAbstractBaseClass):
         filepath,
         etag=None,
         quoteCharacter=DEFAULT_QUOTE_CHARACTER,
-        escapeCharacter=DEFAULT_ESCAPSE_CHAR,
+        escapeCharacter=DEFAULT_ESCAPE_CHAR,
         lineEnd=str(os.linesep),
         separator=DEFAULT_SEPARATOR,
         header=True,

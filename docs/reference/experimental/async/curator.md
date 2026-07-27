@@ -1,9 +1,5 @@
 # Curator
 
-Contained within this file are experimental interfaces for working with the Synapse Python
-Client. Unless otherwise noted these interfaces are subject to change at any time. Use
-at your own risk.
-
 ## API reference
 
 [](){ #curation-task-reference-async }
@@ -12,9 +8,14 @@ at your own risk.
         inherited_members: true
         members:
             - get_async
+            - get_status_async
+            - update_status_async
+            - set_active_grid_session_async
             - delete_async
             - store_async
             - list_async
+            - create_grid_session_async
+            - set_task_state_async
 ---
 
 [](){ #RecordSet-reference-async }
@@ -49,6 +50,12 @@ at your own risk.
         inherited_members: true
         members:
 ---
+[](){ #AuthorizationMode-reference-async }
+::: synapseclient.models.AuthorizationMode
+    options:
+        inherited_members: true
+        members:
+---
 [](){ #grid-reference-async }
 ::: synapseclient.models.Grid
     options:
@@ -59,6 +66,8 @@ at your own risk.
             - synchronize_async
             - download_csv_async
             - import_csv_async
+            - delete_async
+            - list_async
 ---
 [](){ #query-reference-async }
 ::: synapseclient.models.Query

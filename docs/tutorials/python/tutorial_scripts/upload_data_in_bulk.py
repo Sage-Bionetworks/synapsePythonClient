@@ -2,6 +2,7 @@
 Here is where you'll find the code for the uploading data in bulk tutorial.
 """
 
+# --8<-- [start:imports_and_constants]
 import pandas as pd
 
 import synapseclient
@@ -14,34 +15,26 @@ syn.login()
 DIRECTORY_FOR_MY_PROJECT = "test_folder"  # This should exist with your files in it
 PATH_TO_MANIFEST_FILE = "test_manifest.csv"  # This doesn't need to exist yet
 SYNAPSE_PROJECT_ID = ""  # Put your Synapse project ID here. This is the project where you want to upload your data.
+project = Project(id=SYNAPSE_PROJECT_ID)
+# --8<-- [end:imports_and_constants]
 
-# TODO switch to using new version of synapseutils/sync.py.generate_sync_manifest
-# https://sagebionetworks.jira.com/browse/SYNPY-1809
-
+# --8<-- [start:generate_manifest]
 # Step 2: Create a manifest CSV file with the paths to the files and their parent folders
 # Note: When this command is run it will re-create your directory structure within
 # Synapse. Be aware of this before running this command.
 # If folders with the exact names already exists in Synapse, those folders will be used.
-
-
-# old function generates a TSV
-from synapseutils import generate_sync_manifest
-
-generate_sync_manifest(
-    syn=syn,
+project.generate_sync_manifest(
     directory_path=DIRECTORY_FOR_MY_PROJECT,
-    parent_id=SYNAPSE_PROJECT_ID,
     manifest_path=PATH_TO_MANIFEST_FILE,
 )
-# reformat the manifest file to work with sync_to_synapse
-manifest_df = pd.read_csv(PATH_TO_MANIFEST_FILE, sep="\t")
-manifest_df.rename(columns={"parent": "parentId"}, inplace=True)
-manifest_df.to_csv(PATH_TO_MANIFEST_FILE, index=False)
+# --8<-- [end:generate_manifest]
 
+# --8<-- [start:sync_to_synapse]
 # Step 3: After generating the manifest file, we can upload the data in bulk
-project = Project(id=SYNAPSE_PROJECT_ID)
 project.sync_to_synapse(manifest_path=PATH_TO_MANIFEST_FILE, send_messages=False)
+# --8<-- [end:sync_to_synapse]
 
+# --8<-- [start:add_annotation]
 # Step 4: Let's add an annotation to our manifest file
 # Pandas is a powerful data manipulation library in Python, although it is not required
 # for this tutorial, it is used here to demonstrate how you can manipulate the manifest
@@ -57,7 +50,9 @@ df["species"] = "Homo sapiens"
 df.to_csv(PATH_TO_MANIFEST_FILE, index=False)
 
 project.sync_to_synapse(manifest_path=PATH_TO_MANIFEST_FILE, send_messages=False)
+# --8<-- [end:add_annotation]
 
+# --8<-- [start:add_provenance]
 # Step 5: Let's create an Activity/Provenance
 # First let's find the row in the CSV we want to update. This code finds the row number
 # that we would like to update.
@@ -86,3 +81,4 @@ df.loc[row_index, "activityDescription"] = (
 df.to_csv(PATH_TO_MANIFEST_FILE, index=False)
 
 project.sync_to_synapse(manifest_path=PATH_TO_MANIFEST_FILE, send_messages=False)
+# --8<-- [end:add_provenance]

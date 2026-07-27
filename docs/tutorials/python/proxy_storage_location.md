@@ -90,7 +90,7 @@ your proxy server.
   <summary>Click to show me</summary>
 
 ```python
-{!docs/tutorials/python/tutorial_scripts/proxy_storage_location.py!}
+--8<-- "docs/tutorials/python/tutorial_scripts/proxy_storage_location.py"
 ```
 </details>
 

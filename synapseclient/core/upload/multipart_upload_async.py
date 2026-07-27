@@ -86,7 +86,6 @@ import httpx
 import psutil
 import requests
 from opentelemetry import trace
-from tqdm import tqdm
 from tqdm.contrib.logging import logging_redirect_tqdm
 
 from synapseclient.api import (
@@ -106,6 +105,7 @@ from synapseclient.core.exceptions import (
 )
 from synapseclient.core.otel_config import get_tracer
 from synapseclient.core.retry import with_retry_time_based
+from synapseclient.core.transfer_bar import create_progress_bar
 from synapseclient.core.typing_utils import DataFrame as DATA_FRAME_TYPE
 from synapseclient.core.upload.upload_utils import (
     copy_md5_fn,
@@ -378,13 +378,11 @@ class UploadAttemptAsync:
                 # progress bar is not useful
                 self._progress_bar = getattr(
                     _thread_local, "progress_bar", None
-                ) or tqdm(
+                ) or create_progress_bar(
                     total=part_count,
                     desc=self._storage_str or "Copying",
-                    unit_scale=True,
                     postfix=self._dest_file_name,
-                    smoothing=0,
-                    leave=None,
+                    synapse_client=self._syn,
                 )
                 self._progress_bar.update(completed_part_count)
             else:
@@ -395,14 +393,12 @@ class UploadAttemptAsync:
 
                 self._progress_bar = getattr(
                     _thread_local, "progress_bar", None
-                ) or tqdm(
+                ) or create_progress_bar(
                     total=file_size,
                     desc=self._storage_str or "Uploading",
                     unit="B",
-                    unit_scale=True,
                     postfix=self._dest_file_name,
-                    smoothing=0,
-                    leave=None,
+                    synapse_client=self._syn,
                 )
                 self._progress_bar.update(previously_transferred)
 
@@ -698,6 +694,8 @@ async def multipart_upload_dataframe_async(
         force_restart: True to restart a previously initiated upload from scratch, False
             to try to resume.
         storage_str: Optional string to append to the upload message.
+        to_csv_kwargs: Additional arguments to pass to the `pd.DataFrame.to_csv`
+            function when writing the data to a CSV file.
     """
     trace.get_current_span().set_attributes(
         {

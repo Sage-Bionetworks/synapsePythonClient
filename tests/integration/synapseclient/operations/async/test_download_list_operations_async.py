@@ -18,9 +18,9 @@ import pytest
 import pytest_asyncio
 
 import synapseclient.core.utils as utils
-from synapseclient import Project, Synapse
+from synapseclient import Synapse
 from synapseclient.core.exceptions import SynapseHTTPError
-from synapseclient.models import File
+from synapseclient.models import File, Project
 from synapseclient.models.table_components import CsvTableDescriptor
 from synapseclient.operations import (
     DownloadListItem,
@@ -47,7 +47,7 @@ async def scheduled_for_cart_removal(syn: Synapse):
 
 
 async def _create_test_file(
-    project: Project,
+    project_model: Project,
     syn: Synapse,
     schedule_for_cleanup: Callable[..., None],
 ) -> File:
@@ -55,7 +55,7 @@ async def _create_test_file(
     path = utils.make_bogus_uuid_file()
     schedule_for_cleanup(path)
     file = File(
-        parent_id=project["id"],
+        parent_id=project_model.id,
         path=path,
         name=f"download_list_test_{uuid.uuid4()}",
     )
@@ -125,18 +125,18 @@ class TestDownloadListAddAsync:
 
     async def test_adds_specific_version_of_each_file_in_one_call(
         self,
-        project: Project,
+        project_model: Project,
         syn: Synapse,
         schedule_for_cleanup: Callable[..., None],
         scheduled_for_cart_removal: list[DownloadListItem],
     ) -> None:
         """download_list_add_async() adds multiple files with multiple versions in a single call."""
         # GIVEN two files, each with two versions; we'll select v1 of file_a and v2 of file_b
-        file_a = await _create_test_file(project, syn, schedule_for_cleanup)
+        file_a = await _create_test_file(project_model, syn, schedule_for_cleanup)
         file_a_v1 = file_a.version_number
         await _upload_new_version(file_a, syn, schedule_for_cleanup)
 
-        file_b = await _create_test_file(project, syn, schedule_for_cleanup)
+        file_b = await _create_test_file(project_model, syn, schedule_for_cleanup)
         await _upload_new_version(file_b, syn, schedule_for_cleanup)
         file_b_v2 = file_b.version_number
 
@@ -164,14 +164,14 @@ class TestDownloadListAddAsync:
 
     async def test_download_list_add_with_no_version_number(
         self,
-        project: Project,
+        project_model: Project,
         syn: Synapse,
         schedule_for_cleanup: Callable[..., None],
         scheduled_for_cart_removal: list[DownloadListItem],
     ) -> None:
         """download_list_add_async() with version_number=None adds the latest version."""
         # GIVEN a file with two versions
-        file = await _create_test_file(project, syn, schedule_for_cleanup)
+        file = await _create_test_file(project_model, syn, schedule_for_cleanup)
         v1 = file.version_number
         v2 = await _upload_new_version(file, syn, schedule_for_cleanup)
         assert v2 != v1, "Expected a new version number"
@@ -206,18 +206,18 @@ class TestDownloadListRemoveAsync:
 
     async def test_download_list_remove_removes_only_specified_files(
         self,
-        project: Project,
+        project_model: Project,
         syn: Synapse,
         schedule_for_cleanup: Callable[..., None],
         scheduled_for_cart_removal: list[DownloadListItem],
     ) -> None:
         """download_list_remove_async() removes only the specified file versions, not others."""
         # GIVEN two files, each with two versions
-        file_a = await _create_test_file(project, syn, schedule_for_cleanup)
+        file_a = await _create_test_file(project_model, syn, schedule_for_cleanup)
         file_a_v1 = file_a.version_number
         file_a_v2 = await _upload_new_version(file_a, syn, schedule_for_cleanup)
 
-        file_b = await _create_test_file(project, syn, schedule_for_cleanup)
+        file_b = await _create_test_file(project_model, syn, schedule_for_cleanup)
         file_b_v1 = file_b.version_number
         file_b_v2 = await _upload_new_version(file_b, syn, schedule_for_cleanup)
 
@@ -255,14 +255,14 @@ class TestDownloadListRemoveAsync:
 
     async def test_download_list_remove_wrong_version_leaves_file_in_cart(
         self,
-        project: Project,
+        project_model: Project,
         syn: Synapse,
         schedule_for_cleanup: Callable[..., None],
         scheduled_for_cart_removal: list[DownloadListItem],
     ) -> None:
         """download_list_remove_async() with a wrong version is a no-op -- the file stays in the cart."""
         # GIVEN a cart entry for a file (added with an explicit version)
-        file = await _create_test_file(project, syn, schedule_for_cleanup)
+        file = await _create_test_file(project_model, syn, schedule_for_cleanup)
         await _add_to_cart(file, syn, scheduled_for_cart_removal)
 
         # WHEN I try to remove the file with a wrong version number
@@ -283,7 +283,7 @@ class TestDownloadListRemoveAsync:
 
     async def test_download_list_remove_no_version_leaves_file_in_cart(
         self,
-        project: Project,
+        project_model: Project,
         syn: Synapse,
         schedule_for_cleanup: Callable[..., None],
         scheduled_for_cart_removal: list[DownloadListItem],
@@ -292,7 +292,7 @@ class TestDownloadListRemoveAsync:
         added with an explicit version -- the API requires an exact
         (fileEntityId, versionNumber) pair."""
         # GIVEN a cart entry for a file (added with an explicit version)
-        file = await _create_test_file(project, syn, schedule_for_cleanup)
+        file = await _create_test_file(project_model, syn, schedule_for_cleanup)
         await _add_to_cart(file, syn, scheduled_for_cart_removal)
 
         # WHEN I try to remove the file without specifying a version
@@ -308,7 +308,7 @@ class TestDownloadListRemoveAsync:
 
     async def test_download_list_remove_no_version_matches_no_version_entry(
         self,
-        project: Project,
+        project_model: Project,
         syn: Synapse,
         schedule_for_cleanup: Callable[..., None],
         scheduled_for_cart_removal: list[DownloadListItem],
@@ -316,7 +316,7 @@ class TestDownloadListRemoveAsync:
         """download_list_remove_async() with no version removes a cart entry that was also
         added without a version."""
         # GIVEN a cart entry for a file added without a version number
-        file = await _create_test_file(project, syn, schedule_for_cleanup)
+        file = await _create_test_file(project_model, syn, schedule_for_cleanup)
         item_no_version = DownloadListItem(file_entity_id=file.id)
         await download_list_add_async(files=[item_no_version], synapse_client=syn)
         scheduled_for_cart_removal.append(item_no_version)
@@ -347,15 +347,15 @@ class TestDownloadListFilesAsync:
     async def test_download_list_files_downloads_and_removes_from_cart(
         self,
         parallel: bool,
-        project: Project,
+        project_model: Project,
         syn: Synapse,
         schedule_for_cleanup: Callable[..., None],
         scheduled_for_cart_removal: list[DownloadListItem],
     ) -> None:
         """Downloaded files are present in the manifest and removed from cart."""
         # GIVEN two files added to the cart
-        file_a = await _create_test_file(project, syn, schedule_for_cleanup)
-        file_b = await _create_test_file(project, syn, schedule_for_cleanup)
+        file_a = await _create_test_file(project_model, syn, schedule_for_cleanup)
+        file_b = await _create_test_file(project_model, syn, schedule_for_cleanup)
         await _add_to_cart(file_a, syn, scheduled_for_cart_removal)
         await _add_to_cart(file_b, syn, scheduled_for_cart_removal)
 
@@ -398,14 +398,14 @@ class TestDownloadListFilesAsync:
 
     async def test_download_list_files_multiple_versions_of_same_file(
         self,
-        project: Project,
+        project_model: Project,
         syn: Synapse,
         schedule_for_cleanup: Callable[..., None],
         scheduled_for_cart_removal: list[DownloadListItem],
     ) -> None:
         """Cart can hold two versions of the same file and both are downloaded."""
         # GIVEN a file with two versions, both added to the cart
-        file = await _create_test_file(project, syn, schedule_for_cleanup)
+        file = await _create_test_file(project_model, syn, schedule_for_cleanup)
         v1_id = file.id
         v1_version = file.version_number
         v2_version = await _upload_new_version(file, syn, schedule_for_cleanup)
@@ -453,14 +453,14 @@ class TestDownloadListFilesAsync:
 
     async def test_download_list_files_default_location(
         self,
-        project: Project,
+        project_model: Project,
         syn: Synapse,
         schedule_for_cleanup: Callable[..., None],
         scheduled_for_cart_removal: list[DownloadListItem],
     ) -> None:
         """download_list_files_async() with download_location=None writes to CWD."""
         # GIVEN a cart containing one of our files
-        file = await _create_test_file(project, syn, schedule_for_cleanup)
+        file = await _create_test_file(project_model, syn, schedule_for_cleanup)
         await _add_to_cart(file, syn, scheduled_for_cart_removal)
 
         # WHEN I download with no explicit download_location (uses CWD)
@@ -494,7 +494,7 @@ class TestDownloadListFilesAsync:
 
     async def test_download_list_files_no_version_add_is_removed_from_cart(
         self,
-        project: Project,
+        project_model: Project,
         syn: Synapse,
         schedule_for_cleanup: Callable[..., None],
         scheduled_for_cart_removal: list[DownloadListItem],
@@ -503,7 +503,7 @@ class TestDownloadListFilesAsync:
         successfully and removed from the cart.
         """
         # GIVEN a file added to the cart without a version number
-        file = await _create_test_file(project, syn, schedule_for_cleanup)
+        file = await _create_test_file(project_model, syn, schedule_for_cleanup)
         item_no_version = DownloadListItem(file_entity_id=file.id)
         await download_list_add_async(files=[item_no_version], synapse_client=syn)
         scheduled_for_cart_removal.append(item_no_version)
@@ -540,7 +540,7 @@ class TestDownloadListManifestAsync:
 
     async def test_download_list_manifest_with_custom_csv_descriptor(
         self,
-        project: Project,
+        project_model: Project,
         syn: Synapse,
         schedule_for_cleanup: Callable[..., None],
         scheduled_for_cart_removal: list[DownloadListItem],
@@ -553,7 +553,7 @@ class TestDownloadListManifestAsync:
         uuid_suffix = str(uuid.uuid4())
         file_name = f"it's_{uuid_suffix}"
         file = File(
-            parent_id=project["id"],
+            parent_id=project_model.id,
             path=path,
             name=file_name,
         )

@@ -11,7 +11,6 @@ import pytest
 import synapseclient.core.utils as utils
 from synapseclient import Synapse
 from synapseclient.models import File, FormData, FormGroup, Project
-from synapseclient.models.mixins.form import StateEnum
 
 
 class TestFormGroup:

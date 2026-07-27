@@ -81,7 +81,7 @@ Detailed tracebacks are saved in the exception column of the CSV:
   <summary>Click to show me</summary>
 
 ```python
-{!docs/tutorials/python/tutorial_scripts/migration.py!}
+--8<-- "docs/tutorials/python/tutorial_scripts/migration.py"
 ```
 </details>
 

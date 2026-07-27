@@ -1,9 +1,5 @@
 # Folder
 
-Contained within this file are experimental interfaces for working with the Synapse Python
-Client. Unless otherwise noted these interfaces are subject to change at any time. Use
-at your own risk.
-
 ## API Reference
 
 ::: synapseclient.models.Folder
@@ -17,6 +13,7 @@ at your own risk.
         - walk_async
         - sync_from_synapse_async
         - sync_to_synapse_async
+        - generate_sync_manifest_async
         - flatten_file_list
         - map_directory_to_all_contained_files
         - get_permissions_async

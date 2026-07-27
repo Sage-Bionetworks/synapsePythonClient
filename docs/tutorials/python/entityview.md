@@ -44,7 +44,7 @@ and [File](./file.md) tutorials.
 
 First let's set up some constants we'll use in this script, and find the ID of our project
 ```python
-{!docs/tutorials/python/tutorial_scripts/entityview.py!lines=5-22}
+--8<-- "docs/tutorials/python/tutorial_scripts/entityview.py:setup"
 ```
 
 ## 2. Create a EntityView with Columns
@@ -53,19 +53,19 @@ Now, we will create 4 columns to add to our EntityView. Recall that any data add
 these columns will be stored as an annotation on the underlying File.
 
 ```python
-{!docs/tutorials/python/tutorial_scripts/entityview.py!lines=24-31}
+--8<-- "docs/tutorials/python/tutorial_scripts/entityview.py:create_columns"
 ```
 
 Next we're going to store what we have to Synapse and print out the results
 
 ```python
-{!docs/tutorials/python/tutorial_scripts/entityview.py!lines=33-47}
+--8<-- "docs/tutorials/python/tutorial_scripts/entityview.py:create_view"
 ```
 
 ## 3. Query the EntityView
 
 ```python
-{!docs/tutorials/python/tutorial_scripts/entityview.py!lines=49-54}
+--8<-- "docs/tutorials/python/tutorial_scripts/entityview.py:query_view"
 ```
 
 <details class="example">
@@ -85,7 +85,7 @@ value. Since the results were returned as a Pandas DataFrame you have many
 options to search through and set values on your data.
 
 ```python
-{!docs/tutorials/python/tutorial_scripts/entityview.py!lines=56-66}
+--8<-- "docs/tutorials/python/tutorial_scripts/entityview.py:update_rows"
 ```
 
 A note on `wait_for_eventually_consistent_view`: EntityViews in Synapse are eventually
@@ -104,7 +104,7 @@ to include in your view. In order to accomplish this you may modify the `scope_i
 attribute on your view.
 
 ```python
-{!docs/tutorials/python/tutorial_scripts/entityview.py!lines=69-73}
+--8<-- "docs/tutorials/python/tutorial_scripts/entityview.py:update_scope"
 ```
 
 ## 6. Update the types of Entities included in your EntityView
@@ -113,7 +113,7 @@ You may also want to change what types of Entities may be included in your view.
 accomplish this you'll be modifying the `view_type_mask` attribute on your view.
 
 ```python
-{!docs/tutorials/python/tutorial_scripts/entityview.py!lines=75-79}
+--8<-- "docs/tutorials/python/tutorial_scripts/entityview.py:update_view_type_mask"
 ```
 
 ## Results
@@ -128,7 +128,7 @@ Synapse web UI. It should look similar to:
   <summary>Click to show me</summary>
 
 ```python
-{!docs/tutorials/python/tutorial_scripts/entityview.py!}
+--8<-- "docs/tutorials/python/tutorial_scripts/entityview.py"
 ```
 </details>
 

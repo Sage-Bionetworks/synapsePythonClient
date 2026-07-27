@@ -29,7 +29,7 @@ In this tutorial, you will:
 Let's get started by authenticating with Synapse and retrieving the ID of your project.
 
 ```python
-{!docs/tutorials/python/tutorial_scripts/dataset.py!lines=3-24}
+--8<-- "docs/tutorials/python/tutorial_scripts/dataset.py:setup"
 ```
 
 ## 2. Create your Dataset
@@ -37,7 +37,7 @@ Let's get started by authenticating with Synapse and retrieving the ID of your p
 Next, we will create the dataset. We will use the project ID to tell Synapse where we want the dataset to be created. After this step, we will have a Dataset object with all of the needed information to start building the dataset.
 
 ```python
-{!docs/tutorials/python/tutorial_scripts/dataset.py!lines=29-30}
+--8<-- "docs/tutorials/python/tutorial_scripts/dataset.py:create_dataset"
 ```
 
 Because we haven't added any files to the dataset yet, it will be empty, but if you view the dataset's schema in the UI, you will notice that datasets come with default columns that help to describe each file that we add to the dataset.
@@ -50,20 +50,20 @@ Let's add some files to the dataset now. There are three ways to add files to a 
 
 1. Add an Entity Reference to a file with its ID and version
 ```python
-{!docs/tutorials/python/tutorial_scripts/dataset.py!lines=34-36}
+--8<-- "docs/tutorials/python/tutorial_scripts/dataset.py:add_entity_ref"
 ```
 2. Add a File with its ID and version
 ```python
-{!docs/tutorials/python/tutorial_scripts/dataset.py!lines=38-40}
+--8<-- "docs/tutorials/python/tutorial_scripts/dataset.py:add_file"
 ```
 3. Add a Folder. When adding a folder, all child files inside of the folder are added to the dataset recursively.
 ```python
-{!docs/tutorials/python/tutorial_scripts/dataset.py!lines=42-44}
+--8<-- "docs/tutorials/python/tutorial_scripts/dataset.py:add_folder"
 ```
 
 Whenever we make changes to the dataset, we need to call the `store()` method to save the changes to Synapse.
 ```python
-{!docs/tutorials/python/tutorial_scripts/dataset.py!lines=46}
+--8<-- "docs/tutorials/python/tutorial_scripts/dataset.py:store_dataset"
 ```
 
 And now we are able to see our dataset with all of the files that we added to it.
@@ -75,7 +75,7 @@ And now we are able to see our dataset with all of the files that we added to it
 Now that we have a dataset with some files in it, we can retrieve the dataset from Synapse the next time we need to use it.
 
 ```python
-{!docs/tutorials/python/tutorial_scripts/dataset.py!lines=50-52}
+--8<-- "docs/tutorials/python/tutorial_scripts/dataset.py:retrieve_dataset"
 ```
 
 ## 5. Query the dataset
@@ -83,7 +83,7 @@ Now that we have a dataset with some files in it, we can retrieve the dataset fr
 Now that we have a dataset with some files in it, we can query the dataset to find files that match certain criteria.
 
 ```python
-{!docs/tutorials/python/tutorial_scripts/dataset.py!lines=56-59}
+--8<-- "docs/tutorials/python/tutorial_scripts/dataset.py:query_dataset"
 ```
 
 ## 6. Add a custom column to the dataset
@@ -91,13 +91,13 @@ Now that we have a dataset with some files in it, we can query the dataset to fi
 We can also add a custom column to the dataset. This will allow us to annotate files in the dataset with additional information.
 
 ```python
-{!docs/tutorials/python/tutorial_scripts/dataset.py!lines=63-69}
+--8<-- "docs/tutorials/python/tutorial_scripts/dataset.py:add_custom_column"
 ```
 
 Our custom column isn't all that useful empty, so let's update the dataset with some values.
 
 ```python
-{!docs/tutorials/python/tutorial_scripts/dataset.py!lines=72-80}
+--8<-- "docs/tutorials/python/tutorial_scripts/dataset.py:update_custom_column_values"
 ```
 
 ## 7. Save a snapshot of the dataset
@@ -105,7 +105,7 @@ Our custom column isn't all that useful empty, so let's update the dataset with 
 Finally, let's save a snapshot of the dataset. This creates a read-only version of the dataset that captures the current state of the dataset and can be referenced later.
 
 ```python
-{!docs/tutorials/python/tutorial_scripts/dataset.py!lines=84-88}
+--8<-- "docs/tutorials/python/tutorial_scripts/dataset.py:snapshot_dataset"
 ```
 
 ## Source Code for this Tutorial
@@ -114,7 +114,7 @@ Finally, let's save a snapshot of the dataset. This creates a read-only version 
   <summary>Click to show me</summary>
 
 ```python
-{!docs/tutorials/python/tutorial_scripts/dataset.py!}
+--8<-- "docs/tutorials/python/tutorial_scripts/dataset.py"
 ```
 </details>
 

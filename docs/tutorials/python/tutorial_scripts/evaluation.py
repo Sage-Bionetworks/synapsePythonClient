@@ -2,6 +2,7 @@
 Here is where you'll find the code for the Evaluation tutorial.
 """
 
+# --8<-- [start:create_and_update]
 from synapseclient import Synapse
 from synapseclient.models import Evaluation, Project
 
@@ -44,6 +45,7 @@ evaluation.store()
 print("Evaluation has been updated with the following name and description:")
 print(evaluation.name)
 print(evaluation.description)
+# --8<-- [end:create_and_update]
 
 # Confirm what's in Synapse matches the evaluation stored
 from_synapse = Evaluation(id=evaluation.id).get()
@@ -51,6 +53,7 @@ from_synapse = Evaluation(id=evaluation.id).get()
 print("The following evaluation has been retrieved from Synapse:")
 print(from_synapse)
 
+# --8<-- [start:update_acl]
 # Update the Evaluation's ACL on Synapse by adding a new user
 assert (
     PRINCIPAL_ID is not None
@@ -62,10 +65,14 @@ evaluation.update_acl(principal_id=PRINCIPAL_ID, access_type=["READ", "SUBMIT"])
 acl = evaluation.get_acl()
 print("The following ACL has been retrieved from Synapse:")
 print(acl)
+# --8<-- [end:update_acl]
 
+# --8<-- [start:remove_from_acl]
 # Now let's remove the user we just added from the Evaluation's ACL
 evaluation.update_acl(principal_id=PRINCIPAL_ID, access_type=[])
+# --8<-- [end:remove_from_acl]
 
+# --8<-- [start:retrieve_and_delete]
 # Finally let's retrieve all Evaluations stored within this project, including the one we just created
 evaluations_list = Evaluation.get_evaluations_by_project(project_id)
 
@@ -73,3 +80,4 @@ evaluations_list = Evaluation.get_evaluations_by_project(project_id)
 # for evaluation_to_delete in evaluations_list:
 #     print(f"Deleting evaluation: {evaluation_to_delete.name}")
 #     evaluation_to_delete.delete()
+# --8<-- [end:retrieve_and_delete]

@@ -99,8 +99,6 @@ class TestEvaluation:
                 Evaluation(
                     description="Test",
                     content_source="syn123",
-                    submission_instructions_message="Inst",
-                    submission_receipt_message="Rec",
                 ),
                 "name",
             ),
@@ -108,8 +106,6 @@ class TestEvaluation:
                 Evaluation(
                     name="Test",
                     content_source="syn123",
-                    submission_instructions_message="Inst",
-                    submission_receipt_message="Rec",
                 ),
                 "description",
             ),
@@ -117,28 +113,8 @@ class TestEvaluation:
                 Evaluation(
                     name="Test",
                     description="Test",
-                    submission_instructions_message="Inst",
-                    submission_receipt_message="Rec",
                 ),
                 "content_source",
-            ),
-            (
-                Evaluation(
-                    name="Test",
-                    description="Test",
-                    content_source="syn123",
-                    submission_receipt_message="Rec",
-                ),
-                "submission_instructions_message",
-            ),
-            (
-                Evaluation(
-                    name="Test",
-                    description="Test",
-                    content_source="syn123",
-                    submission_instructions_message="Inst",
-                ),
-                "submission_receipt_message",
             ),
         ]
 
@@ -148,6 +124,36 @@ class TestEvaluation:
                 ValueError, match=f"missing the '{missing_field}' attribute"
             ):
                 evaluation.to_synapse_request(RequestType.CREATE)
+
+    def test_to_synapse_request_without_optional_message_fields(self):
+        """Test that submission_instructions_message and submission_receipt_message
+        are not required — the request body omits them when absent."""
+        # GIVEN an evaluation without message fields
+        evaluation = Evaluation(
+            name="Test Evaluation",
+            description="This is a test evaluation",
+            content_source="syn123456",
+        )
+
+        # WHEN we generate a request body for create
+        request_body = evaluation.to_synapse_request(RequestType.CREATE)
+
+        # THEN the body should not include the optional message keys
+        assert request_body == {
+            "name": "Test Evaluation",
+            "description": "This is a test evaluation",
+            "contentSource": "syn123456",
+        }
+        assert "submissionInstructionsMessage" not in request_body
+        assert "submissionReceiptMessage" not in request_body
+
+        # AND the same applies to an update request
+        evaluation.id = "9614112"
+        evaluation.etag = "abc-123-xyz"
+        update_body = evaluation.to_synapse_request(RequestType.UPDATE)
+
+        assert "submissionInstructionsMessage" not in update_body
+        assert "submissionReceiptMessage" not in update_body
 
     def test_set_last_persistent_instance(self):
         """Test setting the last persistent instance of an evaluation."""
@@ -577,3 +583,57 @@ class TestEvaluation:
             mock_logger.info.assert_called_once_with(
                 "Principal ID 12345 will be removed from ACL due to empty access_type"
             )
+
+    @pytest.mark.parametrize(
+        "evaluation,missing_field",
+        [
+            (Evaluation(description="Test", content_source="syn123"), "name"),
+            (Evaluation(name="Test", content_source="syn123"), "description"),
+            (Evaluation(name="Test", description="Test"), "content_source"),
+        ],
+    )
+    async def test_create_evaluation_missing_required_fields(
+        self, evaluation: Evaluation, missing_field: str, syn: Synapse
+    ):
+        # WHEN I try to create an evaluation with a missing required field
+        # THEN it should raise a ValueError
+        with pytest.raises(
+            ValueError, match=f"missing the '{missing_field}' attribute"
+        ):
+            await evaluation.store_async(synapse_client=syn)
+
+    async def test_get_evaluation_missing_id_and_name(self, syn: Synapse):
+        # WHEN I try to get an evaluation without id or name
+        evaluation = Evaluation()
+
+        # THEN it should raise a ValueError
+        with pytest.raises(
+            ValueError, match="Either id or name must be set to get an evaluation"
+        ):
+            await evaluation.get_async(synapse_client=syn)
+
+    async def test_delete_evaluation_missing_id(self, syn: Synapse):
+        # WHEN I try to delete an evaluation without an id
+        evaluation = Evaluation(name="test_evaluation")
+
+        # THEN it should raise a ValueError
+        with pytest.raises(ValueError, match="id must be set to delete an evaluation"):
+            await evaluation.delete_async(synapse_client=syn)
+
+    async def test_get_acl_missing_id(self, syn: Synapse):
+        # WHEN I try to get ACL for an evaluation without an id
+        evaluation = Evaluation(name="test_evaluation")
+
+        # THEN it should raise a ValueError
+        with pytest.raises(ValueError, match="id must be set to get evaluation ACL"):
+            await evaluation.get_acl_async(synapse_client=syn)
+
+    async def test_get_permissions_missing_id(self, syn: Synapse):
+        # WHEN I try to get permissions for an evaluation without an id
+        evaluation = Evaluation(name="test_evaluation")
+
+        # THEN it should raise a ValueError
+        with pytest.raises(
+            ValueError, match="id must be set to get evaluation permissions"
+        ):
+            await evaluation.get_permissions_async(synapse_client=syn)

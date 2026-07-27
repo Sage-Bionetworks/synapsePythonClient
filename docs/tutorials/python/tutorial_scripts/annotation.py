@@ -2,6 +2,7 @@
 Here is where you'll find the code for the Annotation tutorial.
 """
 
+# --8<-- [start:retrieve_synapse_ids]
 # Step 1: Add several annotations to stored files
 import os
 
@@ -21,7 +22,9 @@ batch_1_folder = Folder(
 ).get()
 
 print(f"Batch 1 Folder ID: {batch_1_folder.id}")
+# --8<-- [end:retrieve_synapse_ids]
 
+# --8<-- [start:define_annotations]
 # Define the annotations I want to set
 annotation_values = {
     "species": "Homo sapiens",
@@ -29,7 +32,9 @@ annotation_values = {
     "assay": "SCRNA-seq",
     "fileFormat": "fastq",
 }
+# --8<-- [end:define_annotations]
 
+# --8<-- [start:set_annotations_loop]
 batch_1_folder.sync_from_synapse(download_file=False)
 # Loop over all of the files and set their annotations
 for file_batch_1 in batch_1_folder.files:
@@ -48,7 +53,9 @@ for file_batch_1 in batch_1_folder.files:
     print(
         f"Set the annotations for File: {file_batch_1.name}, ID: {file_batch_1.id}, Annotations: {existing_annotations_for_file}"
     )
+# --8<-- [end:set_annotations_loop]
 
+# --8<-- [start:upload_with_annotations]
 # Step 2: Upload 2 new files and set the annotations at the same time
 # In order for the following script to work please replace the files with ones that
 # already exist on your local machine.
@@ -75,3 +82,4 @@ print(
 print(
     f"Stored file: {batch_1_scrnaseq_new_file_2.name}, ID: {batch_1_scrnaseq_new_file_2.id}, Annotations: {batch_1_scrnaseq_new_file_2.annotations}"
 )
+# --8<-- [end:upload_with_annotations]

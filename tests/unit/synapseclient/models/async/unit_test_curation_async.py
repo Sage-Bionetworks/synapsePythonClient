@@ -9,19 +9,25 @@ from synapseclient import Synapse
 from synapseclient.core.constants.concrete_types import (
     FILE_BASED_METADATA_TASK_PROPERTIES,
     GRID_CSV_IMPORT_REQUEST,
+    GRID_EXECUTION_DETAILS,
     RECORD_BASED_METADATA_TASK_PROPERTIES,
     UPLOAD_TO_TABLE_PREVIEW_REQUEST,
 )
+from synapseclient.models import EntityView, RecordSet
 from synapseclient.models.curation import (
+    AuthorizationMode,
     CreateGridRequest,
     CurationTask,
+    CurationTaskStatus,
     DownloadFromGridRequest,
     FileBasedMetadataTaskProperties,
     Grid,
     GridCsvImportRequest,
+    GridExecutionDetails,
     GridRecordSetExportRequest,
     RecordBasedMetadataTaskProperties,
     SynchronizeGridRequest,
+    TaskState,
     UploadToTablePreviewRequest,
     _create_task_properties_from_dict,
 )
@@ -48,6 +54,7 @@ GRID_ETAG = "grid-etag-456"
 STARTED_BY = "user-1"
 STARTED_ON = "2024-03-01T00:00:00.000Z"
 FILE_HANDLE_ID = "1234567"
+OWNER_PRINCIPAL_ID = 987654
 
 
 def _get_file_based_task_api_response():
@@ -103,7 +110,35 @@ def _get_grid_session_response():
         "lastReplicaIdService": -5,
         "gridJsonSchema$Id": "my-schema-id",
         "sourceEntityId": SOURCE_ENTITY_ID,
+        # The server returns ownerPrincipalId as a string; the client coerces to int.
+        "ownerPrincipalId": str(OWNER_PRINCIPAL_ID),
+        "authorizationMode": "SESSION_OWNER",
     }
+
+
+STATUS_ETAG = "status-etag-789"
+STATUS_LAST_UPDATED_ON = "2024-04-01T00:00:00.000Z"
+STATUS_LAST_UPDATED_BY = "444444"
+
+
+def _get_curation_task_status_response(
+    state: str = "NOT_STARTED",
+    active_session_id: str | None = None,
+):
+    """Return a mock CurationTaskStatus API response."""
+    response = {
+        "taskId": TASK_ID,
+        "state": state,
+        "lastUpdatedBy": STATUS_LAST_UPDATED_BY,
+        "lastUpdatedOn": STATUS_LAST_UPDATED_ON,
+        "etag": STATUS_ETAG,
+    }
+    if active_session_id is not None:
+        response["executionDetails"] = {
+            "concreteType": GRID_EXECUTION_DETAILS,
+            "activeSessionId": active_session_id,
+        }
+    return response
 
 
 class TestFileBasedMetadataTaskProperties:
@@ -145,8 +180,43 @@ class TestFileBasedMetadataTaskProperties:
         # WHEN I convert it to a request dict
         request = props.to_synapse_request()
 
-        # THEN the request should only contain concreteType
+        # THEN the request should only contain concreteType (all None-valued fields,
+        # including suggested_authorization_mode, are dropped)
         assert request == {"concreteType": FILE_BASED_METADATA_TASK_PROPERTIES}
+
+    def test_fill_from_dict_authorization_fields(self) -> None:
+        # GIVEN a response dict including the authorization fields
+        response = {
+            "uploadFolderId": UPLOAD_FOLDER_ID,
+            "fileViewId": FILE_VIEW_ID,
+            "suggestedAuthorizationMode": "SOURCE_BENEFACTOR",
+            "collaboratorPrincipalIds": ["111", "222"],
+        }
+
+        # WHEN I fill a FileBasedMetadataTaskProperties from the dict
+        props = FileBasedMetadataTaskProperties()
+        props.fill_from_dict(response)
+
+        # THEN the mode is coerced to the enum and collaborators pass through
+        assert props.suggested_authorization_mode == AuthorizationMode.SOURCE_BENEFACTOR
+        assert isinstance(props.suggested_authorization_mode, AuthorizationMode)
+        assert props.collaborator_principal_ids == ["111", "222"]
+
+    def test_to_synapse_request_authorization_fields(self) -> None:
+        # GIVEN properties with the authorization mode supplied as a plain string
+        props = FileBasedMetadataTaskProperties(
+            upload_folder_id=UPLOAD_FOLDER_ID,
+            file_view_id=FILE_VIEW_ID,
+            suggested_authorization_mode="SESSION_OWNER",
+            collaborator_principal_ids=["111"],
+        )
+
+        # WHEN I convert it to a request dict
+        request = props.to_synapse_request()
+
+        # THEN the enum value is serialized as a string and collaborators pass through
+        assert request["suggestedAuthorizationMode"] == "SESSION_OWNER"
+        assert request["collaboratorPrincipalIds"] == ["111"]
 
 
 class TestRecordBasedMetadataTaskProperties:
@@ -173,6 +243,38 @@ class TestRecordBasedMetadataTaskProperties:
         # THEN the request should contain the correct values
         assert request["concreteType"] == RECORD_BASED_METADATA_TASK_PROPERTIES
         assert request["recordSetId"] == RECORD_SET_ID
+
+    def test_fill_from_dict_authorization_fields(self) -> None:
+        # GIVEN a response dict including the authorization fields
+        response = {
+            "recordSetId": RECORD_SET_ID,
+            "suggestedAuthorizationMode": "SESSION_OWNER",
+            "collaboratorPrincipalIds": ["111"],
+        }
+
+        # WHEN I fill a RecordBasedMetadataTaskProperties from the dict
+        props = RecordBasedMetadataTaskProperties()
+        props.fill_from_dict(response)
+
+        # THEN the mode is coerced to the enum and collaborators pass through
+        assert props.suggested_authorization_mode == AuthorizationMode.SESSION_OWNER
+        assert isinstance(props.suggested_authorization_mode, AuthorizationMode)
+        assert props.collaborator_principal_ids == ["111"]
+
+    def test_to_synapse_request_authorization_fields(self) -> None:
+        # GIVEN properties with an AuthorizationMode enum value set
+        props = RecordBasedMetadataTaskProperties(
+            record_set_id=RECORD_SET_ID,
+            suggested_authorization_mode=AuthorizationMode.SOURCE_BENEFACTOR,
+        )
+
+        # WHEN I convert it to a request dict
+        request = props.to_synapse_request()
+
+        # THEN the enum value is serialized as a string and the absent collaborators
+        # are dropped by delete_none_keys
+        assert request["suggestedAuthorizationMode"] == "SOURCE_BENEFACTOR"
+        assert "collaboratorPrincipalIds" not in request
 
 
 class TestCreateTaskPropertiesFromDict:
@@ -218,6 +320,87 @@ class TestCreateTaskPropertiesFromDict:
             _create_task_properties_from_dict(data)
 
 
+class TestGridExecutionDetails:
+    """Tests for the GridExecutionDetails dataclass."""
+
+    def test_fill_from_dict(self) -> None:
+        # GIVEN a response dict with an active session id
+        response = {
+            "concreteType": GRID_EXECUTION_DETAILS,
+            "activeSessionId": SESSION_ID,
+        }
+
+        # WHEN I fill a GridExecutionDetails from the dict
+        details = GridExecutionDetails()
+        details.fill_from_dict(response)
+
+        # THEN the active_session_id should be populated
+        assert details.active_session_id == SESSION_ID
+
+    def test_to_synapse_request(self) -> None:
+        # GIVEN a GridExecutionDetails with an active session id
+        details = GridExecutionDetails(active_session_id=SESSION_ID)
+
+        # WHEN I convert it to a request dict
+        request = details.to_synapse_request()
+
+        # THEN the request should contain the concreteType and activeSessionId
+        assert request["concreteType"] == GRID_EXECUTION_DETAILS
+        assert request["activeSessionId"] == SESSION_ID
+
+
+class TestCurationTaskStatus:
+    """Tests for the CurationTaskStatus dataclass."""
+
+    def test_fill_from_dict_full(self) -> None:
+        """All scalar fields and nested GridExecutionDetails are populated; state string is coerced to enum."""
+        # GIVEN a full status response with execution details
+        response = _get_curation_task_status_response(
+            state="IN_PROGRESS", active_session_id=SESSION_ID
+        )
+
+        # WHEN I fill a CurationTaskStatus from it
+        status = CurationTaskStatus().fill_from_dict(response)
+
+        # THEN all fields should be populated and state coerced to the enum
+        assert status.task_id == TASK_ID
+        assert status.state == TaskState.IN_PROGRESS
+        assert status.last_updated_by == STATUS_LAST_UPDATED_BY
+        assert status.last_updated_on == STATUS_LAST_UPDATED_ON
+        assert status.etag == STATUS_ETAG
+        assert isinstance(status.execution_details, GridExecutionDetails)
+        assert status.execution_details.active_session_id == SESSION_ID
+
+    def test_fill_from_dict_without_execution_details(self) -> None:
+        """execution_details is None when the response omits the executionDetails key."""
+        # GIVEN a status response with no executionDetails
+        response = _get_curation_task_status_response(state="NOT_STARTED")
+
+        # WHEN I fill a CurationTaskStatus from it
+        status = CurationTaskStatus().fill_from_dict(response)
+
+        # THEN execution_details should be None
+        assert status.execution_details is None
+        assert status.state == TaskState.NOT_STARTED
+
+    def test_fill_from_dict_unknown_execution_details_concrete_type(self) -> None:
+        """An unrecognized concreteType in executionDetails raises ValueError."""
+        # GIVEN a status response with an unknown executionDetails concreteType
+        response = _get_curation_task_status_response(state="NOT_STARTED")
+        response["executionDetails"] = {
+            "concreteType": "org.sagebionetworks.repo.model.curation.execution.Unknown",
+            "activeSessionId": SESSION_ID,
+        }
+
+        # WHEN I fill a CurationTaskStatus from it
+        # THEN it should raise ValueError, consistent with how unknown state
+        # values and unknown task-properties concrete types are handled
+        with pytest.raises(
+            ValueError, match="Unknown concreteType for TaskExecutionDetails"
+        ):
+            CurationTaskStatus().fill_from_dict(response)
+
+
 class TestCurationTask:
     """Unit tests for the CurationTask model."""
 
@@ -259,6 +442,16 @@ class TestCurationTask:
         # THEN the task_properties should be RecordBasedMetadataTaskProperties
         assert isinstance(task.task_properties, RecordBasedMetadataTaskProperties)
         assert task.task_properties.record_set_id == RECORD_SET_ID
+
+    def test_fill_from_dict_missing_task_properties_raises(self) -> None:
+        # GIVEN a CurationTask API response with taskProperties omitted
+        response = _get_file_based_task_api_response()
+        del response["taskProperties"]
+
+        # WHEN I fill a CurationTask from the response
+        # THEN a ValueError should be raised
+        with pytest.raises(ValueError, match="taskProperties was not found"):
+            CurationTask().fill_from_dict(response)
 
     def test_to_synapse_request(self) -> None:
         # GIVEN a CurationTask with all fields set
@@ -314,6 +507,23 @@ class TestCurationTask:
         task.instructions = "new instructions"
 
         # THEN has_changed should be True
+        assert task.has_changed is True
+
+    def test_has_changed_true_after_nested_task_properties_mutation(self) -> None:
+        # GIVEN a CurationTask with task_properties and a persistent instance set
+        task = CurationTask(
+            task_id=TASK_ID,
+            task_properties=FileBasedMetadataTaskProperties(
+                file_view_id=FILE_VIEW_ID,
+                upload_folder_id=UPLOAD_FOLDER_ID,
+            ),
+        )
+        task._set_last_persistent_instance()
+
+        # WHEN I mutate a field on the nested task_properties object in place
+        task.task_properties.file_view_id = "syn_updated"
+
+        # THEN has_changed should be True because task_properties was deep-copied
         assert task.has_changed is True
 
     async def test_get_async(self) -> None:
@@ -577,6 +787,581 @@ class TestCurationTask:
                 results[1].task_properties, RecordBasedMetadataTaskProperties
             )
 
+    async def test_get_status_async(self) -> None:
+        """Verify that get_status_async calls the API with the task_id and returns a parsed CurationTaskStatus."""
+        # GIVEN a CurationTask with a task_id
+        task = CurationTask(task_id=TASK_ID)
+
+        # WHEN I call get_status_async
+        with patch(
+            "synapseclient.models.curation.get_curation_task_status",
+            new_callable=AsyncMock,
+            return_value=_get_curation_task_status_response(
+                state="IN_PROGRESS", active_session_id=SESSION_ID
+            ),
+        ) as mock_get_status:
+            result = await task.get_status_async(synapse_client=self.syn)
+
+            # THEN the API should be called with the task_id
+            mock_get_status.assert_called_once_with(
+                task_id=TASK_ID, synapse_client=self.syn
+            )
+
+            # AND the response should be parsed into a CurationTaskStatus
+            assert isinstance(result, CurationTaskStatus)
+            assert result.task_id == TASK_ID
+            assert result.state == TaskState.IN_PROGRESS
+            assert result.etag == STATUS_ETAG
+            assert result.last_updated_by == STATUS_LAST_UPDATED_BY
+            assert result.last_updated_on == STATUS_LAST_UPDATED_ON
+            assert isinstance(result.execution_details, GridExecutionDetails)
+            assert result.execution_details.active_session_id == SESSION_ID
+
+    async def test_get_status_async_without_task_id(self) -> None:
+        """Verify that get_status_async raises ValueError when task_id is not set."""
+        # GIVEN a CurationTask without a task_id
+        task = CurationTask()
+
+        # WHEN I call get_status_async
+        # THEN it should raise ValueError
+        with pytest.raises(ValueError, match="task_id is required to get"):
+            await task.get_status_async(synapse_client=self.syn)
+
+    async def test_update_status_async(self) -> None:
+        """Verify that update_status_async serializes the status correctly and returns the updated CurationTaskStatus."""
+        # GIVEN a CurationTask with a task_id and a status to write
+        task = CurationTask(task_id=TASK_ID)
+        status_to_update = CurationTaskStatus(
+            task_id=TASK_ID,
+            state=TaskState.IN_PROGRESS,
+            execution_details=GridExecutionDetails(active_session_id=SESSION_ID),
+            etag=STATUS_ETAG,
+        )
+        expected_payload = status_to_update.to_synapse_request()
+
+        # WHEN I call update_status_async
+        with patch(
+            "synapseclient.models.curation.update_curation_task_status",
+            new_callable=AsyncMock,
+            return_value=_get_curation_task_status_response(
+                state="IN_PROGRESS", active_session_id=SESSION_ID
+            ),
+        ) as mock_update_status:
+            result = await task.update_status_async(
+                curation_task_status=status_to_update, synapse_client=self.syn
+            )
+
+            # THEN the API should be called with the serialized status
+            mock_update_status.assert_called_once_with(
+                task_id=TASK_ID,
+                curation_task_status=expected_payload,
+                synapse_client=self.syn,
+            )
+
+            # AND the state enum should be serialized as its string value
+            assert expected_payload["state"] == "IN_PROGRESS"
+            assert expected_payload["executionDetails"]["activeSessionId"] == SESSION_ID
+
+            # AND the response should be parsed back into a CurationTaskStatus
+            assert isinstance(result, CurationTaskStatus)
+            assert result.state == TaskState.IN_PROGRESS
+            assert isinstance(result.execution_details, GridExecutionDetails)
+            assert result.execution_details.active_session_id == SESSION_ID
+
+    async def test_update_status_async_without_task_id(self) -> None:
+        """Verify that update_status_async raises ValueError when task_id is not set."""
+        # GIVEN a CurationTask without a task_id
+        task = CurationTask()
+
+        # WHEN I call update_status_async
+        # THEN it should raise ValueError
+        with pytest.raises(ValueError, match="task_id is required to update"):
+            await task.update_status_async(
+                curation_task_status=CurationTaskStatus(),
+                synapse_client=self.syn,
+            )
+
+    async def test_set_active_grid_session_async(self) -> None:
+        """Verify that set_active_grid_session_async fetches the current status and PUTs a payload with the new session id."""
+        # GIVEN a CurationTask with a task_id
+        task = CurationTask(task_id=TASK_ID)
+
+        # AND a current status fetched from the server with no execution details
+        # AND an update response that reflects the new active grid session
+        get_response = _get_curation_task_status_response(state="NOT_STARTED")
+        put_response = _get_curation_task_status_response(
+            state="NOT_STARTED", active_session_id=SESSION_ID
+        )
+
+        # WHEN I call set_active_grid_session_async
+        with (
+            patch(
+                "synapseclient.models.curation.get_curation_task_status",
+                new_callable=AsyncMock,
+                return_value=get_response,
+            ) as mock_get_status,
+            patch(
+                "synapseclient.models.curation.update_curation_task_status",
+                new_callable=AsyncMock,
+                return_value=put_response,
+            ) as mock_update_status,
+        ):
+            result = await task.set_active_grid_session_async(
+                active_session_id=SESSION_ID, synapse_client=self.syn
+            )
+
+            # THEN it should fetch the current status first
+            mock_get_status.assert_called_once_with(
+                task_id=TASK_ID, synapse_client=self.syn
+            )
+
+            # AND PUT a payload that carries the fresh etag and the new
+            # GridExecutionDetails linked to the given session id
+            mock_update_status.assert_called_once()
+            put_kwargs = mock_update_status.call_args.kwargs
+            assert put_kwargs["task_id"] == TASK_ID
+            payload = put_kwargs["curation_task_status"]
+            assert payload["etag"] == STATUS_ETAG
+            assert payload["state"] == "NOT_STARTED"
+            assert payload["executionDetails"]["concreteType"] == GRID_EXECUTION_DETAILS
+            assert payload["executionDetails"]["activeSessionId"] == SESSION_ID
+
+            # AND it should return the parsed update response
+            assert isinstance(result, CurationTaskStatus)
+            assert isinstance(result.execution_details, GridExecutionDetails)
+            assert result.execution_details.active_session_id == SESSION_ID
+
+    async def test_set_active_grid_session_async_without_task_id(self) -> None:
+        """Verify that set_active_grid_session_async raises ValueError when task_id is not set."""
+        # GIVEN a CurationTask without a task_id
+        task = CurationTask()
+
+        # WHEN I call set_active_grid_session_async
+        # THEN it should raise ValueError (propagated from get_status_async)
+        with pytest.raises(ValueError, match="task_id is required to get"):
+            await task.set_active_grid_session_async(
+                active_session_id=SESSION_ID, synapse_client=self.syn
+            )
+
+    @pytest.mark.parametrize(
+        "input_state,expected_state_value",
+        [
+            (TaskState.IN_PROGRESS, "IN_PROGRESS"),
+            (TaskState.COMPLETED, "COMPLETED"),
+            (TaskState.CANCELED, "CANCELED"),
+            ("IN_PROGRESS", "IN_PROGRESS"),
+            ("COMPLETED", "COMPLETED"),
+            ("CANCELED", "CANCELED"),
+        ],
+    )
+    async def test_set_task_state_async(
+        self, input_state, expected_state_value: str
+    ) -> None:
+        """Verify that set_task_state_async accepts a TaskState enum or string and PUTs the correct serialized state."""
+        # GIVEN a CurationTask with a task_id
+        task = CurationTask(task_id=TASK_ID)
+
+        # AND a current status from the server with execution_details set
+        get_response = _get_curation_task_status_response(
+            state="NOT_STARTED", active_session_id=SESSION_ID
+        )
+        # AND an update response reflecting the new state but preserving
+        # execution_details
+        put_response = _get_curation_task_status_response(
+            state=expected_state_value, active_session_id=SESSION_ID
+        )
+
+        # WHEN I call set_task_state_async with an enum or string
+        with (
+            patch(
+                "synapseclient.models.curation.get_curation_task_status",
+                new_callable=AsyncMock,
+                return_value=get_response,
+            ) as mock_get_status,
+            patch(
+                "synapseclient.models.curation.update_curation_task_status",
+                new_callable=AsyncMock,
+                return_value=put_response,
+            ) as mock_update_status,
+        ):
+            result = await task.set_task_state_async(
+                state=input_state, synapse_client=self.syn
+            )
+
+            # THEN it fetches the current status first
+            mock_get_status.assert_called_once_with(
+                task_id=TASK_ID, synapse_client=self.syn
+            )
+
+            # AND PUTs a payload that carries the fresh etag, the coerced
+            # state, and preserves the existing execution_details
+            mock_update_status.assert_called_once()
+            put_kwargs = mock_update_status.call_args.kwargs
+            assert put_kwargs["task_id"] == TASK_ID
+            payload = put_kwargs["curation_task_status"]
+            assert payload["etag"] == STATUS_ETAG
+            assert payload["state"] == expected_state_value
+            assert payload["executionDetails"]["concreteType"] == GRID_EXECUTION_DETAILS
+            assert payload["executionDetails"]["activeSessionId"] == SESSION_ID
+
+            # AND it returns the parsed update response
+            assert isinstance(result, CurationTaskStatus)
+            assert result.state == TaskState(expected_state_value)
+            assert isinstance(result.execution_details, GridExecutionDetails)
+            assert result.execution_details.active_session_id == SESSION_ID
+
+    async def test_set_task_state_async_invalid_string(self) -> None:
+        """Verify that set_task_state_async raises ValueError before any API call when given an unrecognized state string."""
+        # GIVEN a CurationTask with a task_id
+        task = CurationTask(task_id=TASK_ID)
+
+        # WHEN I call set_task_state_async with a string that does not match
+        # any TaskState member
+        # THEN it raises ValueError before any API call is made
+        with (
+            patch(
+                "synapseclient.models.curation.get_curation_task_status",
+                new_callable=AsyncMock,
+            ) as mock_get_status,
+            patch(
+                "synapseclient.models.curation.update_curation_task_status",
+                new_callable=AsyncMock,
+            ) as mock_update_status,
+        ):
+            with pytest.raises(ValueError, match="is not a valid TaskState"):
+                await task.set_task_state_async(
+                    state="NOT_A_REAL_STATE", synapse_client=self.syn
+                )
+
+            mock_get_status.assert_not_called()
+            mock_update_status.assert_not_called()
+
+    async def test_set_task_state_async_without_task_id(self) -> None:
+        """Verify that set_task_state_async raises ValueError when task_id is not set."""
+        # GIVEN a CurationTask without a task_id
+        task = CurationTask()
+
+        # WHEN I call set_task_state_async
+        # THEN it should raise ValueError (propagated from get_status_async)
+        with pytest.raises(ValueError, match="task_id is required to get"):
+            await task.set_task_state_async(
+                state=TaskState.IN_PROGRESS, synapse_client=self.syn
+            )
+
+    async def test_create_grid_session_async_without_task_id(self) -> None:
+        """Verify that create_grid_session_async raises ValueError when task_id is not set."""
+        # GIVEN a CurationTask without a task_id
+        task = CurationTask()
+
+        # WHEN I call create_grid_session_async
+        # THEN it should raise ValueError
+        with pytest.raises(
+            ValueError,
+            match="task_id is required to create a CurationTask grid session",
+        ):
+            await task.create_grid_session_async(synapse_client=self.syn)
+
+    async def test_create_grid_session_async_record_based_missing_record_set_id(
+        self,
+    ) -> None:
+        """Verify that create_grid_session_async raises ValueError when task_properties.record_set_id is None."""
+        # GIVEN a record-based CurationTask whose record_set_id is missing
+        task = CurationTask(
+            task_id=TASK_ID,
+            task_properties=RecordBasedMetadataTaskProperties(record_set_id=None),
+        )
+
+        # WHEN I call create_grid_session_async
+        # THEN it should raise ValueError
+        with pytest.raises(
+            ValueError, match="task_properties.record_set_id is missing"
+        ):
+            await task.create_grid_session_async(synapse_client=self.syn)
+
+    async def test_create_grid_session_async_file_based_missing_file_view_id(
+        self,
+    ) -> None:
+        """Verify that create_grid_session_async raises ValueError when task_properties.file_view_id is None."""
+        # GIVEN a file-based CurationTask whose file_view_id is missing
+        task = CurationTask(
+            task_id=TASK_ID,
+            task_properties=FileBasedMetadataTaskProperties(
+                upload_folder_id=UPLOAD_FOLDER_ID, file_view_id=None
+            ),
+        )
+
+        # WHEN I call create_grid_session_async
+        # THEN it should raise ValueError
+        with pytest.raises(ValueError, match="task_properties.file_view_id is missing"):
+            await task.create_grid_session_async(synapse_client=self.syn)
+
+    async def test_create_grid_session_async_record_based_record_set_not_found(
+        self,
+    ) -> None:
+        """Verify that a SynapseHTTPError from RecordSet.get_async propagates out of create_grid_session_async."""
+        from synapseclient.core.exceptions import SynapseHTTPError
+
+        # GIVEN a record-based CurationTask with a record_set_id that does not exist
+        task = CurationTask(
+            task_id=TASK_ID,
+            task_properties=RecordBasedMetadataTaskProperties(
+                record_set_id=RECORD_SET_ID
+            ),
+        )
+
+        # AND RecordSet.get_async raises SynapseHTTPError (e.g. 404)
+        with patch.object(
+            RecordSet,
+            "get_async",
+            new_callable=AsyncMock,
+            side_effect=SynapseHTTPError("404 Not Found"),
+        ):
+            # WHEN I call create_grid_session_async
+            # THEN the SynapseHTTPError propagates and no Grid is created
+            with pytest.raises(SynapseHTTPError):
+                await task.create_grid_session_async(synapse_client=self.syn)
+
+    async def test_create_grid_session_async_file_based_entity_view_not_found(
+        self,
+    ) -> None:
+        """Verify that a SynapseHTTPError from EntityView.get_async propagates out of create_grid_session_async."""
+        from synapseclient.core.exceptions import SynapseHTTPError
+
+        # GIVEN a file-based CurationTask with a file_view_id that does not exist
+        task = CurationTask(
+            task_id=TASK_ID,
+            task_properties=FileBasedMetadataTaskProperties(
+                upload_folder_id=UPLOAD_FOLDER_ID, file_view_id=FILE_VIEW_ID
+            ),
+        )
+
+        # AND EntityView.get_async raises SynapseHTTPError (e.g. 404)
+        with patch.object(
+            EntityView,
+            "get_async",
+            new_callable=AsyncMock,
+            side_effect=SynapseHTTPError("404 Not Found"),
+        ):
+            # WHEN I call create_grid_session_async
+            # THEN the SynapseHTTPError propagates and no Grid is created
+            with pytest.raises(SynapseHTTPError):
+                await task.create_grid_session_async(synapse_client=self.syn)
+
+    async def test_create_grid_session_async_unsupported_task_properties(
+        self,
+    ) -> None:
+        """Verify that create_grid_session_async raises ValueError when task_properties is not a recognized type."""
+        # GIVEN a CurationTask whose task_properties is of an unsupported type
+        task = CurationTask(task_id=TASK_ID)
+        task.task_properties = object()  # bypass dataclass typing
+
+        # WHEN I call create_grid_session_async
+        # THEN it should raise ValueError
+        with pytest.raises(
+            ValueError,
+            match="task_properties must be a FileBasedMetadataTaskProperties",
+        ):
+            await task.create_grid_session_async(synapse_client=self.syn)
+
+    async def test_create_grid_session_async_passes_authorization_mode_record_based(
+        self,
+    ) -> None:
+        """A record-based task forwards its suggested_authorization_mode to the Grid."""
+        # GIVEN a record-based task in SESSION_OWNER mode
+        task = CurationTask(
+            task_id=TASK_ID,
+            task_properties=RecordBasedMetadataTaskProperties(
+                record_set_id=RECORD_SET_ID,
+                suggested_authorization_mode="SESSION_OWNER",
+            ),
+        )
+
+        with (
+            patch.object(RecordSet, "get_async", new_callable=AsyncMock),
+            patch.object(task, "set_active_grid_session_async", new_callable=AsyncMock),
+            patch("synapseclient.models.curation.Grid") as mock_grid_cls,
+        ):
+            mock_grid = mock_grid_cls.return_value
+            mock_grid.session_id = SESSION_ID
+            mock_grid.create_async = AsyncMock(return_value=mock_grid)
+
+            # WHEN I create a grid session without an explicit owner
+            await task.create_grid_session_async(synapse_client=self.syn)
+
+            # THEN the Grid is constructed with the task's authorization mode and the
+            # owner is left to the caller (None) for the server to resolve
+            kwargs = mock_grid_cls.call_args.kwargs
+            assert kwargs["authorization_mode"] == AuthorizationMode.SESSION_OWNER
+            assert kwargs["owner_principal_id"] is None
+
+    async def test_create_grid_session_async_passes_authorization_mode_file_based(
+        self,
+    ) -> None:
+        """A file-based task forwards its suggested_authorization_mode to the Grid."""
+        # GIVEN a file-based task in SOURCE_BENEFACTOR mode
+        task = CurationTask(
+            task_id=TASK_ID,
+            task_properties=FileBasedMetadataTaskProperties(
+                upload_folder_id=UPLOAD_FOLDER_ID,
+                file_view_id=FILE_VIEW_ID,
+                suggested_authorization_mode="SOURCE_BENEFACTOR",
+            ),
+        )
+
+        with (
+            patch.object(EntityView, "get_async", new_callable=AsyncMock),
+            patch.object(task, "set_active_grid_session_async", new_callable=AsyncMock),
+            patch("synapseclient.models.curation.Grid") as mock_grid_cls,
+        ):
+            mock_grid = mock_grid_cls.return_value
+            mock_grid.session_id = SESSION_ID
+            mock_grid.create_async = AsyncMock(return_value=mock_grid)
+
+            # WHEN I create a grid session
+            await task.create_grid_session_async(synapse_client=self.syn)
+
+            # THEN the Grid is constructed with the task's authorization mode
+            assert (
+                mock_grid_cls.call_args.kwargs["authorization_mode"]
+                == AuthorizationMode.SOURCE_BENEFACTOR
+            )
+
+    async def test_create_grid_session_async_passes_explicit_owner(self) -> None:
+        """An explicit owner_principal_id is passed straight through to the Grid."""
+        # GIVEN a record-based task
+        task = CurationTask(
+            task_id=TASK_ID,
+            task_properties=RecordBasedMetadataTaskProperties(
+                record_set_id=RECORD_SET_ID,
+                suggested_authorization_mode="SESSION_OWNER",
+            ),
+        )
+
+        with (
+            patch.object(RecordSet, "get_async", new_callable=AsyncMock),
+            patch.object(task, "set_active_grid_session_async", new_callable=AsyncMock),
+            patch("synapseclient.models.curation.Grid") as mock_grid_cls,
+        ):
+            mock_grid = mock_grid_cls.return_value
+            mock_grid.session_id = SESSION_ID
+            mock_grid.create_async = AsyncMock(return_value=mock_grid)
+
+            # WHEN I create a grid session with an explicit owner
+            await task.create_grid_session_async(
+                owner_principal_id=555, synapse_client=self.syn
+            )
+
+            # THEN that owner is forwarded to the Grid unchanged
+            assert mock_grid_cls.call_args.kwargs["owner_principal_id"] == 555
+
+    async def test_list_async_assigned_to_me_and_assignee_ids_raises(self) -> None:
+        # GIVEN both assigned_to_me and assignee_ids are provided
+        # WHEN I call list_async
+        # THEN it should raise ValueError on first iteration (generators are lazy)
+        with pytest.raises(
+            ValueError, match="mutually exclusive.*Got assignee_ids=\\['123'\\]"
+        ):
+            async for _ in CurationTask.list_async(
+                project_id=PROJECT_ID,
+                assigned_to_me=True,
+                assignee_ids=["123"],
+                synapse_client=self.syn,
+            ):
+                pass  # pragma: no cover
+
+    async def test_list_async_passes_assigned_to_me_to_api(self) -> None:
+        # GIVEN assigned_to_me=True
+        async def mock_list(*args, **kwargs):
+            return
+            yield  # pragma: no cover
+
+        # WHEN I call list_async
+        with patch(
+            "synapseclient.models.curation.list_curation_tasks",
+            side_effect=mock_list,
+        ) as mock_api:
+            async for _ in CurationTask.list_async(
+                project_id=PROJECT_ID,
+                assigned_to_me=True,
+                synapse_client=self.syn,
+            ):
+                pass
+
+            # THEN the API should be called with assigned_to_me=True
+            mock_api.assert_called_once_with(
+                project_id=PROJECT_ID,
+                assigned_to_me=True,
+                assignee_ids=None,
+                state_filter=None,
+                synapse_client=self.syn,
+            )
+
+    async def test_list_async_passes_assignee_ids_to_api(self) -> None:
+        # GIVEN a list of assignee_ids
+        async def mock_list(*args, **kwargs):
+            return
+            yield  # pragma: no cover
+
+        # WHEN I call list_async
+        with patch(
+            "synapseclient.models.curation.list_curation_tasks",
+            side_effect=mock_list,
+        ) as mock_api:
+            async for _ in CurationTask.list_async(
+                project_id=PROJECT_ID,
+                assignee_ids=["111", "222"],
+                synapse_client=self.syn,
+            ):
+                pass
+
+            # THEN the API should be called with the serialized assignee_ids
+            mock_api.assert_called_once_with(
+                project_id=PROJECT_ID,
+                assigned_to_me=None,
+                assignee_ids=["111", "222"],
+                state_filter=None,
+                synapse_client=self.syn,
+            )
+
+    async def test_list_async_passes_state_filter_to_api(self) -> None:
+        # GIVEN a state_filter with TaskState enums
+        async def mock_list(*args, **kwargs):
+            return
+            yield  # pragma: no cover
+
+        # WHEN I call list_async
+        with patch(
+            "synapseclient.models.curation.list_curation_tasks",
+            side_effect=mock_list,
+        ) as mock_api:
+            async for _ in CurationTask.list_async(
+                project_id=PROJECT_ID,
+                state_filter=[TaskState.NOT_STARTED, TaskState.IN_PROGRESS],
+                synapse_client=self.syn,
+            ):
+                pass
+
+            # THEN the API should be called with serialized string values
+            mock_api.assert_called_once_with(
+                project_id=PROJECT_ID,
+                assigned_to_me=None,
+                assignee_ids=None,
+                state_filter=["NOT_STARTED", "IN_PROGRESS"],
+                synapse_client=self.syn,
+            )
+
+    async def test_list_async_state_filter_invalid_string_raises(self) -> None:
+        # GIVEN a state_filter with an invalid string value
+        # WHEN I call list_async
+        # THEN it should raise ValueError before any API call
+        with pytest.raises(ValueError, match="Invalid value"):
+            async for _ in CurationTask.list_async(
+                project_id=PROJECT_ID,
+                state_filter=["invalid"],
+                synapse_client=self.syn,
+            ):
+                pass  # pragma: no cover
+
 
 class TestGrid:
     """Unit tests for the Grid model."""
@@ -603,6 +1388,12 @@ class TestGrid:
         assert grid.last_replica_id_service == -5
         assert grid.grid_json_schema_id == "my-schema-id"
         assert grid.source_entity_id == SOURCE_ENTITY_ID
+        # AND the owner principal id is coerced from the response string to an int
+        assert grid.owner_principal_id == OWNER_PRINCIPAL_ID
+        assert isinstance(grid.owner_principal_id, int)
+        # AND the authorization mode is coerced from the string to the enum
+        assert grid.authorization_mode == AuthorizationMode.SESSION_OWNER
+        assert isinstance(grid.authorization_mode, AuthorizationMode)
 
     async def test_create_async_with_record_set_id(self) -> None:
         # GIVEN a Grid with a record_set_id
@@ -622,11 +1413,37 @@ class TestGrid:
         ):
             result = await grid.create_async(synapse_client=self.syn)
 
-            # THEN the grid should be populated with session data
+            # THEN the grid should be populated with session data, including the
+            # authorization mode coerced from the response string to the enum
             assert result.session_id == SESSION_ID
             assert result.started_by == STARTED_BY
             assert result.started_on == STARTED_ON
             assert result.source_entity_id == SOURCE_ENTITY_ID
+            assert result.authorization_mode == AuthorizationMode.SESSION_OWNER
+
+    async def test_create_async_forwards_authorization_mode_to_request(self) -> None:
+        # GIVEN a Grid with a record_set_id and an explicit authorization mode
+        grid = Grid(
+            record_set_id=RECORD_SET_ID,
+            authorization_mode=AuthorizationMode.SOURCE_BENEFACTOR,
+        )
+
+        # WHEN I call create_async (patching the CreateGridRequest the Grid builds)
+        with patch(
+            "synapseclient.models.curation.CreateGridRequest"
+        ) as mock_request_cls:
+            mock_request = mock_request_cls.return_value
+            mock_request.send_job_and_wait_async = AsyncMock(return_value=mock_request)
+            await grid.create_async(synapse_client=self.syn)
+
+            # THEN the request is constructed once with the grid's authorization mode
+            # forwarded alongside the other session parameters
+            mock_request_cls.assert_called_once_with(
+                record_set_id=RECORD_SET_ID,
+                initial_query=None,
+                owner_principal_id=None,
+                authorization_mode=AuthorizationMode.SOURCE_BENEFACTOR,
+            )
 
     async def test_create_async_no_record_set_or_query_raises(self) -> None:
         # GIVEN a Grid with neither record_set_id nor initial_query
@@ -1008,6 +1825,12 @@ class TestCreateGridRequest:
         assert grid.started_by == STARTED_BY
         assert grid.etag == GRID_ETAG
         assert grid.source_entity_id == SOURCE_ENTITY_ID
+        # AND the owner principal id is coerced from the response string to an int
+        assert grid.owner_principal_id == OWNER_PRINCIPAL_ID
+        assert isinstance(grid.owner_principal_id, int)
+        # AND the authorization mode is coerced from the response string to the enum
+        assert grid.authorization_mode == AuthorizationMode.SESSION_OWNER
+        assert isinstance(grid.authorization_mode, AuthorizationMode)
 
     def test_to_synapse_request_with_record_set_id(self) -> None:
         # GIVEN a CreateGridRequest with a record_set_id
@@ -1020,6 +1843,25 @@ class TestCreateGridRequest:
         assert "concreteType" in result
         assert result["recordSetId"] == RECORD_SET_ID
         assert "initialQuery" not in result
+        # AND the absent authorization mode is dropped by delete_none_keys
+        assert "authorizationMode" not in result
+
+    def test_to_synapse_request_with_authorization_mode(self) -> None:
+        # GIVEN a CreateGridRequest with the authorization mode supplied as a string
+        request = CreateGridRequest(
+            record_set_id=RECORD_SET_ID,
+            authorization_mode="SOURCE_BENEFACTOR",
+        )
+
+        # THEN the string is coerced to the enum on assignment by EnumCoercionMixin
+        assert request.authorization_mode == AuthorizationMode.SOURCE_BENEFACTOR
+        assert isinstance(request.authorization_mode, AuthorizationMode)
+
+        # WHEN I convert it to a synapse request
+        result = request.to_synapse_request()
+
+        # THEN the enum value is serialized back to its string form
+        assert result["authorizationMode"] == "SOURCE_BENEFACTOR"
 
 
 class TestUploadToTablePreviewRequest:

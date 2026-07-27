@@ -1,10 +1,6 @@
 [](){ #project-reference-sync }
 # Project
 
-Contained within this file are experimental interfaces for working with the Synapse Python
-Client. Unless otherwise noted these interfaces are subject to change at any time. Use
-at your own risk.
-
 ## Example Script
 
 <details class="quote">
@@ -27,6 +23,7 @@ at your own risk.
         - walk
         - sync_from_synapse
         - sync_to_synapse
+        - generate_sync_manifest
         - flatten_file_list
         - map_directory_to_all_contained_files
         - get_permissions

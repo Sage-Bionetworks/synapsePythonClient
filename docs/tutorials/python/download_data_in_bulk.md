@@ -1,9 +1,5 @@
 [](){ #tutorial-downloading-data-in-bulk }
 # Downloading data in bulk
-Contained within this tutorial is an experimental interface for working with the
-Synapse Python Client. These interfaces are subject to change at any time.
-Use at your own risk.
-
 
 This tutorial will follow a
 [Flattened Data Layout](../../explanations/structuring_your_project.md#flattened-data-layout-example).
@@ -168,6 +164,6 @@ File in single_cell_RNAseq_batch_2: SRR12345678_R2.fastq.gz
   <summary>Click to show me</summary>
 
 ```python
-{!docs/tutorials/python/tutorial_scripts/download_data_in_bulk.py!}
+--8<-- "docs/tutorials/python/tutorial_scripts/download_data_in_bulk.py"
 ```
 </details>

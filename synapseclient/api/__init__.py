@@ -21,9 +21,11 @@ from .curation_services import (
     delete_curation_task,
     delete_grid_session,
     get_curation_task,
+    get_curation_task_status,
     list_curation_tasks,
     list_grid_sessions,
     update_curation_task,
+    update_curation_task_status,
 )
 from .docker_commit_services import get_docker_tag
 from .docker_services import get_entity_id_by_repository_name
@@ -332,9 +334,11 @@ __all__ = [
     "delete_curation_task",
     "delete_grid_session",
     "get_curation_task",
+    "get_curation_task_status",
     "list_curation_tasks",
     "list_grid_sessions",
     "update_curation_task",
+    "update_curation_task_status",
     # download_list_services
     "add_to_download_list_async",
     "clear_download_list_async",

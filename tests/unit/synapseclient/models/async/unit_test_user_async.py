@@ -1,12 +1,12 @@
 """Tests for the synapseclient.models.user module."""
 
+from typing import Union
 from unittest.mock import AsyncMock, patch
 
 import pytest
 
 from synapseclient.models import UserPreference, UserProfile
 from synapseclient.models.user import UserGroupHeader
-from synapseclient.team import UserProfile as Synapse_UserProfile
 
 FIRST_NAME = "John"
 LAST_NAME = "Doe"
@@ -59,34 +59,36 @@ class TestUser:
     def init_syn(self, syn) -> None:
         self.syn = syn
 
-    def get_example_synapse_user_profile(self) -> Synapse_UserProfile:
-        return Synapse_UserProfile(
-            ownerId=123,
-            etag=ETAG,
-            firstName=FIRST_NAME,
-            lastName=LAST_NAME,
-            emails=[EMAIL],
-            openIds=OPEN_IDS,
-            userName=USER_NAME,
-            rStudioUrl=BOGUS_URL,
-            summary=SUMMARY,
-            position=POSITION,
-            location=LOCATION,
-            industry=INDUSTRY,
-            company=COMPANY,
-            profilePicureFileHandleId=PROFILE_PICTURE_FILE_HANDLE_ID,
-            url=BOGUS_URL,
-            teamName=TEAM_NAME,
-            notificationSettings={
+    def get_example_synapse_user_profile(
+        self,
+    ) -> dict[str, Union[str, int, list, dict]]:
+        return {
+            "ownerId": 123,
+            "etag": ETAG,
+            "firstName": FIRST_NAME,
+            "lastName": LAST_NAME,
+            "emails": [EMAIL],
+            "openIds": OPEN_IDS,
+            "userName": USER_NAME,
+            "rStudioUrl": BOGUS_URL,
+            "summary": SUMMARY,
+            "position": POSITION,
+            "location": LOCATION,
+            "industry": INDUSTRY,
+            "company": COMPANY,
+            "profilePicureFileHandleId": PROFILE_PICTURE_FILE_HANDLE_ID,
+            "url": BOGUS_URL,
+            "teamName": TEAM_NAME,
+            "notificationSettings": {
                 "sendEmailNotifications": True,
                 "markEmailedMessagesAsRead": False,
             },
-            preferences=[
+            "preferences": [
                 {"name": PREFERENCE_1, "value": False},
                 {"name": PREFFERENCE_2, "value": True},
             ],
-            createdOn=CREATED_ON,
-        )
+            "createdOn": CREATED_ON,
+        }
 
     def test_fill_from_dict(self) -> None:
         # GIVEN a blank user profile

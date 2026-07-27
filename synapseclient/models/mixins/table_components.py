@@ -35,6 +35,7 @@ from synapseclient.core.download.download_functions import (
     ensure_download_location_is_directory,
 )
 from synapseclient.core.exceptions import SynapseTimeoutError
+from synapseclient.core.transfer_bar import create_progress_bar
 from synapseclient.core.typing_utils import DataFrame as DATA_FRAME_TYPE
 from synapseclient.core.typing_utils import Series as SERIES_TYPE
 from synapseclient.core.upload.multipart_upload_async import (
@@ -99,7 +100,7 @@ PANDAS_TABLE_TYPE = {
 
 DEFAULT_QUOTE_CHARACTER = '"'
 DEFAULT_SEPARATOR = ","
-DEFAULT_ESCAPSE_CHAR = "\\"
+DEFAULT_ESCAPE_CHAR = "\\"
 
 # Taken from <https://github.com/Sage-Bionetworks/Synapse-Repository-Services/blob/cce01ec2c9f8ae44dabe957ca70e87942431aff5/lib/models/src/main/java/org/sagebionetworks/repo/model/table/TableConstants.java#L77>
 RESERVED_COLUMN_NAMES = [
@@ -138,10 +139,20 @@ def row_labels_from_rows(rows: List[Row]) -> List[Row]:
     )
 
 
-def convert_dtypes_to_json_serializable(df):
+def convert_dtypes_to_json_serializable(df) -> "DATA_FRAME_TYPE":
     """
-    Convert the dtypes of the int64 and float64 columns to object columns which are JSON serializable types.
-    Also, convert the ROW_ID, ROW_VERSION, and ROW_ID.1 columns to int columns which are JSON serializable types.
+    Prepare a DataFrame for JSON/CSV serialization by cleaning special values
+    and normalizing dtypes. Mutates the passed-in DataFrame in place (and also
+    returns it).
+
+    - Recursively replaces `Ellipsis` with `"..."` and `pd.NA`/`np.nan`/`None`
+      with `None` inside nested `list`/`dict` values.
+    - Converts top-level `Ellipsis` to `"..."` and top-level `pd.NA`/`np.nan`/
+      `None` to `None`.
+    - Runs `convert_dtypes()` then casts every column to `object` dtype (with
+      `pd.NA` -> `None`), except `ROW_ID`, `ROW_VERSION`, and `ROW_ID.1`, which
+      are cast back to `int` since the Synapse API requires them as integers.
+
     Arguments:
         df: The dataframe to convert the dtypes of.
     Returns:
@@ -163,16 +174,66 @@ def convert_dtypes_to_json_serializable(df):
             "datetime_list_col": [[datetime(2021, 1, 1), datetime(2021, 1, 2), datetime(2021, 1, 3)], [datetime(2021, 1, 4), datetime(2021, 1, 5), datetime(2021, 1, 6)], None, [datetime(2021, 1, 7), datetime(2021, 1, 8), datetime(2021, 1, 9)]],
             "entityid_list_col": [["syn123", "syn456", None], ["syn101", "syn102", "syn103"], None, ["syn104", "syn105", "syn106"]],
             "userid_list_col": [["user1", "user2", "user3"], ["user4", "user5", None], None, ["user7", "user8", "user9"]],
+            "json_col_with_quotes": [
+                {
+                    "id": 1,
+                    "description": 'Text with "quotes" in the description field',
+                    "references": []
+                },
+                {
+                    "id": 2,
+                    "description": 'Another description with "quoted text" here',
+                    "references": ["ref1", "ref2"]
+                },
+                {
+                    "id": 3,
+                    "description": 'Description containing "multiple" quoted "words"',
+                    "references": [...]
+                },
+                {
+                    "id": 4,
+                    "description": 'Description containing apostrophes sage\'s',
+                    "references": [...]
+                }
+
+            ],
         }).convert_dtypes()
         df = convert_dtypes_to_json_serializable(df)
         print(df)
     """
+    test_import_pandas()
     import pandas as pd
 
+    def _serialize_json_value(x):
+        if isinstance(x, (list, dict)):
+
+            def _reformat_special_values(obj):
+                if obj is ...:
+                    return "..."
+                if isinstance(obj, dict):
+                    return {k: _reformat_special_values(v) for k, v in obj.items()}
+                if isinstance(obj, list):
+                    return [_reformat_special_values(item) for item in obj]
+                # Catch pd.NA, np.nan, and None — none are valid JSON
+                if pd.isna(obj):
+                    return None
+                return obj
+
+            return _reformat_special_values(x)
+        # Handle standalone ellipsis
+        if x is ...:
+            return "..."
+        # Handle top-level pd.NA, np.nan, None
+        if pd.isna(x):
+            return None
+        return x
+
     for col in df.columns:
-        df[col] = (
-            df[col].replace({pd.NA: None}).astype(object)
-        )  # this will convert the int64 and float64 columns to object columns
+        df[col] = df[col].apply(_serialize_json_value)
+        # restore the original values of the column especially for the int64 and float64 columns since apply function changes the dtype
+        df[col] = df[col].convert_dtypes()
+        df[col] = df[col].replace({pd.NA: None}).astype(object)
+
         # Convert ROW_ prefixed columns back to int (like ROW_ID, ROW_VERSION)
         if col in [
             "ROW_ID",
@@ -426,7 +487,7 @@ async def _table_query(
             query=query,
             synapse_client=synapse_client,
             quote_character=kwargs.get("quote_character", DEFAULT_QUOTE_CHARACTER),
-            escape_character=kwargs.get("escape_character", DEFAULT_ESCAPSE_CHAR),
+            escape_character=kwargs.get("escape_character", DEFAULT_ESCAPE_CHAR),
             line_end=kwargs.get("line_end", str(os.linesep)),
             separator=kwargs.get("separator", DEFAULT_SEPARATOR),
             header=kwargs.get("header", True),
@@ -1631,6 +1692,191 @@ class ColumnMixin:
     """Mixin class providing methods for upserting data into a `Table`-like entity."""
 
 
+def _format_primary_key_value_for_where(value: Any, column_type: ColumnType) -> str:
+    """
+    Format a single primary-key value as a SQL literal for use in the WHERE clause
+    of an upsert query.
+
+    Arguments:
+        value: The value to format.
+        column_type: The Synapse column type of the primary key column.
+
+    Returns:
+        The value formatted as a SQL literal (quoted for string-like and boolean
+        columns, unquoted otherwise). Single quotes embedded in string-like values
+        are escaped by doubling them.
+    """
+    if column_type in (
+        ColumnType.STRING,
+        ColumnType.MEDIUMTEXT,
+        ColumnType.LARGETEXT,
+        ColumnType.LINK,
+        ColumnType.ENTITYID,
+    ):
+        escaped_value = str(value).replace("'", "''")
+        return f"'{escaped_value}'"
+    elif column_type == ColumnType.BOOLEAN:
+        return "'true'" if value else "'false'"
+    else:
+        return str(value)
+
+
+def _construct_single_key_where_statement(
+    entity: TableBase,
+    df: DATA_FRAME_TYPE,
+    primary_key: str,
+) -> str:
+    """
+    Build the WHERE clause used to match rows on a single-column primary key.
+
+    A single primary key can be matched with a simple IN clause. There is no
+    cross-product risk with a single column.
+
+    This will look something like: primary_key IN ('val1', 'val2')
+
+    Primary key values MUST BE non-null
+
+    Arguments:
+        entity: The table entity whose column types are used to format values.
+        df: The DataFrame that contains the data to be upserted.
+        primary_key: The column that is the primary key for this table
+
+    Returns:
+        The WHERE clause matching every unique primary key value in the DataFrame.
+    """
+    column_type = entity.columns[primary_key].column_type
+    values = {
+        _format_primary_key_value_for_where(value, column_type)
+        for value in df[primary_key]
+    }
+    return f"\"{primary_key}\" IN ({', '.join(sorted(values))})"
+
+
+def _construct_composite_key_conditions(
+    entity: TableBase,
+    primary_keys: list[str],
+    row: tuple,
+) -> list[str]:
+    """
+    Build the per-column conditions matching a single primary key tuple.
+
+    Arguments:
+        entity: The table entity whose column types are used to format values.
+        primary_keys: A list of the columns that are used to determine if a row
+            already exists in the table.
+        row: The primary key values for a single row, in the same order as
+            primary_keys.
+
+    Returns:
+        A list of SQL conditions, one per primary key column.
+    """
+    conditions = []
+    for upsert_column, value in zip(primary_keys, row):
+        column_type = entity.columns[upsert_column].column_type
+        formatted_value = _format_primary_key_value_for_where(value, column_type)
+        conditions.append(f'"{upsert_column}" = {formatted_value}')
+    return conditions
+
+
+def _construct_composite_key_where_statement(
+    entity: TableBase,
+    df: DATA_FRAME_TYPE,
+    primary_keys: list[str],
+) -> str:
+    """
+    Build the WHERE clause used to match rows on a composite (multi-column)
+    primary key.
+
+    Composite primary keys must be matched as exact key tuples using OR-of-ANDs.
+    Filtering each key column independently (e.g. "a" IN (...) AND "b" IN (...))
+    would match the cross-product of key values and could return rows whose exact
+    key combination is not present in the input. e.g.
+        ("a" = 'x' AND "b" = 'y') OR ("a" = 'p' AND "b" = 'q')
+
+    Primary key values MUST BE non-null,
+
+    Arguments:
+        entity: The table entity whose column types are used to format values.
+        df: The DataFrame that contains the data to be upserted.
+        primary_keys: A list of the columns that are used to determine if a row
+            already exists in the table.
+
+    Returns:
+        The WHERE clause matching every unique primary key tuple in the DataFrame.
+        Duplicate key tuples are de-duplicated so each tuple appears only once.
+    """
+    row_clauses = []
+    primary_key_tuples = set()
+    for row in df[primary_keys].itertuples(index=False, name=None):
+        if row in primary_key_tuples:
+            continue
+        primary_key_tuples.add(row)
+        conditions = _construct_composite_key_conditions(entity, primary_keys, row)
+        row_clauses.append("(" + " AND ".join(conditions) + ")")
+    return " OR ".join(row_clauses)
+
+
+def _validate_primary_keys(
+    values: DATA_FRAME_TYPE,
+    primary_keys: list[str],
+) -> None:
+    """
+    Validate the primary key columns used for an upsert.
+
+    Every primary key must be a column in the data being upserted, and none of the
+    primary key columns may contain null values. A null value cannot identify an
+    existing row, so a null primary key can never be matched for update. Rejecting
+    null primary keys up front avoids silently treating those rows as inserts, which
+    would not be idempotent.
+
+    Arguments:
+        values: The DataFrame that contains the data to be upserted.
+        primary_keys: A list of the columns that are used to determine if a row
+            already exists in the table.
+
+    Raises:
+        ValueError: If no primary keys are provided, if any primary key is not a
+            string, if a primary key column is not present in the data, or if any
+            row has a null value in one of the primary key columns.
+    """
+    if not primary_keys:
+        raise ValueError(
+            "At least one primary key column must be provided for upsert, but "
+            "the primary_keys argument was empty. Specify the column(s) that "
+            "uniquely identify a row before upserting."
+        )
+
+    non_string_primary_keys = [key for key in primary_keys if not isinstance(key, str)]
+    if non_string_primary_keys:
+        raise ValueError(
+            "Primary key columns used for upsert must be strings, but the "
+            "following primary key(s) are not strings: "
+            f"{non_string_primary_keys}. Provide the column name(s) as strings "
+            "before upserting."
+        )
+
+    missing_primary_key_columns = [
+        key for key in primary_keys if key not in values.columns
+    ]
+    if missing_primary_key_columns:
+        raise ValueError(
+            "Primary key columns used for upsert must be present in the data being "
+            "upserted, but the following primary key column(s) are missing: "
+            f"{missing_primary_key_columns}. Add these columns to the data or update "
+            "the primary_keys argument before upserting."
+        )
+
+    null_primary_key_columns = [key for key in primary_keys if values[key].isna().any()]
+    if null_primary_key_columns:
+        raise ValueError(
+            "Primary key columns used for upsert must not contain null values, but "
+            "null values were found in the following primary key column(s): "
+            f"{null_primary_key_columns}. A null primary key cannot be matched "
+            "against an existing row. Remove these rows or populate the primary key "
+            "values before upserting."
+        )
+
+
 def _construct_select_statement_for_upsert(
     entity: TableBase,
     df: DATA_FRAME_TYPE,
@@ -1643,6 +1889,8 @@ def _construct_select_statement_for_upsert(
     from Synapse to determine if a row already exists in the table. This is used
     in the upsert method to determine if a row should be updated or inserted.
 
+    Primary key values MUST BE non-null.
+
     Arguments:
         df: The DataFrame that contains the data to be upserted.
         all_columns_from_df: A list of all the columns in the DataFrame.
@@ -1654,7 +1902,7 @@ def _construct_select_statement_for_upsert(
 
     Returns:
         The select statement that can be used to query Synapse to determine if a row
-        already exists in the
+        already exists in the table.
     """
 
     if entity.__class__.__name__ in CLASSES_THAT_CONTAIN_ROW_ETAG:
@@ -1670,7 +1918,7 @@ def _construct_select_statement_for_upsert(
         select_statement = "SELECT ROW_ID, "
 
     select_statement += f"{', '.join(all_columns_from_df)} FROM {entity.id} WHERE "
-    where_statements = []
+
     for upsert_column in primary_keys:
         column_model = entity.columns[upsert_column]
         if (
@@ -1687,46 +1935,16 @@ def _construct_select_statement_for_upsert(
             raise ValueError(
                 f"Column type {column_model.column_type} is not supported for primary_keys"
             )
-        elif column_model.column_type in (
-            ColumnType.STRING,
-            ColumnType.MEDIUMTEXT,
-            ColumnType.LARGETEXT,
-            ColumnType.LINK,
-            ColumnType.ENTITYID,
-        ):
-            values_for_where_statement = set(
-                [f"'{value}'" for value in df[upsert_column] if value is not None]
-            )
 
-        elif column_model.column_type == ColumnType.BOOLEAN:
-            include_true = False
-            include_false = False
-            for value in df[upsert_column]:
-                if value is None:
-                    continue
-                if value:
-                    include_true = True
-                else:
-                    include_false = True
-                if include_true and include_false:
-                    break
-            if include_true and include_false:
-                values_for_where_statement = ["'true'", "'false'"]
-            elif include_true:
-                values_for_where_statement = ["'true'"]
-            elif include_false:
-                values_for_where_statement = ["'false'"]
-        else:
-            values_for_where_statement = set(
-                [str(value) for value in df[upsert_column] if value is not None]
-            )
-        if not values_for_where_statement:
-            continue
-        where_statements.append(
-            f"\"{upsert_column}\" IN ({', '.join(values_for_where_statement)})"
+    if len(primary_keys) == 1:
+        where_statement = _construct_single_key_where_statement(
+            entity, df, primary_keys[0]
+        )
+    else:
+        where_statement = _construct_composite_key_where_statement(
+            entity, df, primary_keys
         )
 
-    where_statement = " AND ".join(where_statements)
     select_statement += where_statement
     return select_statement
 
@@ -1973,11 +2191,10 @@ async def _wait_for_eventually_consistent_changes(
                         original_synids_and_etags_to_track.get(entity_with_change)
                     )
         number_of_changes_to_wait_for = len(etags_to_track)
-        progress_bar = tqdm(
+        progress_bar = create_progress_bar(
             total=number_of_changes_to_wait_for,
             desc="Waiting for eventually-consistent changes to show up in the view",
-            unit_scale=True,
-            smoothing=0,
+            synapse_client=synapse_client,
         )
         start_time = time.time()
 
@@ -2014,7 +2231,7 @@ async def _wait_for_eventually_consistent_changes(
 
 async def _upsert_rows_async(
     entity: Union[TableBase, ViewBase],
-    values: DATA_FRAME_TYPE,
+    values: Union[str, Dict[str, Any], DATA_FRAME_TYPE],
     primary_keys: List[str],
     dry_run: bool = False,
     *,
@@ -2062,6 +2279,18 @@ async def _upsert_rows_async(
     client = Synapse.get_client(synapse_client=synapse_client)
     # Replace pd.NA with None so the columns are converted to object columns instead of 'int64' or 'float64' which are not JSON serializable
     values = convert_dtypes_to_json_serializable(values)
+
+    _validate_primary_keys(values, primary_keys)
+
+    # An empty input is a no-op: there are no rows to match, update, or insert.
+    # Returning early also avoids constructing a WHERE clause from an empty
+    # DataFrame, which would produce malformed SQL.
+    if values.empty:
+        client.logger.info(
+            f"[{entity.id}:{entity.name}]: No rows provided to upsert. Nothing to do."
+        )
+        return
+
     rows_to_update: List[PartialRow] = []
     chunk_list: List[DataFrame] = []
     for i in range(0, len(values), rows_per_query):
@@ -2074,11 +2303,10 @@ async def _upsert_rows_async(
     total_row_count_to_update = 0
     row_update_results = None
     with logging_redirect_tqdm(loggers=[client.logger]):
-        progress_bar = tqdm(
+        progress_bar = create_progress_bar(
             total=len(values),
             desc="Querying & Updating rows",
-            unit_scale=True,
-            smoothing=0,
+            synapse_client=client,
         )
         for individual_chunk in chunk_list:
             select_statement = _construct_select_statement_for_upsert(
@@ -2224,6 +2452,11 @@ class TableUpsertMixin:
         - The `primary_keys` argument must contain at least one column.
         - The `primary_keys` argument cannot contain columns that are a LIST type.
         - The `primary_keys` argument cannot contain columns that are a JSON type.
+        - The `primary_keys` columns must be present in the data being upserted. A
+            ValueError is raised if a primary key column is missing.
+        - The values in the primary_keys columns cannot be null. A null value cannot
+            be used to match an existing row, so a ValueError is raised if any row
+            has a null value in a primary key column.
         - The values used as the `primary_keys` must be unique in the table. If there
             are multiple rows with the same values in the `primary_keys` the behavior
             is that an exception will be raised.
@@ -2294,7 +2527,7 @@ class TableUpsertMixin:
                 set the log level to DEBUG by setting the debug flag when creating
                 your Synapse class instance like: `syn = Synapse(debug=True)`.
 
-            rows_per_query: The number of rows that will be queries from Synapse per
+            rows_per_query: The number of rows that will be queried from Synapse per
                 request. Since we need to query for the data that is being updated
                 this will determine the number of rows that are queried at a time.
                 The default is 50,000 rows.
@@ -2456,6 +2689,11 @@ class ViewUpdateMixin:
         - The `primary_keys` argument must contain at least one column.
         - The `primary_keys` argument cannot contain columns that are a LIST type.
         - The `primary_keys` argument cannot contain columns that are a JSON type.
+        - The `primary_keys` columns must be present in the data being upserted. A
+            ValueError is raised if a primary key column is missing.
+        - The values in the primary_keys columns cannot be null. A null value cannot
+            be used to match an existing row, so a ValueError is raised if any row
+            has a null value in a primary key column.
         - The values used as the `primary_keys` must be unique in the table. If there
             are multiple rows with the same values in the `primary_keys` the behavior
             is that an exception will be raised.
@@ -2809,7 +3047,6 @@ class QueryMixin(QueryMixinSynchronousProtocol):
             timeout=timeout,
             synapse_client=synapse_client,
         )
-
         if download_location:
             return csv_path
 
@@ -2852,7 +3089,7 @@ class QueryMixin(QueryMixinSynchronousProtocol):
             filepath=csv_path,
             separator=separator or DEFAULT_SEPARATOR,
             quote_char=quote_character or DEFAULT_QUOTE_CHARACTER,
-            escape_char=escape_character or DEFAULT_ESCAPSE_CHAR,
+            escape_char=escape_character or DEFAULT_ESCAPE_CHAR,
             row_id_and_version_in_index=False,
             date_columns=date_columns if date_columns else None,
             list_columns=list_columns if list_columns else None,
@@ -3387,7 +3624,9 @@ class TableStoreRowMixin:
                 function when writing the data to a CSV file. This is only used when
                 the `values` argument is a Pandas DataFrame. See
                 <https://pandas.pydata.org/docs/reference/api/pandas.DataFrame.to_csv.html>
-                for complete list of supported arguments.
+                for complete list of supported arguments. Any kwargs you supply are
+                merged on top of the default `{"escapechar": "\\"}`, so you only need
+                to override `escapechar` explicitly if you want different behavior.
 
             job_timeout: The maximum amount of time to wait for a job to complete.
                 This is used when inserting, and updating rows of data. Each individual
@@ -3559,6 +3798,8 @@ class TableStoreRowMixin:
         """
         test_import_pandas()
         from pandas import DataFrame
+
+        to_csv_kwargs = {"escapechar": DEFAULT_ESCAPE_CHAR, **(to_csv_kwargs or {})}
 
         original_values = values
         if isinstance(values, dict):
@@ -3786,6 +4027,7 @@ class TableStoreRowMixin:
                 "AppendableRowSetRequest",
             ]
         ] = None,
+        to_csv_kwargs: Optional[Dict[str, Any]] = None,
     ) -> None:
         """
         Organize the process of reading in and uploading parts of the DataFrame we are
@@ -3816,6 +4058,8 @@ class TableStoreRowMixin:
                 being uploaded.
             changes: Additional changes to the table that should
                 execute within this transaction.
+            to_csv_kwargs: Additional arguments to pass to the `pd.DataFrame.to_csv`
+                function when writing the data to a CSV file.
         """
         file_handle_id = await multipart_upload_dataframe_async(
             syn=client,
@@ -3828,6 +4072,7 @@ class TableStoreRowMixin:
             line_start=line_start,
             line_end=line_end,
             bytes_to_prepend=header,
+            to_csv_kwargs=to_csv_kwargs,
         )
         # We are using a semaphore here because large tables can take a very long time
         # for the update to complete. This will allow us to wait for the update to
@@ -3892,13 +4137,11 @@ class TableStoreRowMixin:
                 job_timeout=job_timeout,
             )
 
-            progress_bar = tqdm(
+            progress_bar = create_progress_bar(
                 total=file_size,
                 desc="Splitting CSV and uploading chunks",
-                unit_scale=True,
-                smoothing=0,
                 unit="B",
-                leave=None,
+                synapse_client=client,
             )
             # The original file is read twice, the reason is that on the first pass we
             # are calculating the size of the chunks that we will be uploading and the
@@ -4031,8 +4274,8 @@ class TableStoreRowMixin:
             to_csv_kwargs: Additional arguments to pass to the `pd.DataFrame.to_csv`
                 function when writing the data to a CSV file.
         """
+        df = convert_dtypes_to_json_serializable(df)
         # Loop over the rows of the DF to determine the size/boundries we'll be uploading
-
         chunks_to_upload = []
         size_of_chunk = 0
         buffer = BytesIO()
@@ -4086,17 +4329,15 @@ class TableStoreRowMixin:
         client.logger.info(
             f"[{self.id}:{self.name}]: Found {len(chunks_to_upload)} chunks to upload into table"
         )
-        progress_bar = tqdm(
+        progress_bar = create_progress_bar(
             total=total_df_bytes,
             desc=(
                 "Splitting DataFrame and uploading chunks"
                 if len(chunks_to_upload) > 1
                 else "Uploading DataFrame"
             ),
-            unit_scale=True,
-            smoothing=0,
             unit="B",
-            leave=None,
+            synapse_client=client,
         )
 
         changes = []
@@ -4142,6 +4383,7 @@ class TableStoreRowMixin:
                         header=header_line,
                         changes=changes,
                         file_suffix=f"{part}",
+                        to_csv_kwargs=to_csv_kwargs,
                     )
                 )
             )
@@ -4439,7 +4681,7 @@ def csv_to_pandas_df(
     filepath: Union[str, BytesIO],
     separator: str = DEFAULT_SEPARATOR,
     quote_char: str = DEFAULT_QUOTE_CHARACTER,
-    escape_char: str = DEFAULT_ESCAPSE_CHAR,
+    escape_char: str = DEFAULT_ESCAPE_CHAR,
     contain_headers: bool = True,
     lines_to_skip: int = 0,
     date_columns: Optional[List[str]] = None,
@@ -4462,7 +4704,7 @@ def csv_to_pandas_df(
                     Passed as `quotechar` to pandas. If `quotechar` is supplied as a `kwarg`
                     it will be used instead of this `quote_char` argument.
         escape_char: The escape character for the file,
-                    Defaults to `DEFAULT_ESCAPSE_CHAR`.
+                    Defaults to `DEFAULT_ESCAPE_CHAR`.
         contain_headers: Whether the file contains headers,
                     Defaults to `True`.
         lines_to_skip: The number of lines to skip at the beginning of the file,
@@ -4514,10 +4756,14 @@ def csv_to_pandas_df(
     # Turn list columns into lists and convert items to their proper types
     if list_columns:
         for col in list_columns:
-            # Fill NA values with empty lists, it must be a string for json.loads to work
-            # json.loads will convert null values in boolean list, string list to None.
-            df.fillna({col: "[]"}, inplace=True)
-            df[col] = df[col].apply(json.loads)
+            # A CSV cell for a list column is either a JSON string like "[1, 2]"
+            # or NA. When every value is NA, convert_dtypes() infers a typed
+            # dtype (e.g. Int64) into which the string "[]" cannot be written,
+            # so fillna({col: "[]"}) raises. Parse strings and substitute []
+            # for NA in a single pass.
+            df[col] = df[col].apply(
+                lambda x: json.loads(x) if isinstance(x, str) else []
+            )
             # Convert list items to their proper types based on column type
             if list_column_types and col in list_column_types:
                 column_type = list_column_types[col]
