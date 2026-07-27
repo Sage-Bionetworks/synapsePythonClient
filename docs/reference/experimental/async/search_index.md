@@ -27,4 +27,3 @@
 ::: synapseclient.models.SearchFieldValue
 ::: synapseclient.models.SearchHighlight
 ::: synapseclient.models.SearchIndexState
-::: synapseclient.models.SearchIndexStatus
