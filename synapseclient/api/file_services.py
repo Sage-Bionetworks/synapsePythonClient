@@ -544,3 +544,43 @@ def get_file_handle_for_download(
             f"associated with the Synapse {entity_type}: {synapse_id}"
         )
     return result
+
+
+async def post_file_handles_copy(
+    copy_requests: list[dict[str, Any]],
+    *,
+    synapse_client: Optional["Synapse"] = None,
+) -> list[dict[str, Any]]:
+    """
+    Copy a batch of file handles. Requests are automatically submitted in batches
+    of MAX_FILE_HANDLE_PER_COPY_REQUEST.
+
+    <https://rest-docs.synapse.org/rest/POST/filehandles/copy.html>
+
+    Arguments:
+        copy_requests: A list of copy requests, each matching
+            <https://rest-docs.synapse.org/rest/org/sagebionetworks/repo/model/file/FileHandleCopyRequest.html>
+        synapse_client: If not passed in and caching was not disabled by
+                `Synapse.allow_client_caching(False)` this will use the last created
+                instance from the Synapse class constructor.
+
+    Returns:
+        A list of copy results matching
+            <https://rest-docs.synapse.org/rest/org/sagebionetworks/repo/model/file/FileHandleCopyResult.html>.
+            Failed copies include a failureCode of UNAUTHORIZED or NOT_FOUND.
+    """
+    from synapseclient import Synapse
+    from synapseclient.core.constants.limits import MAX_FILE_HANDLE_PER_COPY_REQUEST
+
+    client = Synapse.get_client(synapse_client=synapse_client)
+
+    copy_results = []
+    for start in range(0, len(copy_requests), MAX_FILE_HANDLE_PER_COPY_REQUEST):
+        batch = copy_requests[start : start + MAX_FILE_HANDLE_PER_COPY_REQUEST]
+        response = await client.rest_post_async(
+            "/filehandles/copy",
+            body=json.dumps({"copyRequests": batch}),
+            endpoint=client.fileHandleEndpoint,
+        )
+        copy_results.extend(response.get("copyResults", []))
+    return copy_results

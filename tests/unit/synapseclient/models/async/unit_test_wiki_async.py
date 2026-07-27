@@ -1,9 +1,10 @@
 """Tests for the synapseclient.models.wiki classes."""
 
+import contextlib
 import copy
 import os
 from typing import Any, AsyncGenerator, Dict
-from unittest.mock import AsyncMock, Mock, call, mock_open, patch
+from unittest.mock import ANY, AsyncMock, Mock, call, mock_open, patch
 
 import pytest
 
@@ -15,6 +16,13 @@ from synapseclient.models.wiki import (
     WikiHistorySnapshot,
     WikiOrderHint,
     WikiPage,
+    _collect_wiki_sub_tree_headers,
+    _copy_wiki_pages,
+    _ensure_destination_has_no_root_wiki,
+    _get_existing_destination_wiki_page,
+    _update_internal_links,
+    _update_synapse_id_references,
+    _validate_and_format_copy_inputs,
 )
 
 
@@ -2166,3 +2174,1248 @@ class TestWikiPage:
 
             # AND the result should be the markdown URL
             assert results == "https://example.com/markdown_latest.md"
+
+
+class TestWikiPageCopy:
+    """Tests for the WikiPage.copy_async method."""
+
+    @pytest.fixture(autouse=True, scope="function")
+    def init_syn(self, syn: Synapse) -> None:
+        self.syn = syn
+
+    @staticmethod
+    def _header_generator(
+        headers: list,
+    ) -> AsyncGenerator[Dict[str, str], None]:
+        """Return an async generator yielding the given wiki headers."""
+
+        async def generator() -> AsyncGenerator[Dict[str, str], None]:
+            for header in headers:
+                yield header
+
+        return generator()
+
+    async def test_copy_async_missing_owner_id(self) -> None:
+        # WHEN I call `copy_async` on a WikiPage without owner_id
+        # THEN it should raise ValueError before calling the API
+        with patch("synapseclient.models.wiki.get_wiki_header_tree") as mocked_get:
+            with pytest.raises(
+                ValueError, match="Must provide owner_id to copy a wiki."
+            ):
+                await WikiPage().copy_async(
+                    destination_owner_id="syn456", synapse_client=self.syn
+                )
+            mocked_get.assert_not_called()
+
+    @pytest.mark.parametrize(
+        "destination_owner_id", [None, "", "project123", "syn", "syn123abc"]
+    )
+    async def test_copy_async_invalid_destination_owner_id(
+        self, destination_owner_id
+    ) -> None:
+        # WHEN I call `copy_async` with a missing or malformed destination_owner_id
+        # THEN it should raise ValueError before calling the API
+        with patch("synapseclient.models.wiki.get_wiki_header_tree") as mocked_get:
+            with pytest.raises(
+                ValueError, match="destination_owner_id must be a Synapse ID"
+            ):
+                await WikiPage(owner_id="syn123").copy_async(
+                    destination_owner_id=destination_owner_id,
+                    synapse_client=self.syn,
+                )
+            mocked_get.assert_not_called()
+
+    async def test_copy_async_invalid_entity_map(self) -> None:
+        # WHEN I call `copy_async` with an entity_map containing a value that
+        # is not a Synapse ID
+        # THEN it should raise ValueError before calling the API
+        with patch("synapseclient.models.wiki.get_wiki_header_tree") as mocked_get:
+            with pytest.raises(
+                ValueError, match="entity_map values must be Synapse IDs"
+            ):
+                await WikiPage(owner_id="syn123").copy_async(
+                    destination_owner_id="syn456",
+                    entity_map={"syn111": "not_an_id"},
+                    synapse_client=self.syn,
+                )
+            mocked_get.assert_not_called()
+
+    async def test_copy_async_source_without_wiki_returns_empty_list(self) -> None:
+        # GIVEN a source entity whose wiki header tree request fails with a 404
+        with patch(
+            "synapseclient.models.wiki.get_wiki_header_tree",
+            side_effect=SynapseHTTPError(response=Mock(status_code=404)),
+        ):
+            # WHEN I call `copy_async`
+            results = await WikiPage(owner_id="syn123").copy_async(
+                destination_owner_id="syn456", synapse_client=self.syn
+            )
+
+        # THEN an empty list should be returned instead of raising
+        assert results == []
+
+    async def test_copy_async_header_tree_error_propagates(self) -> None:
+        # GIVEN a source entity whose wiki header tree request fails with a
+        # non-404 error
+        with (
+            patch(
+                "synapseclient.models.wiki.get_wiki_header_tree",
+                side_effect=SynapseHTTPError(response=Mock(status_code=500)),
+            ),
+            # WHEN I call `copy_async`
+            # THEN the error should be re-raised
+            pytest.raises(SynapseHTTPError),
+        ):
+            await WikiPage(owner_id="syn123").copy_async(
+                destination_owner_id="syn456", synapse_client=self.syn
+            )
+
+    async def test_copy_async_unknown_sub_page_id_raises_value_error(self) -> None:
+        # GIVEN a source wiki whose header tree does not contain the requested
+        # page and a destination without an existing wiki
+        with (
+            patch(
+                "synapseclient.models.wiki.get_wiki_header_tree",
+                side_effect=lambda **kwargs: self._header_generator(
+                    [{"id": "8688", "title": "Root"}]
+                ),
+            ),
+            patch(
+                "synapseclient.models.wiki.get_wiki_page",
+                new_callable=AsyncMock,
+                side_effect=SynapseHTTPError(response=Mock(status_code=404)),
+            ),
+            # WHEN I call `copy_async` with an id that is not in the tree
+            # THEN it should raise ValueError
+            pytest.raises(
+                ValueError,
+                match="The wiki page 9999 does not exist in the owner entity syn123.",
+            ),
+        ):
+            await WikiPage(owner_id="syn123", id="9999").copy_async(
+                destination_owner_id="syn456", synapse_client=self.syn
+            )
+
+    async def test_copy_async_sub_page_id_on_source_without_wiki_raises_value_error(
+        self,
+    ) -> None:
+        # GIVEN a source entity without a wiki, so the header tree request
+        # fails with a 404
+        with (
+            patch(
+                "synapseclient.models.wiki.get_wiki_header_tree",
+                side_effect=SynapseHTTPError(response=Mock(status_code=404)),
+            ),
+            # WHEN I call `copy_async` with an id set
+            # THEN it should raise ValueError instead of returning an empty list
+            pytest.raises(
+                ValueError,
+                match="The wiki page 9999 does not exist in the owner entity syn123.",
+            ),
+        ):
+            await WikiPage(owner_id="syn123", id="9999").copy_async(
+                destination_owner_id="syn456", synapse_client=self.syn
+            )
+
+    @pytest.mark.parametrize(
+        "entity_sub_page_id,destination_sub_page_id",
+        [("8688", "4"), (8688.0, 4.0)],
+    )
+    async def test_copy_async_sub_page_id_coercion(
+        self, entity_sub_page_id, destination_sub_page_id
+    ) -> None:
+        # GIVEN a copy request with sub page IDs given as numeric strings or floats
+        headers = [{"id": "8688", "title": "Root"}]
+        with (
+            patch(
+                "synapseclient.models.wiki.get_wiki_header_tree",
+                side_effect=lambda **kwargs: self._header_generator(headers),
+            ),
+            patch(
+                "synapseclient.models.wiki.get_wiki_page",
+                new_callable=AsyncMock,
+                return_value={"id": "4", "title": "Existing"},
+            ) as mocked_get_page,
+            patch(
+                "synapseclient.models.wiki._collect_wiki_sub_tree_headers",
+                return_value=None,
+            ) as mocked_collect,
+        ):
+            # WHEN I call `copy_async`
+            with pytest.raises(
+                ValueError,
+                match="The wiki page 8688 does not exist in the owner entity syn123.",
+            ):
+                await WikiPage(owner_id="syn123", id=entity_sub_page_id).copy_async(
+                    destination_owner_id="syn456",
+                    destination_sub_page_id=destination_sub_page_id,
+                    synapse_client=self.syn,
+                )
+
+            # THEN both IDs should be coerced to integer strings
+            mocked_get_page.assert_called_once_with(
+                owner_id="syn456", wiki_id="4", synapse_client=self.syn
+            )
+            mocked_collect.assert_called_once_with(
+                wiki_headers=headers, sub_page_id="8688"
+            )
+
+    @pytest.mark.parametrize(
+        "entity_sub_page_id,destination_sub_page_id",
+        [("some_string", None), (None, "some_string")],
+    )
+    async def test_copy_async_non_numeric_ids_raise_value_error(
+        self, entity_sub_page_id, destination_sub_page_id
+    ) -> None:
+        # WHEN I call `copy_async` with a non-numeric sub page ID
+        # THEN it should raise ValueError before calling the API
+        with patch("synapseclient.models.wiki.get_wiki_header_tree") as mocked_get:
+            with pytest.raises(ValueError):
+                await WikiPage(owner_id="syn123", id=entity_sub_page_id).copy_async(
+                    destination_owner_id="syn456",
+                    destination_sub_page_id=destination_sub_page_id,
+                    synapse_client=self.syn,
+                )
+            mocked_get.assert_not_called()
+
+    async def test_copy_async_destination_page_error_propagates(self) -> None:
+        # GIVEN a destination page check that fails with a non-404 error
+        with (
+            patch(
+                "synapseclient.models.wiki.get_wiki_header_tree",
+                side_effect=lambda **kwargs: self._header_generator(
+                    [{"id": "8688", "title": "Root"}]
+                ),
+            ),
+            patch(
+                "synapseclient.models.wiki.get_wiki_page",
+                new_callable=AsyncMock,
+                side_effect=SynapseHTTPError(response=Mock(status_code=403)),
+            ),
+            # WHEN I call `copy_async`
+            # THEN the error should be re-raised
+            pytest.raises(SynapseHTTPError),
+        ):
+            await WikiPage(owner_id="syn123").copy_async(
+                destination_owner_id="syn456",
+                destination_sub_page_id="4",
+                synapse_client=self.syn,
+            )
+
+    async def test_copy_async_nonexistent_destination_sub_page_raises_value_error(
+        self,
+    ) -> None:
+        # GIVEN a source wiki with a single root page and a destination sub
+        # page ID that does not exist in the destination
+        with (
+            patch(
+                "synapseclient.models.wiki.get_wiki_header_tree",
+                side_effect=lambda **kwargs: self._header_generator(
+                    [{"id": "8688", "title": "Root"}]
+                ),
+            ),
+            patch(
+                "synapseclient.models.wiki.get_wiki_page",
+                new_callable=AsyncMock,
+                side_effect=SynapseHTTPError(response=Mock(status_code=404)),
+            ) as mocked_get_page,
+            patch(
+                "synapseclient.models.wiki.WikiPage._copy_attachment_file_handles",
+                new_callable=AsyncMock,
+            ) as mocked_copy_attachments,
+            patch(
+                "synapseclient.models.wiki.post_wiki_page",
+                new_callable=AsyncMock,
+            ) as mocked_post,
+        ):
+            # WHEN I call `copy_async`
+            # THEN a ValueError should be raised
+            with pytest.raises(ValueError, match="does not exist"):
+                await WikiPage(owner_id="syn123").copy_async(
+                    destination_owner_id="syn456",
+                    destination_sub_page_id="4",
+                    synapse_client=self.syn,
+                )
+
+            # AND the destination page should have been checked
+            mocked_get_page.assert_called_once_with(
+                owner_id="syn456", wiki_id="4", synapse_client=self.syn
+            )
+
+            # AND no attachments should have been copied and no pages created
+            mocked_copy_attachments.assert_not_called()
+            mocked_post.assert_not_called()
+
+    @staticmethod
+    @contextlib.contextmanager
+    def _patched_flag_copy():
+        """Patch what copy_async does around the link and entity ID rewrites.
+
+        The source wiki is a single root page 1 that is copied to new1. The
+        rewrite helpers are patched to return the new_wikis dict they were
+        handed so the tests can check which of them ran and what they were
+        given, and the re-store loop is patched at the markdown upload and
+        put boundaries.
+
+        Yields:
+            A dict with the mocks under the keys "links", "entity_ids", and
+            "put".
+        """
+        source_headers = [{"id": "1", "title": "Root"}]
+        destination_headers = [{"id": "new1", "title": "Root"}]
+        new_wikis = {"new1": WikiPage(owner_id="syn456", id="new1", markdown="md-1")}
+        wiki_id_map = {"1": "new1"}
+
+        def fake_header_tree(**kwargs):
+            headers = (
+                destination_headers
+                if kwargs["owner_id"] == "syn456"
+                else source_headers
+            )
+
+            async def generator():
+                for header in headers:
+                    yield header
+
+            return generator()
+
+        with (
+            patch(
+                "synapseclient.models.wiki.get_wiki_header_tree",
+                side_effect=fake_header_tree,
+            ),
+            patch(
+                "synapseclient.models.wiki._ensure_destination_has_no_root_wiki",
+                new_callable=AsyncMock,
+            ),
+            patch(
+                "synapseclient.models.wiki._copy_wiki_pages",
+                new_callable=AsyncMock,
+                return_value=(new_wikis, wiki_id_map),
+            ),
+            patch(
+                "synapseclient.models.wiki._update_internal_links",
+                side_effect=lambda **kwargs: kwargs["new_wikis"],
+            ) as mock_links,
+            patch(
+                "synapseclient.models.wiki._update_synapse_id_references",
+                side_effect=lambda **kwargs: kwargs["new_wikis"],
+            ) as mock_entity_ids,
+            patch.object(
+                WikiPage,
+                "_get_markdown_file_handle",
+                autospec=True,
+                side_effect=lambda self, *args, **kwargs: self,
+            ),
+            patch(
+                "synapseclient.models.wiki.put_wiki_page",
+                new_callable=AsyncMock,
+                return_value={"id": "new1", "title": "Root"},
+            ) as mock_put,
+        ):
+            yield {
+                "links": mock_links,
+                "entity_ids": mock_entity_ids,
+                "put": mock_put,
+            }
+
+    async def test_copy_async_updates_links_by_default(self) -> None:
+        # GIVEN a source wiki with a single page
+        with self._patched_flag_copy() as mocks:
+            # WHEN I call `copy_async` without passing update_links or entity_map
+            new_headers = await WikiPage(owner_id="syn123").copy_async(
+                destination_owner_id="syn456", synapse_client=self.syn
+            )
+
+        # THEN the internal links should be rewritten
+        mocks["links"].assert_called_once_with(
+            new_wikis=ANY,
+            wiki_id_map={"1": "new1"},
+            source_owner_id="syn123",
+            destination_owner_id="syn456",
+        )
+
+        # AND the Synapse ID references should be left unchanged
+        mocks["entity_ids"].assert_not_called()
+
+        # AND the rewritten page should be stored back once
+        mocks["put"].assert_called_once()
+        assert mocks["put"].call_args.kwargs["owner_id"] == "syn456"
+        assert mocks["put"].call_args.kwargs["wiki_id"] == "new1"
+
+        # AND the destination header tree should be returned
+        assert [header.id for header in new_headers] == ["new1"]
+
+    async def test_copy_async_without_update_links_or_entity_map_skips_rewrites(
+        self,
+    ) -> None:
+        # GIVEN a source wiki with a single page
+        with self._patched_flag_copy() as mocks:
+            # WHEN I call `copy_async` with update_links disabled and no entity_map
+            new_headers = await WikiPage(owner_id="syn123").copy_async(
+                destination_owner_id="syn456",
+                update_links=False,
+                synapse_client=self.syn,
+            )
+
+        # THEN neither rewrite should be applied
+        mocks["links"].assert_not_called()
+        mocks["entity_ids"].assert_not_called()
+
+        # AND the copied pages should not be stored a second time
+        mocks["put"].assert_not_called()
+
+        # AND the destination header tree should still be returned
+        assert [header.id for header in new_headers] == ["new1"]
+
+    async def test_copy_async_entity_map_without_update_links(self) -> None:
+        # GIVEN a source wiki with a single page
+        with self._patched_flag_copy() as mocks:
+            # WHEN I call `copy_async` with an entity_map but update_links disabled
+            await WikiPage(owner_id="syn123").copy_async(
+                destination_owner_id="syn456",
+                update_links=False,
+                entity_map={"syn111": "syn222"},
+                synapse_client=self.syn,
+            )
+
+        # THEN only the Synapse ID references should be rewritten
+        mocks["links"].assert_not_called()
+        mocks["entity_ids"].assert_called_once_with(
+            new_wikis=ANY,
+            wiki_id_map={"1": "new1"},
+            entity_map={"syn111": "syn222"},
+        )
+
+        # AND the rewritten page should be stored back once
+        mocks["put"].assert_called_once()
+
+    async def test_copy_async_update_links_and_entity_map(self) -> None:
+        # GIVEN a source wiki with a single page
+        with self._patched_flag_copy() as mocks:
+            # WHEN I call `copy_async` with both link updating and an entity_map
+            await WikiPage(owner_id="syn123").copy_async(
+                destination_owner_id="syn456",
+                entity_map={"syn111": "syn222"},
+                synapse_client=self.syn,
+            )
+
+        # THEN both rewrites should be applied
+        mocks["links"].assert_called_once()
+        mocks["entity_ids"].assert_called_once()
+
+        # AND the entity ID rewrite should operate on the pages returned by
+        # the link rewrite rather than on a separate copy
+        assert (
+            mocks["entity_ids"].call_args.kwargs["new_wikis"]
+            is mocks["links"].call_args.kwargs["new_wikis"]
+        )
+
+        # AND the page should be stored back only once for both rewrites
+        mocks["put"].assert_called_once()
+
+
+class TestValidateAndFormatCopyInputs:
+    """Tests for the _validate_and_format_copy_inputs helper function."""
+
+    @pytest.mark.parametrize(
+        "entity_sub_page_id,destination_sub_page_id,expected",
+        [
+            (None, None, (None, None)),
+            ("8688", None, ("8688", None)),
+            (None, "4", (None, "4")),
+            (8688, 4, ("8688", "4")),
+            (8688.0, 4.0, ("8688", "4")),
+        ],
+    )
+    def test_valid_inputs_return_coerced_sub_page_ids(
+        self, entity_sub_page_id, destination_sub_page_id, expected
+    ) -> None:
+        # WHEN I validate copy inputs with valid owner IDs and sub page IDs
+        result = _validate_and_format_copy_inputs(
+            owner_id="syn123",
+            destination_owner_id="syn456",
+            entity_sub_page_id=entity_sub_page_id,
+            destination_sub_page_id=destination_sub_page_id,
+        )
+
+        # THEN the sub page IDs should be coerced to integer strings or None
+        assert result == expected
+
+    def test_missing_owner_id_raises_value_error(self) -> None:
+        # WHEN I validate copy inputs without an owner ID
+        # THEN it should raise ValueError
+        with pytest.raises(ValueError, match="Must provide owner_id to copy a wiki."):
+            _validate_and_format_copy_inputs(
+                owner_id=None,
+                destination_owner_id="syn456",
+                entity_sub_page_id=None,
+                destination_sub_page_id=None,
+            )
+
+    @pytest.mark.parametrize(
+        "destination_owner_id", [None, "", "project123", "123", "syn123abc"]
+    )
+    def test_invalid_destination_owner_id_raises_value_error(
+        self, destination_owner_id
+    ) -> None:
+        # WHEN I validate copy inputs with a missing or malformed destination
+        # owner ID
+        # THEN it should raise ValueError
+        with pytest.raises(
+            ValueError, match="destination_owner_id must be a Synapse ID"
+        ):
+            _validate_and_format_copy_inputs(
+                owner_id="syn123",
+                destination_owner_id=destination_owner_id,
+                entity_sub_page_id=None,
+                destination_sub_page_id=None,
+            )
+
+    def test_valid_entity_map_passes(self) -> None:
+        # WHEN I validate copy inputs with an entity_map of Synapse IDs
+        # THEN no error should be raised
+        result = _validate_and_format_copy_inputs(
+            owner_id="syn123",
+            destination_owner_id="syn456",
+            entity_sub_page_id=None,
+            destination_sub_page_id=None,
+            entity_map={"syn111": "syn222", "syn333": "syn444"},
+        )
+        assert result == (None, None)
+
+    @pytest.mark.parametrize(
+        "entity_map,offender",
+        [
+            ({"not_an_id": "syn222"}, "keys"),
+            ({"111": "syn222"}, "keys"),
+            ({None: "syn222"}, "keys"),
+            ({"syn111": "not_an_id"}, "values"),
+            ({"syn111": "222"}, "values"),
+            ({"syn111": None}, "values"),
+            ({"syn111": "syn222", "syn333": "oops"}, "values"),
+        ],
+    )
+    def test_invalid_entity_map_raises_value_error(self, entity_map, offender) -> None:
+        # WHEN I validate copy inputs with an entity_map containing a key or
+        # value that is not a Synapse ID
+        # THEN it should raise ValueError naming keys or values
+        with pytest.raises(
+            ValueError, match=f"entity_map {offender} must be Synapse IDs"
+        ):
+            _validate_and_format_copy_inputs(
+                owner_id="syn123",
+                destination_owner_id="syn456",
+                entity_sub_page_id=None,
+                destination_sub_page_id=None,
+                entity_map=entity_map,
+            )
+
+    @pytest.mark.parametrize(
+        "entity_sub_page_id,destination_sub_page_id,argument_name",
+        [
+            ("some_string", None, "The id of the WikiPage"),
+            (None, "some_string", "destination_sub_page_id"),
+            (8688.9, None, "The id of the WikiPage"),
+            (None, 4.9, "destination_sub_page_id"),
+            (True, None, "The id of the WikiPage"),
+            (None, True, "destination_sub_page_id"),
+            (-8688, None, "The id of the WikiPage"),
+            (None, "-4", "destination_sub_page_id"),
+        ],
+    )
+    def test_non_numeric_sub_page_id_raises_value_error(
+        self, entity_sub_page_id, destination_sub_page_id, argument_name
+    ) -> None:
+        # WHEN I validate copy inputs with a non-numeric, fractional,
+        # boolean, or negative sub page ID
+        # THEN it should raise ValueError naming the offending argument
+        with pytest.raises(
+            ValueError, match=f"{argument_name} must be a numeric wiki page ID"
+        ):
+            _validate_and_format_copy_inputs(
+                owner_id="syn123",
+                destination_owner_id="syn456",
+                entity_sub_page_id=entity_sub_page_id,
+                destination_sub_page_id=destination_sub_page_id,
+            )
+
+
+class TestGetExistingDestinationWikiPage:
+    """Tests for the _get_existing_destination_wiki_page helper function."""
+
+    @pytest.fixture(autouse=True, scope="function")
+    def init_syn(self, syn: Synapse) -> None:
+        self.syn = syn
+
+    async def test_existing_destination_sub_page_is_returned(self) -> None:
+        # GIVEN a destination sub page that exists in the destination entity
+        destination_wiki_data = {"id": "4", "title": "Existing", "etag": "etag1"}
+        with patch(
+            "synapseclient.models.wiki.get_wiki_page",
+            new_callable=AsyncMock,
+            return_value=destination_wiki_data,
+        ) as mocked_get_page:
+            # WHEN I fetch the destination wiki page
+            result = await _get_existing_destination_wiki_page(
+                destination_owner_id="syn456",
+                destination_sub_page_id="4",
+                synapse_client=self.syn,
+            )
+
+            # THEN the page should be fetched from the destination entity
+            mocked_get_page.assert_called_once_with(
+                owner_id="syn456", wiki_id="4", synapse_client=self.syn
+            )
+
+        # AND returned as a WikiPage owned by the destination entity
+        assert result.id == "4"
+        assert result.title == "Existing"
+        assert result.owner_id == "syn456"
+
+    async def test_destination_page_error_propagates(self) -> None:
+        # GIVEN a destination page lookup that fails with a non-404 error
+        with (
+            patch(
+                "synapseclient.models.wiki.get_wiki_page",
+                new_callable=AsyncMock,
+                side_effect=SynapseHTTPError(response=Mock(status_code=403)),
+            ),
+            # WHEN I fetch the destination wiki page
+            # THEN the error should be re-raised
+            pytest.raises(SynapseHTTPError),
+        ):
+            await _get_existing_destination_wiki_page(
+                destination_owner_id="syn456",
+                destination_sub_page_id="4",
+                synapse_client=self.syn,
+            )
+
+    async def test_nonexistent_destination_sub_page_raises_value_error(self) -> None:
+        # GIVEN a destination_sub_page_id that does not exist in the
+        # destination entity
+        with (
+            patch(
+                "synapseclient.models.wiki.get_wiki_page",
+                new_callable=AsyncMock,
+                side_effect=SynapseHTTPError(response=Mock(status_code=404)),
+            ),
+            # WHEN I fetch the destination wiki page
+            # THEN a ValueError should be raised before any wiki content is
+            # copied, instead of silently returning None and letting the copy
+            # proceed toward a confusing server-side failure
+            pytest.raises(ValueError, match="does not exist"),
+        ):
+            await _get_existing_destination_wiki_page(
+                destination_owner_id="syn456",
+                destination_sub_page_id="4",
+                synapse_client=self.syn,
+            )
+
+
+class TestEnsureDestinationHasNoRootWiki:
+    """Tests for the _ensure_destination_has_no_root_wiki helper function."""
+
+    @pytest.fixture(autouse=True, scope="function")
+    def init_syn(self, syn: Synapse) -> None:
+        self.syn = syn
+
+    async def test_existing_root_wiki_raises_value_error(self) -> None:
+        # GIVEN a destination entity that already has a root wiki page
+        with (
+            patch(
+                "synapseclient.models.wiki.get_wiki_page",
+                new_callable=AsyncMock,
+                return_value={"id": "1", "title": "Existing root"},
+            ),
+            # WHEN I check the destination for an existing root wiki
+            # THEN a ValueError should be raised, since the server would
+            # reject creating a second root wiki page after attachments have
+            # already been copied
+            pytest.raises(ValueError, match="already has a root wiki"),
+        ):
+            await _ensure_destination_has_no_root_wiki(
+                destination_owner_id="syn456",
+                synapse_client=self.syn,
+            )
+
+    async def test_no_existing_wiki_passes(self) -> None:
+        # GIVEN a destination entity without an existing wiki
+        with patch(
+            "synapseclient.models.wiki.get_wiki_page",
+            new_callable=AsyncMock,
+            side_effect=SynapseHTTPError(response=Mock(status_code=404)),
+        ):
+            # WHEN I check the destination for an existing root wiki
+            # THEN no error should be raised so the copy creates a new root page
+            await _ensure_destination_has_no_root_wiki(
+                destination_owner_id="syn456",
+                synapse_client=self.syn,
+            )
+
+    async def test_root_wiki_check_error_propagates(self) -> None:
+        # GIVEN a root wiki lookup that fails with a non-404 error
+        with (
+            patch(
+                "synapseclient.models.wiki.get_wiki_page",
+                new_callable=AsyncMock,
+                side_effect=SynapseHTTPError(response=Mock(status_code=403)),
+            ),
+            # WHEN I check the destination for an existing root wiki
+            # THEN the error should be re-raised
+            pytest.raises(SynapseHTTPError),
+        ):
+            await _ensure_destination_has_no_root_wiki(
+                destination_owner_id="syn456",
+                synapse_client=self.syn,
+            )
+
+
+class TestCollectWikiSubTreeHeaders:
+    """Tests for the _collect_wiki_sub_tree_headers helper function.
+
+    The sample wiki header tree used by these tests:
+
+        root (1)
+        |-- methods (2)
+        |   |-- sequencing (4)
+        |   |   `-- deep (6)
+        |   `-- analysis (5)
+        `-- results (3)
+    """
+
+    def get_wiki_headers(self) -> list:
+        return [
+            {"id": "1", "title": "root"},
+            {"id": "2", "title": "methods", "parentId": "1"},
+            {"id": "4", "title": "sequencing", "parentId": "2"},
+            {"id": "6", "title": "deep", "parentId": "4"},
+            {"id": "5", "title": "analysis", "parentId": "2"},
+            {"id": "3", "title": "results", "parentId": "1"},
+        ]
+
+    @pytest.mark.parametrize(
+        "sub_page_id,expected",
+        [
+            (
+                # Mid-level page: the page itself (re-rooted) plus all descendants
+                "2",
+                [
+                    {"id": "2", "title": "methods"},
+                    {"id": "4", "title": "sequencing", "parentId": "2"},
+                    {"id": "6", "title": "deep", "parentId": "4"},
+                    {"id": "5", "title": "analysis", "parentId": "2"},
+                ],
+            ),
+            (
+                # The root of the whole wiki: everything is returned
+                "1",
+                [
+                    {"id": "1", "title": "root"},
+                    {"id": "2", "title": "methods", "parentId": "1"},
+                    {"id": "4", "title": "sequencing", "parentId": "2"},
+                    {"id": "6", "title": "deep", "parentId": "4"},
+                    {"id": "5", "title": "analysis", "parentId": "2"},
+                    {"id": "3", "title": "results", "parentId": "1"},
+                ],
+            ),
+            (
+                # A leaf page: only the page itself, re-rooted
+                "6",
+                [{"id": "6", "title": "deep"}],
+            ),
+            (
+                # An integer ID is coerced to a string before matching
+                2,
+                [
+                    {"id": "2", "title": "methods"},
+                    {"id": "4", "title": "sequencing", "parentId": "2"},
+                    {"id": "6", "title": "deep", "parentId": "4"},
+                    {"id": "5", "title": "analysis", "parentId": "2"},
+                ],
+            ),
+        ],
+    )
+    def test_collects_sub_tree(self, sub_page_id, expected) -> None:
+        # GIVEN a flat list of wiki headers
+        wiki_headers = self.get_wiki_headers()
+
+        # WHEN I collect the sub-tree rooted at sub_page_id
+        result = _collect_wiki_sub_tree_headers(
+            wiki_headers=wiki_headers,
+            sub_page_id=sub_page_id,
+        )
+
+        # THEN only the requested page and its descendants are returned,
+        # with the requested page re-rooted (no parentId)
+        assert result == expected
+
+    def test_parents_appear_before_children(self) -> None:
+        # GIVEN a flat list of wiki headers
+        wiki_headers = self.get_wiki_headers()
+
+        # WHEN I collect a sub-tree with nested descendants
+        result = _collect_wiki_sub_tree_headers(
+            wiki_headers=wiki_headers,
+            sub_page_id="2",
+        )
+
+        # THEN every page with a parent appears after that parent in the list
+        positions = {header["id"]: index for index, header in enumerate(result)}
+        for header in result:
+            parent_id = header.get("parentId")
+            if parent_id is not None:
+                assert positions[parent_id] < positions[header["id"]]
+
+    def test_unknown_sub_page_id_returns_none(self) -> None:
+        # GIVEN a flat list of wiki headers
+        wiki_headers = self.get_wiki_headers()
+
+        # WHEN I collect a sub-tree for an ID that is not in the tree
+        result = _collect_wiki_sub_tree_headers(
+            wiki_headers=wiki_headers,
+            sub_page_id="999",
+        )
+
+        # THEN nothing is returned
+        assert result is None
+
+    def test_input_headers_are_not_mutated(self) -> None:
+        # GIVEN a flat list of wiki headers
+        wiki_headers = self.get_wiki_headers()
+        original = copy.deepcopy(wiki_headers)
+
+        # WHEN I collect a sub-tree whose root has a parentId
+        _collect_wiki_sub_tree_headers(
+            wiki_headers=wiki_headers,
+            sub_page_id="2",
+        )
+
+        # THEN the input headers are unchanged, including the parentId
+        # of the requested page
+        assert wiki_headers == original
+
+
+class TestUpdateInternalLinks:
+    """Tests for the _update_internal_links helper function.
+
+    The scenario used by these tests: a wiki was copied from syn123 to syn456,
+    where source page 8688 became 9901, page 8689 became 9902, and page 8
+    became 1000.
+    """
+
+    wiki_id_map = {"8688": "9901", "8689": "9902", "8": "1000"}
+
+    def get_new_wikis(self, markdown) -> dict[str, WikiPage]:
+        return {
+            "9901": WikiPage(owner_id="syn456", id="9901", markdown=markdown),
+            "9902": WikiPage(owner_id="syn456", id="9902", markdown=""),
+            "1000": WikiPage(owner_id="syn456", id="1000", markdown=""),
+        }
+
+    @pytest.mark.parametrize(
+        "markdown,expected",
+        [
+            (
+                # A link to a copied page is retargeted to the copy
+                "See syn123/wiki/8688 for details.",
+                "See syn456/wiki/9901 for details.",
+            ),
+            (
+                # Multiple links in one page are all retargeted
+                "syn123/wiki/8688 and syn123/wiki/8689",
+                "syn456/wiki/9901 and syn456/wiki/9902",
+            ),
+            (
+                # The rule for page 8 must not clobber the longer page ID 8688,
+                # and a link to page 8 itself is still retargeted
+                "syn123/wiki/8688 then syn123/wiki/8 end",
+                "syn456/wiki/9901 then syn456/wiki/1000 end",
+            ),
+            (
+                # A link to a page that was not copied keeps its wiki ID but
+                # still gets the destination owner ID
+                "syn123/wiki/7777",
+                "syn456/wiki/7777",
+            ),
+            (
+                # A bare reference to the source entity is replaced even when
+                # it is not a wiki link
+                "Data originally from syn123.",
+                "Data originally from syn456.",
+            ),
+            (
+                # Markdown without any source references is left unchanged
+                "No links here.",
+                "No links here.",
+            ),
+            (
+                # A longer entity ID that merely starts with the source owner
+                # ID must not be corrupted
+                "Related data in syn1234.",
+                "Related data in syn1234.",
+            ),
+        ],
+    )
+    def test_rewrites_markdown(self, markdown: str, expected: str) -> None:
+        # GIVEN copied wiki pages where one page contains the markdown
+        new_wikis = self.get_new_wikis(markdown=markdown)
+
+        # WHEN I update the internal links
+        result = _update_internal_links(
+            new_wikis=new_wikis,
+            wiki_id_map=self.wiki_id_map,
+            source_owner_id="syn123",
+            destination_owner_id="syn456",
+        )
+
+        # THEN the markdown points at the destination wiki
+        assert result["9901"].markdown == expected
+
+    def test_updates_every_copied_page(self) -> None:
+        # GIVEN copied wiki pages that link to each other and to the source entity
+        new_wikis = {
+            "9901": WikiPage(
+                owner_id="syn456", id="9901", markdown="Next: syn123/wiki/8689"
+            ),
+            "9902": WikiPage(
+                owner_id="syn456", id="9902", markdown="Back: syn123/wiki/8688"
+            ),
+            "1000": WikiPage(owner_id="syn456", id="1000", markdown="Home: syn123"),
+        }
+
+        # WHEN I update the internal links
+        result = _update_internal_links(
+            new_wikis=new_wikis,
+            wiki_id_map=self.wiki_id_map,
+            source_owner_id="syn123",
+            destination_owner_id="syn456",
+        )
+
+        # THEN every page's markdown is updated in place
+        assert result is new_wikis
+        assert new_wikis["9901"].markdown == "Next: syn456/wiki/9902"
+        assert new_wikis["9902"].markdown == "Back: syn456/wiki/9901"
+        assert new_wikis["1000"].markdown == "Home: syn456"
+
+    def test_none_markdown_becomes_empty_string(self) -> None:
+        # GIVEN a copied wiki page without markdown
+        new_wikis = self.get_new_wikis(markdown=None)
+
+        # WHEN I update the internal links
+        result = _update_internal_links(
+            new_wikis=new_wikis,
+            wiki_id_map=self.wiki_id_map,
+            source_owner_id="syn123",
+            destination_owner_id="syn456",
+        )
+
+        # THEN the markdown is normalized to an empty string without error
+        assert result["9901"].markdown == ""
+
+
+class TestUpdateSynapseIdReferences:
+    """Tests for the _update_synapse_id_references helper function.
+
+    The scenario used by these tests: a wiki was copied from one project to
+    another, where source wiki page 8688 became 9901 and page 8689 became
+    9902. Alongside the wiki, entity syn111 was copied as syn999 and entity
+    syn1112 was copied as syn888.
+    """
+
+    wiki_id_map = {"8688": "9901", "8689": "9902"}
+    entity_map = {"syn111": "syn999", "syn1112": "syn888"}
+
+    def get_new_wikis(self, markdown) -> dict:
+        return {
+            "9901": WikiPage(owner_id="syn456", id="9901", markdown=markdown),
+            "9902": WikiPage(owner_id="syn456", id="9902", markdown=""),
+        }
+
+    @pytest.mark.parametrize(
+        "markdown,expected",
+        [
+            (
+                # A reference to a copied entity is rewritten to the copy
+                "Data in syn111.",
+                "Data in syn999.",
+            ),
+            (
+                # The rule for syn111 must not clobber the longer ID syn1112,
+                # and both references are rewritten
+                "See syn111 and syn1112.",
+                "See syn999 and syn888.",
+            ),
+            (
+                # An entity that is not in the entity map is left unchanged
+                "Not copied: syn777.",
+                "Not copied: syn777.",
+            ),
+            (
+                # Markdown without any entity references is left unchanged
+                "No ids here.",
+                "No ids here.",
+            ),
+        ],
+    )
+    def test_rewrites_markdown(self, markdown: str, expected: str) -> None:
+        # GIVEN copied wiki pages where one page contains the markdown
+        new_wikis = self.get_new_wikis(markdown=markdown)
+
+        # WHEN I update the Synapse ID references
+        result = _update_synapse_id_references(
+            new_wikis=new_wikis,
+            wiki_id_map=self.wiki_id_map,
+            entity_map=self.entity_map,
+        )
+
+        # THEN the markdown points at the copied entities
+        assert result["9901"].markdown == expected
+
+    def test_updates_every_copied_page(self) -> None:
+        # GIVEN copied wiki pages that both reference copied entities
+        new_wikis = {
+            "9901": WikiPage(owner_id="syn456", id="9901", markdown="Raw data: syn111"),
+            "9902": WikiPage(
+                owner_id="syn456", id="9902", markdown="Results table: syn1112"
+            ),
+        }
+
+        # WHEN I update the Synapse ID references
+        result = _update_synapse_id_references(
+            new_wikis=new_wikis,
+            wiki_id_map=self.wiki_id_map,
+            entity_map=self.entity_map,
+        )
+
+        # THEN every page's markdown is updated in place
+        assert result is new_wikis
+        assert new_wikis["9901"].markdown == "Raw data: syn999"
+        assert new_wikis["9902"].markdown == "Results table: syn888"
+
+    def test_none_markdown_becomes_empty_string(self) -> None:
+        # GIVEN a copied wiki page without markdown
+        new_wikis = self.get_new_wikis(markdown=None)
+
+        # WHEN I update the Synapse ID references
+        result = _update_synapse_id_references(
+            new_wikis=new_wikis,
+            wiki_id_map=self.wiki_id_map,
+            entity_map=self.entity_map,
+        )
+
+        # THEN the markdown is normalized to an empty string without error
+        assert result["9901"].markdown == ""
+
+
+class TestCopyWikiPages:
+    """Tests for the _copy_wiki_pages helper function.
+
+    These tests stub out the network boundary (get_async, markdown download,
+    attachment copy, markdown file handle upload, and the wiki create/update
+    calls) so the helper's own bookkeeping can be checked: the old-to-new ID
+    map it builds, which pages are created versus written into an existing
+    destination page, and the parent links it sends for child pages.
+
+    The stubs are deterministic functions of a page's ID: get_async returns a
+    source page whose title is title-<id>, its markdown is md-<id>, and its
+    copied attachment file handle is fh-<id>. New IDs assigned by the create
+    call are looked up from new_id_by_title.
+    """
+
+    @pytest.fixture(autouse=True, scope="function")
+    def init_syn(self, syn: Synapse) -> None:
+        self.syn = syn
+
+    @staticmethod
+    @contextlib.contextmanager
+    def _patched_copy(new_id_by_title: dict):
+        """Patch the network boundary of _copy_wiki_pages.
+
+        Arguments:
+            new_id_by_title: Maps the title sent to post_wiki_page to the new
+                wiki ID the server should return for it.
+
+        Yields:
+            A dict with the post_wiki_page and put_wiki_page mocks under the
+            keys "post" and "put".
+        """
+
+        def fake_get(self, *args, **kwargs):
+            self.title = f"title-{self.id}"
+            self.markdown = f"md-{self.id}"
+            return self
+
+        def fake_markdown(self, *args, **kwargs):
+            return f"md-{self.id}"
+
+        def fake_attachments(self, *args, **kwargs):
+            return [f"fh-{self.id}"]
+
+        def fake_get_fh(self, *args, **kwargs):
+            return self
+
+        def fake_post(**kwargs):
+            request = kwargs["request"]
+            title = request["title"]
+            return {
+                "id": new_id_by_title[title],
+                "title": title,
+                "parentWikiId": request.get("parentWikiId"),
+            }
+
+        def fake_put(**kwargs):
+            request = kwargs["request"]
+            return {
+                "id": kwargs["wiki_id"],
+                "title": request["title"],
+                "parentWikiId": request.get("parentWikiId"),
+            }
+
+        with (
+            patch.object(WikiPage, "get_async", autospec=True, side_effect=fake_get),
+            patch.object(
+                WikiPage,
+                "_get_markdown_text",
+                autospec=True,
+                side_effect=fake_markdown,
+            ),
+            patch.object(
+                WikiPage,
+                "_copy_attachment_file_handles",
+                autospec=True,
+                side_effect=fake_attachments,
+            ),
+            patch.object(
+                WikiPage,
+                "_get_markdown_file_handle",
+                autospec=True,
+                side_effect=fake_get_fh,
+            ),
+            patch(
+                "synapseclient.models.wiki.post_wiki_page",
+                new_callable=AsyncMock,
+                side_effect=fake_post,
+            ) as mock_post,
+            patch(
+                "synapseclient.models.wiki.put_wiki_page",
+                new_callable=AsyncMock,
+                side_effect=fake_put,
+            ) as mock_put,
+        ):
+            yield {"post": mock_post, "put": mock_put}
+
+    async def test_copies_whole_tree_preserving_hierarchy(self) -> None:
+        # GIVEN a three level wiki tree with root -> methods -> analysis
+        headers = [
+            {"id": "1"},
+            {"id": "2", "parentId": "1"},
+            {"id": "3", "parentId": "2"},
+        ]
+        new_id_by_title = {
+            "title-1": "new1",
+            "title-2": "new2",
+            "title-3": "new3",
+        }
+
+        # WHEN copying the whole tree with no existing destination page
+        with self._patched_copy(new_id_by_title) as mocks:
+            new_wikis, wiki_id_map = await _copy_wiki_pages(
+                old_wiki_headers=headers,
+                source_owner_id="syn123",
+                destination_owner_id="syn456",
+                destination_wiki_page=None,
+                destination_sub_page_id=None,
+                synapse_client=self.syn,
+            )
+
+        # THEN every source page is mapped to its new ID and returned keyed
+        # by that new ID
+        assert wiki_id_map == {"1": "new1", "2": "new2", "3": "new3"}
+        assert set(new_wikis) == {"new1", "new2", "new3"}
+
+        # AND all three pages are created with post, none with put
+        assert mocks["put"].call_count == 0
+        requests = {
+            mock_call.kwargs["request"]["title"]: mock_call.kwargs["request"]
+            for mock_call in mocks["post"].call_args_list
+        }
+        # AND the root is created as a root page with no parent
+        assert "parentWikiId" not in requests["title-1"]
+        # AND each child is linked to the new ID of its parent
+        assert requests["title-2"]["parentWikiId"] == "new1"
+        assert requests["title-3"]["parentWikiId"] == "new2"
+        # AND each page carries its own copied attachment file handle
+        assert requests["title-1"]["attachmentFileHandleIds"] == ["fh-1"]
+        assert requests["title-2"]["attachmentFileHandleIds"] == ["fh-2"]
+        assert requests["title-3"]["attachmentFileHandleIds"] == ["fh-3"]
+
+    async def test_root_created_under_destination_sub_page_id(self) -> None:
+        # GIVEN a single root page and a destination sub page to nest it under
+        headers = [{"id": "1"}]
+
+        # WHEN copying with destination_sub_page_id but no existing page object
+        with self._patched_copy({"title-1": "new1"}) as mocks:
+            _, wiki_id_map = await _copy_wiki_pages(
+                old_wiki_headers=headers,
+                source_owner_id="syn123",
+                destination_owner_id="syn456",
+                destination_wiki_page=None,
+                destination_sub_page_id="900",
+                synapse_client=self.syn,
+            )
+
+        # THEN the copied root is created beneath the destination sub page
+        assert wiki_id_map == {"1": "new1"}
+        assert mocks["put"].call_count == 0
+        assert mocks["post"].call_args.kwargs["request"]["parentWikiId"] == "900"
+
+    async def test_root_written_into_existing_destination_page(self) -> None:
+        # GIVEN a root -> child tree and an existing destination page
+        headers = [{"id": "1"}, {"id": "2", "parentId": "1"}]
+        destination_page = WikiPage(owner_id="syn456", id="500")
+
+        # WHEN copying into that existing destination page
+        with self._patched_copy({"title-2": "new2"}) as mocks:
+            new_wikis, wiki_id_map = await _copy_wiki_pages(
+                old_wiki_headers=headers,
+                source_owner_id="syn123",
+                destination_owner_id="syn456",
+                destination_wiki_page=destination_page,
+                destination_sub_page_id="500",
+                synapse_client=self.syn,
+            )
+
+        # THEN the root maps to the existing page ID and the child to a new ID
+        assert wiki_id_map == {"1": "500", "2": "new2"}
+        assert set(new_wikis) == {"500", "new2"}
+
+        # AND the root is written with put into the existing page
+        mocks["put"].assert_called_once()
+        put_request = mocks["put"].call_args.kwargs
+        assert put_request["wiki_id"] == "500"
+        assert put_request["request"]["title"] == "title-1"
+        assert put_request["request"]["markdown"] == "md-1"
+
+        # AND the child is created with post and linked to the existing page
+        mocks["post"].assert_called_once()
+        assert mocks["post"].call_args.kwargs["request"]["parentWikiId"] == "500"
+
+    async def test_returns_empty_when_no_headers(self) -> None:
+        # GIVEN no wiki headers to copy
+        # WHEN copying
+        with self._patched_copy({}) as mocks:
+            new_wikis, wiki_id_map = await _copy_wiki_pages(
+                old_wiki_headers=[],
+                source_owner_id="syn123",
+                destination_owner_id="syn456",
+                destination_wiki_page=None,
+                destination_sub_page_id=None,
+                synapse_client=self.syn,
+            )
+
+        # THEN nothing is created and empty results are returned
+        assert new_wikis == {}
+        assert wiki_id_map == {}
+        assert mocks["post"].call_count == 0
+        assert mocks["put"].call_count == 0
