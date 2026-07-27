@@ -293,6 +293,41 @@ class TestUploadAttempt:
             None,
         )
 
+    def test_handle_part__timeout_error(self, syn):
+        """Test that we retry if we encounter a Timeout on a request to PUT to an
+        AWS presigned url. Regression test: retry_exceptions previously only listed
+        requests.exceptions.ConnectionError, so a Timeout would not have been
+        retried and would have propagated immediately."""
+
+        upload = self._init_upload_attempt(syn)
+        upload._upload_id = "123"
+        part_number = 1
+        chunk = b"1" * TestUploadAttempt.part_size
+
+        pre_signed_url = "https://foo.com/1"
+        signed_headers = {"a": 1}
+
+        upload._pre_signed_part_urls = {part_number: (pre_signed_url, signed_headers)}
+
+        self._handle_part_success_test(
+            syn,
+            upload,
+            part_number,
+            pre_signed_url,
+            [
+                (
+                    mock.call(pre_signed_url, chunk, headers=signed_headers),
+                    requests.exceptions.Timeout("timed out"),
+                ),
+                (
+                    mock.call(pre_signed_url, chunk, headers=signed_headers),
+                    mock.Mock(status_code=200),
+                ),
+            ],
+            chunk,
+            None,
+        )
+
     def _handle_part_success_test(
         self,
         syn,
