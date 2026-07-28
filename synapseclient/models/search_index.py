@@ -439,8 +439,8 @@ class SearchIndex(
         """Asynchronously query this search index. Unlike a SQL-backed Table, a
         SearchIndex is queried with the
         [OpenSearch Query DSL](https://docs.opensearch.org/latest/query-dsl/)
-        carried by a [SearchQuery][synapseclient.models.SearchQuery] — not with
-        Synapse SQL. See [Query][synapseclient.models.search_dsl.Query] for the
+        carried by a [SearchQuery](https://rest-docs.synapse.org/rest/org/sagebionetworks/repo/model/search/SearchQuery.html) — not with
+        Synapse SQL. See [Query][https://rest-docs.synapse.org/rest/org/sagebionetworks/repo/model/search/dsl/Query.html] for the
         supported clause kinds.
 
         Arguments:
@@ -457,7 +457,7 @@ class SearchIndex(
 
         Returns:
             The completed
-            [SearchIndexQuery][synapseclient.models.SearchIndexQuery], carrying
+            [SearchIndexQuery](https://rest-docs.synapse.org/rest/org/sagebionetworks/repo/model/search/table/SearchIndexQuery.html), carrying
             the `hits` and any requested response parts.
 
         Raises:
