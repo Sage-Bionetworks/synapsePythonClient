@@ -439,7 +439,7 @@ class SearchIndex(
         """Asynchronously query this search index. Unlike a SQL-backed Table, a
         SearchIndex is queried with the
         [OpenSearch Query DSL](https://docs.opensearch.org/latest/query-dsl/)
-        carried by a [SearchQuery](https://rest-docs.synapse.org/rest/org/sagebionetworks/repo/model/search/SearchQuery.html) — not with
+        carried by a [SearchQuery][synapseclient.models.SearchQuery] — not with
         Synapse SQL. See [Query][https://rest-docs.synapse.org/rest/org/sagebionetworks/repo/model/search/dsl/Query.html] for the
         supported clause kinds.
 
@@ -456,7 +456,7 @@ class SearchIndex(
                 instance from the Synapse class constructor.
 
         Returns:
-            The completed [SearchIndexQuery](https://rest-docs.synapse.org/rest/org/sagebionetworks/repo/model/search/table/SearchIndexQuery.html), carrying the `hits` and any requested response parts.
+            The completed [SearchIndexQuery][synapseclient.models.SearchIndexQuery], carrying the `hits` and any requested response parts.
 
         Raises:
             ValueError: If the `id` attribute has not been set.
@@ -508,7 +508,7 @@ class SearchIndex(
         synapse_client: Optional[Synapse] = None,
     ) -> List["SearchHit"]:
         """Run a synchronous autocomplete search against this index. The
-        autocomplete endpoint allowlists only prefix-style queries
+        autocomplete endpoint allow lists only prefix-style queries
         ([`prefix`](https://docs.opensearch.org/latest/query-dsl/term/prefix/),
         [`match_phrase_prefix`](https://docs.opensearch.org/latest/query-dsl/full-text/match-phrase-prefix/),
         or [`match_bool_prefix`](https://docs.opensearch.org/latest/query-dsl/full-text/match-bool-prefix/))
