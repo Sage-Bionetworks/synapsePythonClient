@@ -456,9 +456,7 @@ class SearchIndex(
                 instance from the Synapse class constructor.
 
         Returns:
-            The completed
-            [SearchIndexQuery](https://rest-docs.synapse.org/rest/org/sagebionetworks/repo/model/search/table/SearchIndexQuery.html), carrying
-            the `hits` and any requested response parts.
+            The completed [SearchIndexQuery](https://rest-docs.synapse.org/rest/org/sagebionetworks/repo/model/search/table/SearchIndexQuery.html), carrying the `hits` and any requested response parts.
 
         Raises:
             ValueError: If the `id` attribute has not been set.

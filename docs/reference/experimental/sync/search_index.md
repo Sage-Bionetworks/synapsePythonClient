@@ -27,6 +27,7 @@
 ::: synapseclient.models.SearchHit
 ::: synapseclient.models.SearchFieldValue
 ::: synapseclient.models.SearchHighlight
+::: synapseclient.models.protocols.search_index_protocol.SearchIndexSynchronousProtocol
 
 ## OpenSearch query DSL
 
