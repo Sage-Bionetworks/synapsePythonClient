@@ -56,7 +56,7 @@ class SearchIndexSynchronousProtocol(Protocol):
             index = SearchIndex(
                 name="My Search Index",
                 parent_id="syn12345",
-                # syn67890 must be a table or a view; multi-entity JOINs are not supported
+                # syn67890 must be a table or a view;
                 defining_sql="SELECT * FROM syn67890",
             )
             index = index.store()
@@ -152,9 +152,7 @@ class SearchIndexSynchronousProtocol(Protocol):
                 instance from the Synapse class constructor.
 
         Returns:
-            The completed
-            [SearchIndexQuery][synapseclient.models.SearchIndexQuery], carrying
-            the `hits` and any requested response parts.
+            The completed [SearchIndexQuery][synapseclient.models.SearchIndexQuery], carrying the `hits` and any requested response parts.
 
         Raises:
             ValueError: If the `id` attribute has not been set.
