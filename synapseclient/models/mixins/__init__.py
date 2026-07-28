@@ -2,10 +2,6 @@
 
 from synapseclient.models.mixins.access_control import AccessControllable
 from synapseclient.models.mixins.asynchronous_job import AsynchronousCommunicator
-from synapseclient.models.mixins.enum_coercion import (
-    EnumCoercionMixin,
-    ForwardCompatibleStrEnum,
-)
 from synapseclient.models.mixins.form import (
     FormChangeRequest,
     FormData,
