@@ -550,7 +550,9 @@ async def get_job_async(
                     last_total = job_status.progress_total
                     updated = False
 
-                    if progress_bar.desc != last_message:
+                    # A disabled bar (silent client) never stores desc, so read it
+                    # defensively rather than assuming the attribute is present.
+                    if getattr(progress_bar, "desc", None) != last_message:
                         progress_bar.desc = last_message
                         updated = True
 
