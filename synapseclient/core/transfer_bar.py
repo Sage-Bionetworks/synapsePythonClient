@@ -171,7 +171,7 @@ def create_progress_bar(
         smoothing=0,
         postfix=postfix,
         leave=None,
-        disable=silent,
+        disable=bool(silent),
     )
 
 
