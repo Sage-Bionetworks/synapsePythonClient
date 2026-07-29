@@ -74,10 +74,6 @@ class SearchIndex(
         created_by: The ID of the user that created this entity.
         modified_by: The ID of the user that last modified this entity.
         parent_id: The ID of the parent entity.
-        version_number: The version number issued to this version on the object.
-        version_label: The version label for this entity.
-        version_comment: The version comment for this entity.
-        is_latest_version: If this is the latest version of the object.
         defining_sql: The Synapse SQL statement that defines which columns and
             rows are indexed.
         search_configuration_id: ID of the SearchConfiguration to apply when
@@ -140,18 +136,6 @@ class SearchIndex(
     parent_id: Optional[str] = None
     """The ID of the Entity that is the parent of this Entity."""
 
-    version_number: Optional[int] = field(default=None, compare=False)
-    """The version number issued to this version on the object."""
-
-    version_label: Optional[str] = None
-    """The version label for this entity."""
-
-    version_comment: Optional[str] = None
-    """The version comment for this entity."""
-
-    is_latest_version: Optional[bool] = field(default=None, compare=False)
-    """If this is the latest version of the object."""
-
     defining_sql: Optional[str] = None
     """The Synapse SQL statement that defines which columns and rows are indexed.
     Must reference exactly one entity."""
@@ -212,10 +196,6 @@ class SearchIndex(
         self.created_by = entity.get("createdBy", None)
         self.modified_on = entity.get("modifiedOn", None)
         self.modified_by = entity.get("modifiedBy", None)
-        self.version_number = entity.get("versionNumber", None)
-        self.version_label = entity.get("versionLabel", None)
-        self.version_comment = entity.get("versionComment", None)
-        self.is_latest_version = entity.get("isLatestVersion", None)
         self.defining_sql = entity.get("definingSQL", None)
         self.search_configuration_id = entity.get("searchConfigurationId", None)
 
@@ -228,6 +208,7 @@ class SearchIndex(
         """Convert this dataclass into the entity body expected by the Synapse
         REST API."""
         entity = {
+            "concreteType": concrete_types.SEARCH_INDEX_ENTITY,
             "name": self.name,
             "description": self.description,
             "id": self.id,
@@ -237,11 +218,6 @@ class SearchIndex(
             "createdBy": self.created_by,
             "modifiedBy": self.modified_by,
             "parentId": self.parent_id,
-            "concreteType": concrete_types.SEARCH_INDEX_ENTITY,
-            "versionNumber": self.version_number,
-            "versionLabel": self.version_label,
-            "versionComment": self.version_comment,
-            "isLatestVersion": self.is_latest_version,
             "definingSQL": self.defining_sql,
             "searchConfigurationId": self.search_configuration_id,
         }

@@ -26,10 +26,6 @@ class TestSearchIndex:
         "createdBy": "createdBy_value",
         "modifiedOn": "modifiedOn_value",
         "modifiedBy": "modifiedBy_value",
-        "versionNumber": 1,
-        "versionLabel": "versionLabel_value",
-        "versionComment": "versionComment_value",
-        "isLatestVersion": True,
         "definingSQL": "SELECT * FROM syn9999",
         "searchConfigurationId": "42",
         "annotations": {"key": "value"},
@@ -54,10 +50,6 @@ class TestSearchIndex:
         assert index.created_by == self.synapse_response["createdBy"]
         assert index.modified_on == self.synapse_response["modifiedOn"]
         assert index.modified_by == self.synapse_response["modifiedBy"]
-        assert index.version_number == self.synapse_response["versionNumber"]
-        assert index.version_label == self.synapse_response["versionLabel"]
-        assert index.version_comment == self.synapse_response["versionComment"]
-        assert index.is_latest_version == self.synapse_response["isLatestVersion"]
         assert index.defining_sql == self.synapse_response["definingSQL"]
         assert (
             index.search_configuration_id
@@ -85,16 +77,12 @@ class TestSearchIndex:
             created_by="createdBy_value",
             modified_on="modifiedOn_value",
             modified_by="modifiedBy_value",
-            version_number=1,
-            version_label="versionLabel_value",
-            version_comment="versionComment_value",
-            is_latest_version=True,
             defining_sql="SELECT * FROM syn9999",
             search_configuration_id="42",
         )
         # WHEN I convert it to a Synapse request
         entity = index.to_synapse_request()
-        # THEN I expect the entity body to carry the expected values
+        # THEN I expect the entity to match the Synapse response
         assert entity["concreteType"] == concrete_types.SEARCH_INDEX_ENTITY
         for key, value in self.synapse_response.items():
             if key != "annotations":
@@ -149,6 +137,7 @@ class TestSearchIndex:
         entity = mock_store_entity.call_args.kwargs["entity"]
         assert entity["definingSQL"] == "SELECT * FROM syn9999"
         assert entity["concreteType"] == concrete_types.SEARCH_INDEX_ENTITY
+        assert entity["parentId"] == "syn5678"
         # AND the response is filled onto the instance
         assert result.id == self.synapse_response["id"]
         assert result._last_persistent_instance is not None
