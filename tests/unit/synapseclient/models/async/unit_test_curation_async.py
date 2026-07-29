@@ -7,23 +7,37 @@ import pytest
 
 from synapseclient import Synapse
 from synapseclient.core.constants.concrete_types import (
+    CELL_VALUE_FILTER,
     COMPUTE_TASK_EXECUTION_REQUEST,
+    COUNT_STAR,
     FILE_BASED_METADATA_TASK_PROPERTIES,
     GRID_CSV_IMPORT_REQUEST,
     GRID_EXECUTION_DETAILS,
+    GRID_QUERY_JOB_REQUEST,
     RECORD_BASED_METADATA_TASK_PROPERTIES,
     RECORD_SET_GENERATION_EXECUTION_DETAILS,
     RECORD_SET_GENERATION_EXECUTION_PROPERTIES,
+    ROW_ID_FILTER,
+    ROW_IS_VALID_FILTER,
+    ROW_SELECTION_FILTER,
+    ROW_VALIDATION_RESULT_FILTER,
     SAMPLE_SHEET_GENERATION_EXECUTION_DETAILS,
     SAMPLE_SHEET_GENERATION_EXECUTION_PROPERTIES,
+    SELECT_ALL,
+    SELECT_BY_NAME,
+    SELECT_SELECTION,
     UPLOAD_TO_TABLE_PREVIEW_REQUEST,
 )
 from synapseclient.core.exceptions import SynapseError
 from synapseclient.models import EntityView, RecordSet
 from synapseclient.models.curation import (
     AuthorizationMode,
+    CellValueFilter,
+    CellValueOperator,
     ComputeTaskExecutionRequest,
+    CountStar,
     CreateGridRequest,
+    CreateReplicaRequest,
     CurationTask,
     CurationTaskProperties,
     CurationTaskStatus,
@@ -33,12 +47,27 @@ from synapseclient.models.curation import (
     Grid,
     GridCsvImportRequest,
     GridExecutionDetails,
+    GridQuery,
+    GridQueryJobRequest,
+    GridQueryResult,
+    GridQueryValidationResult,
     GridRecordSetExportRequest,
+    GridReplica,
+    GridRow,
+    QueryRequest,
     RecordBasedMetadataTaskProperties,
     RecordSetGenerationExecutionDetails,
     RecordSetGenerationExecutionProperties,
+    RowIdFilter,
+    RowIsValidFilter,
+    RowSelectionFilter,
+    RowValidationResultFilter,
     SampleSheetGenerationExecutionDetails,
     SampleSheetGenerationExecutionProperties,
+    SelectAll,
+    SelectByName,
+    SelectColumn,
+    SelectSelection,
     SynchronizeGridRequest,
     TaskExecutionDetails,
     TaskState,
@@ -81,6 +110,7 @@ UNKNOWN_EXECUTION_DETAILS_CONCRETE_TYPE = (
 UNKNOWN_TASK_PROPERTIES_CONCRETE_TYPE = (
     "org.sagebionetworks.repo.model.curation.metadata.FutureTaskProperties"
 )
+REPLICA_ID = 12345
 
 
 def _get_file_based_task_api_response():
@@ -3510,3 +3540,721 @@ class TestSynchronizeGrid:
                 error_message = mock_logger.error.call_args[0][0]
                 assert "sync_error_1" in error_message
                 assert "sync_error_2" in error_message
+
+
+class TestSelectColumn:
+    """Tests for the SelectColumn dataclass."""
+
+    def test_fill_from_dict(self) -> None:
+        # GIVEN a response with a column name
+        response = {"columnName": "diagnosis"}
+
+        # WHEN I fill a SelectColumn from the response
+        result = SelectColumn().fill_from_dict(response)
+
+        # THEN the column_name should be populated
+        assert result.column_name == "diagnosis"
+
+    def test_fill_from_dict_missing_column_name(self) -> None:
+        # GIVEN a response without a column name
+        # WHEN I fill a SelectColumn from the response
+        result = SelectColumn().fill_from_dict({})
+
+        # THEN the column_name should be None
+        assert result.column_name is None
+
+
+class TestGridRow:
+    """Tests for the GridRow dataclass."""
+
+    def test_fill_from_dict(self) -> None:
+        # GIVEN a response with row data and validation results
+        response = {
+            "rowId": "1.2",
+            "data": {"diagnosis": "flu"},
+            "validationResults": {"isValid": True},
+        }
+
+        # WHEN I fill a GridRow from the response
+        result = GridRow().fill_from_dict(response)
+
+        # THEN the fields should be populated
+        assert result.row_id == "1.2"
+        assert result.data == {"diagnosis": "flu"}
+        assert isinstance(result.validation_results, GridQueryValidationResult)
+        assert result.validation_results.is_valid is True
+
+    def test_fill_from_dict_without_validation_results(self) -> None:
+        # GIVEN a response without validation results
+        response = {"rowId": "1.3", "data": {"diagnosis": "cold"}}
+
+        # WHEN I fill a GridRow from the response
+        result = GridRow().fill_from_dict(response)
+
+        # THEN validation_results should be None
+        assert result.row_id == "1.3"
+        assert result.validation_results is None
+
+
+class TestGridQueryValidationResult:
+    """Tests for the GridQueryValidationResult dataclass."""
+
+    def test_fill_from_dict(self) -> None:
+        # GIVEN a response with validation result data
+        response = {
+            "isValid": False,
+            "validationErrorMessage": "#: only 1 subschema matches out of 2",
+            "allValidationMessages": ["error one", "error two"],
+        }
+
+        # WHEN I fill a GridQueryValidationResult from the response
+        result = GridQueryValidationResult().fill_from_dict(response)
+
+        # THEN the fields should be populated
+        assert result.is_valid is False
+        assert result.validation_error_message == (
+            "#: only 1 subschema matches out of 2"
+        )
+        assert result.all_validation_messages == ["error one", "error two"]
+
+    def test_fill_from_dict_valid_row(self) -> None:
+        # GIVEN a response for a valid row with no error messages
+        response = {"isValid": True}
+
+        # WHEN I fill a GridQueryValidationResult from the response
+        result = GridQueryValidationResult().fill_from_dict(response)
+
+        # THEN is_valid should be True and the message fields should be None
+        assert result.is_valid is True
+        assert result.validation_error_message is None
+        assert result.all_validation_messages is None
+
+
+class TestGridQueryResult:
+    """Tests for the GridQueryResult dataclass."""
+
+    def test_fill_from_dict(self) -> None:
+        # GIVEN a response with select columns and rows
+        response = {
+            "selectColumns": [{"columnName": "diagnosis"}, {"columnName": "age"}],
+            "rows": [
+                {"rowId": "1.1", "data": {"diagnosis": "flu", "age": 30}},
+                {"rowId": "1.2", "data": {"diagnosis": "cold", "age": 40}},
+            ],
+        }
+
+        # WHEN I fill a GridQueryResult from the response
+        result = GridQueryResult().fill_from_dict(response)
+
+        # THEN the select_columns and rows should be populated
+        assert len(result.select_columns) == 2
+        assert all(isinstance(col, SelectColumn) for col in result.select_columns)
+        assert result.select_columns[0].column_name == "diagnosis"
+        assert len(result.rows) == 2
+        assert all(isinstance(row, GridRow) for row in result.rows)
+        assert result.rows[1].row_id == "1.2"
+
+    def test_fill_from_dict_empty_response(self) -> None:
+        # GIVEN a response with no select columns or rows
+        # WHEN I fill a GridQueryResult from the response
+        result = GridQueryResult().fill_from_dict({})
+
+        # THEN both fields should be None
+        assert result.select_columns is None
+        assert result.rows is None
+
+
+class TestSelectItemSubclasses:
+    """Tests for the SelectItem subclasses: SelectByName, SelectAll, CountStar,
+    and SelectSelection."""
+
+    def test_select_by_name_to_synapse_request(self) -> None:
+        # GIVEN a SelectByName with a column name
+        item = SelectByName(column_name="diagnosis")
+
+        # WHEN I convert it to a synapse request
+        result = item.to_synapse_request()
+
+        # THEN it should contain the concreteType and columnName
+        assert result == {"concreteType": SELECT_BY_NAME, "columnName": "diagnosis"}
+
+    def test_select_all_to_synapse_request(self) -> None:
+        # GIVEN a SelectAll item
+        item = SelectAll()
+
+        # WHEN I convert it to a synapse request
+        result = item.to_synapse_request()
+
+        # THEN it should only contain the concreteType
+        assert result == {"concreteType": SELECT_ALL}
+
+    def test_count_star_to_synapse_request_without_alias(self) -> None:
+        # GIVEN a CountStar with no alias
+        item = CountStar()
+
+        # WHEN I convert it to a synapse request
+        result = item.to_synapse_request()
+
+        # THEN the alias key should be omitted
+        assert result == {"concreteType": COUNT_STAR}
+
+    def test_select_selection_to_synapse_request(self) -> None:
+        # GIVEN a SelectSelection item
+        item = SelectSelection()
+
+        # WHEN I convert it to a synapse request
+        result = item.to_synapse_request()
+
+        # THEN it should only contain the concreteType
+        assert result == {"concreteType": SELECT_SELECTION}
+
+
+class TestFilterSubclasses:
+    """Tests for the Filter subclasses: RowValidationResultFilter, CellValueFilter,
+    RowSelectionFilter, RowIsValidFilter, and RowIdFilter."""
+
+    def test_row_validation_result_filter_to_synapse_request(self) -> None:
+        # GIVEN a RowValidationResultFilter constructed with a string operator
+        item = RowValidationResultFilter(
+            operator="LIKE", validation_result_value="%expected type:%"
+        )
+
+        # WHEN I convert it to a synapse request
+        result = item.to_synapse_request()
+
+        # THEN the operator should be serialized as its string value
+        assert result == {
+            "concreteType": ROW_VALIDATION_RESULT_FILTER,
+            "operator": "LIKE",
+            "validationResultValue": "%expected type:%",
+        }
+
+    def test_cell_value_filter_to_synapse_request(self) -> None:
+        # GIVEN a CellValueFilter with an enum operator
+        item = CellValueFilter(
+            column_name="Project",
+            operator=CellValueOperator.EQUALS,
+            value=["Alpha"],
+        )
+
+        # WHEN I convert it to a synapse request
+        result = item.to_synapse_request()
+
+        # THEN it should contain the correct fields
+        assert result == {
+            "concreteType": CELL_VALUE_FILTER,
+            "columnName": "Project",
+            "operator": "EQUALS",
+            "value": ["Alpha"],
+        }
+
+    def test_row_selection_filter_to_synapse_request(self) -> None:
+        # GIVEN a RowSelectionFilter
+        item = RowSelectionFilter(is_selected=False)
+
+        # WHEN I convert it to a synapse request
+        result = item.to_synapse_request()
+
+        # THEN it should contain the correct fields
+        assert result == {
+            "concreteType": ROW_SELECTION_FILTER,
+            "isSelected": False,
+        }
+
+    def test_row_is_valid_filter_to_synapse_request(self) -> None:
+        # GIVEN a RowIsValidFilter
+        item = RowIsValidFilter(value=True)
+
+        # WHEN I convert it to a synapse request
+        result = item.to_synapse_request()
+
+        # THEN it should contain the correct fields
+        assert result == {"concreteType": ROW_IS_VALID_FILTER, "value": True}
+
+    def test_row_id_filter_to_synapse_request(self) -> None:
+        # GIVEN a RowIdFilter
+        item = RowIdFilter(row_ids_in=["1.1", "1.2"])
+
+        # WHEN I convert it to a synapse request
+        result = item.to_synapse_request()
+
+        # THEN it should contain the correct fields
+        assert result == {
+            "concreteType": ROW_ID_FILTER,
+            "rowIdsIn": ["1.1", "1.2"],
+        }
+
+
+class TestGridQuery:
+    """Tests for the GridQuery dataclass."""
+
+    def test_to_synapse_request(self) -> None:
+        # GIVEN a GridQuery with select items and filters
+        query = GridQuery(
+            column_selection=[SelectAll(), SelectByName(column_name="diagnosis")],
+            filters=[RowIsValidFilter(value=True)],
+            limit=25,
+            offset=5,
+            include_validation_messages=False,
+        )
+
+        # WHEN I convert it to a synapse request
+        result = query.to_synapse_request()
+
+        # THEN it should contain the serialized select items and filters
+        assert result["columnSelection"] == [
+            {"concreteType": SELECT_ALL},
+            {"concreteType": SELECT_BY_NAME, "columnName": "diagnosis"},
+        ]
+        assert result["filters"] == [
+            {"concreteType": ROW_IS_VALID_FILTER, "value": True}
+        ]
+        assert result["limit"] == 25
+        assert result["offset"] == 5
+        assert result["includeValidationMessages"] is False
+
+    def test_to_synapse_request_without_filters(self) -> None:
+        # GIVEN a GridQuery with no filters set
+        query = GridQuery(column_selection=[SelectAll()], limit=10)
+
+        # WHEN I convert it to a synapse request
+        result = query.to_synapse_request()
+
+        # THEN the filters key should be omitted
+        assert "filters" not in result
+        assert result["columnSelection"] == [{"concreteType": SELECT_ALL}]
+        assert result["limit"] == 10
+
+    def test_to_synapse_request_with_empty_column_selection_raises(self) -> None:
+        # GIVEN a GridQuery with no column_selection set
+        query = GridQuery()
+
+        # WHEN I convert it to a synapse request
+        # THEN it should raise ValueError
+        with pytest.raises(ValueError, match="column_selection is required"):
+            query.to_synapse_request()
+
+
+class TestQueryRequest:
+    """Tests for the QueryRequest dataclass."""
+
+    def test_to_synapse_request(self) -> None:
+        # GIVEN a QueryRequest with a GridQuery
+        request = QueryRequest(
+            query=GridQuery(column_selection=[SelectAll()], limit=10)
+        )
+
+        # WHEN I convert it to a synapse request
+        result = request.to_synapse_request()
+
+        # THEN it should contain the serialized query
+        assert result["query"]["columnSelection"] == [{"concreteType": SELECT_ALL}]
+        assert result["query"]["limit"] == 10
+
+    def test_to_synapse_request_without_query(self) -> None:
+        # GIVEN a QueryRequest with no query set
+        request = QueryRequest()
+
+        # WHEN I convert it to a synapse request
+        result = request.to_synapse_request()
+
+        # THEN the query key should be omitted
+        assert result == {}
+
+
+class TestGridQueryJobRequest:
+    """Tests for the GridQueryJobRequest dataclass."""
+
+    def test_to_synapse_request(self) -> None:
+        # GIVEN a GridQueryJobRequest with a query
+        job_request = GridQueryJobRequest(
+            session_id=SESSION_ID,
+            replica_id=REPLICA_ID,
+            query_request=QueryRequest(
+                query=GridQuery(column_selection=[SelectAll()], limit=50)
+            ),
+        )
+
+        # WHEN I convert it to a synapse request
+        result = job_request.to_synapse_request()
+
+        # THEN it should contain the correct fields
+        assert result["concreteType"] == GRID_QUERY_JOB_REQUEST
+        assert result["sessionId"] == SESSION_ID
+        assert result["replicaId"] == REPLICA_ID
+        assert result["queryRequest"]["query"]["columnSelection"] == [
+            {"concreteType": SELECT_ALL}
+        ]
+        assert result["queryRequest"]["query"]["limit"] == 50
+
+    def test_to_synapse_request_with_default_query_request_raises(self) -> None:
+        # GIVEN a GridQueryJobRequest with no query set on its query_request
+        job_request = GridQueryJobRequest(session_id=SESSION_ID, replica_id=REPLICA_ID)
+
+        # WHEN I convert it to a synapse request
+        # THEN it should raise ValueError since Synapse would reject the request
+        with pytest.raises(ValueError, match="query_request.query is required"):
+            job_request.to_synapse_request()
+
+    def test_to_synapse_request_with_query_request_none_raises(self) -> None:
+        # GIVEN a GridQueryJobRequest with query_request explicitly set to None
+        job_request = GridQueryJobRequest(
+            session_id=SESSION_ID, replica_id=REPLICA_ID, query_request=None
+        )
+
+        # WHEN I convert it to a synapse request
+        # THEN it should raise ValueError since Synapse would reject the request
+        with pytest.raises(ValueError, match="query_request.query is required"):
+            job_request.to_synapse_request()
+
+    def test_fill_from_dict(self) -> None:
+        # GIVEN a response with a queryResult
+        response = {
+            "concreteType": "org.sagebionetworks.repo.model.grid.GridQueryJobResponse",
+            "queryResult": {
+                "selectColumns": [{"columnName": "diagnosis"}],
+                "rows": [{"rowId": "1.1", "data": {"diagnosis": "flu"}}],
+            },
+        }
+
+        # WHEN I fill a GridQueryJobRequest from the response
+        job_request = GridQueryJobRequest(session_id=SESSION_ID, replica_id=REPLICA_ID)
+        job_request.fill_from_dict(response)
+
+        # THEN query_result should be populated as a GridQueryResult
+        assert isinstance(job_request.query_result, GridQueryResult)
+        assert job_request.query_result.select_columns[0].column_name == "diagnosis"
+        assert job_request.query_result.rows[0].row_id == "1.1"
+
+    def test_fill_from_dict_without_query_result(self) -> None:
+        # GIVEN a response without a queryResult
+        response = {
+            "concreteType": "org.sagebionetworks.repo.model.grid.GridQueryJobResponse"
+        }
+
+        # WHEN I fill a GridQueryJobRequest from the response
+        job_request = GridQueryJobRequest(session_id=SESSION_ID, replica_id=REPLICA_ID)
+        job_request.fill_from_dict(response)
+
+        # THEN query_result should be None
+        assert job_request.query_result is None
+
+
+class TestGridReplica:
+    """Tests for the GridReplica dataclass."""
+
+    def test_fill_from_dict(self) -> None:
+        # GIVEN a response with replica data
+        response = {
+            "gridSessionId": SESSION_ID,
+            "replicaId": REPLICA_ID,
+            "createdBy": CREATED_BY,
+            "isAgentReplica": False,
+            "createdOn": CREATED_ON,
+        }
+
+        # WHEN I fill a GridReplica from the response
+        result = GridReplica().fill_from_dict(response)
+
+        # THEN the fields should be populated
+        assert result.grid_session_id == SESSION_ID
+        assert result.replica_id == REPLICA_ID
+        assert result.created_by == CREATED_BY
+        assert result.is_agent_replica is False
+        assert result.created_on == CREATED_ON
+
+
+class TestCreateReplicaRequest:
+    """Tests for the CreateReplicaRequest dataclass."""
+
+    def test_to_synapse_request(self) -> None:
+        # GIVEN a CreateReplicaRequest with a grid_session_id
+        request = CreateReplicaRequest(grid_session_id=SESSION_ID)
+
+        # WHEN I convert it to a synapse request
+        result = request.to_synapse_request()
+
+        # THEN it should contain the gridSessionId
+        assert result == {"gridSessionId": SESSION_ID}
+
+
+class TestGridCreateReplica:
+    """Tests for Grid._create_replica_async."""
+
+    @pytest.fixture(autouse=True, scope="function")
+    def init_syn(self, syn: Synapse) -> None:
+        self.syn = syn
+
+    async def test_create_replica_async_without_session_id_raises(self) -> None:
+        # GIVEN a Grid without a session_id
+        grid = Grid()
+
+        # WHEN I call _create_replica_async
+        # THEN it should raise ValueError
+        with pytest.raises(
+            ValueError, match="session_id is required to create a replica"
+        ):
+            await grid._create_replica_async(synapse_client=self.syn)
+
+    async def test_create_replica_async_returns_grid_replica(self) -> None:
+        # GIVEN a Grid with a session_id and a mocked API response
+        grid = Grid(session_id=SESSION_ID)
+        mock_response = {
+            "replica": {
+                "gridSessionId": SESSION_ID,
+                "replicaId": REPLICA_ID,
+                "createdBy": CREATED_BY,
+                "isAgentReplica": False,
+                "createdOn": CREATED_ON,
+            }
+        }
+
+        # WHEN I call _create_replica_async
+        with patch(
+            "synapseclient.models.curation.create_grid_replica",
+            new_callable=AsyncMock,
+            return_value=mock_response,
+        ) as mock_create:
+            result = await grid._create_replica_async(synapse_client=self.syn)
+
+            # THEN the API should be called with the session_id and request body
+            mock_create.assert_called_once_with(
+                session_id=SESSION_ID,
+                create_replica_request={"gridSessionId": SESSION_ID},
+                synapse_client=self.syn,
+            )
+
+            # THEN the result should be a populated GridReplica
+            assert isinstance(result, GridReplica)
+            assert result.replica_id == REPLICA_ID
+            assert result.grid_session_id == SESSION_ID
+            assert result.created_by == CREATED_BY
+            assert result.is_agent_replica is False
+            assert result.created_on == CREATED_ON
+
+    async def test_create_replica_async_raises_without_replica_in_response(
+        self,
+    ) -> None:
+        # GIVEN a Grid with a session_id and a response with no replica data
+        grid = Grid(session_id=SESSION_ID)
+
+        # WHEN I call _create_replica_async
+        # THEN it should raise ValueError since no replica was returned
+        with patch(
+            "synapseclient.models.curation.create_grid_replica",
+            new_callable=AsyncMock,
+            return_value={},
+        ):
+            with pytest.raises(ValueError, match="Replica could not be created"):
+                await grid._create_replica_async(synapse_client=self.syn)
+
+
+class TestGridConnect:
+    """Tests for Grid.connect_async."""
+
+    @pytest.fixture(autouse=True, scope="function")
+    def init_syn(self, syn: Synapse) -> None:
+        self.syn = syn
+
+    async def test_connect_async_creates_session_when_no_session_id(self) -> None:
+        # GIVEN a Grid with no session_id, so a new session needs to be created
+        grid = Grid(record_set_id=RECORD_SET_ID)
+
+        with (
+            patch.object(
+                Grid,
+                "create_async",
+                new_callable=AsyncMock,
+                side_effect=lambda **kwargs: grid,
+            ) as mock_create_async,
+            patch.object(
+                Grid,
+                "_create_replica_async",
+                new_callable=AsyncMock,
+                return_value=GridReplica(replica_id=REPLICA_ID),
+            ) as mock_create_replica,
+        ):
+            # WHEN I connect to the grid
+            async with grid.connect_async(synapse_client=self.syn) as session:
+                # THEN create_async should be called since no session_id was set
+                mock_create_async.assert_called_once_with(
+                    attach_to_previous_session=False,
+                    timeout=120,
+                    synapse_client=self.syn,
+                )
+                # AND _create_replica_async should be called to bind a replica
+                mock_create_replica.assert_called_once_with(synapse_client=self.syn)
+                # AND the replica_id should be bound on the yielded Grid
+                assert session._replica_id == REPLICA_ID
+
+            # THEN the replica_id should be cleared after exiting the block
+            assert grid._replica_id is None
+
+    async def test_connect_async_does_not_create_session_when_session_id_provided(
+        self,
+    ) -> None:
+        # GIVEN a Grid that already has a session_id (e.g. an existing session)
+        grid = Grid(session_id=SESSION_ID)
+
+        with (
+            patch.object(
+                Grid, "create_async", new_callable=AsyncMock
+            ) as mock_create_async,
+            patch.object(
+                Grid,
+                "_create_replica_async",
+                new_callable=AsyncMock,
+                return_value=GridReplica(replica_id=REPLICA_ID),
+            ) as mock_create_replica,
+        ):
+            # WHEN I connect to the grid
+            async with grid.connect_async(synapse_client=self.syn) as session:
+                # THEN create_async should NOT be called since session_id was
+                # already set
+                mock_create_async.assert_not_called()
+                # AND _create_replica_async should still be called to bind a
+                # replica to the existing session
+                mock_create_replica.assert_called_once_with(synapse_client=self.syn)
+                assert session.session_id == SESSION_ID
+                assert session._replica_id == REPLICA_ID
+
+            # THEN the replica_id should be cleared after exiting the block
+            assert grid._replica_id is None
+
+
+class TestGridValidateRows:
+    """Tests for Grid.validate_rows_async."""
+
+    @pytest.fixture(autouse=True, scope="function")
+    def init_syn(self, syn: Synapse) -> None:
+        self.syn = syn
+
+    async def test_validate_rows_async_without_session_id_raises(self) -> None:
+        # GIVEN a Grid without a session_id
+        grid = Grid()
+
+        # WHEN I call validate_rows_async
+        # THEN it should raise ValueError
+        with pytest.raises(ValueError, match="session_id is required to validate rows"):
+            await grid.validate_rows_async(
+                synapse_client=self.syn, query_request=QueryRequest()
+            )
+
+    async def test_validate_rows_async_without_replica_id_raises(self) -> None:
+        # GIVEN a Grid with a session_id but no replica bound to it
+        grid = Grid(session_id=SESSION_ID)
+
+        # WHEN I call validate_rows_async
+        # THEN it should raise ValueError
+        with pytest.raises(ValueError, match="No replica is bound to this Grid"):
+            await grid.validate_rows_async(
+                synapse_client=self.syn, query_request=QueryRequest()
+            )
+
+    async def test_validate_rows_async_returns_query_result(self) -> None:
+        # GIVEN a Grid with a session_id and a replica already bound to it (as
+        # would be the case after `connect_async`/`connect`), and a mocked API
+        # response
+        grid = Grid(session_id=SESSION_ID)
+        grid._replica_id = REPLICA_ID
+
+        # Build a GridQueryJobRequest with query_result already populated
+        mock_job_request = GridQueryJobRequest(
+            session_id=SESSION_ID, replica_id=REPLICA_ID
+        )
+        grid_query_result = GridQueryResult().fill_from_dict(
+            {
+                "selectColumns": [
+                    {"columnName": "Sex"},
+                    {"columnName": "Diagnosis"},
+                ],
+                "rows": [
+                    {
+                        "rowId": "123",
+                        "data": {"Sex": "Female", "Diagnosis": "Cancer"},
+                        "validationResults": {
+                            "isValid": False,
+                            "validationErrorMessage": "#: only 1 subschema matches out of 2",
+                        },
+                    },
+                    {
+                        "rowId": "456",
+                        "data": {"Sex": "Male", "Diagnosis": "Cancer"},
+                        "validationResults": {
+                            "isValid": False,
+                            "validationErrorMessage": "#: only 1 subschema matches out of 2",
+                        },
+                    },
+                ],
+            }
+        )
+        mock_job_request.query_result = grid_query_result
+
+        # WHEN I call validate_rows_async
+        with patch.object(
+            GridQueryJobRequest,
+            "send_job_and_wait_async",
+            new_callable=AsyncMock,
+            return_value=mock_job_request,
+        ):
+            query_request = QueryRequest(
+                query=GridQuery(column_selection=[SelectAll()])
+            )
+            result = await grid.validate_rows_async(
+                synapse_client=self.syn,
+                query_request=query_request,
+            )
+
+            # THEN the result should be a populated GridQueryResult
+            assert isinstance(result, GridQueryResult)
+            assert result.select_columns[0].column_name == "Sex"
+            assert result.select_columns[1].column_name == "Diagnosis"
+            assert result.rows[0].row_id == "123"
+            assert result.rows[0].data == {"Sex": "Female", "Diagnosis": "Cancer"}
+            assert result.rows[0].validation_results.is_valid is False
+            assert result.rows[1].row_id == "456"
+            assert result.rows[1].data == {"Sex": "Male", "Diagnosis": "Cancer"}
+            assert result.rows[1].validation_results.is_valid is False
+            # AND the replica_id is cached on the Grid instance
+            assert grid._replica_id == REPLICA_ID
+
+    async def test_validate_rows_async_no_rows_returns_existing_result_and_warns(
+        self,
+    ) -> None:
+        # GIVEN a Grid with a session_id and a replica already bound to it, and
+        # a mocked API response with a query_result that has no rows
+        grid = Grid(session_id=SESSION_ID)
+        grid._replica_id = REPLICA_ID
+
+        mock_job_request = GridQueryJobRequest(
+            session_id=SESSION_ID, replica_id=REPLICA_ID
+        )
+        mock_job_request.query_result = GridQueryResult().fill_from_dict(
+            {"selectColumns": [{"columnName": "Sex"}], "rows": []}
+        )
+
+        # WHEN I call validate_rows_async
+        with (
+            patch.object(
+                GridQueryJobRequest,
+                "send_job_and_wait_async",
+                new_callable=AsyncMock,
+                return_value=mock_job_request,
+            ),
+            patch.object(self.syn.logger, "warning") as mock_warning,
+        ):
+            query_request = QueryRequest(
+                query=GridQuery(column_selection=[SelectAll()])
+            )
+            result = await grid.validate_rows_async(
+                synapse_client=self.syn,
+                query_request=query_request,
+            )
+
+            # THEN it should return the (empty-rows) query_result rather than
+            # discarding it, and log a warning instead of raising
+            assert result is mock_job_request.query_result
+            assert result.rows == []
+            assert result.select_columns[0].column_name == "Sex"
+            mock_warning.assert_called_once()
+            assert SESSION_ID in mock_warning.call_args[0][0]

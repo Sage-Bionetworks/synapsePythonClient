@@ -176,6 +176,23 @@ LIST_GRID_SESSIONS_RESPONSE = (
 )
 SYNCHRONIZE_GRID_REQUEST = "org.sagebionetworks.repo.model.grid.SynchronizeGridRequest"
 GRID_CSV_IMPORT_REQUEST = "org.sagebionetworks.repo.model.grid.GridCsvImportRequest"
+GRID_QUERY_JOB_REQUEST = "org.sagebionetworks.repo.model.grid.GridQueryJobRequest"
+
+# Grid Query SelectItem Types
+SELECT_BY_NAME = "org.sagebionetworks.repo.model.grid.query.SelectByName"
+SELECT_ALL = "org.sagebionetworks.repo.model.grid.query.SelectAll"
+COUNT_STAR = "org.sagebionetworks.repo.model.grid.query.function.CountStar"
+SELECT_SELECTION = "org.sagebionetworks.repo.model.grid.query.SelectSelection"
+
+# Grid Query Filter Types
+ROW_VALIDATION_RESULT_FILTER = (
+    "org.sagebionetworks.repo.model.grid.query.RowValidationResultFilter"
+)
+CELL_VALUE_FILTER = "org.sagebionetworks.repo.model.grid.query.CellValueFilter"
+ROW_SELECTION_FILTER = "org.sagebionetworks.repo.model.grid.query.RowSelectionFilter"
+ROW_IS_VALID_FILTER = "org.sagebionetworks.repo.model.grid.query.RowIsValidFilter"
+ROW_ID_FILTER = "org.sagebionetworks.repo.model.grid.query.RowIdFilter"
+
 UPLOAD_TO_TABLE_PREVIEW_REQUEST = (
     "org.sagebionetworks.repo.model.table.UploadToTablePreviewRequest"
 )
