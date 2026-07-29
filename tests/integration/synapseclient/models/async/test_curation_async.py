@@ -3,7 +3,7 @@
 import os
 import tempfile
 import uuid
-from typing import Callable
+from typing import AsyncGenerator, Callable
 
 import pandas as pd
 import pytest
@@ -976,12 +976,16 @@ class TestCurationTaskExecuteAsync:
 
     @pytest.fixture(scope="function")
     async def sample_sheet_schema_uri(
-        self, syn: Synapse, request: pytest.FixtureRequest
+        self, syn: Synapse, schedule_for_cleanup: Callable[..., None]
     ) -> str:
         """Create a JSON schema describing the target sample sheet format."""
         random_name = "".join(i for i in str(uuid.uuid4()) if i.isalpha())
         organization = SchemaOrganization(name=f"SYNPY.TEST.{random_name}")
         await organization.store_async(synapse_client=syn)
+        # The cleanup list is reversed at teardown, so the organization must be
+        # scheduled before its schema: Synapse refuses to delete an organization that
+        # still owns a schema.
+        schedule_for_cleanup(organization)
 
         json_schema = JSONSchema(
             name="curation.compute.samplesheet", organization_name=organization.name
@@ -1009,13 +1013,7 @@ class TestCurationTaskExecuteAsync:
             version="0.0.1",
             synapse_client=syn,
         )
-
-        def delete_organization() -> None:
-            for schema in organization.get_json_schemas(synapse_client=syn):
-                schema.delete(synapse_client=syn)
-            organization.delete(synapse_client=syn)
-
-        request.addfinalizer(delete_organization)
+        schedule_for_cleanup(json_schema)
 
         return json_schema.uri
 
@@ -1026,7 +1024,7 @@ class TestCurationTaskExecuteAsync:
         project_model: Project,
         schedule_for_cleanup: Callable[..., None],
         sample_sheet_schema_uri: str,
-    ) -> CurationTask:
+    ) -> AsyncGenerator[CurationTask, None]:
         """
         Create the record-based CurationTask that a compute task writes its output to.
 
@@ -1056,7 +1054,7 @@ class TestCurationTaskExecuteAsync:
             json_schema_uri=sample_sheet_schema_uri, synapse_client=syn
         )
 
-        return await CurationTask(
+        yield await CurationTask(
             data_type=f"destination_{str(uuid.uuid4()).replace('-', '_')}",
             project_id=project_model.id,
             instructions="Receives the output of a compute task.",
@@ -1064,6 +1062,11 @@ class TestCurationTaskExecuteAsync:
                 record_set_id=record_set.id
             ),
         ).store_async(synapse_client=syn)
+
+        # Synapse refuses to delete a schema that is still bound to an object, and the
+        # RecordSet is not deleted until session teardown. Unbind here, at function
+        # teardown, so the scheduled cleanup can delete the schema.
+        await record_set.unbind_schema_async(synapse_client=syn)
 
     async def test_execute_record_set_generation_async(
         self,
