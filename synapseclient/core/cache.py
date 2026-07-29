@@ -82,16 +82,13 @@ def _match_cache_map_key(
 ) -> typing.Union[str, None]:
     """
     Find the key in ``cache_map`` that corresponds to ``path``.
-
-    An exact (case-sensitive) match is always preferred, which keeps the cache
-    correct on case-sensitive filesystems -- including case-sensitive
-    directories on Windows/NTFS. When there is no exact match we fall back to a
-    case-insensitive (``os.path.normcase``) comparison. This lets cache entries
-    written by older clients -- which lowercased their keys via
-    ``os.path.normcase`` on Windows -- continue to be found, so preserving path
-    casing in ``utils.normalize_path`` does not force a re-download of already
-    cached files. On POSIX ``os.path.normcase`` is a no-op, so the fallback is
-    equivalent to the exact match and behavior is unchanged.
+    An exact match is tried first. If none exists, fall back to a
+    case-insensitive (``os.path.normcase``) comparison so cache entries
+    written by older clients, which lowercased keys via ``os.path.normcase``
+    on Windows, are still found — preserving path casing in
+    ``utils.normalize_path`` doesn't force a re-download of already-cached
+    files. On POSIX, ``os.path.normcase`` is a no-op, so the fallback never
+    changes behavior there.
 
     Arguments:
         cache_map: The parsed ``.cacheMap`` contents (path -> entry).
@@ -236,7 +233,6 @@ class Cache:
         """
         cached_time = self._get_cache_modified_time(cache_map_entry)
         cached_md5 = self._get_cache_content_md5(cache_map_entry)
-
         # compare_timestamps has an implicit check for whether the path exists
         return compare_timestamps(_get_modified_time(path), cached_time) and (
             cached_md5 is None or cached_md5 == utils.md5_for_file(path).hexdigest()
@@ -312,7 +308,6 @@ class Cache:
             # but has been modified, we need to indicate no match by returning
             # None. The logic for updating a synapse entity depends on this to
             # determine the need to upload a new file.
-
             if path is not None:
                 # If we're given a path to a directory, look for a cached file in that directory
                 if os.path.isdir(path):
@@ -320,7 +315,6 @@ class Cache:
                     removed_entry_from_cache = (
                         False  # determines if cache_map needs to be rewritten to disk
                     )
-
                     # iterate a copy of cache_map to allow modifying original cache_map
                     for cached_file_path, cache_map_entry in dict(cache_map).items():
                         # Compare case-insensitively via os.path.normcase (a
@@ -378,7 +372,6 @@ class Cache:
                 if self._cache_item_unmodified(cache_map_entry, cached_file_path):
                     trace.get_current_span().set_attributes({"synapse.cache.hit": True})
                     return cached_file_path
-
             trace.get_current_span().set_attributes({"synapse.cache.hit": False})
             return None
 
@@ -393,12 +386,10 @@ class Cache:
         """
         if not path or not os.path.exists(path):
             raise ValueError('Can\'t find file "%s"' % path)
-
         cache_dir = self.get_cache_dir(file_handle_id)
         content_md5 = md5 or utils.md5_for_file(path).hexdigest()
         with Lock(self.cache_map_file_name, dir=cache_dir):
             cache_map = self._read_cache_map(cache_dir)
-
             path = utils.normalize_path(path)
             # Drop any pre-existing entry that refers to the same file under a
             # different casing (e.g. a lowercased key written by an older client
