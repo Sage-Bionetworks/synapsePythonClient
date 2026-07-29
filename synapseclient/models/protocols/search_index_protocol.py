@@ -163,13 +163,14 @@ class SearchIndexSynchronousProtocol(Protocol):
             ```python
             from synapseclient import Synapse
             from synapseclient.models import SearchIndex, SearchQuery, SearchQueryPart
+            from synapseclient.models.search_dsl import Query
 
             syn = Synapse()
             syn.login()
 
             results = SearchIndex(id="syn12345").query(
                 search_query=SearchQuery(
-                    query={"match": {"title": {"query": "alzheimer"}}},
+                    query=Query(match={"title": {"query": "alzheimer"}}),
                     size=10,
                 ),
                 response_parts=[SearchQueryPart.TOTAL_HITS],
@@ -220,13 +221,14 @@ class SearchIndexSynchronousProtocol(Protocol):
             ```python
             from synapseclient import Synapse
             from synapseclient.models import SearchIndex
+            from synapseclient.models.search_dsl import Query
 
             syn = Synapse()
             syn.login()
 
             index = SearchIndex(id="syn12345")
             hits = index.autocomplete(
-                query={"match_phrase_prefix": {"title": {"query": "alz"}}},
+                query=Query(match_phrase_prefix={"title": {"query": "alz"}}),
             )
             for hit in hits:
                 print(hit.row_id, hit.fields)

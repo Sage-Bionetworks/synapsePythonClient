@@ -31,8 +31,4 @@
 
 ## OpenSearch query DSL
 
-::: synapseclient.models.search_dsl
-    options:
-        show_root_heading: false
-        show_if_no_docstring: true
-        members_order: source
+::: synapseclient.models.search_dsl.Query

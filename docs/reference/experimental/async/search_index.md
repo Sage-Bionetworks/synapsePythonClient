@@ -26,3 +26,7 @@
 ::: synapseclient.models.SearchHit
 ::: synapseclient.models.SearchFieldValue
 ::: synapseclient.models.SearchHighlight
+
+## OpenSearch query DSL
+
+::: synapseclient.models.search_dsl.Query
