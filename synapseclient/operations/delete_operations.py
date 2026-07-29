@@ -543,7 +543,6 @@ async def delete_async(
             DatasetCollection,
             EntityView,
             MaterializedView,
-            SearchIndex,
             SubmissionView,
             VirtualTable,
         ),
@@ -579,6 +578,7 @@ async def delete_async(
             CurationTask,
             Grid,
             DockerRepository,
+            SearchIndex,
         ),
     ):
         if version_only or final_version_for_entity is not None:
