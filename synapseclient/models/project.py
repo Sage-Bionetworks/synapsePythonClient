@@ -2,16 +2,16 @@ import asyncio
 from copy import deepcopy
 from dataclasses import dataclass, field, replace
 from datetime import date, datetime
-from typing import TYPE_CHECKING, Dict, List, Optional, Union
+from typing import TYPE_CHECKING, Any, Dict, List, Optional, Union
 
 from opentelemetry import trace
 
 from synapseclient import Synapse
 from synapseclient.api import get_from_entity_factory
 from synapseclient.core.async_utils import async_to_sync, otel_trace_method
+from synapseclient.core.constants.concrete_types import PROJECT_ENTITY
 from synapseclient.core.exceptions import SynapseError
 from synapseclient.core.utils import delete_none_keys, merge_dataclass_entities
-from synapseclient.entity import Project as Synapse_Project
 from synapseclient.models import Annotations, File, Folder
 from synapseclient.models.mixins import (
     AccessControllable,
@@ -26,7 +26,6 @@ from synapseclient.models.services.storable_entity_components import (
     FailureStrategy,
     store_entity_components,
 )
-from synapseutils.copy_functions import copy
 
 if TYPE_CHECKING:
     from synapseclient.models import (
@@ -262,7 +261,7 @@ class Project(
 
     def fill_from_dict(
         self,
-        synapse_project: Union[Synapse_Project, Dict],
+        synapse_project: dict[str, Any],
         set_annotations: bool = True,
     ) -> "Project":
         """
@@ -361,14 +360,15 @@ class Project(
             }
         )
         if self.has_changed:
-            synapse_project = Synapse_Project(
-                id=self.id,
-                etag=self.etag,
-                name=self.name,
-                description=self.description,
-                alias=self.alias,
-                parentId=self.parent_id,
-            )
+            synapse_project = {
+                "id": self.id,
+                "etag": self.etag,
+                "name": self.name,
+                "description": self.description,
+                "alias": self.alias,
+                "parentId": self.parent_id,
+                "concreteType": PROJECT_ENTITY,
+            }
             delete_none_keys(synapse_project)
             entity = await store_entity(
                 resource=self,
@@ -526,6 +526,9 @@ class Project(
         """
         if not self.id or not destination_id:
             raise ValueError("The project must have an ID and destination_id to copy.")
+
+        # Imported lazily to avoid a circular import
+        from synapseutils.copy_functions import copy
 
         loop = asyncio.get_event_loop()
 

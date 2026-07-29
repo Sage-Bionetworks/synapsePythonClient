@@ -1,9 +1,5 @@
 # Curator
 
-Contained within this file are experimental interfaces for working with the Synapse Python
-Client. Unless otherwise noted these interfaces are subject to change at any time. Use
-at your own risk.
-
 ## API reference
 
 [](){ #curation-task-reference-async }
@@ -72,9 +68,125 @@ at your own risk.
             - import_csv_async
             - delete_async
             - list_async
+            - connect_async
+            - validate_rows_async
 ---
 [](){ #query-reference-async }
 ::: synapseclient.models.Query
+    options:
+        inherited_members: true
+        members:
+---
+[](){ #GridQuery-reference-async }
+::: synapseclient.models.curation.GridQuery
+    options:
+        inherited_members: true
+        members:
+---
+[](){ #QueryRequest-reference-async }
+::: synapseclient.models.curation.QueryRequest
+    options:
+        inherited_members: true
+        members:
+---
+[](){ #SelectItem-reference-async }
+::: synapseclient.models.curation.SelectItem
+    options:
+        inherited_members: true
+        members:
+---
+[](){ #SelectByName-reference-async }
+::: synapseclient.models.curation.SelectByName
+    options:
+        inherited_members: true
+        members:
+---
+[](){ #SelectAll-reference-async }
+::: synapseclient.models.curation.SelectAll
+    options:
+        inherited_members: true
+        members:
+---
+[](){ #CountStar-reference-async }
+::: synapseclient.models.curation.CountStar
+    options:
+        inherited_members: true
+        members:
+---
+[](){ #SelectSelection-reference-async }
+::: synapseclient.models.curation.SelectSelection
+    options:
+        inherited_members: true
+        members:
+---
+[](){ #Filter-reference-async }
+::: synapseclient.models.curation.Filter
+    options:
+        inherited_members: true
+        members:
+---
+[](){ #RowValidationResultFilter-reference-async }
+::: synapseclient.models.curation.RowValidationResultFilter
+    options:
+        inherited_members: true
+        members:
+---
+[](){ #CellValueFilter-reference-async }
+::: synapseclient.models.curation.CellValueFilter
+    options:
+        inherited_members: true
+        members:
+---
+[](){ #RowSelectionFilter-reference-async }
+::: synapseclient.models.curation.RowSelectionFilter
+    options:
+        inherited_members: true
+        members:
+---
+[](){ #RowIsValidFilter-reference-async }
+::: synapseclient.models.curation.RowIsValidFilter
+    options:
+        inherited_members: true
+        members:
+---
+[](){ #RowIdFilter-reference-async }
+::: synapseclient.models.curation.RowIdFilter
+    options:
+        inherited_members: true
+        members:
+---
+[](){ #ValidationOperator-reference-async }
+::: synapseclient.models.curation.ValidationOperator
+    options:
+        inherited_members: true
+        members:
+---
+[](){ #CellValueOperator-reference-async }
+::: synapseclient.models.curation.CellValueOperator
+    options:
+        inherited_members: true
+        members:
+---
+[](){ #GridQueryResult-reference-async }
+::: synapseclient.models.curation.GridQueryResult
+    options:
+        inherited_members: true
+        members:
+---
+[](){ #GridRow-reference-async }
+::: synapseclient.models.curation.GridRow
+    options:
+        inherited_members: true
+        members:
+---
+[](){ #SelectColumn-reference-async }
+::: synapseclient.models.curation.SelectColumn
+    options:
+        inherited_members: true
+        members:
+---
+[](){ #GridQueryValidationResult-reference-async }
+::: synapseclient.models.curation.GridQueryValidationResult
     options:
         inherited_members: true
         members:

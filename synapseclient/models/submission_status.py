@@ -1,18 +1,20 @@
+import collections.abc
+import logging
 from copy import deepcopy
 from dataclasses import dataclass, field, replace
 from datetime import date, datetime
-from typing import Optional, Protocol, Union
+from typing import Any, Optional, Protocol, Union
 
 from typing_extensions import Self
 
 from synapseclient import Synapse
-from synapseclient.annotations import (
-    to_submission_annotations,
-    to_submission_status_annotations,
-)
 from synapseclient.api import evaluation_services
 from synapseclient.core.async_utils import async_to_sync, otel_trace_method
-from synapseclient.core.utils import merge_dataclass_entities
+from synapseclient.core.utils import (
+    is_date,
+    merge_dataclass_entities,
+    to_unix_epoch_time,
+)
 from synapseclient.models import Annotations
 from synapseclient.models.mixins.access_control import AccessControllable
 
@@ -538,12 +540,12 @@ class SubmissionStatus(
                 request_body[api_field_name] = field_value
 
         if self.annotations and len(self.annotations) > 0:
-            request_body["annotations"] = to_submission_status_annotations(
+            request_body["annotations"] = _to_submission_status_annotations(
                 self.annotations, self.private_status_annotations
             )
 
         if self.submission_annotations and len(self.submission_annotations) > 0:
-            request_body["submissionAnnotations"] = to_submission_annotations(
+            request_body["submissionAnnotations"] = _to_submission_annotations(
                 id=self.id,
                 etag=self.etag,
                 annotations=self.submission_annotations,
@@ -838,3 +840,159 @@ class SubmissionStatus(
             request_body=request_body,
             synapse_client=synapse_client,
         )
+
+
+def _is_submission_status_annotations(annotations: collections.abc.Mapping) -> bool:
+    """Tests if the given dictionary is in the form of annotations to submission
+    status.
+
+    Arguments:
+        annotations: A key-value mapping that may or may not be a submission status
+        annotations object.
+
+    Returns:
+        True if the given object is a submission status annotations object, False
+        otherwise.
+    """
+    keys = ["objectId", "scopeId", "stringAnnos", "longAnnos", "doubleAnnos"]
+    if not isinstance(annotations, collections.abc.Mapping):
+        return False
+    return all([key in keys for key in annotations.keys()])
+
+
+def _to_submission_status_annotations(annotations, is_private=True):
+    """
+    Converts a normal dictionary to the format used to annotate submission statuses, which is different from the format
+    used to annotate entities.
+
+    Arguments:
+        annotations: A normal Python dictionary whose values are strings, floats, ints or doubles.
+        is_private: Set privacy on all annotations at once.
+
+    Synapse categorizes these annotations by: stringAnnos, doubleAnnos, longAnnos.
+    """
+    if _is_submission_status_annotations(annotations):
+        return annotations
+    synapseAnnos = {}
+    for key, value in annotations.items():
+        if key in ["objectId", "scopeId", "stringAnnos", "longAnnos", "doubleAnnos"]:
+            synapseAnnos[key] = value
+        elif isinstance(value, bool):
+            synapseAnnos.setdefault("stringAnnos", []).append(
+                {"key": key, "value": str(value).lower(), "isPrivate": is_private}
+            )
+        elif isinstance(value, int):
+            synapseAnnos.setdefault("longAnnos", []).append(
+                {"key": key, "value": value, "isPrivate": is_private}
+            )
+        elif isinstance(value, float):
+            synapseAnnos.setdefault("doubleAnnos", []).append(
+                {"key": key, "value": value, "isPrivate": is_private}
+            )
+        elif isinstance(value, str):
+            synapseAnnos.setdefault("stringAnnos", []).append(
+                {"key": key, "value": value, "isPrivate": is_private}
+            )
+        elif is_date(value):
+            synapseAnnos.setdefault("longAnnos", []).append(
+                {
+                    "key": key,
+                    "value": to_unix_epoch_time(value),
+                    "isPrivate": is_private,
+                }
+            )
+        else:
+            synapseAnnos.setdefault("stringAnnos", []).append(
+                {"key": key, "value": str(value), "isPrivate": is_private}
+            )
+    return synapseAnnos
+
+
+def _to_submission_annotations(
+    id: Union[str, int],
+    etag: str,
+    annotations: dict[str, Any],
+    logger: Optional[logging.Logger] = None,
+) -> dict[str, Any]:
+    """
+    Converts a normal dictionary to the format used for submission annotations, which is different from the format
+    used to annotate entities.
+
+    This function creates the proper nested structure that includes id, etag, and annotations in the format
+    expected by the submissionAnnotations field of a SubmissionStatus request body.
+
+    Arguments:
+        id: The unique ID of the submission being annotated.
+        etag: The etag of the submission status for optimistic concurrency control.
+        annotations: A normal Python dictionary comprised of the annotations to be added.
+        logger: An optional logger instance. If not provided, a default logger will be used.
+
+    Returns:
+        A dictionary in the format expected by submissionAnnotations with nested structure containing
+        id, etag, and annotations object with type/value format.
+
+    Note:
+        This function is designed specifically for the submissionAnnotations field format,
+        which is part of the creation of a SubmissionStatus request body:
+
+        <https://rest-docs.synapse.org/rest/org/sagebionetworks/repo/model/annotation/v2/Annotations.html>
+    """
+    # Create the base structure
+    submission_annos = {"id": str(id), "etag": str(etag), "annotations": {}}
+
+    # Convert each annotation to the proper nested format
+    for key, value in annotations.items():
+        # Ensure value is a list
+        if not isinstance(value, list):
+            value_list = [value]
+        else:
+            value_list = value
+
+        # Warn about empty annotation values and skip them
+        if not value_list:
+            if logger:
+                logger.warning(
+                    f"Annotation '{key}' has an empty value list and will be skipped"
+                )
+            else:
+                client = Synapse.get_client()
+                client.logger.warning(
+                    f"Annotation '{key}' has an empty value list and will be skipped"
+                )
+            continue
+
+        # Determine type based on the first element
+        first_element = value_list[0]
+
+        if isinstance(first_element, str):
+            submission_annos["annotations"][key] = {
+                "type": "STRING",
+                "value": value_list,
+            }
+        elif isinstance(first_element, bool):
+            # Convert booleans to lowercase strings
+            submission_annos["annotations"][key] = {
+                "type": "STRING",
+                "value": [str(v).lower() for v in value_list],
+            }
+        elif isinstance(first_element, int):
+            submission_annos["annotations"][key] = {"type": "LONG", "value": value_list}
+        elif isinstance(first_element, float):
+            submission_annos["annotations"][key] = {
+                "type": "DOUBLE",
+                "value": value_list,
+            }
+        elif is_date(first_element):
+            # Convert dates to unix timestamps
+            submission_annos["annotations"][key] = {
+                "type": "LONG",
+                "value": [to_unix_epoch_time(v) for v in value_list],
+            }
+        else:
+            # Default to string representation
+            submission_annos["annotations"][key] = {
+                "type": "STRING",
+                "value": [str(v) for v in value_list],
+            }
+
+    return submission_annos

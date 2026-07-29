@@ -5,7 +5,6 @@ from dataclasses import dataclass
 from enum import Enum
 from typing import Any, Dict, Optional
 
-from tqdm import tqdm
 from tqdm.contrib.logging import logging_redirect_tqdm
 from typing_extensions import Self
 
@@ -18,6 +17,7 @@ from synapseclient.core.constants.concrete_types import (
     DOWNLOAD_LIST_MANIFEST_REQUEST,
     GET_VALIDATION_SCHEMA_REQUEST,
     GRID_CSV_IMPORT_REQUEST,
+    GRID_QUERY_JOB_REQUEST,
     GRID_RECORD_SET_EXPORT_REQUEST,
     QUERY_BUNDLE_REQUEST,
     QUERY_TABLE_CSV_REQUEST,
@@ -30,6 +30,7 @@ from synapseclient.core.exceptions import (
     SynapseHTTPError,
     SynapseTimeoutError,
 )
+from synapseclient.core.transfer_bar import create_progress_bar
 
 ASYNC_JOB_URIS = {
     AGENT_CHAT_REQUEST: "/agent/chat/async",
@@ -44,6 +45,7 @@ ASYNC_JOB_URIS = {
     QUERY_TABLE_CSV_REQUEST: "/entity/{entityId}/table/download/csv/async",
     QUERY_BUNDLE_REQUEST: "/entity/{entityId}/table/query/async",
     GRID_CSV_IMPORT_REQUEST: "/grid/import/csv/async",
+    GRID_QUERY_JOB_REQUEST: "/grid/session/query/async",
     UPLOAD_TO_TABLE_PREVIEW_REQUEST: "/table/upload/csv/preview/async",
 }
 
@@ -452,11 +454,10 @@ async def get_job_async(
     last_progress = 0
     last_total = 1
     progressed = False
-    progress_bar = tqdm(
+    progress_bar = create_progress_bar(
         total=last_total,
-        unit_scale=True,
-        smoothing=0,
-        leave=None,
+        desc="",
+        synapse_client=client,
     )
     with logging_redirect_tqdm(loggers=[client.logger]):
         while time.time() - start_time < timeout:

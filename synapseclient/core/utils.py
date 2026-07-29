@@ -27,7 +27,7 @@ import zipfile
 from dataclasses import asdict, fields, is_dataclass
 from email.message import Message
 from enum import Enum
-from typing import TYPE_CHECKING, List, Optional, TypeVar, Union
+from typing import TYPE_CHECKING, Any, List, Mapping, Optional, TypeVar, Union
 
 import requests
 from deprecated import deprecated
@@ -93,15 +93,16 @@ def md5_for_file(
                 callback()
             data = f.read(block_size)
             if not data:
-                if progress_bar:
-                    progress_bar.update(progress_bar.total - progress_bar.n)
+                if progress_bar is not None:
+                    if progress_bar.total is not None:
+                        progress_bar.update(progress_bar.total - progress_bar.n)
                     progress_bar.refresh()
                     progress_bar.close()
                 break
             md5.update(data)
             data_length = len(data)
             data_read += data_length
-            if progress_bar:
+            if progress_bar is not None:
                 progress_bar.update(data_length)
             del data
             # Garbage collect every 100 iterations
@@ -117,7 +118,10 @@ def md5_for_file(
 
 
 def md5_for_file_hex(
-    filename: str, block_size: int = 2 * MB, callback: typing.Callable = None
+    filename: str,
+    block_size: int = 2 * MB,
+    callback: typing.Callable = None,
+    progress_bar: Optional[tqdm] = None,
 ) -> str:
     """
     Calculates the MD5 of the given file.
@@ -129,12 +133,15 @@ def md5_for_file_hex(
                     Defaults to 2 MB
         callback: The callback function that help us show loading spinner on terminal.
                     Defaults to None
+        progress_bar: An optional TQDM progress bar to update
 
     Returns:
         The MD5 Checksum
     """
 
-    return md5_for_file(filename, block_size, callback).hexdigest()
+    return md5_for_file(
+        filename, block_size, callback, progress_bar=progress_bar
+    ).hexdigest()
 
 
 @tracer.start_as_current_span("synapse.util.md5")
@@ -1633,3 +1640,155 @@ def coerce_enum_list(enum_class: type[E], values: list[Union[E, str]]) -> list[s
                 f"Invalid value {value!r}. Valid values are: {[e.value for e in enum_class]}"
             ) from exc
     return result
+
+
+def _annotation_value_list_element_type(annotation_values: list[Any]) -> type:
+    """Infer the common element type of a non-empty annotation value list. The type of
+    the first element is used as the candidate, and if every element is an instance of
+    that type it is returned. Otherwise object is returned to signal a heterogeneous
+    list, which the caller maps to the STRING fallback.
+
+    Callers must pre-filter empty lists, this function indexes the first element and does
+    not handle an empty input.
+
+    Arguments:
+        annotation_values: A non-empty list of annotation element values.
+
+    Returns:
+        The shared element type if the list is homogeneous, otherwise object.
+    """
+    first_element_type = type(annotation_values[0])
+
+    if all(isinstance(x, first_element_type) for x in annotation_values):
+        return first_element_type
+
+    return object
+
+
+def _is_missing_annotation_value(value: Any) -> bool:
+    """Return True if a scalar annotation value represents the absence of data and
+    should be omitted rather than stored. This covers None, the empty string, NaN
+    values of any real-number type (Python float, the numpy float widths, and
+    decimal.Decimal), and the pandas missing-value sentinels pandas.NA and pandas.NaT.
+
+    pandas/numpy are optional dependencies, so they are never imported here. NaN is
+    detected via the fact that NaN is the only value not equal to itself, and the pandas
+    sentinels are detected by class name. Ordering matters: the pandas check runs first
+    because pandas.NA != pandas.NA raises, and both run before the empty-string
+    comparison because pandas.NA == "" returns pandas.NA, which raises when coerced to a
+    bool.
+
+    Arguments:
+        value: A scalar annotation value (or list element) to test.
+
+    Returns:
+        True if the value should be treated as missing and omitted, otherwise False.
+    """
+    if value is None:
+        return True
+    # pandas.NA / pandas.NaT — detect by class name to avoid importing pandas. This must
+    # run before the NaN test below because pandas.NA != pandas.NA raises.
+    if value.__class__.__name__ in ("NAType", "NaTType"):
+        return True
+    # NaN is the only value not equal to itself. This catches NaN of any numeric type
+    # (float, numpy float16/32/64, Decimal) without calling math.isnan on non-numbers,
+    # which return False here since any normal object equals itself.
+    if value != value:
+        return True
+    # Reached only for normal scalars, so the comparison is unambiguous
+    return value == ""
+
+
+def convert_to_annotations_list(
+    annotations: Mapping[str, Any],
+) -> dict[str, dict[str, Any]]:
+    """Convert a flat dictionary of annotation values into the Synapse-style
+    annotation list format. Each value is wrapped into a list and tagged with the
+    Synapse annotation type (STRING, BOOLEAN, LONG, DOUBLE, or TIMESTAMP_MS) inferred
+    from its element type. A list whose elements are not all of a single supported
+    type falls back to STRING, with each element coerced via str().
+    See the https://rest-docs.synapse.org/rest/org/sagebionetworks/repo/model/annotation/v2/Annotations.html
+    documentation for more information on the target format.
+
+    Missing values are stripped from list values, where a missing value is None, an
+    empty string, a NaN float, or a pandas missing-value sentinel (pandas.NA or
+    pandas.NaT). A scalar missing value, an empty list, or a list whose elements are all
+    missing is treated as the absence of a value and the key is omitted from the result
+    rather than being stored as the string "None"/"nan" or raising an error. A list
+    mixing missing values with real values keeps only the real values (for example
+    [None, "", "value"] is stored as ["value"]).
+
+    Arguments:
+        annotations: A flat mapping of annotation keys to their values. A value may be
+            a scalar or a list of scalars of a single supported type.
+
+    Returns:
+        A dictionary mapping each annotation key to a dict with type and value keys,
+        where value is a list of stringified elements.
+    """
+    nested_annos = {}
+    for key, value in annotations.items():
+        # Missing values (None, "", NaN, pandas.NA/NaT) don't become annotations
+        if _is_missing_annotation_value(value):
+            continue
+        # Strip missing elements so they aren't stored as "None"/"nan"/etc.
+        elements = [
+            element
+            for element in to_list(value)
+            if not _is_missing_annotation_value(element)
+        ]
+        # Empty lists or lists with only missing values don't become annotations
+        if not elements:
+            continue
+        element_cls = _annotation_value_list_element_type(elements)
+        if issubclass(element_cls, str):
+            nested_annos[key] = {"type": "STRING", "value": elements}
+        elif issubclass(element_cls, bool):
+            nested_annos[key] = {
+                "type": "BOOLEAN",
+                "value": ["true" if e else "false" for e in elements],
+            }
+        elif issubclass(element_cls, int):
+            nested_annos[key] = {"type": "LONG", "value": [str(e) for e in elements]}
+        elif issubclass(element_cls, float):
+            nested_annos[key] = {"type": "DOUBLE", "value": [str(e) for e in elements]}
+        elif issubclass(element_cls, (datetime.date, datetime.datetime)):
+            nested_annos[key] = {
+                "type": "TIMESTAMP_MS",
+                "value": [str(to_unix_epoch_time(e)) for e in elements],
+            }
+        else:
+            nested_annos[key] = {"type": "STRING", "value": [str(e) for e in elements]}
+    return nested_annos
+
+
+def escape_column_name(column: Union[str, collections.abc.Mapping]) -> str:
+    """
+    Escape the name of the given column for use in a Synapse table query statement
+
+    Arguments:
+        column: a string or column dictionary object with a 'name' key
+
+    Returns:
+        Escaped column name
+    """
+    col_name = (
+        column["name"] if isinstance(column, collections.abc.Mapping) else str(column)
+    )
+    escaped_name = col_name.replace('"', '""')
+    return f'"{escaped_name}"'
+
+
+def join_column_names(columns: Union[list, dict]) -> str:
+    """
+    Join the names of the given columns into a comma delimited list suitable for use
+    in a Synapse table query
+
+    Arguments:
+        columns: A sequence of column string names or dictionary objects with column
+            'name' keys
+
+    Returns:
+        Comma-separated string of escaped column names
+    """
+    return ",".join(escape_column_name(c) for c in columns)

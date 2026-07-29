@@ -2,7 +2,6 @@
 
 import csv
 import os
-import platform
 import uuid
 from pathlib import Path
 from typing import Callable
@@ -13,7 +12,6 @@ import pytest_asyncio
 
 import synapseclient.core.utils as utils
 from synapseclient import Synapse
-from synapseclient.core.exceptions import SynapseHTTPError
 from synapseclient.models import File, Folder, Project
 from synapseclient.models.activity import UsedURL
 
