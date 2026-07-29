@@ -1,14 +1,20 @@
 """Protocol for the specific methods of this class that have synchronous counterparts
 generated at runtime."""
 
-from typing import TYPE_CHECKING, Any, Dict, List, Optional, Protocol
+from typing import TYPE_CHECKING, List, Optional, Protocol
 
 from typing_extensions import Self
 
 from synapseclient import Synapse
+from synapseclient.models.search_dsl import Query, SourceFilter
 
 if TYPE_CHECKING:
-    from synapseclient.models.search_management import SearchHit
+    from synapseclient.models.search_management import (
+        SearchHit,
+        SearchIndexQuery,
+        SearchQuery,
+        SearchQueryPart,
+    )
 
 
 class SearchIndexSynchronousProtocol(Protocol):
@@ -18,7 +24,6 @@ class SearchIndexSynchronousProtocol(Protocol):
         self,
         dry_run: bool = False,
         *,
-        job_timeout: int = 600,
         synapse_client: Optional[Synapse] = None,
     ) -> "Self":
         """Store metadata about a SearchIndex including the annotations. Creates
@@ -28,8 +33,6 @@ class SearchIndexSynchronousProtocol(Protocol):
         Arguments:
             dry_run: If True, will not actually store the SearchIndex but will log
                 to the console what would be created or updated.
-            job_timeout: The maximum amount of time to wait for the index-build job
-                to complete before raising an error.
             synapse_client: If not passed in and caching was not disabled by
                 `Synapse.allow_client_caching(False)` this will use the last created
                 instance from the Synapse class constructor.
@@ -53,7 +56,7 @@ class SearchIndexSynchronousProtocol(Protocol):
             index = SearchIndex(
                 name="My Search Index",
                 parent_id="syn12345",
-                # syn67890 must be a table or a view; multi-entity JOINs are not supported
+                # syn67890 must be a table or a view;
                 defining_sql="SELECT * FROM syn67890",
             )
             index = index.store()
@@ -121,23 +124,87 @@ class SearchIndexSynchronousProtocol(Protocol):
         """
         return None
 
+    def query(
+        self,
+        search_query: "SearchQuery",
+        response_parts: Optional[List["SearchQueryPart"]] = None,
+        *,
+        job_timeout: int = 600,
+        synapse_client: Optional[Synapse] = None,
+    ) -> "SearchIndexQuery":
+        """Query this search index. Unlike a SQL-backed Table, a SearchIndex is
+        queried with the
+        [OpenSearch Query DSL](https://docs.opensearch.org/latest/query-dsl/)
+        carried by a [SearchQuery][synapseclient.models.SearchQuery] — not with
+        Synapse SQL. See [Query][synapseclient.models.search_dsl.Query] for the
+        supported clause kinds.
+
+        Arguments:
+            search_query: The OpenSearch
+                [`_search`](https://docs.opensearch.org/latest/api-reference/search-apis/search/)
+                body to execute against this index.
+            response_parts: Additional response parts to request beyond the
+                default hits, such as the total hit count or the select columns.
+            job_timeout: The maximum amount of time to wait for the query job to
+                complete before raising a `SynapseTimeoutError`.
+            synapse_client: If not passed in and caching was not disabled by
+                `Synapse.allow_client_caching(False)` this will use the last created
+                instance from the Synapse class constructor.
+
+        Returns:
+            The completed [SearchIndexQuery][synapseclient.models.SearchIndexQuery], carrying the `hits` and any requested response parts.
+
+        Raises:
+            ValueError: If the `id` attribute has not been set.
+
+        Example: Query an index for documents mentioning "alzheimer".
+            &nbsp;
+
+            ```python
+            from synapseclient import Synapse
+            from synapseclient.models import SearchIndex, SearchQuery, SearchQueryPart
+            from synapseclient.models.search_dsl import Query
+
+            syn = Synapse()
+            syn.login()
+
+            results = SearchIndex(id="syn12345").query(
+                search_query=SearchQuery(
+                    query=Query(match={"title": {"query": "alzheimer"}}),
+                    size=10,
+                ),
+                response_parts=[SearchQueryPart.TOTAL_HITS],
+            )
+            print(results.total_hits)
+            for hit in results.hits:
+                print(hit.row_id, hit.fields)
+            ```
+        """
+        from synapseclient.models.search_management import SearchIndexQuery
+
+        return SearchIndexQuery()
+
     def autocomplete(
         self,
-        query: Dict[str, Any],
-        source: Optional[Dict[str, Any]] = None,
+        query: Query,
+        source: Optional[SourceFilter] = None,
         *,
         synapse_client: Optional[Synapse] = None,
     ) -> List["SearchHit"]:
         """Run a synchronous autocomplete search against this index. The
-        autocomplete endpoint allowlists only prefix-style queries (`prefix`,
-        `match_phrase_prefix`, or `match_bool_prefix`) and caps results at 8.
+        autocomplete endpoint allowlists only prefix-style queries
+        ([`prefix`](https://docs.opensearch.org/latest/query-dsl/term/prefix/),
+        [`match_phrase_prefix`](https://docs.opensearch.org/latest/query-dsl/full-text/match-phrase-prefix/),
+        or [`match_bool_prefix`](https://docs.opensearch.org/latest/query-dsl/full-text/match-bool-prefix/))
+        and caps results at 8.
 
         Arguments:
-            query: The top-level OpenSearch Query DSL clause; restricted
-                server-side to `prefix`, `match_phrase_prefix`, or
+            query: The top-level [OpenSearch Query DSL](https://docs.opensearch.org/latest/query-dsl/)
+                clause -- see [Query][synapseclient.models.search_dsl.Query];
+                restricted server-side to `prefix`, `match_phrase_prefix`, or
                 `match_bool_prefix`.
-            source: Optional source filter selecting which columns are returned
-                on each hit.
+            source: Optional [source filter](https://docs.opensearch.org/latest/search-plugins/searching-data/retrieve-specific-fields/)
+                selecting which columns are returned on each hit.
             synapse_client: If not passed in and caching was not disabled by
                 `Synapse.allow_client_caching(False)` this will use the last created
                 instance from the Synapse class constructor.
@@ -154,13 +221,14 @@ class SearchIndexSynchronousProtocol(Protocol):
             ```python
             from synapseclient import Synapse
             from synapseclient.models import SearchIndex
+            from synapseclient.models.search_dsl import Query
 
             syn = Synapse()
             syn.login()
 
             index = SearchIndex(id="syn12345")
             hits = index.autocomplete(
-                query={"match_phrase_prefix": {"title": {"query": "alz"}}},
+                query=Query(match_phrase_prefix={"title": {"query": "alz"}}),
             )
             for hit in hits:
                 print(hit.row_id, hit.fields)
