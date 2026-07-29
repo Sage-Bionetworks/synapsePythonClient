@@ -129,13 +129,13 @@ def test_subsecond_timestamps():
         _read_cache_map_mock.return_value = {path: "2015-05-05T21:34:55.001Z"}
         _get_modified_time_mock.return_value = 1430861695.001111
 
-        assert path == my_cache.get(file_handle_id=1234, path=path)
+        assert utils.equal_paths(path, my_cache.get(file_handle_id=1234, path=path))
 
         # The R client always writes .000 for milliseconds, for compatibility,
         # we should match .000 with any number of milliseconds
         _read_cache_map_mock.return_value = {path: "2015-05-05T21:34:55.000Z"}
 
-        assert path == my_cache.get(file_handle_id=1234, path=path)
+        assert utils.equal_paths(path, my_cache.get(file_handle_id=1234, path=path))
 
 
 def test_unparseable_cache_map():
