@@ -28,8 +28,6 @@ from synapseclient.models.mixins.storage_location_mixin import (
 
 __all__ = [
     "AccessControllable",
-    "EnumCoercionMixin",
-    "ForwardCompatibleStrEnum",
     "ProjectSettingsMixin",
     "StorableContainer",
     "StorageLocationConfigurable",
