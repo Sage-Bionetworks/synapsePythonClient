@@ -1,4 +1,4 @@
-<!-- Last reviewed: 2026-03 -->
+<!-- Last reviewed: 2026-07 -->
 
 ## Project
 
@@ -14,6 +14,8 @@ Queue-based concurrent download/upload via `_worker()` coroutine processing `asy
 
 ### asynchronous_job.py
 `ASYNC_JOB_URIS` dict maps concrete types to REST endpoints — when adding a new async job type, register here AND in `core/constants/concrete_types.py`. Subclasses must implement `to_synapse_request()` and `fill_from_dict()`.
+
+Resource-scoped endpoints use `{placeholder}` segments (e.g. `/curation/task/{taskId}/execute/async`). `_resolve_async_job_uri()` fills them from the request body, matching each placeholder to the identically-named camelCase key emitted by `to_synapse_request()` — so a `{taskId}` URI requires the request to carry `taskId`.
 
 ### table_components.py
 Column type mapping between Python types and Synapse column types. Multiple TODOs for incomplete features (SYNPY-1651).
