@@ -52,13 +52,20 @@ class TestPutPartWithRetry:
     window entirely and failed the part immediately.
     """
 
-    def test_handle_part__httpx_connection_error_then_success(self, syn):
+    @pytest.mark.parametrize(
+        "exception",
+        [
+            httpx.ConnectError("connection refused"),
+            httpx.ReadError("broken"),
+            httpx.ReadTimeout("timed out"),
+            httpx.ConnectTimeout("timed out"),
+            httpx.RemoteProtocolError("disconnected"),
+        ],
+    )
+    def test_handle_part__httpx_connection_error_then_success(self, syn, exception):
         upload = _init_upload_attempt(syn)
         mock_session = mock.Mock()
-        mock_session.put.side_effect = [
-            httpx.ConnectError("connection refused"),
-            mock.Mock(status_code=200),
-        ]
+        mock_session.put.side_effect = [exception, mock.Mock(status_code=200)]
 
         with mock.patch.object(syn, "_requests_session_storage", mock_session):
             result = upload._handle_part(PART_NUMBER)
