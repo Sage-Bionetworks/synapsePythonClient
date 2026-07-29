@@ -1,6 +1,10 @@
 """Integration tests for the org-scoped search-management resources: TextAnalyzer,
 SynonymSet, ColumnAnalyzerOverride, SearchConfiguration, and SearchConfigBinding.
 
+These tests run against the **dev** Synapse environment. All resources are
+created in dev. If you run these tests locally, make sure to point your
+client to the dev endpoints.
+
 TextAnalyzer, SynonymSet, ColumnAnalyzerOverride, and SearchConfiguration have no
 delete endpoint on the Synapse REST API, so these tests do not create or update
 them -- they only get and list a fixed set of resources pre-seeded under the
@@ -33,13 +37,13 @@ from synapseclient.models import (
 
 SEARCH_ORG_NAME = "SYNPY.TEST.SEARCH.MANAGEMENT"
 TEXT_ANALYZER_NAME = "test_analyzer"
-TEXT_ANALYZER_ID = "1023"
+TEXT_ANALYZER_ID = "1001"
 SYNONYM_SET_NAME = "test_synonyms"
-SYNONYM_SET_ID = "32"
+SYNONYM_SET_ID = "1"
 COLUMN_ANALYZER_OVERRIDE_NAME = "disease_column_overrides"
-COLUMN_ANALYZER_OVERRIDE_ID = "15"
+COLUMN_ANALYZER_OVERRIDE_ID = "1"
 TEST_CONFIG_NAME = "test_config"
-TEST_CONFIG_ID = "17"
+TEST_CONFIG_ID = "2"
 
 
 @pytest.fixture(scope="function")
