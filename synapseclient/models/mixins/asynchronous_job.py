@@ -75,8 +75,12 @@ def _resolve_async_job_uri(
 
     Arguments:
         request_type: The concreteType of the asynchronous job request.
-        request: The request that was, or will be, sent to the server. Only required
-            when the URI for the request type contains placeholders.
+        request: The serialized job body that to_synapse_request() emits for this
+            request type, in the camelCase form that is sent to the server. Its keys
+            are what the URI placeholders are resolved against, so a URI containing
+            {taskId} requires a taskId key here. Only required when the URI for the
+            request type contains placeholders; request types with a static URI can
+            omit it.
 
     Returns:
         The asynchronous job URI with all placeholders resolved.
@@ -88,8 +92,10 @@ def _resolve_async_job_uri(
     """
     if not request_type or request_type not in ASYNC_JOB_URIS:
         raise ValueError(f"Unsupported request type: {request_type}")
-
     uri = ASYNC_JOB_URIS[request_type]
+
+    # The braced names in the URI, e.g. entityId for /entity/{entityId}/table/query/async.
+    # Each one names a key of the serialized request that supplies that path segment.
     placeholders = [
         field_name
         for _, field_name, _, _ in Formatter().parse(uri)
@@ -98,6 +104,9 @@ def _resolve_async_job_uri(
     if not placeholders:
         return uri
 
+    # Placeholders that could never name a request key, such as the positional {} or
+    # an indexed {0}. These are typos in ASYNC_JOB_URIS rather than caller mistakes, so
+    # they are caught before the request is looked at.
     unusable = [name for name in placeholders if not name.isidentifier()]
     if unusable:
         raise ValueError(
