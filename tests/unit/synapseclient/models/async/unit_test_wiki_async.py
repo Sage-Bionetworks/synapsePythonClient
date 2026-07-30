@@ -2333,12 +2333,12 @@ class TestWikiPageCopy:
 
     @pytest.mark.parametrize(
         "entity_sub_page_id,destination_sub_page_id",
-        [("8688", "4"), (8688.0, 4.0)],
+        [("8688", "4"), (8688, 4)],
     )
     async def test_copy_async_sub_page_id_coercion(
         self, entity_sub_page_id, destination_sub_page_id
     ) -> None:
-        # GIVEN a copy request with sub page IDs given as numeric strings or floats
+        # GIVEN a copy request with sub page IDs given as numeric strings or integers
         headers = [{"id": "8688", "title": "Root"}]
         with (
             patch(
@@ -2639,7 +2639,6 @@ class TestValidateAndFormatCopyInputs:
             ("8688", None, ("8688", None)),
             (None, "4", (None, "4")),
             (8688, 4, ("8688", "4")),
-            (8688.0, 4.0, ("8688", "4")),
         ],
     )
     def test_valid_inputs_return_coerced_sub_page_ids(
@@ -2730,7 +2729,7 @@ class TestValidateAndFormatCopyInputs:
         [
             ("some_string", None, "The id of the WikiPage"),
             (None, "some_string", "destination_sub_page_id"),
-            (8688.9, None, "The id of the WikiPage"),
+            (8688.0, None, "The id of the WikiPage"),
             (None, 4.9, "destination_sub_page_id"),
             (True, None, "The id of the WikiPage"),
             (None, True, "destination_sub_page_id"),
@@ -2741,7 +2740,7 @@ class TestValidateAndFormatCopyInputs:
     def test_non_numeric_sub_page_id_raises_value_error(
         self, entity_sub_page_id, destination_sub_page_id, argument_name
     ) -> None:
-        # WHEN I validate copy inputs with a non-numeric, fractional,
+        # WHEN I validate copy inputs with a non-numeric, float,
         # boolean, or negative sub page ID
         # THEN it should raise ValueError naming the offending argument
         with pytest.raises(

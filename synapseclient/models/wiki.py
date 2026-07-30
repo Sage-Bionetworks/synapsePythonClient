@@ -1814,14 +1814,13 @@ async def _copy_wiki_pages(
 
 
 def _coerce_sub_page_id(
-    sub_page_id: str | int | float | None, argument_description: str
+    sub_page_id: str | int | None, argument_description: str
 ) -> str | None:
     """Coerce a wiki sub page ID to an integer string.
 
-    Rejects values that a plain int() conversion would silently mangle:
-    fractional floats truncate, and bools and negative numbers convert to
-    nonsense page IDs. Integer-valued floats such as 4.0 are accepted since
-    they convert losslessly.
+    Wiki page IDs are numeric strings, but an integer is accepted as a
+    convenience. Values that a plain int() conversion would silently mangle
+    are rejected: bools and negative numbers convert to nonsense page IDs.
 
     Arguments:
         sub_page_id: The wiki page ID to coerce.
@@ -1836,8 +1835,6 @@ def _coerce_sub_page_id(
     """
     if sub_page_id is None:
         return None
-    if isinstance(sub_page_id, float) and sub_page_id.is_integer():
-        sub_page_id = int(sub_page_id)
     if isinstance(sub_page_id, bool) or not str(sub_page_id).isdecimal():
         raise ValueError(
             f"{argument_description} must be a numeric wiki page ID or None, "
@@ -1849,8 +1846,8 @@ def _coerce_sub_page_id(
 def _validate_and_format_copy_inputs(
     owner_id: str | None,
     destination_owner_id: str,
-    entity_sub_page_id: str | int | float | None,
-    destination_sub_page_id: str | int | float | None,
+    entity_sub_page_id: str | int | None,
+    destination_sub_page_id: str | int | None,
     entity_map: dict[str, str] | None = None,
 ) -> tuple[str | None, str | None]:
     """Validate the inputs of a wiki copy and coerce the sub page IDs.
