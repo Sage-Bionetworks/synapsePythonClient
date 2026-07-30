@@ -84,7 +84,6 @@ from typing import (
 
 import httpx
 import psutil
-import requests
 from opentelemetry import trace
 from tqdm.contrib.logging import logging_redirect_tqdm
 
@@ -104,7 +103,10 @@ from synapseclient.core.exceptions import (
     _raise_for_status_httpx,
 )
 from synapseclient.core.otel_config import get_tracer
-from synapseclient.core.retry import with_retry_time_based
+from synapseclient.core.retry import (
+    RETRYABLE_CONNECTION_EXCEPTIONS,
+    with_retry_time_based,
+)
 from synapseclient.core.transfer_bar import create_progress_bar
 from synapseclient.core.typing_utils import DataFrame as DATA_FRAME_TYPE
 from synapseclient.core.upload.upload_utils import (
@@ -606,7 +608,7 @@ class UploadAttemptAsync:
                         content=body,  # noqa: F821
                         headers=signed_headers,
                     ),
-                    retry_exceptions=[requests.exceptions.ConnectionError],
+                    retry_exceptions=RETRYABLE_CONNECTION_EXCEPTIONS,
                 )
 
                 _raise_for_status_httpx(response=response, logger=self._syn.logger)

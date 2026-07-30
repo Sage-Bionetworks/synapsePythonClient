@@ -27,7 +27,7 @@ from synapseclient.core.exceptions import (  # why is is this a single underscor
     SynapseUploadFailedException,
     _raise_for_status,
 )
-from synapseclient.core.retry import with_retry
+from synapseclient.core.retry import RETRYABLE_CONNECTION_EXCEPTIONS, with_retry
 from synapseclient.core.upload.upload_utils import (
     copy_md5_fn,
     copy_part_request_body_provider_fn,
@@ -295,7 +295,7 @@ class UploadAttempt:
                 try:
                     # use our backoff mechanism here, we have encountered 500s on puts to AWS signed urls
                     response = with_retry(
-                        put_fn, retry_exceptions=[requests.exceptions.ConnectionError]
+                        put_fn, retry_exceptions=RETRYABLE_CONNECTION_EXCEPTIONS
                     )
                     _raise_for_status(response)
 
