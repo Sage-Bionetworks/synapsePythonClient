@@ -1205,6 +1205,8 @@ class WikiPage(WikiPageSynchronousProtocol):
             if file_size < SINGLE_THREAD_DOWNLOAD_SIZE_LIMIT:
                 # download_from_url is synchronous, run it in a worker thread so that
                 # the blocking HTTP request does not stall the asyncio event loop
+                # TODO: SYNPY-1903 - replace with the async download_from_url once
+                # it is available and drop the worker thread
                 loop = asyncio.get_running_loop()
                 downloaded_file_path = await loop.run_in_executor(
                     client._get_thread_pool_executor(asyncio_event_loop=loop),
@@ -1313,6 +1315,8 @@ class WikiPage(WikiPageSynchronousProtocol):
             if file_size < SINGLE_THREAD_DOWNLOAD_SIZE_LIMIT:
                 # download_from_url is synchronous, run it in a worker thread so that
                 # the blocking HTTP request does not stall the asyncio event loop
+                # TODO: SYNPY-1903 - replace with the async download_from_url once
+                # it is available and drop the worker thread
                 loop = asyncio.get_running_loop()
                 downloaded_file_path = await loop.run_in_executor(
                     client._get_thread_pool_executor(asyncio_event_loop=loop),
@@ -1391,6 +1395,8 @@ class WikiPage(WikiPageSynchronousProtocol):
 
             # download_from_url is synchronous, run it in a worker thread so that the
             # blocking HTTP request does not stall the asyncio event loop
+            # TODO: SYNPY-1903 - replace with the async download_from_url once it is
+            # available and drop the worker thread
             loop = asyncio.get_running_loop()
             downloaded_file_path = await loop.run_in_executor(
                 client._get_thread_pool_executor(asyncio_event_loop=loop),
@@ -1435,6 +1441,8 @@ class WikiPage(WikiPageSynchronousProtocol):
             os.makedirs(cache_dir)
         # download_from_url is synchronous, run it in a worker thread so that the
         # blocking HTTP request does not stall the asyncio event loop
+        # TODO: SYNPY-1903 - replace with the async download_from_url once it is
+        # available and drop the worker thread
         loop = asyncio.get_running_loop()
         downloaded_file_path = await loop.run_in_executor(
             synapse_client._get_thread_pool_executor(asyncio_event_loop=loop),
