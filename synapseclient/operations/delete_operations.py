@@ -23,6 +23,7 @@ if TYPE_CHECKING:
         Organization,
         Project,
         RecordSet,
+        SearchIndex,
         SubmissionView,
         Table,
         Team,
@@ -46,6 +47,7 @@ def delete(
         "Project",
         "RecordSet",
         "Organization",
+        "SearchIndex",
         "SubmissionView",
         "Table",
         "Team",
@@ -85,7 +87,7 @@ def delete(
         - String ID with version (e.g., "syn123.4")
         - File, RecordSet (use version_only=True)
         - Table, Dataset, DatasetCollection, EntityView, MaterializedView,
-          SubmissionView, VirtualTable (use version_only=True)
+          SearchIndex, SubmissionView, VirtualTable (use version_only=True)
 
         **Not supported for version-specific deletion:**
 
@@ -275,6 +277,7 @@ async def delete_async(
         "Project",
         "RecordSet",
         "Organization",
+        "SearchIndex",
         "SubmissionView",
         "Table",
         "Team",
@@ -315,7 +318,7 @@ async def delete_async(
         - String ID with version (e.g., "syn123.4")
         - File, RecordSet (use version_only=True)
         - Table, Dataset, DatasetCollection, EntityView, MaterializedView,
-          SubmissionView, VirtualTable (use version_only=True)
+          SearchIndex, SubmissionView, VirtualTable (use version_only=True)
 
         **Not supported for version-specific deletion:**
 
@@ -446,6 +449,7 @@ async def delete_async(
         Organization,
         Project,
         RecordSet,
+        SearchIndex,
         SubmissionView,
         Table,
         Team,
@@ -574,6 +578,7 @@ async def delete_async(
             CurationTask,
             Grid,
             DockerRepository,
+            SearchIndex,
         ),
     ):
         if version_only or final_version_for_entity is not None:
@@ -600,5 +605,6 @@ async def delete_async(
             f"Unsupported entity type: {type(entity).__name__}. "
             "Supported types are: str (Synapse ID), CurationTask, Dataset, DatasetCollection, "
             "EntityView, Evaluation, File, Folder, Grid, JSONSchema, MaterializedView, "
-            "Project, RecordSet, Organization, SubmissionView, Table, Team, VirtualTable."
+            "Project, RecordSet, Organization, SearchIndex, SubmissionView, Table, Team, "
+            "VirtualTable."
         )

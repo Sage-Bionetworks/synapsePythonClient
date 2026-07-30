@@ -16,6 +16,7 @@ if TYPE_CHECKING:
         MaterializedView,
         Project,
         RecordSet,
+        SearchIndex,
         SubmissionView,
         Table,
         VirtualTable,
@@ -72,6 +73,7 @@ async def store_entity_components(
         "SubmissionView",
         "Table",
         "VirtualTable",
+        "SearchIndex",
     ],
     failure_strategy: FailureStrategy = FailureStrategy.LOG_EXCEPTION,
     *,
@@ -142,7 +144,7 @@ async def store_entity_components(
 
 
 def _resolve_store_task(
-    result: Union[bool, "Folder", "File", BaseException],
+    result: Union[bool, "Folder", "File", "SearchIndex", BaseException],
     failure_strategy: FailureStrategy = FailureStrategy.LOG_EXCEPTION,
     *,
     synapse_client: Optional[Synapse] = None,
@@ -191,10 +193,24 @@ def _resolve_store_task(
 
 def _has_activity_change_to_apply(
     root_resource: Union[
-        "File", "Folder", "Project", "Table", "Dataset", "EntityView", "SubmissionView"
+        "File",
+        "Folder",
+        "Project",
+        "Table",
+        "Dataset",
+        "EntityView",
+        "SubmissionView",
+        "SearchIndex",
     ],
     last_persistent_instance: Union[
-        "File", "Folder", "Project", "Table", "Dataset", "EntityView", "SubmissionView"
+        "File",
+        "Folder",
+        "Project",
+        "Table",
+        "Dataset",
+        "EntityView",
+        "SubmissionView",
+        "SearchIndex",
     ],
 ) -> bool:
     """Determines if there is a change on the Activity to apply to the root_resource.
@@ -217,9 +233,11 @@ def _has_activity_change_to_apply(
 
 
 def _pull_activity_forward_to_new_version(
-    root_resource: Union["File", "Folder", "Project", "Table", "Dataset", "EntityView"],
+    root_resource: Union[
+        "File", "Folder", "Project", "Table", "Dataset", "EntityView", "SearchIndex"
+    ],
     last_persistent_instance: Union[
-        "File", "Folder", "Project", "Table", "Dataset", "EntityView"
+        "File", "Folder", "Project", "Table", "Dataset", "EntityView", "SearchIndex"
     ],
 ) -> bool:
     """Determine if there was a version update on the root_resource, and if so it
@@ -252,6 +270,7 @@ async def _store_activity_and_annotations(
         "SubmissionView",
         "Table",
         "VirtualTable",
+        "SearchIndex",
     ],
     *,
     synapse_client: Optional[Synapse] = None,

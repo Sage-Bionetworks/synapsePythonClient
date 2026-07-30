@@ -1,4 +1,4 @@
-"""Integration tests for the SearchIndex entity and SearchIndexQuery.
+"""Integration tests for the SearchIndex entity and its query methods.
 
 SearchIndex builds an OpenSearch index from a SQL view of a table-like entity.
 Index creation may be restricted to Sage Bionetworks employees on some stacks;
@@ -15,7 +15,6 @@ from synapseclient.core.exceptions import SynapseHTTPError
 from synapseclient.models import (
     Project,
     SearchIndex,
-    SearchIndexQuery,
     SearchQuery,
     SearchQueryPart,
     Table,
@@ -101,15 +100,13 @@ class TestSearchIndex:
         # returns the indexed rows. The build is asynchronous, so poll until the
         # query succeeds and reports the expected total.
         async def _query_total_hits() -> int:
-            query = SearchIndexQuery(
-                search_index_id=index.id,
+            results = await index.query_async(
                 search_query=SearchQuery(query={"match_all": {}}, size=10),
                 response_parts=[SearchQueryPart.HITS, SearchQueryPart.TOTAL_HITS],
+                job_timeout=QUERY_TIMEOUT_SEC,
+                synapse_client=self.syn,
             )
-            await query.send_job_and_wait_async(
-                timeout=QUERY_TIMEOUT_SEC, synapse_client=self.syn
-            )
-            return query.total_hits
+            return results.total_hits
 
         total_hits = await wait_for_condition(
             _query_total_hits,

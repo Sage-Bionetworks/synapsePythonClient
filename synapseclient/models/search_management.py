@@ -8,9 +8,12 @@ querying a SearchIndex's OpenSearch index.
 The query model is a thin pass-through over the OpenSearch ``_search`` request
 body: ``SearchQuery`` carries the allowlisted top-level keys (``query``,
 ``post_filter``, ``aggregations``, ``highlight``, ``collapse``, ``rescore``,
-``sort``, ``_source``, ``from``, ``size``, ``search_after``) as raw JSON. The
-analyzer-resource ``settings`` / ``definition`` / ``analyzer`` slots are likewise
-raw OpenSearch JSON objects.
+``sort``, ``_source``, ``from``, ``size``, ``search_after``). Each slot is typed
+against the OpenSearch query DSL by the ``TypedDict`` shapes in
+`synapseclient.models.search_dsl` -- start at
+[Query][synapseclient.models.search_dsl.Query]. The analyzer-resource
+``settings`` / ``definition`` / ``analyzer`` slots are raw OpenSearch JSON
+objects; the Synapse API does not constrain them further.
 
 Each analyzer resource belongs to an Organization and is referenced by qualified
 name (``{organizationName}-{name}``). Resources are publicly readable;
@@ -21,7 +24,7 @@ REST controller: <https://rest-docs.synapse.org/rest/index.html#org.sagebionetwo
 
 from dataclasses import dataclass, field
 from enum import Enum
-from typing import TYPE_CHECKING, Any, Callable, Dict, List, Optional, Protocol
+from typing import TYPE_CHECKING, Any, Callable, Dict, List, Optional, Protocol, Union
 
 from typing_extensions import Self
 
@@ -53,18 +56,20 @@ from synapseclient.models.mixins.asynchronous_job import AsynchronousCommunicato
 from synapseclient.models.protocols.search_management_protocol import (
     SearchConfigBindingSynchronousProtocol,
 )
+from synapseclient.models.search_dsl import (
+    Aggregation,
+    AnalyzerRef,
+    FieldCollapse,
+    Highlight,
+    Query,
+    Rescore,
+    ScalarValue,
+    SourceFilter,
+)
 from synapseclient.models.table_components import SelectColumn
 
 if TYPE_CHECKING:
     from synapseclient import Synapse
-
-
-class SearchIndexState(str, Enum):
-    """The state of a SearchIndex's OpenSearch index."""
-
-    CREATING = "CREATING"
-    ACTIVE = "ACTIVE"
-    FAILED = "FAILED"
 
 
 class SearchQueryPart(str, Enum):
@@ -308,11 +313,15 @@ class TextAnalyzer(OrgScopedResource):
 
     settings: Optional[Dict[str, Any]] = None
     """Required. JSON object holding the *contents of* the `settings.analysis`
-    block of an OpenSearch create-index request body. Allowed root keys are
-    `char_filter`, `tokenizer`, `filter`, and `analyzer`; the inner `analyzer`
-    map must declare exactly one `default` entry (and optionally
-    `default_search`). A `{"$ref": "{org}-{name}"}` entry inside the `filter`
-    registry resolves to a SynonymSet at index-build time."""
+    block of an OpenSearch
+    [create-index](https://docs.opensearch.org/latest/api-reference/index-apis/create-index/)
+    request body. Allowed root keys are `char_filter`, `tokenizer`, `filter`,
+    and `analyzer`; the inner `analyzer` map must declare exactly one `default`
+    entry (and optionally `default_search`). A `{"$ref": "{org}-{name}"}` entry
+    inside the `filter` registry resolves to a SynonymSet at index-build time.
+    Carried as a raw JSON object -- the Synapse API does not constrain it
+    further. See [analyzers](https://docs.opensearch.org/latest/analyzers/)
+    for the available tokenizers, token filters, and character filters."""
 
     etag: Optional[str] = None
     """Synapse employs an Optimistic Concurrency Control (OCC) scheme to handle
@@ -375,10 +384,12 @@ class ColumnAnalyzerOverrideEntry:
     column_name: Optional[str] = None
     """The name of the column to override. Silently skipped at index-build time if the column is not present in the target SearchIndex's schema — a single override bundle can therefore be applied across several indexes that share some column names"""
 
-    analyzer: Optional[Dict[str, Any]] = None
+    analyzer: Optional[Union[AnalyzerRef, Dict[str, Any]]] = None
     """The analyzer to use for this column. Either a reference to a saved
-    TextAnalyzer written as `{"$ref": "{organizationName}-{name}"}`, or an
-    inline OpenSearch `settings.analysis` block."""
+    TextAnalyzer written as `{"$ref": "{organizationName}-{name}"}` (see
+    [AnalyzerRef][synapseclient.models.search_dsl.AnalyzerRef]), or an inline
+    OpenSearch [`settings.analysis`](https://docs.opensearch.org/latest/analyzers/)
+    block."""
 
     def fill_from_dict(self, data: Dict[str, Any]) -> "Self":
         self.column_name = data.get("columnName", None)
@@ -677,9 +688,12 @@ class SynonymSet(OrgScopedResource):
 
     definition: Optional[Dict[str, Any]] = None
     """Required. The full OpenSearch token filter definition as a JSON object,
-    exactly as documented for the synonym_graph / synonym token filters, e.g.
-    `{"type": "synonym_graph", "synonyms": ["tumor, neoplasm, cancer",
-    "AD => Alzheimer's disease"]}`."""
+    exactly as documented for the
+    [`synonym_graph`](https://docs.opensearch.org/latest/analyzers/token-filters/synonym-graph/)
+    / [`synonym`](https://docs.opensearch.org/latest/analyzers/token-filters/synonym/)
+    token filters, e.g. `{"type": "synonym_graph", "synonyms":
+    ["tumor, neoplasm, cancer", "AD => Alzheimer's disease"]}`. Carried as a raw
+    JSON object -- the Synapse API does not constrain it further."""
 
     etag: Optional[str] = None
     """Synapse employs an Optimistic Concurrency Control (OCC) scheme."""
@@ -834,16 +848,19 @@ class SearchConfiguration(OrgScopedResource):
     description: Optional[str] = None
     """Optional description."""
 
-    default_analyzer: Optional[Dict[str, Any]] = None
+    default_analyzer: Optional[Union[AnalyzerRef, Dict[str, Any]]] = None
     """Optional. The analyzer that supplies this index's `analysis.analyzer.default`
     slot. Either a reference to a saved TextAnalyzer written as
-    `{"$ref": "{organizationName}-{name}"}`, or an inline OpenSearch
-    `settings.analysis` block."""
-    column_analyzer_overrides: Optional[List[Dict[str, Any]]] = field(
-        default_factory=list
+    `{"$ref": "{organizationName}-{name}"}` (see
+    [AnalyzerRef][synapseclient.models.search_dsl.AnalyzerRef]), or an inline
+    OpenSearch [`settings.analysis`](https://docs.opensearch.org/latest/analyzers/)
+    block."""
+    column_analyzer_overrides: Optional[List[Union[AnalyzerRef, Dict[str, Any]]]] = (
+        field(default_factory=list)
     )
     """Optional ordered list of ColumnAnalyzerOverride entries. Each entry is
-    either a reference `{"$ref": "{organizationName}-{name}"}` or an inline
+    either a reference `{"$ref": "{organizationName}-{name}"}` (see
+    [AnalyzerRef][synapseclient.models.search_dsl.AnalyzerRef]) or an inline
     ColumnAnalyzerOverride literal."""
 
     etag: Optional[str] = None
@@ -1048,56 +1065,80 @@ class SearchConfigBinding(SearchConfigBindingSynchronousProtocol):
 
 @dataclass
 class SearchQuery:
-    """The body of an OpenSearch `_search` request, narrowed to the top-level
-    keys Synapse accepts. Each slot's contents are pass-through OpenSearch query
-    DSL carried as raw JSON.
+    """The body of an OpenSearch [`_search`](https://docs.opensearch.org/latest/api-reference/search-apis/search/)
+    request, narrowed to the top-level keys Synapse accepts. Each slot's
+    contents are pass-through [OpenSearch query DSL](https://docs.opensearch.org/latest/query-dsl/),
+    typed by the `TypedDict` shapes in `synapseclient.models.search_dsl`.
 
     Represents a [Synapse SearchQuery](https://rest-docs.synapse.org/rest/org/sagebionetworks/repo/model/search/SearchQuery.html).
     """
 
-    query: Optional[Dict[str, Any]] = None
-    """Required. The OpenSearch query DSL clause. Use `{"match_all": {}}` to
-    match all documents."""
+    query: Optional[Query] = None
+    """Required. The [OpenSearch query DSL](https://docs.opensearch.org/latest/query-dsl/)
+    clause -- see [Query][synapseclient.models.search_dsl.Query] for every
+    supported clause kind. Use [`{"match_all": {}}`](https://docs.opensearch.org/latest/query-dsl/match-all/)
+    to match all documents. See also
+    [query vs. filter context](https://docs.opensearch.org/latest/query-dsl/query-filter-context/)."""
 
-    post_filter: Optional[Dict[str, Any]] = None
-    """Optional. Same DSL shape as `query`, applied after aggregations are
-    computed."""
+    post_filter: Optional[Query] = None
+    """Optional. Same DSL shape as `query` (see
+    [Query][synapseclient.models.search_dsl.Query]), applied *after*
+    aggregations are computed. For the distinction between filtering hits and
+    filtering aggregations, see
+    [query vs. filter context](https://docs.opensearch.org/latest/query-dsl/query-filter-context/)."""
 
-    aggregations: Optional[Dict[str, Any]] = None
-    """Optional. Map of caller-chosen name to aggregation definition. The raw
-    aggregation result comes back on `SearchIndexQuery.aggregation_results`."""
+    aggregations: Optional[Dict[str, Aggregation]] = None
+    """Optional. Map of caller-chosen name to
+    [aggregation][synapseclient.models.search_dsl.Aggregation] definition. The
+    raw aggregation result comes back on `SearchIndexQuery.aggregation_results`.
+    For the facet-counting pattern (a `terms` aggregation alongside
+    `post_filter`), see the
+    [faceted search tutorial](https://docs.opensearch.org/latest/tutorials/faceted-search/#maintaining-facet-options-during-filtering)."""
 
-    highlight: Optional[Dict[str, Any]] = None
-    """Optional. Adds per-field snippet fragments to each hit's highlights."""
+    highlight: Optional[Highlight] = None
+    """Optional. Adds per-field
+    [snippet fragments](https://docs.opensearch.org/latest/search-plugins/searching-data/highlight/)
+    (matched terms wrapped in `<em>` / `</em>` by default) to each hit's
+    highlights."""
 
-    collapse: Optional[Dict[str, Any]] = None
-    """Optional. Groups the result list so only one hit is returned per distinct
-    value of a field."""
+    collapse: Optional[FieldCollapse] = None
+    """Optional. [Groups the result list](https://docs.opensearch.org/latest/search-plugins/searching-data/collapse-search/)
+    so only one hit is returned per distinct value of a field."""
 
-    rescore: Optional[Dict[str, Any]] = None
-    """Optional. Re-ranks the top hits returned by `query` using a secondary
-    scoring query."""
+    rescore: Optional[Rescore] = None
+    """Optional. [Re-ranks](https://docs.opensearch.org/latest/query-dsl/rescore/)
+    the top hits returned by `query` using a secondary scoring query."""
 
     sort: Optional[List[Any]] = None
-    """Optional. Result ordering, in native OpenSearch sort shape (a string
-    column name, `{column: "asc|desc"}`, or `{column: {order: ..., mode: ...}}`).
-    When omitted, results are sorted by relevance descending."""
+    """Optional. Result [ordering](https://docs.opensearch.org/latest/search-plugins/searching-data/sort/),
+    in native OpenSearch sort shape (a string column name,
+    `{column: "asc|desc"}`, or `{column: {order: ..., mode: ..., missing: ...}}`)
+    applied in order. Only the `field` and `_score` sort kinds are accepted --
+    script and geo-distance sorts are rejected server-side. The pseudo-column
+    `_score` sorts by relevance. When omitted, results are sorted by relevance
+    descending."""
 
-    source: Optional[Dict[str, Any]] = None
-    """Optional. Source filter selecting which columns are returned on each hit.
-    Serialized as `_source`."""
+    source: Optional[SourceFilter] = None
+    """Optional. [Source filter](https://docs.opensearch.org/latest/search-plugins/searching-data/retrieve-specific-fields/)
+    selecting which columns are returned on each hit. Serialized as
+    `_source`."""
 
     from_: Optional[int] = None
-    """Optional. Zero-based pagination offset; default 0. Ignored when
-    `search_after` is supplied. Serialized as `from`."""
+    """Optional. Zero-based
+    [pagination](https://docs.opensearch.org/latest/search-plugins/searching-data/paginate/)
+    offset; default 0. Ignored when `search_after` is supplied. Serialized as
+    `from`."""
 
     size: Optional[int] = None
-    """Optional. Maximum number of hits to return per page. Default 25.
-    Maximum 100."""
+    """Optional. Maximum number of hits to return per
+    [page](https://docs.opensearch.org/latest/search-plugins/searching-data/paginate/).
+    Default 25. Maximum 100 (larger values are silently capped)."""
 
-    search_after: Optional[List[Any]] = None
-    """Optional. Opaque cursor emitted as `next_search_after` on the previous
-    response. Pass back unchanged. When supplied, `from_` is ignored."""
+    search_after: Optional[List[Optional[ScalarValue]]] = None
+    """Optional. Opaque
+    [cursor](https://docs.opensearch.org/latest/search-plugins/searching-data/paginate/)
+    emitted as `next_search_after` on the previous response. Pass back
+    unchanged. When supplied, `from_` is ignored."""
 
     def fill_from_dict(self, data: Dict[str, Any]) -> "Self":
         self.query = data.get("query", None)
@@ -1134,8 +1175,11 @@ class SearchQuery:
 @dataclass
 class SearchAutocompleteRequest:
     """Body of a synchronous autocomplete request against a SearchIndex. The
-    autocomplete endpoint allowlists only `query` (restricted to `prefix`,
-    `match_phrase_prefix`, or `match_bool_prefix`) and `_source`.
+    autocomplete endpoint allowlists only `query` (restricted to
+    [`prefix`](https://docs.opensearch.org/latest/query-dsl/term/prefix/),
+    [`match_phrase_prefix`](https://docs.opensearch.org/latest/query-dsl/full-text/match-phrase-prefix/),
+    or [`match_bool_prefix`](https://docs.opensearch.org/latest/query-dsl/full-text/match-bool-prefix/))
+    and `_source`.
 
     Represents a [Synapse SearchAutocompleteRequest](https://rest-docs.synapse.org/rest/org/sagebionetworks/repo/model/search/table/SearchAutocompleteRequest.html).
     """
@@ -1143,13 +1187,15 @@ class SearchAutocompleteRequest:
     search_index_id: Optional[str] = None
     """The ID of the SearchIndex entity to query."""
 
-    query: Optional[Dict[str, Any]] = None
-    """Required. The top-level Query DSL clause; restricted server-side to
-    `prefix`, `match_phrase_prefix`, or `match_bool_prefix`."""
+    query: Optional[Query] = None
+    """Required. The top-level
+    [Query][synapseclient.models.search_dsl.Query] DSL clause; restricted
+    server-side to `prefix`, `match_phrase_prefix`, or
+    `match_bool_prefix`."""
 
-    source: Optional[Dict[str, Any]] = None
-    """Optional. Source filter; same shape as `SearchQuery.source`. Serialized
-    as `_source`."""
+    source: Optional[SourceFilter] = None
+    """Optional. [Source filter](https://docs.opensearch.org/latest/search-plugins/searching-data/retrieve-specific-fields/);
+    same shape as `SearchQuery.source`. Serialized as `_source`."""
 
     def to_synapse_request(self) -> Dict[str, Any]:
         search_query = {
@@ -1249,9 +1295,17 @@ class SearchIndexQuery(AsynchronousCommunicator):
     fields (`hits`, `total_hits`, `select_columns`, `aggregation_results`,
     `next_search_after`, `offset`) on this same instance.
 
+    The `search_query` body is an OpenSearch
+    [`_search`](https://docs.opensearch.org/latest/api-reference/search-apis/search/)
+    request -- see [SearchQuery][synapseclient.models.SearchQuery] for the
+    allowlisted top-level keys and
+    [Query][synapseclient.models.search_dsl.Query] for the
+    [query DSL](https://docs.opensearch.org/latest/query-dsl/) clause kinds.
+
     Represents a [Synapse SearchIndexQuery](https://rest-docs.synapse.org/rest/org/sagebionetworks/repo/model/search/table/SearchIndexQuery.html).
 
     Example: Run a search query.
+        &nbsp;
 
         ```python
         import asyncio
@@ -1299,13 +1353,17 @@ class SearchIndexQuery(AsynchronousCommunicator):
     order. Populated when SearchQueryPart.SELECT_COLUMNS is requested."""
 
     aggregation_results: Optional[Dict[str, Any]] = None
-    """Response: the raw OpenSearch aggregations response, with field references
-    rewritten back to column names. Populated whenever the request supplied
-    `search_query.aggregations`. Kept as an opaque JSON object."""
+    """Response: the raw OpenSearch
+    [aggregations](https://docs.opensearch.org/latest/aggregations/) response,
+    with field references rewritten back to column names. Populated whenever the
+    request supplied `search_query.aggregations`. Kept as an opaque JSON object
+    because its shape mirrors whichever aggregations were requested."""
 
-    next_search_after: Optional[List[Any]] = None
-    """Response: opaque cursor for the next page. Pass back unchanged on the next
-    request as `search_query.search_after`. Null when there are no further pages."""
+    next_search_after: Optional[List[Optional[ScalarValue]]] = None
+    """Response: opaque
+    [cursor](https://docs.opensearch.org/latest/search-plugins/searching-data/paginate/)
+    for the next page. Pass back unchanged on the next request as
+    `search_query.search_after`. Null when there are no further pages."""
 
     offset: Optional[int] = None
     """Response: zero-based pagination offset echoed from the request."""

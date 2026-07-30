@@ -464,6 +464,25 @@ class TestDeleteVersionConflictWarning:
         assert result is None
 
 
+class TestDeleteSearchIndexRoute:
+    """Tests for SearchIndex entity routing in delete_async."""
+
+    async def test_delete_search_index_entity(self):
+        """Test that a SearchIndex entity is deleted normally."""
+        # GIVEN a mock SearchIndex entity
+        from synapseclient.models import SearchIndex
+
+        mock_index = SearchIndex(id="syn123456")
+        mock_index.delete_async = AsyncMock(return_value=None)
+
+        # WHEN I call delete_async
+        result = await delete_async(entity=mock_index, synapse_client=MagicMock())
+
+        # THEN delete_async is called
+        mock_index.delete_async.assert_awaited_once()
+        assert result is None
+
+
 class TestDeleteSyncWrapper:
     """Tests for the synchronous delete() wrapper."""
 

@@ -574,7 +574,7 @@ class Organization(OrganizationProtocol):
 
 
 @deprecated(
-    version="5.0.0",
+    version="4.14.0",
     reason="SchemaOrganization has been renamed to Organization. "
     "This alias will be removed in a future release; use Organization instead.",
 )
@@ -1439,7 +1439,7 @@ def list_organizations(
 
 
 @deprecated(
-    version="5.0.0",
+    version="4.14.0",
     reason="Renamed to list_organizations. "
     "This alias will be removed in a future release; use list_organizations instead.",
 )
