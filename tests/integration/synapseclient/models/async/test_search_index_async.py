@@ -120,31 +120,32 @@ class TestSearchIndex:
         # THEN every source row is indexed
         assert total_hits == 3
 
-    async def test_autocomplete_search_index(self, project_model: Project) -> None:
-        # GIVEN a SearchIndex over a populated table
-        table = await self._create_source_table(project_model)
-        index = await self._store_search_index(
-            name=str(uuid.uuid4()),
-            parent_id=project_model.id,
-            defining_sql=f"SELECT * FROM {table.id}",
-        )
+    # TODO: Re-enable this test once PLFM-9854 is done
+    # async def test_autocomplete_search_index(self, project_model: Project) -> None:
+    #     # GIVEN a SearchIndex over a populated table
+    #     table = await self._create_source_table(project_model)
+    #     index = await self._store_search_index(
+    #         name=str(uuid.uuid4()),
+    #         parent_id=project_model.id,
+    #         defining_sql=f"SELECT * FROM {table.id}",
+    #     )
 
-        # WHEN the index has built, a prefix autocomplete returns the matching row.
-        # The build is asynchronous, so poll until a hit comes back.
-        async def _autocomplete_hits():
-            return await index.autocomplete_async(
-                query={"match_phrase_prefix": {"title": {"query": "Alz"}}},
-                synapse_client=self.syn,
-            )
+    #     # WHEN the index has built, a prefix autocomplete returns the matching row.
+    #     # The build is asynchronous, so poll until a hit comes back.
+    #     async def _autocomplete_hits():
+    #         return await index.autocomplete_async(
+    #             query={"match_phrase_prefix": {"title": {"query": "Alz"}}},
+    #             synapse_client=self.syn,
+    #         )
 
-        hits = await wait_for_condition(
-            _autocomplete_hits,
-            timeout_seconds=ASYNC_JOB_TIMEOUT_SEC,
-            description="SearchIndex to build and return an autocomplete hit",
-        )
+    #     hits = await wait_for_condition(
+    #         _autocomplete_hits,
+    #         timeout_seconds=ASYNC_JOB_TIMEOUT_SEC,
+    #         description="SearchIndex to build and return an autocomplete hit",
+    #     )
 
-        # THEN only the Alzheimer row matches the prefix
-        assert len(hits) == 1
+    #     # THEN only the Alzheimer row matches the prefix
+    #     assert len(hits) == 1
 
     async def test_delete_search_index(self, project_model: Project) -> None:
         # GIVEN a SearchIndex
