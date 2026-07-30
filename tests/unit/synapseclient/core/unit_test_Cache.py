@@ -2,6 +2,7 @@ import datetime
 import json
 import math
 import os
+import platform
 import random
 import re
 import tempfile
@@ -259,10 +260,15 @@ def test_match_cache_map_key():
         )
 
 
-def test_match_cache_map_key_casing_change():
+@pytest.mark.skipif(
+    platform.system() == "Windows",
+    reason="Simulates non-Windows (case-sensitive) path normalization.",
+)
+def test_match_cache_map_key_casing_change_non_windows():
     """
     If Synapse changes a file's name casing and the user matches it locally,
-    the cache falls back to case-insensitive matching on Windows, but not POSIX.
+    the cache does NOT fall back to case-insensitive matching on a non-Windows
+    (case-sensitive) platform.
     """
     cache_map = {
         "/Users/me/data/File.csv": {
@@ -277,25 +283,50 @@ def test_match_cache_map_key_casing_change():
         == "/Users/me/data/File.csv"
     )
 
-    # on POSIX
     assert cache._match_cache_map_key(cache_map, "/Users/me/data/file.csv") is None
 
-    # on Windows
-    with patch("os.path.normcase", side_effect=str.lower):
-        assert (
-            cache._match_cache_map_key(cache_map, "/Users/me/data/file.csv")
-            == "/Users/me/data/File.csv"
-        )
-        assert (
-            cache._match_cache_map_key(cache_map, "/USERS/ME/DATA/FILE.CSV")
-            == "/Users/me/data/File.csv"
-        )
 
-
-def test_cache_contains_after_casing_change_locally():
+@pytest.mark.skipif(
+    platform.system() != "Windows",
+    reason="Simulates Windows (case-insensitive) path normalization.",
+)
+def test_match_cache_map_key_casing_change_windows():
     """
-    A casing-only local rename should be a miss on POSIX (os.path.normcase is a
-    no-op) but a hit when simulating Windows case-insensitive matching.
+    If Synapse changes a file's name casing and the user matches it locally,
+    the cache falls back to case-insensitive matching on a Windows
+    (case-insensitive) platform.
+    """
+    cache_map = {
+        "/Users/me/data/File.csv": {
+            "modified_time": "2020-01-01T00:00:00.000Z",
+            "content_md5": "abc123",
+        }
+    }
+
+    # exact case always matches directly, no fallback needed
+    assert (
+        cache._match_cache_map_key(cache_map, "/Users/me/data/File.csv")
+        == "/Users/me/data/File.csv"
+    )
+
+    assert (
+        cache._match_cache_map_key(cache_map, "/Users/me/data/file.csv")
+        == "/Users/me/data/File.csv"
+    )
+    assert (
+        cache._match_cache_map_key(cache_map, "/USERS/ME/DATA/FILE.CSV")
+        == "/Users/me/data/File.csv"
+    )
+
+
+@pytest.mark.skipif(
+    platform.system() == "Windows",
+    reason="Simulates non-Windows (case-sensitive) path normalization.",
+)
+def test_cache_contains_after_casing_change_locally_non_windows():
+    """
+    A casing-only local rename should be a miss on non-Windows (case-sensitive,
+    no-op normcase) platforms.
     """
     tmp_dir = tempfile.mkdtemp()
     my_cache = cache.Cache(cache_root_dir=tmp_dir)
@@ -311,17 +342,77 @@ def test_cache_contains_after_casing_change_locally():
     recased_path = os.path.join(os.path.dirname(original_path), "file.csv")
     os.rename(original_path, recased_path)
 
-    # on POSIX, os.path.normcase is a no-op so casing-only changes are a miss
     assert not my_cache.contains(file_handle_id=file_handle_id, path=recased_path)
 
-    with patch("os.path.normcase", side_effect=str.lower):
-        assert my_cache.contains(file_handle_id=file_handle_id, path=recased_path)
+
+@pytest.mark.skipif(
+    platform.system() != "Windows",
+    reason="Simulates Windows (case-insensitive) path normalization.",
+)
+def test_cache_contains_after_casing_change_locally_windows():
+    """
+    A casing-only local rename should still be a hit on a Windows
+    (case-insensitive) platform.
+    """
+    tmp_dir = tempfile.mkdtemp()
+    my_cache = cache.Cache(cache_root_dir=tmp_dir)
+    file_handle_id = 101201
+
+    original_path = utils.touch(
+        os.path.join(my_cache.get_cache_dir(file_handle_id), "File.csv")
+    )
+    my_cache.add(file_handle_id=file_handle_id, path=original_path)
+
+    # user renames their local file to match Synapse's re-cased file name;
+    # only the casing of the base name changes
+    recased_path = os.path.join(os.path.dirname(original_path), "file.csv")
+    os.rename(original_path, recased_path)
+
+    assert my_cache.contains(file_handle_id=file_handle_id, path=recased_path)
 
 
-def test_get_matches_legacy_lowercased_key():
+@pytest.mark.skipif(
+    platform.system() == "Windows",
+    reason="Simulates non-Windows (case-sensitive) path normalization.",
+)
+def test_get_match_legacy_lowercased_key_non_windows():
     """
     Test that a cache map written by an older Windows client stored lowercased
-    keys still hits those legacy entries.
+    keys does hit those legacy entries when on a non-Windows (case-sensitive)
+    platform since fall back to modified time comparison.
+    """
+    tmp_dir = tempfile.mkdtemp()
+    my_cache = cache.Cache(cache_root_dir=tmp_dir)
+    cache_dir = my_cache.get_cache_dir(101201)
+
+    path = utils.touch(os.path.join(cache_dir, "Mixed_Case.ext"))
+    my_cache.add(file_handle_id=101201, path=path)
+
+    normalized = utils.normalize_path(path)
+    legacy_key = normalized.lower()
+    assert legacy_key != normalized
+
+    cache_map = my_cache._read_cache_map(cache_dir)
+    entry = cache_map.pop(normalized)
+    cache_map[legacy_key] = entry
+    my_cache._write_cache_map(cache_dir, cache_map)
+    rewritten_cache_map = my_cache._read_cache_map(cache_dir)
+
+    assert legacy_key in rewritten_cache_map
+    assert normalized not in rewritten_cache_map
+
+    assert my_cache.get(file_handle_id=101201, path=path) == legacy_key
+
+
+@pytest.mark.skipif(
+    platform.system() != "Windows",
+    reason="Simulates Windows (case-insensitive) path normalization.",
+)
+def test_get_matches_legacy_lowercased_key_windows():
+    """
+    Test that a cache map written by an older Windows client stored lowercased
+    keys still hits those legacy entries when on a Windows (case-insensitive)
+    platform.
     """
     tmp_dir = tempfile.mkdtemp()
     my_cache = cache.Cache(cache_root_dir=tmp_dir)
@@ -342,14 +433,17 @@ def test_get_matches_legacy_lowercased_key():
     assert legacy_key in rewritten_cache_map
     assert normalized not in rewritten_cache_map
 
-    with patch("os.path.normcase", side_effect=str.lower):
-        assert my_cache.get(file_handle_id=101201, path=path) == path
+    assert my_cache.get(file_handle_id=101201, path=path) == legacy_key
 
 
-def test_contains_matches_legacy_lowercased_key():
+@pytest.mark.skipif(
+    platform.system() == "Windows",
+    reason="Simulates non-Windows (case-sensitive) path normalization.",
+)
+def test_contains_does_not_match_legacy_lowercased_key_non_windows():
     """
-    Test that contains() can still match a legacy lowercased cache-map key when
-    simulating Windows case-insensitive path normalization.
+    Test that contains() does NOT match a legacy lowercased cache-map key
+    when on a non-Windows (case-sensitive, no-op normcase) platform.
     """
     tmp_dir = tempfile.mkdtemp()
     my_cache = cache.Cache(cache_root_dir=tmp_dir)
@@ -367,18 +461,17 @@ def test_contains_matches_legacy_lowercased_key():
     cache_map[legacy_key] = entry
     my_cache._write_cache_map(cache_dir, cache_map)
 
-    # POSIX normcase is a no-op, so this mixed-case lookup misses.
     assert not my_cache.contains(file_handle_id=101201, path=path)
 
-    # Simulate Windows behavior where lowercased legacy keys are still matched.
-    with patch("os.path.normcase", side_effect=str.lower):
-        assert my_cache.contains(file_handle_id=101201, path=path)
 
-
-def test_remove_matches_legacy_lowercased_key():
+@pytest.mark.skipif(
+    platform.system() != "Windows",
+    reason="Simulates non-Windows (case-sensitive) path normalization.",
+)
+def test_contains_matches_legacy_lowercased_key_windows():
     """
-    Test that remove() can resolve and remove a legacy lowercased cache-map key
-    when simulating Windows case-insensitive path normalization.
+    Test that contains() can still match a legacy lowercased cache-map key
+    when on a Windows (case-insensitive) platform.
     """
     tmp_dir = tempfile.mkdtemp()
     my_cache = cache.Cache(cache_root_dir=tmp_dir)
@@ -396,12 +489,63 @@ def test_remove_matches_legacy_lowercased_key():
     cache_map[legacy_key] = entry
     my_cache._write_cache_map(cache_dir, cache_map)
 
-    # POSIX normcase is a no-op, so this mixed-case lookup misses.
+    assert my_cache.contains(file_handle_id=101201, path=path)
+
+
+@pytest.mark.skipif(
+    platform.system() == "Windows",
+    reason="Simulates non-Windows (case-sensitive) path normalization.",
+)
+def test_remove_does_not_match_legacy_lowercased_key_non_windows():
+    """
+    Test that remove() does NOT remove a legacy lowercased cache-map key
+    when on a non-Windows (case-sensitive, no-op normcase) platform.
+    """
+    tmp_dir = tempfile.mkdtemp()
+    my_cache = cache.Cache(cache_root_dir=tmp_dir)
+    cache_dir = my_cache.get_cache_dir(101201)
+
+    path = utils.touch(os.path.join(cache_dir, "Mixed_Case.ext"))
+    my_cache.add(file_handle_id=101201, path=path)
+
+    normalized = utils.normalize_path(path)
+    legacy_key = normalized.lower()
+    assert legacy_key != normalized
+
+    cache_map = my_cache._read_cache_map(cache_dir)
+    entry = cache_map.pop(normalized)
+    cache_map[legacy_key] = entry
+    my_cache._write_cache_map(cache_dir, cache_map)
+
     assert my_cache.remove(file_handle_id=101201, path=path) == []
 
-    # Simulate Windows behavior: remove should match and delete the legacy key.
-    with patch("os.path.normcase", side_effect=str.lower):
-        removed = my_cache.remove(file_handle_id=101201, path=path)
+
+@pytest.mark.skipif(
+    platform.system() != "Windows",
+    reason="Simulates Windows (case-insensitive) path normalization.",
+)
+def test_remove_matches_legacy_lowercased_key_windows():
+    """
+    Test that remove() can resolve and remove a legacy lowercased cache-map key
+    when on a Windows (case-insensitive) platform.
+    """
+    tmp_dir = tempfile.mkdtemp()
+    my_cache = cache.Cache(cache_root_dir=tmp_dir)
+    cache_dir = my_cache.get_cache_dir(101201)
+
+    path = utils.touch(os.path.join(cache_dir, "Mixed_Case.ext"))
+    my_cache.add(file_handle_id=101201, path=path)
+
+    normalized = utils.normalize_path(path)
+    legacy_key = normalized.lower()
+    assert legacy_key != normalized
+
+    cache_map = my_cache._read_cache_map(cache_dir)
+    entry = cache_map.pop(normalized)
+    cache_map[legacy_key] = entry
+    my_cache._write_cache_map(cache_dir, cache_map)
+
+    removed = my_cache.remove(file_handle_id=101201, path=path)
 
     assert removed == [legacy_key]
     assert my_cache._read_cache_map(cache_dir) == {}
