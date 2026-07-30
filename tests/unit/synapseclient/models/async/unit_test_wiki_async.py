@@ -2375,6 +2375,69 @@ class TestWikiPageCopy:
             )
 
     @pytest.mark.parametrize(
+        "sub_tree_headers,expected_log",
+        [
+            (
+                [{"id": "8688", "title": "Root"}],
+                "[syn123]: Not copying 2 wiki page(s) outside the sub-tree rooted "
+                "at 8688: ['1', '2']",
+            ),
+            (
+                [
+                    {"id": "8688", "title": "Root"},
+                    {"id": "1", "title": "Other"},
+                    {"id": "2", "title": "Another"},
+                ],
+                None,
+            ),
+        ],
+        ids=["some_pages_ignored", "no_pages_ignored"],
+    )
+    async def test_copy_async_logs_ignored_pages(
+        self, sub_tree_headers, expected_log
+    ) -> None:
+        # GIVEN a source wiki whose header tree contains pages outside the
+        # requested sub-tree
+        headers = [
+            {"id": "8688", "title": "Root"},
+            {"id": "1", "title": "Other"},
+            {"id": "2", "title": "Another"},
+        ]
+        with (
+            patch(
+                "synapseclient.models.wiki.get_wiki_header_tree",
+                side_effect=lambda **kwargs: self._header_generator(headers),
+            ),
+            patch(
+                "synapseclient.models.wiki._ensure_destination_has_no_root_wiki",
+                new_callable=AsyncMock,
+            ),
+            patch(
+                "synapseclient.models.wiki._collect_wiki_sub_tree_headers",
+                return_value=sub_tree_headers,
+            ),
+            patch(
+                "synapseclient.models.wiki._copy_wiki_pages",
+                new_callable=AsyncMock,
+                return_value=({}, {}),
+            ),
+            patch.object(self.syn.logger, "debug") as mock_logger_debug,
+        ):
+            # WHEN I call `copy_async` for that sub-tree
+            await WikiPage(owner_id="syn123", id="8688").copy_async(
+                destination_owner_id="syn456",
+                update_links=False,
+                synapse_client=self.syn,
+            )
+
+        # THEN the pages outside the sub-tree should be logged at debug level
+        debug_messages = [call.args[0] for call in mock_logger_debug.call_args_list]
+        if expected_log is None:
+            assert not any("Not copying" in message for message in debug_messages)
+        else:
+            assert expected_log in debug_messages
+
+    @pytest.mark.parametrize(
         "entity_sub_page_id,destination_sub_page_id",
         [("some_string", None), (None, "some_string")],
     )

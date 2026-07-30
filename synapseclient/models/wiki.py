@@ -1622,14 +1622,27 @@ class WikiPage(WikiPageSynchronousProtocol):
             destination_wiki_page = None
 
         if entity_sub_page_id:
+            all_wiki_headers = old_wiki_headers
             old_wiki_headers = _collect_wiki_sub_tree_headers(
-                wiki_headers=old_wiki_headers,
+                wiki_headers=all_wiki_headers,
                 sub_page_id=entity_sub_page_id,
             )
             if not old_wiki_headers:
                 raise ValueError(
                     f"The wiki page {entity_sub_page_id} does not exist "
                     f"in the owner entity {self.owner_id}."
+                )
+            collected_ids = {header["id"] for header in old_wiki_headers}
+            ignored_ids = [
+                header["id"]
+                for header in all_wiki_headers
+                if header["id"] not in collected_ids
+            ]
+            if ignored_ids:
+                client.logger.debug(
+                    f"[{self.owner_id}]: Not copying {len(ignored_ids)} wiki page(s) "
+                    f"outside the sub-tree rooted at {entity_sub_page_id}: "
+                    f"{ignored_ids}"
                 )
 
         if not old_wiki_headers:
