@@ -372,13 +372,62 @@ def test_cache_contains_after_casing_change_locally_windows():
 
 
 @pytest.mark.skipif(
-    platform.system() == "Windows",
-    reason="Simulates non-Windows (case-sensitive) path normalization.",
+    platform.system() != "Darwin",
+    reason=(
+        "Simulates macOS, where the default APFS volume is case-insensitive "
+        "like Windows/NTFS, so get()'s modified-time fallback can still "
+        "resolve a legacy lowercased key."
+    ),
 )
-def test_get_does_not_match_legacy_lowercased_key_non_windows():
+def test_get_matches_legacy_lowercased_key_macos():
     """
     Test that a cache map written by an older Windows client stored lowercased
-    keys does NOT hit those legacy entries when on a genuinely case-sensitive
+    keys still hits those legacy entries on macOS. get()'s final "most
+    recently cached" fallback stats the cache-map key itself (the lowercased
+    legacy path); on the default case-insensitive APFS volume that resolves
+    to the real file, so the modified-time comparison succeeds.
+    """
+    tmp_dir = tempfile.mkdtemp()
+    my_cache = cache.Cache(cache_root_dir=tmp_dir)
+    cache_dir = my_cache.get_cache_dir(101201)
+
+    path = utils.touch(os.path.join(cache_dir, "Mixed_Case.ext"))
+    my_cache.add(file_handle_id=101201, path=path)
+
+    normalized = utils.normalize_path(path)
+    legacy_key = normalized.lower()
+    assert legacy_key != normalized
+
+    cache_map = my_cache._read_cache_map(cache_dir)
+    entry = cache_map.pop(normalized)
+    cache_map[legacy_key] = entry
+    my_cache._write_cache_map(cache_dir, cache_map)
+    rewritten_cache_map = my_cache._read_cache_map(cache_dir)
+
+    assert legacy_key in rewritten_cache_map
+    assert normalized not in rewritten_cache_map
+
+    # cache misses on the exact/normcase lookup but falls back to the
+    # case-insensitive filesystem's modified time comparison
+    assert my_cache.get(file_handle_id=101201, path=path) == legacy_key
+
+
+@pytest.mark.skipif(
+    platform.system() != "Linux",
+    reason=(
+        "Simulates Linux, where ext4 is genuinely case-sensitive, so "
+        "get()'s modified-time fallback cannot resolve a legacy lowercased "
+        "key -- no file exists on disk at that lowercased path."
+    ),
+)
+def test_get_does_not_match_legacy_lowercased_key_linux():
+    """
+    Test that a cache map written by an older Windows client stored lowercased
+    keys does NOT hit those legacy entries on Linux. Unlike macOS/Windows,
+    ext4 is case-sensitive, so get()'s final "most recently cached" fallback
+    can't find a file on disk at the lowercased legacy path, and the
+    modified-time comparison fails -- consistent with contains() and
+    remove(), which never match a legacy lowercased key on any non-Windows
     platform.
     """
     tmp_dir = tempfile.mkdtemp()
@@ -401,8 +450,9 @@ def test_get_does_not_match_legacy_lowercased_key_non_windows():
     assert legacy_key in rewritten_cache_map
     assert normalized not in rewritten_cache_map
 
-    # cache misses but falls back to modified time comparison
-    assert my_cache.get(file_handle_id=101201, path=path) == legacy_key
+    # no file exists at the lowercased legacy path, so the modified-time
+    # fallback can't match it either
+    assert my_cache.get(file_handle_id=101201, path=path) is None
 
 
 @pytest.mark.skipif(
