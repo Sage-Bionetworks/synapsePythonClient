@@ -375,11 +375,11 @@ def test_cache_contains_after_casing_change_locally_windows():
     platform.system() == "Windows",
     reason="Simulates non-Windows (case-sensitive) path normalization.",
 )
-def test_get_match_legacy_lowercased_key_non_windows():
+def test_get_does_not_match_legacy_lowercased_key_non_windows():
     """
     Test that a cache map written by an older Windows client stored lowercased
-    keys does hit those legacy entries when on a non-Windows (case-sensitive)
-    platform since fall back to modified time comparison.
+    keys does NOT hit those legacy entries when on a genuinely case-sensitive
+    platform.
     """
     tmp_dir = tempfile.mkdtemp()
     my_cache = cache.Cache(cache_root_dir=tmp_dir)
@@ -401,6 +401,7 @@ def test_get_match_legacy_lowercased_key_non_windows():
     assert legacy_key in rewritten_cache_map
     assert normalized not in rewritten_cache_map
 
+    # cache misses but falls back to modified time comparison
     assert my_cache.get(file_handle_id=101201, path=path) == legacy_key
 
 
@@ -433,7 +434,7 @@ def test_get_matches_legacy_lowercased_key_windows():
     assert legacy_key in rewritten_cache_map
     assert normalized not in rewritten_cache_map
 
-    assert my_cache.get(file_handle_id=101201, path=path) == legacy_key
+    assert my_cache.get(file_handle_id=101201, path=path) == path
 
 
 @pytest.mark.skipif(
