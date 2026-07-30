@@ -708,10 +708,10 @@ class TestWikiPage:
                 path="test.txt.gz",
             )
             mock_logger_info.assert_called_once_with(
-                "Uploaded file handle handle1 for wiki page markdown."
+                "[syn123:wiki1]: Uploaded file handle handle1 for wiki page markdown."
             )
             mock_logger_debug.assert_called_once_with(
-                "Deleted temp directory test.txt.gz"
+                "[syn123:wiki1]: Deleted temp directory test.txt.gz"
             )
             # AND the temp gzipped file should be deleted
             assert mock_remove.call_count == 1
@@ -790,14 +790,22 @@ class TestWikiPage:
             )
             mock_logger_info.assert_has_calls(
                 [
-                    call("Uploaded file handle handle1 for wiki page attachment."),
-                    call("Uploaded file handle handle2 for wiki page attachment."),
+                    call(
+                        "[syn123:wiki1]: Uploaded file handle handle1 for wiki page attachment."
+                    ),
+                    call(
+                        "[syn123:wiki1]: Uploaded file handle handle2 for wiki page attachment."
+                    ),
                 ]
             )
             mock_logger_debug.assert_has_calls(
                 [
-                    call("Deleted temp directory /tmp/cache1/test_1.txt.gz"),
-                    call("Deleted temp directory /tmp/cache1/test_2.txt.gz"),
+                    call(
+                        "[syn123:wiki1]: Deleted temp directory /tmp/cache1/test_1.txt.gz"
+                    ),
+                    call(
+                        "[syn123:wiki1]: Deleted temp directory /tmp/cache1/test_2.txt.gz"
+                    ),
                 ]
             )
 
@@ -875,10 +883,10 @@ class TestWikiPage:
                 path="/tmp/cache/test_1.txt.gz",
             )
             mock_logger_info.assert_called_once_with(
-                "Uploaded file handle handle1 for wiki page attachment."
+                "[syn123:wiki1]: Uploaded file handle handle1 for wiki page attachment."
             )
             mock_logger_debug.assert_called_once_with(
-                "Deleted temp directory /tmp/cache/test_1.txt.gz"
+                "[syn123:wiki1]: Deleted temp directory /tmp/cache/test_1.txt.gz"
             )
             # AND the temp directory should be cleaned up
             mock_remove.assert_called_once_with("/tmp/cache/test_1.txt.gz")
@@ -922,7 +930,7 @@ class TestWikiPage:
             # THEN the function should complete successfully
             assert results.attachment_file_handle_ids == ["handle1"]
             mock_logger_info.assert_called_once_with(
-                "Uploaded file handle handle1 for wiki page attachment."
+                "[syn123:wiki1]: Uploaded file handle handle1 for wiki page attachment."
             )
             mock_logger_debug.assert_not_called()
             # AND cleanup should not be attempted since directory doesn't exist
@@ -959,7 +967,7 @@ class TestWikiPage:
             # AND cleanup should still be attempted
             mock_remove.assert_called_once_with("/tmp/cache/test_1.txt.gz")
             mock_logger_debug.assert_called_once_with(
-                "Deleted temp directory /tmp/cache/test_1.txt.gz"
+                "[syn123:wiki1]: Deleted temp directory /tmp/cache/test_1.txt.gz"
             )
 
     async def test_determine_wiki_action_error_no_owner_id(self) -> None:
@@ -1127,10 +1135,10 @@ class TestWikiPage:
             mock_logger.assert_has_calls(
                 [
                     call(
-                        "No wiki page exists within the owner. Create a new wiki page."
+                        "[syn123]: No wiki page exists within the owner. Create a new wiki page."
                     ),
                     call(
-                        f"Created wiki page: {post_api_response['title']} with ID: {post_api_response['id']}."
+                        f"[syn123]: Created wiki page: {post_api_response['title']} with ID: {post_api_response['id']}."
                     ),
                 ]
             )
@@ -1247,10 +1255,10 @@ class TestWikiPage:
             mock_logger.assert_has_calls(
                 [
                     call(
-                        "A wiki page already exists within the owner. Update the existing wiki page."
+                        "[syn123:wiki1]: A wiki page already exists within the owner. Update the existing wiki page."
                     ),
                     call(
-                        f"Updated wiki page: {mock_put_wiki_response['title']} with ID: {self.api_response['id']}."
+                        f"[syn123]: Updated wiki page: {mock_put_wiki_response['title']} with ID: {self.api_response['id']}."
                     ),
                 ]
             )
@@ -1305,9 +1313,11 @@ class TestWikiPage:
             assert mock_logger.call_count == 2
             mock_logger.assert_has_calls(
                 [
-                    call("Creating sub-wiki page under parent ID: parent_wiki"),
                     call(
-                        f"Created sub-wiki page: {post_api_response['title']} with ID: {post_api_response['id']} under parent: parent_wiki"
+                        "[syn123]: Creating sub-wiki page under parent ID: parent_wiki"
+                    ),
+                    call(
+                        f"[syn123]: Created sub-wiki page: {post_api_response['title']} with ID: {post_api_response['id']} under parent: parent_wiki"
                     ),
                 ]
             )
@@ -1713,7 +1723,7 @@ class TestWikiPage:
 
             # AND debug log should be called once (only the general one)
             mock_logger_info.assert_called_once_with(
-                f"Downloaded file test.txt to {result}."
+                f"[syn123:wiki1]: Downloaded file test.txt to {result}."
             )
             # AND the file should be unzipped
             mock_unzip_gzipped_file.assert_called_once_with("/tmp/download/test.txt.gz")
@@ -1721,7 +1731,7 @@ class TestWikiPage:
             mock_remove.assert_called_once_with("/tmp/download/test.txt.gz")
             # AND debug log should be called
             mock_logger_debug.assert_called_once_with(
-                "Removed the gzipped file /tmp/download/test.txt.gz."
+                "[syn123:wiki1]: Removed the gzipped file /tmp/download/test.txt.gz."
             )
 
     async def test_get_attachment_async_no_file_download(self) -> None:
@@ -1913,7 +1923,7 @@ class TestWikiPage:
 
                 # AND debug log should be called once (only the general one)
             mock_logger_info.assert_called_once_with(
-                f"Downloaded the preview file test.txt to {result}."
+                f"[syn123:wiki1]: Downloaded the preview file test.txt to {result}."
             )
 
     async def test_get_attachment_preview_async_no_file_download(self) -> None:
@@ -2049,13 +2059,13 @@ class TestWikiPage:
                 "/tmp/download/markdown.md.gz"
             )
             mock_logger_info.assert_called_once_with(
-                f"Downloaded and unzipped the markdown file for wiki page wiki1 to {result}."
+                f"[syn123:wiki1]: Downloaded and unzipped the markdown file to {result}."
             )
             # AND the gzipped file should be removed
             mock_remove.assert_called_once_with("/tmp/download/markdown.md.gz")
             # AND debug log should be called
             mock_logger_debug.assert_called_once_with(
-                f"Removed the gzipped file /tmp/download/markdown.md.gz."
+                f"[syn123:wiki1]: Removed the gzipped file /tmp/download/markdown.md.gz."
             )
 
     async def test_get_markdown_file_async_no_file_download(self) -> None:

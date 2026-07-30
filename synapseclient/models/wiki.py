@@ -747,13 +747,16 @@ class WikiPage(WikiPageSynchronousProtocol):
                         path=file_path,
                     )
                     synapse_client.logger.info(
-                        f"Uploaded file handle {file_handle.get('id')} for wiki page markdown."
+                        f"[{self.owner_id}:{self.id}]: Uploaded file handle "
+                        f"{file_handle.get('id')} for wiki page markdown."
                     )
                     self.markdown_file_handle_id = file_handle.get("id")
             finally:
                 if os.path.exists(file_path):
                     os.remove(file_path)
-                    synapse_client.logger.debug(f"Deleted temp directory {file_path}")
+                    synapse_client.logger.debug(
+                        f"[{self.owner_id}:{self.id}]: Deleted temp directory {file_path}"
+                    )
             return self
 
     @otel_trace_method(
@@ -788,14 +791,16 @@ class WikiPage(WikiPageSynchronousProtocol):
                             path=file_path,
                         )
                         synapse_client.logger.info(
-                            f"Uploaded file handle {file_handle.get('id')} for wiki page attachment."
+                            f"[{self.owner_id}:{self.id}]: Uploaded file handle "
+                            f"{file_handle.get('id')} for wiki page attachment."
                         )
                         return file_handle.get("id")
                 finally:
                     if os.path.exists(file_path):
                         os.remove(file_path)
                         synapse_client.logger.debug(
-                            f"Deleted temp directory {file_path}"
+                            f"[{self.owner_id}:{self.id}]: Deleted temp directory "
+                            f"{file_path}"
                         )
 
             tasks = [
@@ -891,7 +896,8 @@ class WikiPage(WikiPageSynchronousProtocol):
 
         if wiki_action == "create_root_wiki_page":
             client.logger.info(
-                "No wiki page exists within the owner. Create a new wiki page."
+                f"[{self.owner_id}]: No wiki page exists within the owner. "
+                "Create a new wiki page."
             )
             wiki_data = await post_wiki_page(
                 owner_id=self.owner_id,
@@ -899,11 +905,13 @@ class WikiPage(WikiPageSynchronousProtocol):
                 synapse_client=client,
             )
             client.logger.info(
-                f"Created wiki page: {wiki_data.get('title')} with ID: {wiki_data.get('id')}."
+                f"[{self.owner_id}]: Created wiki page: {wiki_data.get('title')} "
+                f"with ID: {wiki_data.get('id')}."
             )
         elif wiki_action == "update_existing_wiki_page":
             client.logger.info(
-                "A wiki page already exists within the owner. Update the existing wiki page."
+                f"[{self.owner_id}:{self.id}]: A wiki page already exists within the "
+                "owner. Update the existing wiki page."
             )
             existing_wiki_dict = await get_wiki_page(
                 owner_id=self.owner_id,
@@ -931,12 +939,14 @@ class WikiPage(WikiPageSynchronousProtocol):
                 synapse_client=client,
             )
             client.logger.info(
-                f"Updated wiki page: {wiki_data.get('title')} with ID: {wiki_data.get('id')}."
+                f"[{self.owner_id}]: Updated wiki page: {wiki_data.get('title')} "
+                f"with ID: {wiki_data.get('id')}."
             )
 
         else:
             client.logger.info(
-                f"Creating sub-wiki page under parent ID: {self.parent_id}"
+                f"[{self.owner_id}]: Creating sub-wiki page under parent ID: "
+                f"{self.parent_id}"
             )
             wiki_data = await post_wiki_page(
                 owner_id=self.owner_id,
@@ -944,7 +954,8 @@ class WikiPage(WikiPageSynchronousProtocol):
                 synapse_client=client,
             )
             client.logger.info(
-                f"Created sub-wiki page: {wiki_data.get('title')} with ID: {wiki_data.get('id')} under parent: {self.parent_id}"
+                f"[{self.owner_id}]: Created sub-wiki page: {wiki_data.get('title')} "
+                f"with ID: {wiki_data.get('id')} under parent: {self.parent_id}"
             )
         self.fill_from_dict(wiki_data)
         return self
@@ -1212,10 +1223,15 @@ class WikiPage(WikiPageSynchronousProtocol):
                 )
             unzipped_file_path = WikiPage.unzip_gzipped_file(downloaded_file_path)
             client.logger.info(
-                f"Downloaded file {presigned_url_info.file_name.replace('.gz', '')} to {unzipped_file_path}."
+                f"[{self.owner_id}:{self.id}]: Downloaded file "
+                f"{presigned_url_info.file_name.replace('.gz', '')} to "
+                f"{unzipped_file_path}."
             )
             os.remove(downloaded_file_path)
-            client.logger.debug(f"Removed the gzipped file {downloaded_file_path}.")
+            client.logger.debug(
+                f"[{self.owner_id}:{self.id}]: Removed the gzipped file "
+                f"{downloaded_file_path}."
+            )
             return unzipped_file_path
         else:
             return attachment_url
@@ -1314,7 +1330,9 @@ class WikiPage(WikiPageSynchronousProtocol):
                     synapse_client=client,
                 )
             client.logger.info(
-                f"Downloaded the preview file {presigned_url_info.file_name.replace('.gz', '')} to {downloaded_file_path}."
+                f"[{self.owner_id}:{self.id}]: Downloaded the preview file "
+                f"{presigned_url_info.file_name.replace('.gz', '')} to "
+                f"{downloaded_file_path}."
             )
             return downloaded_file_path
         else:
@@ -1385,10 +1403,14 @@ class WikiPage(WikiPageSynchronousProtocol):
             )
             unzipped_file_path = WikiPage.unzip_gzipped_file(downloaded_file_path)
             client.logger.info(
-                f"Downloaded and unzipped the markdown file for wiki page {self.id} to {unzipped_file_path}."
+                f"[{self.owner_id}:{self.id}]: Downloaded and unzipped the markdown "
+                f"file to {unzipped_file_path}."
             )
             os.remove(downloaded_file_path)
-            client.logger.debug(f"Removed the gzipped file {downloaded_file_path}.")
+            client.logger.debug(
+                f"[{self.owner_id}:{self.id}]: Removed the gzipped file "
+                f"{downloaded_file_path}."
+            )
             return unzipped_file_path
         else:
             return markdown_url
@@ -1623,26 +1645,39 @@ class WikiPage(WikiPageSynchronousProtocol):
         )
 
         if update_links:
-            client.logger.info("Updating internal links")
+            client.logger.debug(
+                f"[{self.owner_id} -> {destination_owner_id}]: Updating internal links"
+            )
             new_wikis = _update_internal_links(
                 new_wikis=new_wikis,
                 wiki_id_map=wiki_id_map,
                 source_owner_id=self.owner_id,
                 destination_owner_id=destination_owner_id,
             )
-            client.logger.info("Done updating internal links.")
+            client.logger.debug(
+                f"[{self.owner_id} -> {destination_owner_id}]: Done updating internal "
+                "links."
+            )
 
         if entity_map:
-            client.logger.info("Updating Synapse references")
+            client.logger.debug(
+                f"[{self.owner_id} -> {destination_owner_id}]: Updating Synapse "
+                "references"
+            )
             new_wikis = _update_synapse_id_references(
                 new_wikis=new_wikis,
                 wiki_id_map=wiki_id_map,
                 entity_map=entity_map,
             )
-            client.logger.info("Done updating Synapse IDs.")
+            client.logger.debug(
+                f"[{self.owner_id} -> {destination_owner_id}]: Done updating Synapse "
+                "IDs."
+            )
 
         if update_links or entity_map:
-            client.logger.info("Storing new wiki pages")
+            client.logger.debug(
+                f"[{self.owner_id} -> {destination_owner_id}]: Storing new wiki pages"
+            )
             for new_wiki_id in wiki_id_map.values():
                 new_wiki = new_wikis[new_wiki_id]
                 new_wiki = await new_wiki._get_markdown_file_handle(
@@ -1655,7 +1690,9 @@ class WikiPage(WikiPageSynchronousProtocol):
                     synapse_client=client,
                 )
                 new_wikis[new_wiki_id] = new_wiki.fill_from_dict(synapse_wiki=wiki_data)
-                client.logger.info(f"Stored wiki page {new_wiki_id}")
+                client.logger.debug(
+                    f"[{destination_owner_id}:{new_wiki_id}]: Stored wiki page"
+                )
 
         new_wiki_headers = []
         async for item in get_wiki_header_tree(
@@ -1709,7 +1746,9 @@ async def _copy_wiki_pages(
         old_wiki = await WikiPage(
             owner_id=source_owner_id, id=wiki_header["id"]
         ).get_async(synapse_client=synapse_client)
-        synapse_client.logger.info(f"Got wiki {wiki_header['id']}")
+        synapse_client.logger.debug(
+            f"[{source_owner_id}:{wiki_header['id']}]: Got wiki page to copy"
+        )
         markdown = await old_wiki._get_markdown_text(synapse_client=synapse_client)
         new_file_handle_ids = await old_wiki._copy_attachment_file_handles(
             synapse_client=synapse_client
