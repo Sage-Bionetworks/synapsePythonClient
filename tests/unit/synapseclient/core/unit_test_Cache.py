@@ -484,7 +484,7 @@ def test_get_matches_legacy_lowercased_key_windows():
     assert legacy_key in rewritten_cache_map
     assert normalized not in rewritten_cache_map
 
-    assert my_cache.get(file_handle_id=101201, path=path) == path
+    assert my_cache.get(file_handle_id=101201, path=path) == normalized
 
 
 @pytest.mark.skipif(
