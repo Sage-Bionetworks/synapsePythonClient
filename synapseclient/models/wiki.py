@@ -1192,11 +1192,17 @@ class WikiPage(WikiPageSynchronousProtocol):
             )
             file_size = int(WikiPage._get_file_size(filehandle_dict, file_name))
             if file_size < SINGLE_THREAD_DOWNLOAD_SIZE_LIMIT:
-                downloaded_file_path = download_from_url(
-                    url=presigned_url_info.url,
-                    destination=download_location,
-                    url_is_presigned=True,
-                    synapse_client=client,
+                # download_from_url is synchronous, run it in a worker thread so that
+                # the blocking HTTP request does not stall the asyncio event loop
+                loop = asyncio.get_running_loop()
+                downloaded_file_path = await loop.run_in_executor(
+                    client._get_thread_pool_executor(asyncio_event_loop=loop),
+                    lambda: download_from_url(
+                        url=presigned_url_info.url,
+                        destination=download_location,
+                        url_is_presigned=True,
+                        synapse_client=client,
+                    ),
                 )
             else:
                 downloaded_file_path = await download_from_url_multi_threaded(
@@ -1289,11 +1295,17 @@ class WikiPage(WikiPageSynchronousProtocol):
             )
             file_size = int(WikiPage._get_file_size(filehandle_dict, file_name))
             if file_size < SINGLE_THREAD_DOWNLOAD_SIZE_LIMIT:
-                downloaded_file_path = download_from_url(
-                    url=presigned_url_info.url,
-                    destination=download_location,
-                    url_is_presigned=True,
-                    synapse_client=client,
+                # download_from_url is synchronous, run it in a worker thread so that
+                # the blocking HTTP request does not stall the asyncio event loop
+                loop = asyncio.get_running_loop()
+                downloaded_file_path = await loop.run_in_executor(
+                    client._get_thread_pool_executor(asyncio_event_loop=loop),
+                    lambda: download_from_url(
+                        url=presigned_url_info.url,
+                        destination=download_location,
+                        url_is_presigned=True,
+                        synapse_client=client,
+                    ),
                 )
             else:
                 downloaded_file_path = await download_from_url_multi_threaded(
@@ -1359,11 +1371,17 @@ class WikiPage(WikiPageSynchronousProtocol):
             if not download_location:
                 raise ValueError("Must provide download_location to download a file.")
 
-            downloaded_file_path = download_from_url(
-                url=markdown_url,
-                destination=download_location,
-                url_is_presigned=True,
-                synapse_client=client,
+            # download_from_url is synchronous, run it in a worker thread so that the
+            # blocking HTTP request does not stall the asyncio event loop
+            loop = asyncio.get_running_loop()
+            downloaded_file_path = await loop.run_in_executor(
+                client._get_thread_pool_executor(asyncio_event_loop=loop),
+                lambda: download_from_url(
+                    url=markdown_url,
+                    destination=download_location,
+                    url_is_presigned=True,
+                    synapse_client=client,
+                ),
             )
             unzipped_file_path = WikiPage.unzip_gzipped_file(downloaded_file_path)
             client.logger.info(
@@ -1393,11 +1411,17 @@ class WikiPage(WikiPageSynchronousProtocol):
         cache_dir = os.path.join(synapse_client.cache.cache_root_dir, "wiki_content")
         if not os.path.exists(cache_dir):
             os.makedirs(cache_dir)
-        downloaded_file_path = download_from_url(
-            url=markdown_url,
-            destination=cache_dir,
-            url_is_presigned=True,
-            synapse_client=synapse_client,
+        # download_from_url is synchronous, run it in a worker thread so that the
+        # blocking HTTP request does not stall the asyncio event loop
+        loop = asyncio.get_running_loop()
+        downloaded_file_path = await loop.run_in_executor(
+            synapse_client._get_thread_pool_executor(asyncio_event_loop=loop),
+            lambda: download_from_url(
+                url=markdown_url,
+                destination=cache_dir,
+                url_is_presigned=True,
+                synapse_client=synapse_client,
+            ),
         )
         try:
             with gzip.open(downloaded_file_path, "rt", encoding="utf-8") as f_in:
