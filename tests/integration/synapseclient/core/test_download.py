@@ -18,7 +18,6 @@ import synapseclient
 import synapseclient.core.utils as utils
 from synapseclient import Synapse
 from synapseclient.api.file_services import get_file_handle_for_download
-from synapseclient.core import cache as cache_module
 from synapseclient.core.download import (
     PresignedUrlInfo,
     download_from_url,
@@ -225,6 +224,8 @@ class TestDownloadCaching:
             schedule_for_cleanup(file.path)
 
             # THEN the file is not downloaded again, but it copied to the new location
+            assert os.path.exists(file.path)
+            assert os.path.exists(original_file_path)
             assert not utils.equal_paths(original_file_path, file.path)
 
         # AND download_by_file_handle was not called
