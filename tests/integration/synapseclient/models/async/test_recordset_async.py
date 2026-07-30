@@ -1,6 +1,5 @@
 """Integration tests for the synapseclient.models.RecordSet class (async)."""
 
-import asyncio
 import os
 import tempfile
 import uuid
@@ -22,6 +21,7 @@ from synapseclient.models import (
 )
 from synapseclient.models.curation import Grid
 from synapseclient.services.json_schema import JsonSchemaOrganization
+from tests.integration.helpers import wait_for_condition
 
 
 class TestRecordSetStoreAsync:
@@ -451,6 +451,7 @@ class TestRecordSetGetDetailedValidationResultsAsync:
     @pytest.fixture(scope="function")
     async def record_set_with_validation_fixture(
         self,
+        syn: Synapse,
         project_model: Project,
         create_test_schema: Tuple[JsonSchemaOrganization, str, list],
     ) -> RecordSet:
@@ -513,28 +514,25 @@ class TestRecordSetGetDetailedValidationResultsAsync:
             self.schedule_for_cleanup(stored_record_set.id)
             record_set_ids.append(stored_record_set.id)  # Track for schema cleanup
 
-            await asyncio.sleep(3)
+            async def _schema_binding_complete():
+                bound_schema = await stored_record_set.bind_schema_async(
+                    json_schema_uri=schema_uri,
+                    enable_derived_annotations=False,
+                    synapse_client=syn,
+                )
+                return bound_schema
 
-            # Bind the JSON schema to the RecordSet
-            await stored_record_set.bind_schema_async(
-                json_schema_uri=schema_uri,
-                enable_derived_annotations=False,
-                synapse_client=self.syn,
+            await wait_for_condition(
+                _schema_binding_complete,
+                timeout_seconds=60,
+                description="RecordSet schema binding to complete",
             )
-
-            # Verify the schema is bound by getting the schema from the entity
-            await stored_record_set.get_schema_async(synapse_client=self.syn)
-
-            # Wait for schema binding to be fully processed by backend
-            await asyncio.sleep(5)
 
             # Create a Grid session from the RecordSet
             grid = Grid(record_set_id=stored_record_set.id)
             created_grid = await grid.create_async(
                 timeout=ASYNC_JOB_TIMEOUT_SEC, synapse_client=self.syn
             )
-
-            await asyncio.sleep(3)
 
             # Export the Grid back to RecordSet to generate validation results
             exported_grid = await created_grid.export_to_record_set_async(

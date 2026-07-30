@@ -1,6 +1,5 @@
 """Integration tests for the synapseclient.models.Grid class (async)."""
 
-import asyncio
 import os
 import tempfile
 import uuid
@@ -609,16 +608,19 @@ class TestGridValidateRowsAsync:
             schedule_for_cleanup(stored_record_set.id)
             record_set_ids.append(stored_record_set.id)  # Track for schema cleanup
 
-            await asyncio.sleep(3)
+            async def _schema_binding_complete():
+                bound_schema = await stored_record_set.bind_schema_async(
+                    json_schema_uri=schema_uri,
+                    enable_derived_annotations=False,
+                    synapse_client=syn,
+                )
+                return bound_schema
 
-            await stored_record_set.bind_schema_async(
-                json_schema_uri=schema_uri,
-                enable_derived_annotations=False,
-                synapse_client=syn,
+            await wait_for_condition(
+                _schema_binding_complete,
+                timeout_seconds=60,
+                description="RecordSet schema binding to complete",
             )
-
-            # Wait for schema binding to be fully processed by backend
-            await asyncio.sleep(5)
 
             return stored_record_set
         except Exception:
