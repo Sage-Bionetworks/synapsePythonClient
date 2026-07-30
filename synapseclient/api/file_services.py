@@ -2,6 +2,7 @@
 <https://rest-docs.synapse.org/rest/#org.sagebionetworks.repo.web.controller.EntityController>
 """
 
+import asyncio
 import json
 import mimetypes
 import os
@@ -552,8 +553,9 @@ async def post_file_handles_copy(
     synapse_client: Optional["Synapse"] = None,
 ) -> list[dict[str, Any]]:
     """
-    Copy a batch of file handles. Requests are automatically submitted in batches
-    of MAX_FILE_HANDLE_PER_COPY_REQUEST.
+    Copy a batch of file handles. Requests are automatically split into batches of
+    MAX_FILE_HANDLE_PER_COPY_REQUEST, and the batches are submitted concurrently,
+    with at most max_threads requests in flight at a time.
 
     <https://rest-docs.synapse.org/rest/POST/filehandles/copy.html>
 
@@ -566,7 +568,8 @@ async def post_file_handles_copy(
 
     Returns:
         A list of copy results matching
-            <https://rest-docs.synapse.org/rest/org/sagebionetworks/repo/model/file/FileHandleCopyResult.html>.
+            <https://rest-docs.synapse.org/rest/org/sagebionetworks/repo/model/file/FileHandleCopyResult.html>,
+            in the same order as copy_requests.
             Failed copies include a failureCode of UNAUTHORIZED or NOT_FOUND.
     """
     from synapseclient import Synapse
@@ -574,13 +577,30 @@ async def post_file_handles_copy(
 
     client = Synapse.get_client(synapse_client=synapse_client)
 
-    copy_results = []
-    for start in range(0, len(copy_requests), MAX_FILE_HANDLE_PER_COPY_REQUEST):
-        batch = copy_requests[start : start + MAX_FILE_HANDLE_PER_COPY_REQUEST]
-        response = await client.rest_post_async(
-            "/filehandles/copy",
-            body=json.dumps({"copyRequests": batch}),
-            endpoint=client.fileHandleEndpoint,
+    if not copy_requests:
+        return []
+
+    semaphore = asyncio.Semaphore(client.max_threads)
+
+    async def copy_batch(batch: list[dict[str, Any]]) -> list[dict[str, Any]]:
+        async with semaphore:
+            response = await client.rest_post_async(
+                "/filehandles/copy",
+                body=json.dumps({"copyRequests": batch}),
+                endpoint=client.fileHandleEndpoint,
+            )
+        return response.get("copyResults", [])
+
+    tasks = [
+        asyncio.create_task(
+            copy_batch(copy_requests[start : start + MAX_FILE_HANDLE_PER_COPY_REQUEST])
         )
-        copy_results.extend(response.get("copyResults", []))
+        for start in range(0, len(copy_requests), MAX_FILE_HANDLE_PER_COPY_REQUEST)
+    ]
+
+    batched_results = await asyncio.gather(*tasks)
+
+    copy_results = []
+    for batch_results in batched_results:
+        copy_results.extend(batch_results)
     return copy_results
