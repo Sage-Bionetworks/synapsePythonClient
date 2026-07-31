@@ -259,8 +259,9 @@ def test_normalize_path() -> None:
 
 
 def test_normalize_path_preserves_case() -> None:
-    # SYNR-1534: normalize_path must not lowercase the path (previously it used
-    # os.path.normcase, which lowercases on Windows and corrupted derived names).
+    # Normalize_path must not lowercase the path -- it previously
+    # used os.path.normcase, which lowercases on Windows and corrupted derived
+    # names.
     assert utils.normalize_path("SomeDir/File_Name.TSV").endswith(
         "SomeDir/File_Name.TSV"
     )
@@ -268,7 +269,7 @@ def test_normalize_path_preserves_case() -> None:
 
 
 def test_guess_file_name_preserves_case() -> None:
-    # SYNR-1534: the entity name derived from a path must keep its original casing
+    # The entity name derived from a path must keep its original casing
     # on every platform, including Windows.
     assert utils.guess_file_name("/some/path/File_Name.TSV") == "File_Name.TSV"
     assert (
