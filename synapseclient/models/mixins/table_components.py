@@ -2240,6 +2240,8 @@ async def _upsert_rows_async(
     update_size_bytes: int = 1.9 * MB,
     insert_size_bytes: int = 900 * MB,
     job_timeout: int = 600,
+    date_columns: Optional[List[str]] = None,
+    date_format: Optional[Union[str, Dict[str, str]]] = None,
     wait_for_eventually_consistent_view: bool = False,
     wait_for_eventually_consistent_view_timeout: int = 600,
     synapse_client: Optional[Synapse] = None,
@@ -2270,6 +2272,13 @@ async def _upsert_rows_async(
         values = DataFrame(values).convert_dtypes()
     elif isinstance(values, str):
         values = csv_to_pandas_df(filepath=values, **kwargs)
+        if date_columns:
+            values = _parse_df_date_cols_to_datetime(
+                df=values,
+                date_columns=date_columns,
+                date_format=date_format,
+                synapse_client=synapse_client,
+            )
     elif isinstance(values, DataFrame):
         values = values.convert_dtypes()
     else:
@@ -2417,6 +2426,8 @@ class TableUpsertMixin:
         update_size_bytes: int = 1.9 * MB,
         insert_size_bytes: int = 900 * MB,
         job_timeout: int = 600,
+        date_columns: Optional[List[str]] = None,
+        date_format: Optional[Union[str, Dict[str, str]]] = None,
         synapse_client: Optional[Synapse] = None,
         **kwargs,
     ) -> None:
@@ -2547,11 +2558,27 @@ class TableUpsertMixin:
                 is reached a `SynapseTimeoutError` will be raised.
                 The default is 600 seconds
 
+            date_columns: (CSV file only) The names of columns in your CSV file that
+                contain dates or datetimes stored as formatted strings
+                (e.g. `"2024-01-15"` or `"01/15/2024 13:30"`). The columns are parsed
+                with `pandas.to_datetime` and converted to epoch time in milliseconds
+                before the data is uploaded, which is the format Synapse requires for
+                `DATE` columns.
+
+            date_format: (CSV file only) How the strings in `date_columns` are
+                formatted — a
+                [strftime format string](https://docs.python.org/3/library/datetime.html#strftime-and-strptime-format-codes)
+                (e.g. `"%m/%d/%Y"`) applied to every column, or a dict mapping column
+                names to their formats. Supply this so that ambiguous dates
+                (e.g. `"01/02/2024"`) are not silently misinterpreted and to optimize
+                the data upload performance. If the values in a column do not match
+                the format a `ValueError` is raised.
+
             synapse_client: If not passed in and caching was not disabled by
                 `Synapse.allow_client_caching(False)` this will use the last created
                 instance from the Synapse class constructor
 
-            **kwargs: Additional arguments that are passed to the `pd.DataFrame`
+            **kwargs: Additional arguments that are passed to the `csv_to_pandas_df`
                 function when the `values` argument is a path to a csv file.
 
 
@@ -2640,6 +2667,54 @@ class TableUpsertMixin:
             | A    |      | 1    |
             | B    | 2    |      |
 
+        Example: Upserting data with date columns
+            In this given example we have a table with the following data:
+
+            | col1 | date_col   |
+            |------|------------|
+            | A    | 2024-01-15 |
+            | B    | 2024-02-20 |
+
+            Suppose we have a CSV file with the following data that we want to upsert:
+
+            | col1 | date_col   |
+            |------|------------|
+            | A    | 03/10/2024 |
+            | C    | 04/01/2024 |
+
+            The `date_columns`/`date_format` arguments tell the client how to parse
+            the formatted date strings in the CSV file so that they can be compared
+            against, and stored in, the table's `DATE` column. The following code
+            will update row `A`'s `date_col` and insert a new row for `C`:
+
+            ```python
+            import asyncio
+            from synapseclient import Synapse
+            from synapseclient.models import Table # Also works with `Dataset`
+
+            syn = Synapse()
+            syn.login()
+
+
+            async def main():
+                await Table(id="syn123").upsert_rows_async(
+                    values="path/to/file.csv",
+                    primary_keys=["col1"],
+                    date_columns=["date_col"],
+                    date_format="%m/%d/%Y",
+                )
+
+            asyncio.run(main())
+            ```
+
+            The resulting table will look like this:
+
+            | col1 | date_col   |
+            |------|------------|
+            | A    | 2024-03-10 |
+            | B    | 2024-02-20 |
+            | C    | 2024-04-01 |
+
         """
         return await _upsert_rows_async(
             entity=self,
@@ -2650,6 +2725,8 @@ class TableUpsertMixin:
             update_size_bytes=update_size_bytes,
             insert_size_bytes=insert_size_bytes,
             job_timeout=job_timeout,
+            date_columns=date_columns,
+            date_format=date_format,
             synapse_client=synapse_client,
             **kwargs,
         )
@@ -2673,6 +2750,8 @@ class ViewUpdateMixin:
         update_size_bytes: int = 1.9 * MB,
         insert_size_bytes: int = 900 * MB,
         job_timeout: int = 600,
+        date_columns: Optional[List[str]] = None,
+        date_format: Optional[Union[str, Dict[str, str]]] = None,
         wait_for_eventually_consistent_view: bool = False,
         wait_for_eventually_consistent_view_timeout: int = 600,
         synapse_client: Optional[Synapse] = None,
@@ -2745,6 +2824,22 @@ class ViewUpdateMixin:
                 is reached a `SynapseTimeoutError` will be raised.
                 The default is 600 seconds
 
+            date_columns: (CSV file only) The names of columns in your CSV file that
+                contain dates or datetimes stored as formatted strings
+                (e.g. `"2024-01-15"` or `"01/15/2024 13:30"`). The columns are parsed
+                with `pandas.to_datetime` and converted to epoch time in milliseconds
+                before the data is uploaded, which is the format Synapse requires for
+                `DATE` columns.
+
+            date_format: (CSV file only) How the strings in `date_columns` are
+                formatted — a
+                [strftime format string](https://docs.python.org/3/library/datetime.html#strftime-and-strptime-format-codes)
+                (e.g. `"%m/%d/%Y"`) applied to every column, or a dict mapping column
+                names to their formats. Supply this so that ambiguous dates
+                (e.g. `"01/02/2024"`) are not silently misinterpreted and to optimize
+                the data upload performance. If the values in a column do not match
+                the format a `ValueError` is raised.
+
             wait_for_eventually_consistent_view: Only used if the table is a view. If
                 set to True this will wait for the view to reflect any changes that
                 you've made to the view. This is useful if you need to query the view
@@ -2760,7 +2855,7 @@ class ViewUpdateMixin:
                 `Synapse.allow_client_caching(False)` this will use the last created
                 instance from the Synapse class constructor
 
-            **kwargs: Additional arguments that are passed to the `pd.DataFrame`
+            **kwargs: Additional arguments that are passed to the `csv_to_pandas_df`
                 function when the `values` argument is a path to a csv file.
         """
         await _upsert_rows_async(
@@ -2772,6 +2867,8 @@ class ViewUpdateMixin:
             update_size_bytes=update_size_bytes,
             insert_size_bytes=insert_size_bytes,
             job_timeout=job_timeout,
+            date_columns=date_columns,
+            date_format=date_format,
             wait_for_eventually_consistent_view=wait_for_eventually_consistent_view,
             wait_for_eventually_consistent_view_timeout=wait_for_eventually_consistent_view_timeout,
             synapse_client=synapse_client,
@@ -3676,10 +3773,7 @@ class TableStoreRowMixin:
                 before the data is uploaded, which is the format Synapse requires for
                 `DATE` columns. The conversion is done by reading the CSV file into a
                 pandas DataFrame and uploading a temporary copy with the converted
-                values, which requires the CSV file to contain a header row. Because
-                the data passes through pandas type inference, values in the other
-                columns may be normalized (e.g. `"1.10"` becomes `1.1` and literal
-                `"NA"` strings become null values). When `schema_storage_strategy` is
+                values, which requires the CSV file to contain a header row. When `schema_storage_strategy` is
                 set to `INFER_FROM_DATA` the parsed columns will be inferred as `DATE`
                 columns. The parsed values are naive datetimes unless the strings
                 carry a UTC offset — see *How datetime values are interpreted*
@@ -4923,7 +5017,13 @@ def _parse_df_date_cols_to_datetime(
         # check if the column holds mixed timezones/offsets by extracting the UTC
         # offsets; null values have no offset to extract and are dropped so they
         # don't get counted as a spurious second "offset"
-        offsets = df[col].str.extract(r"([Zz\+\-]\d{2}:?\d{2})$")[0].dropna().unique()
+        offsets = (
+            df[col]
+            .astype("string")
+            .str.extract(r"([Zz\+\-]\d{2}:?\d{2})$")[0]
+            .dropna()
+            .unique()
+        )
         if len(offsets) > 1:
             client.logger.info(
                 f"The date column {col} holds mixed timezones/offsets and will be normalized to UTC."
