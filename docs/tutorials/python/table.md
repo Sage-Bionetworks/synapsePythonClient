@@ -248,25 +248,25 @@ the date the upload is run. Localizing with a zone name like
 that value's own date, so values on either side of a daylight saving switch are
 both stored correctly.
 
-    ```python
-    df = pd.DataFrame(
-    {
-        "sample_id": ["S1", "S2"],
-        "collected_on": [
-            datetime(2017, 2, 14, 11, 23),  # winter in Los Angeles (PST, UTC-8)
-            datetime(2018, 10, 1, 9, 30),  # summer in Los Angeles (PDT, UTC-7)
-        ],
-    }
-    )
+```python
+df = pd.DataFrame(
+{
+    "sample_id": ["S1", "S2"],
+    "collected_on": [
+        datetime(2017, 2, 14, 11, 23),  # winter in Los Angeles (PST, UTC-8)
+        datetime(2018, 10, 1, 9, 30),  # summer in Los Angeles (PDT, UTC-7)
+    ],
+}
+)
 
-    # Localize the values so each one carries its own timezone information.
-    # tz_localize looks up the UTC offset in effect on each value's own date:
-    # UTC-8 for the February value, UTC-7 for the October value.
-    df["collected_on"] = df["collected_on"].dt.tz_localize("America/Los_Angeles")
+# Localize the values so each one carries its own timezone information.
+# tz_localize looks up the UTC offset in effect on each value's own date:
+# UTC-8 for the February value, UTC-7 for the October value.
+df["collected_on"] = df["collected_on"].dt.tz_localize("America/Los_Angeles")
 
-    table.store_rows(values=df)
+table.store_rows(values=df)
 
-    ```
+```
 <details class="example">
   <summary>The collected_on column will contain timezone-aware datetimes in UTC:</summary>
 ```
@@ -282,17 +282,17 @@ A naive datetime (one without `tzinfo`) is assumed to be in the local timezone
 of the machine **at the time of upload**, and that single UTC offset is applied
 to every value in the upload.
 
-    ```python
-    naive_df = pd.DataFrame(
-        {
-            "sample_id": ["S3"],
-            "collected_on": [datetime(2017, 2, 14, 11, 23)],  # no timezone info; for this example, the local timezone is UTC-7
+```python
+naive_df = pd.DataFrame(
+    {
+        "sample_id": ["S3"],
+        "collected_on": [datetime(2017, 2, 14, 11, 23)],  # no timezone info; for this example, the local timezone is UTC-7
 
-        }
-    )
+    }
+)
 
-    table.store_rows(values=naive_df)
-    ```
+table.store_rows(values=naive_df)
+```
 
 <details class="example">
   <summary>The collected_on column will contain timezone-aware datetimes in UTC:</summary>
@@ -323,23 +323,23 @@ Plain `datetime.date` objects (as opposed to datetimes) are treated as
 the local timezone of the machine at the time of upload, with the same
 daylight-saving-shift risk described above.
 
-    ```python
-    date_df = pd.DataFrame(
-        {
-            "sample_id": ["S4"],
-            "collected_on": [date(2017, 2, 14)],  # a date, not a datetime
-        }
-    )
+```python
+date_df = pd.DataFrame(
+    {
+        "sample_id": ["S4"],
+        "collected_on": [date(2017, 2, 14)],  # a date, not a datetime
+    }
+)
 
-    table.store_rows(values=date_df)
+table.store_rows(values=date_df)
 
-    query_results = query(
-    f"SELECT * FROM {table.id} ORDER BY collected_on",
-    include_row_id_and_row_version=False,
-    convert_to_datetime=True,
-    )
-    print(query_results)
-    ```
+query_results = query(
+f"SELECT * FROM {table.id} ORDER BY collected_on",
+include_row_id_and_row_version=False,
+convert_to_datetime=True,
+)
+print(query_results)
+```
 <details class="example">
   <summary>The collected_on column will contain timezone-aware datetimes in UTC:</summary>
 ```
@@ -359,35 +359,35 @@ the client which columns hold formatted date strings and how to parse them.
 Including the UTC offset in the strings (parsed by `%z`) keeps the values
 timezone-aware, with the same benefits as localizing a DataFrame column.
 
-    ```python
-    csv_content = (
-        "sample_id,collected_on\n"
-        "S5,2017-02-14 11:23 -0800\n"
-        "S6,2018-10-01 09:30 -0700\n"
-    )
-    with open("collection_dates.csv", "w") as f:
-        f.write(csv_content)
+```python
+csv_content = (
+    "sample_id,collected_on\n"
+    "S5,2017-02-14 11:23 -0800\n"
+    "S6,2018-10-01 09:30 -0700\n"
+)
+with open("collection_dates.csv", "w") as f:
+    f.write(csv_content)
 
-    table.store_rows(
-        values="collection_dates.csv",
-        date_columns=["collected_on"],
-        date_format="%Y-%m-%d %H:%M %z",
-    )
-    ```
+table.store_rows(
+    values="collection_dates.csv",
+    date_columns=["collected_on"],
+    date_format="%Y-%m-%d %H:%M %z",
+)
+```
 
 ### Querying datetime data back
 
 Pass `convert_to_datetime=True` to `query` to get `DATE` columns back as
 timezone-aware datetimes in UTC instead of raw epoch-millisecond integers.
 
-    ```python
-    results = query(
-        f"SELECT * FROM {table.id} ORDER BY collected_on",
-        include_row_id_and_row_version=False,
-        convert_to_datetime=True,
-    )
-    print(results)
-    ```
+```python
+results = query(
+    f"SELECT * FROM {table.id} ORDER BY collected_on",
+    include_row_id_and_row_version=False,
+    convert_to_datetime=True,
+)
+print(results)
+```
 
 <details class="example">
   <summary>The collected_on column will contain timezone-aware datetimes in UTC:</summary>
@@ -402,11 +402,11 @@ timezone-aware datetimes in UTC instead of raw epoch-millisecond integers.
 ```
 </details>
 
-~~~python
+```python
 # DATE columns are returned as timezone-aware datetimes in UTC. Use tz_convert to view them on another wall clock:
 results["collected_on"] = results["collected_on"].dt.tz_convert("America/Los_Angeles")
 print(results)
-~~~
+```
 
 <details class="example">
   <summary>The collected_on column now displays timezone-aware datetimes converted to America/Los_Angeles time:</summary>
