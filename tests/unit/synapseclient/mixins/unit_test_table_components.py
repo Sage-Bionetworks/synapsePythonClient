@@ -51,6 +51,7 @@ from synapseclient.models.mixins.table_components import (
     _query_table_csv,
     _query_table_next_page,
     _query_table_row_set,
+    _upsert_rows_async,
     _validate_primary_keys,
     convert_dtypes_to_json_serializable,
     csv_to_pandas_df,
@@ -972,6 +973,8 @@ class TestTableUpsertMixin:
                 update_size_bytes=1.9 * MB,
                 insert_size_bytes=900 * MB,
                 job_timeout=600,
+                date_columns=None,
+                date_format=None,
                 synapse_client=self.syn,
             )
 
@@ -1090,6 +1093,74 @@ class TestTableUpsertMixin:
         assert len(indexes_with_changes) == 0
         assert len(indexes_without_changes) == 2
         assert len(syn_id_and_etags) == 0
+
+    def test_construct_partial_rows_for_upsert_date_column_from_csv_input_with_changes(
+        self,
+    ):
+        # GIVEN an entity with a DATE column
+        test_instance = self.ClassForTest(
+            id="syn123",
+            columns={
+                "col1": Column(name="col1", column_type=ColumnType.STRING, id="id1"),
+                "date_col": Column(
+                    name="date_col", column_type=ColumnType.DATE, id="id2"
+                ),
+            },
+        )
+
+        # Results from Synapse query (existing rows)
+        # epoch ms value for 2024-01-15
+        results = pd.DataFrame(
+            {
+                "ROW_ID": ["row1", "row2", "row3"],
+                "col1": ["A", "B", "C"],
+                "date_col": [1705276800000, 1705276800000, 1705276800000],
+            }
+        )
+
+        # Data to upsert, as if parsed from a CSV file with date_col strings
+        # "03/10/2024", "01/15/2024", and a blank date
+        chunk_to_check_for_upsert = pd.DataFrame(
+            {
+                "col1": ["A", "B", "C"],
+                "date_col": [1710028800000, 1705276800000, pd.NA],
+            }
+        )
+
+        primary_keys = ["col1"]
+        contains_etag = False
+        wait_for_eventually_consistent_view = False
+
+        (
+            rows_to_update,
+            indexes_with_changes,
+            indexes_without_changes,
+            syn_id_and_etags,
+        ) = _construct_partial_rows_for_upsert(
+            entity=test_instance,
+            results=results,
+            chunk_to_check_for_upsert=chunk_to_check_for_upsert,
+            primary_keys=primary_keys,
+            contains_etag=contains_etag,
+            wait_for_eventually_consistent_view=wait_for_eventually_consistent_view,
+        )
+
+        assert len(rows_to_update) == 2
+        assert len(indexes_with_changes) == 2
+        assert len(indexes_without_changes) == 1
+        assert len(syn_id_and_etags) == 0
+
+        assert rows_to_update[0].row_id == "row1"
+        assert rows_to_update[0].etag is None
+        assert len(rows_to_update[0].values) == 1
+        assert rows_to_update[0].values[0]["key"] == "id2"
+        assert rows_to_update[0].values[0]["value"] == 1710028800000
+
+        assert rows_to_update[1].row_id == "row3"
+        assert rows_to_update[1].etag is None
+        assert len(rows_to_update[1].values) == 1
+        assert rows_to_update[1].values[0]["key"] == "id2"
+        assert rows_to_update[1].values[0]["value"] is None
 
     def test_construct_partial_rows_for_upsert_single_value_no_na_with_etag(self):
         # GIVEN an entity with single value columns without NA values and results containing ROW_ETAG
@@ -2801,6 +2872,8 @@ class TestViewUpdateMixin:
                 update_size_bytes=1.9 * MB,
                 insert_size_bytes=900 * MB,
                 job_timeout=600,
+                date_columns=None,
+                date_format=None,
                 wait_for_eventually_consistent_view=False,
                 wait_for_eventually_consistent_view_timeout=600,
                 synapse_client=self.syn,
@@ -5825,6 +5898,57 @@ class TestTableStoreRowMixin:
                 )
         finally:
             Synapse._synapse_client = cached_client
+            os.remove(csv_file.name)
+
+    async def test_store_rows_async_csv_date_cols_respects_non_default_separator(self):
+        # GIVEN a TAB-separated CSV and a matching csv_table_descriptor telling
+        # the client the file is tab-delimited
+        table = self.ClassForTest(id="syn123", name="test_table")
+        table._last_persistent_instance = self.ClassForTest(
+            id="syn123", name="test_table"
+        )
+        with tempfile.NamedTemporaryFile(
+            mode="w", suffix=".csv", delete=False
+        ) as csv_file:
+            csv_file.write("col1\tdate_col\na\t01/15/2024\nb\t02/20/2024\n")
+
+        uploaded = {}
+
+        def capture_upload(**kwargs):
+            # The temp upload file is written with the descriptor's separator,
+            # so read it back with the same separator
+            uploaded["df"] = pd.read_csv(kwargs["path_to_csv"], sep="\t")
+
+        try:
+            with patch.object(
+                table, "_chunk_and_upload_csv", new_callable=AsyncMock
+            ) as mock_upload:
+                mock_upload.side_effect = capture_upload
+                # WHEN the tab-delimited file is stored with date_columns,
+                # passing `sep="\t"` via read_csv_kwargs so the file is
+                # parsed with the same separator used by csv_table_descriptor
+                await table.store_rows_async(
+                    values=csv_file.name,
+                    date_columns=["date_col"],
+                    date_format="%m/%d/%Y",
+                    csv_table_descriptor=CsvTableDescriptor(separator="\t"),
+                    read_csv_kwargs={"sep": "\t"},
+                    synapse_client=self.syn,
+                )
+
+            expected_df = pd.DataFrame(
+                {
+                    "col1": ["a", "b"],
+                    "date_col": [
+                        1705276800000,
+                        1708387200000,
+                    ],  # date columns are converted to epoch ms (midnight local timezone, unit tests run with TZ=UTC)
+                }
+            ).convert_dtypes()
+            pd.testing.assert_frame_equal(
+                uploaded["df"], expected_df, check_dtype=False
+            )
+        finally:
             os.remove(csv_file.name)
 
     async def test_store_rows_async_keeps_row_id_and_version_with_date_cols_in_csv(
