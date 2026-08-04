@@ -3305,7 +3305,7 @@ class GridRecordSetExportRequest(AsynchronousCommunicator):
 
 
 @dataclass
-class SynchronizeGridRequest(AsynchronousCommunicator):
+class SynchronizeGridRequest(EnumCoercionMixin, AsynchronousCommunicator):
     """
     A request to synchronize a grid session.
 
@@ -3317,7 +3317,7 @@ class SynchronizeGridRequest(AsynchronousCommunicator):
     grid_session_id: str
     """The ID of the grid session to synchronize."""
 
-    sync_type: Optional[SyncType] = field(default=None)
+    sync_type: Optional[Union[SyncType, str]] = field(default=None)
     """The type of synchronization to perform. Optional; the server defaults to
     SyncType.PULL_PUSH when omitted. SyncType.PULL is currently only supported for
     RecordSet-based grids."""
@@ -3327,6 +3327,8 @@ class SynchronizeGridRequest(AsynchronousCommunicator):
 
     error_messages: Optional[list[str]] = field(default=None, compare=False)
     """Any error messages generated during the synchronization process."""
+
+    _ENUM_FIELDS: ClassVar[dict[str, type]] = {"sync_type": SyncType}
 
     def fill_from_dict(
         self, synapse_response: Dict[str, Any]
@@ -3353,7 +3355,7 @@ class SynchronizeGridRequest(AsynchronousCommunicator):
         request_dict = {
             "concreteType": self.concrete_type,
             "gridSessionId": self.grid_session_id,
-            "syncType": self.sync_type.value,
+            "syncType": self.sync_type.value if self.sync_type is not None else None,
         }
         delete_none_keys(request_dict)
         return request_dict

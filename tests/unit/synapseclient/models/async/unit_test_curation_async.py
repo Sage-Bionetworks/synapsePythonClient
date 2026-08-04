@@ -56,6 +56,7 @@ from synapseclient.models.curation import (
     SelectColumn,
     SelectSelection,
     SynchronizeGridRequest,
+    SyncType,
     TaskState,
     UploadToTablePreviewRequest,
     _create_task_properties_from_dict,
@@ -2393,10 +2394,16 @@ class TestGridDownloadCsv:
 
 
 class TestSynchronizeGridRequest:
-    def test_to_synapse_request(self) -> None:
-        # GIVEN a SynchronizeGridRequest with all fields set
+
+    @pytest.mark.parametrize(
+        "sync_type",
+        [None, SyncType.PULL, SyncType.PULL_PUSH, "PULL", "PULL_PUSH"],
+        ids=["omitted", "pull", "pull_push", "string_pull", "string_pull_push"],
+    )
+    def test_to_synapse_request(self, sync_type: SyncType) -> None:
+        # GIVEN a SynchronizeGridRequest with the given sync_type
         sync_req = SynchronizeGridRequest(
-            grid_session_id=SESSION_ID,
+            grid_session_id=SESSION_ID, sync_type=sync_type
         )
 
         # WHEN I convert it to a synapse request
@@ -2405,6 +2412,25 @@ class TestSynchronizeGridRequest:
         # THEN it should contain the correct fields
         assert "concreteType" in result
         assert result["gridSessionId"] == SESSION_ID
+
+        # AND syncType is omitted when not set, and EnumCoercionMixin normalizes it to a SyncType
+        # member on assignment
+        if sync_type is None:
+            assert "syncType" not in result
+        else:
+            assert result["syncType"] == SyncType(sync_type).value
+
+    def test_invalid_sync_type_raises(self) -> None:
+        # GIVEN a sync_type that doesn't match any SyncType member (wrong
+        # case, or not a real value at all)
+        # WHEN constructing a SynchronizeGridRequest with it
+        # THEN it is rejected immediately rather than silently reaching the
+        # server as an invalid value
+        with pytest.raises(ValueError, match="not a valid SyncType"):
+            SynchronizeGridRequest(grid_session_id=SESSION_ID, sync_type="pull")
+
+        with pytest.raises(ValueError, match="not a valid SyncType"):
+            SynchronizeGridRequest(grid_session_id=SESSION_ID, sync_type="NOT_REAL")
 
     def test_fill_from_dict(self) -> None:
         # GIVEN a response with synchronize grid session data
