@@ -515,7 +515,7 @@ class SearchIndex(
             import asyncio
             from synapseclient import Synapse
             from synapseclient.models import SearchIndex
-            from synapseclient.models.search_dsl import Query
+            from synapseclient.models.search_dsl import PrefixFieldOptions, Query
 
             async def main():
                 syn = Synapse()
@@ -523,7 +523,9 @@ class SearchIndex(
 
                 index = SearchIndex(id="syn12345")
                 hits = await index.autocomplete_async(
-                    query=Query(match_phrase_prefix={"title": {"query": "alz"}}),
+                    query=Query(
+                        prefix={"title": PrefixFieldOptions(query="alz")}
+                    ),
                 )
                 for hit in hits:
                     print(hit.row_id, hit.fields)
