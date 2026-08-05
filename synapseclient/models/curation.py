@@ -829,6 +829,81 @@ class CurationTaskSynchronousProtocol(Protocol):
         """
         return Grid()
 
+    def synchronize_active_grid_session(
+        self,
+        *,
+        sync_type: Optional["SyncType | str"] = None,
+        synapse_client: Synapse | None = None,
+    ) -> "Grid":
+        """
+        Synchronize this task's active grid session against its source entity,
+        creating a new grid session first if the task does not already have one.
+
+        FileBasedMetadataTaskProperties tasks always perform a SyncType.PULL_PUSH;
+        any sync_type passed in is ignored for those tasks. RecordBasedMetadataTaskProperties
+        tasks require sync_type to be provided explicitly.
+
+        Arguments:
+            sync_type: The type of synchronization to perform:
+
+                - SyncType.PULL: Update the grid session with the latest data/schema
+                  from the source RecordSet, without writing the grid back to it.
+                  Use this to preview an incoming schema or data change in the grid
+                  before committing it. Only supported for record-based tasks.
+                - SyncType.PULL_PUSH: Update the grid session with the latest data
+                  from the source, then write the grid's data back to the source
+                  (the source RecordSet for record-based tasks, or the referenced
+                  entities for file-based tasks). This commits any in-progress
+                  curation in the grid as a new version of the source.
+
+                Required for record-based tasks (pass PULL to preview or PULL_PUSH
+                to commit). Ignored for file-based tasks, which always use
+                SyncType.PULL_PUSH.
+            synapse_client: If not passed in and caching was not disabled by
+                Synapse.allow_client_caching(False) this will use the last created
+                instance from the Synapse class constructor.
+
+        Returns:
+            The synchronized Grid.
+
+        Raises:
+            ValueError: If task_id is unset, task_properties is of an unsupported
+                type, or sync_type is not provided for a record-based task.
+
+        Example: Synchronize a record-based curation task's grid session
+            &nbsp;
+
+            ```python
+            from synapseclient import Synapse
+            from synapseclient.models import CurationTask
+            from synapseclient.models.curation import SyncType
+
+            syn = Synapse()
+            syn.login()
+
+            grid = CurationTask(task_id=123).synchronize_active_grid_session(
+                sync_type=SyncType.PULL_PUSH
+            )
+            ```
+
+        Example: Synchronize a file-based curation task's grid session
+            &nbsp;
+
+            File-based tasks always synchronize with SyncType.PULL_PUSH, so
+            sync_type can be omitted entirely.
+
+            ```python
+            from synapseclient import Synapse
+            from synapseclient.models import CurationTask
+
+            syn = Synapse()
+            syn.login()
+
+            grid = CurationTask(task_id=456).synchronize_active_grid_session()
+            ```
+        """
+        return Grid()
+
     def delete(
         self,
         delete_source: bool = False,
@@ -2113,6 +2188,139 @@ class CurationTask(CurationTaskSynchronousProtocol):
         ):
             task = cls().fill_from_dict(synapse_response=task_dict)
             yield task
+
+    @otel_trace_method(
+        method_to_trace_name=lambda self, **kwargs: (
+            f"CurationTask_SynchronizeActiveGridSession: ID: {self.task_id}"
+        )
+    )
+    async def synchronize_active_grid_session_async(
+        self,
+        *,
+        sync_type: Optional[Union["SyncType", str]] = None,
+        synapse_client: Optional[Synapse] = None,
+    ) -> "Grid":
+        """
+        Synchronize this task's active grid session against its source entity,
+        creating a new grid session first if the task does not already have one.
+
+        If task_properties is not yet populated on this object, it is fetched
+        from Synapse first.
+
+        FileBasedMetadataTaskProperties tasks always perform a SyncType.PULL_PUSH;
+        any sync_type passed in is ignored for those
+        tasks. RecordBasedMetadataTaskProperties tasks require sync_type to be
+        provided explicitly.
+
+        Arguments:
+            sync_type: The type of synchronization to perform:
+
+                - SyncType.PULL: Update the grid session with the latest data/schema
+                  from the source RecordSet, without writing the grid back to it.
+                  Use this to preview an incoming schema or data change in the grid
+                  before committing it. Only supported for record-based tasks.
+                - SyncType.PULL_PUSH: Update the grid session with the latest data
+                  from the source, then write the grid's data back to the source
+                  (the source RecordSet for record-based tasks, or the referenced
+                  entities for file-based tasks). This commits any in-progress
+                  curation in the grid as a new version of the source.
+
+                Required for record-based tasks (pass PULL to preview or PULL_PUSH
+                to commit). Ignored for file-based tasks, which always use
+                SyncType.PULL_PUSH.
+            synapse_client: If not passed in and caching was not disabled by
+                Synapse.allow_client_caching(False) this will use the last created
+                instance from the Synapse class constructor.
+
+        Returns:
+            The synchronized Grid.
+
+        Raises:
+            ValueError: If task_id is unset, task_properties is of an unsupported
+                type, or sync_type is not provided for a record-based task.
+
+        Example: Synchronize a record-based curation task's grid session
+            &nbsp;
+
+            ```python
+            import asyncio
+            from synapseclient import Synapse
+            from synapseclient.models import CurationTask
+            from synapseclient.models.curation import SyncType
+
+            syn = Synapse()
+            syn.login()
+
+            async def main():
+                grid = await CurationTask(task_id=123).synchronize_active_grid_session_async(
+                    sync_type=SyncType.PULL_PUSH
+                )
+                print(grid.session_id)
+
+            asyncio.run(main())
+            ```
+
+        Example: Synchronize a file-based curation task's grid session
+            &nbsp;
+
+            File-based tasks always synchronize with SyncType.PULL_PUSH, so
+            sync_type can be omitted entirely.
+
+            ```python
+            import asyncio
+            from synapseclient import Synapse
+            from synapseclient.models import CurationTask
+
+            syn = Synapse()
+            syn.login()
+
+            async def main():
+                grid = await CurationTask(task_id=456).synchronize_active_grid_session_async()
+                print(grid.session_id)
+
+            asyncio.run(main())
+            ```
+        """
+        client = Synapse.get_client(synapse_client=synapse_client)
+
+        if not self.task_properties:
+            await self.get_async(synapse_client=synapse_client)
+
+        if isinstance(self.task_properties, FileBasedMetadataTaskProperties):
+            if sync_type is not None and sync_type != SyncType.PULL_PUSH:
+                client.logger.warning(
+                    f"Ignoring sync_type={sync_type!r} for CurationTask "
+                    f"{self.task_id}: FileBasedMetadataTaskProperties tasks always "
+                    "use SyncType.PULL_PUSH."
+                )
+            sync_type = SyncType.PULL_PUSH
+        elif isinstance(self.task_properties, RecordBasedMetadataTaskProperties):
+            if not sync_type:
+                raise ValueError(
+                    "sync_type must be provided for RecordBasedMetadataTaskProperties"
+                )
+
+        status = await self.get_status_async(synapse_client=synapse_client)
+        if status.execution_details is None:
+            client.logger.info(
+                f"No active grid session found for task {self.task_id}. "
+                "Creating a new grid session..."
+            )
+            active_grid_session = await self.create_grid_session_async(
+                synapse_client=synapse_client
+            )
+            active_grid_session_id = active_grid_session.session_id
+        else:
+            active_grid_session_id = status.execution_details.active_session_id
+
+        client.logger.info(
+            f"Synchronizing active grid session {active_grid_session_id} for "
+            f"task {self.task_id}"
+        )
+        grid = Grid(session_id=active_grid_session_id)
+        return await grid.synchronize_async(
+            synapse_client=synapse_client, sync_type=sync_type
+        )
 
 
 @dataclass
