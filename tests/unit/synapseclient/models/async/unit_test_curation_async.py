@@ -1394,6 +1394,236 @@ class TestCurationTask:
                 pass  # pragma: no cover
 
 
+class TestCurationTaskSynchronizeActiveGridSession:
+    """Unit tests for CurationTask.synchronize_active_grid_session_async."""
+
+    @pytest.fixture(autouse=True, scope="function")
+    def init_syn(self, syn: Synapse) -> None:
+        self.syn = syn
+
+    async def test_record_based_creates_session_when_none_active(self) -> None:
+        """When there is no active session, a new one is created and its session_id is used to synchronize."""
+        # GIVEN a record-based task with no active grid session
+        task = CurationTask(
+            task_id=TASK_ID,
+            task_properties=RecordBasedMetadataTaskProperties(
+                record_set_id=RECORD_SET_ID
+            ),
+        )
+
+        with (
+            patch(
+                "synapseclient.models.curation.get_curation_task_status",
+                new_callable=AsyncMock,
+                return_value=_get_curation_task_status_response(),
+            ) as mock_get_status,
+            patch.object(
+                task,
+                "create_grid_session_async",
+                new_callable=AsyncMock,
+            ) as mock_create_grid_session,
+            patch("synapseclient.models.curation.Grid") as mock_grid_cls,
+        ):
+            created_grid = MagicMock()
+            created_grid.session_id = SESSION_ID
+            mock_create_grid_session.return_value = created_grid
+
+            mock_grid = mock_grid_cls.return_value
+            mock_grid.synchronize_async = AsyncMock(return_value=mock_grid)
+
+            # WHEN I synchronize the active grid session
+            result = await task.synchronize_active_grid_session_async(
+                sync_type=SyncType.PULL, synapse_client=self.syn
+            )
+
+            # THEN the status was fetched, a new grid session was created, and the
+            # synchronize call targeted the newly created session
+            mock_get_status.assert_called_once_with(
+                task_id=TASK_ID, synapse_client=self.syn
+            )
+            mock_create_grid_session.assert_called_once_with(synapse_client=self.syn)
+            mock_grid_cls.assert_called_once_with(session_id=SESSION_ID)
+            mock_grid.synchronize_async.assert_called_once_with(
+                synapse_client=self.syn, sync_type=SyncType.PULL
+            )
+            assert result is mock_grid
+
+    async def test_record_based_reuses_existing_session(self) -> None:
+        """When a session is already active, it is reused and no new session is created."""
+        # GIVEN a record-based task with an already-active grid session
+        task = CurationTask(
+            task_id=TASK_ID,
+            task_properties=RecordBasedMetadataTaskProperties(
+                record_set_id=RECORD_SET_ID
+            ),
+        )
+
+        with (
+            patch(
+                "synapseclient.models.curation.get_curation_task_status",
+                new_callable=AsyncMock,
+                return_value=_get_curation_task_status_response(
+                    active_session_id=SESSION_ID
+                ),
+            ),
+            patch.object(
+                task,
+                "create_grid_session_async",
+                new_callable=AsyncMock,
+            ) as mock_create_grid_session,
+            patch("synapseclient.models.curation.Grid") as mock_grid_cls,
+        ):
+            mock_grid = mock_grid_cls.return_value
+            mock_grid.synchronize_async = AsyncMock(return_value=mock_grid)
+
+            # WHEN I synchronize the active grid session
+            result = await task.synchronize_active_grid_session_async(
+                sync_type=SyncType.PULL_PUSH, synapse_client=self.syn
+            )
+
+            # THEN no new grid session is created, and the existing session is synchronized
+            mock_create_grid_session.assert_not_called()
+            mock_grid_cls.assert_called_once_with(session_id=SESSION_ID)
+            mock_grid.synchronize_async.assert_called_once_with(
+                synapse_client=self.syn, sync_type=SyncType.PULL_PUSH
+            )
+            assert result is mock_grid
+
+    async def test_record_based_without_sync_type_raises(self) -> None:
+        """Record-based tasks require an explicit sync_type."""
+        # GIVEN a record-based task
+        task = CurationTask(
+            task_id=TASK_ID,
+            task_properties=RecordBasedMetadataTaskProperties(
+                record_set_id=RECORD_SET_ID
+            ),
+        )
+
+        # WHEN I call synchronize_active_grid_session_async without a sync_type
+        # THEN it should raise ValueError
+        with pytest.raises(
+            ValueError,
+            match="sync_type must be provided for RecordBasedMetadataTaskProperties",
+        ):
+            await task.synchronize_active_grid_session_async(synapse_client=self.syn)
+
+    async def test_file_based_ignores_sync_type(self) -> None:
+        """File-based tasks always synchronize with PULL_PUSH regardless of the sync_type passed in."""
+        # GIVEN a file-based task with an already-active grid session
+        task = CurationTask(
+            task_id=TASK_ID,
+            task_properties=FileBasedMetadataTaskProperties(
+                upload_folder_id=UPLOAD_FOLDER_ID, file_view_id=FILE_VIEW_ID
+            ),
+        )
+
+        with (
+            patch(
+                "synapseclient.models.curation.get_curation_task_status",
+                new_callable=AsyncMock,
+                return_value=_get_curation_task_status_response(
+                    active_session_id=SESSION_ID
+                ),
+            ),
+            patch.object(
+                task, "create_grid_session_async", new_callable=AsyncMock
+            ) as mock_create_grid_session,
+            patch("synapseclient.models.curation.Grid") as mock_grid_cls,
+        ):
+            mock_grid = mock_grid_cls.return_value
+            mock_grid.synchronize_async = AsyncMock(return_value=mock_grid)
+
+            # WHEN I pass sync_type=PULL (only valid for record-based tasks)
+            await task.synchronize_active_grid_session_async(
+                sync_type=SyncType.PULL, synapse_client=self.syn
+            )
+
+            # THEN the file-based task ignores it and always synchronizes with PULL_PUSH
+            mock_create_grid_session.assert_not_called()
+            mock_grid.synchronize_async.assert_called_once_with(
+                synapse_client=self.syn, sync_type=SyncType.PULL_PUSH
+            )
+
+    async def test_file_based_without_sync_type(self) -> None:
+        """File-based tasks do not require sync_type to be provided."""
+        # GIVEN a file-based task with an already-active grid session
+        task = CurationTask(
+            task_id=TASK_ID,
+            task_properties=FileBasedMetadataTaskProperties(
+                upload_folder_id=UPLOAD_FOLDER_ID, file_view_id=FILE_VIEW_ID
+            ),
+        )
+
+        with (
+            patch(
+                "synapseclient.models.curation.get_curation_task_status",
+                new_callable=AsyncMock,
+                return_value=_get_curation_task_status_response(
+                    active_session_id=SESSION_ID
+                ),
+            ),
+            patch("synapseclient.models.curation.Grid") as mock_grid_cls,
+        ):
+            mock_grid = mock_grid_cls.return_value
+            mock_grid.synchronize_async = AsyncMock(return_value=mock_grid)
+
+            # WHEN I synchronize without providing sync_type
+            await task.synchronize_active_grid_session_async(synapse_client=self.syn)
+
+            # THEN it defaults to PULL_PUSH without raising
+            mock_grid.synchronize_async.assert_called_once_with(
+                synapse_client=self.syn, sync_type=SyncType.PULL_PUSH
+            )
+
+    async def test_fetches_task_properties_when_missing(self) -> None:
+        """If task_properties is not yet populated, it is fetched from Synapse first."""
+        # GIVEN a CurationTask with only a task_id set (no task_properties)
+        task = CurationTask(task_id=TASK_ID)
+
+        async def fake_get_async(*, synapse_client=None):
+            task.task_properties = RecordBasedMetadataTaskProperties(
+                record_set_id=RECORD_SET_ID
+            )
+            return task
+
+        with (
+            patch.object(
+                task, "get_async", new_callable=AsyncMock, side_effect=fake_get_async
+            ) as mock_get_async,
+            patch(
+                "synapseclient.models.curation.get_curation_task_status",
+                new_callable=AsyncMock,
+                return_value=_get_curation_task_status_response(
+                    active_session_id=SESSION_ID
+                ),
+            ),
+            patch("synapseclient.models.curation.Grid") as mock_grid_cls,
+        ):
+            mock_grid = mock_grid_cls.return_value
+            mock_grid.synchronize_async = AsyncMock(return_value=mock_grid)
+
+            # WHEN I synchronize the active grid session
+            await task.synchronize_active_grid_session_async(
+                sync_type=SyncType.PULL_PUSH, synapse_client=self.syn
+            )
+
+            # THEN task_properties was fetched before the type check ran
+            mock_get_async.assert_called_once_with(synapse_client=self.syn)
+            assert isinstance(task.task_properties, RecordBasedMetadataTaskProperties)
+
+    async def test_without_task_id_raises(self) -> None:
+        """Without a task_id, fetching task_properties fails with ValueError."""
+        # GIVEN a CurationTask with neither task_id nor task_properties set
+        task = CurationTask()
+
+        # WHEN I call synchronize_active_grid_session_async
+        # THEN it should raise ValueError (propagated from get_async)
+        with pytest.raises(ValueError, match="task_id is required to get"):
+            await task.synchronize_active_grid_session_async(
+                sync_type=SyncType.PULL_PUSH, synapse_client=self.syn
+            )
+
+
 class TestGrid:
     """Unit tests for the Grid model."""
 
