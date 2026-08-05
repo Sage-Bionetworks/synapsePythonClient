@@ -2289,7 +2289,7 @@ class CurationTask(CurationTaskSynchronousProtocol):
         if isinstance(self.task_properties, FileBasedMetadataTaskProperties):
             if sync_type is not None and sync_type != SyncType.PULL_PUSH:
                 client.logger.warning(
-                    f"Ignoring sync_type={sync_type!r} for CurationTask "
+                    f"Ignoring sync_type={sync_type} for CurationTask "
                     f"{self.task_id}: FileBasedMetadataTaskProperties tasks always "
                     "use SyncType.PULL_PUSH."
                 )
