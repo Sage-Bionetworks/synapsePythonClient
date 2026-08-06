@@ -11,6 +11,7 @@ By following this guide, you will:
 - Download metadata from the Grid to a local CSV
 - Edit the metadata locally
 - Upload the metadata back into the Grid
+- Validate your edits in-session against the bound JSON schema before exporting
 - Export the Grid to the RecordSet to trigger schema validation
 - Review the validation report
 - Mark the curation task as COMPLETED to signal the administrator that you're done
