@@ -707,10 +707,15 @@ class TestGridValidateRowsAsync:
             # LIKE '%' matches any non-empty message, so only the invalid
             # rows (which have a message) match.
             pytest.param(ValidationOperator.LIKE, "%", {3, 4}, id="like"),
-            # NOT_LIKE '%' never matches: invalid rows have a message that
-            # matches '%' (and so are excluded), while valid rows have no
-            # message at all to compare against.
-            pytest.param(ValidationOperator.NOT_LIKE, "%", set(), id="not_like"),
+            # LIKE on this specific message should only match row 4.
+            pytest.param(
+                ValidationOperator.LIKE,
+                "%1500.0 is not less or equal to 1000%",
+                {4},
+                id="like_specific_message",
+            ),
+            # NOT_LIKE '%' matches rows with no message at all (valid rows):
+            pytest.param(ValidationOperator.NOT_LIKE, "%", {1, 2, 5}, id="not_like"),
         ],
     )
     async def test_row_validation_result_filter_operators(
@@ -739,10 +744,6 @@ class TestGridValidateRowsAsync:
 
         # THEN: Only the rows matching that operator/value are returned
         assert {row.data["id"] for row in result.rows} == expected_ids
-        if expected_ids:
-            assert all(
-                row.validation_results.all_validation_messages for row in result.rows
-            )
 
     async def test_row_id_filter_returns_only_specified_rows(
         self, connected_grid: Grid

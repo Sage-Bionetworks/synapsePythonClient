@@ -96,6 +96,12 @@ class TaskState(str, Enum):
     IN_PROGRESS = "IN_PROGRESS"
     """The assignee has actively started the task."""
 
+    EXECUTING = "EXECUTING"
+    """An automated execution (async job) is currently running for this task."""
+
+    IN_REVIEW = "IN_REVIEW"
+    """The automated execution completed successfully and the results are pending human review."""
+
     COMPLETED = "COMPLETED"
     """The task has been completed and verified."""
 
@@ -3539,8 +3545,6 @@ class CreateReplicaRequest:
 
     Attributes:
         grid_session_id: The ID of the grid session.
-        replica: Information about a replica. Populated after calling the
-            create-replica endpoint.
     """
 
     grid_session_id: Optional[str] = None
@@ -3719,8 +3723,7 @@ class GridSynchronousProtocol(Protocol):
         A grid replica is an in-memory document that represents a 'copy' of the
         grid. Each replica is identified by a unique replicaId, issued by the
         'hub'. A user can have more than one replica at a time (i.e. using
-        multiple browser tabs/machines). A user is limited to 10 replicas
-        per-hour per-grid-session. Only the user that started the grid session
+        multiple browser tabs/machines). Only the user that started the grid session
         may create a replica.
 
         Arguments:
@@ -3760,7 +3763,7 @@ class GridSynchronousProtocol(Protocol):
         timeout: int = 120,
         query_request: "QueryRequest",
         synapse_client: Optional[Synapse] = None,
-    ) -> "GridQueryResult":
+    ) -> Optional["GridQueryResult"]:
         """
         Queries this grid session's rows and returns their per-row validation
         results against the grid's bound JSON schema.
@@ -3781,7 +3784,7 @@ class GridSynchronousProtocol(Protocol):
                 instance from the Synapse class constructor.
 
         Returns:
-            The GridQueryResult containing the selected columns and rows, each with its own validation_results. Returns an empty GridQueryResult (and logs a warning) if the job completed but no rows matched the query.
+            The GridQueryResult containing the selected columns and rows, each with its own validation_results, or None if the completed job did not return a query_result. Logs a warning if the job completed but no rows matched the query.
 
         Raises:
             ValueError: If session_id is not provided, or if no replica is bound
@@ -4843,8 +4846,7 @@ class Grid(EnumCoercionMixin, GridSynchronousProtocol):
         A grid replica is an in-memory document that represents a 'copy' of the
         grid. Each replica is identified by a unique replicaId, issued by the
         'hub'. A user can have more than one replica at a time (i.e. using
-        multiple browser tabs/machines). A user is limited to 10 replicas
-        per-hour per-grid-session. Only the user that started the grid session
+        multiple browser tabs/machines). Only the user that started the grid session
         may create a replica.
 
         Arguments:
@@ -5116,7 +5118,7 @@ class Grid(EnumCoercionMixin, GridSynchronousProtocol):
         timeout: int = 120,
         query_request: QueryRequest,
         synapse_client: Optional[Synapse] = None,
-    ) -> "GridQueryResult":
+    ) -> Optional["GridQueryResult"]:
         """
         Queries this grid session's rows and returns their per-row validation
         results against the grid's bound JSON schema.
@@ -5137,7 +5139,7 @@ class Grid(EnumCoercionMixin, GridSynchronousProtocol):
                 instance from the Synapse class constructor.
 
         Returns:
-            The GridQueryResult containing the selected columns and rows, each with its own validation_results. Returns an empty GridQueryResult (and logs a warning) if the job completed but no rows matched the query.
+            The GridQueryResult containing the selected columns and rows, each with its own validation_results, or None if the completed job did not return a query_result. Logs a warning if the job completed but no rows matched the query.
 
         Raises:
             ValueError: If session_id is not provided, or if no replica is bound
