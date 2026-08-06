@@ -277,7 +277,7 @@ latest_grid.synchronize()
 
 This writes the Grid annotation values back to each file as Synapse annotations. There is no versioned RecordSet — the files themselves are updated in place.
 
-Note this is a different use of `synchronize()` than Step 4: for file-based grids, `sync_type` is not required and always behaves as `"PULL_PUSH"` — there is no separate preview (`"PULL"`) step, since file-based grids don't have a RecordSet version to review before committing to.
+Note: for file-based grids, `sync_type` is not required and always behaves as `"PULL_PUSH"` — there is no separate preview (`"PULL"`) step.
 
 **No per-row validation report.** Validation is enforced by the JSON schema bound to the folder containing the files, not by a row-level export report. After you call `synchronize()`, the administrator verifies schema compliance on their end — there is nothing to retrieve from the contributor side. If the administrator reports violations, correct the flagged annotations in the Grid UI and re-synchronize.
 
