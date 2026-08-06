@@ -16,6 +16,7 @@
             - list
             - create_grid_session
             - set_task_state
+            - synchronize_active_grid_session
 ---
 
 [](){ #RecordSet-reference }
@@ -52,6 +53,12 @@
 ---
 [](){ #AuthorizationMode-reference }
 ::: synapseclient.models.AuthorizationMode
+    options:
+        inherited_members: true
+        members:
+---
+[](){ #SyncType-reference }
+::: synapseclient.models.SyncType
     options:
         inherited_members: true
         members:
