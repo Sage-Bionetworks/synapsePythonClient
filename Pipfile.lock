@@ -1,7 +1,7 @@
 {
     "_meta": {
         "hash": {
-            "sha256": "c81544a3eff0956f465274e2aed8af30ecf65480d2d1d32be67e1d0f21c9e999"
+            "sha256": "e0442132198c73f3b5eaaee9f635609da7860eab9654c678da8100ff4bdc9b40"
         },
         "pipfile-spec": 6,
         "requires": {
@@ -531,9 +531,8 @@
             "version": "==83.0.0"
         },
         "synapseclient": {
-            "editable": true,
-            "file": ".",
-            "markers": "python_version >= '3.10' and python_version < '3.15'"
+            "markers": "python_version >= '3.10' and python_version < '3.15'",
+            "path": "."
         },
         "tqdm": {
             "hashes": [
@@ -2463,9 +2462,8 @@
             "version": "==1.17.0"
         },
         "synapseclient": {
-            "editable": true,
-            "file": ".",
-            "markers": "python_version >= '3.10' and python_version < '3.15'"
+            "markers": "python_version >= '3.10' and python_version < '3.15'",
+            "path": "."
         },
         "termynal": {
             "hashes": [
