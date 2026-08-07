@@ -9,7 +9,7 @@ Synapse Python Client — official Python SDK and CLI for Synapse (synapse.org),
 - Python 3.10–3.14 (`setup.cfg`: `python_requires = >=3.10, <3.15`)
 - HTTP: httpx (async), requests (sync/legacy)
 - Models: stdlib dataclasses (NOT Pydantic)
-- Tests: pytest 8.2, pytest-asyncio, pytest-socket, pytest-xdist
+- Tests: pytest 9.0.3, pytest-asyncio, pytest-socket, pytest-xdist
 - Docs: MkDocs with Material theme, mkdocstrings
 - Linting: ruff, black (line-length 88), isort (profile=black), bandit
 - CI: GitHub Actions → SonarCloud, PyPI deploy on release
