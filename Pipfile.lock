@@ -2053,19 +2053,19 @@
         },
         "pytest": {
             "hashes": [
-                "sha256:c434598117762e2bd304e526244f67bf66bbd7b5d6cf22138be51ff661980343",
-                "sha256:de4bb8104e201939ccdc688b27a89a7be2079b22e2bd2b07f806b6ba71117977"
+                "sha256:2c5efc453d45394fdd706ade797c0a81091eccd1d6e4bccfcd476e2b8e0ab5d9",
+                "sha256:b86ada508af81d19edeb213c681b1d48246c1a91d304c6c81a427674c17eb91c"
             ],
-            "markers": "python_version >= '3.8'",
-            "version": "==8.2.2"
+            "markers": "python_version >= '3.10'",
+            "version": "==9.0.3"
         },
         "pytest-asyncio": {
             "hashes": [
-                "sha256:611e26147c7f77640e6d0a92a38ed17c3e9848063698d5c93d5aa7aa11cebff5",
-                "sha256:d7f52f36d231b80ee124cd216ffb19369aa168fc10095013c6b014a34d3ee9e5"
+                "sha256:933ca923a23075a87fb7070c0ec272a6848489824d887c85c812670932835aa1",
+                "sha256:c6c0d2259945122819f171a32ecea2c349ead889ee28176caaf492143424be42"
             ],
             "markers": "python_version >= '3.10'",
-            "version": "==1.3.0"
+            "version": "==1.4.0"
         },
         "pytest-cov": {
             "hashes": [
