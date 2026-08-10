@@ -1,4 +1,4 @@
-<!-- Last reviewed: 2026-03 -->
+<!-- Last reviewed: 2026-07 -->
 
 ## Project
 
@@ -44,6 +44,7 @@ Maps Java class names from Synapse REST API for polymorphic deserialization. Whe
 - `log_dataclass_diff(obj1, obj2)` — logs field-by-field differences between two dataclass instances
 - `snake_case(name)` — converts camelCase to snake_case
 - `normalize_whitespace(s)` — collapses whitespace
+- `normalize_path(path)` — absolute path with forward slashes. Deliberately does NOT call `os.path.normcase()` (which lowercases on Windows and corrupted derived entity names — SYNR-1534). Case-insensitive cache matching lives in `cache.py::_match_cache_map_key`, which prefers an exact match and falls back to `os.path.normcase` so legacy lowercased cache keys still resolve without forcing re-downloads.
 - `MB`, `KB`, `GB` — byte size constants
 - `make_bogus_data_file()`, `make_bogus_binary_file(n)`, `make_bogus_uuid_file()` — test file generators (in production code, used by tests)
 

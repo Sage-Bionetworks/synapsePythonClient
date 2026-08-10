@@ -258,6 +258,25 @@ def test_normalize_path() -> None:
     assert utils.normalize_path(None) is None
 
 
+def test_normalize_path_preserves_case() -> None:
+    # Normalize_path must not lowercase the path -- it previously
+    # used os.path.normcase, which lowercases on Windows and corrupted derived
+    # names.
+    assert utils.normalize_path("SomeDir/File_Name.TSV").endswith(
+        "SomeDir/File_Name.TSV"
+    )
+    assert utils.normalize_path("Mixed\\Case\\Path.CSV").endswith("Mixed/Case/Path.CSV")
+
+
+def test_guess_file_name_preserves_case() -> None:
+    # The entity name derived from a path must keep its original casing
+    # on every platform, including Windows.
+    assert utils.guess_file_name("/some/path/File_Name.TSV") == "File_Name.TSV"
+    assert (
+        utils.guess_file_name("C:\\Users\\Me\\Docs\\Mixed_Case.CSV") == "Mixed_Case.CSV"
+    )
+
+
 def test_limit_and_offset() -> None:
     def query_params(uri):
         """Return the query params as a dict"""
