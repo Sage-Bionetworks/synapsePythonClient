@@ -5492,6 +5492,101 @@ class TestParseDfDateColsToDatetime:
             "The date column date_col holds mixed timezones/offsets and will be normalized to UTC."
         )
 
+    def test_date_list_strings_parsed_with_format(self):
+        # GIVEN a DATE_LIST column: each cell is a list of formatted date
+        # strings, possibly holding `None` items, and some cells are
+        # entirely `None`
+        df = pd.DataFrame(
+            {
+                "col1": ["a", "b"],
+                "date_list_col": [
+                    ["01/15/2024", None, "02/20/2024"],
+                    None,
+                ],
+            }
+        )
+
+        # WHEN the column is parsed
+        result = _parse_df_date_cols_to_datetime(
+            df=df,
+            date_columns=["date_list_col"],
+            date_format="%m/%d/%Y",
+        )
+
+        # THEN every item in every list is parsed to a datetime, `None`
+        # items are preserved, and entirely `None` cells are left untouched
+        assert result["date_list_col"].tolist() == [
+            [datetime(2024, 1, 15), None, datetime(2024, 2, 20)],
+            None,
+        ]
+
+    def test_date_list_uniform_utc_offsets_parsed_as_tz_aware(self):
+        # GIVEN a DATE_LIST column whose items all carry the same UTC offset
+        df = pd.DataFrame(
+            {
+                "date_list_col": [
+                    ["01/15/2024 12:00 -0800", "02/20/2024 12:00 -0800"],
+                    None,
+                ]
+            }
+        )
+
+        # WHEN the column is parsed
+        with patch.object(self.syn, "logger") as mock_logger:
+            result = _parse_df_date_cols_to_datetime(
+                df=df,
+                date_columns=["date_list_col"],
+                date_format="%m/%d/%Y %H:%M %z",
+                synapse_client=self.syn,
+            )
+
+        # THEN every item is timezone-aware and carries that offset
+        assert result["date_list_col"].tolist() == [
+            [
+                pd.Timestamp("2024-01-15 12:00:00-0800"),
+                pd.Timestamp("2024-02-20 12:00:00-0800"),
+            ],
+            None,
+        ]
+        # AND no mixed-offset normalization message is logged
+        mock_logger.info.assert_not_called()
+
+    def test_date_list_mixed_utc_offsets_normalized_to_utc(self):
+        # GIVEN a DATE_LIST column whose items' UTC offsets differ, including
+        # between items within the same cell
+        df = pd.DataFrame(
+            {
+                "date_list_col": [
+                    ["01/15/2024 12:00 -0800", None, "07/15/2024 12:00 -0700"],
+                    None,
+                ]
+            }
+        )
+
+        # WHEN the column is parsed
+        with patch.object(self.syn, "logger") as mock_logger:
+            result = _parse_df_date_cols_to_datetime(
+                df=df,
+                date_columns=["date_list_col"],
+                date_format="%m/%d/%Y %H:%M %z",
+                synapse_client=self.syn,
+            )
+
+        # THEN every item is normalized to UTC using its own offset, and
+        # `None` items are preserved
+        assert result["date_list_col"].tolist() == [
+            [
+                pd.Timestamp("2024-01-15 20:00:00", tz="UTC"),
+                None,
+                pd.Timestamp("2024-07-15 19:00:00", tz="UTC"),
+            ],
+            None,
+        ]
+        # AND a message is logged noting the normalization
+        mock_logger.info.assert_called_once_with(
+            "The date column date_list_col holds mixed timezones/offsets and will be normalized to UTC."
+        )
+
 
 class TestConvertCsvDateColsToEpochTime:
     """Tests for _convert_csv_date_cols_to_epoch_time. Unit tests run with
