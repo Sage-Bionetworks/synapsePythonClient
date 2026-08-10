@@ -4937,6 +4937,7 @@ def _convert_df_date_cols_to_epoch_time(df: DATA_FRAME_TYPE) -> DATA_FRAME_TYPE:
     Returns:
         A dataframe with datetime columns converted to epoch time in milliseconds
     """
+    test_import_pandas()
     import pandas as pd
     from pandas.api.types import infer_dtype
 
@@ -4972,15 +4973,20 @@ def _parse_df_date_cols_to_datetime(
 ) -> DATA_FRAME_TYPE:
     """
     Parse date columns holding date strings into datetime values using
-    `pandas.to_datetime`.
+    `pandas.to_datetime`. A column may hold a formatted date string per cell
+    (a DATE column), or a list of formatted date strings per cell (a
+    DATE_LIST column) each item in every list is parsed the same way a
+    scalar cell would be.
 
     Timezone-naive inputs are converted to timezone-naive; Timezone-aware inputs
     with constant time offset are converted to timezone-aware. When the offsets in a column
     differ between rows (e.g. a mix of `-0800` and `-0700` values), the values are normalized to UTC.
+    For a DATE_LIST column, offsets are compared across every item in every list in the column.
 
     Arguments:
         df: A pandas dataframe
-        date_columns: The names of the columns holding formatted date strings.
+        date_columns: The names of the columns holding formatted date strings,
+            or lists of formatted date strings.
         date_format: The strftime format of the strings — a single format string
             applied to every column, or a dict mapping column names to their
             formats. When `None` the format is inferred by pandas.
@@ -5010,27 +5016,42 @@ def _parse_df_date_cols_to_datetime(
         col_format = (
             date_format.get(col) if isinstance(date_format, dict) else date_format
         )
-        # TODO: add warning for mixed timezones/offsets if the pandas<3.0 pin is ever lifted.
+        # TODO SYNPY-1907: add warning for mixed timezones/offsets if the pandas<3.0 pin is ever lifted.
         #  Mixed offsets will start raising ValueError instead of returning object dtype,
         # and this spot will need the exception handling back.
 
-        # check if the column holds mixed timezones/offsets by extracting the UTC
-        # offsets; null values have no offset to extract and are dropped so they
-        # don't get counted as a spurious second "offset"
-        offsets = (
-            df[col]
-            .astype("string")
-            .str.extract(r"([Zz\+\-]\d{2}:?\d{2})$")[0]
-            .dropna()
-            .unique()
+        is_list_column = (
+            df[col].apply(lambda cell: isinstance(cell, (list, tuple))).any()
         )
-        if len(offsets) > 1:
+
+        offset_pattern = re.compile(r"([Zz\+\-]\d{2}:?\d{2})$")
+        # check if any value in the column holds mixed timezones/offsets by
+        # extracting the UTC offsets
+        flat_col = df[col].explode() if is_list_column else df[col]
+        offsets = set(flat_col.astype("string").str.extract(offset_pattern)[0].dropna())
+        utc = len(offsets) > 1
+        if utc:
             client.logger.info(
                 f"The date column {col} holds mixed timezones/offsets and will be normalized to UTC."
             )
-            df[col] = to_datetime(df[col], format=col_format, utc=True)
+
+        if is_list_column:
+            df[col] = df[col].apply(
+                lambda cell: (
+                    [
+                        (
+                            to_datetime(item, format=col_format, utc=utc)
+                            if item is not None
+                            else None
+                        )
+                        for item in cell
+                    ]
+                    if isinstance(cell, (list, tuple))
+                    else cell
+                )
+            )
         else:
-            df[col] = to_datetime(df[col], format=col_format)
+            df[col] = to_datetime(df[col], format=col_format, utc=utc)
     return df
 
 
