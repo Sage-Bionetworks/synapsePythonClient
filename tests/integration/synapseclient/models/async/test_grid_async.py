@@ -158,6 +158,26 @@ class TestGridAsync:
         assert our_session.started_by == created_grid.started_by
         assert our_session.source_entity_id == record_set_fixture.id
 
+    async def test_get_grid_session_async(self, record_set_fixture: RecordSet) -> None:
+        # GIVEN: A grid session created from a record set
+        created_grid = await Grid(record_set_id=record_set_fixture.id).create_async(
+            timeout=ASYNC_JOB_TIMEOUT_SEC, synapse_client=self.syn
+        )
+        self.schedule_for_cleanup(created_grid)
+        assert created_grid.session_id is not None
+
+        # WHEN: Getting the session from Synapse via a fresh Grid instance
+        fetched_grid = await Grid(session_id=created_grid.session_id).get_async(
+            synapse_client=self.syn
+        )
+
+        # THEN: The same instance is returned, populated from the server
+        assert fetched_grid.session_id == created_grid.session_id
+        assert fetched_grid.started_by == created_grid.started_by
+        assert fetched_grid.started_on == created_grid.started_on
+        assert fetched_grid.etag == created_grid.etag
+        assert fetched_grid.source_entity_id == record_set_fixture.id
+
     async def test_create_grid_session_with_authorization_mode_async(
         self, record_set_fixture: RecordSet
     ) -> None:
