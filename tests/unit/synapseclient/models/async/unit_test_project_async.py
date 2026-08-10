@@ -398,11 +398,11 @@ class TestProject:
                 new_callable=AsyncMock,
                 return_value=(self.get_example_synapse_project_output()),
             ) as mocked_client_call,
-            patch.object(
-                self.syn,
-                "findEntityId",
+            patch(
+                "synapseclient.operations.find_entity_id_async",
+                new_callable=AsyncMock,
                 return_value=PROJECT_ID,
-            ) as mocked_get,
+            ) as mocked_find_entity_id,
             patch(
                 "synapseclient.api.entity_factory.get_entity_id_bundle2",
                 new_callable=AsyncMock,
@@ -421,7 +421,7 @@ class TestProject:
             # THEN we should call the method with this data
             mocked_client_call.assert_called_once()
             call_args = mocked_client_call.call_args
-            assert call_args.kwargs["entity_id"] == PROJECT_ID  # From findEntityId mock
+            assert call_args.kwargs["entity_id"] == PROJECT_ID
             assert call_args.kwargs["new_version"] is False
             assert call_args.kwargs["synapse_client"] == self.syn
             # The request should be a dict with the project properties
@@ -435,8 +435,8 @@ class TestProject:
             # AND we should call the get method
             mocked_get.assert_called_once()
 
-            # AND findEntityId should be called
-            mocked_get.assert_called_once()
+            # AND find_entity_id_async should be called
+            mocked_find_entity_id.assert_called_once()
 
             # AND the project should be stored
             assert result.id == PROJECT_ID
@@ -499,9 +499,9 @@ class TestProject:
 
         # WHEN I call `get` with the Project object
         with (
-            patch.object(
-                self.syn,
-                "findEntityId",
+            patch(
+                "synapseclient.operations.find_entity_id_async",
+                new_callable=AsyncMock,
                 return_value=(PROJECT_ID),
             ) as mocked_client_search,
             patch(
@@ -521,6 +521,7 @@ class TestProject:
             mocked_client_search.assert_called_once_with(
                 name=project.name,
                 parent=project.parent_id,
+                synapse_client=self.syn,
             )
 
             # AND the project should be stored
@@ -542,9 +543,9 @@ class TestProject:
         )
 
         # WHEN I call `get` with the Project object
-        with patch.object(
-            self.syn,
-            "findEntityId",
+        with patch(
+            "synapseclient.operations.find_entity_id_async",
+            new_callable=AsyncMock,
             return_value=(None),
         ) as mocked_client_search:
             with pytest.raises(SynapseNotFoundError) as e:
@@ -557,6 +558,7 @@ class TestProject:
             mocked_client_search.assert_called_once_with(
                 name=project.name,
                 parent=project.parent_id,
+                synapse_client=self.syn,
             )
 
     async def test_delete_with_id(self) -> None:
