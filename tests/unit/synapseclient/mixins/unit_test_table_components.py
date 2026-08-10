@@ -1,4 +1,3 @@
-import hashlib
 import os
 import re
 import tempfile
@@ -51,7 +50,6 @@ from synapseclient.models.mixins.table_components import (
     _query_table_csv,
     _query_table_next_page,
     _query_table_row_set,
-    _upsert_rows_async,
     _validate_primary_keys,
     convert_dtypes_to_json_serializable,
     csv_to_pandas_df,
@@ -5361,6 +5359,24 @@ class TestParseDfDateColsToDatetime:
             date_columns=["date_col"],
             date_format="%m/%d/%Y",
         )
+        expected_result = pd.DataFrame(
+            {"col1": ["a", "b"], "date_col": [datetime(2024, 1, 15), None]}
+        ).convert_dtypes()
+        pd.testing.assert_frame_equal(result, expected_result, check_dtype=False)
+
+    def test_date_format_omitted_infers_format(self):
+        # GIVEN date strings in a standard format and no `date_format` argument
+        df = pd.DataFrame(
+            {"col1": ["a", "b"], "date_col": ["2024-01-15", None]}
+        ).convert_dtypes()
+
+        # WHEN the column is parsed without specifying `date_format`
+        result = _parse_df_date_cols_to_datetime(
+            df=df,
+            date_columns=["date_col"],
+        )
+
+        # THEN pandas infers the format on its own
         expected_result = pd.DataFrame(
             {"col1": ["a", "b"], "date_col": [datetime(2024, 1, 15), None]}
         ).convert_dtypes()
