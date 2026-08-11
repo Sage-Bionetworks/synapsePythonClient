@@ -1623,6 +1623,30 @@ class TestCurationTaskSynchronizeActiveGridSession:
                 sync_type=SyncType.PULL_PUSH, synapse_client=self.syn
             )
 
+    async def test_unsupported_task_properties_type_raises(self) -> None:
+        """Unsupported task_properties types raise ValueError with the type name."""
+
+        # GIVEN a fake task properties type that doesn't exist yet
+        class ComputeBasedMetadataTaskProperties:
+            """A hypothetical future task properties type."""
+
+            pass
+
+        # AND a CurationTask with this unsupported type
+        task = CurationTask(task_id=TASK_ID)
+        task.task_properties = ComputeBasedMetadataTaskProperties()
+
+        # WHEN I call synchronize_active_grid_session_async
+        # THEN it should raise ValueError mentioning the actual type name
+        with pytest.raises(
+            ValueError,
+            match="Synchronization only supports FileBasedMetadataTaskProperties or "
+            "RecordBasedMetadataTaskProperties, got ComputeBasedMetadataTaskProperties",
+        ):
+            await task.synchronize_active_grid_session_async(
+                sync_type=SyncType.PULL_PUSH, synapse_client=self.syn
+            )
+
 
 class TestGrid:
     """Unit tests for the Grid model."""

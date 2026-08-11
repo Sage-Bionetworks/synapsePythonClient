@@ -2300,6 +2300,11 @@ class CurationTask(CurationTaskSynchronousProtocol):
                 raise ValueError(
                     "sync_type must be provided for RecordBasedMetadataTaskProperties"
                 )
+        else:
+            raise ValueError(
+                f"Synchronization only supports FileBasedMetadataTaskProperties or "
+                f"RecordBasedMetadataTaskProperties, got {type(self.task_properties).__name__}."
+            )
 
         status = await self.get_status_async(synapse_client=synapse_client)
         if status.execution_details is None:
