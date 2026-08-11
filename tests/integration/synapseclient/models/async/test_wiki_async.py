@@ -3,6 +3,7 @@
 import asyncio
 import gzip
 import os
+import re
 import tempfile
 import uuid
 from typing import Callable
@@ -799,6 +800,358 @@ class TestWikiHeader:
         # THEN headers should be returned
         assert len(headers) >= 1
         schedule_for_cleanup(headers)
+
+
+class TestWikiPageCopy:
+    """Tests for WikiPage copy operations."""
+
+    OLD_ENTITY_ID = "syn000000123"
+    NEW_ENTITY_ID = "syn000000999"
+
+    @pytest.fixture(scope="class")
+    async def source_wiki_tree(
+        self, syn: Synapse, schedule_for_cleanup: Callable[..., None]
+    ) -> dict:
+        """Create a source project with a three-level wiki tree.
+
+        The tree is root -> sub -> sub_sub. The sub and sub_sub pages each have
+        a file attachment. The root page markdown contains an internal link to
+        the sub page and a reference to a fake entity ID used to test
+        entity_map rewriting.
+        """
+        project = Project(name=f"Test Wiki Copy Source_" + str(uuid.uuid4()))
+        project = await project.store_async(synapse_client=syn)
+        schedule_for_cleanup(project.id)
+
+        root_wiki = await WikiPage(
+            owner_id=project.id,
+            title=f"Copy Root {str(uuid.uuid4())}",
+            markdown="# Root\n\nPlaceholder.",
+        ).store_async(synapse_client=syn)
+
+        attachment_file = utils.make_bogus_uuid_file()
+        schedule_for_cleanup(attachment_file)
+        sub_wiki = await WikiPage(
+            owner_id=project.id,
+            parent_id=root_wiki.id,
+            title=f"Copy Sub {str(uuid.uuid4())}",
+            markdown="# Sub\n\nThis is the sub wiki page.",
+            attachments=[attachment_file],
+        ).store_async(synapse_client=syn)
+
+        sub_sub_attachment_file = utils.make_bogus_uuid_file()
+        schedule_for_cleanup(sub_sub_attachment_file)
+        sub_sub_wiki = await WikiPage(
+            owner_id=project.id,
+            parent_id=sub_wiki.id,
+            title=f"Copy Sub Sub {str(uuid.uuid4())}",
+            markdown="# Sub Sub\n\nThis is the sub sub wiki page.",
+            attachments=[sub_sub_attachment_file],
+        ).store_async(synapse_client=syn)
+
+        # Update the root markdown now that the sub wiki ID is known so it
+        # contains an internal wiki link and an entity reference
+        root_wiki.markdown = (
+            "# Root\n\n"
+            f"See the sub page: {project.id}/wiki/{sub_wiki.id}\n\n"
+            f"Data is stored at {self.OLD_ENTITY_ID}."
+        )
+        root_wiki = await root_wiki.store_async(synapse_client=syn)
+
+        # Allow the wiki header tree to become consistent
+        await asyncio.sleep(5)
+
+        # The source tree is never modified by the tests, so its markdown and
+        # attachment names are read once here and shared instead of being
+        # downloaded again by every test that compares against them
+        pages = [root_wiki, sub_wiki, sub_sub_wiki]
+        source_markdown = {
+            page.id: await self._read_markdown(
+                owner_id=project.id,
+                wiki_id=page.id,
+                syn=syn,
+                schedule_for_cleanup=schedule_for_cleanup,
+            )
+            for page in pages
+        }
+        source_attachment_names = {
+            page.id: await self._attachment_file_names(
+                owner_id=project.id, wiki_id=page.id, syn=syn
+            )
+            for page in pages
+        }
+
+        return {
+            "project": project,
+            "root": root_wiki,
+            "sub": sub_wiki,
+            "sub_sub": sub_sub_wiki,
+            "attachment_name": os.path.basename(attachment_file),
+            "markdown": source_markdown,
+            "attachment_names": source_attachment_names,
+        }
+
+    @pytest.fixture(scope="function")
+    async def destination_project(
+        self, syn: Synapse, schedule_for_cleanup: Callable[..., None]
+    ) -> Project:
+        """Create a fresh destination project for each test."""
+        project = Project(name=f"Test Wiki Copy Destination_" + str(uuid.uuid4()))
+        project = await project.store_async(synapse_client=syn)
+        schedule_for_cleanup(project.id)
+        return project
+
+    @staticmethod
+    async def _read_markdown(
+        owner_id: str,
+        wiki_id: str,
+        syn: Synapse,
+        schedule_for_cleanup: Callable[..., None],
+    ) -> str:
+        """Download the markdown file of a wiki page and return its content."""
+        download_dir = tempfile.mkdtemp()
+        schedule_for_cleanup(download_dir)
+        downloaded_path = await WikiPage(
+            owner_id=owner_id, id=wiki_id
+        ).get_markdown_file_async(
+            download_file=True,
+            download_location=download_dir,
+            synapse_client=syn,
+        )
+        with open(downloaded_path, "r", encoding="utf-8") as f:
+            return f.read()
+
+    @staticmethod
+    async def _attachment_file_names(
+        owner_id: str, wiki_id: str, syn: Synapse
+    ) -> list[str]:
+        """Return the sorted non-preview attachment file names of a wiki page."""
+        attachment_handles = await WikiPage(
+            owner_id=owner_id, id=wiki_id
+        ).get_attachment_handles_async(synapse_client=syn)
+        return sorted(
+            handle.get("fileName")
+            for handle in attachment_handles["list"]
+            if not handle.get("isPreview")
+        )
+
+    async def test_copy_entire_wiki_tree(
+        self,
+        source_wiki_tree: dict,
+        destination_project: Project,
+        syn: Synapse,
+        schedule_for_cleanup: Callable[..., None],
+    ) -> None:
+        """Test copying an entire wiki tree to another entity in a single copy,
+        verifying the hierarchy, that internal links and entity IDs are
+        rewritten while the rest of every page's markdown stays byte-for-byte
+        identical, and that attachments are copied at every level of the tree.
+        """
+        # GIVEN a source project with a wiki tree and an empty destination project
+        source_project = source_wiki_tree["project"]
+        source_pages = [
+            source_wiki_tree["root"],
+            source_wiki_tree["sub"],
+            source_wiki_tree["sub_sub"],
+        ]
+
+        # WHEN copying the entire wiki with link updating and an entity_map
+        new_headers = await WikiPage(owner_id=source_project.id).copy_async(
+            destination_owner_id=destination_project.id,
+            entity_map={self.OLD_ENTITY_ID: self.NEW_ENTITY_ID},
+            synapse_client=syn,
+        )
+
+        # THEN all three pages should be copied with their titles preserved
+        assert len(new_headers) == 3
+        assert all(isinstance(header, WikiHeader) for header in new_headers)
+        headers_by_title = {header.title: header for header in new_headers}
+        new_root = headers_by_title[source_wiki_tree["root"].title]
+        new_sub = headers_by_title[source_wiki_tree["sub"].title]
+        new_sub_sub = headers_by_title[source_wiki_tree["sub_sub"].title]
+
+        # AND the page hierarchy should be preserved
+        assert new_root.parent_id is None
+        assert new_sub.parent_id == new_root.id
+        assert new_sub_sub.parent_id == new_sub.id
+
+        # AND every copied page's markdown should equal the source markdown
+        # with only the expected link and entity ID substitutions applied
+        wiki_id_map = {
+            page.id: headers_by_title[page.title].id for page in source_pages
+        }
+        copied_markdown_by_source_id = {}
+        for page in source_pages:
+            expected_markdown = source_wiki_tree["markdown"][page.id]
+            for old_wiki_id, new_wiki_id in wiki_id_map.items():
+                expected_markdown = expected_markdown.replace(
+                    f"{source_project.id}/wiki/{old_wiki_id}",
+                    f"{destination_project.id}/wiki/{new_wiki_id}",
+                )
+            expected_markdown = re.sub(
+                self.OLD_ENTITY_ID + r"\b", self.NEW_ENTITY_ID, expected_markdown
+            )
+
+            copied_markdown = await self._read_markdown(
+                owner_id=destination_project.id,
+                wiki_id=wiki_id_map[page.id],
+                syn=syn,
+                schedule_for_cleanup=schedule_for_cleanup,
+            )
+            assert copied_markdown == expected_markdown
+            copied_markdown_by_source_id[page.id] = copied_markdown
+
+        # AND the internal wiki link should point at the copied sub page rather
+        # than the source
+        copied_root_markdown = copied_markdown_by_source_id[source_wiki_tree["root"].id]
+        assert f"{destination_project.id}/wiki/{new_sub.id}" in copied_root_markdown
+        assert source_project.id not in copied_root_markdown
+
+        # AND each copied page should have the same non-preview attachment file
+        # names as its source page
+        pages_with_attachments = 0
+        for page in source_pages:
+            source_names = source_wiki_tree["attachment_names"][page.id]
+            copied_names = await self._attachment_file_names(
+                owner_id=destination_project.id,
+                wiki_id=wiki_id_map[page.id],
+                syn=syn,
+            )
+            assert copied_names == source_names
+            if source_names:
+                pages_with_attachments += 1
+
+        # AND the comparison is not vacuous - the source tree has attachments
+        # at two different levels. Text attachments are gzipped on upload, so
+        # the stored file name has a .gz suffix.
+        assert pages_with_attachments == 2
+        assert source_wiki_tree["attachment_names"][source_wiki_tree["sub"].id] == [
+            f"{source_wiki_tree['attachment_name']}.gz"
+        ]
+
+    async def test_copy_wiki_sub_tree(
+        self,
+        source_wiki_tree: dict,
+        destination_project: Project,
+        syn: Synapse,
+        schedule_for_cleanup: Callable[..., None],
+    ) -> None:
+        """Test copying only a wiki sub-tree, verifying the sub page becomes
+        the root of the destination wiki."""
+        # GIVEN a source project with a wiki tree and an empty destination project
+        source_project = source_wiki_tree["project"]
+        sub_wiki = source_wiki_tree["sub"]
+
+        # WHEN copying only the sub-tree rooted at the sub wiki page
+        new_headers = await WikiPage(
+            owner_id=source_project.id, id=sub_wiki.id
+        ).copy_async(
+            destination_owner_id=destination_project.id,
+            synapse_client=syn,
+        )
+
+        # THEN only the sub page and its child should be copied
+        assert len(new_headers) == 2
+        headers_by_title = {header.title: header for header in new_headers}
+        new_sub = headers_by_title[sub_wiki.title]
+        new_sub_sub = headers_by_title[source_wiki_tree["sub_sub"].title]
+
+        # AND the copied sub page should become the root of the destination wiki
+        assert new_sub.parent_id is None
+        assert new_sub_sub.parent_id == new_sub.id
+
+    async def test_copy_wiki_into_existing_destination_page(
+        self,
+        source_wiki_tree: dict,
+        destination_project: Project,
+        syn: Synapse,
+        schedule_for_cleanup: Callable[..., None],
+    ) -> None:
+        """Test copying a wiki sub-tree into an existing destination wiki page
+        via destination_sub_page_id, overwriting that page with the copied root."""
+        # GIVEN a destination project with an existing root wiki page
+        source_project = source_wiki_tree["project"]
+        sub_wiki = source_wiki_tree["sub"]
+        destination_root = await WikiPage(
+            owner_id=destination_project.id,
+            title=f"Destination Root {str(uuid.uuid4())}",
+            markdown="# Destination Root\n\nThis page will be overwritten.",
+        ).store_async(synapse_client=syn)
+
+        # WHEN copying the sub-tree into the existing destination page
+        new_headers = await WikiPage(
+            owner_id=source_project.id, id=sub_wiki.id
+        ).copy_async(
+            destination_owner_id=destination_project.id,
+            destination_sub_page_id=destination_root.id,
+            synapse_client=syn,
+        )
+
+        # THEN the root of the copied tree should be written into the
+        # existing destination page
+        assert len(new_headers) == 2
+        updated_destination_root = await WikiPage(
+            owner_id=destination_project.id, id=destination_root.id
+        ).get_async(synapse_client=syn)
+        assert updated_destination_root.title == sub_wiki.title
+
+        # AND the child page should be created under the destination page
+        headers_by_title = {header.title: header for header in new_headers}
+        new_sub_sub = headers_by_title[source_wiki_tree["sub_sub"].title]
+        assert new_sub_sub.parent_id == destination_root.id
+
+        # AND the copied pages' markdown should match the source pages,
+        # replacing the original destination page content. Neither source
+        # page contains links or entity IDs, so the markdown should be
+        # copied verbatim.
+        destination_root_markdown = await self._read_markdown(
+            owner_id=destination_project.id,
+            wiki_id=destination_root.id,
+            syn=syn,
+            schedule_for_cleanup=schedule_for_cleanup,
+        )
+        assert destination_root_markdown == source_wiki_tree["markdown"][sub_wiki.id]
+
+        new_sub_sub_markdown = await self._read_markdown(
+            owner_id=destination_project.id,
+            wiki_id=new_sub_sub.id,
+            syn=syn,
+            schedule_for_cleanup=schedule_for_cleanup,
+        )
+        assert (
+            new_sub_sub_markdown
+            == source_wiki_tree["markdown"][source_wiki_tree["sub_sub"].id]
+        )
+
+    async def test_copy_wiki_from_entity_without_wiki(
+        self,
+        source_wiki_tree: dict,
+        syn: Synapse,
+        schedule_for_cleanup: Callable[..., None],
+    ) -> None:
+        """Test that copying from an entity that has no wiki returns an
+        empty list instead of raising an error."""
+        # GIVEN a source project without any wiki pages
+        empty_source_project = Project(
+            name=f"Test Wiki Copy Empty Source_" + str(uuid.uuid4())
+        )
+        empty_source_project = await empty_source_project.store_async(
+            synapse_client=syn
+        )
+        schedule_for_cleanup(empty_source_project.id)
+
+        # WHEN copying its wiki to another entity. No destination project is
+        # created because the copy returns before the destination is contacted.
+        # The class source project is reused as the destination ID, and because
+        # it already has a root wiki the copy would fail rather than silently
+        # write anything if that short-circuit ever stopped happening.
+        new_headers = await WikiPage(owner_id=empty_source_project.id).copy_async(
+            destination_owner_id=source_wiki_tree["project"].id,
+            synapse_client=syn,
+        )
+
+        # THEN an empty list should be returned
+        assert new_headers == []
 
 
 class TestWikiOrderHint:
