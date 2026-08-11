@@ -1507,6 +1507,59 @@ class TestCurationTaskSynchronizeActiveGridSession:
         ):
             await task.synchronize_active_grid_session_async(synapse_client=self.syn)
 
+    async def test_invalid_sync_type_string_raises(self) -> None:
+        """Invalid sync_type strings fail fast with a helpful error message."""
+        # GIVEN a record-based task
+        task = CurationTask(
+            task_id=TASK_ID,
+            task_properties=RecordBasedMetadataTaskProperties(
+                record_set_id=RECORD_SET_ID
+            ),
+        )
+
+        # WHEN I call synchronize_active_grid_session_async with an invalid string
+        # THEN it should raise ValueError immediately (before any API calls)
+        with pytest.raises(
+            ValueError,
+            match=r"'INVALID' is not a valid SyncType\. Expected one of:",
+        ):
+            await task.synchronize_active_grid_session_async(
+                sync_type="INVALID", synapse_client=self.syn
+            )
+
+    async def test_valid_sync_type_string_is_coerced(self) -> None:
+        """Valid sync_type strings are coerced to SyncType enum."""
+        # GIVEN a record-based task with an already-active grid session
+        task = CurationTask(
+            task_id=TASK_ID,
+            task_properties=RecordBasedMetadataTaskProperties(
+                record_set_id=RECORD_SET_ID
+            ),
+        )
+
+        with (
+            patch(
+                "synapseclient.models.curation.get_curation_task_status",
+                new_callable=AsyncMock,
+                return_value=_get_curation_task_status_response(
+                    active_session_id=SESSION_ID
+                ),
+            ),
+            patch("synapseclient.models.curation.Grid") as mock_grid_cls,
+        ):
+            mock_grid = mock_grid_cls.return_value
+            mock_grid.synchronize_async = AsyncMock(return_value=mock_grid)
+
+            # WHEN I pass sync_type as a string "PULL_PUSH"
+            await task.synchronize_active_grid_session_async(
+                sync_type="PULL_PUSH", synapse_client=self.syn
+            )
+
+            # THEN the string is coerced to the enum and used correctly
+            mock_grid.synchronize_async.assert_called_once_with(
+                synapse_client=self.syn, sync_type=SyncType.PULL_PUSH
+            )
+
     async def test_file_based_ignores_sync_type(self) -> None:
         """File-based tasks always synchronize with PULL_PUSH regardless of the sync_type passed in."""
         # GIVEN a file-based task with an already-active grid session

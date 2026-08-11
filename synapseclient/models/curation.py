@@ -2284,6 +2284,16 @@ class CurationTask(CurationTaskSynchronousProtocol):
         """
         client = Synapse.get_client(synapse_client=synapse_client)
 
+        # Coerce sync_type to enum early to fail fast on invalid strings
+        if sync_type is not None and not isinstance(sync_type, SyncType):
+            try:
+                sync_type = SyncType(sync_type)
+            except ValueError as exc:
+                raise ValueError(
+                    f"{sync_type!r} is not a valid SyncType. "
+                    f"Expected one of: {[s.value for s in SyncType]}."
+                ) from exc
+
         if not self.task_properties:
             await self.get_async(synapse_client=synapse_client)
 
