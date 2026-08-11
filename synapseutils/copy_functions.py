@@ -4,6 +4,8 @@ import math
 import re
 import typing
 
+from deprecated import deprecated
+
 import synapseclient
 from synapseclient import (
     Activity,
@@ -806,6 +808,13 @@ def _updateInternalLinks(newWikis, wikiIdMap, entity, destinationId):
     return newWikis
 
 
+@deprecated(
+    version="5.0.0",
+    reason=(
+        "To be removed in 6.0.0. Use WikiPage.copy or WikiPage.copy_async from "
+        "synapseclient.models instead."
+    ),
+)
 def copyWiki(
     syn,
     entity,
@@ -818,6 +827,10 @@ def copyWiki(
 ):
     """
     Copies wikis and updates internal links
+
+    This function is deprecated. Use WikiPage.copy or WikiPage.copy_async from
+    synapseclient.models instead, where owner_id is the source entity and id is
+    the optional sub-page to copy from.
 
     Arguments:
         syn: A Synapse object with user's login, e.g. syn = synapseclient.login()
@@ -838,6 +851,26 @@ def copyWiki(
 
     Returns:
         A list of Objects with three fields: id, title and parentId.
+
+    Example: Migration to the new method
+        &nbsp;
+
+        This function is deprecated. Use the WikiPage model from
+        synapseclient.models instead, where owner_id is the source entity and
+        id is the optional sub-page to copy from.
+
+        ```python
+        # Old approach (DEPRECATED)
+        # import synapseutils
+        # new_wiki_headers = synapseutils.copyWiki(syn, "syn123", "syn456")
+
+        # New approach (RECOMMENDED)
+        from synapseclient.models import WikiPage
+
+        new_wiki_headers = WikiPage(owner_id="syn123").copy(
+            destination_owner_id="syn456"
+        )
+        ```
     """
 
     # Validate input parameters

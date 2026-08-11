@@ -26,6 +26,7 @@
         - restore
         - get
         - delete
+        - copy
         - get_attachment_handles
         - get_attachment
         - get_attachment_preview
