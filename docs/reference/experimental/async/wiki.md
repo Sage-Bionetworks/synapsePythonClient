@@ -26,6 +26,7 @@
         - restore_async
         - get_async
         - delete_async
+        - copy_async
         - get_attachment_handles_async
         - get_attachment_async
         - get_attachment_preview_async

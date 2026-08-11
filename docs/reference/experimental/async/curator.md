@@ -118,6 +118,7 @@
         inherited_members: true
         members:
             - create_async
+            - get_async
             - export_to_record_set_async
             - synchronize_async
             - download_csv_async

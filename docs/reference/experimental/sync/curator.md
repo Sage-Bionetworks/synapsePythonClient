@@ -118,6 +118,7 @@
         inherited_members: true
         members:
             - create
+            - get
             - export_to_record_set
             - synchronize
             - download_csv
