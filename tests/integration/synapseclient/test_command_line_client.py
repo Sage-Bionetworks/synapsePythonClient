@@ -1279,11 +1279,11 @@ class TestSchemaManagementCommands:
     @pytest.fixture(scope="class")
     def schema_organization(self, syn: Synapse, request):
         """Create a test organization for schema registration."""
-        from synapseclient.models import SchemaOrganization
+        from synapseclient.models import Organization
 
         # Prefix with 'id' so the name part starts with a letter (required by schema validation)
         org_name = f"test.org.id{str(uuid.uuid4())[:8]}"
-        organization = SchemaOrganization(org_name)
+        organization = Organization(org_name)
         organization.store(synapse_client=syn)
 
         def cleanup():
