@@ -524,7 +524,7 @@ class SearchIndex(
                 index = SearchIndex(id="syn12345")
                 hits = await index.autocomplete_async(
                     query=Query(
-                        prefix={"title": PrefixFieldOptions(query="alz")}
+                        prefix={"title": PrefixFieldOptions(value="alz")}
                     ),
                 )
                 for hit in hits:

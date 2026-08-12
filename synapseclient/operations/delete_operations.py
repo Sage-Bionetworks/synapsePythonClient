@@ -87,11 +87,11 @@ def delete(
         - String ID with version (e.g., "syn123.4")
         - File, RecordSet (use version_only=True)
         - Table, Dataset, DatasetCollection, EntityView, MaterializedView,
-          SearchIndex, SubmissionView, VirtualTable (use version_only=True)
+          SubmissionView, VirtualTable (use version_only=True)
 
         **Not supported for version-specific deletion:**
 
-        - Project, Folder, Evaluation, Team, Organization, CurationTask, Grid
+        - Project, Folder, Evaluation, Team, Organization, CurationTask, Grid, SearchIndex
 
     Arguments:
         entity: The entity instance to delete, or a Synapse ID string (e.g., "syn123456"
@@ -318,11 +318,11 @@ async def delete_async(
         - String ID with version (e.g., "syn123.4")
         - File, RecordSet (use version_only=True)
         - Table, Dataset, DatasetCollection, EntityView, MaterializedView,
-          SearchIndex, SubmissionView, VirtualTable (use version_only=True)
+          SubmissionView, VirtualTable (use version_only=True)
 
         **Not supported for version-specific deletion:**
 
-        - Project, Folder, Evaluation, Team, Organization, CurationTask, Grid
+        - Project, Folder, Evaluation, Team, Organization, CurationTask, Grid, SearchIndex
 
     Arguments:
         entity: The entity instance to delete, or a Synapse ID string (e.g., "syn123456"
