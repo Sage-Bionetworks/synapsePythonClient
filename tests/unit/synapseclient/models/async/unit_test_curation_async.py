@@ -1507,9 +1507,10 @@ class TestCurationTaskSynchronizeActiveGridSession:
         ):
             await task.synchronize_active_grid_session_async(synapse_client=self.syn)
 
-    async def test_invalid_sync_type_string_raises(self) -> None:
-        """Invalid sync_type strings fail fast with a helpful error message."""
-        # GIVEN a record-based task
+    async def test_unrecognized_sync_type_string_is_forward_compatible(self) -> None:
+        """SyncType is forward-compatible, so an unrecognized string is passed
+        through rather than rejected, in case the server has added a new value."""
+        # GIVEN a record-based task with an already-active grid session
         task = CurationTask(
             task_id=TASK_ID,
             task_properties=RecordBasedMetadataTaskProperties(
@@ -1517,14 +1518,27 @@ class TestCurationTaskSynchronizeActiveGridSession:
             ),
         )
 
-        # WHEN I call synchronize_active_grid_session_async with an invalid string
-        # THEN it should raise ValueError immediately (before any API calls)
-        with pytest.raises(
-            ValueError,
-            match=r"'INVALID' is not a valid SyncType\. Expected one of:",
+        with (
+            patch(
+                "synapseclient.models.curation.get_curation_task_status",
+                new_callable=AsyncMock,
+                return_value=_get_curation_task_status_response(
+                    active_session_id=SESSION_ID
+                ),
+            ),
+            patch("synapseclient.models.curation.Grid") as mock_grid_cls,
         ):
+            mock_grid = mock_grid_cls.return_value
+            mock_grid.synchronize_async = AsyncMock(return_value=mock_grid)
+
+            # WHEN I call synchronize_active_grid_session_async with an unrecognized
+            # string THEN no exception is raised, and the value is forwarded as-is
             await task.synchronize_active_grid_session_async(
                 sync_type="INVALID", synapse_client=self.syn
+            )
+
+            mock_grid.synchronize_async.assert_called_once_with(
+                synapse_client=self.syn, sync_type="INVALID"
             )
 
     async def test_valid_sync_type_string_is_coerced(self) -> None:
@@ -2727,17 +2741,19 @@ class TestSynchronizeGridRequest:
         else:
             assert result["syncType"] == SyncType(sync_type).value
 
-    def test_invalid_sync_type_raises(self) -> None:
-        # GIVEN a sync_type that doesn't match any SyncType member (wrong
-        # case, or not a real value at all)
+    def test_unrecognized_sync_type_is_forward_compatible(self) -> None:
+        # GIVEN a sync_type that doesn't match any declared SyncType member
+        # (wrong case, or a value the server may add in the future)
         # WHEN constructing a SynchronizeGridRequest with it
-        # THEN it is rejected immediately rather than silently reaching the
-        # server as an invalid value
-        with pytest.raises(ValueError, match="not a valid SyncType"):
-            SynchronizeGridRequest(grid_session_id=SESSION_ID, sync_type="pull")
+        # THEN SyncType is forward-compatible, so it is accepted as-is
+        # rather than rejected, in case the server has added a new value
+        sync_req = SynchronizeGridRequest(grid_session_id=SESSION_ID, sync_type="pull")
+        assert sync_req.sync_type == "pull"
 
-        with pytest.raises(ValueError, match="not a valid SyncType"):
-            SynchronizeGridRequest(grid_session_id=SESSION_ID, sync_type="NOT_REAL")
+        sync_req = SynchronizeGridRequest(
+            grid_session_id=SESSION_ID, sync_type="NOT_REAL"
+        )
+        assert sync_req.sync_type == "NOT_REAL"
 
     def test_fill_from_dict(self) -> None:
         # GIVEN a response with synchronize grid session data

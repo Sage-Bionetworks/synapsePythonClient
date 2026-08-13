@@ -79,7 +79,10 @@ from synapseclient.core.utils import (
     merge_dataclass_entities,
 )
 from synapseclient.models.mixins.asynchronous_job import AsynchronousCommunicator
-from synapseclient.models.mixins.enum_coercion import EnumCoercionMixin
+from synapseclient.models.mixins.enum_coercion import (
+    EnumCoercionMixin,
+    ForwardCompatibleStrEnum,
+)
 from synapseclient.models.recordset import ValidationSummary
 from synapseclient.models.table_components import Column, CsvTableDescriptor, Query
 
@@ -131,7 +134,7 @@ class AuthorizationMode(str, Enum):
     ownership team. User visibility of rows depends on their individual permissions."""
 
 
-class SyncType(str, Enum):
+class SyncType(ForwardCompatibleStrEnum):
     """
     The type of synchronization to perform on a grid session.
 
@@ -2283,16 +2286,6 @@ class CurationTask(CurationTaskSynchronousProtocol):
             ```
         """
         client = Synapse.get_client(synapse_client=synapse_client)
-
-        # Coerce sync_type to enum early to fail fast on invalid strings
-        if sync_type is not None and not isinstance(sync_type, SyncType):
-            try:
-                sync_type = SyncType(sync_type)
-            except ValueError as exc:
-                raise ValueError(
-                    f"{sync_type!r} is not a valid SyncType. "
-                    f"Expected one of: {[s.value for s in SyncType]}."
-                ) from exc
 
         if not self.task_properties:
             await self.get_async(synapse_client=synapse_client)
