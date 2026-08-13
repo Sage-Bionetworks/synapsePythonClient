@@ -112,8 +112,9 @@ def _create_json_schema_entity_view(
             view.delete(synapse_client=syn)
         except Exception:
             Synapse.get_client(synapse_client=syn).logger.exception(
-                f"Could not delete the created EntityView {view.id}. It "
-                "must be deleted manually."
+                f"Could not delete the created EntityView {view.id}. Delete it "
+                "yourself, either from the Synapse web UI, or with the Python "
+                f"client: EntityView(id='{view.id}').delete()"
             )
         raise
     view.store(synapse_client=syn)
