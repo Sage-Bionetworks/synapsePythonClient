@@ -170,8 +170,6 @@ def create_record_based_metadata_task(
         ```
 
     Example: Controlling the column order of the RecordSet
-        &nbsp;
-
         Pass column_order to place specific columns immediately after the upsert keys.
         You only need to name the columns you care about; every other schema property
         is appended afterwards in its existing order. Upsert keys always stay leftmost,

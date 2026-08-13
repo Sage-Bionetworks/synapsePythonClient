@@ -422,8 +422,6 @@ def create_file_based_metadata_task(
         ```
 
     Example: Controlling the column order of the EntityView
-        &nbsp;
-
         Pass column_order to place specific columns immediately after the pinned name
         and id columns. You only need to name the columns you care about; every other
         column, including Synapse managed columns such as createdBy, is appended
