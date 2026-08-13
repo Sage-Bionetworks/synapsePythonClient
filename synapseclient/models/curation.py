@@ -2312,14 +2312,16 @@ class CurationTask(CurationTaskSynchronousProtocol):
             )
 
         status = await self.get_status_async(synapse_client=synapse_client)
-        if status.execution_details is None:
+        if (
+            status.execution_details is None
+            or status.execution_details.active_session_id is None
+        ):
             client.logger.warning(
                 f"No active grid session found for task {self.task_id}. Skipping "
                 "synchronization."
             )
             return None
-        else:
-            active_grid_session_id = status.execution_details.active_session_id
+        active_grid_session_id = status.execution_details.active_session_id
 
         client.logger.info(
             f"Synchronizing active grid session {active_grid_session_id} for "
