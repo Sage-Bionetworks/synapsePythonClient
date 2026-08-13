@@ -145,8 +145,6 @@ A few columns are always pinned to the front and cannot be moved:
 
 Naming a pinned column in `column_order` has no effect — it stays in its pinned position and is not duplicated. A name that does not match any available column raises a `ValueError`.
 
-For file-based tasks the available column names are not known until the EntityView has been created, because Synapse adds its managed columns during that step. An unknown name is therefore detected after the view exists; the view is deleted again before the `ValueError` is raised, so a typo does not leave an orphaned EntityView behind. In the unlikely case that the cleanup delete also fails, the Synapse ID of the view to remove by hand is logged.
-
 ```python
 record_set, curation_task = create_record_based_metadata_task(
     synapse_client=syn,
