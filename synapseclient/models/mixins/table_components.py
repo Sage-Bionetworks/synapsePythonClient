@@ -1263,7 +1263,7 @@ class GetMixin:
 
         await get_from_entity_factory(
             entity_to_update=self,
-            version=self.version_number,
+            version=self.version_number if hasattr(self, "version_number") else None,
             synapse_id_or_path=entity_id,
             synapse_client=synapse_client,
         )

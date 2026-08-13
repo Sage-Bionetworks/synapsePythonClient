@@ -1,8 +1,8 @@
-# SchemaOrganization
+# Organization
 
 ## API Reference
 
-::: synapseclient.models.SchemaOrganization
+::: synapseclient.models.Organization
     options:
         inherited_members: true
         members:

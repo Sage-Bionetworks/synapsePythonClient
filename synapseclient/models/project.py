@@ -33,6 +33,7 @@ if TYPE_CHECKING:
         DatasetCollection,
         EntityView,
         MaterializedView,
+        SearchIndex,
         SubmissionView,
         Table,
         VirtualTable,
@@ -75,6 +76,7 @@ class Project(
         datasetcollections: Any dataset collections that are at the root directory of the project.
         materializedviews: Any materialized views that are at the root directory of the project.
         virtualtables: Any virtual tables that are at the root directory of the project.
+        searchindexes: Any search indexes that are at the root directory of the project.
         annotations: Additional metadata associated with the folder. The key is the name
             of your desired annotations. The value is an object containing a list of
             values (use empty list to represent no values for key) and the value type
@@ -193,6 +195,9 @@ class Project(
 
     virtualtables: List["VirtualTable"] = field(default_factory=list, compare=False)
     """Any virtual tables that are at the root directory of the project."""
+
+    searchindexes: List["SearchIndex"] = field(default_factory=list, compare=False)
+    """Any search indexes that are at the root directory of the project."""
 
     annotations: Optional[
         Dict[
