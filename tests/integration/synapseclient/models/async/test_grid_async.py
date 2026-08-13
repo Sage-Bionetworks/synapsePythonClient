@@ -835,7 +835,6 @@ class TestGridValidateRowsAsync:
         assert len(result.rows) == 1
         assert result.rows[0].data["count"] == 3
 
-    # TODO: Update once https://sagebionetworks.jira.com/browse/PLFM-9831 is resolved.
     @pytest.mark.parametrize(
         "column_name,operator,value,expected_ids", CELL_VALUE_FILTER_CASES
     )
