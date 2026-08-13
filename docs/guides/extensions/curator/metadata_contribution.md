@@ -163,7 +163,7 @@ with latest_grid.connect() as grid:
     query_request = QueryRequest(query=GridQuery(column_selection=[SelectAll()]))
     query_result = grid.validate_rows(query_request=query_request)
 
-    if query_result.rows is None:
+    if not query_result.rows:
         print("No rows matched the query.")
     else:
         for row in query_result.rows:
