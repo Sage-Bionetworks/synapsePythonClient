@@ -72,9 +72,7 @@ def _create_json_schema_entity_view(
     Raises:
         ValueError: If synapse_entity_id is not a Folder or a Project, or if
             column_order is malformed or names a column that is not present on the
-            created EntityView. The column order can only be checked after the
-            EntityView has been stored, so the view is deleted again before this error
-            is raised.
+            created EntityView.
     """
     entity = get(
         file_options=FileOptions(download_file=False),
