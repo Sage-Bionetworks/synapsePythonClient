@@ -29,10 +29,30 @@ from synapseclient.models.form import FormData, FormGroup
 from synapseclient.models.link import Link
 from synapseclient.models.materializedview import MaterializedView
 from synapseclient.models.mixins.table_components import QueryMixin
+from synapseclient.models.organization import (
+    JSONSchema,
+    Organization,
+    SchemaOrganization,
+)
 from synapseclient.models.project import Project
 from synapseclient.models.project_setting import ProjectSetting
 from synapseclient.models.recordset import RecordSet
-from synapseclient.models.schema_organization import JSONSchema, SchemaOrganization
+from synapseclient.models.search_index import SearchIndex
+from synapseclient.models.search_management import (
+    ColumnAnalyzerOverride,
+    ColumnAnalyzerOverrideEntry,
+    SearchAutocompleteRequest,
+    SearchConfigBinding,
+    SearchConfiguration,
+    SearchFieldValue,
+    SearchHighlight,
+    SearchHit,
+    SearchIndexQuery,
+    SearchQuery,
+    SearchQueryPart,
+    SynonymSet,
+    TextAnalyzer,
+)
 from synapseclient.models.services import FailureStrategy
 from synapseclient.models.storage_location import (
     StorageLocation,
@@ -168,6 +188,7 @@ __all__ = [
     "WikiHistorySnapshot",
     "WikiHeader",
     # JSON Schema models
+    "Organization",
     "SchemaOrganization",
     "JSONSchema",
     # Form models
@@ -179,6 +200,21 @@ __all__ = [
     "UploadType",
     # Project Setting models
     "ProjectSetting",
+    # SearchIndex / Search Management models
+    "SearchIndex",
+    "SearchIndexQuery",
+    "SearchQuery",
+    "SearchQueryPart",
+    "SearchAutocompleteRequest",
+    "SearchHit",
+    "SearchFieldValue",
+    "SearchHighlight",
+    "SearchConfiguration",
+    "SearchConfigBinding",
+    "TextAnalyzer",
+    "ColumnAnalyzerOverride",
+    "ColumnAnalyzerOverrideEntry",
+    "SynonymSet",
 ]
 
 # Static methods to expose as functions
