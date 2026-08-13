@@ -132,6 +132,55 @@ print(f"Created CurationTask: {task.task_id}")
 - Automatic schema binding to the folder for validation
 - Optional wiki attached to the folder
 
+### Controlling the order of the columns
+
+Both [create_record_based_metadata_task][synapseclient.extensions.curator.create_record_based_metadata_task] and [create_file_based_metadata_task][synapseclient.extensions.curator.create_file_based_metadata_task] accept an optional `column_order` that controls the left-to-right order of the columns contributors see in the grid. JSON Schema property order is not reliably preserved by downstream applications, so pass the order explicitly here instead of relying on the schema.
+
+You only need to name the columns that need intentional placement. Every column you leave out stays visible and is appended after the ones you named, in its existing relative order. This keeps the configuration short as properties are added to the schema over time.
+
+A few columns are always pinned to the front and cannot be moved:
+
+- Record-based tasks pin the `upsert_keys`, because they identify each row.
+- File-based tasks pin `name` and `id`.
+
+Naming a pinned column in `column_order` has no effect — it stays in its pinned position and is not duplicated. A name that does not match any available column raises a `ValueError`.
+
+```python
+record_set, curation_task = create_record_based_metadata_task(
+    synapse_client=syn,
+    folder_id="syn987654321",
+    record_set_name="AnimalMetadata_Records",
+    record_set_description="Centralized metadata for animal study data",
+    curation_task_name="AnimalMetadata_Curation",
+    upsert_keys=["StudyKey"],
+    column_order=["diagnosis", "specimenType", "assay"],
+    instructions="Complete all required fields according to the schema.",
+    schema_uri=schema_uri,
+    create_grid=False,
+)
+
+# Resulting column order:
+# StudyKey, diagnosis, specimenType, assay, <remaining schema properties>
+```
+
+```python
+entity_view, task = create_file_based_metadata_task(
+    synapse_client=syn,
+    folder_id="syn987654321",
+    curation_task_name="FileMetadata_Curation",
+    instructions="Annotate each file with metadata according to the schema requirements.",
+    entity_view_name="Animal Study Files View",
+    schema_uri=schema_uri,
+    column_order=["patientId", "sampleId", "assay", "fileFormat"],
+    return_entities=True,
+)
+
+# Resulting column order:
+# name, id, patientId, sampleId, assay, fileFormat, <remaining columns>
+```
+
+For file-based tasks the available columns include the Synapse managed columns such as `createdBy` and `modifiedOn` in addition to the JSON Schema properties, so you may place those wherever you like. They are no longer pinned to the front — only `name` and `id` are — which lets contributor-relevant metadata appear before system metadata.
+
 ### Controlling who can access the grid session
 
 Both [create_record_based_metadata_task][synapseclient.extensions.curator.create_record_based_metadata_task] and [create_file_based_metadata_task][synapseclient.extensions.curator.create_file_based_metadata_task] accept an optional `authorization_mode` that tells clients how to scope access when a grid session is created for the task:
