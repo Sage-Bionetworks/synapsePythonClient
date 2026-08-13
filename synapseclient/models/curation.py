@@ -3948,7 +3948,7 @@ class GridSynchronousProtocol(Protocol):
     def synchronize(
         self,
         *,
-        sync_type: Optional[SyncType] = None,
+        sync_type: Optional[Union[SyncType, str]] = None,
         timeout: int = 120,
         synapse_client: Optional[Synapse] = None,
     ) -> "Grid":
@@ -5129,7 +5129,7 @@ class Grid(EnumCoercionMixin, GridSynchronousProtocol):
     async def synchronize_async(
         self,
         *,
-        sync_type: Optional[SyncType] = None,
+        sync_type: Optional[Union[SyncType, str]] = None,
         timeout: int = 120,
         synapse_client: Optional[Synapse] = None,
     ) -> "Grid":
