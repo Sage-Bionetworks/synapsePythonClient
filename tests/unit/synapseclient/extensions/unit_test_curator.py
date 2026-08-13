@@ -2276,10 +2276,11 @@ class TestFileBasedHelperFunctions:
                 column_order=["invalidColumn"],
             )
 
-        # AND the Synapse ID needing manual cleanup is logged
+        # AND the Synapse ID needing manual cleanup is logged, with instructions
+        # on how to delete it
         logged_message = self.mock_syn.logger.exception.call_args.args[0]
         assert "syn87654321" in logged_message
-        assert "manually" in logged_message
+        assert "EntityView(id='syn87654321').delete()" in logged_message
 
     @patch("synapseclient.extensions.curator.file_based_metadata_task.isinstance")
     @patch("synapseclient.extensions.curator.file_based_metadata_task.EntityView")
