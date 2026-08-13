@@ -509,11 +509,7 @@ def create_file_based_metadata_task(
 
     Raises:
         ValueError: If required parameters are missing, or if column_order is
-            malformed or names a column that is not on the created EntityView. A
-            column_order that names an unknown column can only be detected after the
-            EntityView has been created, so the view is deleted again before the error
-            is raised. If that cleanup fails the Synapse ID of the view that must be
-            deleted manually is logged.
+            malformed or names a column that is not on the created EntityView.
         SynapseError: If there are issues with Synapse operations.
     """
     # Validate required parameters
