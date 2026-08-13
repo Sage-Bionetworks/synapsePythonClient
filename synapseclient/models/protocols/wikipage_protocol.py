@@ -340,6 +340,70 @@ class WikiPageSynchronousProtocol(Protocol):
         """
         return ""
 
+    def copy(
+        self,
+        destination_owner_id: str,
+        destination_sub_page_id: Optional[str] = None,
+        update_links: bool = True,
+        entity_map: Optional[Dict[str, str]] = None,
+        *,
+        synapse_client: Optional["Synapse"] = None,
+    ) -> List["WikiHeader"]:
+        """
+        Copy the wiki page tree of the owner entity to another entity and
+        update internal links.
+
+        If id is set on this WikiPage, only the sub-tree rooted at that wiki page
+        is copied. Otherwise the entire wiki of the owner entity is copied.
+
+        Arguments:
+            destination_owner_id: The Synapse ID of the entity that the wiki
+                will be copied to.
+            destination_sub_page_id: Optional ID of a wiki page that already
+                exists in the destination. The root of the copied tree is written
+                into that page, replacing its title, markdown, and attachments,
+                and the rest of the copied pages are created beneath it.
+            update_links: Update all the internal links so that they point at the
+                copied wiki pages. For example, syn1234/wiki/34345 becomes
+                syn3345/wiki/49508. Defaults to True.
+            entity_map: A mapping of old Synapse IDs to new Synapse IDs, for
+                example {"syn1234": "syn2345"}. If provided, the Synapse IDs
+                referenced in the markdown of the copied wiki pages are updated,
+                for example syn1234 becomes syn2345. If omitted, Synapse IDs
+                are left unchanged.
+            synapse_client: If not passed in and caching was not disabled by
+                    Synapse.allow_client_caching(False) this will use the last created
+                    instance from the Synapse class constructor.
+        Returns:
+            A list of WikiHeader objects for the destination entity.
+
+        Example: Copy the entire wiki of an entity to another entity
+            This example shows how to copy all wiki pages from one project to another.
+            ```python
+            from synapseclient import Synapse
+            from synapseclient.models import WikiPage
+
+            syn = Synapse()
+            syn.login()
+
+            new_wiki_headers = WikiPage(owner_id="syn123").copy(
+                destination_owner_id="syn456"
+            )
+            print(new_wiki_headers)
+            ```
+        Example: Copy a wiki sub-tree and update Synapse ID references
+            This example shows how to copy a specific wiki page and its sub-pages,
+            rewriting references to syn1234 so they point at syn2345.
+            ```python
+            new_wiki_headers = WikiPage(owner_id="syn123", id="34345").copy(
+                destination_owner_id="syn456",
+                entity_map={"syn1234": "syn2345"},
+            )
+            print(new_wiki_headers)
+            ```
+        """
+        return []
+
     def get_markdown_file(
         self,
         *,

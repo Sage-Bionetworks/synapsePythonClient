@@ -13,11 +13,11 @@ from synapseclient.api import (
 from synapseclient.core.utils import get_properties
 
 if TYPE_CHECKING:
-    from synapseclient.models import File, Folder, Link, Project
+    from synapseclient.models import File, Folder, Link, Project, SearchIndex
 
 
 async def store_entity(
-    resource: Union["File", "Folder", "Project", "Link"],
+    resource: Union["File", "Folder", "Project", "Link", "SearchIndex"],
     entity: Dict[str, Union[str, bool, int, float]],
     *,
     synapse_client: Optional[Synapse] = None,
@@ -44,14 +44,15 @@ async def store_entity(
     if resource.id:
         trace.get_current_span().set_attributes({"synapse.id": resource.id})
         if hasattr(resource, "version_number"):
+            last_persistent_instance = resource._last_persistent_instance
             if (
                 resource.version_label
-                and resource.version_label
-                != resource._last_persistent_instance.version_label
+                and last_persistent_instance
+                and resource.version_label != last_persistent_instance.version_label
             ):
                 # a versionLabel implicitly implies incrementing
                 increment_version = True
-            elif resource.force_version and resource.version_number:
+            elif getattr(resource, "force_version", False) and resource.version_number:
                 increment_version = True
                 entity["versionLabel"] = str(resource.version_number + 1)
 

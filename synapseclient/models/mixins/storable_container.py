@@ -34,6 +34,7 @@ from synapseclient.core.constants.concrete_types import (
     LINK_ENTITY,
     MATERIALIZED_VIEW,
     PROJECT_ENTITY,
+    SEARCH_INDEX_ENTITY,
     SUBMISSION_VIEW,
     TABLE_ENTITY,
     VIRTUAL_TABLE,
@@ -72,6 +73,7 @@ if TYPE_CHECKING:
         File,
         Folder,
         MaterializedView,
+        SearchIndex,
         SubmissionView,
         Table,
         VirtualTable,
@@ -95,6 +97,7 @@ class StorableContainer(StorableContainerSynchronousProtocol):
     - `datasetcollections`
     - `materializedviews`
     - `virtualtables`
+    - `searchindexes`
     - `_last_persistent_instance`
     - `_synced_from_synapse`
 
@@ -116,6 +119,7 @@ class StorableContainer(StorableContainerSynchronousProtocol):
     datasetcollections: List["DatasetCollection"] = None
     materializedviews: List["MaterializedView"] = None
     virtualtables: List["VirtualTable"] = None
+    searchindexes: List["SearchIndex"] = None
     _last_persistent_instance: None = None
     _synced_from_synapse: bool = False
 
@@ -223,7 +227,7 @@ class StorableContainer(StorableContainerSynchronousProtocol):
                 Defaults to
                 `["folder", "file", "table", "entityview", "dockerrepo",
                 "submissionview", "dataset", "datasetcollection", "materializedview",
-                "virtualtable"]`.
+                "virtualtable", "searchindex"]`.
             manifest: Determines whether to generate a manifest CSV file. Options are:
 
                 - `all` (default): generate `manifest.csv` in every synced directory
@@ -530,6 +534,7 @@ class StorableContainer(StorableContainerSynchronousProtocol):
         self.datasetcollections = []
         self.materializedviews = []
         self.virtualtables = []
+        self.searchindexes = []
 
         for child in children:
             pending_tasks.extend(
@@ -885,7 +890,7 @@ class StorableContainer(StorableContainerSynchronousProtocol):
                 Defaults to
                 `["folder", "file", "table", "entityview", "dockerrepo",
                 "submissionview", "dataset", "datasetcollection", "materializedview",
-                "virtualtable"]`. The "folder" type is always included so the hierarchy
+                "virtualtable", "searchindex"]`. The "folder" type is always included so the hierarchy
                 can be traversed.
             recursive: Whether to recursively traverse subdirectories. Defaults to True.
             display_ascii_tree: If True, display an ASCII tree representation as the
@@ -1017,6 +1022,7 @@ class StorableContainer(StorableContainerSynchronousProtocol):
                 "datasetcollection",
                 "materializedview",
                 "virtualtable",
+                "searchindex",
             ]
             if follow_link:
                 include_types.append("link")
@@ -1169,7 +1175,7 @@ class StorableContainer(StorableContainerSynchronousProtocol):
                 Defaults to
                 `["folder", "file", "table", "entityview", "dockerrepo",
                 "submissionview", "dataset", "datasetcollection", "materializedview",
-                "virtualtable"]`. The "folder" type is always included so the hierarchy
+                "virtualtable", "searchindex"]`. The "folder" type is always included so the hierarchy
                 can be traversed.
             recursive: Whether to recursively traverse subdirectories. Defaults to True.
             display_ascii_tree: If True, display an ASCII tree representation as the
@@ -1311,7 +1317,7 @@ class StorableContainer(StorableContainerSynchronousProtocol):
                 Defaults to
                 `["folder", "file", "table", "entityview", "dockerrepo",
                 "submissionview", "dataset", "datasetcollection", "materializedview",
-                "virtualtable"]`.
+                "virtualtable", "searchindex"]`.
             synapse_client: If not passed in and caching was not disabled by
                 `Synapse.allow_client_caching(False)` this will use the last created
                 instance from the Synapse class constructor.
@@ -1331,6 +1337,7 @@ class StorableContainer(StorableContainerSynchronousProtocol):
                 "datasetcollection",
                 "materializedview",
                 "virtualtable",
+                "searchindex",
             ]
             if follow_link:
                 include_types.append("link")
@@ -1605,6 +1612,17 @@ class StorableContainer(StorableContainerSynchronousProtocol):
                     )
                 )
             )
+        elif synapse_id and child_type == SEARCH_INDEX_ENTITY:
+            # Lazy import to avoid circular import
+            from synapseclient.models import SearchIndex
+
+            searchindex = SearchIndex(id=synapse_id, name=name)
+            self.searchindexes.append(searchindex)
+            pending_tasks.append(
+                asyncio.create_task(
+                    wrap_coroutine(searchindex.get_async(synapse_client=synapse_client))
+                )
+            )
 
         return pending_tasks
 
@@ -1692,6 +1710,7 @@ class StorableContainer(StorableContainerSynchronousProtocol):
             "DatasetCollection",
             "MaterializedView",
             "VirtualTable",
+            "SearchIndex",
             BaseException,
         ],
         failure_strategy: FailureStrategy,
@@ -1726,6 +1745,7 @@ class StorableContainer(StorableContainerSynchronousProtocol):
             or result.__class__.__name__ == "DatasetCollection"
             or result.__class__.__name__ == "MaterializedView"
             or result.__class__.__name__ == "VirtualTable"
+            or result.__class__.__name__ == "SearchIndex"
         ):
             # Do nothing as the objects are updated in place and the container has
             # already been updated to append the new objects.

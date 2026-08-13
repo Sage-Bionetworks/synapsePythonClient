@@ -4,7 +4,7 @@ from pprint import pprint
 
 import synapseclient
 from synapseclient.core.utils import make_bogus_data_file
-from synapseclient.models import File, Folder, JSONSchema, Project, SchemaOrganization
+from synapseclient.models import File, Folder, JSONSchema, Organization, Project
 
 # 1. Set up Synapse Python client
 syn = synapseclient.Synapse()
@@ -48,7 +48,7 @@ schema_body = {
 
 # 3. Try create test organization and json schema if they do not exist
 # --8<-- [start:create_org_and_schema]
-organization = SchemaOrganization(name=ORG_NAME)
+organization = Organization(name=ORG_NAME)
 try:
     organization.store()
 except Exception as e:

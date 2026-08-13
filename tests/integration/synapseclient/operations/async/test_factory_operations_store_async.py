@@ -28,10 +28,10 @@ from synapseclient.models import (
     JSONSchema,
     Link,
     MaterializedView,
+    Organization,
     Project,
     RecordBasedMetadataTaskProperties,
     RecordSet,
-    SchemaOrganization,
     SubmissionView,
     Table,
     Team,
@@ -716,10 +716,10 @@ class TestFactoryOperationsStoreAsync:
         assert stored_task.etag is not None
 
     async def test_store_async_schema_organization_basic(self) -> None:
-        """Test storing a SchemaOrganization entity."""
+        """Test storing a Organization entity."""
         # GIVEN a new schema organization
         # Name must have each part start with a letter
-        schema_org = SchemaOrganization(
+        schema_org = Organization(
             name=f"test.schema.org.test{str(uuid.uuid4())[:8]}",
         )
 
@@ -737,9 +737,7 @@ class TestFactoryOperationsStoreAsync:
 
         # THEN the schema organization should no longer be retrievable
         with pytest.raises(Exception):
-            await SchemaOrganization(organization_name=stored_org.name).get_async(
-                synapse_client=self.syn
-            )
+            await Organization(name=stored_org.name).get_async(synapse_client=self.syn)
 
     async def test_store_async_unsupported_entity_raises_error(self) -> None:
         """Test that storing an unsupported entity type raises an error."""
@@ -864,7 +862,7 @@ class TestFactoryOperationsStoreAsync:
     async def test_store_async_json_schema_basic(self) -> None:
         """Test storing a JSONSchema entity."""
         # GIVEN a schema organization first
-        schema_org = SchemaOrganization(
+        schema_org = Organization(
             name=f"test.schema.org.test{str(uuid.uuid4())[:8]}",
         )
         stored_org = await store_async(schema_org, synapse_client=self.syn)

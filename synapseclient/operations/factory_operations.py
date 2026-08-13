@@ -18,6 +18,7 @@ if TYPE_CHECKING:
         Link,
         MaterializedView,
         Project,
+        SearchIndex,
         SubmissionView,
         Table,
         VirtualTable,
@@ -202,6 +203,7 @@ async def _handle_entity_instance(
     "Link",
     "MaterializedView",
     "Project",
+    "SearchIndex",
     "SubmissionView",
     "Table",
     "VirtualTable",
@@ -358,6 +360,7 @@ async def _handle_link_entity(
     "Link",
     "MaterializedView",
     "Project",
+    "SearchIndex",
     "SubmissionView",
     "Table",
     "VirtualTable",
@@ -403,6 +406,7 @@ def get(
     "Link",
     "MaterializedView",
     "Project",
+    "SearchIndex",
     "SubmissionView",
     "Table",
     "VirtualTable",
@@ -708,6 +712,7 @@ async def get_async(
     "Link",
     "MaterializedView",
     "Project",
+    "SearchIndex",
     "SubmissionView",
     "Table",
     "VirtualTable",
@@ -1032,6 +1037,7 @@ async def get_async(
         Link,
         MaterializedView,
         Project,
+        SearchIndex,
         SubmissionView,
         Table,
         VirtualTable,
@@ -1053,6 +1059,7 @@ async def get_async(
         Link,
         MaterializedView,
         Project,
+        SearchIndex,
         SubmissionView,
         Table,
         VirtualTable,
@@ -1199,6 +1206,14 @@ async def get_async(
             version_number=version_number,
             activity_options=activity_options,
             table_options=table_options,
+            synapse_client=synapse_client,
+        )
+
+    elif entity_type == concrete_types.SEARCH_INDEX_ENTITY:
+        return await _handle_entity_instance(
+            entity=SearchIndex(id=synapse_id),
+            version_number=version_number,
+            activity_options=activity_options,
             synapse_client=synapse_client,
         )
 

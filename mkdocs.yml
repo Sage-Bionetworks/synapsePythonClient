@@ -86,6 +86,8 @@ nav:
       - Dataset Collection: reference/experimental/sync/dataset_collection.md
       - EntityView: reference/experimental/sync/entityview.md
       - MaterializedView: reference/experimental/sync/materializedview.md
+      - SearchIndex: reference/experimental/sync/search_index.md
+      - Search Configuration: reference/experimental/sync/search_management.md
       - SubmissionView: reference/experimental/sync/submissionview.md
       - Activity: reference/experimental/sync/activity.md
       - Team: reference/experimental/sync/team.md
@@ -93,7 +95,7 @@ nav:
       - Curator: reference/experimental/sync/curator.md
       - Link: reference/experimental/sync/link_entity.md
       - Functional Interfaces: reference/experimental/functional_interfaces.md
-      - SchemaOrganization: reference/experimental/sync/schema_organization.md
+      - Organization: reference/experimental/sync/organization.md
       - JSONSchema: reference/experimental/sync/json_schema.md
       - Wiki: reference/experimental/sync/wiki.md
       - FormGroup and Form: reference/experimental/sync/form.md
@@ -117,13 +119,15 @@ nav:
           - Dataset Collection: reference/experimental/async/dataset_collection.md
           - EntityView: reference/experimental/async/entityview.md
           - MaterializedView: reference/experimental/async/materializedview.md
+          - SearchIndex: reference/experimental/async/search_index.md
+          - Search Configuration: reference/experimental/async/search_management.md
           - SubmissionView: reference/experimental/async/submissionview.md
           - Activity: reference/experimental/async/activity.md
           - Team: reference/experimental/async/team.md
           - UserProfile: reference/experimental/async/user_profile.md
           - Curator: reference/experimental/async/curator.md
           - Link: reference/experimental/async/link_entity.md
-          - SchemaOrganization: reference/experimental/async/schema_organization.md
+          - Organization: reference/experimental/async/organization.md
           - JSONSchema: reference/experimental/async/json_schema.md
           - Wiki: reference/experimental/async/wiki.md
           - FormGroup and Form: reference/experimental/async/form.md
