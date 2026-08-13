@@ -2203,13 +2203,13 @@ class CurationTask(CurationTaskSynchronousProtocol):
         *,
         sync_type: Optional[Union["SyncType", str]] = None,
         synapse_client: Optional[Synapse] = None,
-    ) -> "Grid":
+    ) -> Optional["Grid"]:
         """
-        Synchronize this task's active grid session against its source entity,
-        creating a new grid session first if the task does not already have one.
+        Synchronize this task's active grid session against its source entity.
 
         If task_properties is not yet populated on this object, it is fetched
-        from Synapse first.
+        from Synapse first. If the task has no active grid session, a warning
+        is logged and None is returned; no new grid session is created.
 
         FileBasedMetadataTaskProperties tasks always perform a SyncType.PULL_PUSH;
         any sync_type passed in is ignored for those
@@ -2237,7 +2237,7 @@ class CurationTask(CurationTaskSynchronousProtocol):
                 instance from the Synapse class constructor.
 
         Returns:
-            The synchronized Grid.
+            The synchronized Grid, or None if the task has no active grid session.
 
         Raises:
             ValueError: If task_id is unset, task_properties is of an unsupported
@@ -2259,7 +2259,8 @@ class CurationTask(CurationTaskSynchronousProtocol):
                 grid = await CurationTask(task_id=123).synchronize_active_grid_session_async(
                     sync_type=SyncType.PULL_PUSH
                 )
-                print(grid.session_id)
+                if grid is not None:
+                    print(grid.session_id)
 
             asyncio.run(main())
             ```
@@ -2280,7 +2281,8 @@ class CurationTask(CurationTaskSynchronousProtocol):
 
             async def main():
                 grid = await CurationTask(task_id=456).synchronize_active_grid_session_async()
-                print(grid.session_id)
+                if grid is not None:
+                    print(grid.session_id)
 
             asyncio.run(main())
             ```
@@ -2311,14 +2313,11 @@ class CurationTask(CurationTaskSynchronousProtocol):
 
         status = await self.get_status_async(synapse_client=synapse_client)
         if status.execution_details is None:
-            client.logger.info(
-                f"No active grid session found for task {self.task_id}. "
-                "Creating a new grid session..."
+            client.logger.warning(
+                f"No active grid session found for task {self.task_id}. Skipping "
+                "synchronization."
             )
-            active_grid_session = await self.create_grid_session_async(
-                synapse_client=synapse_client
-            )
-            active_grid_session_id = active_grid_session.session_id
+            return None
         else:
             active_grid_session_id = status.execution_details.active_session_id
 

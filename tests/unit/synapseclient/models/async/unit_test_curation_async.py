@@ -1436,17 +1436,8 @@ class TestCurationTaskSynchronizeActiveGridSession:
                 sync_type=SyncType.PULL, synapse_client=self.syn
             )
 
-            # THEN the status was fetched, a new grid session was created, and the
-            # synchronize call targeted the newly created session
-            mock_get_status.assert_called_once_with(
-                task_id=TASK_ID, synapse_client=self.syn
-            )
-            mock_create_grid_session.assert_called_once_with(synapse_client=self.syn)
-            mock_grid_cls.assert_called_once_with(session_id=SESSION_ID)
-            mock_grid.synchronize_async.assert_called_once_with(
-                synapse_client=self.syn, sync_type=SyncType.PULL
-            )
-            assert result is mock_grid
+            # THEN no session was created and nothing is returned
+            assert result is None
 
     async def test_record_based_reuses_existing_session(self) -> None:
         """When a session is already active, it is reused and no new session is created."""
