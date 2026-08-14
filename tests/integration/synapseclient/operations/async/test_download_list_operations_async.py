@@ -592,7 +592,7 @@ class TestDownloadListManifestAsync:
         assert "\r" not in content, "Expected LF-only line endings; found CR"
 
         # AND there is no header row -- the first non-empty line is the data row
-        # NOTE: The cart is per-user and shared across all parallel workers (-n 8).
+        # NOTE: The cart is per-user and shared across all parallel workers (-n 4).
         # Other tests running concurrently can add items to the cart, so the manifest
         # may contain more than just this test's file.
         lines = [line for line in content.split("\n") if line]

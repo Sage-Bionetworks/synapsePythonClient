@@ -26,7 +26,7 @@ Use `pytest.mark.parametrize` when possible to merge similar tests into one test
 - `schedule_for_cleanup(item)` — defer entity/file cleanup to session teardown. Always use this instead of inline deletion. Cleanup list is reversed before execution for dependency ordering (children deleted before parents).
 - Use shared resources when possible via fixtures in `conftest.py` files (e.g., `project_model`, `project`). Refer to existing integration tests for the pattern.
 - Per-worker project fixtures (`project_model`, `project`) created during session setup
-- `--reruns 3` for flaky retry, `-n 8 --dist loadscope` for parallelism
+- `--reruns 3` for flaky retry, `-n 4 --dist loadscope` for parallelism
 - OpenTelemetry tracing opt-in via `SYNAPSE_INTEGRATION_TEST_OTEL_ENABLED` env var
 - Two client fixtures: `syn` (silent logger) and `syn_with_logger` (verbose)
 - conftest.py locations: `tests/unit/conftest.py` (session client, socket blocking, UTC timezone), `tests/integration/conftest.py` (logged-in client, per-worker projects, cleanup fixture)

@@ -25,7 +25,7 @@ pip install -e ".[boto3,pandas,pysftp,tests,curator,dev]"
 pytest -sv tests/unit
 
 # Integration tests (requires Synapse credentials, runs in parallel)
-pytest -sv --reruns 3 tests/integration -n 8 --dist loadscope
+pytest -sv --reruns 3 tests/integration -n 4 --dist loadscope
 
 # Pre-commit checks (ruff, black, isort, bandit)
 pre-commit run --all-files
@@ -122,7 +122,7 @@ For type annotations referencing pandas types, use `DATA_FRAME_TYPE` and `SERIES
 - `asyncio_mode = auto` in pytest.ini — no need for `@pytest.mark.asyncio`
 - `asyncio_default_fixture_loop_scope = session` — all async tests share one event loop
 - Unit test client fixture: session-scoped, `skip_checks=True`, `cache_client=False`
-- Integration tests use `--reruns 3` for flaky retries and `-n 8 --dist loadscope` for parallelism
+- Integration tests use `--reruns 3` for flaky retries and `-n 4 --dist loadscope` for parallelism
 - Integration fixtures create per-worker Synapse projects; use `schedule_for_cleanup()` for teardown
 - Auth env vars: `SYNAPSE_AUTH_TOKEN` (bearer token), `SYNAPSE_PROFILE` (config file profile, default: `"default"`), `SYNAPSE_TOKEN_AWS_SSM_PARAMETER_NAME` (AWS SSM path)
 - CI runs integration tests only on Python 3.10 and 3.14 (oldest + newest) to limit Synapse server load
