@@ -4436,7 +4436,7 @@ class Grid(EnumCoercionMixin, GridSynchronousProtocol):
         ```python
         from synapseclient import Synapse
         from synapseclient.models import Grid
-        from synapseclient.models.curation import GridQuery, QueryRequest, SelectAll
+        from synapseclient.models.curation import GridQuery, QueryRequest, SelectAll, SyncType
 
         syn = Synapse()
         syn.login()
@@ -4454,9 +4454,8 @@ class Grid(EnumCoercionMixin, GridSynchronousProtocol):
             for row in result.rows:
                 print(f"Row ID: {row.row_id}, Validation Result: {row.validation_results}")
 
-        # Later, export the modified data back to the record set
-        grid = grid.export_to_record_set()
-        print(f"Exported to version: {grid.record_set_version_number}")
+        # Later, push the modified data back to the record set
+        grid = grid.synchronize(sync_type=SyncType.PULL_PUSH)
 
         # Clean up by deleting the session when done
         grid.delete()
@@ -4469,7 +4468,7 @@ class Grid(EnumCoercionMixin, GridSynchronousProtocol):
         from synapseclient import Synapse
         from synapseclient.models import Grid
         from synapseclient.models.table_components import Query
-        from synapseclient.models.curation import GridQuery, QueryRequest, SelectAll
+        from synapseclient.models.curation import GridQuery, QueryRequest, SelectAll, SyncType
 
         syn = Synapse()
         syn.login()
@@ -4487,8 +4486,8 @@ class Grid(EnumCoercionMixin, GridSynchronousProtocol):
             for row in result.rows:
                 print(f"Row ID: {row.row_id}, Validation Result: {row.validation_results}")
 
-        # Export when ready
-        grid = grid.export_to_record_set()
+        # Push when ready
+        grid = grid.synchronize(sync_type=SyncType.PULL_PUSH)
         ```
     """
 
