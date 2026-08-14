@@ -18,6 +18,7 @@ if TYPE_CHECKING:
         MaterializedView,
         Project,
         RecordSet,
+        SearchIndex,
         SubmissionView,
         Table,
         VirtualTable,
@@ -38,6 +39,7 @@ def find_entity_id(
             "MaterializedView",
             "Project",
             "RecordSet",
+            "SearchIndex",
             "SubmissionView",
             "Table",
             "VirtualTable",
@@ -52,9 +54,9 @@ def find_entity_id(
     Arguments:
         name: Name of the entity to find.
         parent: An Entity object (Dataset, DatasetCollection, EntityView, File,
-            Folder, Link, MaterializedView, Project, RecordSet, SubmissionView,
-            Table, VirtualTable) or the Id of an entity as a string. Omit if
-            searching for a Project by name.
+            Folder, Link, MaterializedView, Project, RecordSet, SearchIndex,
+            SubmissionView, Table, VirtualTable) or the Id of an entity as a
+            string. Omit if searching for a Project by name.
         synapse_client: If not passed in and caching was not disabled by
             `Synapse.allow_client_caching(False)` this will use the last created
             instance from the Synapse class constructor.
@@ -141,6 +143,7 @@ async def find_entity_id_async(
             "MaterializedView",
             "Project",
             "RecordSet",
+            "SearchIndex",
             "SubmissionView",
             "Table",
             "VirtualTable",
@@ -155,9 +158,9 @@ async def find_entity_id_async(
     Arguments:
         name: Name of the entity to find.
         parent: An Entity object (Dataset, DatasetCollection, EntityView, File,
-            Folder, Link, MaterializedView, Project, RecordSet, SubmissionView,
-            Table, VirtualTable) or the Id of an entity as a string. Omit if
-            searching for a Project by name.
+            Folder, Link, MaterializedView, Project, RecordSet, SearchIndex,
+            SubmissionView, Table, VirtualTable) or the Id of an entity as a
+            string. Omit if searching for a Project by name.
         synapse_client: If not passed in and caching was not disabled by
             `Synapse.allow_client_caching(False)` this will use the last created
             instance from the Synapse class constructor.
@@ -380,6 +383,7 @@ def onweb(
         "MaterializedView",
         "Project",
         "RecordSet",
+        "SearchIndex",
         "SubmissionView",
         "Table",
         "VirtualTable",
@@ -394,7 +398,8 @@ def onweb(
     Arguments:
         entity: Either an Entity object (Dataset, DatasetCollection, EntityView,
             File, Folder, Link, MaterializedView, Project, RecordSet,
-            SubmissionView, Table, VirtualTable) or a Synapse ID string.
+            SearchIndex, SubmissionView, Table, VirtualTable) or a Synapse
+            ID string.
         subpage_id: (Optional) ID of one of the wiki's sub-pages.
         synapse_client: If not passed in and caching was not disabled by
             `Synapse.allow_client_caching(False)` this will use the last created
@@ -470,6 +475,7 @@ async def onweb_async(
         "MaterializedView",
         "Project",
         "RecordSet",
+        "SearchIndex",
         "SubmissionView",
         "Table",
         "VirtualTable",
@@ -484,7 +490,8 @@ async def onweb_async(
     Arguments:
         entity: Either an Entity object (Dataset, DatasetCollection, EntityView,
             File, Folder, Link, MaterializedView, Project, RecordSet,
-            SubmissionView, Table, VirtualTable) or a Synapse ID string.
+            SearchIndex, SubmissionView, Table, VirtualTable) or a Synapse
+            ID string.
         subpage_id: (Optional) ID of one of the wiki's sub-pages.
         synapse_client: If not passed in and caching was not disabled by
             `Synapse.allow_client_caching(False)` this will use the last created
@@ -728,6 +735,7 @@ def print_entity(
         "MaterializedView",
         "Project",
         "RecordSet",
+        "SearchIndex",
         "SubmissionView",
         "Table",
         "VirtualTable",
@@ -742,8 +750,8 @@ def print_entity(
     Arguments:
         entity: Either an Entity object (Dataset, DatasetCollection, EntityView,
             File, Folder, Link, MaterializedView, Project, RecordSet,
-            SubmissionView, Table, VirtualTable), a Synapse ID string, or a
-            dictionary representation of an entity.
+            SearchIndex, SubmissionView, Table, VirtualTable), a Synapse ID
+            string, or a dictionary representation of an entity.
         ensure_ascii: If True, escapes all non-ASCII characters in the output.
             Defaults to True.
         synapse_client: If not passed in and caching was not disabled by
@@ -819,6 +827,7 @@ async def print_entity_async(
         "MaterializedView",
         "Project",
         "RecordSet",
+        "SearchIndex",
         "SubmissionView",
         "Table",
         "VirtualTable",
@@ -833,8 +842,8 @@ async def print_entity_async(
     Arguments:
         entity: Either an Entity object (Dataset, DatasetCollection, EntityView,
             File, Folder, Link, MaterializedView, Project, RecordSet,
-            SubmissionView, Table, VirtualTable), a Synapse ID string, or a
-            dictionary representation of an entity.
+            SearchIndex, SubmissionView, Table, VirtualTable), a Synapse ID
+            string, or a dictionary representation of an entity.
         ensure_ascii: If True, escapes all non-ASCII characters in the output.
             Defaults to True.
         synapse_client: If not passed in and caching was not disabled by
