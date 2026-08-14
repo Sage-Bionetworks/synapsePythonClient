@@ -3441,11 +3441,21 @@ class UploadToTablePreviewRequest(AsynchronousCommunicator):
         return request_dict
 
 
+@deprecated(
+    version="4.14.0",
+    reason="Backs the deprecated Grid.export_to_record_set()/export_to_record_set_async(). "
+    "Use Grid.synchronize()/synchronize_async() with sync_type=SyncType.PULL_PUSH instead.",
+)
 @dataclass
 class GridRecordSetExportRequest(AsynchronousCommunicator):
     """
     A request to export a grid created from a record set back to the original record set.
     A CSV file will be generated and set as a new version of the recordset.
+
+    WARNING - This class is deprecated and will be removed in a future release. It
+    backs the deprecated `Grid.export_to_record_set()`/`export_to_record_set_async()`
+    methods. Use `Grid.synchronize()`/`synchronize_async()` with
+    `sync_type=SyncType.PULL_PUSH` instead.
 
     Represents a [Synapse GridRecordSetExportRequest](https://rest-docs.synapse.org/rest/org/sagebionetworks/repo/model/grid/GridRecordSetExportRequest.html).
 
