@@ -1401,8 +1401,8 @@ class TestCurationTaskSynchronizeActiveGridSession:
     def init_syn(self, syn: Synapse) -> None:
         self.syn = syn
 
-    async def test_record_based_creates_session_when_none_active(self) -> None:
-        """When there is no active session, a new one is created and its session_id is used to synchronize."""
+    async def test_record_based_returns_none_when_no_active_session(self) -> None:
+        """When there is no active session, a warning is logged and None is returned; no new session is created."""
         # GIVEN a record-based task with no active grid session
         task = CurationTask(
             task_id=TASK_ID,
@@ -1416,7 +1416,7 @@ class TestCurationTaskSynchronizeActiveGridSession:
                 "synapseclient.models.curation.get_curation_task_status",
                 new_callable=AsyncMock,
                 return_value=_get_curation_task_status_response(),
-            ) as mock_get_status,
+            ),
             patch.object(
                 task,
                 "create_grid_session_async",
