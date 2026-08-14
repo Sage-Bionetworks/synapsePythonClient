@@ -8,7 +8,7 @@ worker-identity/truthiness helpers.
 
 import platform
 import sys
-from unittest.mock import AsyncMock
+from unittest.mock import AsyncMock, MagicMock
 
 import pytest
 from opentelemetry.sdk.resources import SERVICE_INSTANCE_ID
@@ -20,6 +20,7 @@ from synapseclient.core.otel_config import (
     _build_resource_attributes,
     configure_metrics,
 )
+from synapseclient.core.upload.upload_functions_async import upload_file_handle
 from synapseclient.models.mixins.asynchronous_job import send_job_and_wait_async
 
 
@@ -176,3 +177,72 @@ class TestAsyncJobInstrumentation:
         )
 
         mock_counter.add.assert_called_once_with(1, {"request_type": self.request_type})
+
+
+class TestUploadInstrumentation:
+    """Unit tests for the upload_file_handle instrumentation."""
+
+    async def test_synapse_store_true_records_with_external_file_handle_false(
+        self, mocker
+    ) -> None:
+        mock_counter = mocker.patch(
+            "synapseclient.core.upload.upload_functions_async._upload_counter"
+        )
+        mock_duration = mocker.patch(
+            "synapseclient.core.upload.upload_functions_async._upload_duration"
+        )
+        mocker.patch(
+            "synapseclient.core.upload.upload_functions_async.get_upload_destination",
+            new_callable=AsyncMock,
+            return_value=None,
+        )
+        mocker.patch(
+            "synapseclient.core.upload.upload_functions_async.sts_transfer"
+            ".is_boto_sts_transfer_enabled",
+            return_value=False,
+        )
+        mocker.patch(
+            "synapseclient.core.upload.upload_functions_async.upload_synapse_s3",
+            new_callable=AsyncMock,
+            return_value={"id": "fh1"},
+        )
+
+        await upload_file_handle(
+            syn=MagicMock(),
+            parent_entity_id="syn123",
+            path="/tmp/some_file.txt",
+        )
+
+        mock_counter.add.assert_called_once_with(1, {"external_file_handle": False})
+        mock_duration.record.assert_called_once()
+        args, _ = mock_duration.record.call_args
+        assert isinstance(args[0], float)
+        assert args[1] == {"external_file_handle": False}
+
+    async def test_synapse_store_false_records_with_external_file_handle_true(
+        self, mocker
+    ) -> None:
+        mock_counter = mocker.patch(
+            "synapseclient.core.upload.upload_functions_async._upload_counter"
+        )
+        mock_duration = mocker.patch(
+            "synapseclient.core.upload.upload_functions_async._upload_duration"
+        )
+        mocker.patch(
+            "synapseclient.core.upload.upload_functions_async.create_external_file_handle",
+            new_callable=AsyncMock,
+            return_value={"id": "fh2"},
+        )
+
+        await upload_file_handle(
+            syn=MagicMock(),
+            parent_entity_id="syn123",
+            path="/tmp/some_file.txt",
+            synapse_store=False,
+        )
+
+        mock_counter.add.assert_called_once_with(1, {"external_file_handle": True})
+        mock_duration.record.assert_called_once()
+        args, _ = mock_duration.record.call_args
+        assert isinstance(args[0], float)
+        assert args[1] == {"external_file_handle": True}
