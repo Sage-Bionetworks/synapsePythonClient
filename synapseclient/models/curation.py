@@ -838,10 +838,13 @@ class CurationTaskSynchronousProtocol(Protocol):
         *,
         sync_type: Optional["SyncType | str"] = None,
         synapse_client: Synapse | None = None,
-    ) -> "Grid":
+    ) -> Optional["Grid"]:
         """
-        Synchronize this task's active grid session against its source entity,
-        creating a new grid session first if the task does not already have one.
+        Synchronize this task's active grid session against its source entity.
+
+        If task_properties is not yet populated on this object, it is fetched
+        from Synapse first. If the task has no active grid session, a warning
+        is logged and None is returned; no new grid session is created.
 
         FileBasedMetadataTaskProperties tasks always perform a SyncType.PULL_PUSH;
         any sync_type passed in is ignored for those tasks. RecordBasedMetadataTaskProperties
@@ -868,7 +871,7 @@ class CurationTaskSynchronousProtocol(Protocol):
                 instance from the Synapse class constructor.
 
         Returns:
-            The synchronized Grid.
+            The synchronized Grid, or None if the task has no active grid session.
 
         Raises:
             ValueError: If task_id is unset, task_properties is of an unsupported
@@ -888,6 +891,8 @@ class CurationTaskSynchronousProtocol(Protocol):
             grid = CurationTask(task_id=123).synchronize_active_grid_session(
                 sync_type=SyncType.PULL_PUSH
             )
+            if grid is not None:
+                print(grid.session_id)
             ```
 
         Example: Synchronize a file-based curation task's grid session
@@ -904,6 +909,8 @@ class CurationTaskSynchronousProtocol(Protocol):
             syn.login()
 
             grid = CurationTask(task_id=456).synchronize_active_grid_session()
+            if grid is not None:
+                print(grid.session_id)
             ```
         """
         return Grid()
