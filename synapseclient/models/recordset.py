@@ -294,7 +294,7 @@ class RecordSetSynchronousProtocol(Protocol):
 
         This method downloads a CSV file containing detailed validation results for each row
         in the RecordSet. The validation results are generated when a RecordSet with a bound
-        JSON schema is exported from a Grid session. The CSV contains columns:
+        JSON schema is synchronized (pushed) from a Grid session. The CSV contains columns:
         - row_index: The index of the row in the RecordSet
         - is_valid: Boolean indicating if the row is valid according to the schema
         - validation_error_message: The primary validation error message (if any)
@@ -314,11 +314,12 @@ class RecordSetSynchronousProtocol(Protocol):
             validation_file_handle_id is available (with a warning logged).
 
         Example: Get validation results for a RecordSet
-            Get detailed validation results after exporting from a Grid session:
+            Get detailed validation results after synchronizing from a Grid session:
 
             ```python
             from synapseclient import Synapse
             from synapseclient.models import RecordSet, Grid
+            from synapseclient.models.curation import SyncType
 
             syn = Synapse()
             syn.login()
@@ -326,9 +327,9 @@ class RecordSetSynchronousProtocol(Protocol):
             # Assuming you have a RecordSet with a bound schema
             record_set = RecordSet(id="syn123").get()
 
-            # Create and export Grid session to generate validation results
+            # Create and push a Grid session to generate validation results
             grid = Grid(record_set_id=record_set.id).create()
-            grid.export_to_record_set()
+            grid.synchronize(sync_type=SyncType.PULL_PUSH)
             grid.delete()
 
             # Re-fetch the RecordSet to get updated validation_file_handle_id
@@ -1322,7 +1323,7 @@ class RecordSet(RecordSetSynchronousProtocol, AccessControllable, BaseJSONSchema
 
         This method downloads a CSV file containing detailed validation results for each row
         in the RecordSet. The validation results are generated when a RecordSet with a bound
-        JSON schema is exported from a Grid session. The CSV contains columns:
+        JSON schema is synchronized (pushed) from a Grid session. The CSV contains columns:
         - row_index: The index of the row in the RecordSet
         - is_valid: Boolean indicating if the row is valid according to the schema
         - validation_error_message: The primary validation error message (if any)
@@ -1342,12 +1343,13 @@ class RecordSet(RecordSetSynchronousProtocol, AccessControllable, BaseJSONSchema
             validation_file_handle_id is available (with a warning logged).
 
         Example: Get validation results for a RecordSet
-            Get detailed validation results after exporting from a Grid session:
+            Get detailed validation results after synchronizing from a Grid session:
 
             ```python
             import asyncio
             from synapseclient import Synapse
             from synapseclient.models import RecordSet, Grid
+            from synapseclient.models.curation import SyncType
 
             async def main():
                 syn = Synapse()
@@ -1356,9 +1358,9 @@ class RecordSet(RecordSetSynchronousProtocol, AccessControllable, BaseJSONSchema
                 # Assuming you have a RecordSet with a bound schema
                 record_set = await RecordSet(id="syn123").get_async()
 
-                # Create and export Grid session to generate validation results
+                # Create and push a Grid session to generate validation results
                 grid = await Grid(record_set_id=record_set.id).create_async()
-                await grid.export_to_record_set_async()
+                await grid.synchronize_async(sync_type=SyncType.PULL_PUSH)
                 await grid.delete_async()
 
                 # Re-fetch the RecordSet to get updated validation_file_handle_id
