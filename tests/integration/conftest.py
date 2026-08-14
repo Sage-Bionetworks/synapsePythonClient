@@ -31,6 +31,7 @@ from synapseclient.models import (
     WikiPage,
 )
 from synapseclient.operations import delete_async
+from tests.integration.helpers import telemetry_enabled, worker_telemetry_env
 
 tracer = trace.get_tracer("synapseclient")
 working_directory = tempfile.mkdtemp(prefix="someTestFolder")
@@ -194,18 +195,15 @@ async def _cleanup(syn: Synapse, items):
             )
 
 
-active_span_processors = []
-
-
 @pytest.fixture(scope="session", autouse=True)
 def setup_otel():
     """
     Handles setting up the OpenTelemetry tracer provider for integration tests.
     """
     # Setup
-    tests_enabled = os.environ.get("SYNAPSE_INTEGRATION_TEST_OTEL_ENABLED", False)
-    if tests_enabled:
-        Synapse.enable_open_telemetry()
+    if telemetry_enabled(os.environ):
+        os.environ.update(worker_telemetry_env(os.environ))
+        Synapse.enable_open_telemetry(enable_open_telemetry_metrics=True)
     else:
         trace.set_tracer_provider(TracerProvider(sampler=ALWAYS_OFF))
 
@@ -220,9 +218,5 @@ def set_timezone():
 @pytest.fixture(autouse=True, scope="function")
 def wrap_with_otel(request):
     """Start a new OTEL Span for each test function."""
-    with tracer.start_as_current_span(request.node.name) as span:
-        try:
-            yield
-        finally:
-            for processor in active_span_processors:
-                processor.force_flush()
+    with tracer.start_as_current_span(request.node.name):
+        yield

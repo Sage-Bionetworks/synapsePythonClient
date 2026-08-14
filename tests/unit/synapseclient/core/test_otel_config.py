@@ -8,6 +8,7 @@ worker-identity/truthiness helpers.
 
 import platform
 import sys
+from typing import Optional
 from unittest.mock import AsyncMock, MagicMock
 
 import pytest
@@ -22,6 +23,7 @@ from synapseclient.core.otel_config import (
 )
 from synapseclient.core.upload.upload_functions_async import upload_file_handle
 from synapseclient.models.mixins.asynchronous_job import send_job_and_wait_async
+from tests.integration.helpers import telemetry_enabled, worker_telemetry_env
 
 
 class TestBuildResourceAttributes:
@@ -246,3 +248,92 @@ class TestUploadInstrumentation:
         args, _ = mock_duration.record.call_args
         assert isinstance(args[0], float)
         assert args[1] == {"external_file_handle": True}
+
+
+class TestTelemetryEnabled:
+    """Unit tests for tests.integration.helpers.telemetry_enabled."""
+
+    @pytest.mark.parametrize(
+        "value,expected",
+        [
+            (None, False),
+            ("", False),
+            ("0", False),
+            ("false", False),
+            ("False", False),
+            ("no", False),
+            ("off", False),
+            ("1", True),
+            ("true", True),
+            ("TRUE", True),
+            ("yes", True),
+            ("on", True),
+            ("ON", True),
+        ],
+    )
+    def test_telemetry_enabled(self, value: Optional[str], expected: bool) -> None:
+        env = {} if value is None else {"SYNAPSE_INTEGRATION_TEST_OTEL_ENABLED": value}
+
+        assert telemetry_enabled(env) is expected
+
+
+class TestWorkerTelemetryEnv:
+    """Unit tests for tests.integration.helpers.worker_telemetry_env."""
+
+    def test_different_workers_yield_different_instance_ids(self) -> None:
+        env_a = {"PYTEST_XDIST_WORKER": "gw0"}
+        env_b = {"PYTEST_XDIST_WORKER": "gw1"}
+
+        result_a = worker_telemetry_env(env_a)
+        result_b = worker_telemetry_env(env_b)
+
+        assert result_a["OTEL_SERVICE_INSTANCE_ID"] == "gw0"
+        assert result_b["OTEL_SERVICE_INSTANCE_ID"] == "gw1"
+        assert (
+            result_a["OTEL_SERVICE_INSTANCE_ID"] != result_b["OTEL_SERVICE_INSTANCE_ID"]
+        )
+
+    def test_operator_base_survives_as_prefix(self) -> None:
+        env = {
+            "PYTEST_XDIST_WORKER": "gw3",
+            "OTEL_SERVICE_INSTANCE_ID": "my-base",
+        }
+
+        result = worker_telemetry_env(env)
+
+        assert result["OTEL_SERVICE_INSTANCE_ID"] == "my-base-gw3"
+
+    def test_no_xdist_leaves_base_unchanged(self) -> None:
+        env = {"OTEL_SERVICE_INSTANCE_ID": "my-base"}
+
+        result = worker_telemetry_env(env)
+
+        assert result["OTEL_SERVICE_INSTANCE_ID"] == "my-base"
+
+    def test_no_xdist_and_no_base_omits_instance_id(self) -> None:
+        result = worker_telemetry_env({})
+
+        assert "OTEL_SERVICE_INSTANCE_ID" not in result
+
+    def test_existing_resource_attributes_appended_not_replaced(self) -> None:
+        env = {"OTEL_RESOURCE_ATTRIBUTES": "existing.key=existing.value"}
+
+        result = worker_telemetry_env(env)
+
+        assert result["OTEL_RESOURCE_ATTRIBUTES"].startswith(
+            "existing.key=existing.value,"
+        )
+
+    def test_xdist_workers_from_worker_count(self) -> None:
+        env = {"PYTEST_XDIST_WORKER_COUNT": "4"}
+
+        result = worker_telemetry_env(env)
+
+        assert "xdist.workers=4" in result["OTEL_RESOURCE_ATTRIBUTES"]
+
+    def test_git_sha_present_only_when_github_sha_set(self) -> None:
+        without_sha = worker_telemetry_env({})
+        with_sha = worker_telemetry_env({"GITHUB_SHA": "abc123"})
+
+        assert "git.sha" not in without_sha["OTEL_RESOURCE_ATTRIBUTES"]
+        assert "git.sha=abc123" in with_sha["OTEL_RESOURCE_ATTRIBUTES"]
