@@ -24,6 +24,7 @@ from typing import (
     Union,
 )
 
+from deprecated import deprecated
 from opentelemetry import trace
 
 from synapseclient import Synapse
@@ -3920,6 +3921,9 @@ class GridSynchronousProtocol(Protocol):
         Exports the grid session data back to a record set. This will create a new version
         of the original record set with the modified data from the grid session.
 
+        WARNING - This method is deprecated and will be removed in a future release.
+        Use `synchronize`/`synchronize_async` with `sync_type=SyncType.PULL_PUSH` instead.
+
         Arguments:
             timeout: The number of seconds to wait for the job to complete or progress
                 before raising a SynapseTimeoutError. Defaults to 120.
@@ -3933,23 +3937,31 @@ class GridSynchronousProtocol(Protocol):
         Raises:
             ValueError: If session_id is not provided.
 
-        Example: Export grid session data back to record set
+        Example: Migration to synchronize
             &nbsp;
 
             ```python
             from synapseclient import Synapse
             from synapseclient.models import Grid
+            from synapseclient.models.curation import SyncType
 
             syn = Synapse()
             syn.login()
 
-            # Export modified grid data back to the record set
             grid = Grid(session_id="abc-123-def")
-            grid = grid.export_to_record_set()
-            print(f"Exported to record set: {grid.record_set_id}")
-            print(f"Version number: {grid.record_set_version_number}")
-            if grid.validation_summary_statistics:
-                print(f"Valid records: {grid.validation_summary_statistics.number_of_valid_children}")
+
+            # Old approach (DEPRECATED)
+            # grid = grid.export_to_record_set()
+            # print(f"Exported to record set: {grid.record_set_id}")
+            # print(f"Version number: {grid.record_set_version_number}")
+            # if grid.validation_summary_statistics:
+            #     print(f"Valid records: {grid.validation_summary_statistics.number_of_valid_children}")
+
+            # New approach (RECOMMENDED)
+            # Note: unlike export_to_record_set, synchronize does not populate
+            # record_set_id, record_set_version_number, or
+            # validation_summary_statistics on the returned Grid.
+            grid = grid.synchronize(sync_type=SyncType.PULL_PUSH)
             ```
         """
         return self
@@ -4666,12 +4678,19 @@ class Grid(EnumCoercionMixin, GridSynchronousProtocol):
         self.fill_from_dict(response)
         return self
 
+    @deprecated(
+        version="4.14.0",
+        reason="Use `synchronize_async` with `sync_type=SyncType.PULL_PUSH` instead.",
+    )
     async def export_to_record_set_async(
         self, *, timeout: int = 120, synapse_client: Optional[Synapse] = None
     ) -> "Grid":
         """
         Exports the grid session data back to a record set. This will create a new version
         of the original record set with the modified data from the grid session.
+
+        WARNING - This method is deprecated and will be removed in a future release.
+        Use `synchronize`/`synchronize_async` with `sync_type=SyncType.PULL_PUSH` instead.
 
         Arguments:
             timeout: The number of seconds to wait for the job to complete or progress
@@ -4686,25 +4705,33 @@ class Grid(EnumCoercionMixin, GridSynchronousProtocol):
         Raises:
             ValueError: If session_id is not provided.
 
-        Example: Export grid session data back to record set asynchronously
+        Example: Migration to synchronize_async
             &nbsp;
 
             ```python
             import asyncio
             from synapseclient import Synapse
             from synapseclient.models import Grid
+            from synapseclient.models.curation import SyncType
 
             syn = Synapse()
             syn.login()
 
             async def main():
-                # Export modified grid data back to the record set
                 grid = Grid(session_id="abc-123-def")
-                grid = await grid.export_to_record_set_async()
-                print(f"Exported to record set: {grid.record_set_id}")
-                print(f"Version number: {grid.record_set_version_number}")
-                if grid.validation_summary_statistics:
-                    print(f"Valid records: {grid.validation_summary_statistics.number_of_valid_children}")
+
+                # Old approach (DEPRECATED)
+                # grid = await grid.export_to_record_set_async()
+                # print(f"Exported to record set: {grid.record_set_id}")
+                # print(f"Version number: {grid.record_set_version_number}")
+                # if grid.validation_summary_statistics:
+                #     print(f"Valid records: {grid.validation_summary_statistics.number_of_valid_children}")
+
+                # New approach (RECOMMENDED)
+                # Note: unlike export_to_record_set_async, synchronize_async
+                # does not populate record_set_id, record_set_version_number,
+                # or validation_summary_statistics on the returned Grid.
+                grid = await grid.synchronize_async(sync_type=SyncType.PULL_PUSH)
 
             asyncio.run(main())
             ```
