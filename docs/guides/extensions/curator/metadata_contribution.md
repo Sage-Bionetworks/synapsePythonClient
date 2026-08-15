@@ -118,7 +118,7 @@ latest_grid = get_or_create_curator_grid(task_id=curation_task.task_id)
 
 A Grid session captures the JSON schema in place at the moment it's created — it does not automatically pick up a newer schema version. If the administrator adds or changes a column in the schema *after* you created your session in Step 3, synchronize the session to pull in the latest schema and data from the RecordSet before you continue working.
 
-For record-based grids, `sync_type` is required — you must explicitly choose `"PULL"` or `"PULL_PUSH"`:
+For record-based grids, choose `sync_type` explicitly — `"PULL"` or `"PULL_PUSH"` — rather than omitting it:
 
 ```python
 latest_grid = latest_grid.synchronize(sync_type="PULL")
@@ -126,6 +126,8 @@ latest_grid = latest_grid.synchronize(sync_type="PULL")
 
 - **`"PULL"`** — refreshes the grid session with the latest schema and data from the RecordSet, without writing anything back. Use this to preview an incoming schema or data change (for example, a newly added column) before you've made any edits of your own, or simply to catch the session up to the current RecordSet state.
 - **`"PULL_PUSH"`** — does the same pull, then immediately writes the grid session's current data back to the RecordSet as a new version. Use this once you're ready to commit your in-progress edits together with the refreshed schema/data.
+
+> **Important:** `sync_type` is optional here, not enforced — omitting it doesn't raise an error, it silently defaults to `"PULL_PUSH"`. For a RecordSet-backed grid that can mean committing a new version and overwriting the RecordSet with your local session's current state when you only meant to preview incoming changes. Passing it explicitly avoids that surprise.
 
 > **Note:** Run this step any time you suspect the schema has changed since you opened the session — for example, if the administrator mentions they've published a new schema version, or if a field you expect to see is missing from your downloaded CSV in Step 5.
 
