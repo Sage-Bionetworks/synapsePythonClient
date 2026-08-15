@@ -357,7 +357,7 @@ latest_grid = latest_grid.synchronize()
 
 This writes the Grid annotation values back to each file as Synapse annotations. There is no versioned RecordSet — the files themselves are updated in place.
 
-Note: for file-based grids, `sync_type` is not required and always behaves as `"PULL_PUSH"` — there is no separate preview (`"PULL"`) step.
+Note: for file-based grids, the value you pass for `sync_type` (or omitting it) makes no difference — synchronizing always behaves as `"PULL_PUSH"`; there is no separate preview (`"PULL"`) step. This is unlike record-based grids (Step 4), where the value genuinely changes behavior, so it's worth choosing deliberately there.
 
 **No per-row export report — but in-session validation still works.** There is no versioned RecordSet, so the validation report reviewed in Step 8 (`synchronize(sync_type=SyncType.PULL_PUSH)` → `get_detailed_validation_results()`) does not apply. However, the in-session validation from Step 6 works identically for file-based grids: a file-based session created from an `initial_query` still carries a bound JSON schema (`grid_json_schema_id`), so `connect()` + `validate_rows()` returns the same per-row `validation_results`. This is your primary contributor-side check for file-based tasks — run it before `synchronize()`.
 
