@@ -12,8 +12,8 @@ By following this guide, you will:
 - Download metadata from the Grid to a local CSV
 - Edit the metadata locally
 - Upload the metadata back into the Grid
-- Validate your edits in-session against the bound JSON schema before exporting
-- Export the Grid to the RecordSet to trigger schema validation
+- Validate your edits in-session against the bound JSON schema
+- Push the Grid back to the RecordSet (synchronize with `PULL_PUSH`)
 - Review the validation report
 - Mark the curation task as COMPLETED to signal the administrator that you're done
 
@@ -170,9 +170,9 @@ latest_grid = latest_grid.import_csv(path=edited_path)
 print(f"Upserted edits into grid session: https://www.synapse.org/Grid:default?sessionId={latest_grid.session_id}")
 ```
 
-### Step 6: Validate your edits in-session (before exporting)
+### Step 6: Validate your edits in-session
 
-Before you export, you can check your edits against the JSON schema bound to the RecordSet directly on the Grid session — without creating a new RecordSet version. This lets you catch and fix problems while iterating, then export once (Step 7) with clean data.
+Before you push, you can check your edits against the JSON schema bound to the RecordSet directly on the Grid session — without creating a new RecordSet version. This lets you catch and fix problems while iterating, then push once (Step 7) with clean data.
 
 Open the session with `connect()` (or `connect_async()`), which binds a replica for the duration of the `with` block, then call `validate_rows()` with a `QueryRequest`. Each returned row carries its own `validation_results`. `SelectAll()` returns every column, so each row's full data comes back alongside its validation results.
 
@@ -192,7 +192,7 @@ with latest_grid.connect() as grid:
             print(f"Row ID: {row.row_id}, Validation Result: {row.validation_results}")
 ```
 
-If you're landing here with only a `record_set_id` (no session yet), `connect()` will create — or, with `.connect(attach_to_previous_session=True)`, reattach to — a session for you:
+If you're landing here with only a `record_set_id` (no session yet), `connect()` will create — or, with `.connect(attach_to_previous_session=True)`, reattach to a session for you:
 
 ```python
 from synapseclient.models import Grid
@@ -235,22 +235,25 @@ with latest_grid.connect() as grid:
     JSON schema to the RecordSet. Without one, rows still return but their
     `validation_results` is `None` for each row.
 
-In-session `validate_rows()` checks the current Grid rows without creating a new RecordSet version — use it to iterate quickly. The export report reviewed in Step 8 (`get_detailed_validation_results()`) reflects the last export from Step 7. Each method has a matching `_async` counterpart (`connect_async`, `validate_rows_async`) for async contexts.
+In-session `validate_rows()` checks the current Grid rows without creating a new RecordSet version — this is where you should do the bulk of your iterating: edit, check, edit again, with no push required until you're confident the data is clean. Pushing (Step 7) creates a new RecordSet version each time, so treat it as something you do once you're done rather than as your primary feedback loop. The validation report reviewed in Step 8 (`get_detailed_validation_results()`) reflects the last `PULL_PUSH` synchronize from Step 7. Each method has a matching `_async` counterpart (`connect_async`, `validate_rows_async`) for async contexts.
 
-### Step 7: Export the grid back to the RecordSet
+### Step 7: Push the grid back to the RecordSet
 
-> **Important:** Until you call `export_to_record_set()`, your edits live only inside the Grid session — they aren't visible on the RecordSet and won't be validated. Apply changes whenever you reach a logical checkpoint.
+> **Important:** Until you synchronize with `sync_type=SyncType.PULL_PUSH`, your edits live only inside the Grid session — they aren't visible on the RecordSet, and there is no new RecordSet version or persisted validation report for them (Step 8). You can still check them against the schema beforehand with in-session `validate_rows()` (Step 6). Apply changes whenever you reach a logical checkpoint.
 
-Exporting triggers schema validation and makes your edits visible to administrators and other contributors. It creates a new version of the RecordSet and generates the validation report.
+Pushing creates a new version of the RecordSet and makes your edits visible to administrators and other contributors. Schema validation results are generated from this push, but may not be available right away — see Step 8 for how to check them once they're ready.
 
 ```python
-latest_grid.export_to_record_set()
-print(f"Exported to RecordSet version: {latest_grid.record_set_version_number}")
+from synapseclient.models.curation import SyncType
+
+latest_grid = latest_grid.synchronize(sync_type=SyncType.PULL_PUSH)
 ```
+
+> **Note:** `export_to_record_set()` is deprecated in favor of `synchronize()`. Unlike the deprecated method, `synchronize()` does not return the new RecordSet version number on `latest_grid`. To look it up, re-fetch the RecordSet via `record_set_id` (see Step 8) after synchronizing.
 
 ### Step 8: Review your validation results
 
-When you exported the grid in Step 7, Synapse validated each row against the JSON schema bound to the RecordSet and generated a row-level report. Reviewing this report before handing the task back to the administrator lets you catch and fix problems in your own data first — saving a round trip. (For a quick check before you commit an export, use the in-session validation in Step 6 instead.)
+When you synchronized the grid with `PULL_PUSH` in Step 7, Synapse validated each row against the JSON schema bound to the RecordSet and generated a row-level report. If you already cleared Step 6's in-session validation before pushing, this report should come back clean — treat it as confirmation that what's now live on the RecordSet matches what you validated, not as your first chance to find problems.
 
 #### Prerequisites for validation results
 
@@ -258,9 +261,9 @@ A validation report is only generated when **all** of the following are true:
 
 1. A JSON schema has been bound to the RecordSet by the administrator who set up the task
 2. You have entered data through a Grid session
-3. The Grid session has been exported back to the RecordSet — this is the step that triggers validation and populates the RecordSet's validation_file_handle_id
+3. The Grid session has been synchronized back to the RecordSet with `sync_type=SyncType.PULL_PUSH` — this is the step that triggers validation and populates the RecordSet's validation_file_handle_id
 
-If the Grid was never exported (Step 7), there is nothing to review yet.
+If the Grid was never synchronized with `PULL_PUSH` (Step 7), there is nothing to review yet.
 
 #### Retrieve and inspect the results
 
@@ -271,11 +274,12 @@ from synapseclient.models import RecordBasedMetadataTaskProperties, RecordSet
 
 if isinstance(curation_task.task_properties, RecordBasedMetadataTaskProperties):
     record_set = RecordSet(id=curation_task.task_properties.record_set_id).get()
+    print(f"RecordSet version: {record_set.version_number}")
 
     validation_df = record_set.get_detailed_validation_results()
 
     if validation_df is None:
-        print("No validation results yet — make sure the Grid was exported in Step 7.")
+        print("No validation results yet — make sure the Grid was synchronized with PULL_PUSH in Step 7.")
     else:
         total = len(validation_df)
         valid = validation_df["is_valid"].sum()
@@ -318,11 +322,13 @@ Row 2:
   All messages: ["#/sex: other is not a valid enum value"]
 ```
 
-#### Fix and re-export
+#### If this report still shows invalid rows
 
-If any rows are invalid, re-open the Grid session (see Step 3 — `get_or_create_curator_grid` returns the session already linked to the task), correct the offending rows, and re-run Steps 4–6 to re-export. The validation report is regenerated on each export, so iterate until the report is clean before letting the administrator know your task is ready.
+This shouldn't happen if Step 6 was clean immediately before you pushed — treat it as a signal something changed in between (for example, you kept editing after your last in-session check, or the schema itself changed). Re-open the Grid session (see Step 3 — `get_or_create_curator_grid` returns the session already linked to the task) and correct the offending rows.
 
-> **If get_detailed_validation_results returns None after exporting:** check that record_set.validation_file_handle_id is set after the re-fetch. If it isn't, the export did not complete — re-run export_to_record_set() on an active Grid session against the same RecordSet.
+Rather than pushing again right away, go back to Step 6 and re-run in-session `validate_rows()` first — confirm the fix is clean there, with no new RecordSet version created in the process — and only push (Step 7) once it is. Repeating push-then-check-the-report as your correction loop costs a new RecordSet version and a round trip through validation on every attempt; checking in-session first is faster and doesn't leave a trail of throwaway versions on the RecordSet.
+
+> **If get_detailed_validation_results returns None after pushing:** check that record_set.validation_file_handle_id is set after the re-fetch. If it isn't, the push did not complete — re-run `synchronize(sync_type=SyncType.PULL_PUSH)` on an active Grid session against the same RecordSet.
 
 ### Step 9: Mark the curation task as COMPLETED
 
@@ -341,17 +347,17 @@ File-based tasks follow the same overall flow as record-based tasks (Steps 1–9
 - Download the CSV (Step 5) as a local reference, make your edits locally, then copy-paste the values back into the Grid UI
 - Make edits directly in the Synapse Grid UI — Step 3 prints the session URL (`https://www.synapse.org/Grid:default?sessionId=...`) after creating the session
 
-**Use `synchronize()` instead of `export_to_record_set()`.** After editing in the Grid UI, push your changes back to the underlying files:
+**`synchronize()` writes straight to the files, not a RecordSet.** After editing in the Grid UI, push your changes back to the underlying files the same way record-based tasks do in Step 7:
 
 ```python
-latest_grid.synchronize()
+latest_grid = latest_grid.synchronize()
 ```
 
 This writes the Grid annotation values back to each file as Synapse annotations. There is no versioned RecordSet — the files themselves are updated in place.
 
 Note: for file-based grids, `sync_type` is not required and always behaves as `"PULL_PUSH"` — there is no separate preview (`"PULL"`) step.
 
-**No per-row export report — but in-session validation still works.** There is no versioned RecordSet, so the export report reviewed in Step 8 (`export_to_record_set()` → `get_detailed_validation_results()`) does not apply. However, the in-session validation from Step 6 works identically for file-based grids: a file-based session created from an `initial_query` still carries a bound JSON schema (`grid_json_schema_id`), so `connect()` + `validate_rows()` returns the same per-row `validation_results`. This is your primary contributor-side check for file-based tasks — run it before `synchronize()`.
+**No per-row export report — but in-session validation still works.** There is no versioned RecordSet, so the validation report reviewed in Step 8 (`synchronize(sync_type=SyncType.PULL_PUSH)` → `get_detailed_validation_results()`) does not apply. However, the in-session validation from Step 6 works identically for file-based grids: a file-based session created from an `initial_query` still carries a bound JSON schema (`grid_json_schema_id`), so `connect()` + `validate_rows()` returns the same per-row `validation_results`. This is your primary contributor-side check for file-based tasks — run it before `synchronize()`.
 
 ## Appendix
 
@@ -368,7 +374,7 @@ status.execution_details = None
 curation_task.update_status(curation_task_status=status)
 ```
 
-Deleting is permanent — you can no longer re-export from this session. If you spot more issues later, get a fresh Grid session via Step 3: `get_or_create_curator_grid` creates a new one and links it to the task.
+Deleting is permanent — you can no longer synchronize from this session. If you spot more issues later, get a fresh Grid session via Step 3: `get_or_create_curator_grid` creates a new one and links it to the task.
 
 ## References
 
@@ -384,8 +390,7 @@ Deleting is permanent — you can no longer re-export from this session. If you 
 - [Grid.validate_rows][synapseclient.models.Grid.validate_rows] - Validate a Grid session's rows against the bound JSON schema
 - [Grid.download_csv][synapseclient.models.Grid.download_csv] - Download Grid contents as a local CSV
 - [Grid.import_csv][synapseclient.models.Grid.import_csv] - Upsert CSV edits back into a Grid session (record-based grids only)
-- [Grid.export_to_record_set][synapseclient.models.Grid.export_to_record_set] - Export Grid data back to RecordSet and generate validation results
-- [Grid.synchronize][synapseclient.models.Grid.synchronize] - Synchronize a Grid session against its source RecordSet or file view, pulling in schema/data changes and (for `PULL_PUSH`) writing edits back
+- [Grid.synchronize][synapseclient.models.Grid.synchronize] - Synchronize a Grid session against its source RecordSet or file view, pulling in schema/data changes and (for `PULL_PUSH`) writing edits back and generating validation results
 - [Grid.delete][synapseclient.models.Grid.delete] - Delete a Grid session
 - [RecordSet.get_detailed_validation_results][synapseclient.models.RecordSet.get_detailed_validation_results] - Retrieve the row-level validation report for a RecordSet
 <!-- markdownlint-enable MD052 -->
