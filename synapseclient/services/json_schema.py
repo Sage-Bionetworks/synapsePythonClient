@@ -5,7 +5,7 @@ JSON Schema
 
 !!! warning
     Everything in this module has been deprecated.
-    Use synapseclient.models.SchemaOrganization and synapseclient.models.JSONSchema instead.
+    Use synapseclient.models.Organization and synapseclient.models.JSONSchema instead.
 """
 
 from __future__ import annotations
@@ -285,7 +285,7 @@ class JsonSchema:
 
 @deprecated(
     version="4.11.0",
-    reason="To be removed in 5.0.0. Use synapseclient.models.SchemaOrganization instead.",
+    reason="To be removed in 5.0.0. Use synapseclient.models.Organization instead.",
 )
 class JsonSchemaOrganization:
     """Json Schema Organization
@@ -503,14 +503,14 @@ class JsonSchemaOrganization:
     version="4.11.0",
     reason="To be removed in 5.0.0. "
     "Use the OOP JSON Schema models instead, "
-    "synapseclient.models.SchemaOrganization and "
+    "synapseclient.models.Organization and "
     "synapseclient.models.JSONSchema.",
 )
 class JsonSchemaService:
     """Json Schema Service
 
     Deprecated: To be removed in 5.0.0. Use the OOP JSON Schema models instead:
-    synapseclient.models.SchemaOrganization for organization management,
+    synapseclient.models.Organization for organization management,
     synapseclient.models.JSONSchema for creating and retrieving schemas, and the
     JSON Schema methods on entity models (e.g. File, Folder, Project) such as
     bind_schema(), get_schema(), validate_schema(), and unbind_schema() for binding
@@ -532,12 +532,12 @@ class JsonSchemaService:
 
         # New approach (RECOMMENDED)
         from synapseclient import Synapse
-        from synapseclient.models import SchemaOrganization, JSONSchema, Folder
+        from synapseclient.models import Organization, JSONSchema, Folder
 
         syn = Synapse()
         syn.login()
 
-        organization = SchemaOrganization(name="my.organization").store()
+        organization = Organization(name="my.organization").store()
         schema = JSONSchema(
             organization_name="my.organization", name="my.schema"
         )
