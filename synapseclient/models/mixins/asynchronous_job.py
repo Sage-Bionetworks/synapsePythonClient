@@ -344,10 +344,9 @@ async def send_job_and_wait_async(
         SynapseError: If the job fails.
         SynapseTimeoutError: If the job does not complete within the timeout.
     """
-    attributes = {"request_type": request_type}
+    attributes = {"request_type": request_type, "outcome": "success"}
     with tracer.start_as_current_span("synapse.async_job") as span:
         span.set_attribute("synapse.async_job.request_type", request_type)
-        _async_job_counter.add(1, attributes)
         started = time.monotonic()
         try:
             start_time = time.time()
@@ -386,7 +385,14 @@ async def send_job_and_wait_async(
             raise SynapseError(
                 f"Failed to create view version after {max_wait_time} seconds"
             )
+        except SynapseTimeoutError:
+            attributes["outcome"] = "timeout"
+            raise
+        except Exception:
+            attributes["outcome"] = "error"
+            raise
         finally:
+            _async_job_counter.add(1, attributes)
             _async_job_duration.record(time.monotonic() - started, attributes)
 
 

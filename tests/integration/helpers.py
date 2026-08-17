@@ -2,13 +2,55 @@
 
 import asyncio
 import logging
-from typing import Any, Awaitable, Callable, Dict, Mapping, Optional, TypeVar, Union
+from typing import (
+    Any,
+    Awaitable,
+    Callable,
+    Dict,
+    List,
+    Mapping,
+    Optional,
+    TypeVar,
+    Union,
+)
 
 logger = logging.getLogger(__name__)
 
 T = TypeVar("T")
 
 _TELEMETRY_TRUTHY_VALUES = ("1", "true", "yes", "on")
+
+# Logger name used by the OTLP exporters to report rejected exports (e.g. a 401
+# from a malformed `OTEL_EXPORTER_OTLP_HEADERS`).
+OTLP_EXPORTER_LOGGER = "opentelemetry.exporter.otlp.proto.http"
+
+
+class ExportFailureRecorder(logging.Handler):
+    """Captures ERROR-level log records emitted by the OTLP exporters, so a
+    rejected export can fail the run instead of leaving it silently green.
+    """
+
+    def __init__(self) -> None:
+        super().__init__(level=logging.ERROR)
+        self.messages: List[str] = []
+
+    def emit(self, record: logging.LogRecord) -> None:
+        self.messages.append(record.getMessage())
+
+
+def export_failure_summary(messages: List[str]) -> Optional[str]:
+    """Build a one-line summary of captured OTLP export failures.
+
+    Args:
+        messages: The messages captured by `ExportFailureRecorder`.
+
+    Returns:
+        None if messages is empty, otherwise a string naming the count and the
+        first message.
+    """
+    if not messages:
+        return None
+    return f"{len(messages)} OTLP export failure(s); first: {messages[0]}"
 
 
 def telemetry_enabled(env: Mapping[str, str]) -> bool:

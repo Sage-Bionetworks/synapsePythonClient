@@ -6,6 +6,7 @@ All new telemetry unit tests for this ticket live in this one module (per
 worker-identity/truthiness helpers.
 """
 
+import logging
 import platform
 import sys
 from typing import Optional
@@ -15,7 +16,11 @@ import pytest
 from opentelemetry.sdk.resources import SERVICE_INSTANCE_ID
 
 from synapseclient.core.constants.concrete_types import AGENT_CHAT_REQUEST
-from synapseclient.core.exceptions import SynapseError, SynapseHTTPError
+from synapseclient.core.exceptions import (
+    SynapseError,
+    SynapseHTTPError,
+    SynapseTimeoutError,
+)
 from synapseclient.core.otel_config import (
     SYNAPSE_SERVICE_VERSION,
     _build_resource_attributes,
@@ -23,7 +28,12 @@ from synapseclient.core.otel_config import (
 )
 from synapseclient.core.upload.upload_functions_async import upload_file_handle
 from synapseclient.models.mixins.asynchronous_job import send_job_and_wait_async
-from tests.integration.helpers import telemetry_enabled, worker_telemetry_env
+from tests.integration.helpers import (
+    ExportFailureRecorder,
+    export_failure_summary,
+    telemetry_enabled,
+    worker_telemetry_env,
+)
 
 
 class TestBuildResourceAttributes:
@@ -124,13 +134,24 @@ class TestAsyncJobInstrumentation:
             synapse_client=self.syn,
         )
 
-        mock_counter.add.assert_called_once_with(1, {"request_type": self.request_type})
+        expected_attributes = {
+            "request_type": self.request_type,
+            "outcome": "success",
+        }
+        mock_counter.add.assert_called_once_with(1, expected_attributes)
         mock_duration.record.assert_called_once()
         args, kwargs = mock_duration.record.call_args
         assert isinstance(args[0], float)
-        assert args[1] == {"request_type": self.request_type}
+        assert args[1] == expected_attributes
+        # Same dict instance passed to both instruments.
+        assert mock_counter.add.call_args[0][1] is args[1]
 
-    async def test_failure_still_records_duration(self, mocker) -> None:
+    async def test_failure_records_error_outcome_on_both_instruments(
+        self, mocker
+    ) -> None:
+        mock_counter = mocker.patch(
+            "synapseclient.models.mixins.asynchronous_job._async_job_counter"
+        )
         mock_duration = mocker.patch(
             "synapseclient.models.mixins.asynchronous_job._async_job_duration"
         )
@@ -147,7 +168,42 @@ class TestAsyncJobInstrumentation:
                 synapse_client=self.syn,
             )
 
+        expected_attributes = {"request_type": self.request_type, "outcome": "error"}
+        mock_counter.add.assert_called_once_with(1, expected_attributes)
         mock_duration.record.assert_called_once()
+        args, _ = mock_duration.record.call_args
+        assert args[1] == expected_attributes
+
+    async def test_timeout_records_timeout_outcome_on_both_instruments(
+        self, mocker
+    ) -> None:
+        mock_counter = mocker.patch(
+            "synapseclient.models.mixins.asynchronous_job._async_job_counter"
+        )
+        mock_duration = mocker.patch(
+            "synapseclient.models.mixins.asynchronous_job._async_job_duration"
+        )
+        mocker.patch(
+            "synapseclient.models.mixins.asynchronous_job.send_job_async",
+            new_callable=AsyncMock,
+            side_effect=SynapseTimeoutError("timed out"),
+        )
+
+        with pytest.raises(SynapseTimeoutError):
+            await send_job_and_wait_async(
+                request=self.good_request,
+                request_type=self.request_type,
+                synapse_client=self.syn,
+            )
+
+        expected_attributes = {
+            "request_type": self.request_type,
+            "outcome": "timeout",
+        }
+        mock_counter.add.assert_called_once_with(1, expected_attributes)
+        mock_duration.record.assert_called_once()
+        args, _ = mock_duration.record.call_args
+        assert args[1] == expected_attributes
 
     async def test_view_not_available_retry_records_one_count(self, mocker) -> None:
         mock_counter = mocker.patch(
@@ -178,7 +234,9 @@ class TestAsyncJobInstrumentation:
             synapse_client=self.syn,
         )
 
-        mock_counter.add.assert_called_once_with(1, {"request_type": self.request_type})
+        mock_counter.add.assert_called_once_with(
+            1, {"request_type": self.request_type, "outcome": "success"}
+        )
 
 
 class TestUploadInstrumentation:
@@ -337,3 +395,45 @@ class TestWorkerTelemetryEnv:
 
         assert "git.sha" not in without_sha["OTEL_RESOURCE_ATTRIBUTES"]
         assert "git.sha=abc123" in with_sha["OTEL_RESOURCE_ATTRIBUTES"]
+
+
+class TestExportFailureSummary:
+    """Unit tests for tests.integration.helpers.export_failure_summary."""
+
+    def test_empty_messages_is_none(self) -> None:
+        assert export_failure_summary([]) is None
+
+    def test_one_message_names_count_and_message(self) -> None:
+        summary = export_failure_summary(["401 Unauthorized"])
+
+        assert "1" in summary
+        assert "401 Unauthorized" in summary
+
+    def test_several_messages_names_count_and_first_message(self) -> None:
+        summary = export_failure_summary(["401 Unauthorized", "connection refused"])
+
+        assert "2" in summary
+        assert "401 Unauthorized" in summary
+        assert "connection refused" not in summary
+
+
+class TestExportFailureRecorder:
+    """Unit tests for tests.integration.helpers.ExportFailureRecorder."""
+
+    def test_captures_error_record(self) -> None:
+        recorder = ExportFailureRecorder()
+        logger = logging.getLogger("test.export_failure_recorder.error")
+        logger.addHandler(recorder)
+
+        logger.error("export rejected: 401")
+
+        assert recorder.messages == ["export rejected: 401"]
+
+    def test_ignores_warning_record(self) -> None:
+        recorder = ExportFailureRecorder()
+        logger = logging.getLogger("test.export_failure_recorder.warning")
+        logger.addHandler(recorder)
+
+        logger.warning("retrying export")
+
+        assert recorder.messages == []
