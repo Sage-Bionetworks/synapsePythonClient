@@ -92,12 +92,16 @@
 ::: synapseclient.models.PartialRow
 [](){ #partial-row-set-reference-sync }
 ::: synapseclient.models.PartialRowSet
+[](){ #table-update-request-reference-sync }
+::: synapseclient.models.TableUpdateRequest
 [](){ #table-schema-change-request-reference-sync }
 ::: synapseclient.models.TableSchemaChangeRequest
 [](){ #appendable-row-set-request-reference-sync }
 ::: synapseclient.models.AppendableRowSetRequest
 [](){ #upload-to-table-request-reference-sync }
 ::: synapseclient.models.UploadToTableRequest
+[](){ #table-search-change-request-reference-sync }
+::: synapseclient.models.TableSearchChangeRequest
 [](){ #table-update-transaction-reference-sync }
 ::: synapseclient.models.TableUpdateTransaction
 [](){ #csv-table-descriptor-reference-sync }

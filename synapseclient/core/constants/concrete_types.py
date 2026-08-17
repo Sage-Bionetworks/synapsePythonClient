@@ -62,6 +62,12 @@ TABLE_SCHEMA_CHANGE_RESPONSE = (
 TABLE_SCHEMA_CHANGE_REQUEST = (
     "org.sagebionetworks.repo.model.table.TableSchemaChangeRequest"
 )
+TABLE_SEARCH_CHANGE_RESPONSE = (
+    "org.sagebionetworks.repo.model.table.TableSearchChangeResponse"
+)
+TABLE_SEARCH_CHANGE_REQUEST = (
+    "org.sagebionetworks.repo.model.table.TableSearchChangeRequest"
+)
 TABLE_UPDATE_TRANSACTION_REQUEST = (
     "org.sagebionetworks.repo.model.table.TableUpdateTransactionRequest"
 )

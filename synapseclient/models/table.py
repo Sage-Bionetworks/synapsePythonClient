@@ -17,7 +17,6 @@ from synapseclient.core.utils import MB, delete_none_keys, test_import_pandas
 from synapseclient.models import Activity, Annotations
 from synapseclient.models.mixins import AccessControllable, BaseJSONSchema
 from synapseclient.models.mixins.table_components import (
-    AppendableRowSetRequest,
     ColumnExpansionStrategy,
     ColumnMixin,
     CsvTableDescriptor,
@@ -27,11 +26,10 @@ from synapseclient.models.mixins.table_components import (
     SchemaStorageStrategy,
     TableBase,
     TableDeleteRowMixin,
-    TableSchemaChangeRequest,
     TableStoreMixin,
     TableStoreRowMixin,
+    TableUpdateRequest,
     TableUpsertMixin,
-    UploadToTableRequest,
 )
 from synapseclient.models.table_components import Column
 
@@ -402,13 +400,7 @@ class TableSynchronousProtocol(Protocol):
         schema_storage_strategy: SchemaStorageStrategy = None,
         column_expansion_strategy: ColumnExpansionStrategy = None,
         dry_run: bool = False,
-        additional_changes: List[
-            Union[
-                "TableSchemaChangeRequest",
-                "UploadToTableRequest",
-                "AppendableRowSetRequest",
-            ]
-        ] = None,
+        additional_changes: List["TableUpdateRequest"] = None,
         *,
         insert_size_bytes: int = 900 * MB,
         csv_table_descriptor: Optional[CsvTableDescriptor] = None,
@@ -594,7 +586,10 @@ class TableSynchronousProtocol(Protocol):
                 what actions would be taken without actually performing them.
 
             additional_changes: Additional changes to the table that should execute
-                within the same transaction as appending or updating rows. This is used
+                within the same transaction as appending or updating rows. Each change
+                is a TableUpdateRequest, which is one of TableSchemaChangeRequest,
+                AppendableRowSetRequest, UploadToTableRequest, or
+                TableSearchChangeRequest. This is used
                 as a part of the `upsert_rows` method call to allow for the updating of
                 rows and the updating of the table schema in the same transaction. In
                 most cases you will not need to use this argument.
