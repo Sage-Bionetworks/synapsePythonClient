@@ -228,8 +228,26 @@ export OTEL_EXPORTER_OTLP_ENDPOINT=<your collector endpoint>
 export OTEL_EXPORTER_OTLP_HEADERS=<auth headers your collector requires>
 ```
 
-To verify locally without an OTLP endpoint or credentials, also set `OTEL_DEBUG_CONSOLE=true`
-to print spans and metrics to stdout instead of (or in addition to) exporting them.
+To verify locally without a real collector, set `OTEL_DEBUG_CONSOLE=true` to print spans and
+metrics to stdout **instead of** exporting them. This only produces output for a **serial** run
+with `-s`:
+```
+pytest -s tests/integration/<some module>
+```
+It does not work under pytest's default output capture (the console exporters flush after
+pytest has already closed the captured stream) and it does not work under `-n` (each
+pytest-xdist worker's stdout goes through `execnet` and is discarded, even with `-s`) — so it
+cannot be used to verify the `-n 4 --dist loadscope` recipe below. For parallel verification, use
+a real collector (`OTEL_EXPORTER_OTLP_ENDPOINT` / `OTEL_EXPORTER_OTLP_HEADERS`, no
+`OTEL_DEBUG_CONSOLE`) and check the data landed there.
+
+A rejected export (e.g. malformed `OTEL_EXPORTER_OTLP_HEADERS`) does not fail the run on its
+own — the exporter logs the error and pytest exits 0 regardless, so a run can finish "green"
+having recorded nothing. `tests/integration/conftest.py` guards against this: it captures OTLP
+export-rejection log records for the session (forwarding a worker's via `workeroutput` under
+`-n` so the controller sees them too) and fails the session (non-zero exit, plus a terminal
+summary line naming the rejection) if any export was rejected. Trust that exit code, not the
+`passed`/`failed` count, to know whether telemetry was actually accepted.
 
 For a measurement run, set `SYNAPSE_TEST_RUN_LABEL` to a value that identifies the run (e.g. a
 ticket number or date) so its data points can be grouped and compared against other runs; each
@@ -237,8 +255,8 @@ pytest-xdist worker gets its own `service.instance.id` so counts are not double-
 workers. Keep `--reruns 3` for measurement runs, same as any other run.
 
 The two metric instruments to query are `synapse.async_job.submissions` /
-`synapse.async_job.duration` (async-job load) and `synapse.file_handle.uploads` /
-`synapse.file_handle.upload.duration` (file-handle upload load).
+`synapse.async_job.duration` (async-job load, with `request_type` and `outcome` attributes) and
+`synapse.file_handle.uploads` / `synapse.file_handle.upload.duration` (file-handle upload load).
 
 When integration tests are run in the GitHub CI/CD pipeline it will upload the trace and metric
 data automatically using OTLP.
