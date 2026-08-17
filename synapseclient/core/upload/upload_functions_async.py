@@ -79,6 +79,7 @@ async def upload_file_handle(
         span = trace.get_current_span()
         span.set_attribute("synapse.transfer.direction", "upload")
         span.set_attribute("synapse.operation.category", "file_transfer")
+        span.set_attribute("synapse.file_handle.external", not synapse_store)
 
         # if doing a external file handle with no actual upload
         if not synapse_store:
