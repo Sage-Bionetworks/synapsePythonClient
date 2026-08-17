@@ -25,6 +25,7 @@ from typing import Any, Dict, List, Optional, Sequence, Set, Tuple
 SIGNOZ_QUERY_BASE_URL = "https://sagebionetworks.us.signoz.cloud"
 QUERY_RANGE_PATH = "/api/v5/query_range"
 LOOKBACK_SECONDS = 30 * 24 * 3600  # 30 days is comfortably wider than any run
+PAGE_LIMIT = 1000  # SigNoz's own maximum rows per raw-trace page
 
 # Root spans (parent_span_id == "") that are not a test execution: httpx's
 # auto-instrumented client spans (named after the HTTP method) and the two
@@ -40,6 +41,7 @@ _NON_TEST_ROOT_SPAN_NAMES = {
     "OPTIONS",
     "synapse.async_job",
     "synapse.transfer.upload",
+    "Synapse::_waitForAsync",
 }
 
 
@@ -81,6 +83,12 @@ def _metric_group_values(
     counters, and summing over time inflates the total (measured: 84 becomes
     416 for a single flat run). `"latest"` reads the last reported cumulative
     value per series before summing across series.
+
+    `reduceTo` must be `"max"` for the same reason. SigNoz splits the query
+    window into step intervals, and `reduceTo: "sum"` adds up each step's
+    already-cumulative value: a run spanning two steps reports exactly twice
+    its real total (measured: 487 async-job submissions read as 954). `"max"`
+    takes the largest per-step cumulative value, which is the final one.
     """
     start_ns, end_ns = _time_range_ns()
     payload = {
@@ -100,7 +108,7 @@ def _metric_group_values(
                                 "metricName": metric_name,
                                 "timeAggregation": "latest",
                                 "spaceAggregation": "sum",
-                                "reduceTo": "sum",
+                                "reduceTo": "max",
                             }
                         ],
                         "filter": {"expression": f"run.label = '{label}'"},
@@ -121,20 +129,26 @@ def _raw_trace_rows(
     api_key: str,
     dump_raw: Optional[List[Dict[str, Any]]] = None,
 ) -> List[Dict[str, Any]]:
-    """Fetch every row matching a raw trace query, following `nextCursor`."""
+    """Fetch every row matching a raw trace query, paging by `offset`.
+
+    `nextCursor` is not usable for this: the v5 raw endpoint returns it empty
+    even when the page is full and more rows exist, so trusting it truncates
+    silently at one page (measured: 1000 of 1054 root spans, which pushed
+    genuinely attributable spans into the unattributed bucket). A full page is
+    the only signal that there is more to fetch.
+    """
     start_ns, end_ns = _time_range_ns()
     rows: List[Dict[str, Any]] = []
-    cursor = None
+    offset = 0
     while True:
         spec: Dict[str, Any] = {
             "name": "A",
             "signal": "traces",
             "selectFields": [{"name": field} for field in select_fields],
             "filter": {"expression": filter_expression},
-            "limit": 1000,
+            "limit": PAGE_LIMIT,
+            "offset": offset,
         }
-        if cursor:
-            spec["cursor"] = cursor
         payload = {
             "schemaVersion": "v1",
             "start": start_ns,
@@ -148,9 +162,9 @@ def _raw_trace_rows(
         result = response["data"]["data"]["results"][0]
         page_rows = result.get("rows") or []
         rows.extend(row["data"] for row in page_rows)
-        cursor = result.get("nextCursor")
-        if not cursor:
+        if len(page_rows) < PAGE_LIMIT:
             break
+        offset += PAGE_LIMIT
     return rows
 
 

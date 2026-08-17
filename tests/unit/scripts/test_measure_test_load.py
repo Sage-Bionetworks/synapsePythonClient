@@ -193,6 +193,81 @@ class TestClassify:
         assert rows["t"]["dominator"] is None
 
 
+def _raw_response(rows: list, next_cursor: str = "") -> dict:
+    return {
+        "data": {
+            "data": {
+                "results": [
+                    {"rows": [{"data": row} for row in rows], "nextCursor": next_cursor}
+                ]
+            }
+        }
+    }
+
+
+class TestPaging:
+    def test_full_page_is_followed_even_when_next_cursor_is_empty(
+        self, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        monkeypatch.setattr(measure_test_load, "PAGE_LIMIT", 2)
+        pages = [
+            _raw_response([{"trace_id": "t1"}, {"trace_id": "t2"}]),
+            _raw_response([{"trace_id": "t3"}]),
+        ]
+        offsets = []
+
+        def fake_query_range(payload, api_key):
+            spec = payload["compositeQuery"]["queries"][0]["spec"]
+            offsets.append(spec["offset"])
+            return pages[len(offsets) - 1]
+
+        monkeypatch.setattr(measure_test_load, "_query_range", fake_query_range)
+
+        rows = measure_test_load._raw_trace_rows("run.label = 'x'", ["trace_id"], "key")
+
+        assert [row["trace_id"] for row in rows] == ["t1", "t2", "t3"]
+        assert offsets == [0, 2]
+
+    def test_short_page_ends_the_walk(self, monkeypatch: pytest.MonkeyPatch) -> None:
+        monkeypatch.setattr(measure_test_load, "PAGE_LIMIT", 2)
+        calls = []
+
+        def fake_query_range(payload, api_key):
+            calls.append(payload)
+            return _raw_response([{"trace_id": "t1"}])
+
+        monkeypatch.setattr(measure_test_load, "_query_range", fake_query_range)
+
+        rows = measure_test_load._raw_trace_rows("run.label = 'x'", ["trace_id"], "key")
+
+        assert len(rows) == 1
+        assert len(calls) == 1
+
+
+class TestMetricAggregation:
+    def test_cumulative_counter_is_reduced_by_max_not_sum(
+        self, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        captured = {}
+
+        def fake_query_range(payload, api_key):
+            captured["payload"] = payload
+            return {"data": {"data": {"results": [{"data": [["a", 3]]}]}}}
+
+        monkeypatch.setattr(measure_test_load, "_query_range", fake_query_range)
+
+        values = measure_test_load._metric_group_values(
+            "synapse.async_job.submissions", "some-label", "request_type", "key"
+        )
+
+        aggregation = captured["payload"]["compositeQuery"]["queries"][0]["spec"][
+            "aggregations"
+        ][0]
+        assert aggregation["reduceTo"] == "max"
+        assert aggregation["timeAggregation"] == "latest"
+        assert values == [("a", 3)]
+
+
 class TestCli:
     def test_help_exits_zero_without_signoz_api_key(
         self, monkeypatch: pytest.MonkeyPatch
