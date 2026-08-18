@@ -407,13 +407,31 @@ class TestProjectCopySync:
                     assert sub_file.name is not None
                     assert sub_file.parent_id == folder.id
 
-    async def test_copy_project_variations(self) -> None:
+    @pytest.fixture(scope="class")
+    async def shared_nested_project(
+        self, syn: Synapse, schedule_for_cleanup: Callable[..., None]
+    ) -> Project:
+        """
+        Built once for the whole class rather than once per test:
+        `test_copy_project_variations` and `test_sync_from_synapse` both need a
+        stored project with the same nested files/folders/annotations shape.
+        Copying only reads from the source project. Syncing repopulates the
+        source project's local `files`/`folders`/`annotations` from Synapse with
+        equivalent values, and only `test_sync_from_synapse` (which runs after
+        `test_copy_project_variations` in this class) does that.
+        """
+        self.syn = syn
+        self.schedule_for_cleanup = schedule_for_cleanup
+        project = self.create_nested_project()
+        stored_project = await project.store_async(synapse_client=syn)
+        schedule_for_cleanup(stored_project.id)
+        return stored_project
+
+    async def test_copy_project_variations(
+        self, shared_nested_project: Project
+    ) -> None:
         # GIVEN a nested source project and a destination project
-        source_project = self.create_nested_project()
-        stored_source_project = await source_project.store_async(
-            synapse_client=self.syn
-        )
-        self.schedule_for_cleanup(stored_source_project.id)
+        stored_source_project = shared_nested_project
 
         # Test Case 1: Copy project with all contents
         # Create first destination project
@@ -456,15 +474,13 @@ class TestProjectCopySync:
             copied_project_no_files, stored_source_project, expected_files_empty=True
         )
 
-    async def test_sync_from_synapse(self, file: File) -> None:
+    async def test_sync_from_synapse(
+        self, file: File, shared_nested_project: Project
+    ) -> None:
         # GIVEN a nested project structure
         root_directory_path = os.path.dirname(file.path)
 
-        project = self.create_nested_project()
-
-        # WHEN I store the Project on Synapse
-        stored_project = await project.store_async(synapse_client=self.syn)
-        self.schedule_for_cleanup(project.id)
+        stored_project = shared_nested_project
 
         # AND I sync the project from Synapse
         copied_project = await stored_project.sync_from_synapse_async(
