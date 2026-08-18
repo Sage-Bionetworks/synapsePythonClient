@@ -82,21 +82,10 @@ class TestGetEvaluation:
         self.syn = syn
         self.schedule_for_cleanup = schedule_for_cleanup
 
-    @pytest.fixture(scope="class")
-    async def test_project(
-        self, syn: Synapse, schedule_for_cleanup: Callable[..., None]
-    ) -> Project:
-        """Create a test project for evaluation tests."""
-        project = await Project(name=f"test_project_{uuid.uuid4()}").store_async(
-            synapse_client=syn
-        )
-        schedule_for_cleanup(project.id)
-        return project
-
     @pytest.fixture(scope="function")
     async def test_evaluation(
         self,
-        test_project: Project,
+        project_model: Project,
         syn: Synapse,
         schedule_for_cleanup: Callable[..., None],
     ) -> Evaluation:
@@ -104,7 +93,7 @@ class TestGetEvaluation:
         evaluation = Evaluation(
             name=f"test_evaluation_{uuid.uuid4()}",
             description="A test evaluation for get tests",
-            content_source=test_project.id,
+            content_source=project_model.id,
             submission_instructions_message="Please submit your results",
             submission_receipt_message="Thank you!",
         )
@@ -115,7 +104,7 @@ class TestGetEvaluation:
     @pytest.fixture(scope="function")
     async def multiple_evaluations(
         self,
-        test_project: Project,
+        project_model: Project,
         syn: Synapse,
         schedule_for_cleanup: Callable[..., None],
     ) -> list[Evaluation]:
@@ -125,7 +114,7 @@ class TestGetEvaluation:
             evaluation = Evaluation(
                 name=f"test_evaluation_{i}_{uuid.uuid4()}",
                 description=f"Test evaluation {i}",
-                content_source=test_project.id,
+                content_source=project_model.id,
                 submission_instructions_message="Please submit your results",
                 submission_receipt_message="Thank you!",
             )
@@ -135,7 +124,7 @@ class TestGetEvaluation:
         return evaluations
 
     async def test_get_evaluation_by_id(
-        self, test_evaluation: Evaluation, test_project: Project
+        self, test_evaluation: Evaluation, project_model: Project
     ):
         # WHEN I get an evaluation by id using the dataclass method
         retrieved_evaluation = await Evaluation(id=test_evaluation.id).get_async(
@@ -147,14 +136,14 @@ class TestGetEvaluation:
         assert retrieved_evaluation.etag is not None  # Check that etag is set
         assert retrieved_evaluation.name == test_evaluation.name
         assert retrieved_evaluation.description == test_evaluation.description
-        assert retrieved_evaluation.content_source == test_project.id
+        assert retrieved_evaluation.content_source == project_model.id
         assert retrieved_evaluation.owner_id is not None  # Check that owner_id is set
         assert (
             retrieved_evaluation.created_on is not None
         )  # Check that created_on is set
 
     async def test_get_evaluation_by_name(
-        self, test_evaluation: Evaluation, test_project: Project
+        self, test_evaluation: Evaluation, project_model: Project
     ):
         # WHEN I get an evaluation by name using the dataclass method
         retrieved_evaluation = await Evaluation(name=test_evaluation.name).get_async(
@@ -166,7 +155,7 @@ class TestGetEvaluation:
         assert retrieved_evaluation.etag is not None  # Check that etag is set
         assert retrieved_evaluation.name == test_evaluation.name
         assert retrieved_evaluation.description == test_evaluation.description
-        assert retrieved_evaluation.content_source == test_project.id
+        assert retrieved_evaluation.content_source == project_model.id
         assert retrieved_evaluation.owner_id is not None  # Check that owner_id is set
         assert (
             retrieved_evaluation.created_on is not None
@@ -216,11 +205,11 @@ class TestGetEvaluation:
         assert len(evaluations) >= len(multiple_evaluations)
 
     async def test_get_evaluations_by_project(
-        self, test_project: Project, multiple_evaluations: list[Evaluation]
+        self, project_model: Project, multiple_evaluations: list[Evaluation]
     ):
         # WHEN a call is made to get evaluations by project
         evaluations = await Evaluation.get_evaluations_by_project_async(
-            project_id=test_project.id, synapse_client=self.syn
+            project_id=project_model.id, synapse_client=self.syn
         )
 
         # THEN the evaluations should be retrieved
@@ -229,7 +218,7 @@ class TestGetEvaluation:
 
         # AND all returned evaluations belong to the test project
         for evaluation in evaluations:
-            assert evaluation.content_source == test_project.id
+            assert evaluation.content_source == project_model.id
 
 
 class TestStoreEvaluation:
@@ -238,21 +227,10 @@ class TestStoreEvaluation:
         self.syn = syn
         self.schedule_for_cleanup = schedule_for_cleanup
 
-    @pytest.fixture(scope="class")
-    async def test_project(
-        self, syn: Synapse, schedule_for_cleanup: Callable[..., None]
-    ) -> Project:
-        """Create a test project for evaluation tests."""
-        project = await Project(name=f"test_project_{uuid.uuid4()}").store_async(
-            synapse_client=syn
-        )
-        schedule_for_cleanup(project.id)
-        return project
-
     @pytest.fixture(scope="function")
     async def test_evaluation(
         self,
-        test_project: Project,
+        project_model: Project,
         syn: Synapse,
         schedule_for_cleanup: Callable[..., None],
     ) -> Evaluation:
@@ -260,7 +238,7 @@ class TestStoreEvaluation:
         evaluation = Evaluation(
             name=f"test_evaluation_{uuid.uuid4()}",
             description="A test evaluation for update tests",
-            content_source=test_project.id,
+            content_source=project_model.id,
             submission_instructions_message="Please submit your results",
             submission_receipt_message="Thank you!",
         )
@@ -369,21 +347,10 @@ class TestDeleteEvaluation:
         self.syn = syn
         self.schedule_for_cleanup = schedule_for_cleanup
 
-    @pytest.fixture(scope="class")
-    async def test_project(
-        self, syn: Synapse, schedule_for_cleanup: Callable[..., None]
-    ) -> Project:
-        """Create a test project for evaluation tests."""
-        project = await Project(name=f"test_project_{uuid.uuid4()}").store_async(
-            synapse_client=syn
-        )
-        schedule_for_cleanup(project.id)
-        return project
-
     @pytest.fixture(scope="function")
     async def test_evaluation(
         self,
-        test_project: Project,
+        project_model: Project,
         syn: Synapse,
         schedule_for_cleanup: Callable[..., None],
     ) -> Evaluation:
@@ -391,7 +358,7 @@ class TestDeleteEvaluation:
         evaluation = Evaluation(
             name=f"test_evaluation_{uuid.uuid4()}",
             description="A test evaluation for delete tests",
-            content_source=test_project.id,
+            content_source=project_model.id,
             submission_instructions_message="Please submit your results",
             submission_receipt_message="Thank you!",
         )
@@ -414,21 +381,10 @@ class TestEvaluationAccess:
         self.syn = syn
         self.schedule_for_cleanup = schedule_for_cleanup
 
-    @pytest.fixture(scope="class")
-    async def test_project(
-        self, syn: Synapse, schedule_for_cleanup: Callable[..., None]
-    ) -> Project:
-        """Create a test project for evaluation tests."""
-        project = await Project(name=f"test_project_{uuid.uuid4()}").store_async(
-            synapse_client=syn
-        )
-        schedule_for_cleanup(project.id)
-        return project
-
     @pytest.fixture(scope="function")
     async def test_evaluation(
         self,
-        test_project: Project,
+        project_model: Project,
         syn: Synapse,
         schedule_for_cleanup: Callable[..., None],
     ) -> Evaluation:
@@ -436,7 +392,7 @@ class TestEvaluationAccess:
         evaluation = Evaluation(
             name=f"test_evaluation_{uuid.uuid4()}",
             description="A test evaluation for access tests",
-            content_source=test_project.id,
+            content_source=project_model.id,
             submission_instructions_message="Please submit your results",
             submission_receipt_message="Thank you!",
         )
