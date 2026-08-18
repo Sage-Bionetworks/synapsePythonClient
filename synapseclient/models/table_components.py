@@ -265,17 +265,42 @@ class UploadToTableRequest(TableUpdateRequest):
     """
 
     table_id: str
+    """The Synapse ID of the table that the rows of the uploaded CSV are applied to.
+    This is the only field that Synapse reads to resolve the target of the upload, and
+    it is required. Set it to the same entity as the enclosing TableUpdateTransaction.
+    Synapse does not check the two against each other, so a different value here sends
+    the rows to a different table than the one the transaction names."""
+
     upload_file_handle_id: str
+    """The ID of the file handle of the CSV that holds the rows to apply. Upload the CSV
+    to Synapse first, with multipart_upload_file_async, and pass the file handle ID that
+    it returns."""
+
     update_etag: str
+    """The etag of the change set that this update is applied to. Every RowSet that
+    Synapse returns carries the current etag of its change set, and that etag must be
+    given back to update the rows of that set. Leave this as None when the CSV only adds
+    rows."""
+
     lines_to_skip: int = 0
+    """The number of lines to skip from the start of the file before the rows are read.
+    The default of 0 reads the file from its first line."""
+
     csv_table_descriptor: CsvTableDescriptor = field(default_factory=CsvTableDescriptor)
+    """The separator, quote character, escape character, line end, and header flag that
+    describe the uploaded CSV. The default describes a comma separated file whose first
+    line is a header."""
+
     concrete_type: str = concrete_types.UPLOAD_TO_TABLE_REQUEST
+    """The concrete type that identifies this change to Synapse. Leave this as the
+    default."""
 
     @property
     def entity_id(self) -> str:
         """The Synapse ID of the entity that this change is applied to. This request
         names that entity table_id, and this property gives it the name that every
-        other change within a transaction uses."""
+        other change within a transaction uses. This is read only, because Synapse
+        resolves the target of an upload from table_id alone."""
         return self.table_id
 
     def to_synapse_request(self):
