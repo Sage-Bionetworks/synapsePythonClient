@@ -3,7 +3,7 @@
 import asyncio
 import logging
 import uuid
-from typing import Callable, Dict, List, Optional, Type, Union
+from typing import Callable, Dict, List, Optional, Tuple, Type, Union
 
 import pytest
 
@@ -1571,12 +1571,37 @@ class TestDeletePermissions:
             *[self._verify_permissions_deleted(entity) for entity in entities_to_verify]
         )
 
+    @pytest.fixture(scope="class")
+    async def shared_complex_mixed_structure(
+        self, syn: Synapse, schedule_for_cleanup: Callable[..., None]
+    ) -> Tuple[Project, Dict[str, Union[Folder, File, List]]]:
+        """
+        Built once for the whole class rather than once per test: the five
+        `test_delete_permissions_*` tests below each assert a different
+        `delete_permissions_async` behavior against this structure, but each
+        re-sets the permissions it verifies immediately before verifying, so
+        they don't depend on which of them ran first. Repeating the 7 file
+        uploads inside `create_complex_mixed_structure` for every test bought
+        no additional coverage.
+        """
+        self.syn = syn
+        self.schedule_for_cleanup = schedule_for_cleanup
+        project = await Project(
+            name=f"integration_test_project_{uuid.uuid4()}"
+        ).store_async(synapse_client=syn)
+        schedule_for_cleanup(project.id)
+        return project, await self.create_complex_mixed_structure(project)
+
     async def test_delete_permissions_complex_mixed_structure(
-        self, stored_project: Project, caplog: pytest.LogCaptureFixture
+        self,
+        shared_complex_mixed_structure: Tuple[
+            Project, Dict[str, Union[Folder, File, List]]
+        ],
+        caplog: pytest.LogCaptureFixture,
     ) -> None:
         """Test deleting permissions on a complex mixed structure."""
         # GIVEN a complex mixed structure with permissions
-        structure = await self.create_complex_mixed_structure(stored_project)
+        project, structure = shared_complex_mixed_structure
 
         # Set permissions on all entities
         entities_to_set = (
@@ -1600,7 +1625,7 @@ class TestDeletePermissions:
 
         # WHEN - Verify list_acl_functionality before deletion
         await self._verify_list_acl_functionality(
-            entity=stored_project,
+            entity=project,
             expected_entity_count=12,  # complex structure with multiple entities
             recursive=True,
             include_container_content=True,
@@ -1612,7 +1637,7 @@ class TestDeletePermissions:
         caplog.clear()
 
         # WHEN I delete permissions recursively from the project
-        await stored_project.delete_permissions_async(
+        await project.delete_permissions_async(
             recursive=True,
             include_container_content=True,
             dry_run=False,
@@ -1767,11 +1792,15 @@ class TestDeletePermissions:
         )
 
     async def test_delete_permissions_target_files_only_complex(
-        self, stored_project: Project, caplog: pytest.LogCaptureFixture
+        self,
+        shared_complex_mixed_structure: Tuple[
+            Project, Dict[str, Union[Folder, File, List]]
+        ],
+        caplog: pytest.LogCaptureFixture,
     ) -> None:
         """Test deleting permissions targeting only files in a complex structure."""
         # GIVEN a complex structure with permissions
-        structure = await self.create_complex_mixed_structure(stored_project)
+        project, structure = shared_complex_mixed_structure
 
         # Set permissions on all entities
         await asyncio.gather(
@@ -1785,7 +1814,7 @@ class TestDeletePermissions:
 
         # WHEN - Verify list_acl_async with target_entity_types for files only
         await self._verify_list_acl_functionality(
-            entity=stored_project,
+            entity=project,
             expected_entity_count=4,  # shallow_file + 3 deep_files
             recursive=True,
             include_container_content=True,
@@ -1798,7 +1827,7 @@ class TestDeletePermissions:
         caplog.clear()
 
         # WHEN I delete permissions targeting only files
-        await stored_project.delete_permissions_async(
+        await project.delete_permissions_async(
             recursive=True,
             include_container_content=True,
             target_entity_types=["file"],
@@ -1875,11 +1904,15 @@ class TestDeletePermissions:
         )
 
     async def test_delete_permissions_skip_self_complex_structure(
-        self, stored_project: Project, caplog: pytest.LogCaptureFixture
+        self,
+        shared_complex_mixed_structure: Tuple[
+            Project, Dict[str, Union[Folder, File, List]]
+        ],
+        caplog: pytest.LogCaptureFixture,
     ) -> None:
         """Test include_self=False on a complex structure."""
         # GIVEN a complex mixed structure with permissions
-        structure = await self.create_complex_mixed_structure(stored_project)
+        _, structure = shared_complex_mixed_structure
 
         # Set permissions on all entities
         await asyncio.gather(
@@ -1998,11 +2031,15 @@ class TestDeletePermissions:
         )
 
     async def test_delete_permissions_dry_run_complex_logging(
-        self, stored_project: Project, caplog: pytest.LogCaptureFixture
+        self,
+        shared_complex_mixed_structure: Tuple[
+            Project, Dict[str, Union[Folder, File, List]]
+        ],
+        caplog: pytest.LogCaptureFixture,
     ) -> None:
         """Test dry run logging for complex structures."""
         # GIVEN a complex structure with permissions
-        structure = await self.create_complex_mixed_structure(stored_project)
+        _, structure = shared_complex_mixed_structure
 
         # Set permissions on a subset of entities
         await asyncio.gather(
@@ -2282,11 +2319,15 @@ class TestDeletePermissions:
         )
 
     async def test_delete_permissions_mixed_entity_types_in_structure(
-        self, stored_project: Project, caplog: pytest.LogCaptureFixture
+        self,
+        shared_complex_mixed_structure: Tuple[
+            Project, Dict[str, Union[Folder, File, List]]
+        ],
+        caplog: pytest.LogCaptureFixture,
     ) -> None:
         """Test deleting permissions with mixed entity types in complex structure."""
         # GIVEN a structure with both files and folders at multiple levels
-        structure = await self.create_complex_mixed_structure(stored_project)
+        project, structure = shared_complex_mixed_structure
 
         # Set permissions on a mix of entities
         await asyncio.gather(
@@ -2300,7 +2341,7 @@ class TestDeletePermissions:
 
         # WHEN - Verify list_acl_async with mixed entity types
         await self._verify_list_acl_functionality(
-            entity=stored_project,
+            entity=project,
             expected_entity_count=5,  # All the entities we set permissions on
             recursive=True,
             include_container_content=True,
@@ -2313,7 +2354,7 @@ class TestDeletePermissions:
         caplog.clear()
 
         # WHEN I delete permissions targeting both files and folders
-        await stored_project.delete_permissions_async(
+        await project.delete_permissions_async(
             recursive=True,
             include_container_content=True,
             target_entity_types=["file", "folder"],
@@ -2549,11 +2590,32 @@ class TestAllEntityTypesPermissions:
         await asyncio.sleep(2)
         return entities
 
-    async def test_list_acl_async_all_entity_types(self) -> None:
+    @pytest.fixture(scope="class")
+    async def shared_entities_with_acl(
+        self, syn: Synapse, schedule_for_cleanup: Callable[..., None]
+    ) -> Dict[str, any]:
+        """
+        Built once for the class: `test_list_acl_async_all_entity_types`,
+        `test_list_acl_async_specific_entity_types`, and
+        `test_delete_permissions_async_all_entity_types` below only read ACLs or
+        run `delete_permissions_async` with `dry_run=True`, so none of them mutates
+        this structure's permissions. The two `..._actual_deletion` tests below
+        are NOT given this fixture: each removes the local ACLs it just verified
+        were present, which would corrupt the "before" assertions of any test
+        sharing the same structure that ran afterward, so they keep their own
+        fresh entities.
+        """
+        self.syn = syn
+        self.schedule_for_cleanup = schedule_for_cleanup
+        project = Project(name=f"test_project_{uuid.uuid4()}")
+        return await self.create_all_entity_types_with_acl(project)
+
+    async def test_list_acl_async_all_entity_types(
+        self, shared_entities_with_acl: Dict[str, any]
+    ) -> None:
         """Test list_acl_async functionality with all supported entity types."""
         # GIVEN a project with all supported entity types and local ACL permissions
-        project = Project(name=f"test_project_{uuid.uuid4()}")
-        entities = await self.create_all_entity_types_with_acl(project)
+        entities = shared_entities_with_acl
 
         # WHEN I call list_acl_async on the project with all entity types
         result = await entities["project"].list_acl_async(
@@ -2612,11 +2674,12 @@ class TestAllEntityTypesPermissions:
                     entity.id in entities_with_read_permissions
                 ), f"Entity {entity.id} ({entity_type}) should appear in AclListResult with READ permissions"
 
-    async def test_list_acl_async_specific_entity_types(self) -> None:
+    async def test_list_acl_async_specific_entity_types(
+        self, shared_entities_with_acl: Dict[str, any]
+    ) -> None:
         """Test list_acl_async functionality with specific entity types."""
         # GIVEN a project with all supported entity types
-        project = Project(name=f"test_project_{uuid.uuid4()}")
-        entities = await self.create_all_entity_types_with_acl(project)
+        entities = shared_entities_with_acl
 
         # WHEN I call list_acl_async with only table-related entity types
         result = await entities["project"].list_acl_async(
@@ -2712,11 +2775,12 @@ class TestAllEntityTypesPermissions:
                     has_read_permission
                 ), f"Entity {entity_id} should have READ permissions for AUTHENTICATED_USERS"
 
-    async def test_delete_permissions_async_all_entity_types(self) -> None:
+    async def test_delete_permissions_async_all_entity_types(
+        self, shared_entities_with_acl: Dict[str, any]
+    ) -> None:
         """Test delete_permissions_async functionality with all supported entity types."""
         # GIVEN a project with all supported entity types and local ACL permissions
-        project = Project(name=f"test_project_{uuid.uuid4()}")
-        entities = await self.create_all_entity_types_with_acl(project)
+        entities = shared_entities_with_acl
 
         # AND I verify AUTHENTICATED_USERS has READ permissions before deletion
         for entity_type, entity in entities.items():
