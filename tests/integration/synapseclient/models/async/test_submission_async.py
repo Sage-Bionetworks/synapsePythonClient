@@ -11,46 +11,40 @@ from synapseclient.core.exceptions import SynapseHTTPError
 from synapseclient.models import Evaluation, File, Project, Submission
 
 
+@pytest_asyncio.fixture(scope="module")
+async def test_evaluation(
+    project_model: Project,
+    syn: Synapse,
+    schedule_for_cleanup: Callable[..., None],
+) -> Evaluation:
+    """
+    Create a test evaluation shared by the classes in this module that need
+    one: none of them mutate the Evaluation itself, only the Submission
+    objects created against it, so one evaluation on the existing shared
+    project_model is safe for the whole file.
+    """
+    evaluation = Evaluation(
+        name=f"test_evaluation_{uuid.uuid4()}",
+        description="A test evaluation for submission tests",
+        content_source=project_model.id,
+        submission_instructions_message="Please submit your results",
+        submission_receipt_message="Thank you!",
+    )
+    created_evaluation = await evaluation.store_async(synapse_client=syn)
+    schedule_for_cleanup(created_evaluation.id)
+    return created_evaluation
+
+
 class TestSubmissionCreationAsync:
     @pytest.fixture(autouse=True, scope="function")
     def init(self, syn: Synapse, schedule_for_cleanup: Callable[..., None]) -> None:
         self.syn = syn
         self.schedule_for_cleanup = schedule_for_cleanup
 
-    @pytest_asyncio.fixture(scope="class")
-    async def test_project(
-        self, syn: Synapse, schedule_for_cleanup: Callable[..., None]
-    ) -> Project:
-        """Create a test project for submission tests."""
-        project = await Project(name=f"test_project_{uuid.uuid4()}").store_async(
-            synapse_client=syn
-        )
-        schedule_for_cleanup(project.id)
-        return project
-
-    @pytest_asyncio.fixture(scope="class")
-    async def test_evaluation(
-        self,
-        test_project: Project,
-        syn: Synapse,
-        schedule_for_cleanup: Callable[..., None],
-    ) -> Evaluation:
-        """Create a test evaluation for submission tests."""
-        evaluation = Evaluation(
-            name=f"test_evaluation_{uuid.uuid4()}",
-            description="A test evaluation for submission tests",
-            content_source=test_project.id,
-            submission_instructions_message="Please submit your results",
-            submission_receipt_message="Thank you!",
-        )
-        created_evaluation = await evaluation.store_async(synapse_client=syn)
-        schedule_for_cleanup(created_evaluation.id)
-        return created_evaluation
-
     @pytest_asyncio.fixture(scope="function")
     async def test_file(
         self,
-        test_project: Project,
+        project_model: Project,
         syn: Synapse,
         schedule_for_cleanup: Callable[..., None],
     ) -> File:
@@ -62,7 +56,7 @@ class TestSubmissionCreationAsync:
             external_url=f"https://example.com/bogus-file-{uuid.uuid4()}.txt",
             synapse_store=False,
             name=f"test_file_{uuid.uuid4()}.txt",
-            parent_id=test_project.id,
+            parent_id=project_model.id,
         ).store_async(synapse_client=syn)
         schedule_for_cleanup(file.id)
         return file
@@ -90,14 +84,14 @@ class TestSubmissionCreationAsync:
 
     async def test_store_submission_to_evaluation_without_message_fields_async(
         self,
-        test_project: Project,
+        project_model: Project,
         test_file: File,
     ):
         # GIVEN an evaluation created without submission_instructions_message or submission_receipt_message
         evaluation = Evaluation(
             name=f"test_evaluation_{uuid.uuid4()}",
             description="Evaluation without optional message fields",
-            content_source=test_project.id,
+            content_source=project_model.id,
         )
         created_evaluation = await evaluation.store_async(synapse_client=self.syn)
         self.schedule_for_cleanup(created_evaluation.id)
@@ -155,63 +149,26 @@ class TestSubmissionRetrievalAsync:
         self.syn = syn
         self.schedule_for_cleanup = schedule_for_cleanup
 
-    @pytest_asyncio.fixture(scope="class")
-    async def test_project(
-        self, syn: Synapse, schedule_for_cleanup: Callable[..., None]
-    ) -> Project:
-        """Create a test project for submission tests."""
-        project = await Project(name=f"test_project_{uuid.uuid4()}").store_async(
-            synapse_client=syn
-        )
-        schedule_for_cleanup(project.id)
-        return project
-
-    @pytest_asyncio.fixture(scope="class")
-    async def test_evaluation(
-        self,
-        test_project: Project,
-        syn: Synapse,
-        schedule_for_cleanup: Callable[..., None],
-    ) -> Evaluation:
-        """Create a test evaluation for submission tests."""
-        evaluation = Evaluation(
-            name=f"test_evaluation_{uuid.uuid4()}",
-            description="A test evaluation for submission tests",
-            content_source=test_project.id,
-            submission_instructions_message="Please submit your results",
-            submission_receipt_message="Thank you!",
-        )
-        created_evaluation = await evaluation.store_async(synapse_client=syn)
-        schedule_for_cleanup(created_evaluation.id)
-        return created_evaluation
-
     @pytest_asyncio.fixture(scope="function")
     async def test_file(
         self,
-        test_project: Project,
+        project_model: Project,
         syn: Synapse,
         schedule_for_cleanup: Callable[..., None],
     ) -> File:
-        """Create a test file for submission tests."""
-        import os
-        import tempfile
-
-        with tempfile.NamedTemporaryFile(
-            mode="w", delete=False, suffix=".txt"
-        ) as temp_file:
-            temp_file.write("This is test content for submission testing.")
-            temp_file_path = temp_file.name
-
-        try:
-            file = await File(
-                path=temp_file_path,
-                name=f"test_file_{uuid.uuid4()}.txt",
-                parent_id=test_project.id,
-            ).store_async(synapse_client=syn)
-            schedule_for_cleanup(file.id)
-            return file
-        finally:
-            os.unlink(temp_file_path)
+        """
+        Create a test file for submission tests. None of these tests
+        assert on file content, so an external_url file handle avoids a
+        real upload.
+        """
+        file = await File(
+            external_url=f"https://example.com/bogus-file-{uuid.uuid4()}.txt",
+            synapse_store=False,
+            name=f"test_file_{uuid.uuid4()}.txt",
+            parent_id=project_model.id,
+        ).store_async(synapse_client=syn)
+        schedule_for_cleanup(file.id)
+        return file
 
     @pytest_asyncio.fixture(scope="function")
     async def test_submission(
@@ -329,63 +286,26 @@ class TestSubmissionDeletionAsync:
         self.syn = syn
         self.schedule_for_cleanup = schedule_for_cleanup
 
-    @pytest_asyncio.fixture(scope="class")
-    async def test_project(
-        self, syn: Synapse, schedule_for_cleanup: Callable[..., None]
-    ) -> Project:
-        """Create a test project for submission tests."""
-        project = await Project(name=f"test_project_{uuid.uuid4()}").store_async(
-            synapse_client=syn
-        )
-        schedule_for_cleanup(project.id)
-        return project
-
-    @pytest_asyncio.fixture(scope="class")
-    async def test_evaluation(
-        self,
-        test_project: Project,
-        syn: Synapse,
-        schedule_for_cleanup: Callable[..., None],
-    ) -> Evaluation:
-        """Create a test evaluation for submission tests."""
-        evaluation = Evaluation(
-            name=f"test_evaluation_{uuid.uuid4()}",
-            description="A test evaluation for submission tests",
-            content_source=test_project.id,
-            submission_instructions_message="Please submit your results",
-            submission_receipt_message="Thank you!",
-        )
-        created_evaluation = await evaluation.store_async(synapse_client=syn)
-        schedule_for_cleanup(created_evaluation.id)
-        return created_evaluation
-
     @pytest_asyncio.fixture(scope="function")
     async def test_file(
         self,
-        test_project: Project,
+        project_model: Project,
         syn: Synapse,
         schedule_for_cleanup: Callable[..., None],
     ) -> File:
-        """Create a test file for submission tests."""
-        import os
-        import tempfile
-
-        with tempfile.NamedTemporaryFile(
-            mode="w", delete=False, suffix=".txt"
-        ) as temp_file:
-            temp_file.write("This is test content for submission testing.")
-            temp_file_path = temp_file.name
-
-        try:
-            file = await File(
-                path=temp_file_path,
-                name=f"test_file_{uuid.uuid4()}.txt",
-                parent_id=test_project.id,
-            ).store_async(synapse_client=syn)
-            schedule_for_cleanup(file.id)
-            return file
-        finally:
-            os.unlink(temp_file_path)
+        """
+        Create a test file for submission tests. None of these tests
+        assert on file content, so an external_url file handle avoids a
+        real upload.
+        """
+        file = await File(
+            external_url=f"https://example.com/bogus-file-{uuid.uuid4()}.txt",
+            synapse_store=False,
+            name=f"test_file_{uuid.uuid4()}.txt",
+            parent_id=project_model.id,
+        ).store_async(synapse_client=syn)
+        schedule_for_cleanup(file.id)
+        return file
 
     async def test_delete_submission_successfully_async(
         self, test_evaluation: Evaluation, test_file: File
@@ -421,64 +341,6 @@ class TestSubmissionCancelAsync:
     def init(self, syn: Synapse, schedule_for_cleanup: Callable[..., None]) -> None:
         self.syn = syn
         self.schedule_for_cleanup = schedule_for_cleanup
-
-    @pytest_asyncio.fixture(scope="class")
-    async def test_project(
-        self, syn: Synapse, schedule_for_cleanup: Callable[..., None]
-    ) -> Project:
-        """Create a test project for submission tests."""
-        project = await Project(name=f"test_project_{uuid.uuid4()}").store_async(
-            synapse_client=syn
-        )
-        schedule_for_cleanup(project.id)
-        return project
-
-    @pytest_asyncio.fixture(scope="class")
-    async def test_evaluation(
-        self,
-        test_project: Project,
-        syn: Synapse,
-        schedule_for_cleanup: Callable[..., None],
-    ) -> Evaluation:
-        """Create a test evaluation for submission tests."""
-        evaluation = Evaluation(
-            name=f"test_evaluation_{uuid.uuid4()}",
-            description="A test evaluation for submission tests",
-            content_source=test_project.id,
-            submission_instructions_message="Please submit your results",
-            submission_receipt_message="Thank you!",
-        )
-        created_evaluation = await evaluation.store_async(synapse_client=syn)
-        schedule_for_cleanup(created_evaluation.id)
-        return created_evaluation
-
-    @pytest_asyncio.fixture(scope="function")
-    async def test_file(
-        self,
-        test_project: Project,
-        syn: Synapse,
-        schedule_for_cleanup: Callable[..., None],
-    ) -> File:
-        """Create a test file for submission tests."""
-        import os
-        import tempfile
-
-        with tempfile.NamedTemporaryFile(
-            mode="w", delete=False, suffix=".txt"
-        ) as temp_file:
-            temp_file.write("This is test content for submission testing.")
-            temp_file_path = temp_file.name
-
-        try:
-            file = await File(
-                path=temp_file_path,
-                name=f"test_file_{uuid.uuid4()}.txt",
-                parent_id=test_project.id,
-            ).store_async(synapse_client=syn)
-            schedule_for_cleanup(file.id)
-            return file
-        finally:
-            os.unlink(temp_file_path)
 
     async def test_cancel_submission_without_id_async(self):
         # WHEN I try to cancel a submission without an ID using async method
