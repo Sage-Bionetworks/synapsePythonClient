@@ -622,7 +622,7 @@ class TableUpdateResponse(ABC):
     This result is modeled from: <https://rest-docs.synapse.org/rest/org/sagebionetworks/repo/model/table/TableUpdateResponse.html>
     """
 
-    concrete_type: str | None = None
+    concrete_type: str
     """The concrete type of this response, as reported by Synapse."""
 
     @classmethod
@@ -656,7 +656,9 @@ class EntityUpdateResults(TableUpdateResponse):
     This result is modeled from: <https://rest-docs.synapse.org/rest/org/sagebionetworks/repo/model/table/EntityUpdateResults.html>
     """
 
-    concrete_type: str | None = concrete_types.ENTITY_UPDATE_RESULTS
+    concrete_type: str = field(default=concrete_types.ENTITY_UPDATE_RESULTS, init=False)
+    """The concrete type that identifies this change to Synapse. This is always
+    ENTITY_UPDATE_RESULTS and cannot be given to the constructor."""
 
     update_results: list[EntityUpdateResult] | None = None
     """The result of the update for each entity that was included in the change."""
@@ -726,7 +728,11 @@ class RowReferenceSetResults(TableUpdateResponse):
     This result is modeled from: <https://rest-docs.synapse.org/rest/org/sagebionetworks/repo/model/table/RowReferenceSetResults.html>
     """
 
-    concrete_type: str | None = concrete_types.ROW_REFERENCE_SET_RESULTS
+    concrete_type: str = field(
+        default=concrete_types.ROW_REFERENCE_SET_RESULTS, init=False
+    )
+    """The concrete type that identifies this change to Synapse. This is always
+    ROW_REFERENCE_SET_RESULTS and cannot be given to the constructor."""
 
     row_reference_set: RowReferenceSet | None = None
     """A reference to each row version that the change created."""
@@ -766,7 +772,11 @@ class UploadToTableResult(TableUpdateResponse):
     This result is modeled from: <https://rest-docs.synapse.org/rest/org/sagebionetworks/repo/model/table/UploadToTableResult.html>
     """
 
-    concrete_type: str | None = concrete_types.UPLOAD_TO_TABLE_RESULT
+    concrete_type: str = field(
+        default=concrete_types.UPLOAD_TO_TABLE_RESULT, init=False
+    )
+    """The concrete type that identifies this change to Synapse. This is always
+    UPLOAD_TO_TABLE_RESULT and cannot be given to the constructor."""
 
     rows_processed: int | None = None
     """The number of rows that were read from the provided file and applied to the
@@ -800,7 +810,11 @@ class TableSchemaChangeResponse(TableUpdateResponse):
     This result is modeled from: <https://rest-docs.synapse.org/rest/org/sagebionetworks/repo/model/table/TableSchemaChangeResponse.html>
     """
 
-    concrete_type: str | None = concrete_types.TABLE_SCHEMA_CHANGE_RESPONSE
+    concrete_type: str = field(
+        default=concrete_types.TABLE_SCHEMA_CHANGE_RESPONSE, init=False
+    )
+    """The concrete type that identifies this change to Synapse. This is always
+    UPLOAD_TO_TABLE_RESULT and cannot be given to the constructor."""
 
     schema: list["Column"] | None = None
     """The resulting schema after the change."""
@@ -829,7 +843,11 @@ class TableSearchChangeResponse(TableUpdateResponse):
     This result is modeled from: <https://rest-docs.synapse.org/rest/org/sagebionetworks/repo/model/table/TableSearchChangeResponse.html>
     """
 
-    concrete_type: str | None = concrete_types.TABLE_SEARCH_CHANGE_RESPONSE
+    concrete_type: str = field(
+        default=concrete_types.TABLE_SEARCH_CHANGE_RESPONSE, init=False
+    )
+    """The concrete type that identifies this change to Synapse. This is always
+    UPLOAD_TO_TABLE_RESULT and cannot be given to the constructor."""
 
     search_enabled: bool | None = None
     """The resulting status of the search after the change."""
@@ -863,6 +881,11 @@ class UnknownTableUpdateResponse(TableUpdateResponse):
             concrete_type=data.get("concreteType", None),
             data=data,
         )
+
+    @property
+    def concrete_type(self) -> int | None:
+        """The concrete type returned form Synapse"""
+        return self.data.get("concrete_type")
 
 
 _TABLE_UPDATE_RESPONSE_TYPES: dict[str, type] = {
