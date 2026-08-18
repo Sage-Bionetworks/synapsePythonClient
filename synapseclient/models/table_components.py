@@ -240,13 +240,27 @@ class TableUpdateRequest(ABC):
 class AppendableRowSetRequest(TableUpdateRequest):
     """
     A request to append rows to a table. This is used to append rows to a table. This
-    request is used in the `TableUpdateTransaction` to indicate what rows should
+    request is used in the TableUpdateTransaction to indicate what rows should
     be upserted in the table.
+
+    This is modeled from:
+     <https://rest-docs.synapse.org/rest/org/sagebionetworks/repo/model/table/AppendableRowSetRequest.html>
     """
 
     entity_id: str
+    """The Synapse ID of the table or view that the rows are appended to. Set it to the
+    same entity as the enclosing TableUpdateTransaction."""
+
     to_append: PartialRowSet
-    concrete_type: str = concrete_types.APPENDABLE_ROWSET_REQUEST
+    """The set of rows to append to the entity. Each PartialRow of the set names the
+    row to change by its row ID, and holds only the cells to write. A PartialRow with
+    no row ID adds a new row."""
+
+    concrete_type: str = field(
+        default=concrete_types.APPENDABLE_ROWSET_REQUEST, init=False
+    )
+    """The concrete type that identifies this change to Synapse. This is always
+    APPENDABLE_ROWSET_REQUEST and cannot be given to the constructor."""
 
     def to_synapse_request(self):
         """Converts the request to a request expected of the Synapse REST API."""
@@ -262,21 +276,27 @@ class UploadToTableRequest(TableUpdateRequest):
     """
     A request to upload a file to a table. This is used to insert any rows via a CSV
     file into a table. This request is used in the `TableUpdateTransaction`.
+    <https://rest-docs.synapse.org/rest/org/sagebionetworks/repo/model/table/UploadToTableRequest.html>
     """
 
-    table_id: str
-    """The Synapse ID of the table that the rows of the uploaded CSV are applied to.
-    This is the only field that Synapse reads to resolve the target of the upload, and
-    it is required. Set it to the same entity as the enclosing TableUpdateTransaction.
-    Synapse does not check the two against each other, so a different value here sends
-    the rows to a different table than the one the transaction names."""
+    entity_id: str | None = None
+    """The Synapse ID of the entity that this change is applied to. This is the name
+    that every other change within a transaction uses for its target, and it is an
+    alias of table_id. Give either this field or table_id, and they are made equal
+    after the request is created."""
+
+    table_id: str | None = None
+    """The Synapse ID of the entity that this change is applied to. This is the name
+    that every other change within a transaction uses for its target, and it is an
+    alias of entity_id. Give either this field or table_id, and they are made equal
+    after the request is created."""
 
     upload_file_handle_id: str
     """The ID of the file handle of the CSV that holds the rows to apply. Upload the CSV
     to Synapse first, with multipart_upload_file_async, and pass the file handle ID that
     it returns."""
 
-    update_etag: str
+    update_etag: str | None = None
     """The etag of the change set that this update is applied to. Every RowSet that
     Synapse returns carries the current etag of its change set, and that etag must be
     given back to update the rows of that set. Leave this as None when the CSV only adds
@@ -291,17 +311,30 @@ class UploadToTableRequest(TableUpdateRequest):
     describe the uploaded CSV. The default describes a comma separated file whose first
     line is a header."""
 
-    concrete_type: str = concrete_types.UPLOAD_TO_TABLE_REQUEST
-    """The concrete type that identifies this change to Synapse. Leave this as the
-    default."""
+    concrete_type: str = field(
+        default=concrete_types.UPLOAD_TO_TABLE_REQUEST, init=False
+    )
+    """The concrete type that identifies this change to Synapse. This is always
+    UPLOAD_TO_TABLE_REQUEST and cannot be given to the constructor."""
 
-    @property
-    def entity_id(self) -> str:
-        """The Synapse ID of the entity that this change is applied to. This request
-        names that entity table_id, and this property gives it the name that every
-        other change within a transaction uses. This is read only, because Synapse
-        resolves the target of an upload from table_id alone."""
-        return self.table_id
+    def __post_init__(self) -> None:
+        """Makes table_id and entity_id equal, because both name the table that the
+        rows are applied to."""
+        if self.table_id is None and self.entity_id is None:
+            raise ValueError(
+                "Either table_id or entity_id must be given to name the table that "
+                "the rows of the uploaded CSV are applied to."
+            )
+        elif self.table_id is None:
+            self.table_id = self.entity_id
+        elif self.entity_id is None:
+            self.entity_id = self.table_id
+        else:
+            raise ValueError(
+                "table_id and entity_id both name the table that the rows of the "
+                "uploaded CSV are applied to, so they must be equal. Received "
+                f"table_id: {self.table_id}, entity_id: {self.entity_id}."
+            )
 
     def to_synapse_request(self):
         """Converts the request to a request expected of the Synapse REST API."""
@@ -349,12 +382,31 @@ class TableSchemaChangeRequest(TableUpdateRequest):
     A request to change the schema of a table. This is used to change the columns in a
     table. This request is used in the `TableUpdateTransaction` to indicate what
     changes should be made to the columns in the table.
+
+    This is modeled from:
+     <https://rest-docs.synapse.org/rest/org/sagebionetworks/repo/model/table/TableSchemaChangeRequest.html>
     """
 
     entity_id: str
-    changes: List[ColumnChange]
-    ordered_column_ids: List[str]
-    concrete_type: str = concrete_types.TABLE_SCHEMA_CHANGE_REQUEST
+    """The Synapse ID of the table or view whose columns are changed. Set it to the same
+    entity as the enclosing TableUpdateTransaction."""
+
+    changes: list[ColumnChange]
+    """The list of changes that describes the column additions, deletions, and updates.
+    Each ColumnChange names the old column ID, the new column ID, or both. Give the new
+    column ID alone to add a column, the old column ID alone to remove one, and both to
+    replace one column with another."""
+
+    ordered_column_ids: list[str]
+    """The IDs of the columns in the order that the table presents them. This list must
+    hold the ID of every column that remains in the schema after the changes of this
+    request are applied. Synapse reads it to set the column order."""
+
+    concrete_type: str = field(
+        default=concrete_types.TABLE_SCHEMA_CHANGE_REQUEST, init=False
+    )
+    """The concrete type that identifies this change to Synapse. This is always
+    TABLE_SCHEMA_CHANGE_REQUEST and cannot be given to the constructor."""
 
     def to_synapse_request(self):
         """Converts the request to a request expected of the Synapse REST API."""
@@ -381,7 +433,11 @@ class TableSearchChangeRequest(TableUpdateRequest):
     search_enabled: bool
     """Specifies if the search should be enabled or disabled on the table."""
 
-    concrete_type: str = concrete_types.TABLE_SEARCH_CHANGE_REQUEST
+    concrete_type: str = field(
+        default=concrete_types.TABLE_SEARCH_CHANGE_REQUEST, init=False
+    )
+    """The concrete type that identifies this change to Synapse. This is always
+    TABLE_SEARCH_CHANGE_REQUEST and cannot be given to the constructor."""
 
     def to_synapse_request(self):
         """Converts the request to a request expected of the Synapse REST API."""
