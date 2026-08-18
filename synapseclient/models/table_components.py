@@ -668,9 +668,6 @@ class EntityUpdateResults(TableUpdateResponse):
         """Create an EntityUpdateResults from a dictionary response."""
         update_results_data = data.get("updateResults", None)
         return cls(
-            concrete_type=data.get(
-                "concreteType", concrete_types.ENTITY_UPDATE_RESULTS
-            ),
             update_results=(
                 [
                     EntityUpdateResult.fill_from_dict(update_result)
@@ -742,9 +739,6 @@ class RowReferenceSetResults(TableUpdateResponse):
         """Create a RowReferenceSetResults from a dictionary response."""
         row_reference_set_data = data.get("rowReferenceSet", None)
         return cls(
-            concrete_type=data.get(
-                "concreteType", concrete_types.ROW_REFERENCE_SET_RESULTS
-            ),
             row_reference_set=(
                 RowReferenceSet.fill_from_dict(row_reference_set_data)
                 if row_reference_set_data
@@ -789,9 +783,6 @@ class UploadToTableResult(TableUpdateResponse):
     def fill_from_dict(cls, data: dict[str, Any]) -> "UploadToTableResult":
         """Create an UploadToTableResult from a dictionary response."""
         return cls(
-            concrete_type=data.get(
-                "concreteType", concrete_types.UPLOAD_TO_TABLE_RESULT
-            ),
             rows_processed=data.get("rowsProcessed", None),
             etag=data.get("etag", None),
         )
@@ -814,7 +805,7 @@ class TableSchemaChangeResponse(TableUpdateResponse):
         default=concrete_types.TABLE_SCHEMA_CHANGE_RESPONSE, init=False
     )
     """The concrete type that identifies this change to Synapse. This is always
-    UPLOAD_TO_TABLE_RESULT and cannot be given to the constructor."""
+    TABLE_SCHEMA_CHANGE_RESPONSE and cannot be given to the constructor."""
 
     schema: list["Column"] | None = None
     """The resulting schema after the change."""
@@ -824,9 +815,6 @@ class TableSchemaChangeResponse(TableUpdateResponse):
         """Create a TableSchemaChangeResponse from a dictionary response."""
         schema_data = data.get("schema", None)
         return cls(
-            concrete_type=data.get(
-                "concreteType", concrete_types.TABLE_SCHEMA_CHANGE_RESPONSE
-            ),
             schema=(
                 [Column().fill_from_dict(column) for column in schema_data]
                 if schema_data
@@ -847,7 +835,7 @@ class TableSearchChangeResponse(TableUpdateResponse):
         default=concrete_types.TABLE_SEARCH_CHANGE_RESPONSE, init=False
     )
     """The concrete type that identifies this change to Synapse. This is always
-    UPLOAD_TO_TABLE_RESULT and cannot be given to the constructor."""
+    TABLE_SEARCH_CHANGE_RESPONSE and cannot be given to the constructor."""
 
     search_enabled: bool | None = None
     """The resulting status of the search after the change."""
@@ -855,12 +843,7 @@ class TableSearchChangeResponse(TableUpdateResponse):
     @classmethod
     def fill_from_dict(cls, data: dict[str, Any]) -> "TableSearchChangeResponse":
         """Create a TableSearchChangeResponse from a dictionary response."""
-        return cls(
-            concrete_type=data.get(
-                "concreteType", concrete_types.TABLE_SEARCH_CHANGE_RESPONSE
-            ),
-            search_enabled=data.get("searchEnabled", None),
-        )
+        return cls(search_enabled=data.get("searchEnabled", None))
 
 
 @dataclass
