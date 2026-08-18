@@ -8,7 +8,6 @@ from typing import Callable, Dict, List, Optional, Tuple, Type, Union
 import pytest
 
 from synapseclient import Synapse
-from synapseclient.core import utils
 from synapseclient.core.models.acl import AclListResult
 from synapseclient.models import (
     Column,
@@ -46,10 +45,13 @@ class TestAcl:
         self.schedule_for_cleanup = schedule_for_cleanup
 
     @pytest.fixture(scope="function")
-    def file(self, schedule_for_cleanup: Callable[..., None]) -> File:
-        filename = utils.make_bogus_uuid_file()
-        schedule_for_cleanup(filename)
-        return File(path=filename)
+    def file(self) -> File:
+        # Only the permission-bearing entity matters here, not its content, so
+        # an external_url file handle avoids a real upload.
+        return File(
+            external_url=f"https://example.com/bogus-file-{uuid.uuid4()}.txt",
+            synapse_store=False,
+        )
 
     @pytest.fixture(scope="function")
     def table(self, project_model: Project) -> Table:
@@ -973,10 +975,13 @@ class TestDeletePermissions:
         return project
 
     @pytest.fixture(scope="function")
-    def file(self, schedule_for_cleanup: Callable[..., None]) -> File:
-        filename = utils.make_bogus_uuid_file()
-        schedule_for_cleanup(filename)
-        return File(path=filename)
+    def file(self) -> File:
+        # Only the permission-bearing entity matters here, not its content, so
+        # an external_url file handle avoids a real upload.
+        return File(
+            external_url=f"https://example.com/bogus-file-{uuid.uuid4()}.txt",
+            synapse_store=False,
+        )
 
     async def _set_custom_permissions(
         self, entity: Union[File, Folder, Project]
@@ -1134,7 +1139,9 @@ class TestDeletePermissions:
         self.schedule_for_cleanup(folder_a.id)
 
         file_1 = await File(
-            path=utils.make_bogus_uuid_file(), name=f"file_1_{uuid.uuid4()}"
+            external_url=f"https://example.com/bogus-file-{uuid.uuid4()}.txt",
+            name=f"file_1_{uuid.uuid4()}",
+            synapse_store=False,
         ).store_async(parent=folder_a, synapse_client=self.syn)
         self.schedule_for_cleanup(file_1.id)
 
@@ -1169,7 +1176,9 @@ class TestDeletePermissions:
 
         # Create file_at_1 and level_2 in parallel since they don't depend on each other
         file_at_1_task = File(
-            path=utils.make_bogus_uuid_file(), name=f"file_at_1_{uuid.uuid4()}"
+            external_url=f"https://example.com/bogus-file-{uuid.uuid4()}.txt",
+            name=f"file_at_1_{uuid.uuid4()}",
+            synapse_store=False,
         ).store_async(parent=level_1, synapse_client=self.syn)
         level_2_task = Folder(name=f"level_2_{uuid.uuid4()}").store_async(
             parent=level_1, synapse_client=self.syn
@@ -1181,7 +1190,9 @@ class TestDeletePermissions:
 
         # Create file_at_2 and level_3 in parallel since they don't depend on each other
         file_at_2_task = File(
-            path=utils.make_bogus_uuid_file(), name=f"file_at_2_{uuid.uuid4()}"
+            external_url=f"https://example.com/bogus-file-{uuid.uuid4()}.txt",
+            name=f"file_at_2_{uuid.uuid4()}",
+            synapse_store=False,
         ).store_async(parent=level_2, synapse_client=self.syn)
         level_3_task = Folder(name=f"level_3_{uuid.uuid4()}").store_async(
             parent=level_2, synapse_client=self.syn
@@ -1193,7 +1204,9 @@ class TestDeletePermissions:
 
         # Create file_at_3 and level_4 in parallel since they don't depend on each other
         file_at_3_task = File(
-            path=utils.make_bogus_uuid_file(), name=f"file_at_3_{uuid.uuid4()}"
+            external_url=f"https://example.com/bogus-file-{uuid.uuid4()}.txt",
+            name=f"file_at_3_{uuid.uuid4()}",
+            synapse_store=False,
         ).store_async(parent=level_3, synapse_client=self.syn)
         level_4_task = Folder(name=f"level_4_{uuid.uuid4()}").store_async(
             parent=level_3, synapse_client=self.syn
@@ -1204,7 +1217,9 @@ class TestDeletePermissions:
         self.schedule_for_cleanup(level_4.id)
 
         file_at_4 = await File(
-            path=utils.make_bogus_uuid_file(), name=f"file_at_4_{uuid.uuid4()}"
+            external_url=f"https://example.com/bogus-file-{uuid.uuid4()}.txt",
+            name=f"file_at_4_{uuid.uuid4()}",
+            synapse_store=False,
         ).store_async(parent=level_4, synapse_client=self.syn)
         self.schedule_for_cleanup(file_at_4.id)
 
@@ -1253,15 +1268,18 @@ class TestDeletePermissions:
         # Create files in parallel
         file_tasks = [
             File(
-                path=utils.make_bogus_uuid_file(),
+                external_url=f"https://example.com/bogus-file-{uuid.uuid4()}.txt",
                 name=f"file_{folder_letter}_{uuid.uuid4()}",
+                synapse_store=False,
             ).store_async(parent=folder, synapse_client=self.syn)
             for folder_letter, folder in zip(["a", "b", "c"], folders)
         ]
 
         # Create root file task
         root_file_task = File(
-            path=utils.make_bogus_uuid_file(), name=f"root_file_{uuid.uuid4()}"
+            external_url=f"https://example.com/bogus-file-{uuid.uuid4()}.txt",
+            name=f"root_file_{uuid.uuid4()}",
+            synapse_store=False,
         ).store_async(parent=project_model, synapse_client=self.syn)
 
         # Execute file creation tasks in parallel
@@ -1327,13 +1345,17 @@ class TestDeletePermissions:
 
         # Create first level files and folders
         shallow_file = await File(
-            path=utils.make_bogus_uuid_file(), name=f"shallow_file_{uuid.uuid4()}"
+            external_url=f"https://example.com/bogus-file-{uuid.uuid4()}.txt",
+            name=f"shallow_file_{uuid.uuid4()}",
+            synapse_store=False,
         ).store_async(parent=shallow_folder, synapse_client=self.syn)
         self.schedule_for_cleanup(shallow_file.id)
 
         # Deep branch structure
         deep_file_1_task = File(
-            path=utils.make_bogus_uuid_file(), name=f"deep_file_1_{uuid.uuid4()}"
+            external_url=f"https://example.com/bogus-file-{uuid.uuid4()}.txt",
+            name=f"deep_file_1_{uuid.uuid4()}",
+            synapse_store=False,
         ).store_async(parent=deep_branch, synapse_client=self.syn)
 
         sub_deep_task = Folder(name=f"sub_deep_{uuid.uuid4()}").store_async(
@@ -1346,7 +1368,9 @@ class TestDeletePermissions:
 
         # Continue deep structure
         deep_file_2_task = File(
-            path=utils.make_bogus_uuid_file(), name=f"deep_file_2_{uuid.uuid4()}"
+            external_url=f"https://example.com/bogus-file-{uuid.uuid4()}.txt",
+            name=f"deep_file_2_{uuid.uuid4()}",
+            synapse_store=False,
         ).store_async(parent=sub_deep, synapse_client=self.syn)
 
         sub_sub_deep_task = Folder(name=f"sub_sub_deep_{uuid.uuid4()}").store_async(
@@ -1360,13 +1384,17 @@ class TestDeletePermissions:
         self.schedule_for_cleanup(sub_sub_deep.id)
 
         deep_file_3 = await File(
-            path=utils.make_bogus_uuid_file(), name=f"deep_file_3_{uuid.uuid4()}"
+            external_url=f"https://example.com/bogus-file-{uuid.uuid4()}.txt",
+            name=f"deep_file_3_{uuid.uuid4()}",
+            synapse_store=False,
         ).store_async(parent=sub_sub_deep, synapse_client=self.syn)
         self.schedule_for_cleanup(deep_file_3.id)
 
         # Mixed folder structure
         mixed_file_task = File(
-            path=utils.make_bogus_uuid_file(), name=f"mixed_file_{uuid.uuid4()}"
+            external_url=f"https://example.com/bogus-file-{uuid.uuid4()}.txt",
+            name=f"mixed_file_{uuid.uuid4()}",
+            synapse_store=False,
         ).store_async(parent=mixed_folder, synapse_client=self.syn)
 
         mixed_sub_a_task = Folder(name=f"mixed_sub_a_{uuid.uuid4()}").store_async(
@@ -1387,11 +1415,15 @@ class TestDeletePermissions:
 
         # Create files in mixed sub-folders in parallel
         mixed_file_a_task = File(
-            path=utils.make_bogus_uuid_file(), name=f"mixed_file_a_{uuid.uuid4()}"
+            external_url=f"https://example.com/bogus-file-{uuid.uuid4()}.txt",
+            name=f"mixed_file_a_{uuid.uuid4()}",
+            synapse_store=False,
         ).store_async(parent=mixed_sub_a, synapse_client=self.syn)
 
         mixed_file_b_task = File(
-            path=utils.make_bogus_uuid_file(), name=f"mixed_file_b_{uuid.uuid4()}"
+            external_url=f"https://example.com/bogus-file-{uuid.uuid4()}.txt",
+            name=f"mixed_file_b_{uuid.uuid4()}",
+            synapse_store=False,
         ).store_async(parent=mixed_sub_b, synapse_client=self.syn)
 
         mixed_file_a, mixed_file_b = await asyncio.gather(
@@ -1697,7 +1729,9 @@ class TestDeletePermissions:
         self.schedule_for_cleanup(folder.id)
 
         file = await File(
-            path=utils.make_bogus_uuid_file(), name=f"only_file_{uuid.uuid4()}"
+            external_url=f"https://example.com/bogus-file-{uuid.uuid4()}.txt",
+            name=f"only_file_{uuid.uuid4()}",
+            synapse_store=False,
         ).store_async(parent=folder, synapse_client=self.syn)
         self.schedule_for_cleanup(file.id)
 
@@ -2106,7 +2140,9 @@ class TestDeletePermissions:
         # Create files in parallel
         file_tasks = [
             File(
-                path=utils.make_bogus_uuid_file(), name=f"large_file_{i}_{uuid.uuid4()}"
+                external_url=f"https://example.com/bogus-file-{uuid.uuid4()}.txt",
+                name=f"large_file_{i}_{uuid.uuid4()}",
+                synapse_store=False,
             ).store_async(parent=large_folder, synapse_client=self.syn)
             for i in range(10)  # Reduced from larger number for test performance
         ]
@@ -2195,8 +2231,9 @@ class TestDeletePermissions:
             for level in range(2):
                 parent_folder = nested_folders[folder_index]
                 file_task = File(
-                    path=utils.make_bogus_uuid_file(),
+                    external_url=f"https://example.com/bogus-file-{uuid.uuid4()}.txt",
                     name=f"{branch_name}_file_{level}_{uuid.uuid4()}",
+                    synapse_store=False,
                 ).store_async(parent=parent_folder, synapse_client=self.syn)
                 file_tasks.append(file_task)
                 folder_index += 1
@@ -2264,10 +2301,14 @@ class TestDeletePermissions:
         # Create files in each branch in parallel
         file_tasks = [
             File(
-                path=utils.make_bogus_uuid_file(), name=f"file_a_{uuid.uuid4()}"
+                external_url=f"https://example.com/bogus-file-{uuid.uuid4()}.txt",
+                name=f"file_a_{uuid.uuid4()}",
+                synapse_store=False,
             ).store_async(parent=branch_a, synapse_client=self.syn),
             File(
-                path=utils.make_bogus_uuid_file(), name=f"file_b_{uuid.uuid4()}"
+                external_url=f"https://example.com/bogus-file-{uuid.uuid4()}.txt",
+                name=f"file_b_{uuid.uuid4()}",
+                synapse_store=False,
             ).store_async(parent=branch_b, synapse_client=self.syn),
         ]
         file_a, file_b = await asyncio.gather(*file_tasks)
@@ -2382,7 +2423,9 @@ class TestDeletePermissions:
         self.schedule_for_cleanup(parent_folder.id)
 
         child_file = await File(
-            path=utils.make_bogus_uuid_file(), name=f"child_file_{uuid.uuid4()}"
+            external_url=f"https://example.com/bogus-file-{uuid.uuid4()}.txt",
+            name=f"child_file_{uuid.uuid4()}",
+            synapse_store=False,
         ).store_async(parent=parent_folder, synapse_client=self.syn)
         self.schedule_for_cleanup(child_file.id)
 
@@ -2488,12 +2531,11 @@ class TestAllEntityTypesPermissions:
 
         entities = {"project": project_model}
 
-        file_path = utils.make_bogus_uuid_file()
-        self.schedule_for_cleanup(file_path)
         file_entity = File(
             name=f"test_file_{str(uuid.uuid4())}.txt",
             parent_id=project_model.id,
-            path=file_path,
+            external_url=f"https://example.com/bogus-file-{uuid.uuid4()}.txt",
+            synapse_store=False,
         )
         file_entity = await file_entity.store_async(synapse_client=self.syn)
         self.schedule_for_cleanup(file_entity.id)
