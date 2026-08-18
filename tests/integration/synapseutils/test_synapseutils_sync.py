@@ -1211,18 +1211,14 @@ class TestSyncFromSynapse:
         )
         schedule_for_cleanup(folder.id)
 
-        # AND 2 external file references (no local upload needed, only the
-        # entity's existence and metadata matter for this test):
-        temp_files = [
-            f"https://example.com/bogus-file-{uuid.uuid4()}.txt" for _ in range(2)
-        ]
+        # AND 2 temporary files on disk:
+        temp_files = [utils.make_bogus_uuid_file() for _ in range(2)]
 
         # AND each file is uploaded to Synapse
         file_entities = []
         for file in temp_files:
-            file_entity = syn.store(
-                SynapseFile(path=file, parent=folder.id, synapseStore=False)
-            )
+            schedule_for_cleanup(file)
+            file_entity = syn.store(SynapseFile(path=file, parent=folder.id))
             schedule_for_cleanup(file_entity["id"])
             file_entities.append(file_entity)
 
@@ -1295,20 +1291,17 @@ class TestSyncFromSynapse:
         )
         schedule_for_cleanup(folder.id)
 
-        # AND 2 external file references (no local upload needed, only the
-        # entity's existence and annotations matter for this test):
-        temp_files = [
-            f"https://example.com/bogus-file-{uuid.uuid4()}.txt" for _ in range(2)
-        ]
+        # AND 2 temporary files on disk:
+        temp_files = [utils.make_bogus_uuid_file() for _ in range(2)]
 
         # AND each file is uploaded to Synapse
         file_entities = []
         for file in temp_files:
+            schedule_for_cleanup(file)
             file_entity = syn.store(
                 SynapseFile(
                     path=file,
                     parent=folder.id,
-                    synapseStore=False,
                     annotations={
                         STR_ANNO: STR_ANNO_VALUE,
                         INT_ANNO: INT_ANNO_VALUE,
@@ -1409,20 +1402,17 @@ class TestSyncFromSynapse:
         )
         schedule_for_cleanup(folder.id)
 
-        # AND 2 external file references (no local upload needed, only the
-        # entity's existence and provenance matter for this test):
-        temp_files = [
-            f"https://example.com/bogus-file-{uuid.uuid4()}.txt" for _ in range(2)
-        ]
+        # AND 2 temporary files on disk:
+        temp_files = [utils.make_bogus_uuid_file() for _ in range(2)]
 
         # AND each file is uploaded to Synapse
         file_entities = []
         for file in temp_files:
+            schedule_for_cleanup(file)
             file_entity = syn.store(
                 SynapseFile(
                     path=file,
                     parent=folder.id,
-                    synapseStore=False,
                 )
             )
 
@@ -1520,14 +1510,12 @@ class TestSyncFromSynapse:
         )
         schedule_for_cleanup(folder.id)
 
-        # AND 1 external file reference (no local upload needed, only the
-        # entity's existence matters for this test):
-        temp_file = f"https://example.com/bogus-file-{uuid.uuid4()}.txt"
+        # AND 1 temporary file on disk:
+        temp_file = utils.make_bogus_uuid_file()
 
         # AND each file is uploaded to Synapse
-        file_entity = syn.store(
-            SynapseFile(path=temp_file, parent=folder.id, synapseStore=False)
-        )
+        schedule_for_cleanup(temp_file)
+        file_entity = syn.store(SynapseFile(path=temp_file, parent=folder.id))
         schedule_for_cleanup(file_entity["id"])
 
         # AND a table is uploaded to the folder
@@ -1612,18 +1600,14 @@ class TestSyncFromSynapse:
         )
         schedule_for_cleanup(sub_folder.id)
 
-        # AND 2 external file references (no local upload needed, only the
-        # entity's existence matters for this test):
-        temp_files = [
-            f"https://example.com/bogus-file-{uuid.uuid4()}.txt" for _ in range(2)
-        ]
+        # AND 2 temporary files on disk:
+        temp_files = [utils.make_bogus_uuid_file() for _ in range(2)]
 
         # AND each file is uploaded to Synapse into the sub folder
         file_entities = []
         for file in temp_files:
-            file_entity = syn.store(
-                SynapseFile(path=file, parent=sub_folder.id, synapseStore=False)
-            )
+            schedule_for_cleanup(file)
+            file_entity = syn.store(SynapseFile(path=file, parent=sub_folder.id))
             schedule_for_cleanup(file_entity["id"])
             file_entities.append(file_entity)
 
@@ -1718,18 +1702,14 @@ class TestSyncFromSynapse:
         )
         schedule_for_cleanup(sub_folder.id)
 
-        # AND 2 external file references (no local upload needed, only the
-        # entity's existence matters for this test):
-        temp_files = [
-            f"https://example.com/bogus-file-{uuid.uuid4()}.txt" for _ in range(2)
-        ]
+        # AND 2 temporary files on disk:
+        temp_files = [utils.make_bogus_uuid_file() for _ in range(2)]
 
         # AND each file is uploaded to Synapse into the sub folder
         file_entities = []
         for file in temp_files:
-            file_entity = syn.store(
-                SynapseFile(path=file, parent=sub_folder.id, synapseStore=False)
-            )
+            schedule_for_cleanup(file)
+            file_entity = syn.store(SynapseFile(path=file, parent=sub_folder.id))
             schedule_for_cleanup(file_entity["id"])
             file_entities.append(file_entity)
 
@@ -1816,18 +1796,14 @@ class TestSyncFromSynapse:
         )
         schedule_for_cleanup(sub_folder.id)
 
-        # AND 2 external file references (no local upload needed, only the
-        # entity's existence matters for this test):
-        temp_files = [
-            f"https://example.com/bogus-file-{uuid.uuid4()}.txt" for _ in range(2)
-        ]
+        # AND 2 temporary files on disk:
+        temp_files = [utils.make_bogus_uuid_file() for _ in range(2)]
 
         # AND each file is uploaded to Synapse into the sub folder
         file_entities = []
         for file in temp_files:
-            file_entity = syn.store(
-                SynapseFile(path=file, parent=sub_folder.id, synapseStore=False)
-            )
+            schedule_for_cleanup(file)
+            file_entity = syn.store(SynapseFile(path=file, parent=sub_folder.id))
             schedule_for_cleanup(file_entity["id"])
             file_entities.append(file_entity)
 
@@ -1887,27 +1863,19 @@ class TestSyncFromSynapse:
         )
         schedule_for_cleanup(sub_folder_2.id)
 
-        # AND 3 external file references (no local upload needed, only the
-        # entity's existence matters for this test):
-        temp_files = [
-            f"https://example.com/bogus-file-{uuid.uuid4()}.txt" for _ in range(3)
-        ]
+        # AND 3 temporary files on disk:
+        temp_files = [utils.make_bogus_uuid_file() for _ in range(3)]
 
         # AND each file is uploaded to Synapse into the respective sub folders
         file_entities = []
         for file in temp_files:
+            schedule_for_cleanup(file)
             if file == temp_files[0]:
-                file_entity = syn.store(
-                    SynapseFile(path=file, parent=parent_folder.id, synapseStore=False)
-                )
+                file_entity = syn.store(SynapseFile(path=file, parent=parent_folder.id))
             elif file == temp_files[1]:
-                file_entity = syn.store(
-                    SynapseFile(path=file, parent=sub_folder_1.id, synapseStore=False)
-                )
+                file_entity = syn.store(SynapseFile(path=file, parent=sub_folder_1.id))
             else:
-                file_entity = syn.store(
-                    SynapseFile(path=file, parent=sub_folder_2.id, synapseStore=False)
-                )
+                file_entity = syn.store(SynapseFile(path=file, parent=sub_folder_2.id))
             schedule_for_cleanup(file_entity["id"])
             file_entities.append(file_entity)
 
@@ -2078,18 +2046,14 @@ class TestSyncFromSynapse:
         ).store(synapse_client=syn)
         schedule_for_cleanup(folder_with_links.id)
 
-        # AND 2 external file references (no local upload needed, only the
-        # entity's existence matters for this test):
-        temp_files = [
-            f"https://example.com/bogus-file-{uuid.uuid4()}.txt" for _ in range(2)
-        ]
+        # AND 2 temporary files on disk:
+        temp_files = [utils.make_bogus_uuid_file() for _ in range(2)]
 
         # AND each file is uploaded to Synapse into `folder_with_files`
         file_entities = []
         for file in temp_files:
-            file_entity = syn.store(
-                SynapseFile(path=file, parent=folder_with_files.id, synapseStore=False)
-            )
+            schedule_for_cleanup(file)
+            file_entity = syn.store(SynapseFile(path=file, parent=folder_with_files.id))
             schedule_for_cleanup(file_entity["id"])
             file_entities.append(file_entity)
             syn.store(obj=Link(targetId=file_entity.id, parent=folder_with_links.id))
@@ -2166,16 +2130,12 @@ class TestSyncFromSynapse:
         ).store(synapse_client=syn)
         schedule_for_cleanup(folder_with_files.id)
 
-        # AND two external file references (no local upload needed, only the
-        # entity's existence matters for this test):
-        temp_files = [
-            f"https://example.com/bogus-file-{uuid.uuid4()}.txt" for _ in range(2)
-        ]
+        # AND two files in the folder
+        temp_files = [utils.make_bogus_uuid_file() for _ in range(2)]
         file_entities = []
         for file in temp_files:
-            file_entity = syn.store(
-                SynapseFile(path=file, parent=folder_with_files.id, synapseStore=False)
-            )
+            schedule_for_cleanup(file)
+            file_entity = syn.store(SynapseFile(path=file, parent=folder_with_files.id))
             schedule_for_cleanup(file_entity["id"])
             file_entities.append(file_entity)
 
@@ -2278,18 +2238,14 @@ class TestSyncFromSynapse:
         ).store(synapse_client=syn)
         schedule_for_cleanup(folder_with_links.id)
 
-        # AND 2 external file references (no local upload needed, only the
-        # entity's existence matters for this test):
-        temp_files = [
-            f"https://example.com/bogus-file-{uuid.uuid4()}.txt" for _ in range(2)
-        ]
+        # AND 2 temporary files on disk:
+        temp_files = [utils.make_bogus_uuid_file() for _ in range(2)]
 
         # AND each file is uploaded to Synapse into `folder_with_files`
         file_entities = []
         for file in temp_files:
-            file_entity = syn.store(
-                SynapseFile(path=file, parent=folder_with_files.id, synapseStore=False)
-            )
+            schedule_for_cleanup(file)
+            file_entity = syn.store(SynapseFile(path=file, parent=folder_with_files.id))
             schedule_for_cleanup(file_entity["id"])
             file_entities.append(file_entity)
             syn.store(obj=Link(targetId=file_entity.id, parent=folder_with_links.id))
@@ -2462,18 +2418,14 @@ class TestSyncFromSynapse:
         ).store(synapse_client=syn)
         schedule_for_cleanup(folder_with_links.id)
 
-        # AND 2 external file references (no local upload needed, only the
-        # entity's existence matters for this test):
-        temp_files = [
-            f"https://example.com/bogus-file-{uuid.uuid4()}.txt" for _ in range(2)
-        ]
+        # AND 2 temporary files on disk:
+        temp_files = [utils.make_bogus_uuid_file() for _ in range(2)]
 
         # AND each file is uploaded to Synapse into `folder_with_files`
         file_entities = []
         for file in temp_files:
-            file_entity = syn.store(
-                SynapseFile(path=file, parent=folder_with_files.id, synapseStore=False)
-            )
+            schedule_for_cleanup(file)
+            file_entity = syn.store(SynapseFile(path=file, parent=folder_with_files.id))
             schedule_for_cleanup(file_entity["id"])
             file_entities.append(file_entity)
             syn.store(obj=Link(targetId=file_entity.id, parent=folder_with_links.id))
@@ -2509,14 +2461,12 @@ class TestSyncFromSynapse:
         )
         schedule_for_cleanup(folder.id)
 
-        # AND 1 external file reference (no local upload needed, only the
-        # entity's existence matters for this test):
-        file = f"https://example.com/bogus-file-{uuid.uuid4()}.txt"
+        # AND 1 temporary file on disk:
+        file = utils.make_bogus_uuid_file()
 
         # AND the file is uploaded to Synapse
-        file_entity = syn.store(
-            SynapseFile(path=file, parent=folder.id, synapseStore=False)
-        )
+        schedule_for_cleanup(file)
+        file_entity = syn.store(SynapseFile(path=file, parent=folder.id))
         schedule_for_cleanup(file_entity["id"])
 
         # AND A temp directory to write the manifest file to
@@ -2555,21 +2505,18 @@ class TestSyncFromSynapse:
         )
         schedule_for_cleanup(folder.id)
 
-        # AND 1 external file reference (no local upload needed, only the
-        # entity's existence matters for this test):
-        file = f"https://example.com/bogus-file-{uuid.uuid4()}.txt"
+        # AND 1 temporary file on disk:
+        file = utils.make_bogus_uuid_file()
 
         # AND the file is uploaded to Synapse
-        file_entity_v1 = syn.store(
-            obj=SynapseFile(path=file, parent=folder.id, synapseStore=False)
-        )
+        schedule_for_cleanup(file)
+        file_entity_v1 = syn.store(obj=SynapseFile(path=file, parent=folder.id))
         schedule_for_cleanup(file_entity_v1["id"])
         assert file_entity_v1["versionNumber"] == 1
 
         # AND the version on the file is updated
         file_entity_v2 = syn.store(
-            obj=SynapseFile(path=file, parent=folder.id, synapseStore=False),
-            forceVersion=True,
+            obj=SynapseFile(path=file, parent=folder.id), forceVersion=True
         )
         assert file_entity_v2["versionNumber"] == 2
         assert file_entity_v1["id"] == file_entity_v2["id"]
