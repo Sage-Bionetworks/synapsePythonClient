@@ -284,7 +284,7 @@ class TestGridAsync:
         ):
             await grid.delete_async(synapse_client=self.syn)
 
-    async def test_synchronize_grid_async(
+    async def test_synchronize_grid_entity_view_async(
         self,
         entity_view: tuple[Folder, EntityView],
     ) -> None:
@@ -320,7 +320,9 @@ class TestGridAsync:
         )
 
         # WHEN: Synchronizing the same session
-        synced_grid = await created_grid.synchronize_async(synapse_client=self.syn)
+        synced_grid = await created_grid.synchronize_async(
+            synapse_client=self.syn, sync_type="PULL_PUSH"
+        )
 
         # THEN: The session ID is unchanged
         assert synced_grid.session_id == created_grid.session_id
@@ -336,6 +338,26 @@ class TestGridAsync:
         )
         df = pd.read_csv(csv_path)
         assert uploaded_file.id in df["id"].tolist()
+
+    async def test_synchronize_grid_recordset_async(
+        self,
+        record_set_fixture: RecordSet,
+    ) -> None:
+        # GIVEN: A Grid session created at T0 from a RecordSet
+        grid = Grid(record_set_id=record_set_fixture.id)
+        created_grid = await grid.create_async(
+            timeout=ASYNC_JOB_TIMEOUT_SEC, synapse_client=self.syn
+        )
+        self.schedule_for_cleanup(created_grid)
+
+        # WHEN: Synchronizing the same session
+        synced_grid = await created_grid.synchronize_async(
+            synapse_client=self.syn, sync_type="PULL_PUSH"
+        )
+
+        # THEN: The session ID is unchanged and the source entity is still the RecordSet
+        assert synced_grid.session_id == created_grid.session_id
+        assert synced_grid.source_entity_id == record_set_fixture.id
 
     async def test_import_csv_to_grid_session_async(
         self,

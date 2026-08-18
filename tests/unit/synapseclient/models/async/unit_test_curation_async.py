@@ -56,6 +56,7 @@ from synapseclient.models.curation import (
     SelectColumn,
     SelectSelection,
     SynchronizeGridRequest,
+    SyncType,
     TaskState,
     UploadToTablePreviewRequest,
     _create_task_properties_from_dict,
@@ -1393,6 +1394,325 @@ class TestCurationTask:
                 pass  # pragma: no cover
 
 
+class TestCurationTaskSynchronizeActiveGridSession:
+    """Unit tests for CurationTask.synchronize_active_grid_session_async."""
+
+    @pytest.fixture(autouse=True, scope="function")
+    def init_syn(self, syn: Synapse) -> None:
+        self.syn = syn
+
+    async def test_record_based_returns_none_when_no_active_session(self) -> None:
+        """When there is no active session, a warning is logged and None is returned; no new session is created."""
+        # GIVEN a record-based task with no active grid session
+        task = CurationTask(
+            task_id=TASK_ID,
+            task_properties=RecordBasedMetadataTaskProperties(
+                record_set_id=RECORD_SET_ID
+            ),
+        )
+
+        with (
+            patch(
+                "synapseclient.models.curation.get_curation_task_status",
+                new_callable=AsyncMock,
+                return_value=_get_curation_task_status_response(),
+            ),
+            patch.object(
+                task,
+                "create_grid_session_async",
+                new_callable=AsyncMock,
+            ) as mock_create_grid_session,
+            patch("synapseclient.models.curation.Grid") as mock_grid_cls,
+        ):
+            created_grid = MagicMock()
+            created_grid.session_id = SESSION_ID
+            mock_create_grid_session.return_value = created_grid
+
+            mock_grid = mock_grid_cls.return_value
+            mock_grid.synchronize_async = AsyncMock(return_value=mock_grid)
+
+            # WHEN I synchronize the active grid session
+            result = await task.synchronize_active_grid_session_async(
+                sync_type=SyncType.PULL, synapse_client=self.syn
+            )
+
+            # THEN no session was created and nothing is returned
+            assert result is None
+
+    async def test_record_based_reuses_existing_session(self) -> None:
+        """When a session is already active, it is reused and no new session is created."""
+        # GIVEN a record-based task with an already-active grid session
+        task = CurationTask(
+            task_id=TASK_ID,
+            task_properties=RecordBasedMetadataTaskProperties(
+                record_set_id=RECORD_SET_ID
+            ),
+        )
+
+        with (
+            patch(
+                "synapseclient.models.curation.get_curation_task_status",
+                new_callable=AsyncMock,
+                return_value=_get_curation_task_status_response(
+                    active_session_id=SESSION_ID
+                ),
+            ),
+            patch.object(
+                task,
+                "create_grid_session_async",
+                new_callable=AsyncMock,
+            ) as mock_create_grid_session,
+            patch("synapseclient.models.curation.Grid") as mock_grid_cls,
+        ):
+            mock_grid = mock_grid_cls.return_value
+            mock_grid.synchronize_async = AsyncMock(return_value=mock_grid)
+
+            # WHEN I synchronize the active grid session
+            result = await task.synchronize_active_grid_session_async(
+                sync_type=SyncType.PULL_PUSH, synapse_client=self.syn
+            )
+
+            # THEN no new grid session is created, and the existing session is synchronized
+            mock_create_grid_session.assert_not_called()
+            mock_grid_cls.assert_called_once_with(session_id=SESSION_ID)
+            mock_grid.synchronize_async.assert_called_once_with(
+                synapse_client=self.syn, sync_type=SyncType.PULL_PUSH
+            )
+            assert result is mock_grid
+
+    async def test_record_based_explicit_none_sync_type_raises(self) -> None:
+        """Record-based tasks reject an explicit sync_type=None with a clear
+        ValueError, since PULL vs. PULL_PUSH is ambiguous for this task type."""
+        # GIVEN a record-based task
+        task = CurationTask(
+            task_id=TASK_ID,
+            task_properties=RecordBasedMetadataTaskProperties(
+                record_set_id=RECORD_SET_ID
+            ),
+        )
+
+        # WHEN I call synchronize_active_grid_session_async with sync_type=None
+        # THEN it should raise ValueError
+        with pytest.raises(
+            ValueError,
+            match="sync_type must be provided for RecordBasedMetadataTaskProperties",
+        ):
+            await task.synchronize_active_grid_session_async(
+                sync_type=None, synapse_client=self.syn
+            )
+
+    async def test_unrecognized_sync_type_string_is_forward_compatible(self) -> None:
+        """SyncType is forward-compatible, so an unrecognized string is passed
+        through rather than rejected, in case the server has added a new value."""
+        # GIVEN a record-based task with an already-active grid session
+        task = CurationTask(
+            task_id=TASK_ID,
+            task_properties=RecordBasedMetadataTaskProperties(
+                record_set_id=RECORD_SET_ID
+            ),
+        )
+
+        with (
+            patch(
+                "synapseclient.models.curation.get_curation_task_status",
+                new_callable=AsyncMock,
+                return_value=_get_curation_task_status_response(
+                    active_session_id=SESSION_ID
+                ),
+            ),
+            patch("synapseclient.models.curation.Grid") as mock_grid_cls,
+        ):
+            mock_grid = mock_grid_cls.return_value
+            mock_grid.synchronize_async = AsyncMock(return_value=mock_grid)
+
+            # WHEN I call synchronize_active_grid_session_async with an unrecognized
+            # string THEN no exception is raised, and the value is forwarded as-is
+            await task.synchronize_active_grid_session_async(
+                sync_type="INVALID", synapse_client=self.syn
+            )
+
+            mock_grid.synchronize_async.assert_called_once_with(
+                synapse_client=self.syn, sync_type="INVALID"
+            )
+
+    async def test_valid_sync_type_string_is_coerced(self) -> None:
+        """Valid sync_type strings are coerced to SyncType enum."""
+        # GIVEN a record-based task with an already-active grid session
+        task = CurationTask(
+            task_id=TASK_ID,
+            task_properties=RecordBasedMetadataTaskProperties(
+                record_set_id=RECORD_SET_ID
+            ),
+        )
+
+        with (
+            patch(
+                "synapseclient.models.curation.get_curation_task_status",
+                new_callable=AsyncMock,
+                return_value=_get_curation_task_status_response(
+                    active_session_id=SESSION_ID
+                ),
+            ),
+            patch("synapseclient.models.curation.Grid") as mock_grid_cls,
+        ):
+            mock_grid = mock_grid_cls.return_value
+            mock_grid.synchronize_async = AsyncMock(return_value=mock_grid)
+
+            # WHEN I pass sync_type as a string "PULL_PUSH"
+            await task.synchronize_active_grid_session_async(
+                sync_type="PULL_PUSH", synapse_client=self.syn
+            )
+
+            # THEN the string is coerced to the enum and used correctly
+            mock_grid.synchronize_async.assert_called_once_with(
+                synapse_client=self.syn, sync_type=SyncType.PULL_PUSH
+            )
+
+    async def test_file_based_ignores_sync_type(self) -> None:
+        """File-based tasks always synchronize with PULL_PUSH regardless of the sync_type passed in."""
+        # GIVEN a file-based task with an already-active grid session
+        task = CurationTask(
+            task_id=TASK_ID,
+            task_properties=FileBasedMetadataTaskProperties(
+                upload_folder_id=UPLOAD_FOLDER_ID, file_view_id=FILE_VIEW_ID
+            ),
+        )
+
+        with (
+            patch(
+                "synapseclient.models.curation.get_curation_task_status",
+                new_callable=AsyncMock,
+                return_value=_get_curation_task_status_response(
+                    active_session_id=SESSION_ID
+                ),
+            ),
+            patch.object(
+                task, "create_grid_session_async", new_callable=AsyncMock
+            ) as mock_create_grid_session,
+            patch("synapseclient.models.curation.Grid") as mock_grid_cls,
+        ):
+            mock_grid = mock_grid_cls.return_value
+            mock_grid.synchronize_async = AsyncMock(return_value=mock_grid)
+
+            # WHEN I pass sync_type=PULL (only valid for record-based tasks)
+            await task.synchronize_active_grid_session_async(
+                sync_type=SyncType.PULL, synapse_client=self.syn
+            )
+
+            # THEN the file-based task ignores it and always synchronizes with PULL_PUSH
+            mock_create_grid_session.assert_not_called()
+            mock_grid.synchronize_async.assert_called_once_with(
+                synapse_client=self.syn, sync_type=SyncType.PULL_PUSH
+            )
+
+    async def test_file_based_ignores_none_sync_type(self) -> None:
+        """sync_type is a required parameter for file-based tasks too, but its
+        value (including None) is ignored -- file-based tasks always use
+        PULL_PUSH."""
+        # GIVEN a file-based task with an already-active grid session
+        task = CurationTask(
+            task_id=TASK_ID,
+            task_properties=FileBasedMetadataTaskProperties(
+                upload_folder_id=UPLOAD_FOLDER_ID, file_view_id=FILE_VIEW_ID
+            ),
+        )
+
+        with (
+            patch(
+                "synapseclient.models.curation.get_curation_task_status",
+                new_callable=AsyncMock,
+                return_value=_get_curation_task_status_response(
+                    active_session_id=SESSION_ID
+                ),
+            ),
+            patch("synapseclient.models.curation.Grid") as mock_grid_cls,
+        ):
+            mock_grid = mock_grid_cls.return_value
+            mock_grid.synchronize_async = AsyncMock(return_value=mock_grid)
+
+            # WHEN I synchronize with sync_type explicitly set to None
+            await task.synchronize_active_grid_session_async(
+                sync_type=None, synapse_client=self.syn
+            )
+
+            # THEN it still resolves to PULL_PUSH without raising
+            mock_grid.synchronize_async.assert_called_once_with(
+                synapse_client=self.syn, sync_type=SyncType.PULL_PUSH
+            )
+
+    async def test_fetches_task_properties_when_missing(self) -> None:
+        """If task_properties is not yet populated, it is fetched from Synapse first."""
+        # GIVEN a CurationTask with only a task_id set (no task_properties)
+        task = CurationTask(task_id=TASK_ID)
+
+        async def fake_get_async(*, synapse_client=None):
+            task.task_properties = RecordBasedMetadataTaskProperties(
+                record_set_id=RECORD_SET_ID
+            )
+            return task
+
+        with (
+            patch.object(
+                task, "get_async", new_callable=AsyncMock, side_effect=fake_get_async
+            ) as mock_get_async,
+            patch(
+                "synapseclient.models.curation.get_curation_task_status",
+                new_callable=AsyncMock,
+                return_value=_get_curation_task_status_response(
+                    active_session_id=SESSION_ID
+                ),
+            ),
+            patch("synapseclient.models.curation.Grid") as mock_grid_cls,
+        ):
+            mock_grid = mock_grid_cls.return_value
+            mock_grid.synchronize_async = AsyncMock(return_value=mock_grid)
+
+            # WHEN I synchronize the active grid session
+            await task.synchronize_active_grid_session_async(
+                sync_type=SyncType.PULL_PUSH, synapse_client=self.syn
+            )
+
+            # THEN task_properties was fetched before the type check ran
+            mock_get_async.assert_called_once_with(synapse_client=self.syn)
+            assert isinstance(task.task_properties, RecordBasedMetadataTaskProperties)
+
+    async def test_without_task_id_raises(self) -> None:
+        """Without a task_id, fetching task_properties fails with ValueError."""
+        # GIVEN a CurationTask with neither task_id nor task_properties set
+        task = CurationTask()
+
+        # WHEN I call synchronize_active_grid_session_async
+        # THEN it should raise ValueError (propagated from get_async)
+        with pytest.raises(ValueError, match="task_id is required to get"):
+            await task.synchronize_active_grid_session_async(
+                sync_type=SyncType.PULL_PUSH, synapse_client=self.syn
+            )
+
+    async def test_unsupported_task_properties_type_raises(self) -> None:
+        """Unsupported task_properties types raise ValueError with the type name."""
+
+        # GIVEN a fake task properties type that doesn't exist yet
+        class ComputeBasedMetadataTaskProperties:
+            """A hypothetical future task properties type."""
+
+            pass
+
+        # AND a CurationTask with this unsupported type
+        task = CurationTask(task_id=TASK_ID)
+        task.task_properties = ComputeBasedMetadataTaskProperties()
+
+        # WHEN I call synchronize_active_grid_session_async
+        # THEN it should raise ValueError mentioning the actual type name
+        with pytest.raises(
+            ValueError,
+            match="Synchronization only supports FileBasedMetadataTaskProperties or "
+            "RecordBasedMetadataTaskProperties, got ComputeBasedMetadataTaskProperties",
+        ):
+            await task.synchronize_active_grid_session_async(
+                sync_type=SyncType.PULL_PUSH, synapse_client=self.syn
+            )
+
+
 class TestGrid:
     """Unit tests for the Grid model."""
 
@@ -2393,10 +2713,16 @@ class TestGridDownloadCsv:
 
 
 class TestSynchronizeGridRequest:
-    def test_to_synapse_request(self) -> None:
-        # GIVEN a SynchronizeGridRequest with all fields set
+
+    @pytest.mark.parametrize(
+        "sync_type",
+        [None, SyncType.PULL, SyncType.PULL_PUSH, "PULL", "PULL_PUSH"],
+        ids=["omitted", "pull", "pull_push", "string_pull", "string_pull_push"],
+    )
+    def test_to_synapse_request(self, sync_type: SyncType) -> None:
+        # GIVEN a SynchronizeGridRequest with the given sync_type
         sync_req = SynchronizeGridRequest(
-            grid_session_id=SESSION_ID,
+            grid_session_id=SESSION_ID, sync_type=sync_type
         )
 
         # WHEN I convert it to a synapse request
@@ -2405,6 +2731,27 @@ class TestSynchronizeGridRequest:
         # THEN it should contain the correct fields
         assert "concreteType" in result
         assert result["gridSessionId"] == SESSION_ID
+
+        # AND syncType is omitted when not set, and EnumCoercionMixin normalizes it to a SyncType
+        # member on assignment
+        if sync_type is None:
+            assert "syncType" not in result
+        else:
+            assert result["syncType"] == SyncType(sync_type).value
+
+    def test_unrecognized_sync_type_is_forward_compatible(self) -> None:
+        # GIVEN a sync_type that doesn't match any declared SyncType member
+        # (wrong case, or a value the server may add in the future)
+        # WHEN constructing a SynchronizeGridRequest with it
+        # THEN SyncType is forward-compatible, so it is accepted as-is
+        # rather than rejected, in case the server has added a new value
+        sync_req = SynchronizeGridRequest(grid_session_id=SESSION_ID, sync_type="pull")
+        assert sync_req.sync_type == "pull"
+
+        sync_req = SynchronizeGridRequest(
+            grid_session_id=SESSION_ID, sync_type="NOT_REAL"
+        )
+        assert sync_req.sync_type == "NOT_REAL"
 
     def test_fill_from_dict(self) -> None:
         # GIVEN a response with synchronize grid session data
