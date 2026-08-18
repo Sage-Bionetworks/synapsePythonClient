@@ -207,6 +207,20 @@ class TableUpdateRequest(ABC):
     - TableSchemaChangeRequest: Change the columns of a table or view.
     - TableSearchChangeRequest: Enable or disable full text search on a table or view.
 
+    | Request                    | Target           | Response                  |
+    |----------------------------|------------------|---------------------------|
+    | AppendableRowSetRequest    | Table            | RowReferenceSetResults    |
+    | AppendableRowSetRequest    | View / Dataset   | EntityUpdateResults       |
+    | UploadToTableRequest       | Table            | UploadToTableResult       |
+    | UploadToTableRequest       | View / Dataset   | EntityUpdateResults       |
+    | TableSchemaChangeRequest   | either           | TableSchemaChangeResponse |
+    | TableSearchChangeRequest   | either           | TableSearchChangeResponse |
+
+    A view has no rows of its own. Its rows are projections of the annotations on the
+    entities that back it. Writing a row of a view therefore updates those entities,
+    which can fail for one entity and succeed for another, so Synapse returns
+    EntityUpdateResults to report the status of each entity.
+
     This is modeled from:
      <https://rest-docs.synapse.org/rest/org/sagebionetworks/repo/model/table/TableUpdateRequest.html>
     """
@@ -521,7 +535,8 @@ class TableUpdateResponse(ABC):
 
     Each concrete subclass models one of the response types that Synapse may return.
     Use table_update_response_from_dict to convert a response into the subclass that
-    models it.
+    models it. See TableUpdateRequest for the table that maps each request and target entity type to
+    the response that Synapse returns.
 
     This result is modeled from: <https://rest-docs.synapse.org/rest/org/sagebionetworks/repo/model/table/TableUpdateResponse.html>
     """
