@@ -400,7 +400,7 @@ class TableSynchronousProtocol(Protocol):
         schema_storage_strategy: SchemaStorageStrategy = None,
         column_expansion_strategy: ColumnExpansionStrategy = None,
         dry_run: bool = False,
-        additional_changes: List["TableUpdateRequest"] = None,
+        additional_changes: list["TableUpdateRequest"] = None,
         *,
         insert_size_bytes: int = 900 * MB,
         csv_table_descriptor: Optional[CsvTableDescriptor] = None,
