@@ -60,10 +60,9 @@ class TestFactoryOperationsStoreAsync:
 
     def create_file_instance(self) -> File:
         """Helper method to create a test file."""
-        filename = utils.make_bogus_uuid_file()
-        self.schedule_for_cleanup(filename)
         return File(
-            path=filename,
+            external_url=f"https://example.com/bogus-file-{uuid.uuid4()}.txt",
+            synapse_store=False,
             description="Test file for store factory operations",
             content_type="text/plain",
             name=f"test_file_{str(uuid.uuid4())[:8]}.txt",

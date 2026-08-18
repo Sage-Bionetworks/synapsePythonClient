@@ -321,20 +321,19 @@ class TestFolderCopy:
         self.syn = syn
         self.schedule_for_cleanup = schedule_for_cleanup
 
-    def create_file_instance(self, schedule_for_cleanup: Callable[..., None]) -> File:
-        filename = utils.make_bogus_uuid_file()
-        schedule_for_cleanup(filename)
+    def create_file_instance(self) -> File:
+        # Only the entity's existence matters for copy structure verification,
+        # not its content, so an external_url file handle avoids a real upload.
         return File(
-            path=filename,
+            external_url=f"https://example.com/bogus-file-{uuid.uuid4()}.txt",
+            synapse_store=False,
             description=DESCRIPTION_FILE,
             content_type=CONTENT_TYPE,
         )
 
     def create_files(self, count: int) -> List[File]:
         """Helper method to create multiple file instances"""
-        return [
-            self.create_file_instance(self.schedule_for_cleanup) for _ in range(count)
-        ]
+        return [self.create_file_instance() for _ in range(count)]
 
     @pytest.fixture(autouse=True, scope="function")
     def folder(self) -> Folder:
@@ -557,10 +556,13 @@ class TestFolderSyncFromSynapse:
         self.schedule_for_cleanup(folder.id)
 
         # Create and store a File
+        # Only the entity's existence matters for entity-type sync verification,
+        # not its content, so an external_url file handle avoids a real upload.
         file = File(
             name=f"test_file_{str(uuid.uuid4())}.txt",
             parent_id=folder.id,
-            path=utils.make_bogus_uuid_file(),
+            external_url=f"https://example.com/bogus-file-{uuid.uuid4()}.txt",
+            synapse_store=False,
         )
         file = await file.store_async(synapse_client=self.syn)
         self.schedule_for_cleanup(file.id)
@@ -696,11 +698,12 @@ class TestFolderWalk:
         self.syn = syn_with_logger
         self.schedule_for_cleanup = schedule_for_cleanup
 
-    def create_file_instance(self, schedule_for_cleanup: Callable[..., None]) -> File:
-        filename = utils.make_bogus_uuid_file()
-        schedule_for_cleanup(filename)
+    def create_file_instance(self) -> File:
+        # Only the entity's existence matters for walk structure verification,
+        # not its content, so an external_url file handle avoids a real upload.
         return File(
-            path=filename,
+            external_url=f"https://example.com/bogus-file-{uuid.uuid4()}.txt",
+            synapse_store=False,
             description=DESCRIPTION_FILE,
             content_type=CONTENT_TYPE,
         )
@@ -715,7 +718,7 @@ class TestFolderWalk:
         self.schedule_for_cleanup(folder.id)
 
         # Create a file in the root folder
-        root_file = self.create_file_instance(self.schedule_for_cleanup)
+        root_file = self.create_file_instance()
         root_file.parent_id = folder.id
         root_file = await root_file.store_async(synapse_client=self.syn)
         self.schedule_for_cleanup(root_file.id)
@@ -726,7 +729,7 @@ class TestFolderWalk:
         nested_folder = await nested_folder.store_async(synapse_client=self.syn)
         self.schedule_for_cleanup(nested_folder.id)
 
-        nested_file = self.create_file_instance(self.schedule_for_cleanup)
+        nested_file = self.create_file_instance()
         nested_file.parent_id = nested_folder.id
         nested_file = await nested_file.store_async(synapse_client=self.syn)
         self.schedule_for_cleanup(nested_file.id)
@@ -830,10 +833,12 @@ class TestFolderManifestCSV:
         self.schedule_for_cleanup = schedule_for_cleanup
 
     def create_file_instance(self) -> File:
-        filename = utils.make_bogus_uuid_file()
-        self.schedule_for_cleanup(filename)
+        # Only the entity's existence and metadata matter for manifest CSV
+        # verification, not its content, so an external_url file handle avoids
+        # a real upload.
         return File(
-            path=filename,
+            external_url=f"https://example.com/bogus-file-{uuid.uuid4()}.txt",
+            synapse_store=False,
             content_type="text/plain",
         )
 

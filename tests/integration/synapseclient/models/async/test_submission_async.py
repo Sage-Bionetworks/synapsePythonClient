@@ -55,27 +55,17 @@ class TestSubmissionCreationAsync:
         schedule_for_cleanup: Callable[..., None],
     ) -> File:
         """Create a test file for submission tests."""
-        import os
-        import tempfile
-
-        # Create a temporary file
-        with tempfile.NamedTemporaryFile(
-            mode="w", delete=False, suffix=".txt"
-        ) as temp_file:
-            temp_file.write("This is test content for submission testing.")
-            temp_file_path = temp_file.name
-
-        try:
-            file = await File(
-                path=temp_file_path,
-                name=f"test_file_{uuid.uuid4()}.txt",
-                parent_id=test_project.id,
-            ).store_async(synapse_client=syn)
-            schedule_for_cleanup(file.id)
-            return file
-        finally:
-            # Clean up the temporary file
-            os.unlink(temp_file_path)
+        # Only the file's existence as a submission subject matters here,
+        # not its content, so an external_url file handle avoids a real
+        # upload.
+        file = await File(
+            external_url=f"https://example.com/bogus-file-{uuid.uuid4()}.txt",
+            synapse_store=False,
+            name=f"test_file_{uuid.uuid4()}.txt",
+            parent_id=test_project.id,
+        ).store_async(synapse_client=syn)
+        schedule_for_cleanup(file.id)
+        return file
 
     async def test_store_submission_successfully_async(
         self, test_evaluation: Evaluation, test_file: File

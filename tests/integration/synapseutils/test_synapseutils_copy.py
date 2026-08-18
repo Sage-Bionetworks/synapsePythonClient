@@ -152,9 +152,16 @@ def execute_test_copy(syn: Synapse, schedule_for_cleanup):
     # ------------------------------------
     # TEST COPY LINKS
     # ------------------------------------
-    second_file = utils.make_bogus_data_file()
-    # schedule_for_cleanup(filename)
-    second_file_entity = syn.store(File(second_file, parent=project_entity))
+    # Only used as a Link target below (referenced by id, never downloaded), so an
+    # external URL avoids a real upload.
+    second_file_entity = syn.store(
+        File(
+            f"https://example.com/bogus-file-{uuid.uuid4()}.txt",
+            name="bogus_link_target.txt",
+            parent=project_entity,
+            synapseStore=False,
+        )
+    )
     link_entity = Link(second_file_entity.id, parent=folder_entity.id)
     link_entity = syn.store(link_entity)
 

@@ -5,7 +5,6 @@ import pandas as pd
 import pytest
 
 from synapseclient import Synapse
-from synapseclient.core import utils
 from synapseclient.core.exceptions import SynapseHTTPError
 from synapseclient.models import (
     Column,
@@ -59,10 +58,11 @@ class TestDataset:
 
     def create_file_instance(self) -> File:
         """Helper to create a file instance"""
-        filename = utils.make_bogus_uuid_file()
-        self.schedule_for_cleanup(filename)
+        # Only the file's existence as a dataset item matters here, not its
+        # content, so an external_url file handle avoids a real upload.
         return File(
-            path=filename,
+            external_url=f"https://example.com/bogus-file-{uuid.uuid4()}.txt",
+            synapse_store=False,
             description=DESCRIPTION_FILE,
             content_type=CONTENT_TYPE,
         )
@@ -428,10 +428,11 @@ class TestDatasetCollection:
 
     def create_file_instance(self) -> File:
         """Helper to create a file instance"""
-        filename = utils.make_bogus_uuid_file()
-        self.schedule_for_cleanup(filename)
+        # Only the file's existence as a dataset item matters here, not its
+        # content, so an external_url file handle avoids a real upload.
         return File(
-            path=filename,
+            external_url=f"https://example.com/bogus-file-{uuid.uuid4()}.txt",
+            synapse_store=False,
             description=DESCRIPTION_FILE,
             content_type=CONTENT_TYPE,
         )

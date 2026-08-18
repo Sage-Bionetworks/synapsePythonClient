@@ -568,7 +568,8 @@ class TestProjectCopySync:
         file = File(
             name=f"test_file_{str(uuid.uuid4())}.txt",
             parent_id=project_model.id,
-            path=utils.make_bogus_uuid_file(),
+            external_url=f"https://example.com/bogus-file-{uuid.uuid4()}.txt",
+            synapse_store=False,
         )
         file = await file.store_async(synapse_client=self.syn)
         self.schedule_for_cleanup(file.id)
@@ -638,10 +639,11 @@ class TestProjectWalk:
         self.schedule_for_cleanup = schedule_for_cleanup
 
     def create_file_instance(self, schedule_for_cleanup: Callable[..., None]) -> File:
-        filename = utils.make_bogus_uuid_file()
-        schedule_for_cleanup(filename)
+        # Only the entity's existence matters for walk_async results, not its
+        # content, so an external_url file handle avoids a real upload.
         return File(
-            path=filename,
+            external_url=f"https://example.com/bogus-file-{uuid.uuid4()}.txt",
+            synapse_store=False,
             description=DESCRIPTION_FILE,
             content_type=CONTENT_TYPE,
         )

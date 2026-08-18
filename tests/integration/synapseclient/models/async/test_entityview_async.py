@@ -9,7 +9,6 @@ from pytest_mock import MockerFixture
 import synapseclient.models.mixins.table_components as table_module
 from synapseclient import Synapse
 from synapseclient.api import get_default_columns
-from synapseclient.core import utils
 from synapseclient.core.exceptions import SynapseHTTPError
 from synapseclient.models import (
     Activity,
@@ -47,13 +46,15 @@ class TestEntityView:
 
         # Create files
         files = []
-        filename = utils.make_bogus_uuid_file()
 
-        # First file has a real path
+        # First file gets its own file handle. Only the file's existence and
+        # metadata matter for these tests, not its content, so an
+        # external_url file handle avoids a real upload.
         file1 = await File(
             parent_id=folder.id,
             name="file1",
-            path=filename,
+            external_url=f"https://example.com/bogus-file-{uuid.uuid4()}.txt",
+            synapse_store=False,
             description="file1_description",
         ).store_async(synapse_client=self.syn)
         self.schedule_for_cleanup(file1.id)

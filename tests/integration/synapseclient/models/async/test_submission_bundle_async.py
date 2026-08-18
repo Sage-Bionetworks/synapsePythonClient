@@ -59,14 +59,9 @@ class TestSubmissionBundleRetrievalAsync:
         syn: Synapse,
         schedule_for_cleanup: Callable[..., None],
     ) -> File:
-        file_content = (
-            f"Test file content for submission bundle async tests {uuid.uuid4()}"
-        )
-        with open("test_file_for_submission_bundle_async.txt", "w") as f:
-            f.write(file_content)
-
         file_entity = await File(
-            path="test_file_for_submission_bundle_async.txt",
+            external_url=f"https://example.com/bogus-file-{uuid.uuid4()}.txt",
+            synapse_store=False,
             name=f"test_submission_file_async_{uuid.uuid4()}",
             parent_id=test_project.id,
         ).store_async(synapse_client=syn)
@@ -354,14 +349,9 @@ class TestSubmissionBundleDataIntegrityAsync:
         syn: Synapse,
         schedule_for_cleanup: Callable[..., None],
     ) -> File:
-        file_content = (
-            f"Test file content for data integrity async tests {uuid.uuid4()}"
-        )
-        with open("test_file_for_data_integrity_async.txt", "w") as f:
-            f.write(file_content)
-
         file_entity = await File(
-            path="test_file_for_data_integrity_async.txt",
+            external_url=f"https://example.com/bogus-file-{uuid.uuid4()}.txt",
+            synapse_store=False,
             name=f"test_integrity_file_async_{uuid.uuid4()}",
             parent_id=test_project.id,
         ).store_async(synapse_client=syn)
@@ -532,12 +522,9 @@ class TestSubmissionBundleEdgeCasesAsync:
         syn: Synapse,
         schedule_for_cleanup: Callable[..., None],
     ) -> File:
-        file_content = f"Test file content for edge case async tests {uuid.uuid4()}"
-        with open("test_file_for_edge_case_async.txt", "w") as f:
-            f.write(file_content)
-
         file_entity = await File(
-            path="test_file_for_edge_case_async.txt",
+            external_url=f"https://example.com/bogus-file-{uuid.uuid4()}.txt",
+            synapse_store=False,
             name=f"test_edge_case_file_async_{uuid.uuid4()}",
             parent_id=test_project.id,
         ).store_async(synapse_client=syn)

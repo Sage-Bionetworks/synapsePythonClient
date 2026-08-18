@@ -1,5 +1,4 @@
 import asyncio
-import tempfile
 import uuid
 from typing import Callable
 
@@ -544,12 +543,15 @@ class TestSubmissionViewWithSubmissions:
         self.schedule_for_cleanup(submissionview)
 
         # AND a file for submission
-        with tempfile.NamedTemporaryFile(mode="w", suffix=".txt", delete=False) as f:
-            filename = f.name
-            f.write("Test content for submission")
-            self.schedule_for_cleanup(filename)
-
-        file_entity = File(path=filename, parent_id=project_model.id, name="Test file")
+        # Only the file's existence as a submission subject matters here,
+        # not its content, so an external_url file handle avoids a real
+        # upload.
+        file_entity = File(
+            external_url=f"https://example.com/bogus-file-{uuid.uuid4()}.txt",
+            synapse_store=False,
+            parent_id=project_model.id,
+            name="Test file",
+        )
         file_entity = await file_entity.store_async(synapse_client=self.syn)
         self.schedule_for_cleanup(file_entity.id)
 
@@ -632,17 +634,14 @@ class TestSubmissionViewWithSubmissions:
         submissions = []
 
         for i in range(3):
-            # Create test file
-            with tempfile.NamedTemporaryFile(
-                mode="w", suffix=".txt", delete=False
-            ) as f:
-                filename = f.name
-                f.write(f"Test content for submission {i}")
-                self.schedule_for_cleanup(filename)
-
-            # Store file in Synapse
+            # Create test file. Only the file's existence as a submission
+            # subject matters here, not its content, so an external_url
+            # file handle avoids a real upload.
             file_entity = File(
-                path=filename, parent_id=project_model.id, name=f"Test file {i}"
+                external_url=f"https://example.com/bogus-file-{uuid.uuid4()}.txt",
+                synapse_store=False,
+                parent_id=project_model.id,
+                name=f"Test file {i}",
             )
             file_entity = await file_entity.store_async(synapse_client=self.syn)
             self.schedule_for_cleanup(file_entity.id)

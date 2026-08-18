@@ -10,7 +10,6 @@ import pandas as pd
 import pytest
 
 from synapseclient import Synapse
-from synapseclient.core.utils import make_bogus_data_file
 from synapseclient.models import (
     AuthorizationMode,
     EntityView,
@@ -297,10 +296,12 @@ class TestGridAsync:
         self.schedule_for_cleanup(created_grid)
 
         # AND: A file uploaded into the scoped folder
-        bogus_file = make_bogus_data_file()
-        self.schedule_for_cleanup(bogus_file)
+        # Only the file's existence in the EntityView's scope matters here,
+        # not its content, so an external_url file handle avoids a real
+        # upload.
         uploaded_file = await File(
-            path=bogus_file,
+            external_url=f"https://example.com/bogus-file-{uuid.uuid4()}.txt",
+            synapse_store=False,
             parent_id=folder.id,
         ).store_async(synapse_client=self.syn)
         self.schedule_for_cleanup(uploaded_file.id)
