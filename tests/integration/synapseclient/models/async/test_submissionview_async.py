@@ -234,15 +234,34 @@ class TestColumnAndScopeModifications:
         self.syn = syn
         self.schedule_for_cleanup = schedule_for_cleanup
 
-    async def test_column_modifications(self, project_model: Project) -> None:
+    @pytest.fixture(scope="class")
+    async def shared_evaluations(
+        self,
+        project_model: Project,
+        syn: Synapse,
+        schedule_for_cleanup: Callable[..., None],
+    ) -> "list[Evaluation]":
+        """Two evaluations, built once for the class. Both tests below only use
+        these as scope_ids targets on their own submissionviews -- neither
+        submits to, deletes, or otherwise mutates the evaluations themselves,
+        and neither queries submission content, so sharing them is read-only."""
+        evaluations = []
+        for i in range(2):
+            evaluation = await Evaluation(
+                name=str(uuid.uuid4()),
+                description=f"Test evaluation {i + 1} for submission view",
+                content_source=project_model.id,
+            ).store_async(synapse_client=syn)
+            schedule_for_cleanup(evaluation)
+            evaluations.append(evaluation)
+        return evaluations
+
+    async def test_column_modifications(
+        self, project_model: Project, shared_evaluations: "list[Evaluation]"
+    ) -> None:
         # GIVEN a project to work with
         # AND an evaluation to use in the scope
-        evaluation = await Evaluation(
-            name=str(uuid.uuid4()),
-            description="Test evaluation for submission view",
-            content_source=project_model.id,
-        ).store_async(synapse_client=self.syn)
-        self.schedule_for_cleanup(evaluation)
+        evaluation = shared_evaluations[0]
 
         # AND a submissionview in Synapse with two columns
         submissionview_name = str(uuid.uuid4())
@@ -297,22 +316,12 @@ class TestColumnAndScopeModifications:
         assert new_column_name not in updated_view2.columns
         assert column_to_keep in updated_view2.columns
 
-    async def test_scope_modifications(self, project_model: Project) -> None:
+    async def test_scope_modifications(
+        self, project_model: Project, shared_evaluations: "list[Evaluation]"
+    ) -> None:
         # GIVEN a project to work with
         # AND two evaluations for testing scope changes
-        evaluation1 = await Evaluation(
-            name=str(uuid.uuid4()),
-            description="Test evaluation 1",
-            content_source=project_model.id,
-        ).store_async(synapse_client=self.syn)
-        self.schedule_for_cleanup(evaluation1)
-
-        evaluation2 = await Evaluation(
-            name=str(uuid.uuid4()),
-            description="Test evaluation 2",
-            content_source=project_model.id,
-        ).store_async(synapse_client=self.syn)
-        self.schedule_for_cleanup(evaluation2)
+        evaluation1, evaluation2 = shared_evaluations
 
         # AND a submissionview with one evaluation in scope
         submissionview_name = str(uuid.uuid4())
