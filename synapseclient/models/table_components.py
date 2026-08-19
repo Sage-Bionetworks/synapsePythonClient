@@ -622,7 +622,7 @@ class TableUpdateResponse(ABC):
     This result is modeled from: <https://rest-docs.synapse.org/rest/org/sagebionetworks/repo/model/table/TableUpdateResponse.html>
     """
 
-    concrete_type: str
+    concrete_type: str | None
     """The concrete type of this response, as reported by Synapse."""
 
     @classmethod
