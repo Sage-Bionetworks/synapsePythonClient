@@ -1,5 +1,6 @@
 """Integration tests for the synapseclient.models.Project class."""
 
+import copy
 import os
 import uuid
 from typing import Callable, List
@@ -408,17 +409,13 @@ class TestProjectCopySync:
                     assert sub_file.parent_id == folder.id
 
     @pytest.fixture(scope="class")
-    async def shared_nested_project(
+    async def _shared_nested_project(
         self, syn: Synapse, schedule_for_cleanup: Callable[..., None]
     ) -> Project:
         """
         Built once for the whole class rather than once per test:
         `test_copy_project_variations` and `test_sync_from_synapse` both need a
         stored project with the same nested files/folders/annotations shape.
-        Copying only reads from the source project. Syncing repopulates the
-        source project's local `files`/`folders`/`annotations` from Synapse with
-        equivalent values, and only `test_sync_from_synapse` (which runs after
-        `test_copy_project_variations` in this class) does that.
         """
         self.syn = syn
         self.schedule_for_cleanup = schedule_for_cleanup
@@ -426,6 +423,10 @@ class TestProjectCopySync:
         stored_project = await project.store_async(synapse_client=syn)
         schedule_for_cleanup(stored_project.id)
         return stored_project
+
+    @pytest.fixture
+    def shared_nested_project(self, _shared_nested_project: Project) -> Project:
+        return copy.deepcopy(_shared_nested_project)
 
     async def test_copy_project_variations(
         self, shared_nested_project: Project
