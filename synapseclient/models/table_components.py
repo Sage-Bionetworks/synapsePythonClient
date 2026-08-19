@@ -291,7 +291,7 @@ class UploadToTableRequest(TableUpdateRequest):
     alias of entity_id. Give either this field or table_id, and they are made equal
     after the request is created."""
 
-    upload_file_handle_id: str
+    upload_file_handle_id: str = field(kw_only=True)
     """The ID of the file handle of the CSV that holds the rows to apply. Upload the CSV
     to Synapse first, with multipart_upload_file_async, and pass the file handle ID that
     it returns."""
