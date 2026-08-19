@@ -5,8 +5,10 @@ import re
 import string
 import tempfile
 import uuid
+from datetime import date, datetime, timezone
 from typing import Callable
 from unittest import skip
+from zoneinfo import ZoneInfo
 
 import pandas as pd
 import pytest
@@ -917,6 +919,321 @@ class TestRowStorage:
         # Note: DataFrames have a minimum of 100 rows per batch
         assert spy_send_job.call_count == 3
 
+    async def test_store_rows_from_df_with_datetime_columns(
+        self, project_model: Project
+    ) -> None:
+        table_name = str(uuid.uuid4())
+        table = Table(
+            name=table_name,
+            parent_id=project_model.id,
+            columns=[
+                Column(name="column_string", column_type=ColumnType.STRING),
+                Column(name="column_date_tz_aware", column_type=ColumnType.DATE),
+                Column(name="column_date_dst", column_type=ColumnType.DATE),
+                Column(name="column_date_naive", column_type=ColumnType.DATE),
+            ],
+        )
+        table = await table.store_async(synapse_client=self.syn)
+        self.schedule_for_cleanup(table.id)
+
+        # AND a DataFrame with tz-aware and naive datetime values, including nulls.
+        # The DST column uses a zone that observes daylight saving time, with one
+        # winter value (PST, UTC-8) and one summer value (PDT, UTC-7)
+        tz_aware_dates = [
+            datetime(2021, 1, 1, 12, 0, 0, tzinfo=timezone.utc),
+            None,
+            datetime(2021, 1, 3, 12, 0, 0, tzinfo=timezone.utc),
+        ]
+        dst_dates = [
+            datetime(2021, 1, 1, 12, 0, 0, tzinfo=ZoneInfo("America/Los_Angeles")),
+            None,
+            datetime(2021, 7, 1, 12, 0, 0, tzinfo=ZoneInfo("America/Los_Angeles")),
+        ]
+        naive_dates = [
+            datetime(2021, 1, 1, 12, 0, 0),
+            None,
+            datetime(2021, 1, 3, 12, 0, 0),
+        ]
+        data_for_table = pd.DataFrame(
+            {
+                "column_string": ["value1", "value2", "value3"],
+                "column_date_tz_aware": tz_aware_dates,
+                "column_date_dst": dst_dates,
+                "column_date_naive": naive_dates,
+            }
+        )
+
+        await table.store_rows_async(
+            values=data_for_table,
+            schema_storage_strategy=None,
+            synapse_client=self.syn,
+        )
+
+        results = await query_async(
+            f"SELECT * FROM {table.id}",
+            synapse_client=self.syn,
+            include_row_id_and_row_version=False,
+        )
+
+        # The DST column expectations are hardcoded to prove each value converts using the
+        # UTC offset in effect on its own date (12:00-08:00 -> 20:00 UTC and
+        # 12:00-07:00 -> 19:00 UTC), independent of the machine running the test
+        expected_results = pd.DataFrame(
+            {
+                "column_string": ["value1", "value2", "value3"],
+                "column_date_tz_aware": [
+                    utils.to_unix_epoch_time(date) if date else None
+                    for date in tz_aware_dates
+                ],
+                "column_date_dst": [1609531200000, None, 1625166000000],
+                "column_date_naive": [
+                    utils.to_unix_epoch_time(date) if date else None
+                    for date in naive_dates
+                ],
+            }
+        )
+        pd.testing.assert_frame_equal(results, expected_results, check_dtype=False)
+
+    async def test_store_rows_from_df_with_date_object_column(
+        self, project_model: Project
+    ) -> None:
+        table_name = str(uuid.uuid4())
+        table = Table(
+            name=table_name,
+            parent_id=project_model.id,
+            columns=[
+                Column(name="column_string", column_type=ColumnType.STRING),
+                Column(name="column_date", column_type=ColumnType.DATE),
+            ],
+        )
+        table = await table.store_async(synapse_client=self.syn)
+        self.schedule_for_cleanup(table.id)
+
+        date_values = [date(2021, 1, 1), date(2021, 7, 1)]
+        data_for_table = pd.DataFrame(
+            {
+                "column_string": ["value1", "value2"],
+                "column_date": date_values,
+            }
+        )
+
+        await table.store_rows_async(
+            values=data_for_table,
+            schema_storage_strategy=None,
+            synapse_client=self.syn,
+        )
+
+        results = await query_async(
+            f"SELECT * FROM {table.id}",
+            synapse_client=self.syn,
+            include_row_id_and_row_version=False,
+        )
+
+        expected_results = pd.DataFrame(
+            {
+                "column_string": ["value1", "value2"],
+                "column_date": [
+                    utils.to_unix_epoch_time(value)
+                    for value in date_values  # date columns are converted to epoch ms (midnight local timezone, unit tests run with TZ=UTC)
+                ],
+            }
+        )
+        pd.testing.assert_frame_equal(results, expected_results, check_dtype=False)
+
+    async def test_store_rows_from_csv_with_date_columns(
+        self, project_model: Project
+    ) -> None:
+        table_name = str(uuid.uuid4())
+        table = Table(
+            name=table_name,
+            parent_id=project_model.id,
+            columns=[
+                Column(name="column_string", column_type=ColumnType.STRING),
+                Column(name="column_date", column_type=ColumnType.DATE),
+            ],
+        )
+        table = await table.store_async(synapse_client=self.syn)
+        self.schedule_for_cleanup(table.id)
+
+        with tempfile.NamedTemporaryFile(
+            mode="w", suffix=".csv", delete=False
+        ) as csv_file:
+            csv_file.write(
+                "column_string,column_date\n"
+                "value1,01/15/2024\n"
+                "value2,\n"
+                "value3,02/20/2024\n"
+            )
+
+        try:
+            await table.store_rows_async(
+                values=csv_file.name,
+                schema_storage_strategy=None,
+                date_columns=["column_date"],
+                date_format="%m/%d/%Y",
+                synapse_client=self.syn,
+            )
+        finally:
+            os.remove(csv_file.name)
+
+        results = await query_async(
+            f"SELECT * FROM {table.id}",
+            synapse_client=self.syn,
+            include_row_id_and_row_version=False,
+        )
+
+        expected_results = pd.DataFrame(
+            {
+                "column_string": ["value1", "value2", "value3"],
+                "column_date": [
+                    utils.to_unix_epoch_time(datetime(2024, 1, 15)),
+                    None,
+                    utils.to_unix_epoch_time(datetime(2024, 2, 20)),
+                ],
+            }
+        )
+        pd.testing.assert_frame_equal(results, expected_results, check_dtype=False)
+
+    async def test_store_rows_from_csv_with_tz_aware_date_columns(
+        self, project_model: Project
+    ) -> None:
+        table_name = str(uuid.uuid4())
+        table = Table(
+            name=table_name,
+            parent_id=project_model.id,
+            columns=[
+                Column(name="column_string", column_type=ColumnType.STRING),
+                Column(name="column_date", column_type=ColumnType.DATE),
+            ],
+        )
+        table = await table.store_async(synapse_client=self.syn)
+        self.schedule_for_cleanup(table.id)
+
+        # AND a CSV file whose date strings carry an explicit UTC offset. These
+        # parse into timezone-aware values
+        with tempfile.NamedTemporaryFile(
+            mode="w", suffix=".csv", delete=False
+        ) as csv_file:
+            csv_file.write(
+                "column_string,column_date\n"
+                "value1,01/15/2024 12:00 -0800\n"
+                "value2,\n"
+                "value3,02/20/2024 12:00 -0800\n"
+            )
+
+        try:
+            await table.store_rows_async(
+                values=csv_file.name,
+                schema_storage_strategy=None,
+                date_columns=["column_date"],
+                date_format="%m/%d/%Y %H:%M %z",
+                synapse_client=self.syn,
+            )
+        finally:
+            os.remove(csv_file.name)
+
+        results = await query_async(
+            f"SELECT * FROM {table.id}",
+            synapse_client=self.syn,
+            include_row_id_and_row_version=False,
+        )
+
+        expected_results = pd.DataFrame(
+            {
+                "column_string": ["value1", "value2", "value3"],
+                "column_date": [
+                    1705348800000,
+                    None,
+                    1708459200000,
+                ],  # date columns are converted to epoch ms
+            }
+        )
+        pd.testing.assert_frame_equal(results, expected_results, check_dtype=False)
+
+    async def test_store_rows_from_csv_with_row_ids_and_date_columns_updates_rows(
+        self, project_model: Project
+    ) -> None:
+        table_name = str(uuid.uuid4())
+        table = Table(
+            name=table_name,
+            parent_id=project_model.id,
+            columns=[
+                Column(name="column_string", column_type=ColumnType.STRING),
+                Column(name="column_date", column_type=ColumnType.DATE),
+            ],
+        )
+        table = await table.store_async(synapse_client=self.syn)
+        self.schedule_for_cleanup(table.id)
+
+        with tempfile.NamedTemporaryFile(
+            mode="w", suffix=".csv", delete=False
+        ) as csv_file:
+            csv_file.write(
+                "column_string,column_date\n"
+                "value1,01/15/2024\n"
+                "value2,02/20/2024\n"
+            )
+        try:
+            await table.store_rows_async(
+                values=csv_file.name,
+                schema_storage_strategy=None,
+                date_columns=["column_date"],
+                date_format="%m/%d/%Y",
+                synapse_client=self.syn,
+            )
+        finally:
+            os.remove(csv_file.name)
+
+        stored_rows = await query_async(
+            f"SELECT * FROM {table.id}",
+            synapse_client=self.syn,
+        )
+
+        updated_values = [("updated1", "03/10/2024"), ("updated2", "04/25/2024")]
+        update_lines = [
+            f"{row.ROW_ID},{row.ROW_VERSION},{new_string},{new_date}"
+            for row, (new_string, new_date) in zip(
+                stored_rows.itertuples(), updated_values
+            )
+        ]
+        with tempfile.NamedTemporaryFile(
+            mode="w", suffix=".csv", delete=False
+        ) as update_file:
+            update_file.write(
+                "ROW_ID,ROW_VERSION,column_string,column_date\n"
+                + "\n".join(update_lines)
+                + "\n"
+            )
+
+        try:
+            await table.store_rows_async(
+                values=update_file.name,
+                schema_storage_strategy=None,
+                date_columns=["column_date"],
+                date_format="%m/%d/%Y",
+                synapse_client=self.syn,
+            )
+        finally:
+            os.remove(update_file.name)
+
+        # AND I query the table again
+        results = await query_async(
+            f"SELECT * FROM {table.id}",
+            synapse_client=self.syn,
+            include_row_id_and_row_version=False,
+        )
+
+        expected_results = pd.DataFrame(
+            {
+                "column_string": ["updated1", "updated2"],
+                "column_date": [
+                    utils.to_unix_epoch_time(datetime(2024, 3, 10)),
+                    utils.to_unix_epoch_time(datetime(2024, 4, 25)),
+                ],
+            }
+        )
+        pd.testing.assert_frame_equal(results, expected_results, check_dtype=False)
+
     @skip("Skip in normal testing because the large size makes it slow")
     async def test_store_rows_as_large_df_being_split_and_uploaded(
         self, project_model: Project, mocker: MockerFixture
@@ -1556,7 +1873,9 @@ class TestUpsertRows:
         # AND multiple batch jobs should have been created due to batching settings
         assert spy_send_job.call_count == 7  # More batches due to small size settings
 
-    async def test_upsert_all_data_types(self, project_model: Project) -> None:
+    async def test_upsert_all_data_types_using_dataframe(
+        self, project_model: Project
+    ) -> None:
         """Test upserting all supported data types to ensure type compatibility."""
         # GIVEN a table in Synapse with all data types
         table_name = str(uuid.uuid4())
@@ -1621,9 +1940,9 @@ class TestUpsertRows:
                 "column_integer": [1, None, 3],
                 "column_boolean": [True, None, True],
                 "column_date": [
-                    utils.to_unix_epoch_time("2021-01-01"),
+                    datetime(2021, 1, 1),
                     None,
-                    utils.to_unix_epoch_time("2021-01-03"),
+                    datetime(2021, 1, 3),
                 ],
                 # Reference types
                 "column_filehandleid": [
@@ -1670,13 +1989,13 @@ class TestUpsertRows:
                 ],
                 "column_date_LIST": [
                     [
-                        utils.to_unix_epoch_time("2021-01-01"),
-                        utils.to_unix_epoch_time("2021-01-02"),
+                        datetime(2021, 1, 1),
+                        datetime(2021, 1, 2),
                     ],
                     None,
                     [
-                        utils.to_unix_epoch_time("2021-01-05"),
-                        utils.to_unix_epoch_time("2021-01-06"),
+                        datetime(2021, 1, 5),
+                        datetime(2021, 1, 6),
                     ],
                 ],
                 "column_entity_id_list": [
@@ -1805,9 +2124,9 @@ class TestUpsertRows:
                 "column_integer": [11, None, 33],
                 "column_boolean": [False, None, False],
                 "column_date": [
-                    utils.to_unix_epoch_time("2022-01-01"),
+                    datetime(2022, 1, 1, tzinfo=timezone.utc),
                     None,
-                    utils.to_unix_epoch_time("2022-01-03"),
+                    datetime(2022, 1, 3, tzinfo=timezone.utc),
                 ],
                 # Updated references
                 "column_filehandleid": [
@@ -1854,13 +2173,13 @@ class TestUpsertRows:
                 ],
                 "column_date_LIST": [
                     [
-                        utils.to_unix_epoch_time("2022-01-01"),
-                        utils.to_unix_epoch_time("2022-01-02"),
+                        datetime(2022, 1, 1),
+                        datetime(2022, 1, 2),
                     ],
                     None,
                     [
-                        utils.to_unix_epoch_time("2022-01-05"),
-                        utils.to_unix_epoch_time("2022-01-06"),
+                        datetime(2022, 1, 5),
+                        datetime(2022, 1, 6),
                     ],
                 ],
                 "column_entity_id_list": [
@@ -1911,9 +2230,9 @@ class TestUpsertRows:
                 "column_integer": [11, None, 33],
                 "column_boolean": [False, None, False],
                 "column_date": [
-                    utils.to_unix_epoch_time("2022-01-01"),
+                    utils.to_unix_epoch_time(datetime(2022, 1, 1, tzinfo=timezone.utc)),
                     None,
-                    utils.to_unix_epoch_time("2022-01-03"),
+                    utils.to_unix_epoch_time(datetime(2022, 1, 3, tzinfo=timezone.utc)),
                 ],
                 "column_filehandleid": [
                     file2.file_handle.id,
@@ -1983,9 +2302,9 @@ class TestUpsertRows:
                 "column_integer": [1, 2, 3],
                 "column_boolean": [True, True, True],
                 "column_date": [
-                    utils.to_unix_epoch_time("2021-01-01"),
-                    utils.to_unix_epoch_time("2021-01-02"),
-                    utils.to_unix_epoch_time("2021-01-03"),
+                    datetime(2021, 1, 1),
+                    datetime(2021, 1, 2),
+                    datetime(2021, 1, 3),
                 ],
                 "column_filehandleid": [
                     file.file_handle.id,
@@ -2029,13 +2348,13 @@ class TestUpsertRows:
                 ],
                 "column_date_LIST": [
                     [
-                        utils.to_unix_epoch_time("2023-01-01"),
-                        utils.to_unix_epoch_time("2023-01-02"),
+                        datetime(2023, 1, 1),
+                        datetime(2023, 1, 2),
                     ],
                     None,
                     [
-                        utils.to_unix_epoch_time("2023-01-05"),
-                        utils.to_unix_epoch_time("2023-01-06"),
+                        datetime(2023, 1, 5),
+                        datetime(2023, 1, 6),
                     ],
                 ],
                 "column_entity_id_list": [
@@ -2136,6 +2455,450 @@ class TestUpsertRows:
                 assert row["column_entityid"] == file.id
                 assert row["column_mediumtext"] == "updated3"
                 assert row["column_largetext"] == "largetext3"
+
+    async def test_upsert_all_data_types_using_csv(
+        self, project_model: Project
+    ) -> None:
+        """CSV analog of `test_upsert_all_data_types`: both the initial insert and the upsert update
+        are sourced from CSV files on disk
+        """
+
+        def write_csv(rows: list) -> str:
+            """Write CSV-ready rows to a temp CSV file, JSON-encoding any
+            list/dict values so they can be parsed back via
+            csv_to_pandas_df's list_columns handling, and return its path."""
+            json_ready_rows = [
+                {
+                    key: (
+                        json.dumps(value) if isinstance(value, (list, dict)) else value
+                    )
+                    for key, value in row.items()
+                }
+                for row in rows
+            ]
+            df = pd.DataFrame(json_ready_rows)
+            fd, path = tempfile.mkstemp(suffix=".csv")
+            os.close(fd)
+            df.to_csv(path, index=False)
+            return path
+
+        list_columns = [
+            "column_string_LIST",
+            "column_integer_LIST",
+            "column_boolean_LIST",
+            "column_date_LIST",
+            "column_entity_id_list",
+            "column_user_id_list",
+        ]
+        list_column_types = {
+            "column_string_LIST": "STRING_LIST",
+            "column_integer_LIST": "INTEGER_LIST",
+            "column_boolean_LIST": "BOOLEAN_LIST",
+            "column_date_LIST": "DATE_LIST",
+            "column_entity_id_list": "ENTITYID_LIST",
+            "column_user_id_list": "USERID_LIST",
+        }
+
+        # GIVEN a table in Synapse with all data types
+        table_name = str(uuid.uuid4())
+        table = Table(
+            name=table_name,
+            parent_id=project_model.id,
+            columns=[
+                Column(name="column_string", column_type=ColumnType.STRING),
+                Column(name="column_double", column_type=ColumnType.DOUBLE),
+                Column(name="column_integer", column_type=ColumnType.INTEGER),
+                Column(name="column_boolean", column_type=ColumnType.BOOLEAN),
+                Column(name="column_date", column_type=ColumnType.DATE),
+                Column(name="column_filehandleid", column_type=ColumnType.FILEHANDLEID),
+                Column(name="column_entityid", column_type=ColumnType.ENTITYID),
+                Column(name="column_submissionid", column_type=ColumnType.SUBMISSIONID),
+                Column(name="column_evaluationid", column_type=ColumnType.EVALUATIONID),
+                Column(name="column_link", column_type=ColumnType.LINK),
+                Column(name="column_mediumtext", column_type=ColumnType.MEDIUMTEXT),
+                Column(name="column_largetext", column_type=ColumnType.LARGETEXT),
+                Column(name="column_userid", column_type=ColumnType.USERID),
+                Column(name="column_string_LIST", column_type=ColumnType.STRING_LIST),
+                Column(name="column_integer_LIST", column_type=ColumnType.INTEGER_LIST),
+                Column(name="column_boolean_LIST", column_type=ColumnType.BOOLEAN_LIST),
+                Column(name="column_date_LIST", column_type=ColumnType.DATE_LIST),
+                Column(
+                    name="column_entity_id_list", column_type=ColumnType.ENTITYID_LIST
+                ),
+                Column(name="column_user_id_list", column_type=ColumnType.USERID_LIST),
+                Column(name="column_json", column_type=ColumnType.JSON),
+            ],
+        )
+        table = await table.store_async(synapse_client=self.syn)
+        self.schedule_for_cleanup(table.id)
+
+        # Set up test resources
+        path = utils.make_bogus_data_file()
+        self.schedule_for_cleanup(path)
+        file = await File(parent_id=project_model.id, path=path).store_async(
+            synapse_client=self.syn
+        )
+
+        name = "Test Evaluation %s" % str(uuid.uuid4())
+        evaluation = Evaluation(
+            name=name,
+            description="Evaluation for testing",
+            content_source=project_model.id,
+        )
+        evaluation = await evaluation.store_async(synapse_client=self.syn)
+        self.schedule_for_cleanup(evaluation)
+        submission = await self.syn.submit_async(
+            evaluation, file.id, name="Submission 1", submitterAlias="My Team"
+        )
+
+        initial_rows = [
+            {
+                "column_string": "value1",
+                "column_double": 1.1,
+                "column_integer": 1,
+                "column_boolean": True,
+                "column_date": "2021-01-01",
+                "column_filehandleid": file.file_handle.id,
+                "column_entityid": file.id,
+                "column_submissionid": submission.id,
+                "column_evaluationid": evaluation.id,
+                "column_link": "https://www.synapse.org/Profile:",
+                "column_mediumtext": "value1",
+                "column_largetext": "value1",
+                "column_userid": self.syn.credentials.owner_id,
+                "column_string_LIST": ["value1", "value2"],
+                "column_integer_LIST": [1, 2],
+                "column_boolean_LIST": [True, False],
+                "column_date_LIST": ["2021-01-01", "2021-01-02"],
+                "column_entity_id_list": [file.id, file.id],
+                "column_user_id_list": [
+                    self.syn.credentials.owner_id,
+                    self.syn.credentials.owner_id,
+                ],
+                "column_json": {"key1": "value1", "key2": 2},
+            },
+            {
+                "column_string": "value2",
+                "column_double": None,
+                "column_integer": None,
+                "column_boolean": None,
+                "column_date": None,
+                "column_filehandleid": None,
+                "column_entityid": None,
+                "column_submissionid": None,
+                "column_evaluationid": None,
+                "column_link": None,
+                "column_mediumtext": None,
+                "column_largetext": None,
+                "column_userid": None,
+                "column_string_LIST": None,
+                "column_integer_LIST": None,
+                "column_boolean_LIST": None,
+                "column_date_LIST": None,
+                "column_entity_id_list": None,
+                "column_user_id_list": None,
+                "column_json": None,
+            },
+            {
+                "column_string": "value3",
+                "column_double": 2.2,
+                "column_integer": 3,
+                "column_boolean": True,
+                "column_date": "2021-01-03",
+                "column_filehandleid": file.file_handle.id,
+                "column_entityid": file.id,
+                "column_submissionid": submission.id,
+                "column_evaluationid": evaluation.id,
+                "column_link": "https://www.synapse.org/Profile:",
+                "column_mediumtext": "value3",
+                "column_largetext": "value3",
+                "column_userid": self.syn.credentials.owner_id,
+                "column_string_LIST": ["value5", "value6"],
+                "column_integer_LIST": [5, 6],
+                "column_boolean_LIST": [True, False],
+                "column_date_LIST": [
+                    "2021-01-05",
+                    "2021-01-06",
+                ],
+                "column_entity_id_list": [file.id, file.id],
+                "column_user_id_list": [
+                    self.syn.credentials.owner_id,
+                    self.syn.credentials.owner_id,
+                ],
+                "column_json": {"key5": "value5", "key6": 6},
+            },
+        ]
+        initial_csv_path = write_csv(initial_rows)
+
+        try:
+            # WHEN I store the initial rows from the CSV file
+            await table.store_rows_async(
+                values=initial_csv_path,
+                schema_storage_strategy=None,
+                date_columns=["column_date", "column_date_LIST"],
+                date_format={"column_date": "%Y-%m-%d", "column_date_LIST": "%Y-%m-%d"},
+                read_csv_kwargs={
+                    "list_columns": list_columns,
+                    "list_column_types": list_column_types,
+                },
+                synapse_client=self.syn,
+            )
+        finally:
+            os.remove(initial_csv_path)
+
+        # THEN the initial data was stored correctly
+        results_after_insert = await query_async(
+            f"SELECT * FROM {table.id}",
+            synapse_client=self.syn,
+            include_row_id_and_row_version=False,
+        )
+        assert len(results_after_insert) == 3
+        expected_initial = pd.DataFrame(
+            {
+                "column_string": ["value1", "value2", "value3"],
+                "column_double": [1.1, None, 2.2],
+                "column_integer": [1, None, 3],
+                "column_boolean": [True, None, True],
+                "column_date": [
+                    utils.to_unix_epoch_time("2021-01-01"),
+                    None,
+                    utils.to_unix_epoch_time("2021-01-03"),
+                ],
+                "column_filehandleid": [
+                    file.file_handle.id,
+                    None,
+                    file.file_handle.id,
+                ],
+                "column_entityid": [file.id, None, file.id],
+                "column_submissionid": [submission.id, None, submission.id],
+                "column_evaluationid": [evaluation.id, None, evaluation.id],
+                "column_link": [
+                    "https://www.synapse.org/Profile:",
+                    None,
+                    "https://www.synapse.org/Profile:",
+                ],
+                "column_mediumtext": ["value1", None, "value3"],
+                "column_largetext": ["value1", None, "value3"],
+                "column_userid": [
+                    self.syn.credentials.owner_id,
+                    None,
+                    self.syn.credentials.owner_id,
+                ],
+                "column_string_LIST": [
+                    ["value1", "value2"],
+                    [],
+                    ["value5", "value6"],
+                ],
+                "column_integer_LIST": [[1, 2], [], [5, 6]],
+                "column_boolean_LIST": [[True, False], [], [True, False]],
+                "column_date_LIST": [
+                    [
+                        utils.to_unix_epoch_time("2021-01-01"),
+                        utils.to_unix_epoch_time("2021-01-02"),
+                    ],
+                    [],
+                    [
+                        utils.to_unix_epoch_time("2021-01-05"),
+                        utils.to_unix_epoch_time("2021-01-06"),
+                    ],
+                ],
+                "column_entity_id_list": [
+                    [file.id, file.id],
+                    [],
+                    [file.id, file.id],
+                ],
+                "column_user_id_list": [
+                    [self.syn.credentials.owner_id, self.syn.credentials.owner_id],
+                    [],
+                    [self.syn.credentials.owner_id, self.syn.credentials.owner_id],
+                ],
+                "column_json": [
+                    {"key1": "value1", "key2": 2},
+                    [],
+                    {"key5": "value5", "key6": 6},
+                ],
+            }
+        )
+        expected_initial = expected_initial.convert_dtypes()
+        expected_initial = expected_initial.replace({pd.NA: None})
+        pd.testing.assert_frame_equal(
+            results_after_insert, expected_initial, check_dtype=False
+        )
+
+        # AND a second file to update references
+        path2 = utils.make_bogus_data_file()
+        self.schedule_for_cleanup(path2)
+        file2 = await File(parent_id=project_model.id, path=path2).store_async(
+            synapse_client=self.syn
+        )
+
+        updated_rows = [
+            {
+                "column_string": "value1",
+                "column_double": 11.2,
+                "column_integer": 11,
+                "column_boolean": False,
+                "column_date": "2022-01-01",
+                "column_filehandleid": file2.file_handle.id,
+                "column_entityid": file2.id,
+                "column_submissionid": submission.id,
+                "column_evaluationid": evaluation.id,
+                "column_link": "https://www.synapse.org/",
+                "column_mediumtext": "value11",
+                "column_largetext": "value11",
+                "column_userid": self.syn.credentials.owner_id,
+                "column_string_LIST": ["value11", "value22"],
+                "column_integer_LIST": [11, 22],
+                "column_boolean_LIST": [False, True],
+                "column_date_LIST": ["2022-01-01", "2022-01-02"],
+                "column_entity_id_list": [file2.id, file2.id],
+                "column_user_id_list": [
+                    self.syn.credentials.owner_id,
+                    self.syn.credentials.owner_id,
+                ],
+                "column_json": {"key11": "value11", "key22": 22},
+            },
+            {
+                "column_string": "value2",
+                "column_double": None,
+                "column_integer": None,
+                "column_boolean": None,
+                "column_date": None,
+                "column_filehandleid": None,
+                "column_entityid": None,
+                "column_submissionid": None,
+                "column_evaluationid": None,
+                "column_link": None,
+                "column_mediumtext": None,
+                "column_largetext": None,
+                "column_userid": None,
+                "column_string_LIST": None,
+                "column_integer_LIST": None,
+                "column_boolean_LIST": None,
+                "column_date_LIST": None,
+                "column_entity_id_list": None,
+                "column_user_id_list": None,
+                "column_json": None,
+            },
+            {
+                "column_string": "value3",
+                "column_double": 33.4,
+                "column_integer": 33,
+                "column_boolean": False,
+                "column_date": "2022-01-03",
+                "column_filehandleid": file2.file_handle.id,
+                "column_entityid": file2.id,
+                "column_submissionid": submission.id,
+                "column_evaluationid": evaluation.id,
+                "column_link": "https://www.synapse.org/",
+                "column_mediumtext": "value33",
+                "column_largetext": "value33",
+                "column_userid": self.syn.credentials.owner_id,
+                "column_string_LIST": ["value55", "value66"],
+                "column_integer_LIST": [55, 66],
+                "column_boolean_LIST": [False, True],
+                "column_date_LIST": ["2022-01-05", "2022-01-06"],
+                "column_entity_id_list": [file2.id, file2.id],
+                "column_user_id_list": [
+                    self.syn.credentials.owner_id,
+                    self.syn.credentials.owner_id,
+                ],
+                "column_json": {"key55": "value55", "key66": 66},
+            },
+        ]
+        updated_csv_path = write_csv(updated_rows)
+
+        try:
+            await table.upsert_rows_async(
+                values=updated_csv_path,
+                primary_keys=["column_string"],
+                date_columns=["column_date", "column_date_LIST"],
+                date_format={"column_date": "%Y-%m-%d", "column_date_LIST": "%Y-%m-%d"},
+                list_columns=list_columns,
+                list_column_types=list_column_types,
+                synapse_client=self.syn,
+            )
+        finally:
+            os.remove(updated_csv_path)
+
+        # THEN all data types should be correctly updated
+        results_after_upsert = await query_async(
+            f"SELECT * FROM {table.id}",
+            synapse_client=self.syn,
+            include_row_id_and_row_version=False,
+        )
+        assert len(results_after_upsert) == 3
+        expected_updated = pd.DataFrame(
+            {
+                "column_string": ["value1", "value2", "value3"],
+                "column_double": [11.2, None, 33.4],
+                "column_integer": [11, None, 33],
+                "column_boolean": [False, None, False],
+                "column_date": [
+                    utils.to_unix_epoch_time("2022-01-01"),
+                    None,
+                    utils.to_unix_epoch_time("2022-01-03"),
+                ],
+                "column_filehandleid": [
+                    file2.file_handle.id,
+                    None,
+                    file2.file_handle.id,
+                ],
+                "column_entityid": [file2.id, None, file2.id],
+                "column_submissionid": [submission.id, None, submission.id],
+                "column_evaluationid": [evaluation.id, None, evaluation.id],
+                "column_link": [
+                    "https://www.synapse.org/",
+                    None,
+                    "https://www.synapse.org/",
+                ],
+                "column_mediumtext": ["value11", None, "value33"],
+                "column_largetext": ["value11", None, "value33"],
+                "column_userid": [
+                    self.syn.credentials.owner_id,
+                    None,
+                    self.syn.credentials.owner_id,
+                ],
+                "column_string_LIST": [
+                    ["value11", "value22"],
+                    [],
+                    ["value55", "value66"],
+                ],
+                "column_integer_LIST": [[11, 22], [], [55, 66]],
+                "column_boolean_LIST": [[False, True], [], [False, True]],
+                "column_date_LIST": [
+                    [
+                        utils.to_unix_epoch_time("2022-01-01"),
+                        utils.to_unix_epoch_time("2022-01-02"),
+                    ],
+                    [],
+                    [
+                        utils.to_unix_epoch_time("2022-01-05"),
+                        utils.to_unix_epoch_time("2022-01-06"),
+                    ],
+                ],
+                "column_entity_id_list": [
+                    [file2.id, file2.id],
+                    [],
+                    [file2.id, file2.id],
+                ],
+                "column_user_id_list": [
+                    [self.syn.credentials.owner_id, self.syn.credentials.owner_id],
+                    [],
+                    [self.syn.credentials.owner_id, self.syn.credentials.owner_id],
+                ],
+                "column_json": [
+                    {"key11": "value11", "key22": 22},
+                    [],
+                    {"key55": "value55", "key66": 66},
+                ],
+            }
+        )
+        expected_updated = expected_updated.convert_dtypes()
+        expected_updated = expected_updated.replace({pd.NA: None})
+        pd.testing.assert_frame_equal(
+            results_after_upsert, expected_updated, check_dtype=False
+        )
 
 
 class TestDeleteRows:

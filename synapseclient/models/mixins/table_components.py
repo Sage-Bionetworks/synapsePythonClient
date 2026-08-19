@@ -9,7 +9,7 @@ import time
 import uuid
 from collections import OrderedDict
 from dataclasses import dataclass, field
-from datetime import datetime
+from datetime import date, datetime
 from io import BytesIO
 from typing import Any, Dict, List, Optional, Protocol, Tuple, Union
 
@@ -49,6 +49,7 @@ from synapseclient.core.utils import (
     log_dataclass_diff,
     merge_dataclass_entities,
     test_import_pandas,
+    to_unix_epoch_time,
 )
 from synapseclient.models import Activity
 from synapseclient.models.services.search import get_id
@@ -2239,6 +2240,8 @@ async def _upsert_rows_async(
     update_size_bytes: int = 1.9 * MB,
     insert_size_bytes: int = 900 * MB,
     job_timeout: int = 600,
+    date_columns: Optional[List[str]] = None,
+    date_format: Optional[Union[str, Dict[str, str]]] = None,
     wait_for_eventually_consistent_view: bool = False,
     wait_for_eventually_consistent_view_timeout: int = 600,
     synapse_client: Optional[Synapse] = None,
@@ -2269,6 +2272,13 @@ async def _upsert_rows_async(
         values = DataFrame(values).convert_dtypes()
     elif isinstance(values, str):
         values = csv_to_pandas_df(filepath=values, **kwargs)
+        if date_columns:
+            values = _parse_df_date_cols_to_datetime(
+                df=values,
+                date_columns=date_columns,
+                date_format=date_format,
+                synapse_client=synapse_client,
+            )
     elif isinstance(values, DataFrame):
         values = values.convert_dtypes()
     else:
@@ -2277,6 +2287,8 @@ async def _upsert_rows_async(
         )
 
     client = Synapse.get_client(synapse_client=synapse_client)
+    # Convert datetime columns to epoch time in milliseconds for Synapse DATE column type
+    values = _convert_df_date_cols_to_epoch_time(df=values)
     # Replace pd.NA with None so the columns are converted to object columns instead of 'int64' or 'float64' which are not JSON serializable
     values = convert_dtypes_to_json_serializable(values)
 
@@ -2414,6 +2426,8 @@ class TableUpsertMixin:
         update_size_bytes: int = 1.9 * MB,
         insert_size_bytes: int = 900 * MB,
         job_timeout: int = 600,
+        date_columns: Optional[List[str]] = None,
+        date_format: Optional[Union[str, Dict[str, str]]] = None,
         synapse_client: Optional[Synapse] = None,
         **kwargs,
     ) -> None:
@@ -2544,11 +2558,27 @@ class TableUpsertMixin:
                 is reached a `SynapseTimeoutError` will be raised.
                 The default is 600 seconds
 
+            date_columns: (CSV file only) The names of columns in your CSV file that
+                contain dates or datetimes stored as formatted strings
+                (e.g. `"2024-01-15"` or `"01/15/2024 13:30"`). The columns are parsed
+                with `pandas.to_datetime` and converted to epoch time in milliseconds
+                before the data is uploaded, which is the format Synapse requires for
+                `DATE` columns.
+
+            date_format: (CSV file only) How the strings in `date_columns` are
+                formatted — a
+                [strftime format string](https://docs.python.org/3/library/datetime.html#strftime-and-strptime-format-codes)
+                (e.g. `"%m/%d/%Y"`) applied to every column, or a dict mapping column
+                names to their formats. Supply this so that ambiguous dates
+                (e.g. `"01/02/2024"`) are not silently misinterpreted and to optimize
+                the data upload performance. If the values in a column do not match
+                the format a `ValueError` is raised.
+
             synapse_client: If not passed in and caching was not disabled by
                 `Synapse.allow_client_caching(False)` this will use the last created
                 instance from the Synapse class constructor
 
-            **kwargs: Additional arguments that are passed to the `pd.DataFrame`
+            **kwargs: Additional arguments that are passed to the `csv_to_pandas_df`
                 function when the `values` argument is a path to a csv file.
 
 
@@ -2637,6 +2667,54 @@ class TableUpsertMixin:
             | A    |      | 1    |
             | B    | 2    |      |
 
+        Example: Upserting data with date columns
+            In this given example we have a table with the following data:
+
+            | col1 | date_col   |
+            |------|------------|
+            | A    | 2024-01-15 |
+            | B    | 2024-02-20 |
+
+            Suppose we have a CSV file with the following data that we want to upsert:
+
+            | col1 | date_col   |
+            |------|------------|
+            | A    | 03/10/2024 |
+            | C    | 04/01/2024 |
+
+            The `date_columns`/`date_format` arguments tell the client how to parse
+            the formatted date strings in the CSV file so that they can be compared
+            against, and stored in, the table's `DATE` column. The following code
+            will update row `A`'s `date_col` and insert a new row for `C`:
+
+            ```python
+            import asyncio
+            from synapseclient import Synapse
+            from synapseclient.models import Table # Also works with `Dataset`
+
+            syn = Synapse()
+            syn.login()
+
+
+            async def main():
+                await Table(id="syn123").upsert_rows_async(
+                    values="path/to/file.csv",
+                    primary_keys=["col1"],
+                    date_columns=["date_col"],
+                    date_format="%m/%d/%Y",
+                )
+
+            asyncio.run(main())
+            ```
+
+            The resulting table will look like this:
+
+            | col1 | date_col   |
+            |------|------------|
+            | A    | 2024-03-10 |
+            | B    | 2024-02-20 |
+            | C    | 2024-04-01 |
+
         """
         return await _upsert_rows_async(
             entity=self,
@@ -2647,6 +2725,8 @@ class TableUpsertMixin:
             update_size_bytes=update_size_bytes,
             insert_size_bytes=insert_size_bytes,
             job_timeout=job_timeout,
+            date_columns=date_columns,
+            date_format=date_format,
             synapse_client=synapse_client,
             **kwargs,
         )
@@ -2670,6 +2750,8 @@ class ViewUpdateMixin:
         update_size_bytes: int = 1.9 * MB,
         insert_size_bytes: int = 900 * MB,
         job_timeout: int = 600,
+        date_columns: Optional[List[str]] = None,
+        date_format: Optional[Union[str, Dict[str, str]]] = None,
         wait_for_eventually_consistent_view: bool = False,
         wait_for_eventually_consistent_view_timeout: int = 600,
         synapse_client: Optional[Synapse] = None,
@@ -2742,6 +2824,22 @@ class ViewUpdateMixin:
                 is reached a `SynapseTimeoutError` will be raised.
                 The default is 600 seconds
 
+            date_columns: (CSV file only) The names of columns in your CSV file that
+                contain dates or datetimes stored as formatted strings
+                (e.g. `"2024-01-15"` or `"01/15/2024 13:30"`). The columns are parsed
+                with `pandas.to_datetime` and converted to epoch time in milliseconds
+                before the data is uploaded, which is the format Synapse requires for
+                `DATE` columns.
+
+            date_format: (CSV file only) How the strings in `date_columns` are
+                formatted — a
+                [strftime format string](https://docs.python.org/3/library/datetime.html#strftime-and-strptime-format-codes)
+                (e.g. `"%m/%d/%Y"`) applied to every column, or a dict mapping column
+                names to their formats. Supply this so that ambiguous dates
+                (e.g. `"01/02/2024"`) are not silently misinterpreted and to optimize
+                the data upload performance. If the values in a column do not match
+                the format a `ValueError` is raised.
+
             wait_for_eventually_consistent_view: Only used if the table is a view. If
                 set to True this will wait for the view to reflect any changes that
                 you've made to the view. This is useful if you need to query the view
@@ -2757,7 +2855,7 @@ class ViewUpdateMixin:
                 `Synapse.allow_client_caching(False)` this will use the last created
                 instance from the Synapse class constructor
 
-            **kwargs: Additional arguments that are passed to the `pd.DataFrame`
+            **kwargs: Additional arguments that are passed to the `csv_to_pandas_df`
                 function when the `values` argument is a path to a csv file.
         """
         await _upsert_rows_async(
@@ -2769,6 +2867,8 @@ class ViewUpdateMixin:
             update_size_bytes=update_size_bytes,
             insert_size_bytes=insert_size_bytes,
             job_timeout=job_timeout,
+            date_columns=date_columns,
+            date_format=date_format,
             wait_for_eventually_consistent_view=wait_for_eventually_consistent_view,
             wait_for_eventually_consistent_view_timeout=wait_for_eventually_consistent_view_timeout,
             synapse_client=synapse_client,
@@ -3404,6 +3504,8 @@ class TableStoreRowMixin:
         *,
         insert_size_bytes: int = 900 * MB,
         csv_table_descriptor: Optional[CsvTableDescriptor] = None,
+        date_columns: Optional[List[str]] = None,
+        date_format: Optional[Union[str, Dict[str, str]]] = None,
         read_csv_kwargs: Optional[Dict[str, Any]] = None,
         to_csv_kwargs: Optional[Dict[str, Any]] = None,
         job_timeout: int = 600,
@@ -3433,6 +3535,57 @@ class TableStoreRowMixin:
         - If you use the `store_rows` method and the `schema_storage_strategy` is set to
             `INFER_FROM_DATA` the columns will be added at the end of the columns list.
 
+
+        **How datetime values are interpreted:**
+
+        Synapse `DATE` columns store an exact moment in time, represented as the
+        number of milliseconds since `1970-01-01 00:00:00` UTC. Before upload,
+        datetime values are converted to that representation as follows:
+
+        - Timezone-aware datetimes (e.g. localized with `zoneinfo.ZoneInfo` or
+            `pandas.Series.dt.tz_localize`) are converted to UTC exactly. This is
+            the recommended way to pass datetime data: the stored value does not
+            depend on the timezone settings of the machine performing the upload
+            or on the date the upload is run.
+        - Naive datetimes (no `tzinfo`) are assumed to be in the local timezone
+            of the machine **at the time of upload**. That single UTC offset is
+            applied to every value, including values whose dates fall in a
+            different daylight saving period, which will be stored shifted by one
+            hour. For example, uploading `2017-02-14 11:23` (a PST date, UTC-8)
+            from a machine currently on PDT (UTC-7) stores `2017-02-14 18:23` UTC
+            instead of the correct `19:23` UTC. To avoid this, localize your data
+            first, e.g. `df["col"] = df["col"].dt.tz_localize("America/Los_Angeles")`.
+        - Plain `datetime.date` objects (as opposed to datetimes) are treated
+            as midnight of that date and converted the same way naive
+            datetimes are: using the local timezone of the machine **at the
+            time of upload**, with the same daylight-saving-shift risk
+            described above.
+        - Midnight values deserve extra care: the one-hour daylight saving
+            shift described above can move a naive midnight datetime — or a
+            `datetime.date`, which is treated as midnight — to 11 PM of the
+            previous day, changing the calendar date the value displays as.
+
+        **Why timezone-aware values are recommended:**
+
+        A naive datetime such as `2017-02-14 11:23` is only "what a clock on the
+        wall said." Before it can be stored as an exact moment in time, something
+        has to answer: *a clock where?* Timezone-aware values answer that
+        question in the data itself; naive values leave the client to guess, and
+        it guesses the uploading machine's current timezone.
+
+        A zone name like `"America/Los_Angeles"` does not mean a fixed offset
+        such as UTC-8. It means "a Los Angeles wall clock" — and those clocks
+        move twice a year: UTC-7 in summer (PDT), UTC-8 in winter (PST). When
+        pandas localizes a column with
+        `df["col"].dt.tz_localize("America/Los_Angeles")`, it looks up what LA
+        clocks were set to on each value's own date:
+
+        - `2017-02-14` → winter → interpreted using UTC-8
+        - `2018-10-01` → summer → interpreted using UTC-7
+
+        When the data is queried back with `query(..., convert_to_datetime=True)`,
+        `DATE` columns are returned as timezone-aware datetimes in UTC. Use
+        `Series.dt.tz_convert` to view them in another timezone.
 
         **Limitations:**
 
@@ -3613,10 +3766,35 @@ class TableStoreRowMixin:
                 [CsvTableDescriptor][synapseclient.models.CsvTableDescriptor]
                 for more information.
 
+            date_columns: (CSV file only) The names of columns in your CSV file that
+                contain dates or datetimes stored as formatted strings
+                (e.g. `"2024-01-15"` or `"01/15/2024 13:30"`). The columns are parsed
+                with `pandas.to_datetime` and converted to epoch time in milliseconds
+                before the data is uploaded, which is the format Synapse requires for
+                `DATE` columns. The conversion is done by reading the CSV file into a
+                pandas DataFrame and uploading a temporary copy with the converted
+                values, which requires the CSV file to contain a header row. When `schema_storage_strategy` is
+                set to `INFER_FROM_DATA` the parsed columns will be inferred as `DATE`
+                columns. The parsed values are naive datetimes unless the strings
+                carry a UTC offset — see *How datetime values are interpreted*
+                above for how they are converted to epoch time. When the offsets in
+                a column differ between rows (e.g. a mix of `-0800` and `-0700`
+                values) the values are normalized to UTC, preserving the exact
+                moments in time.
+
+            date_format: (CSV file only) How the strings in `date_columns` are
+                formatted — a
+                [strftime format string](https://docs.python.org/3/library/datetime.html#strftime-and-strptime-format-codes)
+                (e.g. `"%m/%d/%Y"`) applied to every column, or a dict mapping column
+                names to their formats. Supply this so that ambiguous dates
+                (e.g. `"01/02/2024"`) are not silently misinterpreted and to optimize the data upload performance. If the values
+                in a column do not match the format a `ValueError` is raised.
+
             read_csv_kwargs: Additional arguments to pass to the `pd.read_csv` function
                 when reading in a CSV file. This is only used when the `values` argument
-                is a string holding the path to a CSV file and you have set the
-                `schema_storage_strategy` to `INFER_FROM_DATA`. See
+                is a string holding the path to a CSV file and either
+                `schema_storage_strategy` is set to `INFER_FROM_DATA` or `date_columns`
+                is provided. See
                 <https://pandas.pydata.org/docs/reference/api/pandas.read_csv.html>
                 for complete list of supported arguments.
 
@@ -3795,20 +3973,67 @@ class TableStoreRowMixin:
             | B    | 2    | 33   |
             | C    | 3    | 3    |
 
+        Example: Inserting rows from a CSV file that contains date columns
+
+            This example shows how you may insert rows from a CSV file that contains
+            date columns. The date columns are converted
+            to epoch time in milliseconds before the data is uploaded so that Synapse
+            can store them in `DATE` columns.
+
+            Suppose we have a CSV file with the following data:
+
+            | col1 | date_col1  | date_col2  |
+            |------|------------|------------|
+            | A    | 01/15/2024 | 2024-01-20 |
+            | B    | 02/20/2024 | 2024-02-25 |
+
+            ```python
+            import asyncio
+            from synapseclient import Synapse
+            from synapseclient.models import Table, SchemaStorageStrategy
+
+            syn = Synapse()
+            syn.login()
+
+            async def main():
+                await Table(id="syn1234").store_rows_async(
+                    values="path/to/file.csv",
+                    schema_storage_strategy=SchemaStorageStrategy.INFER_FROM_DATA,
+                    date_columns=["date_col1", "date_col2"],
+                    date_format={"date_col1": "%m/%d/%Y", "date_col2": "%Y-%m-%d"},
+                )
+
+            asyncio.run(main())
+            ```
+
         """
         test_import_pandas()
         from pandas import DataFrame
 
         to_csv_kwargs = {"escapechar": DEFAULT_ESCAPE_CHAR, **(to_csv_kwargs or {})}
+        read_csv_kwargs = read_csv_kwargs or {}
 
         original_values = values
         if isinstance(values, dict):
             values = DataFrame(values).convert_dtypes()
-        elif (
-            isinstance(values, str)
-            and schema_storage_strategy == SchemaStorageStrategy.INFER_FROM_DATA
+        elif isinstance(values, str) and (
+            schema_storage_strategy == SchemaStorageStrategy.INFER_FROM_DATA
+            or date_columns
         ):
-            values = csv_to_pandas_df(filepath=values, **(read_csv_kwargs or {}))
+            # ROW_ID/ROW_VERSION must stay as regular columns so they survive the
+            # round-trip to the temporary upload file when `date_columns` is used —
+            # dropping them would turn a row update into an append.
+            values = csv_to_pandas_df(
+                filepath=values,
+                **{"row_id_and_version_in_index": False, **(read_csv_kwargs or {})},
+            )
+            if date_columns:
+                values = _parse_df_date_cols_to_datetime(
+                    df=values,
+                    date_columns=date_columns,
+                    date_format=date_format,
+                    synapse_client=synapse_client,
+                )
         elif isinstance(values, DataFrame):
             values = values.convert_dtypes()
         elif isinstance(values, str):
@@ -3862,20 +4087,35 @@ class TableStoreRowMixin:
             raise ValueError(
                 "The table must have an ID to store rows, or the table could not be found from the given name/parent_id."
             )
-
         if isinstance(original_values, str):
-            with logging_redirect_tqdm(loggers=[client.logger]):
-                await self._chunk_and_upload_csv(
-                    path_to_csv=original_values,
-                    insert_size_bytes=insert_size_bytes,
+            path_to_csv = original_values
+            temp_csv_with_epoch_dates = None
+            if date_columns:
+                # `values` already has the date columns parsed to datetime by
+                # _parse_df_date_cols_to_datetime
+                temp_csv_with_epoch_dates = _convert_csv_date_cols_to_epoch_time(
+                    df=values,
                     csv_table_descriptor=csv_table_descriptor,
-                    schema_change_request=schema_change_request,
-                    client=client,
-                    additional_changes=additional_changes,
-                    job_timeout=job_timeout,
                 )
+                path_to_csv = temp_csv_with_epoch_dates
+            try:
+                with logging_redirect_tqdm(loggers=[client.logger]):
+                    await self._chunk_and_upload_csv(
+                        path_to_csv=path_to_csv,
+                        insert_size_bytes=insert_size_bytes,
+                        csv_table_descriptor=csv_table_descriptor,
+                        schema_change_request=schema_change_request,
+                        client=client,
+                        additional_changes=additional_changes,
+                        job_timeout=job_timeout,
+                    )
+            finally:
+                if temp_csv_with_epoch_dates:
+                    os.remove(temp_csv_with_epoch_dates)
         elif isinstance(values, DataFrame):
             with logging_redirect_tqdm(loggers=[client.logger]):
+                # date columns are converted to epoch time in milliseconds
+                values = _convert_df_date_cols_to_epoch_time(values)
                 await self._chunk_and_upload_df(
                     df=values,
                     insert_size_bytes=insert_size_bytes,
@@ -4658,10 +4898,210 @@ def _convert_df_date_cols_to_datetime(
         raise ValueError(
             "Cannot convert epoch time to integer. Please make sure that the date columns that you specified contain valid epoch time value"
         )
-    df[date_columns] = df[date_columns].apply(
-        lambda x: to_datetime(x, unit="ms", utc=True)
+    # The trailing astype forces the datetime64 dtype even when df has zero rows —
+    # on an empty DataFrame, apply does not reliably propagate the dtype that
+    # to_datetime returns, leaving the column as float64.
+    df[date_columns] = (
+        df[date_columns]
+        .apply(lambda x: to_datetime(x, unit="ms", utc=True))
+        .astype("datetime64[ns, UTC]")
     )
     return df
+
+
+def _is_date_list_column(series: SERIES_TYPE) -> bool:
+    """
+    Check if a series is a DATE_LIST column.
+
+    Arguments:
+        series: The series to check.
+
+    Returns:
+        True if the series is a DATE_LIST column, False otherwise.
+    """
+    return any(
+        isinstance(cell, (list, tuple))
+        and any(isinstance(item, (date, datetime)) for item in cell if item is not None)
+        for cell in series
+        if cell is not None
+    )
+
+
+def _convert_df_date_cols_to_epoch_time(df: DATA_FRAME_TYPE) -> DATA_FRAME_TYPE:
+    """
+    Convert date columns with datetime values, and DATE_LIST columns holding a
+    Python list of date/datetime values per cell, to epoch time in milliseconds.
+
+    Arguments:
+        df: The pandas dataframe.
+    Returns:
+        A dataframe with datetime columns converted to epoch time in milliseconds
+    """
+    test_import_pandas()
+    import pandas as pd
+    from pandas.api.types import infer_dtype
+
+    for col in df.columns:
+        dtype = infer_dtype(df[col], skipna=True)
+        if dtype in ("datetime64", "datetime", "date"):
+            df[col] = (
+                df[col]
+                .apply(
+                    lambda cell: to_unix_epoch_time(cell) if pd.notna(cell) else None
+                )
+                .astype("Int64")
+            )
+        elif dtype == "mixed" and _is_date_list_column(df[col]):
+            df[col] = df[col].apply(
+                lambda cell: (
+                    [
+                        to_unix_epoch_time(item) if item is not None else None
+                        for item in cell
+                    ]
+                    if isinstance(cell, (list, tuple))
+                    else None
+                )
+            )
+    return df
+
+
+def _parse_df_date_cols_to_datetime(
+    df: DATA_FRAME_TYPE,
+    date_columns: List[str],
+    date_format: Optional[Union[str, Dict[str, str]]] = None,
+    synapse_client: Optional[Synapse] = None,
+) -> DATA_FRAME_TYPE:
+    """
+    Parse date columns holding date strings into datetime values using
+    `pandas.to_datetime`. A column may hold a formatted date string per cell
+    (a DATE column), or a list of formatted date strings per cell (a
+    DATE_LIST column) each item in every list is parsed the same way a
+    scalar cell would be.
+
+    Timezone-naive inputs are converted to timezone-naive; Timezone-aware inputs
+    with constant time offset are converted to timezone-aware. When the offsets in a column
+    differ between rows (e.g. a mix of `-0800` and `-0700` values), the values are normalized to UTC.
+    For a DATE_LIST column, offsets are compared across every item in every list in the column.
+
+    Arguments:
+        df: A pandas dataframe
+        date_columns: The names of the columns holding formatted date strings,
+            or lists of formatted date strings.
+        date_format: The strftime format of the strings — a single format string
+            applied to every column, or a dict mapping column names to their
+            formats. When `None` the format is inferred by pandas.
+        synapse_client: If not passed in and caching was not disabled by
+                `Synapse.allow_client_caching(False)` this will use the last created
+                instance from the Synapse class constructor.
+    Returns:
+        The dataframe with the date columns parsed to datetime values.
+
+    Raises:
+        ValueError: If a column in `date_columns` is not present in the dataframe,
+            or if the values in a column do not match the supplied format.
+    """
+    test_import_pandas()
+    from pandas import to_datetime
+
+    client = Synapse.get_client(synapse_client=synapse_client)
+
+    missing_cols = list(set(date_columns) - set(df.columns))
+    if missing_cols:
+        raise ValueError(
+            f"The date column(s) {', '.join(missing_cols)} listed in `date_columns` "
+            "are not present in the data. Please ensure that the date columns "
+            "are already in the dataframe."
+        )
+    for col in date_columns:
+        col_format = (
+            date_format.get(col) if isinstance(date_format, dict) else date_format
+        )
+        # TODO SYNPY-1907: add warning for mixed timezones/offsets if the pandas<3.0 pin is ever lifted.
+        #  Mixed offsets will start raising ValueError instead of returning object dtype,
+        # and this spot will need the exception handling back.
+
+        is_list_column = (
+            df[col].apply(lambda cell: isinstance(cell, (list, tuple))).any()
+        )
+
+        offset_pattern = re.compile(r"([Zz\+\-]\d{2}:?\d{2})$")
+        # check if any value in the column holds mixed timezones/offsets by
+        # extracting the UTC offsets
+        flat_col = df[col].explode() if is_list_column else df[col]
+        offsets = set(flat_col.astype("string").str.extract(offset_pattern)[0].dropna())
+        utc = len(offsets) > 1
+        if utc:
+            client.logger.info(
+                f"The date column {col} holds mixed timezones/offsets and will be normalized to UTC."
+            )
+
+        if is_list_column:
+            df[col] = df[col].apply(
+                lambda cell: (
+                    [
+                        (
+                            to_datetime(item, format=col_format, utc=utc)
+                            if item is not None
+                            else None
+                        )
+                        for item in cell
+                    ]
+                    if isinstance(cell, (list, tuple))
+                    else cell
+                )
+            )
+        else:
+            df[col] = to_datetime(df[col], format=col_format, utc=utc)
+    return df
+
+
+def _convert_csv_date_cols_to_epoch_time(
+    df: DATA_FRAME_TYPE,
+    csv_table_descriptor: Optional[CsvTableDescriptor] = None,
+) -> str:
+    """
+    Convert the date columns to epoch time in milliseconds and write the result to
+    a temporary CSV file to be uploaded to Synapse. The date columns must already
+    hold datetime values — parse formatted date strings first (e.g. with
+    `_parse_df_date_cols_to_datetime`) before calling this function, as columns
+    of any other type are written out unchanged.
+
+    Arguments:
+        df: The dataframe holding the CSV data to convert.
+        csv_table_descriptor: The descriptor for the CSV file. Used to write the
+            file with the same separator, quote, and escape characters that Synapse
+            will use to parse the uploaded file.
+
+    Returns:
+        The path to a temporary CSV file with the date columns converted to epoch
+        time in milliseconds. The caller is responsible for deleting this file.
+    """
+    test_import_pandas()
+
+    descriptor = csv_table_descriptor or CsvTableDescriptor()
+    if not descriptor.is_first_line_header:
+        raise ValueError(
+            "The CSV file should have a header row to convert date columns to epoch time."
+        )
+
+    df = _convert_df_date_cols_to_epoch_time(df=df)
+
+    fd, temp_path = tempfile.mkstemp(suffix=".csv")
+    os.close(fd)
+    try:
+        df.to_csv(
+            temp_path,
+            index=False,
+            float_format="%.12g",
+            sep=descriptor.separator,
+            quotechar=descriptor.quote_character,
+            escapechar=descriptor.escape_character,
+            lineterminator=descriptor.line_end,
+        )
+    except Exception:
+        os.remove(temp_path)
+        raise
+    return temp_path
 
 
 def _row_labels_from_id_and_version(rows: List[Tuple[str, str]]) -> List[str]:
