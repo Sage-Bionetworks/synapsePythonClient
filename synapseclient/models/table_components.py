@@ -329,7 +329,7 @@ class UploadToTableRequest(TableUpdateRequest):
             self.table_id = self.entity_id
         elif self.entity_id is None:
             self.entity_id = self.table_id
-        else:
+        elif self.table_id != self.entity_id:
             raise ValueError(
                 "table_id and entity_id both name the table that the rows of the "
                 "uploaded CSV are applied to, so they must be equal. Received "

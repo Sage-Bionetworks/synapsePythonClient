@@ -5887,6 +5887,48 @@ class TestTableUpdateRequest:
         # THEN the entity is available under the shared name
         assert request.entity_id == "syn123"
 
+    @pytest.mark.parametrize(
+        "table_id,entity_id",
+        [
+            ("syn123", None),
+            (None, "syn123"),
+            ("syn123", "syn123"),
+        ],
+        ids=["table_id_only", "entity_id_only", "both_equal"],
+    )
+    def test_upload_to_table_request_aliases_table_id_and_entity_id(
+        self, table_id, entity_id
+    ):
+        """table_id and entity_id are aliases, so giving either one, or both with the
+        same value, names the table and fills the other field."""
+        # GIVEN a request that names its table through one or both of the aliases
+        request = UploadToTableRequest(
+            table_id=table_id, entity_id=entity_id, upload_file_handle_id="456"
+        )
+
+        # THEN both fields hold the table
+        assert request.table_id == "syn123"
+        assert request.entity_id == "syn123"
+
+    @pytest.mark.parametrize(
+        "table_id,entity_id",
+        [
+            (None, None),
+            ("syn123", "syn456"),
+        ],
+        ids=["neither_given", "both_given_but_different"],
+    )
+    def test_upload_to_table_request_rejects_an_unnamed_or_ambiguous_table(
+        self, table_id, entity_id
+    ):
+        """A request that names no table, or two different tables, is rejected."""
+        # WHEN a request is created without a table or with two conflicting tables
+        # THEN it is rejected
+        with pytest.raises(ValueError):
+            UploadToTableRequest(
+                table_id=table_id, entity_id=entity_id, upload_file_handle_id="456"
+            )
+
     def test_transaction_accepts_every_kind_of_change(self):
         """A single transaction may mix all four kinds of change, and each is sent in
         the order it was given."""
