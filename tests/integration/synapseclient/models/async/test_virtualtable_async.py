@@ -193,56 +193,23 @@ class TestVirtualTableWithDataOperations:
     ) -> None:
         table = base_table_with_data
 
-        # GIVEN various virtual tables with different SQL transformations
+        # GIVEN a single virtual table whose defining SQL is updated across
+        # different transformations, rather than creating a separate virtual
+        # table per transformation
 
-        # Test case 1: Basic selection of all data
-        virtual_table_all = VirtualTable(
+        # WHEN querying a virtual table that selects all data
+        virtual_table = VirtualTable(
             name=str(uuid.uuid4()),
             parent_id=project_model.id,
             defining_sql=f"SELECT * FROM {table.id}",
         )
-        virtual_table_all = await virtual_table_all.store_async(synapse_client=self.syn)
-        self.schedule_for_cleanup(virtual_table_all.id)
+        virtual_table = await virtual_table.store_async(synapse_client=self.syn)
+        self.schedule_for_cleanup(virtual_table.id)
 
-        # Test case 2: Column selection
-        virtual_table_columns = VirtualTable(
-            name=str(uuid.uuid4()),
-            parent_id=project_model.id,
-            defining_sql=f"SELECT name, city FROM {table.id}",
-        )
-        virtual_table_columns = await virtual_table_columns.store_async(
-            synapse_client=self.syn
-        )
-        self.schedule_for_cleanup(virtual_table_columns.id)
-
-        # Test case 3: Filtering
-        virtual_table_filtered = VirtualTable(
-            name=str(uuid.uuid4()),
-            parent_id=project_model.id,
-            defining_sql=f"SELECT * FROM {table.id} WHERE age > 25",
-        )
-        virtual_table_filtered = await virtual_table_filtered.store_async(
-            synapse_client=self.syn
-        )
-        self.schedule_for_cleanup(virtual_table_filtered.id)
-
-        # Test case 4: Ordering
-        virtual_table_ordered = VirtualTable(
-            name=str(uuid.uuid4()),
-            parent_id=project_model.id,
-            defining_sql=f"SELECT * FROM {table.id} ORDER BY age DESC",
-        )
-        virtual_table_ordered = await virtual_table_ordered.store_async(
-            synapse_client=self.syn
-        )
-        self.schedule_for_cleanup(virtual_table_ordered.id)
-
-        # Wait for the virtual tables to be ready
         await asyncio.sleep(2)
 
-        # WHEN querying the full-data virtual table
-        all_result = await virtual_table_all.query_async(
-            f"SELECT * FROM {virtual_table_all.id}",
+        all_result = await virtual_table.query_async(
+            f"SELECT * FROM {virtual_table.id}",
             synapse_client=self.syn,
             timeout=QUERY_TIMEOUT_SEC,
         )
@@ -253,9 +220,14 @@ class TestVirtualTableWithDataOperations:
         assert set(all_result["age"].tolist()) == {30, 25, 35}
         assert set(all_result["city"].tolist()) == {"New York", "Boston", "Chicago"}
 
-        # WHEN querying the column-selection virtual table
-        columns_result = await virtual_table_columns.query_async(
-            f"SELECT * FROM {virtual_table_columns.id}",
+        # WHEN updating the SQL to select specific columns
+        virtual_table.defining_sql = f"SELECT name, city FROM {table.id}"
+        virtual_table = await virtual_table.store_async(synapse_client=self.syn)
+
+        await asyncio.sleep(2)
+
+        columns_result = await virtual_table.query_async(
+            f"SELECT * FROM {virtual_table.id}",
             synapse_client=self.syn,
             timeout=QUERY_TIMEOUT_SEC,
         )
@@ -266,9 +238,14 @@ class TestVirtualTableWithDataOperations:
         assert "city" in columns_result.columns
         assert "age" not in columns_result.columns
 
-        # WHEN querying the filtered virtual table
-        filtered_result = await virtual_table_filtered.query_async(
-            f"SELECT * FROM {virtual_table_filtered.id}",
+        # WHEN updating the SQL to filter rows
+        virtual_table.defining_sql = f"SELECT * FROM {table.id} WHERE age > 25"
+        virtual_table = await virtual_table.store_async(synapse_client=self.syn)
+
+        await asyncio.sleep(2)
+
+        filtered_result = await virtual_table.query_async(
+            f"SELECT * FROM {virtual_table.id}",
             synapse_client=self.syn,
             timeout=QUERY_TIMEOUT_SEC,
         )
@@ -278,9 +255,14 @@ class TestVirtualTableWithDataOperations:
         assert set(filtered_result["name"].tolist()) == {"Alice", "Charlie"}
         assert set(filtered_result["age"].tolist()) == {30, 35}
 
-        # WHEN querying the ordered virtual table
-        ordered_result = await virtual_table_ordered.query_async(
-            f"SELECT * FROM {virtual_table_ordered.id}",
+        # WHEN updating the SQL to order rows
+        virtual_table.defining_sql = f"SELECT * FROM {table.id} ORDER BY age DESC"
+        virtual_table = await virtual_table.store_async(synapse_client=self.syn)
+
+        await asyncio.sleep(2)
+
+        ordered_result = await virtual_table.query_async(
+            f"SELECT * FROM {virtual_table.id}",
             synapse_client=self.syn,
             timeout=QUERY_TIMEOUT_SEC,
         )
