@@ -972,11 +972,15 @@ class TestFolderManifestCSV:
 
     async def test_manifest_includes_annotations(self, project_model: Project) -> None:
         # GIVEN a file with mixed-type annotations
+        # Annotations aren't populated on sync_from_synapse_async for an
+        # external_url file handle, so this test needs a real upload.
         folder = Folder(name=str(uuid.uuid4()), parent_id=project_model.id)
         folder = await folder.store_async(synapse_client=self.syn)
         self.schedule_for_cleanup(folder.id)
 
-        f = self.create_file_instance()
+        filename = utils.make_bogus_uuid_file()
+        self.schedule_for_cleanup(filename)
+        f = File(path=filename, content_type="text/plain")
         f.parent_id = folder.id
         f.annotations = {
             "single_str": ["hello"],
@@ -1020,11 +1024,15 @@ class TestFolderManifestCSV:
 
     async def test_manifest_includes_provenance(self, project_model: Project) -> None:
         # GIVEN a file with activity (provenance)
+        # Activity isn't populated on sync_from_synapse_async for an
+        # external_url file handle, so this test needs a real upload.
         folder = Folder(name=str(uuid.uuid4()), parent_id=project_model.id)
         folder = await folder.store_async(synapse_client=self.syn)
         self.schedule_for_cleanup(folder.id)
 
-        f = self.create_file_instance()
+        filename = utils.make_bogus_uuid_file()
+        self.schedule_for_cleanup(filename)
+        f = File(path=filename, content_type="text/plain")
         f.parent_id = folder.id
         f.activity = Activity(
             name="my_activity",
