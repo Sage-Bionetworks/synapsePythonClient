@@ -482,6 +482,7 @@ following set of guidelines should be followed:
   - `function` scope: Use for entities that tests **mutate** (e.g., files with changed names, datasets with added/removed items, submission statuses being updated). Each test gets a fresh entity.
   - All fixtures that create Synapse entities **must** call `schedule_for_cleanup()` to register them for cleanup at session end.
 - **Polling and retries:** For eventual-consistency scenarios (e.g., waiting for permission propagation, schema binding, attachment preview generation), use `wait_for_condition()` from `tests/integration/helpers.py` instead of hardcoded `asyncio.sleep()` calls. This uses exponential backoff and returns as soon as the condition is met.
+- **Avoiding real uploads:** A `File(external_url=..., synapse_store=False)` file handle creates a real FileEntity without a real upload, and is the right default when a test only needs the entity to exist (e.g. as a parent, a copy/walk target, or a structure check). **Do not** use it for a test that reads the file back — `sync_from_synapse_async`, a real download, an md5 comparison, or a manifest/annotation/provenance round-trip all require real content on disk.
 - **Parallel execution:** Tests run with `pytest -n 4 --dist loadscope`, which ensures all tests in a class execute on the same worker sequentially. Session-scoped fixtures are shared within each worker.
 
 ### Repository Admins
