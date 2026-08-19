@@ -12,8 +12,9 @@ import os
 import shutil
 import tempfile
 import unittest
-from typing import Any
-from unittest.mock import Mock, call, mock_open, patch
+from collections import OrderedDict
+from typing import Any, Callable
+from unittest.mock import Mock, mock_open, patch
 
 import pandas as pd
 import pytest
@@ -37,7 +38,6 @@ from synapseclient.extensions.curator.file_based_metadata_task import (
     update_wiki_with_entity_view,
 )
 from synapseclient.extensions.curator.record_based_metadata_task import (
-    _reorder_columns_with_upsert_keys_first,
     create_dataframe_from_titles,
     extract_property_titles,
     extract_schema_properties_from_dict,
@@ -52,6 +52,10 @@ from synapseclient.extensions.curator.schema_registry import (
     SCHEMA_REGISTRY_TABLE_ID,
     SchemaRegistryColumnConfig,
     get_latest_schema_uri,
+)
+from synapseclient.extensions.curator.utils import (
+    resolve_column_order_list,
+    validate_column_order_list,
 )
 from synapseclient.models import Column, ColumnType, ViewTypeMask
 from synapseclient.models.curation import (
@@ -153,6 +157,7 @@ class TestCreateFileBasedMetadataTask(unittest.TestCase):
             synapse_entity_id=self.folder_id,
             entity_view_name=self.entity_view_name,
             view_type_mask=ViewTypeMask.FILE,
+            column_order=None,
         )
         mock_create_wiki.assert_called_once_with(
             syn=self.mock_syn, entity_view_id="syn87654321", owner_id=self.folder_id
@@ -273,6 +278,32 @@ class TestCreateFileBasedMetadataTask(unittest.TestCase):
                 attach_wiki=True,
                 synapse_client=self.mock_syn,
             )
+
+    @patch(
+        "synapseclient.extensions.curator.file_based_metadata_task._create_json_schema_entity_view"
+    )
+    @patch(
+        "synapseclient.extensions.curator.file_based_metadata_task.Synapse.get_client"
+    )
+    def test_create_file_based_metadata_task_invalid_column_order(
+        self, mock_get_client, mock_create_entity_view
+    ):
+        """A malformed column_order is rejected before any Synapse work happens."""
+        # GIVEN a column_order that is not a list
+        mock_get_client.return_value = self.mock_syn
+
+        # WHEN I create the file-based metadata task
+        # THEN a ValueError is raised before the entity view is created
+        with pytest.raises(ValueError, match="must be a list"):
+            create_file_based_metadata_task(
+                folder_id=self.folder_id,
+                curation_task_name=self.curation_task_name,
+                instructions=self.instructions,
+                column_order="patientId",
+                synapse_client=self.mock_syn,
+            )
+
+        mock_create_entity_view.assert_not_called()
 
     @patch(
         "synapseclient.extensions.curator.file_based_metadata_task.Synapse.get_client"
@@ -502,6 +533,7 @@ class TestCreateFileBasedMetadataTask(unittest.TestCase):
                     synapse_entity_id=self.folder_id,
                     entity_view_name=self.entity_view_name,
                     view_type_mask=ViewTypeMask.FILE,
+                    column_order=None,
                 )
 
     @patch(
@@ -679,6 +711,102 @@ class TestCreateRecordBasedMetadataTask(unittest.TestCase):
         self.mock_syn.logger.warning.assert_any_call(
             "A Grid object will no longer be created by this function starting in v5.0.0."
         )
+
+    @patch(
+        "synapseclient.extensions.curator.record_based_metadata_task.project_id_from_entity_id"
+    )
+    @patch(
+        "synapseclient.extensions.curator.record_based_metadata_task.Synapse.get_client"
+    )
+    @patch(
+        "synapseclient.extensions.curator.record_based_metadata_task.extract_schema_properties_from_web"
+    )
+    @patch(
+        "synapseclient.extensions.curator.record_based_metadata_task.tempfile.NamedTemporaryFile"
+    )
+    @patch("synapseclient.extensions.curator.record_based_metadata_task.RecordSet")
+    @patch("synapseclient.extensions.curator.record_based_metadata_task.CurationTask")
+    @patch("builtins.open")
+    def test_create_record_based_metadata_task_applies_column_order(
+        self,
+        mock_open,
+        mock_curation_task_cls,
+        mock_record_set_cls,
+        mock_temp_file,
+        mock_extract_schema,
+        mock_get_client,
+        mock_get_project_id_from_entity_id,
+    ):
+        """Test that column_order orders the CSV template used for the RecordSet."""
+        # GIVEN a schema whose properties are not in the desired order
+        mock_get_client.return_value = self.mock_syn
+        mock_get_project_id_from_entity_id.return_value = self.project_id
+        mock_extract_schema.return_value = pd.DataFrame(
+            columns=["age", "assay", "patientId", "diagnosis", "specimenID"]
+        )
+
+        mock_temp = Mock()
+        mock_temp.name = "/tmp/test.csv"
+        mock_temp_file.return_value = mock_temp
+
+        mock_record_set = Mock()
+        mock_record_set.id = "syn87654321"
+        mock_record_set_cls.return_value.store.return_value = mock_record_set
+        mock_curation_task_cls.return_value.store.return_value = Mock(task_id="task123")
+
+        # WHEN I create the task with multiple upsert keys and a partial column order
+        create_record_based_metadata_task(
+            folder_id=self.folder_id,
+            record_set_name=self.record_set_name,
+            record_set_description=self.record_set_description,
+            curation_task_name=self.curation_task_name,
+            upsert_keys=["patientId", "specimenID"],
+            instructions=self.instructions,
+            schema_uri=self.schema_uri,
+            column_order=["diagnosis", "patientId"],
+            create_grid=False,
+            synapse_client=self.mock_syn,
+        )
+
+        # THEN the CSV template written for the RecordSet leads with the upsert keys,
+        # follows with the requested columns without duplicating the upsert key, and
+        # keeps the unlisted properties in their relative order
+        written_csv = "".join(
+            write_call.args[0]
+            for write_call in mock_open.return_value.__enter__.return_value.write.call_args_list
+        )
+        assert written_csv.splitlines()[0] == "patientId,specimenID,diagnosis,age,assay"
+
+    @patch(
+        "synapseclient.extensions.curator.record_based_metadata_task.project_id_from_entity_id"
+    )
+    @patch(
+        "synapseclient.extensions.curator.record_based_metadata_task.extract_schema_properties_from_web"
+    )
+    def test_create_record_based_metadata_task_invalid_column_order(
+        self,
+        mock_extract_schema,
+        mock_get_project_id_from_entity_id,
+    ):
+        """A malformed column_order is rejected before any Synapse work happens."""
+        # GIVEN a column_order containing a duplicate
+        # WHEN I create the record-based metadata task
+        # THEN a ValueError is raised before the schema is fetched
+        with pytest.raises(ValueError, match="duplicate"):
+            create_record_based_metadata_task(
+                folder_id=self.folder_id,
+                record_set_name=self.record_set_name,
+                record_set_description=self.record_set_description,
+                curation_task_name=self.curation_task_name,
+                upsert_keys=self.upsert_keys,
+                instructions=self.instructions,
+                schema_uri=self.schema_uri,
+                column_order=["assay", "assay"],
+                synapse_client=self.mock_syn,
+            )
+
+        mock_get_project_id_from_entity_id.assert_not_called()
+        mock_extract_schema.assert_not_called()
 
     @patch(
         "synapseclient.extensions.curator.record_based_metadata_task.project_id_from_entity_id"
@@ -1702,7 +1830,7 @@ class TestQuerySchemaRegistry(unittest.TestCase):
         )
 
 
-class TestRecordBasedHelperFunctions(unittest.TestCase):
+class TestRecordBasedHelperFunctions:
     """Test cases for helper functions in record_based_metadata_task module."""
 
     def test_extract_property_titles_success(self):
@@ -1740,9 +1868,9 @@ class TestRecordBasedHelperFunctions(unittest.TestCase):
 
         result = create_dataframe_from_titles(titles)
 
-        self.assertIsInstance(result, pd.DataFrame)
-        self.assertEqual(list(result.columns), titles)
-        self.assertEqual(len(result), 0)  # Empty DataFrame
+        assert isinstance(result, pd.DataFrame)
+        assert list(result.columns) == titles
+        assert len(result) == 0  # Empty DataFrame
 
     def test_create_dataframe_from_titles_empty(self):
         """Test DataFrame creation with empty titles."""
@@ -1750,8 +1878,8 @@ class TestRecordBasedHelperFunctions(unittest.TestCase):
 
         result = create_dataframe_from_titles(titles)
 
-        self.assertIsInstance(result, pd.DataFrame)
-        self.assertEqual(len(result.columns), 0)
+        assert isinstance(result, pd.DataFrame)
+        assert len(result.columns) == 0
 
     def test_extract_schema_properties_from_dict_success(self):
         """Test successful schema property extraction from dictionary."""
@@ -1761,9 +1889,9 @@ class TestRecordBasedHelperFunctions(unittest.TestCase):
 
         result = extract_schema_properties_from_dict(schema_data)
 
-        self.assertIsInstance(result, pd.DataFrame)
+        assert isinstance(result, pd.DataFrame)
         expected_columns = ["specimenID", "age"]
-        self.assertEqual(list(result.columns), expected_columns)
+        assert list(result.columns) == expected_columns
 
     @patch("synapseclient.extensions.curator.record_based_metadata_task.JSONSchema")
     def test_extract_schema_properties_from_web_success(self, mock_schema_cls):
@@ -1781,82 +1909,149 @@ class TestRecordBasedHelperFunctions(unittest.TestCase):
 
         result = extract_schema_properties_from_web(mock_syn, schema_uri)
 
-        self.assertIsInstance(result, pd.DataFrame)
+        assert isinstance(result, pd.DataFrame)
         expected_columns = ["specimenID", "age"]
-        self.assertEqual(list(result.columns), expected_columns)
+        assert list(result.columns) == expected_columns
         mock_schema.get.assert_called_once()
         mock_schema.get_body.assert_called_once()
 
-    def test_reorder_columns_with_upsert_keys_first(self):
-        """Test reordering a DataFrame's columns to put upsert keys first."""
-        # GIVEN starting columns, upsert keys, and the expected resulting order
-        cases = [
+
+class TestValidateColumnOrderList:
+    """Test cases for validate_column_order_list in curator.utils."""
+
+    @pytest.mark.parametrize(
+        "column_order,expected",
+        [
+            (None, []),
+            ([], []),
+            (["a", "b"], ["a", "b"]),
             (
-                "moves keys to front",
-                ["age", "diagnosis", "specimenID"],
-                ["specimenID"],
-                ["specimenID", "age", "diagnosis"],
+                ["specimenID", "patientId", "assay"],
+                ["specimenID", "patientId", "assay"],
+            ),
+        ],
+        ids=["none", "empty list", "valid list", "order is preserved"],
+    )
+    def test_accepts_valid_input(self, column_order, expected):
+        """None becomes an empty list and a valid list is returned in order."""
+        assert validate_column_order_list(column_order) == expected
+
+    @pytest.mark.parametrize(
+        "column_order,expected_message",
+        [
+            (["patientId", 5], "non-empty strings"),
+            (["patientId", None], "non-empty strings"),
+            (["patientId", ""], "non-empty strings"),
+            (["patientId", "assay", "patientId"], "duplicate"),
+        ],
+        ids=[
+            "non-string entry",
+            "none entry",
+            "empty string entry",
+            "duplicate entry",
+        ],
+    )
+    def test_rejects_invalid_input(self, column_order, expected_message):
+        """Non-lists, non-string entries, and duplicates are rejected."""
+        with pytest.raises(ValueError, match=expected_message):
+            validate_column_order_list(column_order)
+
+    def test_error_names_every_invalid_entry(self):
+        """The error message lists all offending values, not just the first."""
+        with pytest.raises(ValueError, match=r"5.*''"):
+            validate_column_order_list(["patientId", 5, ""])
+
+    def test_error_names_every_duplicate_once(self):
+        """A value repeated several times is reported a single time."""
+        with pytest.raises(ValueError, match=r"duplicate values: \['patientId'\]"):
+            validate_column_order_list(["patientId", "patientId", "patientId"])
+
+
+class TestResolveColumnOrderList:
+    """Test cases for resolve_column_order_list in curator.utils."""
+
+    @pytest.mark.parametrize(
+        "available,pinned,requested,expected",
+        [
+            (
+                ["assay", "name", "id", "createdBy"],
+                ["name", "id"],
+                None,
+                ["name", "id", "assay", "createdBy"],
             ),
             (
-                "preserves provided key order",
+                ["assay", "name", "id", "createdBy", "patientId"],
+                ["name", "id"],
+                ["patientId", "createdBy"],
+                ["name", "id", "patientId", "createdBy", "assay"],
+            ),
+            (
+                ["assay", "name", "id"],
+                ["name", "id"],
+                ["id", "assay"],
+                ["name", "id", "assay"],
+            ),
+            (
+                ["a", "b", "c"],
+                [],
+                ["c"],
+                ["c", "a", "b"],
+            ),
+            (
                 ["age", "individualID", "diagnosis", "specimenID"],
                 ["specimenID", "individualID"],
+                None,
                 ["specimenID", "individualID", "age", "diagnosis"],
             ),
             (
-                "no upsert keys preserves original order",
                 ["age", "specimenID"],
                 [],
+                None,
                 ["age", "specimenID"],
             ),
-        ]
+            (
+                ["age", "diagnosis", "specimenID"],
+                ["specimenID"],
+                ["diagnosis", "age"],
+                ["specimenID", "diagnosis", "age"],
+            ),
+        ],
+        ids=[
+            "no request keeps the pinned columns first",
+            "requested columns follow the pinned columns",
+            "a pinned column in the request is not duplicated",
+            "no pinned columns means the request leads",
+            "pinned columns lead in the order given, not their available order",
+            "no pinned columns and no request preserves the original order",
+            "a full request order is honored exactly",
+        ],
+    )
+    def test_resolves_expected_order(self, available, pinned, requested, expected):
+        """Pinned, requested, and remaining columns are concatenated without repeats."""
+        assert resolve_column_order_list(available, pinned, requested) == expected
 
-        for name, columns, upsert_keys, expected in cases:
-            with self.subTest(name):
-                # WHEN I reorder the columns with the upsert keys first
-                df = pd.DataFrame(columns=columns)
-                result = _reorder_columns_with_upsert_keys_first(df, upsert_keys)
-
-                # THEN the upsert keys lead in the given order, others keep their order
-                self.assertEqual(list(result.columns), expected)
-
-    def test_reorder_columns_with_upsert_keys_first_missing_key_raises(self):
-        """Callers must validate keys; a missing upsert key raises KeyError."""
-        # GIVEN a DataFrame whose columns do not contain every upsert key
-        df = pd.DataFrame(columns=["age", "specimenID"])
-
-        # WHEN I reorder with an upsert key absent from the columns
-        # THEN a KeyError is raised rather than silently dropping the key
-        with self.assertRaises(KeyError):
-            _reorder_columns_with_upsert_keys_first(df, ["specimenID", "notAColumn"])
+    def test_unknown_column_raises(self):
+        """Requesting a column that is not available raises a clear ValueError."""
+        with pytest.raises(
+            ValueError, match=r"not found among the available columns: \['x', 'y'\]"
+        ):
+            resolve_column_order_list(["a", "b"], ["a"], ["x", "b", "y"])
 
 
-class TestFileBasedHelperFunctions(unittest.TestCase):
+class TestFileBasedHelperFunctions:
     """Test cases for helper functions in file_based_metadata_task module."""
 
-    def setUp(self):
+    @pytest.fixture(autouse=True, scope="function")
+    def init_mock_syn(self):
         """Set up test fixtures."""
         self.mock_syn = Mock(spec=Synapse)
         self.mock_syn.logger = Mock()
 
-    @patch("synapseclient.extensions.curator.file_based_metadata_task.isinstance")
-    @patch("synapseclient.extensions.curator.file_based_metadata_task.EntityView")
-    @patch("synapseclient.extensions.curator.file_based_metadata_task.get")
-    @patch("synapseclient.extensions.curator.file_based_metadata_task.JSONSchema")
-    def test_create_json_schema_entity_view_success(
-        self,
-        mock_json_schema_cls,
-        mock_get,
-        mock_entity_view_cls,
-        mock_isinstance,
-    ):
-        """Test successful creation of JSON schema entity view."""
-        # GIVEN a valid synapse entity with a JSON schema
-        entity_id = "syn12345678"
-        entity_view_name = "Test View"
-
-        mock_entity = Mock()
-        mock_entity.get_schema.return_value = JSONSchemaBinding(
+    @pytest.fixture
+    def schema_bound_entity(self) -> Mock:
+        """A mock Folder/Project that reports a bound JSON schema."""
+        entity = Mock()
+        entity.get_schema.return_value = JSONSchemaBinding(
             object_id=1,
             object_type="",
             created_on="",
@@ -1875,18 +2070,69 @@ class TestFileBasedHelperFunctions(unittest.TestCase):
                 created_by="",
             ),
         )
-        mock_get.return_value = mock_entity
+        return entity
+
+    @pytest.fixture
+    def make_json_schema(self) -> Callable[[dict], Mock]:
+        """Factory for a mock JSONSchema whose body exposes the given properties."""
+
+        def _make(properties: dict) -> Mock:
+            schema = Mock()
+            schema.get_body.return_value = {"properties": properties}
+            return schema
+
+        return _make
+
+    @pytest.fixture
+    def make_stored_entity_view(self) -> Callable[[list], Mock]:
+        """
+        Factory for a mock EntityView whose store() returns itself with the given
+        columns.
+
+        The column names stand in for the state of the view after Synapse has appended
+        its default columns, which is when the final column order is calculated.
+        """
+
+        def _make(column_names: list) -> Mock:
+            view = Mock()
+            view.id = "syn87654321"
+            view.columns = OrderedDict(
+                (name, Column(name=name, column_type=ColumnType.MEDIUMTEXT))
+                for name in column_names
+            )
+            view.store.return_value = view
+            return view
+
+        return _make
+
+    @patch("synapseclient.extensions.curator.file_based_metadata_task.isinstance")
+    @patch("synapseclient.extensions.curator.file_based_metadata_task.EntityView")
+    @patch("synapseclient.extensions.curator.file_based_metadata_task.get")
+    @patch("synapseclient.extensions.curator.file_based_metadata_task.JSONSchema")
+    def test_create_json_schema_entity_view_success(
+        self,
+        mock_json_schema_cls,
+        mock_get,
+        mock_entity_view_cls,
+        mock_isinstance,
+        schema_bound_entity,
+        make_json_schema,
+        make_stored_entity_view,
+    ):
+        """Test successful creation of JSON schema entity view."""
+        # GIVEN a valid synapse entity with a JSON schema
+        entity_id = "syn12345678"
+        entity_view_name = "Test View"
+
+        mock_get.return_value = schema_bound_entity
         mock_isinstance.return_value = True
+        mock_json_schema_cls.return_value = make_json_schema(
+            {"name": {"type": "string"}, "age": {"type": "integer"}}
+        )
 
-        mock_json_schema = Mock()
-        mock_json_schema.get_body.return_value = {
-            "properties": {"name": {"type": "string"}, "age": {"type": "integer"}}
-        }
-        mock_json_schema_cls.return_value = mock_json_schema
-
-        mock_view = Mock()
-        mock_view.id = "syn87654321"
-        mock_view.store.return_value = mock_view
+        mock_view = make_stored_entity_view(
+            ["age", "name", "createdBy", "id", "modifiedOn"]
+        )
         mock_entity_view_cls.return_value = mock_view
 
         # WHEN I create the JSON schema entity view
@@ -1899,13 +2145,204 @@ class TestFileBasedHelperFunctions(unittest.TestCase):
         # THEN the created EntityView object should be returned
         assert result is mock_view
         assert result.id == "syn87654321"
-        # AND the columns are reordered so that "name", "id", and "createdBy"
-        # appear first, in that order.
-        assert mock_view.reorder_column.call_args_list == [
-            call(name="name", index=0),
-            call(name="id", index=1),
-            call(name="createdBy", index=2),
+        # AND "name" and "id" are pinned to the front while every other column,
+        # including "createdBy", keeps its existing relative order.
+        assert list(result.columns.keys()) == [
+            "name",
+            "id",
+            "age",
+            "createdBy",
+            "modifiedOn",
         ]
+
+    @patch("synapseclient.extensions.curator.file_based_metadata_task.isinstance")
+    @patch("synapseclient.extensions.curator.file_based_metadata_task.EntityView")
+    @patch("synapseclient.extensions.curator.file_based_metadata_task.get")
+    @patch("synapseclient.extensions.curator.file_based_metadata_task.JSONSchema")
+    def test_create_json_schema_entity_view_column_order(
+        self,
+        mock_json_schema_cls,
+        mock_get,
+        mock_entity_view_cls,
+        mock_isinstance,
+        schema_bound_entity,
+        make_json_schema,
+        make_stored_entity_view,
+    ):
+        """A requested column_order is applied after the pinned name and id columns."""
+        # GIVEN a stored view whose columns are not in the requested order
+        mock_get.return_value = schema_bound_entity
+        mock_isinstance.return_value = True
+        mock_json_schema_cls.return_value = make_json_schema(
+            {"assay": {"type": "string"}, "patientId": {"type": "string"}}
+        )
+        mock_view = make_stored_entity_view(
+            ["assay", "patientId", "name", "createdBy", "id", "fileFormat"]
+        )
+        mock_entity_view_cls.return_value = mock_view
+
+        # WHEN I create the view with an explicit partial column order
+        result = _create_json_schema_entity_view(
+            syn=self.mock_syn,
+            synapse_entity_id="syn12345678",
+            column_order=["patientId", "fileFormat", "name"],
+        )
+
+        # THEN name and id lead, the requested columns follow in the order given,
+        # and the unlisted columns are appended in their existing relative order
+        assert list(result.columns.keys()) == [
+            "name",
+            "id",
+            "patientId",
+            "fileFormat",
+            "assay",
+            "createdBy",
+        ]
+
+    @patch("synapseclient.extensions.curator.file_based_metadata_task.isinstance")
+    @patch("synapseclient.extensions.curator.file_based_metadata_task.EntityView")
+    @patch("synapseclient.extensions.curator.file_based_metadata_task.get")
+    @patch("synapseclient.extensions.curator.file_based_metadata_task.JSONSchema")
+    def test_create_json_schema_entity_view_unknown_column_order_raises(
+        self,
+        mock_json_schema_cls,
+        mock_get,
+        mock_entity_view_cls,
+        mock_isinstance,
+        schema_bound_entity,
+        make_json_schema,
+        make_stored_entity_view,
+    ):
+        """A column_order naming a column the view does not have raises ValueError."""
+        # GIVEN a stored view without the requested column
+        mock_get.return_value = schema_bound_entity
+        mock_isinstance.return_value = True
+        mock_json_schema_cls.return_value = make_json_schema(
+            {"age": {"type": "integer"}}
+        )
+        mock_view = make_stored_entity_view(["age", "name", "id"])
+        mock_entity_view_cls.return_value = mock_view
+
+        # WHEN I create the view requesting a column that does not exist
+        # THEN a ValueError naming the unknown column is raised
+        with pytest.raises(ValueError, match=r"\['invalidColumn'\]"):
+            _create_json_schema_entity_view(
+                syn=self.mock_syn,
+                synapse_entity_id="syn12345678",
+                column_order=["invalidColumn"],
+            )
+
+        # AND the EntityView that was already created is deleted rather than left
+        # behind as an orphan
+        mock_view.delete.assert_called_once_with(synapse_client=self.mock_syn)
+
+    @patch(
+        "synapseclient.extensions.curator.file_based_metadata_task.Synapse.get_client"
+    )
+    @patch("synapseclient.extensions.curator.file_based_metadata_task.isinstance")
+    @patch("synapseclient.extensions.curator.file_based_metadata_task.EntityView")
+    @patch("synapseclient.extensions.curator.file_based_metadata_task.get")
+    @patch("synapseclient.extensions.curator.file_based_metadata_task.JSONSchema")
+    def test_create_json_schema_entity_view_reports_failed_cleanup(
+        self,
+        mock_json_schema_cls,
+        mock_get,
+        mock_entity_view_cls,
+        mock_isinstance,
+        mock_get_client,
+        schema_bound_entity,
+        make_json_schema,
+        make_stored_entity_view,
+    ):
+        """When the cleanup delete fails the original error still propagates."""
+        # GIVEN a bad column_order and a view that cannot be deleted
+        mock_get.return_value = schema_bound_entity
+        mock_isinstance.return_value = True
+        mock_get_client.return_value = self.mock_syn
+        mock_json_schema_cls.return_value = make_json_schema(
+            {"age": {"type": "integer"}}
+        )
+        mock_view = make_stored_entity_view(["age", "name", "id"])
+        mock_view.delete.side_effect = SynapseHTTPError("403 Forbidden")
+        mock_entity_view_cls.return_value = mock_view
+
+        # WHEN I create the view requesting a column that does not exist
+        # THEN the ValueError explaining the problem is what propagates, not the
+        # delete failure
+        with pytest.raises(ValueError, match=r"\['invalidColumn'\]"):
+            _create_json_schema_entity_view(
+                syn=self.mock_syn,
+                synapse_entity_id="syn12345678",
+                column_order=["invalidColumn"],
+            )
+
+        # AND the Synapse ID needing manual cleanup is logged, with instructions
+        # on how to delete it
+        logged_message = self.mock_syn.logger.exception.call_args.args[0]
+        assert "syn87654321" in logged_message
+        assert "EntityView(id='syn87654321').delete()" in logged_message
+
+    @patch("synapseclient.extensions.curator.file_based_metadata_task.isinstance")
+    @patch("synapseclient.extensions.curator.file_based_metadata_task.EntityView")
+    @patch("synapseclient.extensions.curator.file_based_metadata_task.get")
+    @patch("synapseclient.extensions.curator.file_based_metadata_task.JSONSchema")
+    def test_create_json_schema_entity_view_order_store_failure_keeps_view(
+        self,
+        mock_json_schema_cls,
+        mock_get,
+        mock_entity_view_cls,
+        mock_isinstance,
+        schema_bound_entity,
+        make_json_schema,
+        make_stored_entity_view,
+    ):
+        """A failure persisting the column order leaves the EntityView in place."""
+        # GIVEN a valid column_order and a store that fails when the order is persisted
+        mock_get.return_value = schema_bound_entity
+        mock_isinstance.return_value = True
+        mock_json_schema_cls.return_value = make_json_schema(
+            {"age": {"type": "integer"}}
+        )
+        mock_view = make_stored_entity_view(["age", "name", "id"])
+        mock_view.store.side_effect = [
+            mock_view,
+            SynapseHTTPError("503 Service Unavailable"),
+        ]
+        mock_entity_view_cls.return_value = mock_view
+
+        # WHEN I create the view
+        # THEN the transient error propagates unchanged
+        with pytest.raises(SynapseHTTPError, match="503"):
+            _create_json_schema_entity_view(
+                syn=self.mock_syn,
+                synapse_entity_id="syn12345678",
+                column_order=["age"],
+            )
+
+        # AND the view is left alone so that the call can be retried, rather than
+        # being deleted as it is for a bad column_order
+        mock_view.delete.assert_not_called()
+
+    @patch("synapseclient.extensions.curator.file_based_metadata_task.EntityView")
+    @patch("synapseclient.extensions.curator.file_based_metadata_task.get")
+    def test_create_json_schema_entity_view_non_container_entity_raises(
+        self,
+        mock_get,
+        mock_entity_view_cls,
+    ):
+        """An entity that is not a Folder or Project is rejected with a ValueError."""
+        # GIVEN an entity ID that does not resolve to a Folder or a Project
+        mock_get.return_value = Mock()
+
+        # WHEN I create the JSON schema entity view for it
+        # THEN a ValueError naming the entity is raised and no view is created
+        with pytest.raises(ValueError, match="only be read from a Folder or a Project"):
+            _create_json_schema_entity_view(
+                syn=self.mock_syn,
+                synapse_entity_id="syn12345678",
+            )
+
+        mock_entity_view_cls.assert_not_called()
 
     @patch("synapseclient.extensions.curator.file_based_metadata_task.isinstance")
     @patch("synapseclient.extensions.curator.file_based_metadata_task.EntityView")
@@ -1917,6 +2354,9 @@ class TestFileBasedHelperFunctions(unittest.TestCase):
         mock_get,
         mock_entity_view_cls,
         mock_isinstance,
+        schema_bound_entity,
+        make_json_schema,
+        make_stored_entity_view,
     ):
         """Test that a combined FILE|FOLDER view_type_mask is forwarded to EntityView."""
         # GIVEN a valid synapse entity with a JSON schema
@@ -1924,38 +2364,13 @@ class TestFileBasedHelperFunctions(unittest.TestCase):
         entity_view_name = "Test View"
         combined_mask = ViewTypeMask.FILE | ViewTypeMask.FOLDER
 
-        mock_entity = Mock()
-        mock_entity.get_schema.return_value = JSONSchemaBinding(
-            object_id=1,
-            object_type="",
-            created_on="",
-            created_by="",
-            enable_derived_annotations=True,
-            json_schema_version_info=JSONSchemaVersionInfo(
-                organization_id="",
-                organization_name="org.name",
-                schema_id="",
-                id="",
-                schema_name="schema.name",
-                version_id="",
-                semantic_version="0.0.1",
-                json_sha256_hex="",
-                created_on="",
-                created_by="",
-            ),
-        )
-        mock_get.return_value = mock_entity
+        mock_get.return_value = schema_bound_entity
         mock_isinstance.return_value = True
+        mock_json_schema_cls.return_value = make_json_schema(
+            {"name": {"type": "string"}, "age": {"type": "integer"}}
+        )
 
-        mock_json_schema = Mock()
-        mock_json_schema.get_body.return_value = {
-            "properties": {"name": {"type": "string"}, "age": {"type": "integer"}}
-        }
-        mock_json_schema_cls.return_value = mock_json_schema
-
-        mock_view = Mock()
-        mock_view.id = "syn87654321"
-        mock_view.store.return_value = mock_view
+        mock_view = make_stored_entity_view(["name", "id", "age"])
         mock_entity_view_cls.return_value = mock_view
 
         # WHEN I create the JSON schema entity view with both file and folder types

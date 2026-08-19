@@ -12,7 +12,11 @@ from typing import Any, Dict, List, Optional, Union
 from synapseclient import Synapse
 from synapseclient.core.typing_utils import DataFrame as DATA_FRAME_TYPE
 from synapseclient.core.utils import test_import_pandas
-from synapseclient.extensions.curator.utils import project_id_from_entity_id
+from synapseclient.extensions.curator.utils import (
+    project_id_from_entity_id,
+    resolve_column_order_list,
+    validate_column_order_list,
+)
 from synapseclient.models import (
     AuthorizationMode,
     CurationTask,
@@ -78,33 +82,6 @@ def extract_schema_properties_from_dict(schema_data: Dict[str, Any]) -> DATA_FRA
     return df
 
 
-def _reorder_columns_with_upsert_keys_first(
-    df: DATA_FRAME_TYPE, upsert_keys: list[str]
-) -> DATA_FRAME_TYPE:
-    """
-    Reorder a DataFrame's columns so the upsert key columns appear first.
-
-    The upsert keys serve as the row identifiers in the Grid curation UI, so they
-    should always be the leftmost columns of the CSV template. The relative order of
-    the upsert keys is preserved as given, followed by the remaining columns in their
-    original order. Callers are expected to validate that every upsert key is present
-    among the columns before calling this function.
-
-    Args:
-        df: DataFrame whose columns should be reordered.
-        upsert_keys: List of column names to move to the front, in the desired order.
-
-    Returns:
-        DataFrame with the upsert key columns moved to the front.
-    """
-    upsert_key_set = set(upsert_keys)
-    remaining_columns = [
-        column for column in df.columns.tolist() if column not in upsert_key_set
-    ]
-
-    return df[upsert_keys + remaining_columns]
-
-
 def extract_schema_properties_from_web(
     syn: Synapse, schema_uri: str
 ) -> DATA_FRAME_TYPE:
@@ -141,6 +118,7 @@ def create_record_based_metadata_task(
     assignee_principal_id: Optional[Union[str, int]] = None,
     authorization_mode: Optional[Union[AuthorizationMode, str]] = None,
     *,
+    column_order: list[str] | None = None,
     synapse_client: Optional[Synapse] = None,
     project_id: Optional[str] = None,  # Deprecated, will be removed in v5.0.0
     create_grid: bool = True,  # Deprecated, will be removed in v5.0.0
@@ -191,6 +169,36 @@ def create_record_based_metadata_task(
         )
         ```
 
+    Example: Controlling the column order of the RecordSet
+        Pass column_order to place specific columns immediately after the upsert keys.
+        You only need to name the columns you care about; every other schema property
+        is appended afterwards in its existing order. Upsert keys always stay leftmost,
+        so naming one in column_order does not duplicate or move it.
+
+        ```python
+        import synapseclient
+        from synapseclient.extensions.curator import create_record_based_metadata_task
+
+        syn = synapseclient.Synapse()
+        syn.login()
+
+        record_set, curation_task = create_record_based_metadata_task(
+            synapse_client=syn,
+            folder_id="syn87654321",
+            record_set_name="BiospecimenMetadata_RecordSet",
+            record_set_description="RecordSet for biospecimen metadata curation",
+            curation_task_name="BiospecimenMetadataTemplate",
+            upsert_keys=["patientId", "specimenID"],
+            column_order=["diagnosis", "assay"],
+            instructions="Please curate this metadata according to the schema requirements",
+            schema_uri="schema-org-schema.name.schema-v1.0.0",
+            create_grid=False,
+        )
+
+        # Resulting column order:
+        # patientId, specimenID, diagnosis, assay, <remaining schema properties>
+        ```
+
     Arguments:
         folder_id: The Synapse ID of the folder to upload RecordSet to.
         record_set_name: Name for the RecordSet entity that will be created.
@@ -225,6 +233,12 @@ def create_record_based_metadata_task(
             for the current user. Changing this value after the task already exists
             resets the task's active session, so a new grid session must be opened
             before curation can continue.
+        column_order: Optional list of column names placed immediately after the
+            upsert keys, in the order given. Columns that are not named keep their
+            existing relative order and are appended afterwards, so you only need to
+            list the columns that need intentional placement. Naming an upsert key
+            here has no effect, it stays in its leading position. Every name must
+            match a property defined by the schema.
         synapse_client: If not passed in and caching was not disabled by
                 `Synapse.allow_client_caching(False)` this will use the last created
                 instance from the Synapse class constructor.
@@ -239,7 +253,8 @@ def create_record_based_metadata_task(
 
     Raises:
         ValueError: If required parameters are missing, if schema_uri is not provided,
-            or if any upsert_keys are not found among the schema properties.
+            if any upsert_keys are not found among the schema properties, or if
+            column_order is malformed or names a column that is not a schema property.
         SynapseError: If there are issues with Synapse operations.
     """
     # Validate required parameters
@@ -257,6 +272,7 @@ def create_record_based_metadata_task(
         raise ValueError("instructions is required")
     if not schema_uri:
         raise ValueError("schema_uri is required")
+    validate_column_order_list(column_order)
 
     if project_id:
         synapse_client.logger.warning(
@@ -289,9 +305,14 @@ def create_record_based_metadata_task(
             f"{missing_upsert_keys}. Upsert keys identify each row and must correspond "
             "to columns defined in the schema."
         )
-    template_df = _reorder_columns_with_upsert_keys_first(
-        df=template_df, upsert_keys=upsert_keys
-    )
+
+    template_df = template_df[
+        resolve_column_order_list(
+            available_columns=template_df.columns.tolist(),
+            pinned_columns=upsert_keys,
+            requested_columns=column_order,
+        )
+    ]
 
     synapse_client.logger.info(
         f"Extracted schema properties and created template: {template_df.columns.tolist()}"

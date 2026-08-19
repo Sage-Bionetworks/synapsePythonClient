@@ -5,12 +5,17 @@ This module provides library functions for creating file-based metadata curation
 in Synapse, including EntityView creation, CurationTask setup, and Wiki attachment.
 """
 
+from collections import OrderedDict
 from typing import Any, Optional, Tuple, Union
 
 from synapseclient import Synapse  # type: ignore
 from synapseclient import Wiki  # type: ignore
 from synapseclient.core.exceptions import SynapseHTTPError  # type: ignore
-from synapseclient.extensions.curator.utils import project_id_from_entity_id
+from synapseclient.extensions.curator.utils import (
+    project_id_from_entity_id,
+    resolve_column_order_list,
+    validate_column_order_list,
+)
 from synapseclient.models import (  # type: ignore
     AuthorizationMode,
     Column,
@@ -42,6 +47,7 @@ def _create_json_schema_entity_view(
     synapse_entity_id: str,
     entity_view_name: str = "JSON Schema view",
     view_type_mask: Union[int, ViewTypeMask] = ViewTypeMask.FILE,
+    column_order: list[str] | None = None,
     syn: Optional[Synapse] = None,
 ) -> EntityView:
     """
@@ -55,17 +61,29 @@ def _create_json_schema_entity_view(
             ViewTypeMask.FILE. Additional types can be added using bitwise OR
             (e.g., ViewTypeMask.FILE | ViewTypeMask.DOCKER). Accepts either a
             ViewTypeMask enum member or its raw integer value.
+        column_order: Optional list of column names to place immediately after the
+            pinned name and id columns, in the order given. Remaining columns keep
+            their existing relative order.
         syn: A Synapse object thats been logged in
 
     Returns:
         The created EntityView object
+
+    Raises:
+        ValueError: If synapse_entity_id is not a Folder or a Project, or if
+            column_order is malformed or names a column that is not present on the
+            created EntityView.
     """
     entity = get(
         file_options=FileOptions(download_file=False),
         synapse_id=synapse_entity_id,
         synapse_client=syn,
     )
-    assert isinstance(entity, (Folder, Project))
+    if not isinstance(entity, (Folder, Project)):
+        raise ValueError(
+            f"A JSON Schema can only be read from a Folder or a Project, but "
+            f"{synapse_entity_id} is a {type(entity).__name__}."
+        )
     jsb = entity.get_schema(synapse_client=syn)
     version_info = jsb.json_schema_version_info
     schema = JSONSchema(version_info.schema_name, version_info.organization_name)
@@ -78,10 +96,27 @@ def _create_json_schema_entity_view(
         view_type_mask=view_type_mask,
         columns=columns,
     ).store(synapse_client=syn)
-    # This reorder is so that these show up in the front of the EntityView in Synapse.
-    view.reorder_column(name="name", index=0)
-    view.reorder_column(name="id", index=1)
-    view.reorder_column(name="createdBy", index=2)
+
+    try:
+        available_columns = list(view.columns.keys())
+        ordered_columns = resolve_column_order_list(
+            available_columns=available_columns,
+            pinned_columns=["name", "id"],
+            requested_columns=column_order,
+        )
+        view.columns = OrderedDict(
+            (column, view.columns[column]) for column in ordered_columns
+        )
+    except ValueError:
+        try:
+            view.delete(synapse_client=syn)
+        except Exception:
+            Synapse.get_client(synapse_client=syn).logger.exception(
+                f"Could not delete the created EntityView {view.id}. Delete it "
+                "yourself, either from the Synapse web UI, or with the Python "
+                f"client: EntityView(id='{view.id}').delete()"
+            )
+        raise
     view.store(synapse_client=syn)
     return view
 
@@ -332,6 +367,7 @@ def create_file_based_metadata_task(
     # parameter and change the return type to Tuple[EntityView, CurationTask].
     return_entities: bool = False,
     *,
+    column_order: list[str] | None = None,
     synapse_client: Optional[Synapse] = None,
 ) -> Union[Tuple[str, int], Tuple[EntityView, CurationTask]]:
     """
@@ -385,6 +421,32 @@ def create_file_based_metadata_task(
         )
         ```
 
+    Example: Controlling the column order of the EntityView
+        Pass column_order to place specific columns immediately after the pinned name
+        and id columns. You only need to name the columns you care about; every other
+        column, including Synapse managed columns such as createdBy, is appended
+        afterwards in its existing order.
+
+        ```python
+        import synapseclient
+        from synapseclient.extensions.curator import create_file_based_metadata_task
+
+        syn = synapseclient.Synapse()
+        syn.login()
+
+        entity_view, curation_task = create_file_based_metadata_task(
+            synapse_client=syn,
+            folder_id="syn12345678",
+            curation_task_name="BiospecimenMetadataTemplate",
+            instructions="Please curate this metadata according to the schema requirements",
+            column_order=["patientId", "sampleId", "assay", "fileFormat"],
+            return_entities=True,
+        )
+
+        # Resulting column order:
+        # name, id, patientId, sampleId, assay, fileFormat, <remaining columns>
+        ```
+
     Arguments:
         folder_id: The Synapse Folder ID to create the file view for.
         curation_task_name: Name for the CurationTask (used as data_type field).
@@ -423,6 +485,14 @@ def create_file_based_metadata_task(
             objects instead of their ID strings. Defaults to False for backwards
             compatibility. The entity-returning shape will become the default in
             v5.0.0, at which point this parameter will be removed.
+        column_order: Optional list of column names placed immediately after the
+            pinned name and id columns, in the order given. Columns that are not
+            named keep their existing relative order and are appended afterwards, so
+            you only need to list the columns that need intentional placement. The
+            name and id columns always remain the two leftmost columns, so naming
+            either of them here has no effect. Every name must match a column on the
+            created EntityView, which includes the JSON Schema properties as well as
+            the Synapse managed columns such as createdBy and modifiedOn.
         synapse_client: If not passed in and caching was not disabled by
                 `Synapse.allow_client_caching(False)` this will use the last created
                 instance from the Synapse class constructor.
@@ -437,7 +507,8 @@ def create_file_based_metadata_task(
           - The created CurationTask object
 
     Raises:
-        ValueError: If required parameters are missing.
+        ValueError: If required parameters are missing, or if column_order is
+            malformed or names a column that is not on the created EntityView.
         SynapseError: If there are issues with Synapse operations.
     """
     # Validate required parameters
@@ -447,6 +518,7 @@ def create_file_based_metadata_task(
         raise ValueError("curation_task_name is required")
     if not instructions:
         raise ValueError("instructions is required")
+    validate_column_order_list(column_order)
 
     synapse_client = Synapse.get_client(synapse_client=synapse_client)
 
@@ -478,6 +550,7 @@ def create_file_based_metadata_task(
             synapse_entity_id=folder_id,
             entity_view_name=entity_view_name,
             view_type_mask=view_type_mask,
+            column_order=column_order,
         )
         entity_view_id = entity_view.id
     except Exception as e:
