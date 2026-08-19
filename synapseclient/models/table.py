@@ -179,6 +179,8 @@ class TableSynchronousProtocol(Protocol):
         update_size_bytes: int = 1.9 * MB,
         insert_size_bytes: int = 900 * MB,
         job_timeout: int = 600,
+        date_columns: Optional[List[str]] = None,
+        date_format: Optional[Union[str, Dict[str, str]]] = None,
         wait_for_eventually_consistent_view: bool = False,
         wait_for_eventually_consistent_view_timeout: int = 600,
         synapse_client: Optional[Synapse] = None,
@@ -300,6 +302,22 @@ class TableSynchronousProtocol(Protocol):
                 is reached a `SynapseTimeoutError` will be raised.
                 The default is 600 seconds
 
+            date_columns: (CSV file only) The names of columns in your CSV file that
+                contain dates or datetimes stored as formatted strings
+                (e.g. `"2024-01-15"` or `"01/15/2024 13:30"`). The columns are parsed
+                with `pandas.to_datetime` and converted to epoch time in milliseconds
+                before the data is uploaded, which is the format Synapse requires for
+                `DATE` columns.
+
+            date_format: (CSV file only) How the strings in `date_columns` are
+                formatted — a
+                [strftime format string](https://docs.python.org/3/library/datetime.html#strftime-and-strptime-format-codes)
+                (e.g. `"%m/%d/%Y"`) applied to every column, or a dict mapping column
+                names to their formats. Supply this so that ambiguous dates
+                (e.g. `"01/02/2024"`) are not silently misinterpreted and to optimize
+                the data upload performance. If the values in a column do not match
+                the format a `ValueError` is raised.
+
             wait_for_eventually_consistent_view: Only used if the table is a view. If
                 set to True this will wait for the view to reflect any changes that
                 you've made to the view. This is useful if you need to query the view
@@ -312,7 +330,7 @@ class TableSynchronousProtocol(Protocol):
                 `Synapse.allow_client_caching(False)` this will use the last created
                 instance from the Synapse class constructor
 
-            **kwargs: Additional arguments that are passed to the `pd.DataFrame`
+            **kwargs: Additional arguments that are passed to the `csv_to_pandas_df`
                 function when the `values` argument is a path to a csv file.
 
 
@@ -412,6 +430,8 @@ class TableSynchronousProtocol(Protocol):
         *,
         insert_size_bytes: int = 900 * MB,
         csv_table_descriptor: Optional[CsvTableDescriptor] = None,
+        date_columns: Optional[List[str]] = None,
+        date_format: Optional[Union[str, Dict[str, str]]] = None,
         read_csv_kwargs: Optional[Dict[str, Any]] = None,
         to_csv_kwargs: Optional[Dict[str, Any]] = None,
         job_timeout: int = 600,
@@ -441,6 +461,66 @@ class TableSynchronousProtocol(Protocol):
         - If you use the `store_rows` method and the `schema_storage_strategy` is set to
             `INFER_FROM_DATA` the columns will be added at the end of the columns list.
 
+
+        **How datetime values are interpreted:**
+
+        Synapse `DATE` columns store an exact moment in time, represented as the
+        number of milliseconds since `1970-01-01 00:00:00` UTC. Before upload,
+        datetime values are converted to that representation as follows:
+
+        - Timezone-aware datetimes (e.g. localized with `zoneinfo.ZoneInfo` or
+            `pandas.Series.dt.tz_localize`) are converted to UTC exactly. This is
+            the recommended way to pass datetime data: the stored value does not
+            depend on the timezone settings of the machine performing the upload
+            or on the date the upload is run.
+        - Naive datetimes (no `tzinfo`) are assumed to be in the local timezone
+            of the machine **at the time of upload**. That single UTC offset is
+            applied to every value, including values whose dates fall in a
+            different daylight saving period, which will be stored shifted by one
+            hour. For example, uploading `2017-02-14 11:23` (a PST date, UTC-8)
+            from a machine currently on PDT (UTC-7) stores `2017-02-14 18:23` UTC
+            instead of the correct `19:23` UTC. To avoid this, localize your data
+            first, e.g. `df["col"] = df["col"].dt.tz_localize("America/Los_Angeles")`.
+        - Plain `datetime.date` objects (as opposed to datetimes) are treated
+            as midnight of that date and converted the same way naive
+            datetimes are: using the local timezone of the machine **at the
+            time of upload**, with the same daylight-saving-shift risk
+            described above.
+        - Midnight values deserve extra care: the one-hour daylight saving
+            shift described above can move a naive midnight datetime — or a
+            `datetime.date`, which is treated as midnight — to 11 PM of the
+            previous day, changing the calendar date the value displays as.
+
+        **Why timezone-aware values are recommended:**
+
+        A naive datetime such as `2017-02-14 11:23` is only "what a clock on the
+        wall said." Before it can be stored as an exact moment in time, something
+        has to answer: *a clock where?* Timezone-aware values answer that
+        question in the data itself; naive values leave the client to guess, and
+        it guesses the uploading machine's current timezone.
+
+        A zone name like `"America/Los_Angeles"` does not mean a fixed offset
+        such as UTC-8. It means "a Los Angeles wall clock" — and those clocks
+        move twice a year: UTC-7 in summer (PDT), UTC-8 in winter (PST). When
+        pandas localizes a column with
+        `df["col"].dt.tz_localize("America/Los_Angeles")`, it looks up what LA
+        clocks were set to on each value's own date:
+
+        - `2017-02-14` → winter → interpreted using UTC-8
+        - `2018-10-01` → summer → interpreted using UTC-7
+
+        This is like asking "what did a stamp cost when this letter was mailed
+        in 2017?" — you look up the 2017 price, not today's. Naive values skip
+        that lookup: the offset in effect at upload time is applied to every
+        value, like pricing every letter ever mailed at today's stamp rate.
+        Every value whose date falls in the opposite daylight saving period from
+        the upload date is shifted by one hour — a February value uploaded in
+        July displays as `10:23 AM` in the Synapse UI instead of `11:23 AM`, and
+        a midnight value can display as the previous calendar day.
+
+        When the data is queried back with `query(..., convert_to_datetime=True)`,
+        `DATE` columns are returned as timezone-aware datetimes in UTC. Use
+        `Series.dt.tz_convert` to view them in another timezone.
 
         **Limitations:**
 
@@ -621,10 +701,38 @@ class TableSynchronousProtocol(Protocol):
                 [CsvTableDescriptor][synapseclient.models.CsvTableDescriptor]
                 for more information.
 
+            date_columns: (CSV file only) The names of columns in your CSV file that
+                contain dates or datetimes stored as formatted strings
+                (e.g. `"2024-01-15"` or `"01/15/2024 13:30"`). The columns are parsed
+                with `pandas.to_datetime` and converted to epoch time in milliseconds
+                before the data is uploaded, which is the format Synapse requires for
+                `DATE` columns. The conversion is done by reading the CSV file into a
+                pandas DataFrame and uploading a temporary copy with the converted
+                values, which requires the CSV file to contain a header row. Because
+                the data passes through pandas type inference, values in the other
+                columns may be normalized (e.g. `"1.10"` becomes `1.1` and literal
+                `"NA"` strings become null values). When `schema_storage_strategy` is
+                set to `INFER_FROM_DATA` the parsed columns will be inferred as `DATE`
+                columns. The parsed values are naive datetimes unless the strings
+                carry a UTC offset — see *How datetime values are interpreted*
+                above for how they are converted to epoch time. When the offsets in
+                a column differ between rows (e.g. a mix of `-0800` and `-0700`
+                values) the values are normalized to UTC, preserving the exact
+                moments in time.
+
+            date_format: (CSV file only) How the strings in `date_columns` are
+                formatted — a
+                [strftime format string](https://docs.python.org/3/library/datetime.html#strftime-and-strptime-format-codes)
+                (e.g. `"%m/%d/%Y"`) applied to every column, or a dict mapping column
+                names to their formats. Supply this so that ambiguous dates
+                (e.g. `"01/02/2024"`) are not silently misinterpreted. If the values
+                in a column do not match the format a `ValueError` is raised.
+
             read_csv_kwargs: Additional arguments to pass to the `pd.read_csv` function
                 when reading in a CSV file. This is only used when the `values` argument
-                is a string holding the path to a CSV file and you have set the
-                `schema_storage_strategy` to `INFER_FROM_DATA`. See
+                is a string holding the path to a CSV file and either
+                `schema_storage_strategy` is set to `INFER_FROM_DATA` or `date_columns`
+                is provided. See
                 <https://pandas.pydata.org/docs/reference/api/pandas.read_csv.html>
                 for complete list of supported arguments.
 
@@ -784,6 +892,35 @@ class TableSynchronousProtocol(Protocol):
             | A    | 22   | 1    |
             | B    | 2    | 33   |
             | C    | 3    | 3    |
+
+        Example: Inserting rows from a CSV file that contains date columns
+
+            This example shows how you may insert rows from a CSV file that contains
+            date columns. The date columns are converted
+            to epoch time in milliseconds before the data is uploaded so that Synapse
+            can store them in `DATE` columns.
+
+            Suppose we have a CSV file with the following data:
+
+            | col1 | date_col1  | date_col2  |
+            |------|------------|------------|
+            | A    | 01/15/2024 | 2024-01-20 |
+            | B    | 02/20/2024 | 2024-02-25 |
+
+            ```python
+            from synapseclient import Synapse
+            from synapseclient.models import Table, SchemaStorageStrategy
+
+            syn = Synapse()
+            syn.login()
+
+            Table(id="syn1234").store_rows(
+                values="path/to/file.csv",
+                schema_storage_strategy=SchemaStorageStrategy.INFER_FROM_DATA,
+                date_columns=["date_col1", "date_col2"],
+                date_format={"date_col1": "%m/%d/%Y", "date_col2": "%Y-%m-%d"},
+            )
+            ```
 
         """
         return None
