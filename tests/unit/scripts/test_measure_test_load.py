@@ -23,8 +23,11 @@ _join = measure_test_load._join
 _classify = measure_test_load._classify
 
 
-def _root(trace_id: str, name: str) -> dict:
-    return {"trace_id": trace_id, "name": name}
+def _root(trace_id: str, name: str, duration_nano=None) -> dict:
+    row = {"trace_id": trace_id, "name": name}
+    if duration_nano is not None:
+        row["duration_nano"] = duration_nano
+    return row
 
 
 def _async(trace_id: str, request_type: str) -> dict:
@@ -104,6 +107,23 @@ class TestJoin:
 
         assert per_test["test_a"]["unique"] == set()
         assert per_test["test_b"]["unique"] == set()
+
+    def test_duration_sec_parsed_from_root_span_duration_nano(self) -> None:
+        roots = [_root("t1", "test_a", duration_nano=2_500_000_000)]
+
+        per_test, _ = _join(roots, [], [])
+
+        assert per_test["test_a"]["duration_sec"] == 2.5
+
+    def test_duration_sec_averaged_over_executions(self) -> None:
+        roots = [
+            _root("t1", "test_a", duration_nano=1_000_000_000),
+            _root("t2", "test_a", duration_nano=3_000_000_000),
+        ]
+
+        per_test, _ = _join(roots, [], [])
+
+        assert per_test["test_a"]["duration_sec"] == 2.0
 
     def test_unique_holds_the_key_held_by_no_other_test(self) -> None:
         roots = [_root("t1", "test_a"), _root("t2", "test_b")]

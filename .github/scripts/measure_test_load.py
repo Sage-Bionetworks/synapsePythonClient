@@ -238,6 +238,13 @@ def _join(
     }
     executions = Counter(trace_to_nodeid.values())
 
+    duration_ns_by_nodeid: Dict[str, float] = defaultdict(float)
+    for row in root_rows:
+        nodeid = trace_to_nodeid.get(row["trace_id"])
+        duration_nano = row.get("duration_nano")
+        if nodeid is not None and duration_nano is not None:
+            duration_ns_by_nodeid[nodeid] += float(duration_nano)
+
     raw_async: Dict[str, Counter] = defaultdict(Counter)
     unattributed_async: List[str] = []
     for row in async_rows:
@@ -279,6 +286,9 @@ def _join(
             "uploads": upload_counts,
             "cost": sum(async_counts.values()) + sum(upload_counts.values()),
             "signature": signature,
+            "duration_sec": round(
+                duration_ns_by_nodeid[nodeid] / execution_count / 1e9, 3
+            ),
         }
 
     signature_holders: Dict[Tuple[str, Any], Set[str]] = defaultdict(set)
@@ -348,7 +358,7 @@ def cmd_per_test(args: argparse.Namespace) -> None:
 
     root_rows = _raw_trace_rows(
         f"run.label = '{label}' AND parent_span_id = ''",
-        ["name", "trace_id"],
+        ["name", "trace_id", "duration_nano"],
         api_key,
         dump_raw,
     )
@@ -406,7 +416,15 @@ def _emit(result: Dict[str, Any], args: argparse.Namespace) -> None:
             sys.exit("--csv only applies to per-test output.")
         writer = csv.writer(sys.stdout)
         writer.writerow(
-            ["nodeid", "module", "executions", "cost", "classification", "dominator"]
+            [
+                "nodeid",
+                "module",
+                "executions",
+                "cost",
+                "duration_sec",
+                "classification",
+                "dominator",
+            ]
         )
         for nodeid, row in per_test.items():
             writer.writerow(
@@ -415,6 +433,7 @@ def _emit(result: Dict[str, Any], args: argparse.Namespace) -> None:
                     row["module"],
                     row["executions"],
                     row["cost"],
+                    row["duration_sec"],
                     row["classification"],
                     row["dominator"],
                 ]
