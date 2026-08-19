@@ -380,8 +380,7 @@ def test_tables_pandas(syn, project, schedule_for_cleanup):
 
     cols = as_table_columns(df)
     cols[0].maximumSize = 20
-    # Use a unique name so reruns via pytest-rerunfailures create a fresh table
-    # instead of appending rows to the table left by a previous attempt (SYNPY-1905)
+
     schema = Schema(
         name="Nifty Table " + str(uuid.uuid4()), columns=cols, parent=project
     )
