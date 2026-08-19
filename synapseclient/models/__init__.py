@@ -15,6 +15,7 @@ from synapseclient.models.curation import (
     Grid,
     GridExecutionDetails,
     RecordBasedMetadataTaskProperties,
+    SyncType,
     TaskExecutionDetails,
     TaskState,
 )
@@ -140,6 +141,7 @@ __all__ = [
     "TaskState",
     "Grid",
     "GridExecutionDetails",
+    "SyncType",
     "TaskExecutionDetails",
     "UserProfile",
     "UserPreference",
