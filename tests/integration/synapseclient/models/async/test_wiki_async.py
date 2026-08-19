@@ -14,6 +14,7 @@ from synapseclient import Synapse
 from synapseclient.core import utils
 from synapseclient.core.exceptions import SynapseHTTPError
 from synapseclient.models import (
+    Folder,
     Project,
     WikiHeader,
     WikiHistorySnapshot,
@@ -28,16 +29,26 @@ class TestWikiPageBasicOperations:
 
     @pytest.fixture(scope="class")
     async def wiki_page_fixture(
-        self, syn: Synapse, schedule_for_cleanup: Callable[..., None]
+        self,
+        syn: Synapse,
+        schedule_for_cleanup: Callable[..., None],
+        project_model: Project,
     ) -> WikiPage:
-        """Create a root wiki page fixture shared across tests in this class."""
-        project = Project(name=f"Test Wiki Project_" + str(uuid.uuid4()))
-        project = await project.store_async(synapse_client=syn)
-        schedule_for_cleanup(project.id)
+        """Create a root wiki page fixture shared across tests in this class.
+
+        Synapse allows only one root wiki page per owner entity, so this class
+        owns its wiki via a Folder created inside the session-shared project
+        rather than creating its own Project.
+        """
+        folder = await Folder(
+            name=f"Test Wiki Basic Operations Folder_" + str(uuid.uuid4()),
+            parent_id=project_model.id,
+        ).store_async(synapse_client=syn)
+        schedule_for_cleanup(folder.id)
         wiki_title = f"Root Wiki Page {str(uuid.uuid4())}"
         wiki_markdown = "# Root Wiki Page\n\nThis is a root wiki page."
         wiki_page = WikiPage(
-            owner_id=project.id,
+            owner_id=folder.id,
             title=wiki_title,
             markdown=wiki_markdown,
         )
@@ -143,16 +154,26 @@ class TestWikiPageAttachments:
 
     @pytest.fixture(scope="class")
     async def wiki_page_fixture(
-        self, syn: Synapse, schedule_for_cleanup: Callable[..., None]
+        self,
+        syn: Synapse,
+        schedule_for_cleanup: Callable[..., None],
+        project_model: Project,
     ) -> WikiPage:
-        """Create a root wiki page fixture shared across tests in this class."""
-        project = Project(name=f"Test Wiki Project_" + str(uuid.uuid4()))
-        project = await project.store_async(synapse_client=syn)
-        schedule_for_cleanup(project.id)
+        """Create a root wiki page fixture shared across tests in this class.
+
+        Synapse allows only one root wiki page per owner entity, so this class
+        owns its wiki via a Folder created inside the session-shared project
+        rather than creating its own Project.
+        """
+        folder = await Folder(
+            name=f"Test Wiki Attachments Folder_" + str(uuid.uuid4()),
+            parent_id=project_model.id,
+        ).store_async(synapse_client=syn)
+        schedule_for_cleanup(folder.id)
         wiki_title = f"Root Wiki Page {str(uuid.uuid4())}"
         wiki_markdown = "# Root Wiki Page\n\nThis is a root wiki page."
         wiki_page = WikiPage(
-            owner_id=project.id,
+            owner_id=folder.id,
             title=wiki_title,
             markdown=wiki_markdown,
         )
@@ -517,16 +538,26 @@ class TestWikiPageMarkdown:
 
     @pytest.fixture(scope="class")
     async def wiki_page_fixture(
-        self, syn: Synapse, schedule_for_cleanup: Callable[..., None]
+        self,
+        syn: Synapse,
+        schedule_for_cleanup: Callable[..., None],
+        project_model: Project,
     ) -> WikiPage:
-        """Create a root wiki page fixture shared across tests in this class."""
-        project = Project(name=f"Test Wiki Project_" + str(uuid.uuid4()))
-        project = await project.store_async(synapse_client=syn)
-        schedule_for_cleanup(project.id)
+        """Create a root wiki page fixture shared across tests in this class.
+
+        Synapse allows only one root wiki page per owner entity, so this class
+        owns its wiki via a Folder created inside the session-shared project
+        rather than creating its own Project.
+        """
+        folder = await Folder(
+            name=f"Test Wiki Markdown Folder_" + str(uuid.uuid4()),
+            parent_id=project_model.id,
+        ).store_async(synapse_client=syn)
+        schedule_for_cleanup(folder.id)
         wiki_title = f"Root Wiki Page {str(uuid.uuid4())}"
         wiki_markdown = "# Root Wiki Page\n\nThis is a root wiki page."
         wiki_page = WikiPage(
-            owner_id=project.id,
+            owner_id=folder.id,
             title=wiki_title,
             markdown=wiki_markdown,
         )
@@ -674,16 +705,26 @@ class TestWikiPageVersioning:
 
     @pytest.fixture(scope="class")
     async def wiki_page_fixture(
-        self, syn: Synapse, schedule_for_cleanup: Callable[..., None]
+        self,
+        syn: Synapse,
+        schedule_for_cleanup: Callable[..., None],
+        project_model: Project,
     ) -> WikiPage:
-        """Create a root wiki page fixture shared across tests in this class."""
-        project = Project(name=f"Test Wiki Project_" + str(uuid.uuid4()))
-        project = await project.store_async(synapse_client=syn)
-        schedule_for_cleanup(project.id)
+        """Create a root wiki page fixture shared across tests in this class.
+
+        Synapse allows only one root wiki page per owner entity, so this class
+        owns its wiki via a Folder created inside the session-shared project
+        rather than creating its own Project.
+        """
+        folder = await Folder(
+            name=f"Test Wiki Versioning Folder_" + str(uuid.uuid4()),
+            parent_id=project_model.id,
+        ).store_async(synapse_client=syn)
+        schedule_for_cleanup(folder.id)
         wiki_title = f"Root Wiki Page {str(uuid.uuid4())}"
         wiki_markdown = "# Root Wiki Page\n\nThis is a root wiki page."
         wiki_page = WikiPage(
-            owner_id=project.id,
+            owner_id=folder.id,
             title=wiki_title,
             markdown=wiki_markdown,
         )
@@ -765,16 +806,26 @@ class TestWikiHeader:
 
     @pytest.fixture(scope="class")
     async def wiki_page_fixture(
-        self, syn: Synapse, schedule_for_cleanup: Callable[..., None]
+        self,
+        syn: Synapse,
+        schedule_for_cleanup: Callable[..., None],
+        project_model: Project,
     ) -> WikiPage:
-        """Create a root wiki page fixture shared across tests in this class."""
-        project = Project(name=f"Test Wiki Project_" + str(uuid.uuid4()))
-        project = await project.store_async(synapse_client=syn)
-        schedule_for_cleanup(project.id)
+        """Create a root wiki page fixture shared across tests in this class.
+
+        Synapse allows only one root wiki page per owner entity, so this class
+        owns its wiki via a Folder created inside the session-shared project
+        rather than creating its own Project.
+        """
+        folder = await Folder(
+            name=f"Test Wiki Header Folder_" + str(uuid.uuid4()),
+            parent_id=project_model.id,
+        ).store_async(synapse_client=syn)
+        schedule_for_cleanup(folder.id)
         wiki_title = f"Root Wiki Page {str(uuid.uuid4())}"
         wiki_markdown = "# Root Wiki Page\n\nThis is a root wiki page."
         wiki_page = WikiPage(
-            owner_id=project.id,
+            owner_id=folder.id,
             title=wiki_title,
             markdown=wiki_markdown,
         )
@@ -810,18 +861,28 @@ class TestWikiPageCopy:
 
     @pytest.fixture(scope="class")
     async def source_wiki_tree(
-        self, syn: Synapse, schedule_for_cleanup: Callable[..., None]
+        self,
+        syn: Synapse,
+        schedule_for_cleanup: Callable[..., None],
+        project_model: Project,
     ) -> dict:
-        """Create a source project with a three-level wiki tree.
+        """Create a source entity with a three-level wiki tree.
 
         The tree is root -> sub -> sub_sub. The sub and sub_sub pages each have
         a file attachment. The root page markdown contains an internal link to
         the sub page and a reference to a fake entity ID used to test
         entity_map rewriting.
+
+        Synapse allows only one root wiki page per owner entity, so this class
+        owns its wiki tree via a Folder created inside the session-shared
+        project rather than creating its own Project.
         """
-        project = Project(name=f"Test Wiki Copy Source_" + str(uuid.uuid4()))
-        project = await project.store_async(synapse_client=syn)
-        schedule_for_cleanup(project.id)
+        owner_folder = await Folder(
+            name=f"Test Wiki Copy Source Folder_" + str(uuid.uuid4()),
+            parent_id=project_model.id,
+        ).store_async(synapse_client=syn)
+        schedule_for_cleanup(owner_folder.id)
+        project = owner_folder
 
         root_wiki = await WikiPage(
             owner_id=project.id,
@@ -893,13 +954,23 @@ class TestWikiPageCopy:
 
     @pytest.fixture(scope="function")
     async def destination_project(
-        self, syn: Synapse, schedule_for_cleanup: Callable[..., None]
-    ) -> Project:
-        """Create a fresh destination project for each test."""
-        project = Project(name=f"Test Wiki Copy Destination_" + str(uuid.uuid4()))
-        project = await project.store_async(synapse_client=syn)
-        schedule_for_cleanup(project.id)
-        return project
+        self,
+        syn: Synapse,
+        schedule_for_cleanup: Callable[..., None],
+        project_model: Project,
+    ) -> Folder:
+        """Create a fresh destination Folder for each test.
+
+        Each test writes a new root wiki page into this fixture, so it must
+        stay function-scoped for isolation. A Folder inside the session-shared
+        project is a valid wiki owner and much cheaper to create than a Project.
+        """
+        folder = await Folder(
+            name=f"Test Wiki Copy Destination Folder_" + str(uuid.uuid4()),
+            parent_id=project_model.id,
+        ).store_async(synapse_client=syn)
+        schedule_for_cleanup(folder.id)
+        return folder
 
     @staticmethod
     async def _read_markdown(
@@ -938,7 +1009,7 @@ class TestWikiPageCopy:
     async def test_copy_entire_wiki_tree(
         self,
         source_wiki_tree: dict,
-        destination_project: Project,
+        destination_project: Folder,
         syn: Synapse,
         schedule_for_cleanup: Callable[..., None],
     ) -> None:
@@ -1032,7 +1103,7 @@ class TestWikiPageCopy:
     async def test_copy_wiki_sub_tree(
         self,
         source_wiki_tree: dict,
-        destination_project: Project,
+        destination_project: Folder,
         syn: Synapse,
         schedule_for_cleanup: Callable[..., None],
     ) -> None:
@@ -1063,7 +1134,7 @@ class TestWikiPageCopy:
     async def test_copy_wiki_into_existing_destination_page(
         self,
         source_wiki_tree: dict,
-        destination_project: Project,
+        destination_project: Folder,
         syn: Synapse,
         schedule_for_cleanup: Callable[..., None],
     ) -> None:
@@ -1128,16 +1199,15 @@ class TestWikiPageCopy:
         source_wiki_tree: dict,
         syn: Synapse,
         schedule_for_cleanup: Callable[..., None],
+        project_model: Project,
     ) -> None:
         """Test that copying from an entity that has no wiki returns an
         empty list instead of raising an error."""
-        # GIVEN a source project without any wiki pages
-        empty_source_project = Project(
-            name=f"Test Wiki Copy Empty Source_" + str(uuid.uuid4())
-        )
-        empty_source_project = await empty_source_project.store_async(
-            synapse_client=syn
-        )
+        # GIVEN a source Folder without any wiki pages
+        empty_source_project = await Folder(
+            name=f"Test Wiki Copy Empty Source Folder_" + str(uuid.uuid4()),
+            parent_id=project_model.id,
+        ).store_async(synapse_client=syn)
         schedule_for_cleanup(empty_source_project.id)
 
         # WHEN copying its wiki to another entity. No destination project is
@@ -1159,16 +1229,26 @@ class TestWikiOrderHint:
 
     @pytest.fixture(scope="class")
     async def wiki_page_fixture(
-        self, syn: Synapse, schedule_for_cleanup: Callable[..., None]
+        self,
+        syn: Synapse,
+        schedule_for_cleanup: Callable[..., None],
+        project_model: Project,
     ) -> WikiPage:
-        """Create a root wiki page fixture shared across tests in this class."""
-        project = Project(name=f"Test Wiki Project_" + str(uuid.uuid4()))
-        project = await project.store_async(synapse_client=syn)
-        schedule_for_cleanup(project.id)
+        """Create a root wiki page fixture shared across tests in this class.
+
+        Synapse allows only one root wiki page per owner entity, so this class
+        owns its wiki via a Folder created inside the session-shared project
+        rather than creating its own Project.
+        """
+        folder = await Folder(
+            name=f"Test Wiki Order Hint Folder_" + str(uuid.uuid4()),
+            parent_id=project_model.id,
+        ).store_async(synapse_client=syn)
+        schedule_for_cleanup(folder.id)
         wiki_title = f"Root Wiki Page {str(uuid.uuid4())}"
         wiki_markdown = "# Root Wiki Page\n\nThis is a root wiki page."
         wiki_page = WikiPage(
-            owner_id=project.id,
+            owner_id=folder.id,
             title=wiki_title,
             markdown=wiki_markdown,
         )
