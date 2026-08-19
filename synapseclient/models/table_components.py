@@ -854,6 +854,10 @@ class UnknownTableUpdateResponse(TableUpdateResponse):
     Synapse after this release does not fail the caller.
     """
 
+    concrete_type: str | None = None
+    """The concrete type of this response as reported by Synapse, or None when the
+    response did not report one."""
+
     data: dict[str, Any] | None = None
     """The raw response as it was returned by Synapse."""
 
@@ -864,11 +868,6 @@ class UnknownTableUpdateResponse(TableUpdateResponse):
             concrete_type=data.get("concreteType", None),
             data=data,
         )
-
-    @property
-    def concrete_type(self) -> int | None:
-        """The concrete type returned form Synapse"""
-        return self.data.get("concrete_type")
 
 
 _TABLE_UPDATE_RESPONSE_TYPES: dict[str, type] = {
