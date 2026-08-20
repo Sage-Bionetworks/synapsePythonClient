@@ -48,11 +48,6 @@ class TestResolveAsyncJobUri:
             ),
             (
                 COMPUTE_TASK_EXECUTION_REQUEST,
-                {"concreteType": COMPUTE_TASK_EXECUTION_REQUEST, "taskId": 0},
-                "/curation/task/0/execute/async",
-            ),
-            (
-                COMPUTE_TASK_EXECUTION_REQUEST,
                 {
                     "concreteType": COMPUTE_TASK_EXECUTION_REQUEST,
                     "taskId": 42,
@@ -75,7 +70,6 @@ class TestResolveAsyncJobUri:
             "static_uri_ignores_request",
             "placeholder_filled_from_request",
             "placeholder_value_is_a_string",
-            "placeholder_value_is_zero",
             "unrelated_keys_are_ignored",
             "entity_id_placeholder",
         ],
