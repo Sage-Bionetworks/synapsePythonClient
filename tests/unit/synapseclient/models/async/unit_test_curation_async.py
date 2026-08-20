@@ -1371,7 +1371,13 @@ class TestCurationTask:
                 new_callable=AsyncMock,
             ) as mock_delete,
         ):
-            with pytest.raises(ValueError, match="'task_properties' attribute is None"):
+            with pytest.raises(
+                ValueError,
+                match=(
+                    "delete_source requires task properties that identify a "
+                    "source, but 'task_properties' is None."
+                ),
+            ):
                 await task.delete_async(delete_source=True, synapse_client=self.syn)
 
         mock_delete.assert_not_called()

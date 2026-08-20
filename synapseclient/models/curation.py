@@ -2246,9 +2246,8 @@ class CurationTask(CurationTaskSynchronousProtocol):
 
             elif self.task_properties is None:
                 raise ValueError(
-                    "'task_properties' attribute is None. "
-                    "Deletion only supports FileBasedMetadataTaskProperties or "
-                    "RecordBasedMetadataTaskProperties."
+                    "delete_source requires task properties that identify a "
+                    "source, but 'task_properties' is None."
                 )
 
             elif isinstance(self.task_properties, UnknownCurationTaskProperties):
