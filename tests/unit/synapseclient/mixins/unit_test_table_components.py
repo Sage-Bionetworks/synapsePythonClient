@@ -1,7 +1,9 @@
 import os
 import re
+import tempfile
 from collections import OrderedDict
 from dataclasses import dataclass, field
+from datetime import date, datetime
 from io import BytesIO
 from typing import Any, Dict, List, Optional
 from unittest.mock import AsyncMock, MagicMock, patch
@@ -38,6 +40,7 @@ from synapseclient.models.mixins.table_components import (
     SnapshotRequest,
     TableDeleteRowMixin,
     TableStoreMixin,
+    TableStoreRowMixin,
     TableUpdateTransaction,
     TableUpsertMixin,
     ViewBase,
@@ -49,8 +52,12 @@ from synapseclient.models.mixins.table_components import (
     _construct_partial_rows_for_upsert,
     _construct_select_statement_for_upsert,
     _construct_single_key_where_statement,
+    _convert_csv_date_cols_to_epoch_time,
+    _convert_df_date_cols_to_epoch_time,
     _format_primary_key_value_for_where,
+    _is_date_list_column,
     _log_upsert_summary,
+    _parse_df_date_cols_to_datetime,
     _query_table_csv,
     _query_table_next_page,
     _query_table_row_set,
@@ -82,6 +89,7 @@ from synapseclient.models.table_components import (
     RowReferenceSet,
     RowReferenceSetResults,
     RowSet,
+    SchemaStorageStrategy,
     SelectColumn,
     SumFileSizes,
     TableSchemaChangeRequest,
@@ -997,6 +1005,8 @@ class TestTableUpsertMixin:
                 update_size_bytes=1.9 * MB,
                 insert_size_bytes=900 * MB,
                 job_timeout=600,
+                date_columns=None,
+                date_format=None,
                 synapse_client=self.syn,
             )
 
@@ -1115,6 +1125,74 @@ class TestTableUpsertMixin:
         assert len(indexes_with_changes) == 0
         assert len(indexes_without_changes) == 2
         assert len(syn_id_and_etags) == 0
+
+    def test_construct_partial_rows_for_upsert_date_column_from_csv_input_with_changes(
+        self,
+    ):
+        # GIVEN an entity with a DATE column
+        test_instance = self.ClassForTest(
+            id="syn123",
+            columns={
+                "col1": Column(name="col1", column_type=ColumnType.STRING, id="id1"),
+                "date_col": Column(
+                    name="date_col", column_type=ColumnType.DATE, id="id2"
+                ),
+            },
+        )
+
+        # Results from Synapse query (existing rows)
+        # epoch ms value for 2024-01-15
+        results = pd.DataFrame(
+            {
+                "ROW_ID": ["row1", "row2", "row3"],
+                "col1": ["A", "B", "C"],
+                "date_col": [1705276800000, 1705276800000, 1705276800000],
+            }
+        )
+
+        # Data to upsert, as if parsed from a CSV file with date_col strings
+        # "03/10/2024", "01/15/2024", and a blank date
+        chunk_to_check_for_upsert = pd.DataFrame(
+            {
+                "col1": ["A", "B", "C"],
+                "date_col": [1710028800000, 1705276800000, pd.NA],
+            }
+        )
+
+        primary_keys = ["col1"]
+        contains_etag = False
+        wait_for_eventually_consistent_view = False
+
+        (
+            rows_to_update,
+            indexes_with_changes,
+            indexes_without_changes,
+            syn_id_and_etags,
+        ) = _construct_partial_rows_for_upsert(
+            entity=test_instance,
+            results=results,
+            chunk_to_check_for_upsert=chunk_to_check_for_upsert,
+            primary_keys=primary_keys,
+            contains_etag=contains_etag,
+            wait_for_eventually_consistent_view=wait_for_eventually_consistent_view,
+        )
+
+        assert len(rows_to_update) == 2
+        assert len(indexes_with_changes) == 2
+        assert len(indexes_without_changes) == 1
+        assert len(syn_id_and_etags) == 0
+
+        assert rows_to_update[0].row_id == "row1"
+        assert rows_to_update[0].etag is None
+        assert len(rows_to_update[0].values) == 1
+        assert rows_to_update[0].values[0]["key"] == "id2"
+        assert rows_to_update[0].values[0]["value"] == 1710028800000
+
+        assert rows_to_update[1].row_id == "row3"
+        assert rows_to_update[1].etag is None
+        assert len(rows_to_update[1].values) == 1
+        assert rows_to_update[1].values[0]["key"] == "id2"
+        assert rows_to_update[1].values[0]["value"] is None
 
     def test_construct_partial_rows_for_upsert_single_value_no_na_with_etag(self):
         # GIVEN an entity with single value columns without NA values and results containing ROW_ETAG
@@ -3124,6 +3202,8 @@ class TestViewUpdateMixin:
                 update_size_bytes=1.9 * MB,
                 insert_size_bytes=900 * MB,
                 job_timeout=600,
+                date_columns=None,
+                date_format=None,
                 wait_for_eventually_consistent_view=False,
                 wait_for_eventually_consistent_view_timeout=600,
                 synapse_client=self.syn,
@@ -4834,6 +4914,20 @@ class TestCsvToPandasDf:
         pd.testing.assert_series_equal(
             df["created_date"], pd.Series(expected_dates), check_names=False
         )
+
+    def test_csv_to_pandas_df_with_date_columns_and_no_rows(self):
+        # GIVEN a CSV with a date column but no data rows — e.g. an empty query
+        # result for a table with a DATE column
+        csv_file = BytesIO(b"id,name,created_date\n")
+
+        # WHEN converting the CSV with date_columns specified
+        df = csv_to_pandas_df(filepath=csv_file, date_columns=["created_date"])
+
+        # THEN the date column is still datetime64, not left as the
+        # intermediate float64 used to parse epoch milliseconds — otherwise
+        # a `.dt` accessor on the result would raise an AttributeError
+        assert df.empty
+        assert str(df["created_date"].dtype) == "datetime64[ns, UTC]"
 
     def test_csv_to_pandas_df_with_all_list_columns(self, csv_with_list_columns):
         """Test csv_to_pandas_df correctly parses all list column types together."""
@@ -6591,3 +6685,1001 @@ class TestUpsertRowsResultReporting:
             self._upsert_message(mock_info)
             == "[syn456:test-view]: Found 3 rows to update and 0 rows to insert"
         )
+
+
+@pytest.mark.parametrize(
+    "series,expected",
+    [
+        pytest.param(
+            pd.Series(
+                [[datetime(2021, 1, 1), datetime(2021, 1, 2)], None], dtype=object
+            ),
+            True,
+            id="list_of_datetimes",
+        ),
+        pytest.param(
+            pd.Series([[date(2021, 1, 1), date(2021, 1, 2)], None], dtype=object),
+            True,
+            id="list_of_dates",
+        ),
+        pytest.param(
+            pd.Series([(date(2021, 1, 1), date(2021, 1, 2))], dtype=object),
+            True,
+            id="tuple_of_dates",
+        ),
+        pytest.param(
+            pd.Series([[None, date(2021, 1, 1)]], dtype=object),
+            True,
+            id="list_with_none_items_and_a_date",
+        ),
+        pytest.param(
+            pd.Series([[1, 2], [5, 6], None], dtype=object),
+            False,
+            id="list_of_non_date_values",
+        ),
+        pytest.param(
+            pd.Series([["a", "b"], None], dtype=object),
+            False,
+            id="list_of_strings",
+        ),
+        pytest.param(
+            # a plain (non-list) datetime column, which
+            # _convert_df_date_cols_to_epoch_time handles via a separate branch
+            pd.Series([datetime(2021, 1, 1), None], dtype=object),
+            False,
+            id="scalar_datetime_column",
+        ),
+        pytest.param(
+            pd.Series([None, None], dtype=object),
+            False,
+            id="all_null_column",
+        ),
+        pytest.param(
+            pd.Series([[], []], dtype=object),
+            False,
+            id="empty_lists_only",
+        ),
+    ],
+)
+def test_is_date_list_column(series, expected):
+    assert _is_date_list_column(series) is expected
+
+
+class TestConvertDfDateColsToEpochTime:
+    """Tests for _convert_df_date_cols_to_epoch_time. Unit tests run with
+    TZ=UTC by default, so naive datetimes convert deterministically."""
+
+    def test_dataframe_without_datetime_cols_is_unchanged(self):
+        df = pd.DataFrame({"col1": ["a", "b"], "col2": [1, 2]})
+
+        result = _convert_df_date_cols_to_epoch_time(df=df)
+
+        pd.testing.assert_frame_equal(result, df)
+
+    def test_empty_datetime_column_is_still_converted(self):
+        # GIVEN a datetime64 column with zero rows — e.g. an upsert/store call
+        # made with an empty dataframe
+        df = pd.DataFrame({"dt": pd.to_datetime([], utc=True)})
+
+        result = _convert_df_date_cols_to_epoch_time(df=df)
+
+        # THEN the column is still converted to the nullable Int64 dtype used
+        # for epoch milliseconds, not left as datetime64
+        assert result.empty
+        assert is_integer_dtype(result["dt"])
+
+    def test_null_values_keep_integer_dtype(self):
+        df = pd.DataFrame(
+            {
+                "col1": ["a", "b"],
+                "dt": pd.to_datetime([1487071391024, None], unit="ms", utc=True),
+            }
+        )
+
+        result = _convert_df_date_cols_to_epoch_time(df=df)
+
+        # THEN the values are interpreted as UTC wall-clock times
+        expected_result = pd.DataFrame(
+            {"col1": ["a", "b"], "dt": [1487071391024, None]}
+        ).convert_dtypes()
+        pd.testing.assert_frame_equal(result, expected_result, check_dtype=False)
+        assert is_integer_dtype(result.dt)
+
+    def test_timezone_aware_datetimes_converted_to_utc_exactly(self):
+        # GIVEN values localized to a zone that observes daylight saving time,
+        # one in winter (PST, UTC-8) and one in summer (PDT, UTC-7)
+        df = pd.DataFrame(
+            {
+                "dt_aware": pd.to_datetime(
+                    [
+                        datetime(2017, 2, 14, 11, 23, 11, 240000),
+                        datetime(2018, 10, 1),
+                    ]
+                ).tz_localize("America/Los_Angeles"),
+            }
+        )
+
+        result = _convert_df_date_cols_to_epoch_time(df=df)
+
+        # THEN each value converts using the UTC offset in effect on its own
+        # date (2017-02-14 19:23:11.240 UTC and 2018-10-01 07:00 UTC), not the
+        # timezone of the machine running the conversion
+        expected_result = pd.DataFrame(
+            {"dt_aware": [1487100191240, 1538377200000]}
+        ).convert_dtypes()
+        pd.testing.assert_frame_equal(result, expected_result, check_dtype=False)
+
+    def test_naive_datetimes_interpreted_as_local_timezone(self):
+        # GIVEN naive datetimes; unit tests run with TZ=UTC (see conftest.py),
+        # so "the machine's local timezone at upload time" is UTC here
+        df = pd.DataFrame(
+            {
+                "dt_naive": [
+                    datetime(2017, 2, 14, 11, 23, 11, 240000),
+                    datetime(
+                        2018, 10, 1
+                    ),  # convert to midnight of the date in the local timezone
+                ]
+            }
+        )
+
+        result = _convert_df_date_cols_to_epoch_time(df=df)
+
+        # THEN the date column is converted to epoch ms (midnight local timezone,
+        # unit tests run with TZ=UTC)
+        expected_result = pd.DataFrame(
+            {"dt_naive": [1487071391240, 1538352000000]}
+        ).convert_dtypes()
+        pd.testing.assert_frame_equal(result, expected_result, check_dtype=False)
+
+    def test_date_object_columns_are_converted(self):
+        # GIVEN a column of plain datetime.date objects, conversion should be done to midnight local timezone.
+        df = pd.DataFrame(
+            {"date_col": [date(2017, 2, 14), date(2018, 10, 1)], "other": ["a", "b"]}
+        )
+
+        # WHEN the dataframe is converted
+        result = _convert_df_date_cols_to_epoch_time(df=df)
+
+        # THEN the date column is converted to epoch ms (midnight local timezone,
+        # unit tests run with TZ=UTC)
+        expected_result = pd.DataFrame(
+            {"date_col": [1487030400000, 1538352000000], "other": ["a", "b"]}
+        ).convert_dtypes()
+        pd.testing.assert_frame_equal(result, expected_result, check_dtype=False)
+        assert is_integer_dtype(result["date_col"])
+
+    def test_date_object_columns_with_nulls_keep_integer_dtype(self):
+        # GIVEN a column of datetime.date objects mixed with a null value
+        df = pd.DataFrame({"date_col": [date(2017, 2, 14), None]})
+
+        result = _convert_df_date_cols_to_epoch_time(df=df)
+
+        expected_result = pd.DataFrame(
+            {"date_col": [1487030400000, None]}
+        ).convert_dtypes()
+        pd.testing.assert_frame_equal(result, expected_result, check_dtype=False)
+        assert is_integer_dtype(result["date_col"])
+
+    def test_date_list_columns_are_converted(self):
+        # GIVEN a DATE_LIST column: each cell is a Python list of datetimes,
+        # which pandas can only ever infer as "mixed" dtype, not "datetime"
+        df = pd.DataFrame(
+            {
+                "other": ["a", None],
+                "date_list_col": [
+                    [
+                        datetime(2017, 2, 14, 11, 23, 11, 240000),
+                        datetime(2018, 10, 1),
+                    ],
+                    None,
+                ],
+                "date_list_col": [[date(2017, 2, 14), date(2018, 10, 1)], None],
+            }
+        )
+
+        result = _convert_df_date_cols_to_epoch_time(df=df)
+
+        # THEN every element of every list cell is converted to epoch ms
+        # (midnight local timezone for the date-only value; unit tests run
+        # with TZ=UTC)
+        expected_result = pd.DataFrame(
+            {
+                "other": ["a", None],
+                "date_list_col": [
+                    [1487071391240, 1538352000000],
+                    None,
+                ],
+                "date_list_col": [[1487030400000, 1538352000000], None],
+            }
+        )
+        pd.testing.assert_frame_equal(result, expected_result, check_dtype=False)
+
+    def test_integer_list_columns_are_unaffected(self):
+        # GIVEN an INTEGER_LIST column, which also infers as "mixed" dtype but
+        # holds no date/datetime values
+        df = pd.DataFrame({"int_list_col": [[1, 2], None, [5, 6]]})
+
+        result = _convert_df_date_cols_to_epoch_time(df=df)
+
+        pd.testing.assert_frame_equal(result, df)
+
+
+class TestParseDfDateColsToDatetime:
+    """Tests for parsing date columns holding formatted date strings via
+    `_parse_df_date_cols_to_datetime`."""
+
+    @pytest.fixture(autouse=True, scope="function")
+    def init_syn(self, syn: Synapse) -> None:
+        self.syn = syn
+
+    def test_date_strings_parsed_with_format(self):
+        csv_buffer = BytesIO(b"col1,date_col\na,01/15/2024\nb,\n")
+        df = csv_to_pandas_df(filepath=csv_buffer, row_id_and_version_in_index=False)
+
+        result = _parse_df_date_cols_to_datetime(
+            df=df,
+            date_columns=["date_col"],
+            date_format="%m/%d/%Y",
+        )
+        expected_result = pd.DataFrame(
+            {"col1": ["a", "b"], "date_col": [datetime(2024, 1, 15), None]}
+        ).convert_dtypes()
+        pd.testing.assert_frame_equal(result, expected_result)
+
+    def test_date_format_omitted_infers_format(self):
+        # GIVEN date strings in a standard format and no `date_format` argument
+        df = pd.DataFrame(
+            {"col1": ["a", "b"], "date_col": ["2024-01-15", None]}
+        ).convert_dtypes()
+
+        # WHEN the column is parsed without specifying `date_format`
+        result = _parse_df_date_cols_to_datetime(
+            df=df,
+            date_columns=["date_col"],
+        )
+
+        # THEN pandas infers the format on its own
+        expected_result = pd.DataFrame(
+            {"col1": ["a", "b"], "date_col": [datetime(2024, 1, 15), None]}
+        ).convert_dtypes()
+        pd.testing.assert_frame_equal(result, expected_result)
+
+    def test_date_format_as_dict_maps_columns_to_formats(self):
+        # GIVEN date strings in different formats and a `date_format` argument as a dict
+        df = pd.DataFrame(
+            {
+                "date_col1": ["01/15/2024"],
+                "date_col2": ["2024-01-20"],
+                "datetime_col3": ["2024-02-01 14:30:00"],
+            }
+        ).convert_dtypes()
+
+        result = _parse_df_date_cols_to_datetime(
+            df=df,
+            date_columns=["date_col1", "date_col2", "datetime_col3"],
+            date_format={
+                "date_col1": "%m/%d/%Y",
+                "date_col2": "%Y-%m-%d",
+                "datetime_col3": "%Y-%m-%d %H:%M:%S",
+            },
+        )
+        # naive datetime strings are converted to naive datetimes
+        expected_result = pd.DataFrame(
+            {
+                "date_col1": [datetime(2024, 1, 15)],
+                "date_col2": [datetime(2024, 1, 20)],
+                "datetime_col3": [datetime(2024, 2, 1, 14, 30, 0)],
+            }
+        )
+        pd.testing.assert_frame_equal(result, expected_result)
+
+    def test_missing_date_column_raises(self):
+        # GIVEN a dataframe with a date column that is not present in the dataframe
+        df = pd.DataFrame({"col1": ["a"]})
+
+        with pytest.raises(
+            ValueError,
+            match=re.escape(
+                "The date column(s) date_col listed in `date_columns` "
+                "are not present in the data. Please ensure that the date columns "
+                "are already in the dataframe."
+            ),
+        ):
+            _parse_df_date_cols_to_datetime(
+                df=df,
+                date_columns=["date_col"],
+                date_format="%m/%d/%Y",
+            )
+
+    def test_date_string_not_matching_format_raises(self):
+        # GIVEN date strings that do not match the given format
+        df = pd.DataFrame({"date_col": ["2024-01-15"]})
+
+        with pytest.raises(ValueError):
+            _parse_df_date_cols_to_datetime(
+                df=df,
+                date_columns=["date_col"],
+                date_format="%m/%d/%Y",
+            )
+
+    def test_uniform_utc_offsets_parsed_as_tz_aware(self):
+        # GIVEN date strings that all carry the same UTC offset
+        df = pd.DataFrame(
+            {"date_col": ["01/15/2024 12:00 -0800", None, "02/20/2024 12:00 -0800"]}
+        ).convert_dtypes()
+
+        with patch.object(self.syn, "logger") as mock_logger:
+            result = _parse_df_date_cols_to_datetime(
+                df=df,
+                date_columns=["date_col"],
+                date_format="%m/%d/%Y %H:%M %z",
+                synapse_client=self.syn,
+            )
+
+        expected_result = pd.DataFrame(
+            {
+                "date_col": [
+                    pd.Timestamp("2024-01-15 12:00:00-0800", tz="UTC-08:00"),
+                    None,
+                    pd.Timestamp("2024-02-20 12:00:00-0800", tz="UTC-08:00"),
+                ]
+            }
+        ).convert_dtypes()
+        pd.testing.assert_frame_equal(result, expected_result)
+        mock_logger.info.assert_not_called()
+
+    def test_mixed_utc_offsets_normalized_to_utc(self):
+        # GIVEN date strings whose UTC offsets differ between rows, as produced
+        # by exporting a zone that observes daylight saving time with each
+        # value's true offset (winter -0800, summer -0700)
+        df = pd.DataFrame(
+            {"date_col": ["01/15/2024 12:00 -0800", "07/15/2024 12:00 -0700"]}
+        ).convert_dtypes()
+
+        with patch.object(self.syn, "logger") as mock_logger:
+            result = _parse_df_date_cols_to_datetime(
+                df=df,
+                date_columns=["date_col"],
+                date_format="%m/%d/%Y %H:%M %z",
+                synapse_client=self.syn,
+            )
+
+        expected_result = pd.DataFrame(
+            {
+                "date_col": [
+                    pd.Timestamp("2024-01-15 20:00:00", tz="UTC"),
+                    pd.Timestamp("2024-07-15 19:00:00", tz="UTC"),
+                ]
+            }
+        ).convert_dtypes()
+        pd.testing.assert_frame_equal(result, expected_result)
+        mock_logger.info.assert_called_once_with(
+            "The date column date_col holds mixed timezones/offsets and will be normalized to UTC."
+        )
+
+    def test_date_list_strings_parsed_with_format(self):
+        # GIVEN a DATE_LIST column
+        df = pd.DataFrame(
+            {
+                "col1": ["a", "b"],
+                "date_list_col": [
+                    ["01/15/2024", None, "02/20/2024"],
+                    None,
+                ],
+            }
+        ).convert_dtypes()
+
+        result = _parse_df_date_cols_to_datetime(
+            df=df,
+            date_columns=["date_list_col"],
+            date_format="%m/%d/%Y",
+        )
+
+        # THEN every item in every list is parsed to a datetime, `None`
+        # items are preserved, and entirely `None` cells are left untouched
+        expected_result = pd.DataFrame(
+            {
+                "col1": ["a", "b"],
+                "date_list_col": [
+                    [datetime(2024, 1, 15), None, datetime(2024, 2, 20)],
+                    None,
+                ],
+            }
+        ).convert_dtypes()
+        pd.testing.assert_frame_equal(result, expected_result)
+
+    def test_date_list_uniform_utc_offsets_parsed_as_tz_aware(self):
+        # GIVEN a DATE_LIST column whose items all carry the same UTC offset
+        df = pd.DataFrame(
+            {
+                "date_list_col": [
+                    ["01/15/2024 12:00 -0800", "02/20/2024 12:00 -0800"],
+                    None,
+                ]
+            }
+        )
+
+        with patch.object(self.syn, "logger") as mock_logger:
+            result = _parse_df_date_cols_to_datetime(
+                df=df,
+                date_columns=["date_list_col"],
+                date_format="%m/%d/%Y %H:%M %z",
+                synapse_client=self.syn,
+            )
+
+        expected_result = pd.DataFrame(
+            {
+                "date_list_col": [
+                    [
+                        pd.Timestamp("2024-01-15 12:00:00-0800", tz="UTC-08:00"),
+                        pd.Timestamp("2024-02-20 12:00:00-0800", tz="UTC-08:00"),
+                    ],
+                    None,
+                ]
+            }
+        ).convert_dtypes()
+        pd.testing.assert_frame_equal(result, expected_result)
+        mock_logger.info.assert_not_called()
+
+    def test_date_list_mixed_utc_offsets_normalized_to_utc(self):
+        # GIVEN a DATE_LIST column whose items' UTC offsets differ, including
+        # between items within the same cell
+        df = pd.DataFrame(
+            {
+                "date_list_col": [
+                    ["01/15/2024 12:00 -0800", None, "07/15/2024 12:00 -0700"],
+                    None,
+                ]
+            }
+        )
+
+        with patch.object(self.syn, "logger") as mock_logger:
+            result = _parse_df_date_cols_to_datetime(
+                df=df,
+                date_columns=["date_list_col"],
+                date_format="%m/%d/%Y %H:%M %z",
+                synapse_client=self.syn,
+            )
+
+        expected_result = pd.DataFrame(
+            {
+                "date_list_col": [
+                    [
+                        pd.Timestamp("2024-01-15 20:00:00", tz="UTC"),
+                        None,
+                        pd.Timestamp("2024-07-15 19:00:00", tz="UTC"),
+                    ],
+                    None,
+                ]
+            }
+        ).convert_dtypes()
+        pd.testing.assert_frame_equal(result, expected_result)
+        mock_logger.info.assert_called_once_with(
+            "The date column date_list_col holds mixed timezones/offsets and will be normalized to UTC."
+        )
+
+
+class TestConvertCsvDateColsToEpochTime:
+    """Tests for _convert_csv_date_cols_to_epoch_time. Unit tests run with
+    TZ=UTC, so naive datetimes convert deterministically."""
+
+    def test_date_cols_converted_to_epoch_ms(self):
+        with tempfile.NamedTemporaryFile(
+            mode="w", suffix=".csv", delete=False
+        ) as csv_file:
+            csv_file.write("col1,date_col\na,01/15/2024\nb,\nc,02/20/2024\n")
+        result_path = None
+        try:
+            df = csv_to_pandas_df(
+                filepath=csv_file.name,
+                row_id_and_version_in_index=False,
+            )
+            df = _parse_df_date_cols_to_datetime(
+                df=df, date_columns=["date_col"], date_format="%m/%d/%Y"
+            )
+
+            result_path = _convert_csv_date_cols_to_epoch_time(df=df)
+
+            result = pd.read_csv(result_path)
+            expected_result = pd.DataFrame(
+                {
+                    "col1": ["a", "b", "c"],
+                    "date_col": [
+                        1705276800000,
+                        None,
+                        1708387200000,
+                    ],  # date columns are converted to epoch ms (midnight local timezone, unit tests run with TZ=UTC)
+                }
+            ).convert_dtypes()
+            pd.testing.assert_frame_equal(result, expected_result, check_dtype=False)
+        finally:
+            os.remove(csv_file.name)
+            if result_path:
+                os.remove(result_path)
+
+    def test_temp_file_written_with_csv_table_descriptor_format(self):
+        # GIVEN a DataFrame with a parsed date column and a tab-separated descriptor
+        df = pd.DataFrame(
+            {"col1": ["a", "b"], "date_col": ["01/15/2024", "02/20/2024"]}
+        ).convert_dtypes()
+        df["date_col"] = pd.to_datetime(df["date_col"], format="%m/%d/%Y")
+
+        result_path = _convert_csv_date_cols_to_epoch_time(
+            df=df,
+            csv_table_descriptor=CsvTableDescriptor(separator="\t"),
+        )
+        try:
+            result = pd.read_csv(result_path, sep="\t")
+            expected_result = pd.DataFrame(
+                {
+                    "col1": ["a", "b"],
+                    "date_col": [1705276800000, 1708387200000],
+                }  # date columns are converted to epoch ms (midnight local timezone, unit tests run with TZ=UTC)
+            ).convert_dtypes()
+            pd.testing.assert_frame_equal(result, expected_result, check_dtype=False)
+        finally:
+            os.remove(result_path)
+
+    def test_mixed_utc_offsets_converted_to_exact_epoch_ms(self):
+        # GIVEN date strings whose UTC offsets differ between rows, as produced
+        # by exporting a zone that observes daylight saving time with each
+        # value's true offset (winter -0800, summer -0700). The parse step
+        # normalizes them to UTC
+        csv_buffer = BytesIO(
+            b"date_col\n01/15/2024 12:00 -0800\n07/15/2024 12:00 -0700\n"
+        )
+        df = csv_to_pandas_df(
+            filepath=csv_buffer,
+            row_id_and_version_in_index=False,
+        )
+        df = _parse_df_date_cols_to_datetime(
+            df=df, date_columns=["date_col"], date_format="%m/%d/%Y %H:%M %z"
+        )
+
+        # WHEN the dataframe is written to the upload file
+        result_path = _convert_csv_date_cols_to_epoch_time(df=df)
+
+        try:
+            result = pd.read_csv(result_path)
+            # THEN each value converts using the UTC offset it carried
+            # (12:00-08:00 -> 20:00 UTC, 12:00-07:00 -> 19:00 UTC), preserving
+            # the exact moments in time independent of the machine's timezone
+            expected_result = pd.DataFrame(
+                {"date_col": [1705348800000, 1721070000000]}
+            ).convert_dtypes()
+            pd.testing.assert_frame_equal(result, expected_result, check_dtype=False)
+        finally:
+            os.remove(result_path)
+
+    def test_headerless_descriptor_raises(self):
+        # GIVEN a descriptor stating the CSV file has no header row
+        df = pd.DataFrame({"col1": ["a"], "date_col": ["01/15/2024"]})
+
+        # WHEN the date columns are converted THEN a ValueError is raised
+        with pytest.raises(
+            ValueError,
+            match="The CSV file should have a header row to convert date columns to epoch time.",
+        ):
+            _convert_csv_date_cols_to_epoch_time(
+                df=df,
+                csv_table_descriptor=CsvTableDescriptor(is_first_line_header=False),
+            )
+
+
+class TestTableStoreRowMixin:
+    @pytest.fixture(autouse=True, scope="function")
+    def init_syn(self, syn: Synapse) -> None:
+        self.syn = syn
+
+    @dataclass
+    class ClassForTest(TableStoreRowMixin, TableStoreMixin):
+        id: Optional[str] = None
+        name: Optional[str] = None
+        _last_persistent_instance: Optional[Any] = None
+
+    async def test_store_rows_async_converts_datetime_cols_to_epoch_in_dataframe(self):
+        table = self.ClassForTest(id="syn123", name="test_table")
+        table._last_persistent_instance = self.ClassForTest(
+            id="syn123", name="test_table"
+        )
+        df = pd.DataFrame(
+            {
+                "col1": ["a", "b"],
+                "date_col": pd.to_datetime([1487071391024, None], unit="ms", utc=True),
+            }
+        )
+
+        with patch.object(
+            table, "_chunk_and_upload_df", new_callable=AsyncMock
+        ) as mock_upload:
+            await table.store_rows_async(values=df, synapse_client=self.syn)
+
+        uploaded_df = mock_upload.call_args.kwargs["df"]
+        expected_df = pd.DataFrame(
+            {"col1": ["a", "b"], "date_col": [1487071391024, None]}
+        ).convert_dtypes()
+        pd.testing.assert_frame_equal(uploaded_df, expected_df, check_dtype=False)
+        assert is_integer_dtype(uploaded_df["date_col"])
+
+    async def test_store_rows_async_dict_input_is_converted_to_dataframe(self):
+        # GIVEN a plain dict of columns rather than a DataFrame, including a
+        # datetime column
+        table = self.ClassForTest(id="syn123", name="test_table")
+        table._last_persistent_instance = self.ClassForTest(
+            id="syn123", name="test_table"
+        )
+        values = {
+            "col1": ["a", "b"],
+            "col2": [1, 2],
+            "date_col": pd.to_datetime([1487071391024, None], unit="ms", utc=True),
+        }
+
+        with patch.object(
+            table, "_chunk_and_upload_df", new_callable=AsyncMock
+        ) as mock_upload:
+            await table.store_rows_async(values=values, synapse_client=self.syn)
+
+        # THEN it is converted to a DataFrame before reaching the upload step,
+        # and the datetime column is converted to epoch ms just as it would be
+        # for a DataFrame passed in directly
+        uploaded_df = mock_upload.call_args.kwargs["df"]
+        expected_df = pd.DataFrame(
+            {
+                "col1": ["a", "b"],
+                "col2": [1, 2],
+                "date_col": [1487071391024, None],
+            }
+        ).convert_dtypes()
+        pd.testing.assert_frame_equal(uploaded_df, expected_df, check_dtype=False)
+        assert is_integer_dtype(uploaded_df["date_col"])
+
+    async def test_store_rows_async_dataframe_defaults_to_csv_kwargs_escapechar(self):
+        # GIVEN a dataframe stored without explicit to_csv_kwargs
+        table = self.ClassForTest(id="syn123", name="test_table")
+        table._last_persistent_instance = self.ClassForTest(
+            id="syn123", name="test_table"
+        )
+        df = pd.DataFrame({"col1": ["a", "b"]})
+
+        with patch.object(
+            table, "_chunk_and_upload_df", new_callable=AsyncMock
+        ) as mock_upload:
+            await table.store_rows_async(values=df, synapse_client=self.syn)
+
+        # THEN the default escapechar is used
+        assert mock_upload.call_args.kwargs["to_csv_kwargs"] == {"escapechar": "\\"}
+
+    async def test_store_rows_async_dataframe_merges_to_csv_kwargs_with_default(self):
+        # GIVEN to_csv_kwargs that don't override escapechar
+        table = self.ClassForTest(id="syn123", name="test_table")
+        table._last_persistent_instance = self.ClassForTest(
+            id="syn123", name="test_table"
+        )
+        df = pd.DataFrame({"col1": ["a", "b"]})
+
+        with patch.object(
+            table, "_chunk_and_upload_df", new_callable=AsyncMock
+        ) as mock_upload:
+            await table.store_rows_async(
+                values=df, to_csv_kwargs={"sep": ";"}, synapse_client=self.syn
+            )
+
+        # THEN the caller's kwargs and the default escapechar are both present
+        assert mock_upload.call_args.kwargs["to_csv_kwargs"] == {
+            "escapechar": "\\",
+            "sep": ";",
+        }
+
+    async def test_store_rows_async_dataframe_to_csv_kwargs_can_override_escapechar(
+        self,
+    ):
+        # GIVEN to_csv_kwargs that explicitly override the default escapechar
+        table = self.ClassForTest(id="syn123", name="test_table")
+        table._last_persistent_instance = self.ClassForTest(
+            id="syn123", name="test_table"
+        )
+        df = pd.DataFrame({"col1": ["a", "b"]})
+
+        with patch.object(
+            table, "_chunk_and_upload_df", new_callable=AsyncMock
+        ) as mock_upload:
+            await table.store_rows_async(
+                values=df, to_csv_kwargs={"escapechar": "|"}, synapse_client=self.syn
+            )
+
+        assert mock_upload.call_args.kwargs["to_csv_kwargs"] == {"escapechar": "|"}
+
+    async def test_store_rows_async_dataframe_forwards_additional_changes(self):
+        # GIVEN additional_changes passed alongside a dataframe
+        table = self.ClassForTest(id="syn123", name="test_table")
+        table._last_persistent_instance = self.ClassForTest(
+            id="syn123", name="test_table"
+        )
+        df = pd.DataFrame({"col1": ["a", "b"]})
+        additional_change = MagicMock(name="additional_change")
+
+        with patch.object(
+            table, "_chunk_and_upload_df", new_callable=AsyncMock
+        ) as mock_upload:
+            await table.store_rows_async(
+                values=df,
+                additional_changes=[additional_change],
+                synapse_client=self.syn,
+            )
+
+        # THEN they are forwarded to the upload step unchanged
+        assert mock_upload.call_args.kwargs["additional_changes"] == [additional_change]
+
+    async def test_store_rows_async_dataframe_forwards_insert_size_and_timeout(self):
+        # GIVEN a custom insert_size_bytes and job_timeout
+        table = self.ClassForTest(id="syn123", name="test_table")
+        table._last_persistent_instance = self.ClassForTest(
+            id="syn123", name="test_table"
+        )
+        df = pd.DataFrame({"col1": ["a", "b"]})
+
+        with patch.object(
+            table, "_chunk_and_upload_df", new_callable=AsyncMock
+        ) as mock_upload:
+            await table.store_rows_async(
+                values=df,
+                insert_size_bytes=123,
+                job_timeout=45,
+                synapse_client=self.syn,
+            )
+
+        # THEN both are forwarded to the upload step
+        assert mock_upload.call_args.kwargs["insert_size_bytes"] == 123
+        assert mock_upload.call_args.kwargs["job_timeout"] == 45
+
+    async def test_store_rows_async_dry_run_with_dataframe_does_not_upload(self):
+        # GIVEN dry_run=True with a dataframe
+        table = self.ClassForTest(id="syn123", name="test_table")
+        table._last_persistent_instance = self.ClassForTest(
+            id="syn123", name="test_table"
+        )
+        df = pd.DataFrame({"col1": ["a", "b"]})
+
+        with patch.object(
+            table, "_chunk_and_upload_df", new_callable=AsyncMock
+        ) as mock_upload:
+            await table.store_rows_async(
+                values=df, dry_run=True, synapse_client=self.syn
+            )
+
+        # THEN no data is actually uploaded
+        mock_upload.assert_not_called()
+
+    async def test_store_rows_async_dataframe_raises_without_id(self):
+        # GIVEN a table with no id and no way to resolve one from Synapse
+        table = self.ClassForTest(id=None, name="test_table")
+        df = pd.DataFrame({"col1": ["a", "b"]})
+
+        with (
+            patch(GET_ID_PATCH, return_value=None),
+            patch.object(
+                table, "_chunk_and_upload_df", new_callable=AsyncMock
+            ) as mock_upload,
+        ):
+            with pytest.raises(
+                ValueError,
+                match=(
+                    "The table must have an ID to store rows, or the table could "
+                    "not be found from the given name/parent_id."
+                ),
+            ):
+                await table.store_rows_async(values=df, synapse_client=self.syn)
+
+        mock_upload.assert_not_called()
+
+    async def test_store_rows_async_dataframe_with_infer_from_data_generates_schema_change(
+        self,
+    ):
+        # GIVEN schema_storage_strategy=INFER_FROM_DATA with a dataframe
+        table = self.ClassForTest(id="syn123", name="test_table")
+        table._last_persistent_instance = self.ClassForTest(
+            id="syn123", name="test_table"
+        )
+        df = pd.DataFrame({"col1": ["a", "b"]})
+        schema_change_request = MagicMock(name="schema_change_request")
+
+        with (
+            patch.object(table, "_infer_columns_from_data") as mock_infer_columns,
+            patch.object(
+                table,
+                "_generate_schema_change_request",
+                new_callable=AsyncMock,
+                return_value=schema_change_request,
+            ) as mock_generate_schema_change_request,
+            patch.object(
+                table, "_chunk_and_upload_df", new_callable=AsyncMock
+            ) as mock_upload,
+        ):
+            await table.store_rows_async(
+                values=df,
+                schema_storage_strategy=SchemaStorageStrategy.INFER_FROM_DATA,
+                synapse_client=self.syn,
+            )
+
+        # THEN the columns are inferred from the data and the resulting schema
+        # change request is passed through to the upload step
+        mock_infer_columns.assert_called_once()
+        mock_generate_schema_change_request.assert_awaited_once()
+        assert (
+            mock_upload.call_args.kwargs["schema_change_request"]
+            == schema_change_request
+        )
+
+    async def test_store_rows_async_converts_csv_date_cols_to_epoch_in_csv(self):
+        table = self.ClassForTest(id="syn123", name="test_table")
+        table._last_persistent_instance = self.ClassForTest(
+            id="syn123", name="test_table"
+        )
+        with tempfile.NamedTemporaryFile(
+            mode="w", suffix=".csv", delete=False
+        ) as csv_file:
+            csv_file.write("col1,date_col\na,01/15/2024\nb,02/20/2024\n")
+
+        uploaded = {}
+
+        def capture_upload(**kwargs):
+            # The temporary file is deleted after the upload, so read it here
+            uploaded["path"] = kwargs["path_to_csv"]
+            uploaded["df"] = pd.read_csv(kwargs["path_to_csv"])
+
+        try:
+            with patch.object(
+                table, "_chunk_and_upload_csv", new_callable=AsyncMock
+            ) as mock_upload:
+                mock_upload.side_effect = capture_upload
+                await table.store_rows_async(
+                    values=csv_file.name,
+                    date_columns=["date_col"],
+                    date_format="%m/%d/%Y",
+                    synapse_client=self.syn,
+                )
+
+            assert uploaded["path"] != csv_file.name
+            assert not os.path.exists(uploaded["path"])
+            expected_df = pd.DataFrame(
+                {
+                    "col1": ["a", "b"],
+                    "date_col": [1705276800000, 1708387200000],
+                }  # date columns are converted to epoch ms (midnight local timezone, unit tests run with TZ=UTC)
+            ).convert_dtypes()
+            pd.testing.assert_frame_equal(
+                uploaded["df"], expected_df, check_dtype=False
+            )
+        finally:
+            os.remove(csv_file.name)
+
+    async def test_store_rows_async_csv_date_cols_forwards_synapse_client(self):
+        # GIVEN no cached Synapse client is available — matching integration
+        # tests, which run with Synapse.allow_client_caching(False) and never
+        # call Synapse.set_client, so only an explicitly passed client works
+        table = self.ClassForTest(id="syn123", name="test_table")
+        table._last_persistent_instance = self.ClassForTest(
+            id="syn123", name="test_table"
+        )
+        with tempfile.NamedTemporaryFile(
+            mode="w", suffix=".csv", delete=False
+        ) as csv_file:
+            csv_file.write("col1,date_col\na,01/15/2024\n")
+
+        cached_client = Synapse._synapse_client
+        Synapse._synapse_client = None
+        try:
+            with patch.object(table, "_chunk_and_upload_csv", new_callable=AsyncMock):
+                # THEN parsing date_columns must use the explicitly passed
+                # client rather than raising for a missing cached instance
+                await table.store_rows_async(
+                    values=csv_file.name,
+                    date_columns=["date_col"],
+                    date_format="%m/%d/%Y",
+                    synapse_client=self.syn,
+                )
+        finally:
+            Synapse._synapse_client = cached_client
+            os.remove(csv_file.name)
+
+    async def test_store_rows_async_csv_date_cols_respects_non_default_separator(self):
+        # GIVEN a TAB-separated CSV and a matching csv_table_descriptor telling
+        # the client the file is tab-delimited
+        table = self.ClassForTest(id="syn123", name="test_table")
+        table._last_persistent_instance = self.ClassForTest(
+            id="syn123", name="test_table"
+        )
+        with tempfile.NamedTemporaryFile(
+            mode="w", suffix=".csv", delete=False
+        ) as csv_file:
+            csv_file.write("col1\tdate_col\na\t01/15/2024\nb\t02/20/2024\n")
+
+        uploaded = {}
+
+        def capture_upload(**kwargs):
+            # The temp upload file is written with the descriptor's separator,
+            # so read it back with the same separator
+            uploaded["df"] = pd.read_csv(kwargs["path_to_csv"], sep="\t")
+
+        try:
+            with patch.object(
+                table, "_chunk_and_upload_csv", new_callable=AsyncMock
+            ) as mock_upload:
+                mock_upload.side_effect = capture_upload
+                # WHEN the tab-delimited file is stored with date_columns,
+                # passing `sep="\t"` via read_csv_kwargs so the file is
+                # parsed with the same separator used by csv_table_descriptor
+                await table.store_rows_async(
+                    values=csv_file.name,
+                    date_columns=["date_col"],
+                    date_format="%m/%d/%Y",
+                    csv_table_descriptor=CsvTableDescriptor(separator="\t"),
+                    read_csv_kwargs={"sep": "\t"},
+                    synapse_client=self.syn,
+                )
+
+            expected_df = pd.DataFrame(
+                {
+                    "col1": ["a", "b"],
+                    "date_col": [
+                        1705276800000,
+                        1708387200000,
+                    ],  # date columns are converted to epoch ms (midnight local timezone, unit tests run with TZ=UTC)
+                }
+            ).convert_dtypes()
+            pd.testing.assert_frame_equal(
+                uploaded["df"], expected_df, check_dtype=False
+            )
+        finally:
+            os.remove(csv_file.name)
+
+    async def test_store_rows_async_keeps_row_id_and_version_with_date_cols_in_csv(
+        self,
+    ):
+        table = self.ClassForTest(id="syn123", name="test_table")
+        table._last_persistent_instance = self.ClassForTest(
+            id="syn123", name="test_table"
+        )
+        with tempfile.NamedTemporaryFile(
+            mode="w", suffix=".csv", delete=False
+        ) as csv_file:
+            csv_file.write(
+                "ROW_ID,ROW_VERSION,col1,date_col\n"
+                "1,1,a,01/15/2024\n"
+                "2,1,b,02/20/2024\n"
+            )
+
+        uploaded = {}
+
+        def capture_upload(**kwargs):
+            uploaded["df"] = pd.read_csv(kwargs["path_to_csv"])
+
+        try:
+            with patch.object(
+                table, "_chunk_and_upload_csv", new_callable=AsyncMock
+            ) as mock_upload:
+                mock_upload.side_effect = capture_upload
+                await table.store_rows_async(
+                    values=csv_file.name,
+                    date_columns=["date_col"],
+                    date_format="%m/%d/%Y",
+                    synapse_client=self.syn,
+                )
+
+            expected_df = pd.DataFrame(
+                {
+                    "ROW_ID": [1, 2],
+                    "ROW_VERSION": [1, 1],
+                    "col1": ["a", "b"],
+                    "date_col": [
+                        1705276800000,
+                        1708387200000,
+                    ],  # date columns are converted to epoch ms (midnight local timezone, unit tests run with TZ=UTC)
+                }
+            ).convert_dtypes()
+            pd.testing.assert_frame_equal(
+                uploaded["df"], expected_df, check_dtype=False
+            )
+        finally:
+            os.remove(csv_file.name)

@@ -695,7 +695,28 @@ def make_bogus_binary_file(
 
 def to_unix_epoch_time(dt: typing.Union[datetime.date, datetime.datetime, str]) -> int:
     """
-    Convert either [datetime.date or datetime.datetime objects](http://docs.python.org/2/library/datetime.html) to UNIX time.
+    Convert a datetime, date, or ISO 8601 string to UNIX epoch time in milliseconds.
+
+    Arguments:
+        dt: The value to convert. May be one of:
+
+            - An ISO 8601 formatted string. A trailing `Z` is accepted and treated
+                as UTC (`+00:00`). The parsed value is then handled as a datetime
+                per the rules below.
+            - A `datetime.date` (as opposed to a datetime): interpreted as midnight
+                of that date in the local timezone of the machine at the time of
+                the call.
+            - A naive `datetime.datetime` (no `tzinfo`): assumed to be in the local
+                timezone of the machine at the time of the call. Note that the
+                machine's *current* UTC offset is applied even when the value's own
+                date falls in a different daylight saving period.
+            - A timezone-aware `datetime.datetime`: converted to UTC exactly; the
+                result does not depend on the machine's timezone settings.
+                Subclasses of `datetime.datetime` such as `pandas.Timestamp` are
+                handled this way as well.
+
+    Returns:
+        The number of milliseconds since `1970-01-01 00:00:00` UTC.
     """
     if type(dt) == str:
         dt = datetime.datetime.fromisoformat(dt.replace("Z", "+00:00"))
