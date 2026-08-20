@@ -166,10 +166,10 @@ task = CurationTask(task_id=789)
 try:
     details = task.execute(timeout=600)
     print("Execution finished.")
-except SynapseError as error:
-    print(f"Execution failed: {error}")
 except SynapseTimeoutError:
     print("Still running; check the task status later.")
+except SynapseError as error:
+    print(f"Execution failed: {error}")
 
 # The status carries the same execution details, so you can check a run at any time
 status = task.get_status()
