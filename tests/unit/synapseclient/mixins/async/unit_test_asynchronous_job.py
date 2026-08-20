@@ -107,6 +107,11 @@ class TestResolveAsyncJobUri:
                 {"concreteType": COMPUTE_TASK_EXECUTION_REQUEST, "taskId": None},
                 "missing taskId in request",
             ),
+            (
+                COMPUTE_TASK_EXECUTION_REQUEST,
+                {"concreteType": COMPUTE_TASK_EXECUTION_REQUEST, "taskId": ""},
+                "missing taskId in request",
+            ),
         ],
         ids=[
             "unregistered_request_type",
@@ -114,6 +119,7 @@ class TestResolveAsyncJobUri:
             "placeholder_with_no_request",
             "placeholder_absent_from_request",
             "placeholder_none_in_request",
+            "placeholder_empty_in_request",
         ],
     )
     def test_unresolvable_uri_raises(

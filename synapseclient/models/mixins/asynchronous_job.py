@@ -89,8 +89,8 @@ def _resolve_async_job_uri(
 
     Raises:
         ValueError: If the request type is not supported, if the URI has a placeholder
-            that is not a plain name, or if it has a placeholder that is not present
-            in the request.
+            that is not a plain name, or if it has a placeholder whose value is
+            missing from the request, None, or an empty string.
     """
     if not request_type or request_type not in ASYNC_JOB_URIS:
         raise ValueError(f"Unsupported request type: {request_type}")
@@ -121,7 +121,8 @@ def _resolve_async_job_uri(
         raise ValueError(f"Cannot resolve async job uri {uri}: no request provided.")
 
     for placeholder in placeholders:
-        if request.get(placeholder) is None:
+        value = request.get(placeholder)
+        if value is None or str(value) == "":
             raise ValueError(
                 f"Cannot resolve async job uri {uri}: missing {placeholder} in request."
             )
