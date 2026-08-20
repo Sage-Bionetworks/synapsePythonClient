@@ -1,7 +1,5 @@
 """Unit tests for the silent-aware progress bar factory in transfer_bar."""
 
-import io
-import sys
 from unittest.mock import patch
 
 from synapseclient import Synapse
