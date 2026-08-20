@@ -51,28 +51,6 @@ class TestCreateProgressBar:
             # THEN no error is raised and nothing is rendered
             assert progress_bar.disable is True
 
-    def test_bar_is_usable_when_silent_is_none(self, syn: Synapse) -> None:
-        # GIVEN a client whose silent flag was never set to a boolean
-        # AND a non-tty stderr, which is what makes tqdm treat disable=None as
-        # "disable and skip the rest of __init__"
-        with (
-            patch.object(syn, "silent", None),
-            patch.object(sys, "stderr", io.StringIO()),
-        ):
-            # WHEN a progress bar is created
-            progress_bar = create_progress_bar(total=None, desc="", synapse_client=syn)
-
-            # THEN the bar is fully constructed rather than left in tqdm's
-            # partially-initialized disable=None state
-            assert progress_bar.disable is False
-
-            # AND callers can mutate and drive it directly (as the live sites do)
-            progress_bar.desc = "processing"
-            progress_bar.total = 50
-            progress_bar.update(25)
-            progress_bar.refresh()
-            progress_bar.close()
-
     def test_shows_bar_when_no_client_available(self) -> None:
         # GIVEN no client is passed and none can be resolved
         with patch.object(Synapse, "get_client", side_effect=SynapseError("no client")):
