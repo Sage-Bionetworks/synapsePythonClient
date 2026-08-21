@@ -1,6 +1,6 @@
 import asyncio
 import uuid
-from typing import Callable
+from typing import Callable, Tuple
 
 import pandas as pd
 import pytest
@@ -212,14 +212,20 @@ class TestMaterializedViewWithData:
         self.syn = syn
         self.schedule_for_cleanup = schedule_for_cleanup
 
-    @pytest.fixture(scope="function")
+    @pytest.fixture(scope="class")
     async def base_table_with_data(
         self,
         project_model: Project,
         syn: Synapse,
         schedule_for_cleanup: Callable[..., None],
     ) -> Table:
-        """Create a table with data for use in a single test."""
+        """
+        Create a table with data once for the whole class: every test that uses
+        this fixture only queries through a materialized view or changes the
+        view's own defining SQL, never the source table's rows, so a shared
+        table costs nothing in correctness and saves a create-plus-store job
+        per additional test.
+        """
         table_name = str(uuid.uuid4())
         table = Table(
             name=table_name,
@@ -447,10 +453,19 @@ class TestMaterializedViewWithData:
         assert query_result.count == 2
         assert query_result.last_updated_on is not None
 
-    async def test_materialized_view_with_left_join(
-        self, project_model: Project
-    ) -> None:
-        # GIVEN two tables with related data
+    @pytest.fixture(scope="class")
+    async def join_source_tables(
+        self,
+        project_model: Project,
+        syn: Synapse,
+        schedule_for_cleanup: Callable[..., None],
+    ) -> Tuple[Table, Table]:
+        """
+        Two tables with the identical data used by the left/right/inner join
+        tests below, built once for the class: none of those tests mutates
+        either table, they only build a differently-joined `MaterializedView`
+        over the same pair and query that view.
+        """
         table1 = Table(
             name=str(uuid.uuid4()),
             parent_id=project_model.id,
@@ -459,8 +474,8 @@ class TestMaterializedViewWithData:
                 Column(name="name", column_type=ColumnType.STRING),
             ],
         )
-        table1 = await table1.store_async(synapse_client=self.syn)
-        self.schedule_for_cleanup(table1.id)
+        table1 = await table1.store_async(synapse_client=syn)
+        schedule_for_cleanup(table1.id)
 
         table2 = Table(
             name=str(uuid.uuid4()),
@@ -470,14 +485,22 @@ class TestMaterializedViewWithData:
                 Column(name="age", column_type=ColumnType.INTEGER),
             ],
         )
-        table2 = await table2.store_async(synapse_client=self.syn)
-        self.schedule_for_cleanup(table2.id)
+        table2 = await table2.store_async(synapse_client=syn)
+        schedule_for_cleanup(table2.id)
 
         data1 = pd.DataFrame({"unique_identifier": [1, 2], "name": ["Alice", "Bob"]})
-        await table1.store_rows_async(data1, synapse_client=self.syn)
+        await table1.store_rows_async(data1, synapse_client=syn)
 
         data2 = pd.DataFrame({"unique_identifier": [1, 3], "age": [30, 40]})
-        await table2.store_rows_async(data2, synapse_client=self.syn)
+        await table2.store_rows_async(data2, synapse_client=syn)
+
+        return table1, table2
+
+    async def test_materialized_view_with_left_join(
+        self, project_model: Project, join_source_tables: Tuple[Table, Table]
+    ) -> None:
+        # GIVEN two tables with related data
+        table1, table2 = join_source_tables
 
         # WHEN creating a materialized view with a LEFT JOIN
         left_join_view = MaterializedView(
@@ -507,36 +530,10 @@ class TestMaterializedViewWithData:
         assert pd.isna(result["age"][1])
 
     async def test_materialized_view_with_right_join(
-        self, project_model: Project
+        self, project_model: Project, join_source_tables: Tuple[Table, Table]
     ) -> None:
         # GIVEN two tables with related data
-        table1 = Table(
-            name=str(uuid.uuid4()),
-            parent_id=project_model.id,
-            columns=[
-                Column(name="unique_identifier", column_type=ColumnType.INTEGER),
-                Column(name="name", column_type=ColumnType.STRING),
-            ],
-        )
-        table1 = await table1.store_async(synapse_client=self.syn)
-        self.schedule_for_cleanup(table1.id)
-
-        table2 = Table(
-            name=str(uuid.uuid4()),
-            parent_id=project_model.id,
-            columns=[
-                Column(name="unique_identifier", column_type=ColumnType.INTEGER),
-                Column(name="age", column_type=ColumnType.INTEGER),
-            ],
-        )
-        table2 = await table2.store_async(synapse_client=self.syn)
-        self.schedule_for_cleanup(table2.id)
-
-        data1 = pd.DataFrame({"unique_identifier": [1, 2], "name": ["Alice", "Bob"]})
-        await table1.store_rows_async(data1, synapse_client=self.syn)
-
-        data2 = pd.DataFrame({"unique_identifier": [1, 3], "age": [30, 40]})
-        await table2.store_rows_async(data2, synapse_client=self.syn)
+        table1, table2 = join_source_tables
 
         # WHEN creating a materialized view with a RIGHT JOIN
         right_join_view = MaterializedView(
@@ -566,36 +563,10 @@ class TestMaterializedViewWithData:
         assert result["age"].tolist() == [30, 40]
 
     async def test_materialized_view_with_inner_join(
-        self, project_model: Project
+        self, project_model: Project, join_source_tables: Tuple[Table, Table]
     ) -> None:
         # GIVEN two tables with related data
-        table1 = Table(
-            name=str(uuid.uuid4()),
-            parent_id=project_model.id,
-            columns=[
-                Column(name="unique_identifier", column_type=ColumnType.INTEGER),
-                Column(name="name", column_type=ColumnType.STRING),
-            ],
-        )
-        table1 = await table1.store_async(synapse_client=self.syn)
-        self.schedule_for_cleanup(table1.id)
-
-        table2 = Table(
-            name=str(uuid.uuid4()),
-            parent_id=project_model.id,
-            columns=[
-                Column(name="unique_identifier", column_type=ColumnType.INTEGER),
-                Column(name="age", column_type=ColumnType.INTEGER),
-            ],
-        )
-        table2 = await table2.store_async(synapse_client=self.syn)
-        self.schedule_for_cleanup(table2.id)
-
-        data1 = pd.DataFrame({"unique_identifier": [1, 2], "name": ["Alice", "Bob"]})
-        await table1.store_rows_async(data1, synapse_client=self.syn)
-
-        data2 = pd.DataFrame({"unique_identifier": [1, 3], "age": [30, 40]})
-        await table2.store_rows_async(data2, synapse_client=self.syn)
+        table1, table2 = join_source_tables
 
         # WHEN creating a materialized view with an INNER JOIN
         inner_join_view = MaterializedView(

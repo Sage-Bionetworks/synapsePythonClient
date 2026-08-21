@@ -2907,98 +2907,93 @@ class TestDeleteRows:
         self.syn = syn
         self.schedule_for_cleanup = schedule_for_cleanup
 
-    async def test_delete_single_row_via_query(self, project_model: Project) -> None:
-        # GIVEN a table in Synapse
-        table_name = str(uuid.uuid4())
+    @pytest.fixture(scope="class")
+    async def table_with_groups(
+        self,
+        project_model: Project,
+        syn: Synapse,
+        schedule_for_cleanup: Callable[..., None],
+    ) -> Table:
+        """Class-scoped table holding four independent row groups, one per
+        delete scenario below, populated with a single store_rows_async call
+        instead of one per scenario, since no scenario's rows overlap with
+        another's."""
         table = Table(
-            name=table_name,
+            name=str(uuid.uuid4()),
             parent_id=project_model.id,
             columns=[Column(name="column_string", column_type=ColumnType.STRING)],
         )
-        table = await table.store_async(synapse_client=self.syn)
-        self.schedule_for_cleanup(table.id)
+        table = await table.store_async(synapse_client=syn)
+        schedule_for_cleanup(table.id)
 
-        # AND data for a column already stored in Synapse
-        data_for_table = pd.DataFrame({"column_string": ["value1", "value2", "value3"]})
-        await table.store_rows_async(
-            values=data_for_table, schema_storage_strategy=None, synapse_client=self.syn
+        data_for_table = pd.DataFrame(
+            {
+                "column_string": [
+                    f"{group}_value{i}"
+                    for group in ("g1", "g2", "g3", "g4")
+                    for i in (1, 2, 3)
+                ]
+            }
         )
+        await table.store_rows_async(
+            values=data_for_table, schema_storage_strategy=None, synapse_client=syn
+        )
+        return table
+
+    async def test_delete_single_row_via_query(self, table_with_groups: Table) -> None:
+        table = table_with_groups
 
         # WHEN I delete a single row from the table
         await table.delete_rows_async(
-            query=f"SELECT ROW_ID, ROW_VERSION FROM {table.id} WHERE column_string = 'value2'",
+            query=f"SELECT ROW_ID, ROW_VERSION FROM {table.id} WHERE column_string = 'g1_value2'",
             synapse_client=self.syn,
         )
 
         # AND I query the table
         results = await query_async(
-            f"SELECT * FROM {table.id}", synapse_client=self.syn
+            f"SELECT * FROM {table.id} WHERE column_string IN ('g1_value1', 'g1_value2', 'g1_value3')",
+            synapse_client=self.syn,
         )
 
         # THEN the data in the columns should match
         pd.testing.assert_series_equal(
-            results["column_string"],
-            pd.DataFrame({"column_string": ["value1", "value3"]})["column_string"],
+            results["column_string"].reset_index(drop=True),
+            pd.Series(["g1_value1", "g1_value3"], name="column_string"),
             check_dtype=False,
         )
 
-        # AND only 2 rows should exist on the table
+        # AND only 2 rows should exist in this group
         assert len(results) == 2
 
-    async def test_delete_multiple_rows_via_query(self, project_model: Project) -> None:
-        # GIVEN a table in Synapse
-        table_name = str(uuid.uuid4())
-        table = Table(
-            name=table_name,
-            parent_id=project_model.id,
-            columns=[Column(name="column_string", column_type=ColumnType.STRING)],
-        )
-        table = await table.store_async(synapse_client=self.syn)
-        self.schedule_for_cleanup(table.id)
-
-        # AND data for a column already stored in Synapse
-        data_for_table = pd.DataFrame({"column_string": ["value1", "value2", "value3"]})
-        await table.store_rows_async(
-            values=data_for_table, schema_storage_strategy=None, synapse_client=self.syn
-        )
+    async def test_delete_multiple_rows_via_query(
+        self, table_with_groups: Table
+    ) -> None:
+        table = table_with_groups
 
         # WHEN I delete a single row from the table
         await table.delete_rows_async(
-            query=f"SELECT ROW_ID, ROW_VERSION FROM {table.id} WHERE column_string IN ('value2','value3')",
+            query=f"SELECT ROW_ID, ROW_VERSION FROM {table.id} WHERE column_string IN ('g2_value2','g2_value3')",
             synapse_client=self.syn,
         )
 
         # AND I query the table
         results = await query_async(
-            f"SELECT * FROM {table.id}", synapse_client=self.syn
+            f"SELECT * FROM {table.id} WHERE column_string IN ('g2_value1', 'g2_value2', 'g2_value3')",
+            synapse_client=self.syn,
         )
 
         # THEN the data in the columns should match
         pd.testing.assert_series_equal(
-            results["column_string"],
-            pd.DataFrame({"column_string": ["value1"]})["column_string"],
+            results["column_string"].reset_index(drop=True),
+            pd.Series(["g2_value1"], name="column_string"),
             check_dtype=False,
         )
 
-        # AND only 1 row should exist on the table
+        # AND only 1 row should exist in this group
         assert len(results) == 1
 
-    async def test_delete_no_rows_via_query(self, project_model: Project) -> None:
-        # GIVEN a table in Synapse
-        table_name = str(uuid.uuid4())
-        table = Table(
-            name=table_name,
-            parent_id=project_model.id,
-            columns=[Column(name="column_string", column_type=ColumnType.STRING)],
-        )
-        table = await table.store_async(synapse_client=self.syn)
-        self.schedule_for_cleanup(table.id)
-
-        # AND data for a column already stored in Synapse
-        data_for_table = pd.DataFrame({"column_string": ["value1", "value2", "value3"]})
-        await table.store_rows_async(
-            values=data_for_table, schema_storage_strategy=None, synapse_client=self.syn
-        )
+    async def test_delete_no_rows_via_query(self, table_with_groups: Table) -> None:
+        table = table_with_groups
 
         # WHEN I delete a single row from the table
         await table.delete_rows_async(
@@ -3008,78 +3003,60 @@ class TestDeleteRows:
 
         # AND I query the table
         results = await query_async(
-            f"SELECT * FROM {table.id}", synapse_client=self.syn
+            f"SELECT * FROM {table.id} WHERE column_string IN ('g3_value1', 'g3_value2', 'g3_value3')",
+            synapse_client=self.syn,
         )
 
         # THEN the data in the columns should match
         pd.testing.assert_series_equal(
-            results["column_string"], data_for_table["column_string"], check_dtype=False
+            results["column_string"].reset_index(drop=True),
+            pd.Series(["g3_value1", "g3_value2", "g3_value3"], name="column_string"),
+            check_dtype=False,
         )
 
-        # AND 3 rows should exist on the table
+        # AND 3 rows should exist in this group
         assert len(results) == 3
 
     async def test_delete_multiple_rows_via_dataframe(
-        self, project_model: Project
+        self, table_with_groups: Table
     ) -> None:
-        # GIVEN a table in Synapse
-        table_name = str(uuid.uuid4())
-        table = Table(
-            name=table_name,
-            parent_id=project_model.id,
-            columns=[Column(name="column_string", column_type=ColumnType.STRING)],
-        )
-        table = await table.store_async(synapse_client=self.syn)
-        self.schedule_for_cleanup(table.id)
+        table = table_with_groups
 
-        # AND data for a column already stored in Synapse
-        data_for_table = pd.DataFrame({"column_string": ["value1", "value2", "value3"]})
-        await table.store_rows_async(
-            values=data_for_table, schema_storage_strategy=None, synapse_client=self.syn
+        # GIVEN the ROW_ID and ROW_VERSION for this group's rows
+        group_rows = await query_async(
+            f"SELECT ROW_ID, ROW_VERSION, column_string FROM {table.id} WHERE column_string IN ('g4_value2', 'g4_value3')",
+            synapse_client=self.syn,
         )
-        # Get the ROW_ID and ROW_VERSION for the data we just added
+
         # WHEN I delete rows from the table using a dataframe
         await table.delete_rows_async(
-            df=pd.DataFrame({"ROW_ID": [2, 3], "ROW_VERSION": [1, 1]}),
+            df=group_rows[["ROW_ID", "ROW_VERSION"]],
             synapse_client=self.syn,
         )
 
         # AND I query the table
         results = await query_async(
-            f"SELECT * FROM {table.id}", synapse_client=self.syn
+            f"SELECT * FROM {table.id} WHERE column_string IN ('g4_value1', 'g4_value2', 'g4_value3')",
+            synapse_client=self.syn,
         )
 
         # THEN the data in the columns should match
         pd.testing.assert_series_equal(
-            results["column_string"],
-            pd.DataFrame({"column_string": ["value1"]})["column_string"],
+            results["column_string"].reset_index(drop=True),
+            pd.Series(["g4_value1"], name="column_string"),
             check_dtype=False,
         )
 
-        # AND only 1 row should exist on the table
+        # AND only 1 row should exist in this group
         assert len(results) == 1
 
     async def test_delete_multiple_rows_via_dataframe_exception(
-        self, project_model: Project
+        self, table_with_groups: Table
     ) -> None:
-        # GIVEN a table in Synapse
-        table_name = str(uuid.uuid4())
-        table = Table(
-            name=table_name,
-            parent_id=project_model.id,
-            columns=[Column(name="column_string", column_type=ColumnType.STRING)],
-        )
-        table = await table.store_async(synapse_client=self.syn)
-        self.schedule_for_cleanup(table.id)
-
-        # AND data for a column already stored in Synapse
-        data_for_table = pd.DataFrame({"column_string": ["value1", "value2", "value3"]})
-        await table.store_rows_async(
-            values=data_for_table, schema_storage_strategy=None, synapse_client=self.syn
-        )
+        table = table_with_groups
 
         # AND row ids and versions that do not exist in the table
-        row_ids = [4, 5]
+        row_ids = [999001, 999002]
         row_versions = [1, 1]
 
         # And an excpeted error message that should be displayed
@@ -3317,8 +3294,14 @@ class TestTableSnapshot:
         self.syn = syn
         self.schedule_for_cleanup = schedule_for_cleanup
 
-    async def test_snapshot_basic(self, project_model: Project) -> None:
-        """Test creating a basic snapshot of a table."""
+    async def test_snapshot_scenarios(self, project_model: Project) -> None:
+        """Exercises snapshot_async's comment/label, activity-included,
+        activity-excluded, and minimal-argument paths against one shared
+        table and one store_rows_async call instead of four, taking each
+        snapshot in sequence and asserting against the version number it
+        actually produced (each snapshot fixes the table's current
+        "in progress" version and bumps a new one) rather than a hardcoded 1.
+        """
         # GIVEN a table with some data
         table = Table(
             name=str(uuid.uuid4()),
@@ -3335,193 +3318,95 @@ class TestTableSnapshot:
         data = {"col1": ["A", "B"], "col2": [1, 2]}
         await table.store_rows_async(values=data, synapse_client=self.syn)
 
-        # WHEN I create a snapshot
+        expected_version = 1
+
+        # Scenario 1: basic snapshot
         snapshot_response = await table.snapshot_async(
             comment="Test snapshot", label="v1.0", synapse_client=self.syn
         )
-
-        # THEN the snapshot should be created successfully
         assert snapshot_response is not None
         assert "snapshotVersionNumber" in snapshot_response
-        assert snapshot_response["snapshotVersionNumber"] is not None
-
-        # AND the snapshot version should be 1
         snapshot_version = snapshot_response["snapshotVersionNumber"]
-        assert snapshot_version == 1
-
-        # AND when I retrieve the snapshot version, it should have the correct comment and label
+        assert snapshot_version == expected_version
         snapshot_table = await Table(
             id=table.id, version_number=snapshot_version
         ).get_async(synapse_client=self.syn)
         assert snapshot_table.version_comment == "Test snapshot"
         assert snapshot_table.version_label == "v1.0"
-        assert snapshot_table.version_number == 1
-
-        # AND when I retrieve the latest version (without specifying version), it should be "in progress"
+        assert snapshot_table.version_number == expected_version
         latest_table = await Table(id=table.id).get_async(synapse_client=self.syn)
         assert latest_table.version_label == "in progress"
         assert latest_table.version_comment == "in progress"
-        assert latest_table.version_number > 1
+        assert latest_table.version_number > snapshot_version
+        expected_version += 1
 
-    async def test_snapshot_with_activity(self, project_model: Project) -> None:
-        """Test creating a snapshot with activity (provenance)."""
-        # GIVEN a table with some data and an activity
-        table = Table(
-            name=str(uuid.uuid4()),
-            parent_id=project_model.id,
-            columns=[
-                Column(name="col1", column_type=ColumnType.STRING),
-                Column(name="col2", column_type=ColumnType.INTEGER),
-            ],
-        )
-        table = await table.store_async(synapse_client=self.syn)
-        self.schedule_for_cleanup(table.id)
-
-        # Create and store an activity
+        # Scenario 2: snapshot with activity included
         activity = Activity(
             name="Test Activity",
             description="Test activity for snapshot",
         )
         table.activity = activity
         await table.store_async(synapse_client=self.syn)
-
-        # Store some data
-        data = {"col1": ["A", "B"], "col2": [1, 2]}
-        await table.store_rows_async(values=data, synapse_client=self.syn)
-
-        # WHEN I create a snapshot with activity included
         snapshot_response = await table.snapshot_async(
             comment="Test snapshot with activity",
-            label="v1.0",
+            label="v2.0",
             include_activity=True,
             associate_activity_to_new_version=False,
             synapse_client=self.syn,
         )
-
-        # THEN the snapshot should be created successfully
         assert snapshot_response is not None
-        assert "snapshotVersionNumber" in snapshot_response
-        assert snapshot_response["snapshotVersionNumber"] is not None
-
-        # AND the snapshot version should be 1
         snapshot_version = snapshot_response["snapshotVersionNumber"]
-        assert snapshot_version == 1
-
-        # AND when I retrieve the snapshot version, it should have the correct comment and label
+        assert snapshot_version == expected_version
         snapshot_table = await Table(
             id=table.id, version_number=snapshot_version
         ).get_async(synapse_client=self.syn)
         assert snapshot_table.version_comment == "Test snapshot with activity"
-        assert snapshot_table.version_label == "v1.0"
-        assert snapshot_table.version_number == 1
-
-        # AND when I retrieve the latest version (without specifying version), it should be "in progress"
+        assert snapshot_table.version_label == "v2.0"
+        assert snapshot_table.version_number == expected_version
         latest_table = await Table(id=table.id).get_async(synapse_client=self.syn)
         assert latest_table.version_label == "in progress"
         assert latest_table.version_comment == "in progress"
-        assert latest_table.version_number > 1
+        assert latest_table.version_number > snapshot_version
+        expected_version += 1
 
-    async def test_snapshot_without_activity(self, project_model: Project) -> None:
-        """Test creating a snapshot without including activity."""
-        # GIVEN a table with some data and an activity
-        table = Table(
-            name=str(uuid.uuid4()),
-            parent_id=project_model.id,
-            columns=[
-                Column(name="col1", column_type=ColumnType.STRING),
-                Column(name="col2", column_type=ColumnType.INTEGER),
-            ],
-        )
-        table = await table.store_async(synapse_client=self.syn)
-        self.schedule_for_cleanup(table.id)
-
-        # Create and store an activity
-        activity = Activity(
-            name="Test Activity",
-            description="Test activity for snapshot",
-        )
-        table.activity = activity
-        await table.store_async(synapse_client=self.syn)
-
-        # Store some data
-        data = {"col1": ["A", "B"], "col2": [1, 2]}
-        await table.store_rows_async(values=data, synapse_client=self.syn)
-
-        # WHEN I create a snapshot without including activity
+        # Scenario 3: snapshot without activity
         snapshot_response = await table.snapshot_async(
             comment="Test snapshot without activity",
-            label="v2.0",
+            label="v3.0",
             include_activity=False,
             synapse_client=self.syn,
         )
-
-        # THEN the snapshot should be created successfully
         assert snapshot_response is not None
-        assert "snapshotVersionNumber" in snapshot_response
-        assert snapshot_response["snapshotVersionNumber"] is not None
-
-        # AND the snapshot version should be 1
         snapshot_version = snapshot_response["snapshotVersionNumber"]
-        assert snapshot_version == 1
-
-        # AND when I retrieve the snapshot version, it should have the correct comment and label
+        assert snapshot_version == expected_version
         snapshot_table = await Table(
             id=table.id, version_number=snapshot_version
         ).get_async(synapse_client=self.syn)
         assert snapshot_table.version_comment == "Test snapshot without activity"
-        assert snapshot_table.version_label == "v2.0"
-        assert snapshot_table.version_number == 1
-
-        # AND when I retrieve the latest version (without specifying version), it should be "in progress"
+        assert snapshot_table.version_label == "v3.0"
+        assert snapshot_table.version_number == expected_version
         latest_table = await Table(id=table.id).get_async(synapse_client=self.syn)
         assert latest_table.version_label == "in progress"
         assert latest_table.version_comment == "in progress"
-        assert latest_table.version_number > 1
+        assert latest_table.version_number > snapshot_version
+        expected_version += 1
 
-    async def test_snapshot_minimal_args(self, project_model: Project) -> None:
-        """Test creating a snapshot with minimal arguments."""
-        # GIVEN a table with some data
-        table = Table(
-            name=str(uuid.uuid4()),
-            parent_id=project_model.id,
-            columns=[
-                Column(name="col1", column_type=ColumnType.STRING),
-                Column(name="col2", column_type=ColumnType.INTEGER),
-            ],
-        )
-        table = await table.store_async(synapse_client=self.syn)
-        self.schedule_for_cleanup(table.id)
-
-        # Store some data
-        data = {"col1": ["A", "B"], "col2": [1, 2]}
-        await table.store_rows_async(values=data, synapse_client=self.syn)
-
-        # WHEN I create a snapshot with minimal arguments
+        # Scenario 4: snapshot with minimal arguments
         snapshot_response = await table.snapshot_async(synapse_client=self.syn)
-
-        # THEN the snapshot should be created successfully
         assert snapshot_response is not None
-        assert "snapshotVersionNumber" in snapshot_response
-        assert snapshot_response["snapshotVersionNumber"] is not None
-
-        # AND the snapshot version should be 1
         snapshot_version = snapshot_response["snapshotVersionNumber"]
-        assert snapshot_version == 1
-
-        # AND when I retrieve the snapshot version, it should have the correct version number
+        assert snapshot_version == expected_version
         snapshot_table = await Table(
             id=table.id, version_number=snapshot_version
         ).get_async(synapse_client=self.syn)
-        assert snapshot_table.version_number == 1
+        assert snapshot_table.version_number == expected_version
         # Comment and label should be None or empty when not specified
         assert (
             snapshot_table.version_comment is None
             or snapshot_table.version_comment == ""
         )
-        assert snapshot_table.version_label == "1"
-
-        # AND when I retrieve the latest version (without specifying version), it should be "in progress"
+        assert snapshot_table.version_label == str(expected_version)
         latest_table = await Table(id=table.id).get_async(synapse_client=self.syn)
         assert latest_table.version_label == "in progress"
         assert latest_table.version_comment == "in progress"
-        assert latest_table.version_number > 1
+        assert latest_table.version_number > snapshot_version

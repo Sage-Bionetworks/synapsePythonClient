@@ -34,7 +34,13 @@ from synapseclient.core.exceptions import (
     SynapseHTTPError,
     SynapseTimeoutError,
 )
+from synapseclient.core.otel_config import get_meter, get_tracer
 from synapseclient.core.transfer_bar import create_progress_bar
+
+tracer = get_tracer()
+meter = get_meter()
+_async_job_counter = meter.create_counter("synapse.async_job.submissions")
+_async_job_duration = meter.create_histogram("synapse.async_job.duration", unit="s")
 
 ASYNC_JOB_URIS = {
     AGENT_CHAT_REQUEST: "/agent/chat/async",
@@ -418,40 +424,56 @@ async def send_job_and_wait_async(
         SynapseError: If the job fails.
         SynapseTimeoutError: If the job does not complete within the timeout.
     """
-    start_time = time.time()
-    retry_interval = 5  # Retry every 5 seconds
-    max_wait_time = timeout * 5  # Maximum total wait time of 5 minutes
-
-    while time.time() - start_time < max_wait_time:
+    attributes = {"request_type": request_type, "outcome": "success"}
+    with tracer.start_as_current_span("synapse.async_job") as span:
+        span.set_attribute("synapse.async_job.request_type", request_type)
+        started = time.monotonic()
         try:
-            job_id = await send_job_async(
-                request=request, synapse_client=synapse_client
-            )
-            result = {
-                "jobId": job_id,
-                **await get_job_async(
-                    job_id=job_id,
-                    request_type=request_type,
-                    synapse_client=synapse_client,
-                    endpoint=endpoint,
-                    timeout=timeout,
-                    request=request,
-                ),
-            }
-            return result
-        except SynapseHTTPError as e:
-            if (
-                "You cannot create a version of a view that is not available (Status: PROCESSING)"
-                in str(e)
-            ):
-                if time.time() - start_time < max_wait_time:
-                    await asyncio.sleep(retry_interval)
-                    continue
-            raise  # Re-raise any other SynapseHTTPError or if max wait time reached
-        except Exception:
-            raise  # Re-raise any other exceptions
+            start_time = time.time()
+            retry_interval = 5  # Retry every 5 seconds
+            max_wait_time = timeout * 5  # Maximum total wait time of 5x the timeout
 
-    raise SynapseError(f"Failed to create view version after {max_wait_time} seconds")
+            while time.time() - start_time < max_wait_time:
+                try:
+                    job_id = await send_job_async(
+                        request=request, synapse_client=synapse_client
+                    )
+                    result = {
+                        "jobId": job_id,
+                        **await get_job_async(
+                            job_id=job_id,
+                            request_type=request_type,
+                            synapse_client=synapse_client,
+                            endpoint=endpoint,
+                            timeout=timeout,
+                            request=request,
+                        ),
+                    }
+                    return result
+                except SynapseHTTPError as e:
+                    if (
+                        "You cannot create a version of a view that is not available (Status: PROCESSING)"
+                        in str(e)
+                    ):
+                        if time.time() - start_time < max_wait_time:
+                            await asyncio.sleep(retry_interval)
+                            continue
+                    raise  # Re-raise any other SynapseHTTPError or if max wait time reached
+                except Exception:
+                    raise  # Re-raise any other exceptions
+
+            raise SynapseError(
+                f"Failed to create view version after {max_wait_time} seconds"
+            )
+        except SynapseTimeoutError:
+            attributes["outcome"] = "timeout"
+            raise
+        except Exception:
+            attributes["outcome"] = "error"
+            raise
+        finally:
+            _async_job_counter.add(1, attributes)
+            _async_job_duration.record(time.monotonic() - started, attributes)
 
 
 async def send_job_async(

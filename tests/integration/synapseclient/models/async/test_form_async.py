@@ -10,7 +10,7 @@ import pytest
 
 import synapseclient.core.utils as utils
 from synapseclient import Synapse
-from synapseclient.models import File, FormData, FormGroup, Project
+from synapseclient.models import File, Folder, FormData, FormGroup, Project
 
 
 class TestFormGroup:
@@ -56,22 +56,29 @@ class TestFormData:
 
     @pytest.fixture(autouse=True, scope="class")
     async def test_file(
-        self, syn: Synapse, schedule_for_cleanup: Callable[..., None]
+        self,
+        syn: Synapse,
+        schedule_for_cleanup: Callable[..., None],
+        project_model: Project,
     ) -> File:
-        """Create a test file for use in form data tests."""
-        # Create a test project and a test file to get a file handle ID
-        project_name = str(uuid.uuid4())
-        project = Project(name=project_name)
-        project = await project.store_async(synapse_client=syn)
+        """Create a test file for use in form data tests.
+
+        FormData.download_async downloads the real file content, so the file
+        must be a real upload. Its parent only needs to exist, so a Folder in
+        the session-shared project is used instead of a dedicated Project.
+        """
+        folder = await Folder(
+            name=str(uuid.uuid4()), parent_id=project_model.id
+        ).store_async(synapse_client=syn)
+        schedule_for_cleanup(folder.id)
 
         file_path = utils.make_bogus_data_file()
-        file = await File(path=file_path, parent_id=project.id).store_async(
+        file = await File(path=file_path, parent_id=folder.id).store_async(
             synapse_client=syn
         )
 
         schedule_for_cleanup(file.id)
         schedule_for_cleanup(file_path)
-        schedule_for_cleanup(project.id)
 
         return file
 
