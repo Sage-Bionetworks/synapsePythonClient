@@ -27,7 +27,7 @@ In this tutorial, you will:
 5. Combine scored clauses with unscored filters, and sort the results
 6. Count facets with aggregations
 7. Power a type-ahead box with autocomplete
-8. Page through results
+8. Paginated results
 9. Tune matching with synonyms and analyzers
 
 ## Prerequisites
@@ -257,13 +257,21 @@ Suggestions for 'Mayo Cl':
 ```
 </details>
 
-## 8. Pagination
+## 8. Paginated results
 
-A query returns at most 100 hits at a time (25 by default). `from_` and `size` walk
-through the result set the way page numbers do.
+A query returns at most 100 hits at a time (25 by default), so anything larger requires special attention. There are two ways to do it.
+
+* Specifying the `from_` and `size` arguments on `SearchQuery` to an offset the way page numbers do.
+* `search_after` picks up from where the last page ended. Each response has `next_search_after`; pass it back unchanged on the next request and leave `from_` unset.
+
+### Offset paging with `from_` and `size`
+
+Simple, and the right thing for the first few pages of a UI where someone clicks
+"next". The cost grows with depth though — the server collects and discards every hit
+before the offset — so it is the wrong tool for sweeping a large index.
 
 ```python
---8<-- "docs/tutorials/python/tutorial_scripts/search.py:pagination"
+--8<-- "docs/tutorials/python/tutorial_scripts/search.py:pagination_offset"
 ```
 
 <details class="example">
@@ -271,22 +279,54 @@ through the result set the way page numbers do.
 ```
 Page starting at offset 0:
 total_hits=6, returned=2
-  ROW_ID=1 {'study_name': 'ROSMAP Cortex Proteomics', 'participant_count': '400'}
-  ROW_ID=3 {'study_name': 'Mayo Clinic Whole Genome', 'participant_count': '350'}
+  {'study_name': 'ROSMAP Cortex Proteomics', 'participant_count': '400'}
+  {'study_name': 'Mayo Clinic Whole Genome', 'participant_count': '350'}
 Page starting at offset 2:
 total_hits=6, returned=2
-  ROW_ID=2 {'study_name': 'MSBB RNA Sequencing', 'participant_count': '300'}
-  ROW_ID=5 {'study_name': 'MCI Plasma Biomarkers', 'participant_count': '220'}
+  {'study_name': 'MSBB RNA Sequencing', 'participant_count': '300'}
+  {'study_name': 'MCI Plasma Biomarkers', 'participant_count': '220'}
 Page starting at offset 4:
 total_hits=6, returned=2
-  ROW_ID=6 {'study_name': 'Parkinson Comparative Cohort', 'participant_count': '180'}
-  ROW_ID=4 {'study_name': 'Healthy Aging Single Cell Atlas', 'participant_count': '120'}
+  {'study_name': 'Parkinson Comparative Cohort', 'participant_count': '180'}
+  {'study_name': 'Healthy Aging Single Cell Atlas', 'participant_count': '120'}
 ```
 </details>
 
-**Note**: Offset paging gets expensive deep into a large result set. For that case each
-response carries a `next_search_after` cursor — pass it back unchanged as
-`SearchQuery(search_after=...)` on the following request and leave `from_` unset.
+### Cursor paging with `search_after`
+
+Cost per page stays flat no matter how far in you are, which makes this the one to
+reach for when you need every row.
+
+The catch is that `search_after` is a position in a sort order, so the `sort` has to
+place every row unambiguously. If two rows tie on every sort column, a page boundary
+landing between them can skip or repeat rows. Sort on something unique, or append a
+unique column as a final tie-breaker.
+
+```python
+--8<-- "docs/tutorials/python/tutorial_scripts/search.py:pagination_cursor"
+```
+
+<details class="example">
+  <summary>The result of walking your index should look like:</summary>
+```
+Page 0:
+total_hits=6, returned=2
+  {'study_name': 'ROSMAP Cortex Proteomics', 'participant_count': '400'}
+  {'study_name': 'Mayo Clinic Whole Genome', 'participant_count': '350'}
+Page 1:
+total_hits=6, returned=2
+  {'study_name': 'MSBB RNA Sequencing', 'participant_count': '300'}
+  {'study_name': 'MCI Plasma Biomarkers', 'participant_count': '220'}
+Page 2:
+total_hits=6, returned=2
+  {'study_name': 'Parkinson Comparative Cohort', 'participant_count': '180'}
+  {'study_name': 'Healthy Aging Single Cell Atlas', 'participant_count': '120'}
+```
+</details>
+
+**Note**: Each page is a separate asynchronous job either way, not a cheap follow-up
+GET, so ask for the largest `size` you can use rather than walking a big index in small
+pages.
 
 ## 9. Tune matching with synonyms and analyzers
 

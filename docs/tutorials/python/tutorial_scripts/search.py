@@ -6,13 +6,11 @@ import json
 import pandas as pd
 
 from synapseclient import Synapse
-from synapseclient.core.exceptions import SynapseError
 from synapseclient.models import (
     Column,
     ColumnType,
     Project,
     SearchIndex,
-    SearchIndexQuery,
     SearchQuery,
     SearchQueryPart,
     Table,
@@ -295,8 +293,8 @@ for hit in hits:
 # --8<-- [end:autocomplete]
 
 
-# --8<-- [start:pagination]
-# Walk every row in the index two hits at a time.
+# --8<-- [start:pagination_offset]
+# Walk every row in the index two hits at a time with a growing offset.
 page_size = 2
 offset = 0
 while True:
@@ -314,13 +312,51 @@ while True:
     print(f"total_hits={results.total_hits}, returned={len(results.hits)}")
     for hit in results.hits:
         fields = {field.name: field.value for field in hit.fields}
-        print(f"  ROW_ID={hit.row_id} {fields}")
+        print(f"  {fields}")
 
     offset += page_size
     if offset >= results.total_hits:
         break
 
-# --8<-- [end:pagination]
+# --8<-- [end:pagination_offset]
+
+
+# --8<-- [start:pagination_cursor]
+# The same walk, using the search_after cursor the server hands back instead of
+# a growing offset.
+page_size = 2
+search_after = None
+page = 0
+while True:
+    results = index.query(
+        search_query=SearchQuery(
+            query=Query(match_all={}),
+            source=SourceFilter(includes=["study_name", "participant_count"]),
+            # search_after walks a sort order, so the sort has to put every row
+            # in a definite position. participant_count is unique in this table;
+            # on real data append a unique column to break ties, or a page
+            # boundary can skip or repeat rows.
+            sort=[{"participant_count": "desc"}],
+            # None on the first request, then the cursor from the previous one
+            search_after=search_after,
+            size=page_size,
+        ),
+        response_parts=[SearchQueryPart.HITS, SearchQueryPart.TOTAL_HITS],
+    )
+    print(f"Page {page}:")
+    print(f"total_hits={results.total_hits}, returned={len(results.hits)}")
+    for hit in results.hits:
+        fields = {field.name: field.value for field in hit.fields}
+        print(f"  {fields}")
+
+    # The cursor is opaque -- pass it back unchanged. It goes None on the last
+    # page, which is what ends the walk.
+    search_after = results.next_search_after
+    if not search_after or not results.hits:
+        break
+    page += 1
+
+# --8<-- [end:pagination_cursor]
 
 
 # --8<-- [start:search_configuration]
