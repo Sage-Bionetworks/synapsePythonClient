@@ -149,7 +149,7 @@ print(f"columns: {[column.name for column in results.select_columns]}")
 print(f"total_hits={results.total_hits}, returned={len(results.hits)}")
 for hit in results.hits:
     fields = {field.name: field.value for field in hit.fields}
-    print(f"  ROW_ID={hit.row_id} {fields}")
+    print(f"  {fields}")
 
 # A multi_match clause runs the same text across several columns, so the
 # person searching does not need to know which column holds the term.
@@ -171,7 +171,37 @@ print("\nAnything mentioning tau:")
 print(f"total_hits={results.total_hits}, returned={len(results.hits)}")
 for hit in results.hits:
     fields = {field.name: field.value for field in hit.fields}
-    print(f"  ROW_ID={hit.row_id} {fields}")
+    print(f"  {fields}")
+
+# People misspell things. `fuzziness` tolerates a number of single-character
+# edits -- insert, delete, substitute, or transpose -- between what was typed
+# and what is in the index.
+results = index.query(
+    search_query=SearchQuery(
+        query=Query(
+            match={
+                "abstract": MatchFieldOptions(
+                    # "sequencing" with a missing "i"
+                    query="sequencng",
+                    # "AUTO" scales the allowance with term length: 0 edits for
+                    # very short terms, 1 for medium, 2 for long ones
+                    fuzziness="AUTO",
+                    # The first 3 characters still have to be exact. Without
+                    # this, short unrelated words start matching each other
+                    prefix_length=3,
+                )
+            }
+        ),
+        source=SourceFilter(includes=["study_name"]),
+        size=10,
+    ),
+    response_parts=[SearchQueryPart.HITS, SearchQueryPart.TOTAL_HITS],
+)
+print("\nMisspelling 'sequencng' still finds:")
+print(f"total_hits={results.total_hits}, returned={len(results.hits)}")
+for hit in results.hits:
+    fields = {field.name: field.value for field in hit.fields}
+    print(f"  {fields}")
 
 # --8<-- [end:full_text_search]
 
@@ -191,7 +221,7 @@ results = index.query(
 print("Studies that sequenced something:")
 for hit in results.hits:
     fields = {field.name: field.value for field in hit.fields}
-    print(f"  ROW_ID={hit.row_id} {fields}")
+    print(f"  {fields}")
     for highlight in hit.highlights:
         print(f"    {highlight.name}: {highlight.snippets}")
 
@@ -233,7 +263,7 @@ print("Sequencing studies with at least 200 participants, largest first:")
 print(f"total_hits={results.total_hits}, returned={len(results.hits)}")
 for hit in results.hits:
     fields = {field.name: field.value for field in hit.fields}
-    print(f"  ROW_ID={hit.row_id} {fields}")
+    print(f"  {fields}")
 
 # --8<-- [end:filters_and_sorting]
 
@@ -269,7 +299,7 @@ print("Hits after the post filter:")
 print(f"total_hits={results.total_hits}, returned={len(results.hits)}")
 for hit in results.hits:
     fields = {field.name: field.value for field in hit.fields}
-    print(f"  ROW_ID={hit.row_id} {fields}")
+    print(f"  {fields}")
 print("\nFacet counts across all studies:")
 print(json.dumps(results.aggregation_results, indent=2))
 
@@ -498,7 +528,7 @@ def create_index_with_configuration(search_configuration_id: str) -> SearchIndex
     print(f"total_hits={results.total_hits}, returned={len(results.hits)}")
     for hit in results.hits:
         fields = {field.name: field.value for field in hit.fields}
-        print(f"  ROW_ID={hit.row_id} {fields}")
+        print(f"  {fields}")
     return index
 
 

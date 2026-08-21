@@ -96,6 +96,12 @@ By default a hit carries every indexed column. `source` narrows that down, and
 `response_parts` asks for extras beyond the hits themselves — here the total hit count
 and the columns each hit carries.
 
+Adding `fuzziness` to a `match` clause buys typo tolerance: the term someone typed will
+still match a term in the index that is a few single-character edits away. `"AUTO"`
+scales the allowance with term length, and `prefix_length` pins the first few characters
+so unrelated short words don't start matching each other. Both options are available on
+`match`, `match_bool_prefix`, and `multi_match`.
+
 ```python
 --8<-- "docs/tutorials/python/tutorial_scripts/search.py:full_text_search"
 ```
@@ -107,13 +113,19 @@ and the columns each hit carries.
 Abstracts mentioning Alzheimer's:
 columns: ['study_name', 'diagnosis']
 total_hits=3, returned=3
-  ROW_ID=1 {'study_name': 'ROSMAP Cortex Proteomics', 'diagnosis': "Alzheimer's Disease"}
-  ROW_ID=2 {'study_name': 'MSBB RNA Sequencing', 'diagnosis': "Alzheimer's Disease"}
-  ROW_ID=3 {'study_name': 'Mayo Clinic Whole Genome', 'diagnosis': "Alzheimer's Disease"}
+  {'study_name': 'ROSMAP Cortex Proteomics', 'diagnosis': "Alzheimer's Disease"}
+  {'study_name': 'MSBB RNA Sequencing', 'diagnosis': "Alzheimer's Disease"}
+  {'study_name': 'Mayo Clinic Whole Genome', 'diagnosis': "Alzheimer's Disease"}
 
 Anything mentioning tau:
 total_hits=1, returned=1
-  ROW_ID=5 {'study_name': 'MCI Plasma Biomarkers'}
+  {'study_name': 'MCI Plasma Biomarkers'}
+
+Misspelling 'sequencng' still finds:
+total_hits=3, returned=3
+  {'study_name': 'MSBB RNA Sequencing'}
+  {'study_name': 'Mayo Clinic Whole Genome'}
+  {'study_name': 'Healthy Aging Single Cell Atlas'}
 ```
 </details>
 
@@ -136,11 +148,11 @@ wrapped in `<em>` tags.
 
 ```
 Studies that sequenced something:
-  ROW_ID=2 {'study_name': 'MSBB RNA Sequencing', 'assay': 'rnaSeq'}
+  {'study_name': 'MSBB RNA Sequencing', 'assay': 'rnaSeq'}
     abstract: ['Bulk RNA <em>sequencing</em> across four brain regions in a cohort']
-  ROW_ID=3 {'study_name': 'Mayo Clinic Whole Genome', 'assay': 'wholeGenomeSeq'}
+  {'study_name': 'Mayo Clinic Whole Genome', 'assay': 'wholeGenomeSeq'}
     abstract: ['Whole genome <em>sequencing</em> of temporal cortex samples from']
-  ROW_ID=4 {'study_name': 'Healthy Aging Single Cell Atlas', 'assay': 'snrnaSeq'}
+  {'study_name': 'Healthy Aging Single Cell Atlas', 'assay': 'snrnaSeq'}
     abstract: ['Single nucleus RNA <em>sequencing</em> of hippocampus from']
 ```
 </details>
@@ -172,8 +184,8 @@ and `_score` sorts are accepted.
 ```
 Sequencing studies with at least 200 participants, largest first:
 total_hits=2, returned=2
-  ROW_ID=3 {'study_name': 'Mayo Clinic Whole Genome', 'participant_count': '350'}
-  ROW_ID=2 {'study_name': 'MSBB RNA Sequencing', 'participant_count': '300'}
+  {'study_name': 'Mayo Clinic Whole Genome', 'participant_count': '350'}
+  {'study_name': 'MSBB RNA Sequencing', 'participant_count': '300'}
 ```
 </details>
 
@@ -200,9 +212,9 @@ diagnosis counts disappear.
 ```
 Hits after the post filter:
 total_hits=3, returned=3
-  ROW_ID=1 {'study_name': 'ROSMAP Cortex Proteomics', 'diagnosis': "Alzheimer's Disease"}
-  ROW_ID=2 {'study_name': 'MSBB RNA Sequencing', 'diagnosis': "Alzheimer's Disease"}
-  ROW_ID=3 {'study_name': 'Mayo Clinic Whole Genome', 'diagnosis': "Alzheimer's Disease"}
+  {'study_name': 'ROSMAP Cortex Proteomics', 'diagnosis': "Alzheimer's Disease"}
+  {'study_name': 'MSBB RNA Sequencing', 'diagnosis': "Alzheimer's Disease"}
+  {'study_name': 'Mayo Clinic Whole Genome', 'diagnosis': "Alzheimer's Disease"}
 
 Facet counts across all studies:
 {
@@ -370,9 +382,9 @@ Index syn68123457 is queryable with 6 rows
 Bound configuration 4321 to syn12345678
 Abstracts matching the abbreviation 'AD':
 total_hits=3, returned=3
-  ROW_ID=1 {'study_name': 'ROSMAP Cortex Proteomics', 'diagnosis': "Alzheimer's Disease"}
-  ROW_ID=2 {'study_name': 'MSBB RNA Sequencing', 'diagnosis': "Alzheimer's Disease"}
-  ROW_ID=3 {'study_name': 'Mayo Clinic Whole Genome', 'diagnosis': "Alzheimer's Disease"}
+  {'study_name': 'ROSMAP Cortex Proteomics', 'diagnosis': "Alzheimer's Disease"}
+  {'study_name': 'MSBB RNA Sequencing', 'diagnosis': "Alzheimer's Disease"}
+  {'study_name': 'Mayo Clinic Whole Genome', 'diagnosis': "Alzheimer's Disease"}
 ```
 </details>
 
