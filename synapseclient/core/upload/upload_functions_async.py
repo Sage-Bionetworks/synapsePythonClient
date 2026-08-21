@@ -2,6 +2,7 @@
 
 import asyncio
 import os
+import time
 import urllib.parse as urllib_parse
 import uuid
 from typing import TYPE_CHECKING, Dict, Optional, Union
@@ -19,7 +20,7 @@ from synapseclient.api import (
 from synapseclient.core import sts_transfer, utils
 from synapseclient.core.constants import concrete_types
 from synapseclient.core.exceptions import SynapseMd5MismatchError
-from synapseclient.core.otel_config import get_tracer
+from synapseclient.core.otel_config import get_meter, get_tracer
 from synapseclient.core.remote_file_storage_wrappers import S3ClientWrapper, SFTPWrapper
 from synapseclient.core.upload.multipart_upload_async import multipart_upload_file_async
 from synapseclient.core.utils import as_url, file_url_to_path, id_of, is_url
@@ -28,6 +29,11 @@ if TYPE_CHECKING:
     from synapseclient import Synapse
 
 tracer = get_tracer()
+meter = get_meter()
+_upload_counter = meter.create_counter("synapse.file_handle.uploads")
+_upload_duration = meter.create_histogram(
+    "synapse.file_handle.upload.duration", unit="s"
+)
 
 
 @tracer.start_as_current_span("synapse.transfer.upload")
@@ -66,125 +72,136 @@ async def upload_file_handle(
     if path is None:
         raise ValueError("path can not be None")
 
-    span = trace.get_current_span()
-    span.set_attribute("synapse.transfer.direction", "upload")
-    span.set_attribute("synapse.operation.category", "file_transfer")
+    attributes = {"external_file_handle": not synapse_store}
+    _upload_counter.add(1, attributes)
+    started = time.monotonic()
+    try:
+        span = trace.get_current_span()
+        span.set_attribute("synapse.transfer.direction", "upload")
+        span.set_attribute("synapse.operation.category", "file_transfer")
+        span.set_attribute("synapse.file_handle.external", not synapse_store)
 
-    # if doing a external file handle with no actual upload
-    if not synapse_store:
-        file_handle = await create_external_file_handle(
-            syn, path, mimetype=mimetype, md5=md5, file_size=file_size
-        )
-        span.set_attribute("synapse.file_handle_id", file_handle.get("id"))
-        return file_handle
-
-    # expand the path because past this point an upload is required and some upload functions require an absolute path
-    expanded_upload_path = os.path.expandvars(os.path.expanduser(path))
-
-    if md5 is None and os.path.isfile(expanded_upload_path):
-        md5 = utils.md5_for_file_hex(filename=expanded_upload_path)
-
-    entity_parent_id = id_of(parent_entity_id)
-
-    # determine the upload function based on the UploadDestination
-    location = await get_upload_destination(
-        entity_id=entity_parent_id, synapse_client=syn
-    )
-    upload_destination_type = location.get("concreteType", None) if location else None
-
-    if (
-        sts_transfer.is_boto_sts_transfer_enabled(syn)
-        and await sts_transfer.is_storage_location_sts_enabled_async(
-            syn, entity_parent_id, location
-        )
-        and upload_destination_type == concrete_types.EXTERNAL_S3_UPLOAD_DESTINATION
-    ):
-        file_handle = await upload_synapse_sts_boto_s3(
-            syn=syn,
-            parent_id=entity_parent_id,
-            upload_destination=location,
-            local_path=expanded_upload_path,
-            mimetype=mimetype,
-            md5=md5,
-            storage_str="Uploading file to external S3 storage using boto3",
-        )
-    elif upload_destination_type in (
-        concrete_types.SYNAPSE_S3_UPLOAD_DESTINATION,
-        concrete_types.EXTERNAL_S3_UPLOAD_DESTINATION,
-        concrete_types.EXTERNAL_GCP_UPLOAD_DESTINATION,
-    ):
-        if upload_destination_type == concrete_types.SYNAPSE_S3_UPLOAD_DESTINATION:
-            storage_str = "Uploading to Synapse storage"
-            span.set_attribute("synapse.storage.provider", "s3")
-        elif upload_destination_type == concrete_types.EXTERNAL_S3_UPLOAD_DESTINATION:
-            storage_str = "Uploading to your external S3 storage"
-            span.set_attribute("synapse.storage.provider", "s3")
-        else:
-            storage_str = "Uploading to your external Google Bucket storage"
-            span.set_attribute("synapse.storage.provider", "gcs")
-        file_handle = await upload_synapse_s3(
-            syn=syn,
-            file_path=expanded_upload_path,
-            storage_location_id=location["storageLocationId"],
-            mimetype=mimetype,
-            md5=md5,
-            storage_str=storage_str,
-        )
-    # external file handle (sftp)
-    elif upload_destination_type == concrete_types.EXTERNAL_UPLOAD_DESTINATION:
-        if location["uploadType"] == "SFTP":
-            storage_str = (
-                f"Uploading to: {urllib_parse.urlparse(location['url']).netloc}"
+        # if doing a external file handle with no actual upload
+        if not synapse_store:
+            file_handle = await create_external_file_handle(
+                syn, path, mimetype=mimetype, md5=md5, file_size=file_size
             )
-            banner = location.get("banner", None)
-            if banner:
-                syn.logger.info(banner)
-            file_handle = await upload_external_file_handle_sftp(
+            span.set_attribute("synapse.file_handle_id", file_handle.get("id"))
+            return file_handle
+
+        # expand the path because past this point an upload is required and some upload functions require an absolute path
+        expanded_upload_path = os.path.expandvars(os.path.expanduser(path))
+
+        if md5 is None and os.path.isfile(expanded_upload_path):
+            md5 = utils.md5_for_file_hex(filename=expanded_upload_path)
+
+        entity_parent_id = id_of(parent_entity_id)
+
+        # determine the upload function based on the UploadDestination
+        location = await get_upload_destination(
+            entity_id=entity_parent_id, synapse_client=syn
+        )
+        upload_destination_type = (
+            location.get("concreteType", None) if location else None
+        )
+
+        if (
+            sts_transfer.is_boto_sts_transfer_enabled(syn)
+            and await sts_transfer.is_storage_location_sts_enabled_async(
+                syn, entity_parent_id, location
+            )
+            and upload_destination_type == concrete_types.EXTERNAL_S3_UPLOAD_DESTINATION
+        ):
+            file_handle = await upload_synapse_sts_boto_s3(
+                syn=syn,
+                parent_id=entity_parent_id,
+                upload_destination=location,
+                local_path=expanded_upload_path,
+                mimetype=mimetype,
+                md5=md5,
+                storage_str="Uploading file to external S3 storage using boto3",
+            )
+        elif upload_destination_type in (
+            concrete_types.SYNAPSE_S3_UPLOAD_DESTINATION,
+            concrete_types.EXTERNAL_S3_UPLOAD_DESTINATION,
+            concrete_types.EXTERNAL_GCP_UPLOAD_DESTINATION,
+        ):
+            if upload_destination_type == concrete_types.SYNAPSE_S3_UPLOAD_DESTINATION:
+                storage_str = "Uploading to Synapse storage"
+                span.set_attribute("synapse.storage.provider", "s3")
+            elif (
+                upload_destination_type == concrete_types.EXTERNAL_S3_UPLOAD_DESTINATION
+            ):
+                storage_str = "Uploading to your external S3 storage"
+                span.set_attribute("synapse.storage.provider", "s3")
+            else:
+                storage_str = "Uploading to your external Google Bucket storage"
+                span.set_attribute("synapse.storage.provider", "gcs")
+            file_handle = await upload_synapse_s3(
                 syn=syn,
                 file_path=expanded_upload_path,
-                sftp_url=location["url"],
+                storage_location_id=location["storageLocationId"],
                 mimetype=mimetype,
                 md5=md5,
                 storage_str=storage_str,
             )
-        else:
-            raise NotImplementedError("Can only handle SFTP upload locations.")
-    # client authenticated S3
-    elif (
-        upload_destination_type
-        == concrete_types.EXTERNAL_OBJECT_STORE_UPLOAD_DESTINATION
-    ):
-        storage_str = (
-            f"Uploading to endpoint: [{location.get('endpointUrl')}] "
-            f"bucket: [{location.get('bucket')}]"
-        )
-        banner = location.get("banner", None)
-        if banner:
-            syn.logger.info(banner)
-        file_handle = await upload_client_auth_s3(
-            syn=syn,
-            file_path=expanded_upload_path,
-            bucket=location["bucket"],
-            endpoint_url=location["endpointUrl"],
-            key_prefix=location["keyPrefixUUID"],
-            storage_location_id=location["storageLocationId"],
-            mimetype=mimetype,
-            md5=md5,
-            storage_str=storage_str,
-        )
-    else:  # unknown storage location
-        span.set_attribute("synapse.storage.provider", "s3")
-        file_handle = await upload_synapse_s3(
-            syn=syn,
-            file_path=expanded_upload_path,
-            storage_location_id=None,
-            mimetype=mimetype,
-            md5=md5,
-            storage_str="Uploading to Synapse storage",
-        )
+        # external file handle (sftp)
+        elif upload_destination_type == concrete_types.EXTERNAL_UPLOAD_DESTINATION:
+            if location["uploadType"] == "SFTP":
+                storage_str = (
+                    f"Uploading to: {urllib_parse.urlparse(location['url']).netloc}"
+                )
+                banner = location.get("banner", None)
+                if banner:
+                    syn.logger.info(banner)
+                file_handle = await upload_external_file_handle_sftp(
+                    syn=syn,
+                    file_path=expanded_upload_path,
+                    sftp_url=location["url"],
+                    mimetype=mimetype,
+                    md5=md5,
+                    storage_str=storage_str,
+                )
+            else:
+                raise NotImplementedError("Can only handle SFTP upload locations.")
+        # client authenticated S3
+        elif (
+            upload_destination_type
+            == concrete_types.EXTERNAL_OBJECT_STORE_UPLOAD_DESTINATION
+        ):
+            storage_str = (
+                f"Uploading to endpoint: [{location.get('endpointUrl')}] "
+                f"bucket: [{location.get('bucket')}]"
+            )
+            banner = location.get("banner", None)
+            if banner:
+                syn.logger.info(banner)
+            file_handle = await upload_client_auth_s3(
+                syn=syn,
+                file_path=expanded_upload_path,
+                bucket=location["bucket"],
+                endpoint_url=location["endpointUrl"],
+                key_prefix=location["keyPrefixUUID"],
+                storage_location_id=location["storageLocationId"],
+                mimetype=mimetype,
+                md5=md5,
+                storage_str=storage_str,
+            )
+        else:  # unknown storage location
+            span.set_attribute("synapse.storage.provider", "s3")
+            file_handle = await upload_synapse_s3(
+                syn=syn,
+                file_path=expanded_upload_path,
+                storage_location_id=None,
+                mimetype=mimetype,
+                md5=md5,
+                storage_str="Uploading to Synapse storage",
+            )
 
-    span.set_attribute("synapse.file_handle_id", file_handle.get("id"))
-    return file_handle
+        span.set_attribute("synapse.file_handle_id", file_handle.get("id"))
+        return file_handle
+    finally:
+        _upload_duration.record(time.monotonic() - started, attributes)
 
 
 async def create_external_file_handle(

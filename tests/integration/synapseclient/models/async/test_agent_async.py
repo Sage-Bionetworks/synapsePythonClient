@@ -1,5 +1,8 @@
 """Integration tests for the asynchronous methods of the AgentPrompt, AgentSession, and Agent classes."""
 
+import asyncio
+from typing import Any, Awaitable
+
 import pytest
 
 from synapseclient import Synapse
@@ -10,7 +13,6 @@ from synapseclient.models.agent import (
     AgentSession,
     AgentSessionAccessLevel,
 )
-from tests.integration import ASYNC_JOB_TIMEOUT_SEC
 
 # These are the ID values for a "Hello World" agent registered on Synapse.
 # The Bedrock agent is hosted on Sage Bionetworks AWS infrastructure.
@@ -18,6 +20,22 @@ from tests.integration import ASYNC_JOB_TIMEOUT_SEC
 # https://raw.githubusercontent.com/Sage-Bionetworks-Workflows/dpe-agents/refs/heads/main/client_integration_test/template.json
 
 AGENT_AWS_ID = "QOTV3KQM1X"
+
+# The client's job timeout is a no-progress budget rather than a total one:
+# `get_job_async` resets its clock on every progress message, so a job that keeps
+# reporting progress never times out. The agent answering these prompts is hosted
+# outside this repository, so each prompt also carries a hard wall-clock deadline.
+AGENT_PROMPT_TIMEOUT_SEC = 120
+AGENT_PROMPT_DEADLINE_SEC = 300
+
+# An agent that will not answer is an outage rather than flake: a retry cannot make
+# it respond, and each one costs another full deadline.
+pytestmark = pytest.mark.flaky(reruns=0)
+
+
+async def within_deadline(prompt: Awaitable[Any]) -> Any:
+    """Bound a prompt's total wall clock, not only the stalls between progress."""
+    return await asyncio.wait_for(prompt, timeout=AGENT_PROMPT_DEADLINE_SEC)
 
 
 class TestAgentPrompt:
@@ -44,9 +62,12 @@ class TestAgentPrompt:
         ).start_async(synapse_client=self.syn)
         test_prompt.session_id = test_session.id
         # WHEN I send the job and wait for it to complete
-        await test_prompt.send_job_and_wait_async(
-            post_exchange_args={"newer_than": 0},
-            synapse_client=self.syn,
+        await within_deadline(
+            test_prompt.send_job_and_wait_async(
+                post_exchange_args={"newer_than": 0},
+                timeout=AGENT_PROMPT_TIMEOUT_SEC,
+                synapse_client=self.syn,
+            )
         )
         # THEN I expect the AgentPrompt to be updated with the response and trace
         assert test_prompt.response is not None
@@ -122,11 +143,13 @@ class TestAgentSession:
         # WHEN I start a session
         await agent_session.start_async(synapse_client=self.syn)
         # THEN I expect to be able to prompt the agent
-        await agent_session.prompt_async(
-            prompt="hello",
-            enable_trace=True,
-            timeout=ASYNC_JOB_TIMEOUT_SEC,
-            synapse_client=self.syn,
+        await within_deadline(
+            agent_session.prompt_async(
+                prompt="hello",
+                enable_trace=True,
+                timeout=AGENT_PROMPT_TIMEOUT_SEC,
+                synapse_client=self.syn,
+            )
         )
         # AND I expect the chat history to be updated with the prompt and response
         assert len(agent_session.chat_history) == 1
@@ -216,12 +239,14 @@ class TestAgent:
             agent_registration_id=self.AGENT_REGISTRATION_ID
         ).start_async(synapse_client=self.syn)
         # WHEN I prompt the agent with a session
-        await agent.prompt_async(
-            prompt="hello",
-            enable_trace=True,
-            session=session,
-            timeout=ASYNC_JOB_TIMEOUT_SEC,
-            synapse_client=self.syn,
+        await within_deadline(
+            agent.prompt_async(
+                prompt="hello",
+                enable_trace=True,
+                session=session,
+                timeout=AGENT_PROMPT_TIMEOUT_SEC,
+                synapse_client=self.syn,
+            )
         )
         test_session = agent.sessions[session.id]
         # THEN I expect the chat history to be updated with the prompt and response
@@ -239,11 +264,13 @@ class TestAgent:
         )
         # WHEN I prompt the agent without a current session set
         # and no session provided
-        await agent.prompt_async(
-            prompt="hello",
-            enable_trace=True,
-            timeout=ASYNC_JOB_TIMEOUT_SEC,
-            synapse_client=self.syn,
+        await within_deadline(
+            agent.prompt_async(
+                prompt="hello",
+                enable_trace=True,
+                timeout=AGENT_PROMPT_TIMEOUT_SEC,
+                synapse_client=self.syn,
+            )
         )
         # THEN I expect a new session to be started and set as the current session
         assert agent.current_session is not None
