@@ -21,7 +21,7 @@ Synapse Python client.
 In this tutorial, you will:
 
 1. Log in, get your project, and create a table to index
-2. Create a SearchIndex and wait for it to build
+2. Create a SearchIndex
 3. Run a full-text search
 4. Highlight where the match happened
 5. Combine scored clauses with unscored filters, and sort the results
@@ -33,8 +33,6 @@ In this tutorial, you will:
 ## Prerequisites
 * This tutorial assumes that you have a Synapse project.
 * Pandas must also be installed as shown in the [installation documentation](../installation.md).
-* Creating a SearchIndex may be restricted on some Synapse stacks. If `store()` fails
-  with a 403, your account is not permitted to create search indexes there.
 
 ## 1. Log in, get your project, and create a table to index
 
@@ -55,17 +53,26 @@ to wait out the index build.
 --8<-- "docs/tutorials/python/tutorial_scripts/search.py:helpers"
 ```
 
-## 2. Create a SearchIndex and wait for it to build
+## 2. Create a SearchIndex Entity
 
-The `defining_sql` decides which rows and columns are indexed. Unlike a Materialized
-View, it must reference exactly one table-like entity — JOIN and UNION across several
+The `defining_sql` decides which rows and columns are indexed. It must reference exactly
+one table-like entity — unlike a Materialized View, JOIN and UNION across several
 entities are not supported. If you need to search across several tables, build a
 [Materialized View](materializedview.md) first and index that.
 
-Storing the entity returns as soon as Synapse has accepted it, but the OpenSearch index
-behind it is built in the background. Until the build finishes, queries against the
-index either raise an error or report zero hits, which is why we poll with
-`wait_for_index`.
+Any of these can be the source, whichever one the SQL selects from:
+
+* a [Table][synapseclient.models.Table]
+* an [EntityView][synapseclient.models.EntityView]
+* a [DatasetCollection][synapseclient.models.DatasetCollection]
+* a [MaterializedView][synapseclient.models.MaterializedView]
+
+The SQL can pin a specific version of the source (`SELECT * FROM syn12345.7`), select a
+subset of columns, and carry `WHERE`, `ORDER BY`, and `LIMIT` clauses — only those rows
+and columns end up in the index.
+
+Storing the search index entity returns as soon as Synapse has accepted it, but the OpenSearch index
+behind it is built in the background.
 
 ```python
 --8<-- "docs/tutorials/python/tutorial_scripts/search.py:create_index"
@@ -73,6 +80,7 @@ index either raise an error or report zero hits, which is why we poll with
 
 <details class="example">
   <summary>Creating the index should look like:</summary>
+
 ```
 Created SearchIndex with ID: syn68123456
 Waiting for the search index to build...
@@ -101,6 +109,7 @@ and the columns each hit carries.
 
 <details class="example">
   <summary>The results of your searches should look like:</summary>
+
 ```
 Abstracts mentioning Alzheimer's:
 columns: ['study_name', 'diagnosis']
@@ -131,6 +140,7 @@ wrapped in `<em>` tags.
 
 <details class="example">
   <summary>The result of your highlighted search should look like:</summary>
+
 ```
 Studies that sequenced something:
   ROW_ID=2 {'study_name': 'MSBB RNA Sequencing', 'assay': 'rnaSeq'}
@@ -165,6 +175,7 @@ and `_score` sorts are accepted.
 
 <details class="example">
   <summary>The result of your filtered search should look like:</summary>
+
 ```
 Sequencing studies with at least 200 participants, largest first:
 total_hits=2, returned=2
@@ -192,6 +203,7 @@ diagnosis counts disappear.
 
 <details class="example">
   <summary>The result of your faceted search should look like:</summary>
+
 ```
 Hits after the post filter:
 total_hits=3, returned=3
@@ -250,7 +262,7 @@ Suggestions for 'Mayo Cl':
 ```
 </details>
 
-## 8. Page through results
+## 8. Pagination
 
 A query returns at most 100 hits at a time (25 by default). `from_` and `size` walk
 through the result set the way page numbers do.

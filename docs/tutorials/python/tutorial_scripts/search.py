@@ -2,7 +2,6 @@
 
 # --8<-- [start:setup]
 import json
-import time
 
 import pandas as pd
 
@@ -125,254 +124,195 @@ def print_hits(results: SearchIndexQuery) -> None:
         print(f"  ROW_ID={hit.row_id} {fields}")
 
 
-def wait_for_index(index: SearchIndex, timeout: int = 600) -> None:
-    """Wait until the search index has finished building.
-
-    Building the OpenSearch index behind a SearchIndex happens in the background
-    after `store()` returns. Until that build completes, a query against the
-    index either raises an error or reports zero hits.
-    """
-    deadline = time.time() + timeout
-    while time.time() < deadline:
-        try:
-            results = index.query(
-                search_query=SearchQuery(query=Query(match_all={}), size=1),
-                response_parts=[SearchQueryPart.TOTAL_HITS],
-            )
-            if results.total_hits:
-                print(f"Index {index.id} is queryable with {results.total_hits} rows")
-                return
-        except SynapseError:
-            pass  # The index has not been created yet
-        print("Waiting for the search index to build...")
-        time.sleep(10)
-    raise TimeoutError(f"{index.id} did not finish building within {timeout} seconds")
-
-
 # --8<-- [end:helpers]
 
 
 # --8<-- [start:create_index]
-def create_search_index() -> SearchIndex:
-    """
-    Example: Create a SearchIndex over a single table and wait for it to build.
-    """
-    index = SearchIndex(
-        name="Study Summaries Search Index",
-        description="Full text search over the study summary table",
-        parent_id=project_id,
-        # The defining SQL must reference exactly one table-like entity
-        defining_sql=f"SELECT * FROM {table.id}",
-    )
-    index = index.store()
-    print(f"Created SearchIndex with ID: {index.id}")
-
-    wait_for_index(index)
-    return index
-
+# Create a SearchIndex over a single table and wait for it to build.
+index = SearchIndex(
+    name="Study Summaries Search Index",
+    description="Full text search over the study summary table",
+    parent_id=project_id,
+    # The defining SQL must reference exactly one table-like entity
+    defining_sql=f"SELECT * FROM {table.id}",
+)
+index = index.store()
+print(f"Created SearchIndex with ID: {index.id}")
 
 # --8<-- [end:create_index]
 
 
 # --8<-- [start:full_text_search]
-def search_free_text(index: SearchIndex) -> None:
-    """
-    Example: Find every study whose abstract mentions Alzheimer's disease, then
-    search across several columns at once.
-    """
-    results = index.query(
-        search_query=SearchQuery(
-            query=Query(match={"abstract": MatchFieldOptions(query="alzheimer")}),
-            # Every indexed column comes back on each hit unless a source filter
-            # narrows them down, and the abstracts are long
-            source=SourceFilter(includes=["study_name", "diagnosis"]),
-            size=10,
-        ),
-        response_parts=[SearchQueryPart.TOTAL_HITS, SearchQueryPart.SELECT_COLUMNS],
-    )
-    print("Abstracts mentioning Alzheimer's:")
-    print(f"columns: {[column.name for column in results.select_columns]}")
-    print_hits(results)
+# Find every study whose abstract mentions Alzheimer's disease, then
+# search across several columns at once.
+results = index.query(
+    search_query=SearchQuery(
+        query=Query(match={"abstract": MatchFieldOptions(query="alzheimer")}),
+        # Every indexed column comes back on each hit unless a source filter
+        # narrows them down, and the abstracts are long
+        source=SourceFilter(includes=["study_name", "diagnosis"]),
+        size=10,
+    ),
+    response_parts=[SearchQueryPart.TOTAL_HITS, SearchQueryPart.SELECT_COLUMNS],
+)
+print("Abstracts mentioning Alzheimer's:")
+print(f"columns: {[column.name for column in results.select_columns]}")
+print_hits(results)
 
-    # A multi_match clause runs the same text across several columns, so the
-    # person searching does not need to know which column holds the term.
-    results = index.query(
-        search_query=SearchQuery(
-            query=Query(
-                multi_match=MultiMatchQuery(
-                    query="tau",
-                    # ^2 boosts a match in the study name over one in the abstract
-                    fields=["study_name^2", "abstract"],
-                )
-            ),
-            source=SourceFilter(includes=["study_name"]),
-            size=10,
+# A multi_match clause runs the same text across several columns, so the
+# person searching does not need to know which column holds the term.
+results = index.query(
+    search_query=SearchQuery(
+        query=Query(
+            multi_match=MultiMatchQuery(
+                query="tau",
+                # ^2 boosts a match in the study name over one in the abstract
+                fields=["study_name^2", "abstract"],
+            )
         ),
-        response_parts=[SearchQueryPart.TOTAL_HITS],
-    )
-    print("\nAnything mentioning tau:")
-    print_hits(results)
-
+        source=SourceFilter(includes=["study_name"]),
+        size=10,
+    ),
+    response_parts=[SearchQueryPart.TOTAL_HITS],
+)
+print("\nAnything mentioning tau:")
+print_hits(results)
 
 # --8<-- [end:full_text_search]
 
 
 # --8<-- [start:columns_and_highlights]
-def search_with_highlighting(index: SearchIndex) -> None:
-    """
-    Example: Ask for a snippet of the matching text alongside each hit, so a
-    result list can show why the row matched.
-    """
-    results = index.query(
-        search_query=SearchQuery(
-            query=Query(match={"abstract": MatchFieldOptions(query="sequencing")}),
-            source=SourceFilter(includes=["study_name", "assay"]),
-            highlight=Highlight(
-                fields={"abstract": HighlightField(number_of_fragments=1)}
-            ),
-            size=10,
-        ),
-        response_parts=[SearchQueryPart.TOTAL_HITS],
-    )
-    print("Studies that sequenced something:")
-    for hit in results.hits:
-        fields = {field.name: field.value for field in hit.fields}
-        print(f"  ROW_ID={hit.row_id} {fields}")
-        for highlight in hit.highlights:
-            print(f"    {highlight.name}: {highlight.snippets}")
+# Ask for a snippet of the matching text alongside each hit, so a
+# result list can show why the row matched.
+results = index.query(
+    search_query=SearchQuery(
+        query=Query(match={"abstract": MatchFieldOptions(query="sequencing")}),
+        source=SourceFilter(includes=["study_name", "assay"]),
+        highlight=Highlight(fields={"abstract": HighlightField(number_of_fragments=1)}),
+        size=10,
+    ),
+    response_parts=[SearchQueryPart.TOTAL_HITS],
+)
+print("Studies that sequenced something:")
+for hit in results.hits:
+    fields = {field.name: field.value for field in hit.fields}
+    print(f"  ROW_ID={hit.row_id} {fields}")
+    for highlight in hit.highlights:
+        print(f"    {highlight.name}: {highlight.snippets}")
 
 
 # --8<-- [end:columns_and_highlights]
 
 
 # --8<-- [start:filters_and_sorting]
-def search_with_filters(index: SearchIndex) -> None:
-    """
-    Example: Combine a scored clause with unscored filters using a bool query,
-    then order the results by a numeric column instead of by relevance.
-    """
-    results = index.query(
-        search_query=SearchQuery(
-            query=Query(
-                bool=BoolQuery(
-                    # Scored: how well the abstract matches drives relevance
-                    must=[
-                        Query(match={"abstract": MatchFieldOptions(query="sequencing")})
-                    ],
-                    # Unscored: a hard cutoff on cohort size
-                    filter=[
-                        Query(range={"participant_count": RangeFieldOptions(gte=200)})
-                    ],
-                    # Unscored: drop a diagnosis we are not interested in
-                    must_not=[
-                        Query(
-                            match_phrase={
-                                "diagnosis": MatchPhraseFieldOptions(
-                                    query="Parkinson's Disease"
-                                )
-                            }
-                        )
-                    ],
-                )
-            ),
-            source=SourceFilter(includes=["study_name", "participant_count"]),
-            sort=[{"participant_count": "desc"}],
-            size=10,
-        ),
-        response_parts=[SearchQueryPart.TOTAL_HITS],
-    )
-    print("Sequencing studies with at least 200 participants, largest first:")
-    print_hits(results)
+# Combine a scored clause with unscored filters using a bool query,
+# then order the results by a numeric column instead of by relevance.
 
+results = index.query(
+    search_query=SearchQuery(
+        query=Query(
+            bool=BoolQuery(
+                # Scored: how well the abstract matches drives relevance
+                must=[Query(match={"abstract": MatchFieldOptions(query="sequencing")})],
+                # Unscored: a hard cutoff on cohort size
+                filter=[Query(range={"participant_count": RangeFieldOptions(gte=200)})],
+                # Unscored: drop a diagnosis we are not interested in
+                must_not=[
+                    Query(
+                        match_phrase={
+                            "diagnosis": MatchPhraseFieldOptions(
+                                query="Parkinson's Disease"
+                            )
+                        }
+                    )
+                ],
+            )
+        ),
+        source=SourceFilter(includes=["study_name", "participant_count"]),
+        sort=[{"participant_count": "desc"}],
+        size=10,
+    ),
+    response_parts=[SearchQueryPart.TOTAL_HITS],
+)
+print("Sequencing studies with at least 200 participants, largest first:")
+print_hits(results)
 
 # --8<-- [end:filters_and_sorting]
 
 
 # --8<-- [start:aggregations]
-def facet_the_results(index: SearchIndex) -> None:
-    """
-    Example: Count how many studies fall under each diagnosis and average their
-    cohort sizes, while the hit list itself shows only one diagnosis.
-    """
-    results = index.query(
-        search_query=SearchQuery(
-            query=Query(match_all={}),
-            aggregations={
-                "by_diagnosis": Aggregation(
-                    terms=TermsAggregation(field="diagnosis", size=10)
-                ),
-                "mean_cohort_size": Aggregation(
-                    avg=AvgAggregation(field="participant_count")
-                ),
-            },
-            # post_filter narrows the hits but not the aggregations, so the facet
-            # counts still show every option a person could pick next
-            post_filter=Query(
-                match_phrase={
-                    "diagnosis": MatchPhraseFieldOptions(query="Alzheimer's Disease")
-                }
-            ),
-            source=SourceFilter(includes=["study_name", "diagnosis"]),
-            size=10,
-        ),
-        response_parts=[SearchQueryPart.TOTAL_HITS],
-    )
-    print("Hits after the post filter:")
-    print_hits(results)
-    print("\nFacet counts across all studies:")
-    print(json.dumps(results.aggregation_results, indent=2))
+# Count how many studies fall under each diagnosis and average their
+# cohort sizes, while the hit list itself shows only one diagnosis.
 
+results = index.query(
+    search_query=SearchQuery(
+        query=Query(match_all={}),
+        aggregations={
+            "by_diagnosis": Aggregation(
+                terms=TermsAggregation(field="diagnosis", size=10)
+            ),
+            "mean_cohort_size": Aggregation(
+                avg=AvgAggregation(field="participant_count")
+            ),
+        },
+        # post_filter narrows the hits but not the aggregations, so the facet
+        # counts still show every option a person could pick next
+        post_filter=Query(
+            match_phrase={
+                "diagnosis": MatchPhraseFieldOptions(query="Alzheimer's Disease")
+            }
+        ),
+        source=SourceFilter(includes=["study_name", "diagnosis"]),
+        size=10,
+    ),
+    response_parts=[SearchQueryPart.TOTAL_HITS],
+)
+print("Hits after the post filter:")
+print_hits(results)
+print("\nFacet counts across all studies:")
+print(json.dumps(results.aggregation_results, indent=2))
 
 # --8<-- [end:aggregations]
 
 
 # --8<-- [start:autocomplete]
-def autocomplete_study_names(index: SearchIndex) -> None:
-    """
-    Example: Back a type-ahead box with the autocomplete endpoint, which returns
-    its results directly instead of running as an asynchronous job.
-    """
-    hits = index.autocomplete(
-        query=Query(
-            match_bool_prefix={
-                "study_name": MatchBoolPrefixFieldOptions(query="Mayo Cl")
-            }
-        ),
-        source=SourceFilter(includes=["study_name"]),
-    )
-    print("Suggestions for 'Mayo Cl':")
-    for hit in hits:
-        print(f"  {[field.value for field in hit.fields]}")
+# Back a type-ahead box with the autocomplete endpoint, which returns
+# its results directly instead of running as an asynchronous job.
+hits = index.autocomplete(
+    query=Query(
+        match_bool_prefix={"study_name": MatchBoolPrefixFieldOptions(query="Mayo Cl")}
+    ),
+    source=SourceFilter(includes=["study_name"]),
+)
+print("Suggestions for 'Mayo Cl':")
+for hit in hits:
+    print(f"  {[field.value for field in hit.fields]}")
 
 
 # --8<-- [end:autocomplete]
 
 
 # --8<-- [start:pagination]
-def page_through_results(index: SearchIndex) -> None:
-    """
-    Example: Walk every row in the index two hits at a time.
-    """
-    page_size = 2
-    offset = 0
-    while True:
-        results = index.query(
-            search_query=SearchQuery(
-                query=Query(match_all={}),
-                source=SourceFilter(includes=["study_name", "participant_count"]),
-                sort=[{"participant_count": "desc"}],
-                from_=offset,
-                size=page_size,
-            ),
-            response_parts=[SearchQueryPart.TOTAL_HITS],
-        )
-        print(f"Page starting at offset {offset}:")
-        print_hits(results)
+# Walk every row in the index two hits at a time.
+page_size = 2
+offset = 0
+while True:
+    results = index.query(
+        search_query=SearchQuery(
+            query=Query(match_all={}),
+            source=SourceFilter(includes=["study_name", "participant_count"]),
+            sort=[{"participant_count": "desc"}],
+            from_=offset,
+            size=page_size,
+        ),
+        response_parts=[SearchQueryPart.TOTAL_HITS],
+    )
+    print(f"Page starting at offset {offset}:")
+    print_hits(results)
 
-        offset += page_size
-        if offset >= results.total_hits:
-            break
-
+    offset += page_size
+    if offset >= results.total_hits:
+        break
 
 # --8<-- [end:pagination]
 
@@ -494,7 +434,6 @@ def create_index_with_configuration(search_configuration_id: str) -> SearchIndex
         search_configuration_id=search_configuration_id,
     ).store()
     print(f"Created SearchIndex {index.id} using config {search_configuration_id}")
-    wait_for_index(index)
 
     # Any index created under this project without its own
     # search_configuration_id now inherits this configuration
@@ -519,21 +458,3 @@ def create_index_with_configuration(search_configuration_id: str) -> SearchIndex
 
 
 # --8<-- [end:apply_search_configuration]
-
-
-def main():
-    index = create_search_index()
-    search_free_text(index)
-    search_with_highlighting(index)
-    search_with_filters(index)
-    facet_the_results(index)
-    autocomplete_study_names(index)
-    page_through_results(index)
-
-    # Requires an Organization you can write to
-    # search_configuration_id = create_search_configuration()
-    # create_index_with_configuration(search_configuration_id)
-
-
-if __name__ == "__main__":
-    main()
