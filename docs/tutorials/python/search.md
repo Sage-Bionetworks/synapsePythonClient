@@ -78,8 +78,6 @@ behind it is built in the background.
 
 ```
 Created SearchIndex with ID: syn68123456
-Waiting for the search index to build...
-Waiting for the search index to build...
 Index syn68123456 is queryable with 6 rows
 ```
 </details>
