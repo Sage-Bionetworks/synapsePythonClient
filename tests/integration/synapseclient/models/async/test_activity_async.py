@@ -6,7 +6,6 @@ from typing import Callable
 
 import pytest
 
-import synapseclient.core.utils as utils
 from synapseclient import Synapse
 from synapseclient.models import Activity, File, Project, UsedEntity, UsedURL
 
@@ -28,14 +27,15 @@ class TestActivity:
         store_file: bool = True,
     ) -> File:
         """Helper to create a file with optional activity"""
-        path = utils.make_bogus_uuid_file()
+        # Only the entity's existence matters here, not its content, so an
+        # external_url file handle avoids a real upload.
         file = File(
             parent_id=project_model.id,
-            path=path,
+            external_url=f"https://example.com/bogus-file-{uuid.uuid4()}.txt",
+            synapse_store=False,
             name=f"bogus_file_{str(uuid.uuid4())}",
             activity=activity,
         )
-        self.schedule_for_cleanup(file.path)
 
         if store_file:
             await file.store_async(synapse_client=self.syn)
