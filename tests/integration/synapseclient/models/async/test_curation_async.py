@@ -788,14 +788,42 @@ class TestCurationTaskCreateGridSessionAsync:
 class TestCurationTaskSetActiveGridSessionAsync:
     """Tests for the CurationTask.set_active_grid_session_async method."""
 
-    @pytest.fixture(scope="function")
+    @pytest.fixture(scope="class")
+    async def folder_with_view(
+        self,
+        project_model: Project,
+        syn: Synapse,
+        schedule_for_cleanup: Callable[..., None],
+    ) -> tuple[Folder, EntityView]:
+        """Create a folder with an associated EntityView, shared by every test in
+        this class. Every consumer only reads folder.id/entity_view.id; none of them
+        mutates the folder or entity view."""
+        folder = await Folder(
+            name=str(uuid.uuid4()),
+            parent_id=project_model.id,
+        ).store_async(synapse_client=syn)
+        schedule_for_cleanup(folder.id)
+
+        entity_view = await EntityView(
+            name=str(uuid.uuid4()),
+            parent_id=project_model.id,
+            scope_ids=[folder.id],
+            view_type_mask=ViewTypeMask.FILE.value,
+        ).store_async(synapse_client=syn)
+        schedule_for_cleanup(entity_view.id)
+
+        return folder, entity_view
+
+    @pytest.fixture(scope="class")
     async def grid(
         self,
         syn: Synapse,
         folder_with_view: tuple[Folder, EntityView],
         request: pytest.FixtureRequest,
     ) -> Grid:
-        """Create a Grid backed by the entity view; delete it after the test."""
+        """Create a Grid backed by the entity view, shared by every test in this
+        class. Every consumer only reads grid.session_id; none of them mutates the
+        grid itself."""
         _, entity_view = folder_with_view
         grid = await Grid(
             initial_query=Query(sql=f"SELECT * FROM {entity_view.id}")

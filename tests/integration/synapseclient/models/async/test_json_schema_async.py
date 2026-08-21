@@ -4,7 +4,6 @@ from typing import Callable, Generator, Optional, Tuple, Type, Union
 import pytest
 
 from synapseclient import Synapse
-from synapseclient.core import utils
 from synapseclient.core.exceptions import SynapseHTTPError
 from synapseclient.models import (
     Column,
@@ -120,8 +119,12 @@ class TestJSONSchema:
 
     @pytest.fixture(scope="function")
     def file(self) -> File:
-        filename = utils.make_bogus_uuid_file()
-        return File(path=filename)
+        # Only the entity's existence matters here, not its content, so an
+        # external_url file handle avoids a real upload.
+        return File(
+            external_url=f"https://example.com/bogus-file-{uuid.uuid4()}.txt",
+            synapse_store=False,
+        )
 
     @pytest.fixture(scope="function")
     def table(self, project_model: Project) -> Table:
@@ -466,10 +469,11 @@ class TestJSONSchema:
         )
 
         # Create two files under the folder
-        filename = utils.make_bogus_uuid_file()
-        self.schedule_for_cleanup(filename)
+        # Only the entities' existence matters here, not their content, so
+        # external_url file handles avoid real uploads.
         file_1 = await File(
-            path=filename,
+            external_url=f"https://example.com/bogus-file-{uuid.uuid4()}.txt",
+            synapse_store=False,
             name="test_file_1",
             description=DESCRIPTION_FILE,
             content_type=CONTENT_TYPE_FILE,
@@ -479,10 +483,9 @@ class TestJSONSchema:
         ).store_async(synapse_client=self.syn)
         self.schedule_for_cleanup(file_1.id)
 
-        filename = utils.make_bogus_uuid_file()
-        self.schedule_for_cleanup(filename)
         file_2 = await File(
-            path=filename,
+            external_url=f"https://example.com/bogus-file-{uuid.uuid4()}.txt",
+            synapse_store=False,
             name="test_file_2",
             description=DESCRIPTION_FILE,
             content_type=CONTENT_TYPE_FILE,
@@ -558,10 +561,11 @@ class TestJSONSchema:
         test_org, test_product_schema_uri = create_test_organization_with_schema
 
         # Create two files under the folder
-        filename = utils.make_bogus_uuid_file()
-        self.schedule_for_cleanup(filename)
+        # Only the entities' existence matters here, not their content, so
+        # external_url file handles avoid real uploads.
         file_1 = await File(
-            path=filename,
+            external_url=f"https://example.com/bogus-file-{uuid.uuid4()}.txt",
+            synapse_store=False,
             name="test_file_1",
             description=DESCRIPTION_FILE,
             content_type=CONTENT_TYPE_FILE,
@@ -571,10 +575,9 @@ class TestJSONSchema:
         ).store_async(synapse_client=self.syn)
         self.schedule_for_cleanup(file_1.id)
 
-        filename = utils.make_bogus_uuid_file()
-        self.schedule_for_cleanup(filename)
         file_2 = await File(
-            path=filename,
+            external_url=f"https://example.com/bogus-file-{uuid.uuid4()}.txt",
+            synapse_store=False,
             name="test_file_2",
             description=DESCRIPTION_FILE,
             content_type=CONTENT_TYPE_FILE,

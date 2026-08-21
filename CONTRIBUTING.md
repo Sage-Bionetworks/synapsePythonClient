@@ -190,10 +190,10 @@ pytest -sv tests/unit
 
 # Integration tests (requires Synapse credentials, ~30-60 minutes)
 # Uses pytest-xdist for parallel execution with fixture-aware distribution
-pytest -sv tests/integration -n 8 --dist loadscope
+pytest -sv tests/integration -n 4 --dist loadscope
 
 # Integration tests excluding CLI tests (which must run serially)
-pytest -sv tests/integration -n 8 --dist loadscope \
+pytest -sv tests/integration -n 4 --dist loadscope \
   --ignore=tests/integration/synapseclient/test_command_line_client.py
 ```
 
@@ -218,9 +218,48 @@ fileHandleEndpoint=https://repo-dev.dev.sagebase.org/file/v1
 ```
 
 #### Running OpenTelemetry in Integration Tests
-`tests/integration/conftest.py` is where we defining which trace exporter to use. Set the `SYNAPSE_OTEL_INTEGRATION_TEST_EXPORTER` environment variable to `otlp` or `console` depending on your use case.
+`tests/integration/conftest.py`'s `setup_otel` fixture decides whether to enable OpenTelemetry
+for the run. Set `SYNAPSE_INTEGRATION_TEST_OTEL_ENABLED=true` to turn it on; only the values
+`1`, `true`, `yes`, and `on` (case-insensitive) count, everything else is treated as off.
 
-When integration tests are ran in the Github CI/CD pipeline it will upload the trace data automatically using OLTP.
+```
+export SYNAPSE_INTEGRATION_TEST_OTEL_ENABLED=true
+export OTEL_EXPORTER_OTLP_ENDPOINT=<your collector endpoint>
+export OTEL_EXPORTER_OTLP_HEADERS=<auth headers your collector requires>
+```
+
+To verify locally without a real collector, set `OTEL_DEBUG_CONSOLE=true` to print spans and
+metrics to stdout **instead of** exporting them. This only produces output for a **serial** run
+with `-s`:
+```
+pytest -s tests/integration/<some module>
+```
+It does not work under pytest's default output capture (the console exporters flush after
+pytest has already closed the captured stream) and it does not work under `-n` (each
+pytest-xdist worker's stdout goes through `execnet` and is discarded, even with `-s`) — so it
+cannot be used to verify the `-n 4 --dist loadscope` recipe below. For parallel verification, use
+a real collector (`OTEL_EXPORTER_OTLP_ENDPOINT` / `OTEL_EXPORTER_OTLP_HEADERS`, no
+`OTEL_DEBUG_CONSOLE`) and check the data landed there.
+
+A rejected export (e.g. malformed `OTEL_EXPORTER_OTLP_HEADERS`) does not fail the run on its
+own — the exporter logs the error and pytest exits 0 regardless, so a run can finish "green"
+having recorded nothing. `tests/integration/conftest.py` guards against this: it captures OTLP
+export-rejection log records for the session (forwarding a worker's via `workeroutput` under
+`-n` so the controller sees them too) and fails the session (non-zero exit, plus a terminal
+summary line naming the rejection) if any export was rejected. Trust that exit code, not the
+`passed`/`failed` count, to know whether telemetry was actually accepted.
+
+For a measurement run, set `SYNAPSE_TEST_RUN_LABEL` to a value that identifies the run (e.g. a
+ticket number or date) so its data points can be grouped and compared against other runs; each
+pytest-xdist worker gets its own `service.instance.id` so counts are not double-counted across
+workers. Keep `--reruns 3` for measurement runs, same as any other run.
+
+The two metric instruments to query are `synapse.async_job.submissions` /
+`synapse.async_job.duration` (async-job load, with `request_type` and `outcome` attributes) and
+`synapse.file_handle.uploads` / `synapse.file_handle.upload.duration` (file-handle upload load).
+
+When integration tests are run in the GitHub CI/CD pipeline it will upload the trace and metric
+data automatically using OTLP.
 
 
 #### Integration testing for external collaborators
@@ -443,7 +482,8 @@ following set of guidelines should be followed:
   - `function` scope: Use for entities that tests **mutate** (e.g., files with changed names, datasets with added/removed items, submission statuses being updated). Each test gets a fresh entity.
   - All fixtures that create Synapse entities **must** call `schedule_for_cleanup()` to register them for cleanup at session end.
 - **Polling and retries:** For eventual-consistency scenarios (e.g., waiting for permission propagation, schema binding, attachment preview generation), use `wait_for_condition()` from `tests/integration/helpers.py` instead of hardcoded `asyncio.sleep()` calls. This uses exponential backoff and returns as soon as the condition is met.
-- **Parallel execution:** Tests run with `pytest -n 8 --dist loadscope`, which ensures all tests in a class execute on the same worker sequentially. Session-scoped fixtures are shared within each worker.
+- **Avoiding real uploads:** A `File(external_url=..., synapse_store=False)` file handle creates a real FileEntity without a real upload, and is the right default when a test only needs the entity to exist (e.g. as a parent, a copy/walk target, or a structure check). **Do not** use it for a test that reads the file back — `sync_from_synapse_async`, a real download, an md5 comparison, or a manifest/annotation/provenance round-trip all require real content on disk.
+- **Parallel execution:** Tests run with `pytest -n 4 --dist loadscope`, which ensures all tests in a class execute on the same worker sequentially. Session-scoped fixtures are shared within each worker.
 
 ### Repository Admins
 
