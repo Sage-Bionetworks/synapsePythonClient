@@ -266,8 +266,7 @@ A query returns at most 100 hits at a time (25 by default), so anything larger r
 
 ### Offset paging with `from_` and `size`
 
-Simple, and the right thing for the first few pages of a UI where someone clicks
-"next". The cost grows with depth though — the server collects and discards every hit
+Simple, and extracts the results in pages. The cost grows with depth and the server collects and discards every hit
 before the offset — so it is the wrong tool for sweeping a large index.
 
 ```python
@@ -294,10 +293,7 @@ total_hits=6, returned=2
 
 ### Cursor paging with `search_after`
 
-Cost per page stays flat no matter how far in you are, which makes this the one to
-reach for when you need every row.
-
-The catch is that `search_after` is a position in a sort order, so the `sort` has to
+This is the solution if you need every row. The catch is that `search_after` is a position in a sort order, so the `sort` has to
 place every row unambiguously. If two rows tie on every sort column, a page boundary
 landing between them can skip or repeat rows. Sort on something unique, or append a
 unique column as a final tie-breaker.
@@ -328,32 +324,25 @@ total_hits=6, returned=2
 GET, so ask for the largest `size` you can use rather than walking a big index in small
 pages.
 
-## 9. Tune matching with synonyms and analyzers
+## Advanced: Tune matching with synonyms and analyzers
 
-Everything above relies on how each column was analyzed when the index was built: how
-text is split into tokens, which tokens are dropped, and how they are normalized. Four
-org-scoped resources let you control that:
+!!! warning "Restricted and permanent"
+    Creating and updating the following resources is restricted to Sage Bionetworks employees,
+    and the REST API has no delete endpoint for any of them. Once created, a
+    SynonymSet, TextAnalyzer, ColumnAnalyzerOverride, or SearchConfiguration cannot be
+    removed, and its owning Organization can no longer be deleted either. Choose names deliberately.
 
-* [SynonymSet][synapseclient.models.SynonymSet] — terms that should be treated as
-  equivalent, so someone searching `AD` finds abstracts that say
-  "Alzheimer's disease"
-* [TextAnalyzer][synapseclient.models.TextAnalyzer] — a named OpenSearch analyzer: a
-  tokenizer plus a chain of token filters, which may reference a SynonymSet
-* [ColumnAnalyzerOverride][synapseclient.models.ColumnAnalyzerOverride] — a reusable
-  bundle assigning specific analyzers to specific columns
-* [SearchConfiguration][synapseclient.models.SearchConfiguration] — bundles a default
-  analyzer with any column overrides; this is what a SearchIndex actually points at
+Everything in this tutorial relies on how each column was analyzed when the index was built: how text is split into tokens, which tokens are dropped, and how they are normalized. There are four `Organization`-scoped resources that let you control that:
+
+* [SynonymSet][synapseclient.models.SynonymSet] — terms that should be treated as equivalent, so someone searching `AD` finds abstracts that say "Alzheimer's disease"
+* [TextAnalyzer][synapseclient.models.TextAnalyzer] — a named OpenSearch analyzer: a tokenizer plus a chain of token filters, which may reference a SynonymSet
+* [ColumnAnalyzerOverride][synapseclient.models.ColumnAnalyzerOverride] — a reusable bundle assigning specific analyzers to specific columns
+* [SearchConfiguration][synapseclient.models.SearchConfiguration] — bundles a default analyzer with any column overrides; this is what a SearchIndex actually points at
 
 Each resource belongs to an [Organization][synapseclient.models.Organization] and is
 referenced from another resource by its qualified name,
 `{organization_name}-{name}`, written as `{"$ref": "my.org-my_analyzer"}`.
 
-!!! warning "Restricted and permanent"
-    Creating and updating these resources is restricted to Sage Bionetworks employees,
-    and the REST API has no delete endpoint for any of them. Once created, a
-    SynonymSet, TextAnalyzer, ColumnAnalyzerOverride, or SearchConfiguration cannot be
-    removed, and its owning Organization can no longer be deleted either. Choose names
-    deliberately.
 
 Note where the synonym filter goes below. The analyzer declares both a `default` chain,
 used when rows are indexed, and a `default_search` chain, used when a query is analyzed.
