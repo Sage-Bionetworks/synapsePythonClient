@@ -41,7 +41,7 @@ class TestWikiPageBasicOperations:
         rather than creating its own Project.
         """
         folder = await Folder(
-            name=f"Test Wiki Basic Operations Folder_" + str(uuid.uuid4()),
+            name=f"Test Wiki Basic Operations Folder_{uuid.uuid4()}",
             parent_id=project_model.id,
         ).store_async(synapse_client=syn)
         schedule_for_cleanup(folder.id)
@@ -166,7 +166,7 @@ class TestWikiPageAttachments:
         rather than creating its own Project.
         """
         folder = await Folder(
-            name=f"Test Wiki Attachments Folder_" + str(uuid.uuid4()),
+            name=f"Test Wiki Attachments Folder_{uuid.uuid4()}",
             parent_id=project_model.id,
         ).store_async(synapse_client=syn)
         schedule_for_cleanup(folder.id)
@@ -550,7 +550,7 @@ class TestWikiPageMarkdown:
         rather than creating its own Project.
         """
         folder = await Folder(
-            name=f"Test Wiki Markdown Folder_" + str(uuid.uuid4()),
+            name=f"Test Wiki Markdown Folder_{uuid.uuid4()}",
             parent_id=project_model.id,
         ).store_async(synapse_client=syn)
         schedule_for_cleanup(folder.id)
@@ -717,7 +717,7 @@ class TestWikiPageVersioning:
         rather than creating its own Project.
         """
         folder = await Folder(
-            name=f"Test Wiki Versioning Folder_" + str(uuid.uuid4()),
+            name=f"Test Wiki Versioning Folder_{uuid.uuid4()}",
             parent_id=project_model.id,
         ).store_async(synapse_client=syn)
         schedule_for_cleanup(folder.id)
@@ -818,7 +818,7 @@ class TestWikiHeader:
         rather than creating its own Project.
         """
         folder = await Folder(
-            name=f"Test Wiki Header Folder_" + str(uuid.uuid4()),
+            name=f"Test Wiki Header Folder_{uuid.uuid4()}",
             parent_id=project_model.id,
         ).store_async(synapse_client=syn)
         schedule_for_cleanup(folder.id)
@@ -878,7 +878,7 @@ class TestWikiPageCopy:
         project rather than creating its own Project.
         """
         owner_folder = await Folder(
-            name=f"Test Wiki Copy Source Folder_" + str(uuid.uuid4()),
+            name=f"Test Wiki Copy Source Folder_{uuid.uuid4()}",
             parent_id=project_model.id,
         ).store_async(synapse_client=syn)
         schedule_for_cleanup(owner_folder.id)
@@ -966,7 +966,7 @@ class TestWikiPageCopy:
         project is a valid wiki owner and much cheaper to create than a Project.
         """
         folder = await Folder(
-            name=f"Test Wiki Copy Destination Folder_" + str(uuid.uuid4()),
+            name=f"Test Wiki Copy Destination Folder_{uuid.uuid4()}",
             parent_id=project_model.id,
         ).store_async(synapse_client=syn)
         schedule_for_cleanup(folder.id)
@@ -1205,7 +1205,7 @@ class TestWikiPageCopy:
         empty list instead of raising an error."""
         # GIVEN a source Folder without any wiki pages
         empty_source_project = await Folder(
-            name=f"Test Wiki Copy Empty Source Folder_" + str(uuid.uuid4()),
+            name=f"Test Wiki Copy Empty Source Folder_{uuid.uuid4()}",
             parent_id=project_model.id,
         ).store_async(synapse_client=syn)
         schedule_for_cleanup(empty_source_project.id)
@@ -1241,7 +1241,7 @@ class TestWikiOrderHint:
         rather than creating its own Project.
         """
         folder = await Folder(
-            name=f"Test Wiki Order Hint Folder_" + str(uuid.uuid4()),
+            name=f"Test Wiki Order Hint Folder_{uuid.uuid4()}",
             parent_id=project_model.id,
         ).store_async(synapse_client=syn)
         schedule_for_cleanup(folder.id)

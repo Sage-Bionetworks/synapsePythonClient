@@ -2,17 +2,7 @@
 
 import asyncio
 import logging
-from typing import (
-    Any,
-    Awaitable,
-    Callable,
-    Dict,
-    List,
-    Mapping,
-    Optional,
-    TypeVar,
-    Union,
-)
+from typing import Awaitable, Callable, Dict, List, Mapping, Optional, TypeVar, Union
 
 logger = logging.getLogger(__name__)
 

@@ -351,7 +351,7 @@ async def send_job_and_wait_async(
         try:
             start_time = time.time()
             retry_interval = 5  # Retry every 5 seconds
-            max_wait_time = timeout * 5  # Maximum total wait time of 5 minutes
+            max_wait_time = timeout * 5  # Maximum total wait time of 5x the timeout
 
             while time.time() - start_time < max_wait_time:
                 try:
