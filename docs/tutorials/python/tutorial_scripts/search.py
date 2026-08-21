@@ -114,19 +114,6 @@ table.upsert_rows(values=studies, primary_keys=["study_name"])
 print(f"Stored {len(studies)} rows in {table.id}")
 # --8<-- [end:setup]
 
-
-# --8<-- [start:helpers]
-def print_hits(results: SearchIndexQuery) -> None:
-    """Print the rows a query matched, one line per hit."""
-    print(f"total_hits={results.total_hits}, returned={len(results.hits)}")
-    for hit in results.hits:
-        fields = {field.name: field.value for field in hit.fields}
-        print(f"  ROW_ID={hit.row_id} {fields}")
-
-
-# --8<-- [end:helpers]
-
-
 # --8<-- [start:create_index]
 # Create a SearchIndex over a single table and wait for it to build.
 index = SearchIndex(
@@ -153,11 +140,18 @@ results = index.query(
         source=SourceFilter(includes=["study_name", "diagnosis"]),
         size=10,
     ),
-    response_parts=[SearchQueryPart.TOTAL_HITS, SearchQueryPart.SELECT_COLUMNS],
+    response_parts=[
+        SearchQueryPart.HITS,
+        SearchQueryPart.TOTAL_HITS,
+        SearchQueryPart.SELECT_COLUMNS,
+    ],
 )
 print("Abstracts mentioning Alzheimer's:")
 print(f"columns: {[column.name for column in results.select_columns]}")
-print_hits(results)
+print(f"total_hits={results.total_hits}, returned={len(results.hits)}")
+for hit in results.hits:
+    fields = {field.name: field.value for field in hit.fields}
+    print(f"  ROW_ID={hit.row_id} {fields}")
 
 # A multi_match clause runs the same text across several columns, so the
 # person searching does not need to know which column holds the term.
@@ -173,10 +167,13 @@ results = index.query(
         source=SourceFilter(includes=["study_name"]),
         size=10,
     ),
-    response_parts=[SearchQueryPart.TOTAL_HITS],
+    response_parts=[SearchQueryPart.HITS, SearchQueryPart.TOTAL_HITS],
 )
 print("\nAnything mentioning tau:")
-print_hits(results)
+print(f"total_hits={results.total_hits}, returned={len(results.hits)}")
+for hit in results.hits:
+    fields = {field.name: field.value for field in hit.fields}
+    print(f"  ROW_ID={hit.row_id} {fields}")
 
 # --8<-- [end:full_text_search]
 
@@ -191,7 +188,7 @@ results = index.query(
         highlight=Highlight(fields={"abstract": HighlightField(number_of_fragments=1)}),
         size=10,
     ),
-    response_parts=[SearchQueryPart.TOTAL_HITS],
+    response_parts=[SearchQueryPart.HITS, SearchQueryPart.TOTAL_HITS],
 )
 print("Studies that sequenced something:")
 for hit in results.hits:
@@ -232,10 +229,13 @@ results = index.query(
         sort=[{"participant_count": "desc"}],
         size=10,
     ),
-    response_parts=[SearchQueryPart.TOTAL_HITS],
+    response_parts=[SearchQueryPart.HITS, SearchQueryPart.TOTAL_HITS],
 )
 print("Sequencing studies with at least 200 participants, largest first:")
-print_hits(results)
+print(f"total_hits={results.total_hits}, returned={len(results.hits)}")
+for hit in results.hits:
+    fields = {field.name: field.value for field in hit.fields}
+    print(f"  ROW_ID={hit.row_id} {fields}")
 
 # --8<-- [end:filters_and_sorting]
 
@@ -265,10 +265,13 @@ results = index.query(
         source=SourceFilter(includes=["study_name", "diagnosis"]),
         size=10,
     ),
-    response_parts=[SearchQueryPart.TOTAL_HITS],
+    response_parts=[SearchQueryPart.HITS, SearchQueryPart.TOTAL_HITS],
 )
 print("Hits after the post filter:")
-print_hits(results)
+print(f"total_hits={results.total_hits}, returned={len(results.hits)}")
+for hit in results.hits:
+    fields = {field.name: field.value for field in hit.fields}
+    print(f"  ROW_ID={hit.row_id} {fields}")
 print("\nFacet counts across all studies:")
 print(json.dumps(results.aggregation_results, indent=2))
 
@@ -305,10 +308,13 @@ while True:
             from_=offset,
             size=page_size,
         ),
-        response_parts=[SearchQueryPart.TOTAL_HITS],
+        response_parts=[SearchQueryPart.HITS, SearchQueryPart.TOTAL_HITS],
     )
     print(f"Page starting at offset {offset}:")
-    print_hits(results)
+    print(f"total_hits={results.total_hits}, returned={len(results.hits)}")
+    for hit in results.hits:
+        fields = {field.name: field.value for field in hit.fields}
+        print(f"  ROW_ID={hit.row_id} {fields}")
 
     offset += page_size
     if offset >= results.total_hits:
@@ -450,7 +456,7 @@ def create_index_with_configuration(search_configuration_id: str) -> SearchIndex
             source=SourceFilter(includes=["study_name", "diagnosis"]),
             size=10,
         ),
-        response_parts=[SearchQueryPart.TOTAL_HITS],
+        response_parts=[SearchQueryPart.HITS, SearchQueryPart.TOTAL_HITS],
     )
     print("Abstracts matching the abbreviation 'AD':")
     print_hits(results)

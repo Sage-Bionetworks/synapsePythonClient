@@ -46,18 +46,13 @@ the name of your project.
 --8<-- "docs/tutorials/python/tutorial_scripts/search.py:setup"
 ```
 
-The steps below use two small helpers — one to print the rows a query matched, and one
-to wait out the index build.
-
-```python
---8<-- "docs/tutorials/python/tutorial_scripts/search.py:helpers"
-```
-
 ## 2. Create a SearchIndex Entity
 
 The `defining_sql` decides which rows and columns are indexed. It must reference exactly
 one table-like entity — unlike a Materialized View, JOIN and UNION across several
-entities are not supported. If you need to search across several tables, build a
+entities are not supported.
+
+If you need to search across several tables, build a
 [Materialized View](materializedview.md) first and index that.
 
 Any of these can be the source, whichever one the SQL selects from:
