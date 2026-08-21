@@ -24,6 +24,7 @@ from typing import (
     Union,
 )
 
+from deprecated import deprecated
 from opentelemetry import trace
 
 from synapseclient import Synapse
@@ -79,7 +80,10 @@ from synapseclient.core.utils import (
     merge_dataclass_entities,
 )
 from synapseclient.models.mixins.asynchronous_job import AsynchronousCommunicator
-from synapseclient.models.mixins.enum_coercion import EnumCoercionMixin
+from synapseclient.models.mixins.enum_coercion import (
+    EnumCoercionMixin,
+    ForwardCompatibleStrEnum,
+)
 from synapseclient.models.recordset import ValidationSummary
 from synapseclient.models.table_components import Column, CsvTableDescriptor, Query
 
@@ -129,6 +133,24 @@ class AuthorizationMode(str, Enum):
     captured when the session was created. This mode allows project administrators to
     enable collaborative grid access for all editors without maintaining a separate
     ownership team. User visibility of rows depends on their individual permissions."""
+
+
+class SyncType(ForwardCompatibleStrEnum):
+    """
+    The type of synchronization to perform on a grid session.
+
+    See <https://rest-docs.synapse.org/rest/org/sagebionetworks/repo/model/grid/SyncType.html>.
+    """
+
+    PULL = "PULL"
+    """Update the grid with the latest data from the source, without writing the
+    grid back to the source. Currently only supported for RecordSet-based grids."""
+
+    PULL_PUSH = "PULL_PUSH"
+    """Update the grid with the latest data from the source, then update the source
+    (the referenced entities for EntityView-based grids, or the source RecordSet for
+    RecordSet-based grids) with the grid data. This is the default when sync_type is
+    not specified."""
 
 
 @dataclass
@@ -808,6 +830,90 @@ class CurationTaskSynchronousProtocol(Protocol):
 
             grid = CurationTask(task_id=123).create_grid_session()
             print(grid.session_id)
+            ```
+        """
+        return Grid()
+
+    def synchronize_active_grid_session(
+        self,
+        *,
+        sync_type: "SyncType | str",
+        synapse_client: Synapse | None = None,
+    ) -> Optional["Grid"]:
+        """
+        Synchronize this task's active grid session against its source entity.
+
+        If task_properties is not yet populated on this object, it is fetched
+        from Synapse first. If the task has no active grid session, a warning
+        is logged and None is returned; no new grid session is created.
+
+        `sync_type` is always required, for both task types. FileBasedMetadataTaskProperties
+        tasks always perform a SyncType.PULL_PUSH regardless of the value passed in.
+
+        Arguments:
+            sync_type: The type of synchronization to perform. Required.
+
+                - SyncType.PULL: Update the grid session with the latest data/schema
+                  from the source RecordSet, without writing the grid back to it.
+                  Use this to preview an incoming schema or data change in the grid
+                  before committing it. Only supported for record-based tasks.
+                - SyncType.PULL_PUSH: Update the grid session with the latest data
+                  from the source, then write the grid's data back to the source
+                  (the source RecordSet for record-based tasks, or the referenced
+                  entities for file-based tasks). This commits any in-progress
+                  curation in the grid as a new version of the source.
+
+                For record-based tasks, this determines whether the call previews
+                (PULL) or commits (PULL_PUSH). For file-based tasks, the value is
+                ignored and the call always behaves as SyncType.PULL_PUSH.
+            synapse_client: If not passed in and caching was not disabled by
+                Synapse.allow_client_caching(False) this will use the last created
+                instance from the Synapse class constructor.
+
+        Returns:
+            The synchronized Grid, or None if the task has no active grid session.
+
+        Raises:
+            ValueError: If task_id is unset, task_properties is of an unsupported
+                type, or sync_type is not provided for a record-based task.
+
+        Example: Synchronize a record-based curation task's grid session
+            &nbsp;
+
+            ```python
+            from synapseclient import Synapse
+            from synapseclient.models import CurationTask
+            from synapseclient.models.curation import SyncType
+
+            syn = Synapse()
+            syn.login()
+
+            grid = CurationTask(task_id=123).synchronize_active_grid_session(
+                sync_type=SyncType.PULL_PUSH
+            )
+            if grid is not None:
+                print(grid.session_id)
+            ```
+
+        Example: Synchronize a file-based curation task's grid session
+            &nbsp;
+
+            File-based tasks always synchronize with SyncType.PULL_PUSH, so any
+            value works here -- but `sync_type` still has to be passed.
+
+            ```python
+            from synapseclient import Synapse
+            from synapseclient.models import CurationTask
+            from synapseclient.models.curation import SyncType
+
+            syn = Synapse()
+            syn.login()
+
+            grid = CurationTask(task_id=456).synchronize_active_grid_session(
+                sync_type=SyncType.PULL_PUSH
+            )
+            if grid is not None:
+                print(grid.session_id)
             ```
         """
         return Grid()
@@ -2097,6 +2203,146 @@ class CurationTask(CurationTaskSynchronousProtocol):
             task = cls().fill_from_dict(synapse_response=task_dict)
             yield task
 
+    @otel_trace_method(
+        method_to_trace_name=lambda self, **kwargs: (
+            f"CurationTask_SynchronizeActiveGridSession: ID: {self.task_id}"
+        )
+    )
+    async def synchronize_active_grid_session_async(
+        self,
+        *,
+        sync_type: Union["SyncType", str],
+        synapse_client: Optional[Synapse] = None,
+    ) -> Optional["Grid"]:
+        """
+        Synchronize this task's active grid session against its source entity.
+
+        If task_properties is not yet populated on this object, it is fetched
+        from Synapse first. If the task has no active grid session, a warning
+        is logged and None is returned; no new grid session is created.
+
+        `sync_type` is always required, for both task types. FileBasedMetadataTaskProperties
+        tasks always perform a SyncType.PULL_PUSH regardless of the value passed in.
+
+        Arguments:
+            sync_type: The type of synchronization to perform. Required.
+
+                - SyncType.PULL: Update the grid session with the latest data/schema
+                  from the source RecordSet, without writing the grid back to it.
+                  Use this to preview an incoming schema or data change in the grid
+                  before committing it. Only supported for record-based tasks.
+                - SyncType.PULL_PUSH: Update the grid session with the latest data
+                  from the source, then write the grid's data back to the source
+                  (the source RecordSet for record-based tasks, or the referenced
+                  entities for file-based tasks). This commits any in-progress
+                  curation in the grid as a new version of the source.
+
+                For record-based tasks, this determines whether the call previews
+                (PULL) or commits (PULL_PUSH). For file-based tasks, the value is
+                ignored and the call always behaves as SyncType.PULL_PUSH.
+            synapse_client: If not passed in and caching was not disabled by
+                Synapse.allow_client_caching(False) this will use the last created
+                instance from the Synapse class constructor.
+
+        Returns:
+            The synchronized Grid, or None if the task has no active grid session.
+
+        Raises:
+            ValueError: If task_id is unset, task_properties is of an unsupported
+                type, or sync_type is not provided for a record-based task.
+
+        Example: Synchronize a record-based curation task's grid session
+            &nbsp;
+
+            ```python
+            import asyncio
+            from synapseclient import Synapse
+            from synapseclient.models import CurationTask
+            from synapseclient.models.curation import SyncType
+
+            syn = Synapse()
+            syn.login()
+
+            async def main():
+                grid = await CurationTask(task_id=123).synchronize_active_grid_session_async(
+                    sync_type=SyncType.PULL_PUSH
+                )
+                if grid is not None:
+                    print(grid.session_id)
+
+            asyncio.run(main())
+            ```
+
+        Example: Synchronize a file-based curation task's grid session
+            &nbsp;
+
+            File-based tasks always synchronize with SyncType.PULL_PUSH, so any
+            value works here -- but `sync_type` still has to be passed.
+
+            ```python
+            import asyncio
+            from synapseclient import Synapse
+            from synapseclient.models import CurationTask
+            from synapseclient.models.curation import SyncType
+
+            syn = Synapse()
+            syn.login()
+
+            async def main():
+                grid = await CurationTask(task_id=456).synchronize_active_grid_session_async(
+                    sync_type=SyncType.PULL_PUSH
+                )
+                if grid is not None:
+                    print(grid.session_id)
+
+            asyncio.run(main())
+            ```
+        """
+        client = Synapse.get_client(synapse_client=synapse_client)
+
+        if not self.task_properties:
+            await self.get_async(synapse_client=synapse_client)
+
+        if isinstance(self.task_properties, FileBasedMetadataTaskProperties):
+            if sync_type is not None and sync_type != SyncType.PULL_PUSH:
+                client.logger.warning(
+                    f"Ignoring sync_type={sync_type} for CurationTask "
+                    f"{self.task_id}: FileBasedMetadataTaskProperties tasks always "
+                    "use SyncType.PULL_PUSH."
+                )
+            sync_type = SyncType.PULL_PUSH
+        elif isinstance(self.task_properties, RecordBasedMetadataTaskProperties):
+            if not sync_type:
+                raise ValueError(
+                    "sync_type must be provided for RecordBasedMetadataTaskProperties"
+                )
+        else:
+            raise ValueError(
+                f"Synchronization only supports FileBasedMetadataTaskProperties or "
+                f"RecordBasedMetadataTaskProperties, got {type(self.task_properties).__name__}."
+            )
+
+        status = await self.get_status_async(synapse_client=synapse_client)
+        if (
+            status.execution_details is None
+            or status.execution_details.active_session_id is None
+        ):
+            client.logger.warning(
+                f"No active grid session found for task {self.task_id}. Skipping "
+                "synchronization."
+            )
+            return None
+        active_grid_session_id = status.execution_details.active_session_id
+
+        client.logger.info(
+            f"Synchronizing active grid session {active_grid_session_id} for "
+            f"task {self.task_id}"
+        )
+        grid = Grid(session_id=active_grid_session_id)
+        return await grid.synchronize_async(
+            synapse_client=synapse_client, sync_type=sync_type
+        )
+
 
 @dataclass
 class CreateGridRequest(EnumCoercionMixin, AsynchronousCommunicator):
@@ -3198,11 +3444,21 @@ class UploadToTablePreviewRequest(AsynchronousCommunicator):
         return request_dict
 
 
+@deprecated(
+    version="4.14.0",
+    reason="Backs the deprecated Grid.export_to_record_set()/export_to_record_set_async(). "
+    "Use Grid.synchronize()/synchronize_async() with sync_type=SyncType.PULL_PUSH instead.",
+)
 @dataclass
 class GridRecordSetExportRequest(AsynchronousCommunicator):
     """
     A request to export a grid created from a record set back to the original record set.
     A CSV file will be generated and set as a new version of the recordset.
+
+    WARNING - This class is deprecated and will be removed in a future release. It
+    backs the deprecated `Grid.export_to_record_set()`/`export_to_record_set_async()`
+    methods. Use `Grid.synchronize()`/`synchronize_async()` with
+    `sync_type=SyncType.PULL_PUSH` instead.
 
     Represents a [Synapse GridRecordSetExportRequest](https://rest-docs.synapse.org/rest/org/sagebionetworks/repo/model/grid/GridRecordSetExportRequest.html).
 
@@ -3288,7 +3544,7 @@ class GridRecordSetExportRequest(AsynchronousCommunicator):
 
 
 @dataclass
-class SynchronizeGridRequest(AsynchronousCommunicator):
+class SynchronizeGridRequest(EnumCoercionMixin, AsynchronousCommunicator):
     """
     A request to synchronize a grid session.
 
@@ -3300,11 +3556,18 @@ class SynchronizeGridRequest(AsynchronousCommunicator):
     grid_session_id: str
     """The ID of the grid session to synchronize."""
 
+    sync_type: Optional[Union[SyncType, str]] = field(default=None)
+    """The type of synchronization to perform. Optional; the server defaults to
+    SyncType.PULL_PUSH when omitted. SyncType.PULL is currently only supported for
+    RecordSet-based grids."""
+
     concrete_type: str = field(default=SYNCHRONIZE_GRID_REQUEST)
     """The concrete type for this request."""
 
     error_messages: Optional[list[str]] = field(default=None, compare=False)
     """Any error messages generated during the synchronization process."""
+
+    _ENUM_FIELDS: ClassVar[dict[str, type]] = {"sync_type": SyncType}
 
     def fill_from_dict(
         self, synapse_response: Dict[str, Any]
@@ -3328,10 +3591,13 @@ class SynchronizeGridRequest(AsynchronousCommunicator):
         Returns:
             A dictionary representation of this object for API requests.
         """
-        return {
+        request_dict = {
             "concreteType": self.concrete_type,
             "gridSessionId": self.grid_session_id,
+            "syncType": self.sync_type.value if self.sync_type is not None else None,
         }
+        delete_none_keys(request_dict)
+        return request_dict
 
 
 @dataclass
@@ -3668,6 +3934,9 @@ class GridSynchronousProtocol(Protocol):
         Exports the grid session data back to a record set. This will create a new version
         of the original record set with the modified data from the grid session.
 
+        WARNING - This method is deprecated and will be removed in a future release.
+        Use `synchronize`/`synchronize_async` with `sync_type=SyncType.PULL_PUSH` instead.
+
         Arguments:
             timeout: The number of seconds to wait for the job to complete or progress
                 before raising a SynapseTimeoutError. Defaults to 120.
@@ -3681,37 +3950,57 @@ class GridSynchronousProtocol(Protocol):
         Raises:
             ValueError: If session_id is not provided.
 
-        Example: Export grid session data back to record set
+        Example: Migration to synchronize
             &nbsp;
 
             ```python
             from synapseclient import Synapse
             from synapseclient.models import Grid
+            from synapseclient.models.curation import SyncType
 
             syn = Synapse()
             syn.login()
 
-            # Export modified grid data back to the record set
             grid = Grid(session_id="abc-123-def")
-            grid = grid.export_to_record_set()
-            print(f"Exported to record set: {grid.record_set_id}")
-            print(f"Version number: {grid.record_set_version_number}")
-            if grid.validation_summary_statistics:
-                print(f"Valid records: {grid.validation_summary_statistics.number_of_valid_children}")
+
+            # Old approach (DEPRECATED)
+            # grid = grid.export_to_record_set()
+            # print(f"Exported to record set: {grid.record_set_id}")
+            # print(f"Version number: {grid.record_set_version_number}")
+            # if grid.validation_summary_statistics:
+            #     print(f"Valid records: {grid.validation_summary_statistics.number_of_valid_children}")
+
+            # New approach (RECOMMENDED)
+            # Note: unlike export_to_record_set, synchronize does not populate
+            # record_set_id, record_set_version_number, or
+            # validation_summary_statistics on the returned Grid.
+            grid = grid.synchronize(sync_type=SyncType.PULL_PUSH)
             ```
         """
         return self
 
     def synchronize(
-        self, *, timeout: int = 120, synapse_client: Optional[Synapse] = None
+        self,
+        *,
+        sync_type: Optional[Union[SyncType, str]] = None,
+        timeout: int = 120,
+        synapse_client: Optional[Synapse] = None,
     ) -> "Grid":
         """
         Synchronizes the grid session's schema and row data against its source entity.
 
-        This is intended for grid sessions created from a file view via `initial_query`.
-        Grid sessions backed by a RecordSet should use `export_to_record_set` instead.
+        Grid sessions created from a file view via `initial_query` always perform a
+        full PULL_PUSH. Grid sessions backed by a RecordSet may instead pass
+        `sync_type=SyncType.PULL` to pull the latest RecordSet data/schema into the
+        session for review, without immediately writing the merged result back as a
+        new RecordSet version. Once satisfied with the result, call this method again
+        (with `sync_type` omitted, or explicitly set to `SyncType.PULL_PUSH`) to push
+        the merged data back to the RecordSet as a new version.
 
         Arguments:
+            sync_type: The type of synchronization to perform. Optional; the server
+                defaults to `SyncType.PULL_PUSH` when omitted. `SyncType.PULL` is
+                currently only supported for RecordSet-based grids.
             timeout: The number of seconds to wait for the job to complete or progress
                 before raising a SynapseTimeoutError. Defaults to 120.
             synapse_client: If not passed in and caching was not disabled by
@@ -3742,6 +4031,29 @@ class GridSynchronousProtocol(Protocol):
 
             # Synchronize the grid with the latest state of the file view
             grid = grid.synchronize()
+            ```
+
+        Example: Preview a RecordSet-backed grid's merge before pushing it back
+            &nbsp;
+
+            ```python
+            from synapseclient import Synapse
+            from synapseclient.models import Grid
+            from synapseclient.models.curation import SyncType
+
+            syn = Synapse()
+            syn.login()
+
+            grid = Grid(record_set_id="syn1234567")
+            grid = grid.create()
+
+            # Pull in the latest RecordSet data/schema without pushing back yet
+            grid = grid.synchronize(sync_type=SyncType.PULL)
+
+            # ... review the merged result in the grid session ...
+
+            # Push the merged result back as a new RecordSet version
+            grid = grid.synchronize(sync_type=SyncType.PULL_PUSH)
             ```
         """
         return self
@@ -4127,7 +4439,7 @@ class Grid(EnumCoercionMixin, GridSynchronousProtocol):
         ```python
         from synapseclient import Synapse
         from synapseclient.models import Grid
-        from synapseclient.models.curation import GridQuery, QueryRequest, SelectAll
+        from synapseclient.models.curation import GridQuery, QueryRequest, SelectAll, SyncType
 
         syn = Synapse()
         syn.login()
@@ -4145,9 +4457,8 @@ class Grid(EnumCoercionMixin, GridSynchronousProtocol):
             for row in result.rows:
                 print(f"Row ID: {row.row_id}, Validation Result: {row.validation_results}")
 
-        # Later, export the modified data back to the record set
-        grid = grid.export_to_record_set()
-        print(f"Exported to version: {grid.record_set_version_number}")
+        # Later, push the modified data back to the record set
+        grid = grid.synchronize(sync_type=SyncType.PULL_PUSH)
 
         # Clean up by deleting the session when done
         grid.delete()
@@ -4160,7 +4471,7 @@ class Grid(EnumCoercionMixin, GridSynchronousProtocol):
         from synapseclient import Synapse
         from synapseclient.models import Grid
         from synapseclient.models.table_components import Query
-        from synapseclient.models.curation import GridQuery, QueryRequest, SelectAll
+        from synapseclient.models.curation import GridQuery, QueryRequest, SelectAll, SyncType
 
         syn = Synapse()
         syn.login()
@@ -4178,8 +4489,8 @@ class Grid(EnumCoercionMixin, GridSynchronousProtocol):
             for row in result.rows:
                 print(f"Row ID: {row.row_id}, Validation Result: {row.validation_results}")
 
-        # Export when ready
-        grid = grid.export_to_record_set()
+        # Push when ready
+        grid = grid.synchronize(sync_type=SyncType.PULL_PUSH)
         ```
     """
 
@@ -4379,12 +4690,19 @@ class Grid(EnumCoercionMixin, GridSynchronousProtocol):
         self.fill_from_dict(response)
         return self
 
+    @deprecated(
+        version="4.14.0",
+        reason="Use `synchronize_async` with `sync_type=SyncType.PULL_PUSH` instead.",
+    )
     async def export_to_record_set_async(
         self, *, timeout: int = 120, synapse_client: Optional[Synapse] = None
     ) -> "Grid":
         """
         Exports the grid session data back to a record set. This will create a new version
         of the original record set with the modified data from the grid session.
+
+        WARNING - This method is deprecated and will be removed in a future release.
+        Use `synchronize`/`synchronize_async` with `sync_type=SyncType.PULL_PUSH` instead.
 
         Arguments:
             timeout: The number of seconds to wait for the job to complete or progress
@@ -4399,25 +4717,33 @@ class Grid(EnumCoercionMixin, GridSynchronousProtocol):
         Raises:
             ValueError: If session_id is not provided.
 
-        Example: Export grid session data back to record set asynchronously
+        Example: Migration to synchronize_async
             &nbsp;
 
             ```python
             import asyncio
             from synapseclient import Synapse
             from synapseclient.models import Grid
+            from synapseclient.models.curation import SyncType
 
             syn = Synapse()
             syn.login()
 
             async def main():
-                # Export modified grid data back to the record set
                 grid = Grid(session_id="abc-123-def")
-                grid = await grid.export_to_record_set_async()
-                print(f"Exported to record set: {grid.record_set_id}")
-                print(f"Version number: {grid.record_set_version_number}")
-                if grid.validation_summary_statistics:
-                    print(f"Valid records: {grid.validation_summary_statistics.number_of_valid_children}")
+
+                # Old approach (DEPRECATED)
+                # grid = await grid.export_to_record_set_async()
+                # print(f"Exported to record set: {grid.record_set_id}")
+                # print(f"Version number: {grid.record_set_version_number}")
+                # if grid.validation_summary_statistics:
+                #     print(f"Valid records: {grid.validation_summary_statistics.number_of_valid_children}")
+
+                # New approach (RECOMMENDED)
+                # Note: unlike export_to_record_set_async, synchronize_async
+                # does not populate record_set_id, record_set_version_number,
+                # or validation_summary_statistics on the returned Grid.
+                grid = await grid.synchronize_async(sync_type=SyncType.PULL_PUSH)
 
             asyncio.run(main())
             ```
@@ -4849,15 +5175,27 @@ class Grid(EnumCoercionMixin, GridSynchronousProtocol):
         method_to_trace_name=lambda self, **kwargs: f"Grid_Synchronize: ID: {self.session_id}"
     )
     async def synchronize_async(
-        self, *, timeout: int = 120, synapse_client: Optional[Synapse] = None
+        self,
+        *,
+        sync_type: Optional[Union[SyncType, str]] = None,
+        timeout: int = 120,
+        synapse_client: Optional[Synapse] = None,
     ) -> "Grid":
         """
         Synchronizes the grid session's schema and row data against its source entity.
 
-        This is intended for grid sessions created from a file view via `initial_query`.
-        Grid sessions backed by a RecordSet should use `export_to_record_set` instead.
+        Grid sessions created from a file view via `initial_query` always perform a
+        full PULL_PUSH. Grid sessions backed by a RecordSet may instead pass
+        `sync_type=SyncType.PULL` to pull the latest RecordSet data/schema into the
+        session for review, without immediately writing the merged result back as a
+        new RecordSet version. Once satisfied with the result, call this method again
+        (with `sync_type` omitted, or explicitly set to `SyncType.PULL_PUSH`) to push
+        the merged data back to the RecordSet as a new version.
 
         Arguments:
+            sync_type: The type of synchronization to perform. Optional; the server
+                defaults to `SyncType.PULL_PUSH` when omitted. `SyncType.PULL` is
+                currently only supported for RecordSet-based grids.
             timeout: The number of seconds to wait for the job to complete or progress
                 before raising a SynapseTimeoutError. Defaults to 120.
             synapse_client: If not passed in and caching was not disabled by
@@ -4893,11 +5231,40 @@ class Grid(EnumCoercionMixin, GridSynchronousProtocol):
 
             asyncio.run(main())
             ```
+
+        Example: Preview a RecordSet-backed grid's merge before pushing it back
+            &nbsp;
+
+            ```python
+            import asyncio
+            from synapseclient import Synapse
+            from synapseclient.models import Grid
+            from synapseclient.models.curation import SyncType
+
+            syn = Synapse()
+            syn.login()
+
+            async def main():
+                grid = Grid(record_set_id="syn1234567")
+                grid = await grid.create_async()
+
+                # Pull in the latest RecordSet data/schema without pushing back yet
+                grid = await grid.synchronize_async(sync_type=SyncType.PULL)
+
+                # ... review the merged result in the grid session ...
+
+                # Push the merged result back as a new RecordSet version
+                grid = await grid.synchronize_async(sync_type=SyncType.PULL_PUSH)
+
+            asyncio.run(main())
+            ```
         """
         if not self.session_id:
             raise ValueError("session_id is required to synchronize a GridSession")
 
-        request = SynchronizeGridRequest(grid_session_id=self.session_id)
+        request = SynchronizeGridRequest(
+            grid_session_id=self.session_id, sync_type=sync_type
+        )
         result = await request.send_job_and_wait_async(
             timeout=timeout, synapse_client=synapse_client
         )

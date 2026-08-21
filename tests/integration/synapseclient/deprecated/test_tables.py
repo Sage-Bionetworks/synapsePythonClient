@@ -352,7 +352,7 @@ def test_tables_csv(syn, project):
 
 
 # @skip("Skip integration tests for soon to be removed code")
-def test_tables_pandas(syn, project):
+def test_tables_pandas(syn, project, schedule_for_cleanup):
     # create a pandas DataFrame
     df = pd.DataFrame(
         {
@@ -380,11 +380,15 @@ def test_tables_pandas(syn, project):
 
     cols = as_table_columns(df)
     cols[0].maximumSize = 20
-    schema = Schema(name="Nifty Table", columns=cols, parent=project)
+
+    schema = Schema(
+        name="Nifty Table " + str(uuid.uuid4()), columns=cols, parent=project
+    )
 
     # store in Synapse
     # datetime64 column in df also gets changed from date time to epoch time.
     table = syn.store(Table(schema, df))
+    schedule_for_cleanup(table.schema.id)
 
     # retrieve the table and verify
     results = syn.tableQuery("select * from %s" % table.schema.id, resultsAs="csv")
