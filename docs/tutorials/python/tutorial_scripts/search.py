@@ -495,7 +495,10 @@ def create_index_with_configuration(search_configuration_id: str) -> SearchIndex
         response_parts=[SearchQueryPart.HITS, SearchQueryPart.TOTAL_HITS],
     )
     print("Abstracts matching the abbreviation 'AD':")
-    print_hits(results)
+    print(f"total_hits={results.total_hits}, returned={len(results.hits)}")
+    for hit in results.hits:
+        fields = {field.name: field.value for field in hit.fields}
+        print(f"  ROW_ID={hit.row_id} {fields}")
     return index
 
 
