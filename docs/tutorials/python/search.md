@@ -119,6 +119,14 @@ used when rows are indexed, and a `default_search` chain, used when a query is a
 Putting the synonyms only in `default_search` expands the incoming query instead of
 storing every synonym for every row.
 
+!!! tip "Write your synonyms in lowercase"
+    Token filters run in the order they are listed, and `lowercase` comes before the
+    synonym filter in the chain below. By the time a search term reaches the synonym
+    filter it has already been lowercased, so an entry written as `AD => Alzheimer's
+    disease` will never be matched and never expand. Lowercase every entry in the
+    SynonymSet — `ad => alzheimer's disease` — and the abbreviation still works no
+    matter how the person typed it.
+
 ```python
 --8<-- "docs/tutorials/python/tutorial_scripts/search.py:search_configuration"
 ```

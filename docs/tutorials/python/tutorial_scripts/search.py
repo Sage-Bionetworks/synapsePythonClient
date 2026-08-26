@@ -152,6 +152,11 @@ def create_search_configuration() -> str:
 
     # Comma-separated entries are interchangeable in both directions; entries
     # written with "=>" expand the left side to the right side only.
+    #
+    # Keep every entry lowercase. The `lowercase` filter runs before the synonym
+    # filter in the chain below, so a search term is already lowercased by the
+    # time the synonyms are applied -- an entry written "AD => ..." would never
+    # match and never expand.
     synonyms = SynonymSet(
         organization_name=organization_name,
         name="ad_synonyms",
