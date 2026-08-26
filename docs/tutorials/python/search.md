@@ -337,15 +337,25 @@ Suggestions for 'Mayo Cl':
 
 ### 3.6 Paginated results
 
-A query returns at most 100 hits at a time (25 by default), so anything larger requires special attention. There are two ways to do it.
+A query returns at most 100 hits at a time (25 by default), so anything larger requires
+paging. There are two mechanisms, and they answer different questions — pick by what you are trying to do:
 
-* Specifying the `from_` and `size` arguments on `SearchQuery` to an offset the way page numbers do.
-* `search_after` picks up from where the last page ended. Each response has `next_search_after`; pass it back unchanged on the next request and leave `from_` unset.
+* **`from_` and `size`** jump to an arbitrary position, the way numbered pages in a UI
+  do. Reach for this when you want *the 504th result*.
+* **`search_after`** picks up exactly where the previous page ended. Reach for this when
+  you want to *enumerate every result*. Each response carries `next_search_after`; pass
+  it back unchanged on the next request and leave `from_` unset.
+
+!!! warning "Offset paging stops at 10,000 hits"
+    OpenSearch caps `from_ + size` at its result window, 10,000 by default. Offset
+    paging therefore cannot reach past the 10,000th hit, and a sweep that might run
+    deeper than that has to use `search_after`.
 
 #### Offset paging with `from_` and `size`
 
-Simple, and extracts the results in pages. The cost grows with depth and the server collects and discards every hit
-before the offset — so it is the wrong tool for sweeping a large index.
+Simple, and extracts the results in pages. The cost grows with depth — the server
+collects and discards every hit before the offset — which is both why it is capped at
+10,000 and why it is the wrong tool for sweeping a large index.
 
 ```python
 --8<-- "docs/tutorials/python/tutorial_scripts/search.py:pagination_offset"
@@ -371,7 +381,11 @@ total_hits=6, returned=2
 
 #### Cursor paging with `search_after`
 
-This is the solution if you need every row. The catch is that `search_after` is a position in a sort order, so the `sort` has to
+This is the solution if you need every row, and the only option once you are paging past
+the 10,000-hit result window. It has no depth penalty: each request resumes from the
+cursor instead of counting up from the start.
+
+The catch is that `search_after` is a position in a sort order, so the `sort` has to
 place every row unambiguously. If two rows tie on every sort column, a page boundary
 landing between them can skip or repeat rows. Sort on something unique, or append a
 unique column as a final tie-breaker.
