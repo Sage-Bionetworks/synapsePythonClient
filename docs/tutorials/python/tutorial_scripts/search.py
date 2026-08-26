@@ -127,6 +127,152 @@ print(f"Created SearchIndex with ID: {index.id}")
 # --8<-- [end:create_index]
 
 
+# --8<-- [start:search_configuration]
+def create_search_configuration() -> str:
+    """
+    Example: Teach the index that "AD" means "Alzheimer's disease" by building a
+    SynonymSet, wrapping it in a TextAnalyzer, and bundling that analyzer into a
+    SearchConfiguration.
+
+    These resources belong to an Organization, and creating them is restricted
+    to Sage Bionetworks employees. None of them can be deleted once created.
+    """
+    from synapseclient.models import (
+        ColumnAnalyzerOverride,
+        ColumnAnalyzerOverrideEntry,
+        Organization,
+        SearchConfiguration,
+        SynonymSet,
+        TextAnalyzer,
+    )
+
+    organization_name = "my.uniquely.named.organization"
+    organization = Organization(name=organization_name).store()
+    print(f"Using organization: {organization.id} ({organization.name})")
+
+    # Comma-separated entries are interchangeable in both directions; entries
+    # written with "=>" expand the left side to the right side only.
+    synonyms = SynonymSet(
+        organization_name=organization_name,
+        name="ad_synonyms",
+        description="Abbreviations used across Alzheimer's disease studies",
+        definition={
+            "type": "synonym_graph",
+            "synonyms": [
+                "rna sequencing, rna-seq, rnaseq",
+                "ad => alzheimer's disease, alzheimers disease",
+                "mci => mild cognitive impairment",
+            ],
+        },
+    ).store()
+    print(f"Created SynonymSet: {synonyms.id} ({synonyms.qualified_name})")
+
+    # The synonym filter is applied in `default_search` only, so synonyms expand
+    # the incoming query rather than bloating the stored index.
+    analyzer = TextAnalyzer(
+        organization_name=organization_name,
+        name="ad_synonym_analyzer",
+        description="English analyzer that expands AD abbreviations at search time",
+        settings={
+            "filter": {
+                "english_stop": {"type": "stop", "stopwords": "_english_"},
+                "english_stemmer": {"type": "stemmer", "language": "english"},
+                # A $ref resolves to the SynonymSet by its qualified name
+                "ad_synonyms": {"$ref": synonyms.qualified_name},
+            },
+            "analyzer": {
+                "default": {
+                    "type": "custom",
+                    "tokenizer": "standard",
+                    "filter": ["lowercase", "english_stop", "english_stemmer"],
+                },
+                "default_search": {
+                    "type": "custom",
+                    "tokenizer": "standard",
+                    "filter": [
+                        "lowercase",
+                        "ad_synonyms",
+                        "english_stop",
+                        "english_stemmer",
+                    ],
+                },
+            },
+        },
+    ).store()
+    print(f"Created TextAnalyzer: {analyzer.id} ({analyzer.qualified_name})")
+
+    # Columns not named here fall back to the configuration's default analyzer
+    overrides = ColumnAnalyzerOverride(
+        organization_name=organization_name,
+        name="study_column_overrides",
+        description="Treat the diagnosis column as a single exact value",
+        overrides=[
+            ColumnAnalyzerOverrideEntry(
+                column_name="diagnosis",
+                analyzer={"analyzer": {"default": {"type": "keyword"}}},
+            ),
+        ],
+    ).store()
+    print(f"Created ColumnAnalyzerOverride: {overrides.id}")
+
+    configuration = SearchConfiguration(
+        organization_name=organization_name,
+        name="study_search_config",
+        description="Analyzer settings for the study summary search index",
+        default_analyzer={"$ref": analyzer.qualified_name},
+        column_analyzer_overrides=[{"$ref": overrides.qualified_name}],
+    ).store()
+    print(f"Created SearchConfiguration: {configuration.id}")
+    return configuration.id
+
+
+# --8<-- [end:search_configuration]
+
+
+# --8<-- [start:apply_search_configuration]
+def create_index_with_configuration(search_configuration_id: str) -> SearchIndex:
+    """
+    Example: Build an index that uses a specific SearchConfiguration, and bind
+    the same configuration to the project so later indexes inherit it.
+    """
+    from synapseclient.models import SearchConfigBinding
+
+    index = SearchIndex(
+        name="Study Summaries Search Index With Synonyms",
+        parent_id=project_id,
+        defining_sql=f"SELECT * FROM {table.id}",
+        search_configuration_id=search_configuration_id,
+    ).store()
+    print(f"Created SearchIndex {index.id} using config {search_configuration_id}")
+
+    # Any index created under this project without its own
+    # search_configuration_id now inherits this configuration
+    binding = SearchConfigBinding(
+        object_id=project_id,
+        search_configuration_id=search_configuration_id,
+    ).store()
+    print(f"Bound configuration {binding.search_configuration_id} to {project_id}")
+
+    # "AD" now matches the abstracts that spell out "Alzheimer's disease"
+    results = index.query(
+        search_query=SearchQuery(
+            query=Query(match={"abstract": MatchFieldOptions(query="AD")}),
+            source=SourceFilter(includes=["study_name", "diagnosis"]),
+            size=10,
+        ),
+        response_parts=[SearchQueryPart.HITS, SearchQueryPart.TOTAL_HITS],
+    )
+    print("Abstracts matching the abbreviation 'AD':")
+    print(f"total_hits={results.total_hits}, returned={len(results.hits)}")
+    for hit in results.hits:
+        fields = {field.name: field.value for field in hit.fields}
+        print(f"  {fields}")
+    return index
+
+
+# --8<-- [end:apply_search_configuration]
+
+
 # --8<-- [start:full_text_search]
 # Find every study whose abstract mentions Alzheimer's disease, then
 # search across several columns at once.
@@ -387,149 +533,3 @@ while True:
     page += 1
 
 # --8<-- [end:pagination_cursor]
-
-
-# --8<-- [start:search_configuration]
-def create_search_configuration() -> str:
-    """
-    Example: Teach the index that "AD" means "Alzheimer's disease" by building a
-    SynonymSet, wrapping it in a TextAnalyzer, and bundling that analyzer into a
-    SearchConfiguration.
-
-    These resources belong to an Organization, and creating them is restricted
-    to Sage Bionetworks employees. None of them can be deleted once created.
-    """
-    from synapseclient.models import (
-        ColumnAnalyzerOverride,
-        ColumnAnalyzerOverrideEntry,
-        Organization,
-        SearchConfiguration,
-        SynonymSet,
-        TextAnalyzer,
-    )
-
-    organization_name = "my.uniquely.named.organization"
-    organization = Organization(name=organization_name).store()
-    print(f"Using organization: {organization.id} ({organization.name})")
-
-    # Comma-separated entries are interchangeable in both directions; entries
-    # written with "=>" expand the left side to the right side only.
-    synonyms = SynonymSet(
-        organization_name=organization_name,
-        name="ad_synonyms",
-        description="Abbreviations used across Alzheimer's disease studies",
-        definition={
-            "type": "synonym_graph",
-            "synonyms": [
-                "rna sequencing, rna-seq, rnaseq",
-                "ad => alzheimer's disease, alzheimers disease",
-                "mci => mild cognitive impairment",
-            ],
-        },
-    ).store()
-    print(f"Created SynonymSet: {synonyms.id} ({synonyms.qualified_name})")
-
-    # The synonym filter is applied in `default_search` only, so synonyms expand
-    # the incoming query rather than bloating the stored index.
-    analyzer = TextAnalyzer(
-        organization_name=organization_name,
-        name="ad_synonym_analyzer",
-        description="English analyzer that expands AD abbreviations at search time",
-        settings={
-            "filter": {
-                "english_stop": {"type": "stop", "stopwords": "_english_"},
-                "english_stemmer": {"type": "stemmer", "language": "english"},
-                # A $ref resolves to the SynonymSet by its qualified name
-                "ad_synonyms": {"$ref": synonyms.qualified_name},
-            },
-            "analyzer": {
-                "default": {
-                    "type": "custom",
-                    "tokenizer": "standard",
-                    "filter": ["lowercase", "english_stop", "english_stemmer"],
-                },
-                "default_search": {
-                    "type": "custom",
-                    "tokenizer": "standard",
-                    "filter": [
-                        "lowercase",
-                        "ad_synonyms",
-                        "english_stop",
-                        "english_stemmer",
-                    ],
-                },
-            },
-        },
-    ).store()
-    print(f"Created TextAnalyzer: {analyzer.id} ({analyzer.qualified_name})")
-
-    # Columns not named here fall back to the configuration's default analyzer
-    overrides = ColumnAnalyzerOverride(
-        organization_name=organization_name,
-        name="study_column_overrides",
-        description="Treat the diagnosis column as a single exact value",
-        overrides=[
-            ColumnAnalyzerOverrideEntry(
-                column_name="diagnosis",
-                analyzer={"analyzer": {"default": {"type": "keyword"}}},
-            ),
-        ],
-    ).store()
-    print(f"Created ColumnAnalyzerOverride: {overrides.id}")
-
-    configuration = SearchConfiguration(
-        organization_name=organization_name,
-        name="study_search_config",
-        description="Analyzer settings for the study summary search index",
-        default_analyzer={"$ref": analyzer.qualified_name},
-        column_analyzer_overrides=[{"$ref": overrides.qualified_name}],
-    ).store()
-    print(f"Created SearchConfiguration: {configuration.id}")
-    return configuration.id
-
-
-# --8<-- [end:search_configuration]
-
-
-# --8<-- [start:apply_search_configuration]
-def create_index_with_configuration(search_configuration_id: str) -> SearchIndex:
-    """
-    Example: Build an index that uses a specific SearchConfiguration, and bind
-    the same configuration to the project so later indexes inherit it.
-    """
-    from synapseclient.models import SearchConfigBinding
-
-    index = SearchIndex(
-        name="Study Summaries Search Index With Synonyms",
-        parent_id=project_id,
-        defining_sql=f"SELECT * FROM {table.id}",
-        search_configuration_id=search_configuration_id,
-    ).store()
-    print(f"Created SearchIndex {index.id} using config {search_configuration_id}")
-
-    # Any index created under this project without its own
-    # search_configuration_id now inherits this configuration
-    binding = SearchConfigBinding(
-        object_id=project_id,
-        search_configuration_id=search_configuration_id,
-    ).store()
-    print(f"Bound configuration {binding.search_configuration_id} to {project_id}")
-
-    # "AD" now matches the abstracts that spell out "Alzheimer's disease"
-    results = index.query(
-        search_query=SearchQuery(
-            query=Query(match={"abstract": MatchFieldOptions(query="AD")}),
-            source=SourceFilter(includes=["study_name", "diagnosis"]),
-            size=10,
-        ),
-        response_parts=[SearchQueryPart.HITS, SearchQueryPart.TOTAL_HITS],
-    )
-    print("Abstracts matching the abbreviation 'AD':")
-    print(f"total_hits={results.total_hits}, returned={len(results.hits)}")
-    for hit in results.hits:
-        fields = {field.name: field.value for field in hit.fields}
-        print(f"  {fields}")
-    return index
-
-
-# --8<-- [end:apply_search_configuration]

@@ -21,14 +21,15 @@ Synapse Python client.
 In this tutorial, you will:
 
 1. Log in, get your project, and create a table to index
-2. Create a SearchIndex
-3. Run a full-text search
-4. Highlight where the match happened
-5. Combine scored clauses with unscored filters, and sort the results
-6. Count facets with aggregations
-7. Power a type-ahead box with autocomplete
-8. Paginated results
-9. Tune matching with synonyms and analyzers
+2. Set up the index — create a SearchIndex, and optionally tune matching with synonyms
+   and analyzers
+3. Use the search index
+    1. Run a full-text search
+    2. Highlight where the match happened
+    3. Combine scored clauses with unscored filters, and sort the results
+    4. Count facets with aggregations
+    5. Power a type-ahead box with autocomplete
+    6. Paginate through results
 
 ## Prerequisites
 * This tutorial assumes that you have a Synapse project.
@@ -46,7 +47,15 @@ the name of your project.
 --8<-- "docs/tutorials/python/tutorial_scripts/search.py:setup"
 ```
 
-## 2. Create a SearchIndex Entity
+## 2. Setup
+
+!!! warning "Restricted to Sage Bionetworks employees"
+    Everything in this section — creating a SearchIndex, and the synonym and analyzer
+    resources that configure one — is restricted to Sage Bionetworks employees. If that
+    is not you, read on for how indexes are built and configured, then pick up at
+    step 3 against an index someone has already created and shared with you.
+
+### 2.1 Create a SearchIndex entity
 
 The `defining_sql` decides which rows and columns are indexed. It must reference exactly
 one table-like entity — unlike a Materialized View, JOIN and UNION across several
@@ -85,7 +94,67 @@ Index syn68123456 is queryable with 6 rows
 **Note**: The index tracks its source. When rows in the underlying table change, the
 index is updated in the background — you do not need to re-store the SearchIndex.
 
-## 3. Run a full-text search
+### 2.2 Advanced: Tune matching with synonyms and analyzers
+
+!!! warning "Permanent"
+    The REST API has no delete endpoint for any of the resources below. Once created, a
+    SynonymSet, TextAnalyzer, ColumnAnalyzerOverride, or SearchConfiguration cannot be
+    removed, and its owning Organization can no longer be deleted either. Choose names
+    deliberately.
+
+Everything in this tutorial relies on how each column was analyzed when the index was built: how text is split into tokens, which tokens are dropped, and how they are normalized. There are four `Organization`-scoped resources that let you control that:
+
+* [SynonymSet][synapseclient.models.SynonymSet] — terms that should be treated as equivalent, so someone searching `AD` finds abstracts that say "Alzheimer's disease"
+* [TextAnalyzer][synapseclient.models.TextAnalyzer] — a named OpenSearch analyzer: a tokenizer plus a chain of token filters, which may reference a SynonymSet
+* [ColumnAnalyzerOverride][synapseclient.models.ColumnAnalyzerOverride] — a reusable bundle assigning specific analyzers to specific columns
+* [SearchConfiguration][synapseclient.models.SearchConfiguration] — bundles a default analyzer with any column overrides; this is what a SearchIndex actually points at
+
+Each resource belongs to an [Organization][synapseclient.models.Organization] and is
+referenced from another resource by its qualified name,
+`{organization_name}-{name}`, written as `{"$ref": "my.org-my_analyzer"}`.
+
+
+Note where the synonym filter goes below. The analyzer declares both a `default` chain,
+used when rows are indexed, and a `default_search` chain, used when a query is analyzed.
+Putting the synonyms only in `default_search` expands the incoming query instead of
+storing every synonym for every row.
+
+```python
+--8<-- "docs/tutorials/python/tutorial_scripts/search.py:search_configuration"
+```
+
+A SearchIndex resolves its configuration when the index is built, so the configuration
+has to exist before the index that uses it — that is why this comes before you run any
+queries. Either point the index straight at a configuration with
+`search_configuration_id`, or bind a configuration to the parent folder or project — an
+index with no `search_configuration_id` of its own walks up the entity hierarchy and
+uses the first [SearchConfigBinding][synapseclient.models.SearchConfigBinding] it finds,
+falling back to the platform defaults.
+
+```python
+--8<-- "docs/tutorials/python/tutorial_scripts/search.py:apply_search_configuration"
+```
+
+<details class="example">
+  <summary>Searching the abbreviation against the new index should look like:</summary>
+```
+Created SearchIndex syn68123457 using config 4321
+Index syn68123457 is queryable with 6 rows
+Bound configuration 4321 to syn12345678
+Abstracts matching the abbreviation 'AD':
+total_hits=3, returned=3
+  {'study_name': 'ROSMAP Cortex Proteomics', 'diagnosis': "Alzheimer's Disease"}
+  {'study_name': 'MSBB RNA Sequencing', 'diagnosis': "Alzheimer's Disease"}
+  {'study_name': 'Mayo Clinic Whole Genome', 'diagnosis': "Alzheimer's Disease"}
+```
+</details>
+
+## 3. Using a search index
+
+Everything from here on is querying an index that already exists, which does not require
+any special permissions — read access to the SearchIndex entity is enough.
+
+### 3.1 Run a full-text search
 
 A [`match`](https://docs.opensearch.org/latest/query-dsl/full-text/match/) clause is the
 workhorse of full-text search: the text you pass is analyzed the same way the column was
@@ -133,7 +202,7 @@ Hits come back ranked by relevance, and each one carries its score on
 [`hit.score`][synapseclient.models.SearchHit] along with the `row_id` and `row_version`
 of the source row.
 
-## 4. Highlight where the match happened
+### 3.2 Highlight where the match happened
 
 A result list is much easier to read when it shows the matching text in context.
 `highlight` returns short fragments of the matched columns with the matching terms
@@ -158,10 +227,10 @@ Studies that sequenced something:
 </details>
 
 **Note**: Highlighting, like relevance scoring, depends on the column being indexed as
-analyzed text. Step 9 covers how to control that with a
+analyzed text. Step 2.2 covers how to control that with a
 [SearchConfiguration][synapseclient.models.SearchConfiguration].
 
-## 5. Combine scored clauses with unscored filters, and sort the results
+### 3.3 Combine scored clauses with unscored filters, and sort the results
 
 A [`bool`](https://docs.opensearch.org/latest/query-dsl/compound/bool/) clause is how
 you build a real search request out of several conditions:
@@ -189,7 +258,7 @@ total_hits=2, returned=2
 ```
 </details>
 
-## 6. Count facets with aggregations
+### 3.4 Count facets with aggregations
 
 Aggregations answer "how many rows are there of each kind?" — the counts you see next to
 the checkboxes in a faceted search UI. A
@@ -247,7 +316,7 @@ Facet counts across all studies:
 ```
 </details>
 
-## 7. Power a type-ahead box with autocomplete
+### 3.5 Power a type-ahead box with autocomplete
 
 [`autocomplete()`][synapseclient.models.SearchIndex.autocomplete] is a separate,
 synchronous endpoint meant for search-as-you-type: it returns its hits directly instead
@@ -267,14 +336,14 @@ Suggestions for 'Mayo Cl':
 ```
 </details>
 
-## 8. Paginated results
+### 3.6 Paginated results
 
 A query returns at most 100 hits at a time (25 by default), so anything larger requires special attention. There are two ways to do it.
 
 * Specifying the `from_` and `size` arguments on `SearchQuery` to an offset the way page numbers do.
 * `search_after` picks up from where the last page ended. Each response has `next_search_after`; pass it back unchanged on the next request and leave `from_` unset.
 
-### Offset paging with `from_` and `size`
+#### Offset paging with `from_` and `size`
 
 Simple, and extracts the results in pages. The cost grows with depth and the server collects and discards every hit
 before the offset — so it is the wrong tool for sweeping a large index.
@@ -301,7 +370,7 @@ total_hits=6, returned=2
 ```
 </details>
 
-### Cursor paging with `search_after`
+#### Cursor paging with `search_after`
 
 This is the solution if you need every row. The catch is that `search_after` is a position in a sort order, so the `sort` has to
 place every row unambiguously. If two rows tie on every sort column, a page boundary
@@ -333,60 +402,6 @@ total_hits=6, returned=2
 **Note**: Each page is a separate asynchronous job either way, not a cheap follow-up
 GET, so ask for the largest `size` you can use rather than walking a big index in small
 pages.
-
-## Advanced: Tune matching with synonyms and analyzers
-
-!!! warning "Restricted and permanent"
-    Creating and updating the following resources is restricted to Sage Bionetworks employees,
-    and the REST API has no delete endpoint for any of them. Once created, a
-    SynonymSet, TextAnalyzer, ColumnAnalyzerOverride, or SearchConfiguration cannot be
-    removed, and its owning Organization can no longer be deleted either. Choose names deliberately.
-
-Everything in this tutorial relies on how each column was analyzed when the index was built: how text is split into tokens, which tokens are dropped, and how they are normalized. There are four `Organization`-scoped resources that let you control that:
-
-* [SynonymSet][synapseclient.models.SynonymSet] — terms that should be treated as equivalent, so someone searching `AD` finds abstracts that say "Alzheimer's disease"
-* [TextAnalyzer][synapseclient.models.TextAnalyzer] — a named OpenSearch analyzer: a tokenizer plus a chain of token filters, which may reference a SynonymSet
-* [ColumnAnalyzerOverride][synapseclient.models.ColumnAnalyzerOverride] — a reusable bundle assigning specific analyzers to specific columns
-* [SearchConfiguration][synapseclient.models.SearchConfiguration] — bundles a default analyzer with any column overrides; this is what a SearchIndex actually points at
-
-Each resource belongs to an [Organization][synapseclient.models.Organization] and is
-referenced from another resource by its qualified name,
-`{organization_name}-{name}`, written as `{"$ref": "my.org-my_analyzer"}`.
-
-
-Note where the synonym filter goes below. The analyzer declares both a `default` chain,
-used when rows are indexed, and a `default_search` chain, used when a query is analyzed.
-Putting the synonyms only in `default_search` expands the incoming query instead of
-storing every synonym for every row.
-
-```python
---8<-- "docs/tutorials/python/tutorial_scripts/search.py:search_configuration"
-```
-
-A SearchIndex resolves its configuration when the index is built, so set it up front.
-Either point the index straight at a configuration with `search_configuration_id`, or
-bind a configuration to the parent folder or project — an index with no
-`search_configuration_id` of its own walks up the entity hierarchy and uses the first
-[SearchConfigBinding][synapseclient.models.SearchConfigBinding] it finds, falling back
-to the platform defaults.
-
-```python
---8<-- "docs/tutorials/python/tutorial_scripts/search.py:apply_search_configuration"
-```
-
-<details class="example">
-  <summary>Searching the abbreviation against the new index should look like:</summary>
-```
-Created SearchIndex syn68123457 using config 4321
-Index syn68123457 is queryable with 6 rows
-Bound configuration 4321 to syn12345678
-Abstracts matching the abbreviation 'AD':
-total_hits=3, returned=3
-  {'study_name': 'ROSMAP Cortex Proteomics', 'diagnosis': "Alzheimer's Disease"}
-  {'study_name': 'MSBB RNA Sequencing', 'diagnosis': "Alzheimer's Disease"}
-  {'study_name': 'Mayo Clinic Whole Genome', 'diagnosis': "Alzheimer's Disease"}
-```
-</details>
 
 ## Source Code for this Tutorial
 
