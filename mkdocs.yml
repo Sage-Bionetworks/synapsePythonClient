@@ -39,6 +39,7 @@ nav:
           - Dataset: tutorials/python/dataset.md
           - Dataset Collection: tutorials/python/dataset_collection.md
           - Materialized View: tutorials/python/materializedview.md
+          - Search Index: tutorials/python/search.md
           - Submission View: tutorials/python/submissionview.md
           - Sharing Settings: tutorials/python/sharing_settings.md
           - Wiki: tutorials/python/wiki.md
