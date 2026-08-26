@@ -198,9 +198,8 @@ total_hits=3, returned=3
 ```
 </details>
 
-Hits come back ranked by relevance, and each one carries its score on
-[`hit.score`][synapseclient.models.SearchHit] along with the `row_id` and `row_version`
-of the source row.
+Hits come back ranked by relevance, and a score can be returned
+[`hit.score`][synapseclient.models.SearchHit].
 
 ### 3.2 Highlight where the match happened
 
