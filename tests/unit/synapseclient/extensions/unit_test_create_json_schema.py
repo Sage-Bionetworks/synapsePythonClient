@@ -400,11 +400,16 @@ class TestJSONSchema:
         )
 
         # THEN the if clause matches the array with contains, not enum
+        # AND the if clause also asserts the array type, so that it does not match a
+        #  value of another kind, for which a validator skips the contains keyword
         assert all_of == [
             {
                 "if": {
                     "properties": {
-                        "Comorbidities": {"contains": {"const": "Psoriasis"}}
+                        "Comorbidities": {
+                            "type": "array",
+                            "contains": {"const": "Psoriasis"},
+                        }
                     },
                     "required": ["Comorbidities"],
                 },
@@ -1223,13 +1228,12 @@ def test_create_json_schema_list_typed_trigger_ignores_non_array_value(
     columnType of string_list, so the if clause of its conditional branch matches the
     array with the contains keyword. The contains keyword only applies to arrays. A
     validator skips it for every other kind of value, and a skipped keyword counts as
-    satisfied, so the if clause matches a string and a null as well.
+    satisfied, so contains alone would let the if clause match a string and a null as
+    well.
 
-    Comorbidities therefore triggers the then clause when the instance holds the plain
-    string Diabetes, and the user is told that PASI is missing even though the trigger
-    value Psoriasis was never supplied. The instance still fails because Comorbidities
-    is not an array, so the only harm is a second error message that sends the user
-    after an attribute that the data model does not ask for.
+    The if clause therefore asserts the array type in addition to contains. Without the
+    type keyword an instance that holds the plain string Diabetes would tell the user
+    that PASI is missing, even though the trigger value Psoriasis was never supplied.
     """
     # GIVEN a data model where a list typed attribute drives a conditional
     dmge = helpers.get_data_model_graph_explorer(

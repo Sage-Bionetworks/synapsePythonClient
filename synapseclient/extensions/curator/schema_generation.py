@@ -5225,11 +5225,10 @@ class JSONSchema:
         ), dependent_properties in conditional_dependencies.items():
             watched_property_schema = properties.get(watched_property, {})
             if watched_property_schema.get("type") == "array":
-                # An array holds the trigger value as one of its items, so the
-                #  condition must ask whether the array contains the value. The enum
-                #  keyword would compare the whole array to the value, which is never
-                #  equal, so the condition would never be met.
-                trigger_condition: Property = {"contains": {"const": enum_value}}
+                trigger_condition: Property = {
+                    "type": "array",
+                    "contains": {"const": enum_value},
+                }
             else:
                 trigger_condition = {"enum": [enum_value]}
             conditional_dep = {
