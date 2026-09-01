@@ -108,17 +108,31 @@ synapse get [-h] [-q queryString] [-v VERSION] [-r] [--followLink] [--limitSearc
 
 ### `manifest`
 
-Generate manifest for uploading directory tree to Synapse.
+Generate a TSV manifest describing the files in a local directory tree for
+later upload with `synapse sync`.
+
+!!! warning "Folders are created in Synapse during manifest generation"
+    While walking the directory tree, `synapse manifest` **also creates the
+    corresponding folder structure under `--parent-id` in Synapse**, including
+    any empty subfolders. Only the files themselves are deferred to the
+    subsequent `synapse sync` call. That is why `--parent-id` is required even
+    when you only want to generate a manifest: each row in the manifest needs
+    to reference the Synapse ID of its (already-created) parent folder.
+
+To upload a subset of files, run `synapse manifest` first, delete the rows for
+files you do not want to upload from the generated manifest, then run
+`synapse sync <manifest>`. The empty folders created in Synapse during manifest
+generation will remain.
 
 ```bash
 synapse manifest [-h] --parent-id syn123 [--manifest-file OUTPUT] PATH
 ```
 
-| Name              | Type       | Description                                                    | Default |
-|-------------------|------------|----------------------------------------------------------------|---------|
-| `PATH`            | Positional | A path to a file or folder whose manifest will be generated.   |         |
-| `--parent-id`     | Named      | Synapse ID of project or folder where to upload data.          |         |
-| `--manifest-file` | Named      | A TSV output file path where the generated manifest is stored. | stdout  |
+| Name              | Type       | Description                                                                                                                                                                                                                                                                  | Default                     |
+|-------------------|------------|------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|-----------------------------|
+| `PATH`            | Positional | Local path to the directory whose contents will be described in the manifest. The directory tree is walked recursively.                                                                                                                                                      |                             |
+| `--parent-id`     | Named      | Synapse ID of the project or folder that will be the parent of the uploaded tree. Required even when only generating a manifest, because the matching folder structure (including empty folders) is created in Synapse under this parent as the manifest is generated.       |                             |
+| `--manifest-file` | Named      | Path where the generated TSV manifest will be written (for example `./manifest.tsv`). If omitted, the manifest is printed to stdout; pass an explicit path if you intend to edit it before running `synapse sync`.                                                            | stdout                      |
 
 
 ### `sync`
