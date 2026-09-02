@@ -1,12 +1,14 @@
 import json
+import logging
 import os
 import random
 import re
 import string
 import tempfile
 import uuid
+from contextlib import contextmanager
 from datetime import date, datetime, timezone
-from typing import Callable
+from typing import Callable, Iterator
 from unittest import skip
 from zoneinfo import ZoneInfo
 
@@ -35,6 +37,36 @@ from synapseclient.models import (
     query_part_mask_async,
 )
 from tests.integration import QUERY_TIMEOUT_SEC
+
+
+class _MessageCollectingHandler(logging.Handler):
+    """Stores the messages that are written to a logger."""
+
+    def __init__(self) -> None:
+        super().__init__()
+        self.messages: list[str] = []
+
+    def emit(self, record: logging.LogRecord) -> None:
+        self.messages.append(record.getMessage())
+
+
+@contextmanager
+def capture_client_logs(syn: Synapse) -> Iterator[list[str]]:
+    """Collect the messages the client logs inside this block.
+
+    A handler is attached directly to the client logger because the logger used
+    during the tests is silent and does not propagate to the root logger, which
+    is what the caplog fixture reads.
+    """
+    handler = _MessageCollectingHandler()
+    original_level = syn.logger.level
+    syn.logger.addHandler(handler)
+    syn.logger.setLevel(logging.INFO)
+    try:
+        yield handler.messages
+    finally:
+        syn.logger.removeHandler(handler)
+        syn.logger.setLevel(original_level)
 
 
 class TestTableCreation:
@@ -1872,6 +1904,78 @@ class TestUpsertRows:
 
         # AND multiple batch jobs should have been created due to batching settings
         assert spy_send_job.call_count == 7  # More batches due to small size settings
+
+    @pytest.mark.parametrize(
+        "rows_per_query",
+        [50000, 2],
+        ids=["single_query_chunk", "multiple_query_chunks"],
+    )
+    async def test_upsert_reports_accurate_row_counts(
+        self, project_model: Project, rows_per_query: int
+    ) -> None:
+        """An upsert that fully succeeds must not report any failed updates.
+
+        The response Synapse returns for a Table row update is a
+        RowReferenceSetResults, which carries row references rather than the
+        entityId/updateResults pairs that a View update returns. When the client
+        cannot account for the rows it updated it wrongly reports that every
+        updated row failed, even though the data was stored.
+
+        The multiple_query_chunks case additionally covers the accumulation of
+        results across query chunks.
+        """
+        # GIVEN a table in Synapse holding five rows
+        table = Table(
+            name=str(uuid.uuid4()),
+            parent_id=project_model.id,
+            columns=[
+                Column(name="key", column_type=ColumnType.STRING),
+                Column(name="value", column_type=ColumnType.STRING),
+            ],
+        )
+        table = await table.store_async(synapse_client=self.syn)
+        self.schedule_for_cleanup(table.id)
+
+        await table.store_rows_async(
+            values=pd.DataFrame(
+                {"key": ["a", "b", "c", "d", "e"], "value": ["before"] * 5}
+            ),
+            schema_storage_strategy=None,
+            synapse_client=self.syn,
+        )
+
+        # WHEN I upsert changes for all five rows plus two new rows
+        with capture_client_logs(self.syn) as log_messages:
+            await table.upsert_rows_async(
+                values=pd.DataFrame(
+                    {
+                        "key": ["a", "b", "c", "d", "e", "f", "g"],
+                        "value": ["after"] * 5 + ["new", "new"],
+                    }
+                ),
+                primary_keys=["key"],
+                rows_per_query=rows_per_query,
+                synapse_client=self.syn,
+            )
+
+        # THEN every change is stored in the table
+        results = await query_async(
+            f"SELECT key, value FROM {table.id} ORDER BY key",
+            synapse_client=self.syn,
+        )
+        assert len(results) == 7
+        assert results["value"].tolist() == ["after"] * 5 + ["new", "new"]
+
+        # AND the client reports the counts it actually applied
+        upsert_messages = [
+            message for message in log_messages if "rows to update" in message
+        ]
+        assert len(upsert_messages) == 1
+        upsert_message = upsert_messages[0]
+
+        # AND no row is reported as having failed to update
+        assert "could not be updated" not in upsert_message
+        assert "Found 5 rows to update and 2 rows to insert" in upsert_message
 
     async def test_upsert_all_data_types_using_dataframe(
         self, project_model: Project

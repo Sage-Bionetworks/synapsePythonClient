@@ -76,6 +76,7 @@ from synapseclient.models.table_components import (
     SchemaStorageStrategy,
     SnapshotRequest,
     TableSchemaChangeRequest,
+    TableUpdateRequest,
     TableUpdateTransaction,
     UploadToTableRequest,
 )
@@ -2230,6 +2231,83 @@ async def _wait_for_eventually_consistent_changes(
             )
 
 
+def _log_upsert_summary(
+    entity: TableBase | ViewBase,
+    row_update_results: list[TableUpdateTransaction],
+    total_row_count_to_update: int,
+    row_count_to_insert: int,
+    client: Synapse,
+) -> None:
+    """
+    Log how many rows an upsert updated and inserted, along with any per-row
+    failures that Synapse reported.
+
+    Arguments:
+        entity: The table or view that was upserted.
+        row_update_results: The results of every row update sent to Synapse. This
+            is empty for a dry run since nothing is sent.
+        total_row_count_to_update: The number of rows this client sent for update.
+        row_count_to_insert: The number of rows that are inserted after the update.
+        client: The Synapse client used for logging.
+    """
+    total_rows_updated = sum(
+        result.total_rows_changed
+        for result in row_update_results
+        if result.total_rows_changed is not None
+    )
+
+    # Only the entities that back a view report a per-row outcome. A rejected row update
+    # on a table fails the asynchronous job and raises before this point, so for a table
+    # this list is always empty.
+    failed_row_updates = [
+        failed_update
+        for result in row_update_results
+        for failed_update in result.failed_entity_updates
+    ]
+
+    additional_message = ""
+    if failed_row_updates:
+        failure_details = []
+        for failed_update in failed_row_updates:
+            failure_reason = (
+                failed_update.failure_code.value
+                if failed_update.failure_code
+                else "UNKNOWN"
+            )
+            if failed_update.failure_message:
+                failure_reason = f"{failure_reason}: {failed_update.failure_message}"
+            failure_details.append(
+                f"{failed_update.entity_id or 'unknown row'} ({failure_reason})"
+            )
+        additional_message = (
+            f". {len(failed_row_updates)} rows could not be updated:"
+            f" {'; '.join(failure_details)}"
+        )
+
+    reported_row_count_to_update = (
+        total_rows_updated if row_update_results else total_row_count_to_update
+    )
+
+    client.logger.info(
+        f"[{entity.id}:{entity.name}]: Found {reported_row_count_to_update}"
+        f" rows to update and {row_count_to_insert} rows to insert" + additional_message
+    )
+
+    if (
+        row_update_results
+        and not failed_row_updates
+        and total_rows_updated < total_row_count_to_update
+    ):
+        client.logger.debug(
+            f"[{entity.id}:{entity.name}]: Synapse confirmed"
+            f" {total_rows_updated} of the"
+            f" {total_row_count_to_update} rows sent for update and reported no"
+            " failure. This is a gap in how this client counts the responses it"
+            " received, most likely a response type it does not model, and not a"
+            " failed update."
+        )
+
+
 async def _upsert_rows_async(
     entity: Union[TableBase, ViewBase],
     values: Union[str, Dict[str, Any], DATA_FRAME_TYPE],
@@ -2313,7 +2391,7 @@ async def _upsert_rows_async(
     indexes_of_original_df_with_changes = []
     indexes_of_original_df_with_no_changes = []
     total_row_count_to_update = 0
-    row_update_results = None
+    row_update_results: list[TableUpdateTransaction] = []
     with logging_redirect_tqdm(loggers=[client.logger]):
         progress_bar = create_progress_bar(
             total=len(values),
@@ -2353,13 +2431,15 @@ async def _upsert_rows_async(
             if syn_id_and_etag_dict:
                 original_synids_and_etags_to_track.update(syn_id_and_etag_dict)
             if not dry_run and rows_to_update:
-                row_update_results = await _push_row_updates_to_synapse(
-                    entity=entity,
-                    rows_to_update=rows_to_update,
-                    update_size_bytes=update_size_bytes,
-                    progress_bar=progress_bar,
-                    client=client,
-                    job_timeout=job_timeout,
+                row_update_results.extend(
+                    await _push_row_updates_to_synapse(
+                        entity=entity,
+                        rows_to_update=rows_to_update,
+                        update_size_bytes=update_size_bytes,
+                        progress_bar=progress_bar,
+                        client=client,
+                        job_timeout=job_timeout,
+                    )
                 )
             elif dry_run:
                 progress_bar.update(len(rows_to_update))
@@ -2376,22 +2456,12 @@ async def _upsert_rows_async(
         )
     ]
 
-    total_row_count_actually_updated = 0
-    if row_update_results:
-        for result in row_update_results:
-            if result.entities_with_changes_applied:
-                total_row_count_actually_updated += len(
-                    result.entities_with_changes_applied
-                )
-
-    additional_message = ""
-    if total_row_count_actually_updated < total_row_count_to_update:
-        additional_message = f". {total_row_count_to_update - total_row_count_actually_updated} rows could not be updated."
-
-    client.logger.info(
-        f"[{entity.id}:{entity.name}]: Found {total_row_count_actually_updated or total_row_count_to_update}"
-        f" rows to update and {len(rows_to_insert_df)} rows to insert"
-        + additional_message
+    _log_upsert_summary(
+        entity=entity,
+        row_update_results=row_update_results,
+        total_row_count_to_update=total_row_count_to_update,
+        row_count_to_insert=len(rows_to_insert_df),
+        client=client,
     )
 
     if wait_for_eventually_consistent_view and original_synids_and_etags_to_track:
@@ -3494,13 +3564,7 @@ class TableStoreRowMixin:
         schema_storage_strategy: SchemaStorageStrategy = None,
         column_expansion_strategy: ColumnExpansionStrategy = None,
         dry_run: bool = False,
-        additional_changes: List[
-            Union[
-                "TableSchemaChangeRequest",
-                "UploadToTableRequest",
-                "AppendableRowSetRequest",
-            ]
-        ] = None,
+        additional_changes: List["TableUpdateRequest"] = None,
         *,
         insert_size_bytes: int = 900 * MB,
         csv_table_descriptor: Optional[CsvTableDescriptor] = None,
@@ -3739,7 +3803,10 @@ class TableStoreRowMixin:
                 what actions would be taken without actually performing them.
 
             additional_changes: Additional changes to the table that should execute
-                within the same transaction as appending or updating rows. This is used
+                within the same transaction as appending or updating rows. Each change
+                is a TableUpdateRequest, which is one of TableSchemaChangeRequest,
+                AppendableRowSetRequest, UploadToTableRequest, or
+                TableSearchChangeRequest. This is used
                 as a part of the `upsert_rows` method call to allow for the updating of
                 rows and the updating of the table schema in the same transaction. In
                 most cases you will not need to use this argument.
@@ -4138,13 +4205,7 @@ class TableStoreRowMixin:
         table_descriptor: CsvTableDescriptor,
         job_timeout: int,
         file_handle_id: str = None,
-        changes: List[
-            Union[
-                "TableSchemaChangeRequest",
-                "UploadToTableRequest",
-                "AppendableRowSetRequest",
-            ]
-        ] = None,
+        changes: List["TableUpdateRequest"] = None,
     ) -> None:
         """
         Construct the request to send to Synapse to update the table with the
@@ -4159,6 +4220,7 @@ class TableStoreRowMixin:
             file_handle_id: The file handle ID that is being uploaded to Synapse.
             changes: Additional changes to the table that should
                 execute within the same transaction as appending or updating rows.
+                Each change is a TableUpdateRequest.
         """
         all_changes = []
         if changes:
@@ -4260,13 +4322,7 @@ class TableStoreRowMixin:
         progress_bar: tqdm,
         wait_for_update_semaphore: asyncio.Semaphore,
         file_suffix: str,
-        changes: List[
-            Union[
-                "TableSchemaChangeRequest",
-                "UploadToTableRequest",
-                "AppendableRowSetRequest",
-            ]
-        ] = None,
+        changes: List["TableUpdateRequest"] = None,
         to_csv_kwargs: Optional[Dict[str, Any]] = None,
     ) -> None:
         """
@@ -4297,7 +4353,7 @@ class TableStoreRowMixin:
             file_suffix: The suffix that is being used to name the CSV file that is
                 being uploaded.
             changes: Additional changes to the table that should
-                execute within this transaction.
+                execute within this transaction. Each change is a TableUpdateRequest.
             to_csv_kwargs: Additional arguments to pass to the `pd.DataFrame.to_csv`
                 function when writing the data to a CSV file.
         """
@@ -4335,13 +4391,7 @@ class TableStoreRowMixin:
         schema_change_request: TableSchemaChangeRequest,
         client: Synapse,
         job_timeout: int,
-        additional_changes: List[
-            Union[
-                "TableSchemaChangeRequest",
-                "UploadToTableRequest",
-                "AppendableRowSetRequest",
-            ]
-        ] = None,
+        additional_changes: List["TableUpdateRequest"] = None,
     ) -> None:
         """
         Determines if the file we are appending to the table is larger than the
@@ -4360,7 +4410,7 @@ class TableStoreRowMixin:
             client: The Synapse client that is being used to interact with the API.
             job_timeout: The maximum amount of time to wait for a job to complete.
             additional_changes: Additional changes to the table that should execute
-                within this transaction.
+                within this transaction. Each change is a TableUpdateRequest.
         """
         if (file_size := os.path.getsize(path_to_csv)) > insert_size_bytes:
             # Apply schema changes before breaking apart and uploading the file
@@ -4482,13 +4532,7 @@ class TableStoreRowMixin:
         schema_change_request: TableSchemaChangeRequest,
         client: Synapse,
         job_timeout: int,
-        additional_changes: List[
-            Union[
-                "TableSchemaChangeRequest",
-                "UploadToTableRequest",
-                "AppendableRowSetRequest",
-            ]
-        ] = None,
+        additional_changes: List["TableUpdateRequest"] = None,
         to_csv_kwargs: Optional[Dict[str, Any]] = None,
     ) -> None:
         """
@@ -4508,9 +4552,9 @@ class TableStoreRowMixin:
             client: The Synapse client that is being used to interact with the API.
             job_timeout: The maximum amount of time to wait for a job to complete.
             additional_changes: Additional changes to the table that should execute
-                within this transaction. When there are multiple chunks to upload
-                the changes will be applied right away to prevent going over service
-                limits.
+                within this transaction. Each change is a TableUpdateRequest. When
+                there are multiple chunks to upload the changes will be applied right
+                away to prevent going over service limits.
             to_csv_kwargs: Additional arguments to pass to the `pd.DataFrame.to_csv`
                 function when writing the data to a CSV file.
         """
