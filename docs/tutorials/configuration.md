@@ -47,7 +47,7 @@ For more information on AWS credentials files, see the [AWS CLI documentation](h
 
 ### `[cache]`
 
-Downloaded files are cached to avoid repeat downloads of the same file.
+Downloaded files are cached to avoid repeat downloads of the same file. If the directory does not exist it is created the first time the cache is initialised.
 
 | Key | Description |
 | --- | --- |
@@ -57,6 +57,10 @@ Downloaded files are cached to avoid repeat downloads of the same file.
 [cache]
 location = ~/.synapseCache
 ```
+
+To learn more about how the cache works — its on-disk layout, the `.cacheMap`
+file, collision handling, and the cross-client locking protocol — see the
+[File Cache Mechanism](../explanations/file_cache.md) explanation.
 
 ### `[debug]`
 
