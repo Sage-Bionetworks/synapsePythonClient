@@ -6,16 +6,192 @@ from unittest.mock import AsyncMock, patch
 import pytest
 
 from synapseclient import Synapse
-from synapseclient.core.constants.concrete_types import AGENT_CHAT_REQUEST
+from synapseclient.core.constants.concrete_types import (
+    AGENT_CHAT_REQUEST,
+    COMPUTE_TASK_EXECUTION_REQUEST,
+    QUERY_BUNDLE_REQUEST,
+    TABLE_UPDATE_TRANSACTION_REQUEST,
+)
 from synapseclient.core.exceptions import SynapseError, SynapseTimeoutError
 from synapseclient.models.mixins.asynchronous_job import (
     ASYNC_JOB_URIS,
     AsynchronousJobState,
     AsynchronousJobStatus,
+    _resolve_async_job_uri,
     get_job_async,
     send_job_and_wait_async,
     send_job_async,
 )
+
+
+class TestResolveAsyncJobUri:
+    """Unit tests for _resolve_async_job_uri."""
+
+    @pytest.mark.parametrize(
+        "request_type,job_request,expected_uri",
+        [
+            (AGENT_CHAT_REQUEST, None, "/agent/chat/async"),
+            (
+                AGENT_CHAT_REQUEST,
+                {"concreteType": AGENT_CHAT_REQUEST, "sessionId": "123"},
+                "/agent/chat/async",
+            ),
+            (
+                COMPUTE_TASK_EXECUTION_REQUEST,
+                {"concreteType": COMPUTE_TASK_EXECUTION_REQUEST, "taskId": 42},
+                "/curation/task/42/execute/async",
+            ),
+            (
+                COMPUTE_TASK_EXECUTION_REQUEST,
+                {"concreteType": COMPUTE_TASK_EXECUTION_REQUEST, "taskId": "42"},
+                "/curation/task/42/execute/async",
+            ),
+            (
+                COMPUTE_TASK_EXECUTION_REQUEST,
+                {
+                    "concreteType": COMPUTE_TASK_EXECUTION_REQUEST,
+                    "taskId": 42,
+                    "unrelatedKey": "ignored",
+                },
+                "/curation/task/42/execute/async",
+            ),
+            (
+                TABLE_UPDATE_TRANSACTION_REQUEST,
+                {
+                    "concreteType": TABLE_UPDATE_TRANSACTION_REQUEST,
+                    "entityId": "syn123",
+                    "changes": [],
+                },
+                "/entity/syn123/table/transaction/async",
+            ),
+        ],
+        ids=[
+            "static_uri_needs_no_request",
+            "static_uri_ignores_request",
+            "placeholder_filled_from_request",
+            "placeholder_value_is_a_string",
+            "unrelated_keys_are_ignored",
+            "entity_id_placeholder",
+        ],
+    )
+    def test_uri_is_resolved(
+        self, request_type: str, job_request: dict | None, expected_uri: str
+    ) -> None:
+        """A registered request type maps to a uri with no placeholders left in it."""
+        uri = _resolve_async_job_uri(request_type=request_type, request=job_request)
+        assert uri == expected_uri
+
+    @pytest.mark.parametrize(
+        "request_type,job_request,expected_error",
+        [
+            (
+                "InvalidConcreteType",
+                {},
+                "Unsupported request type: InvalidConcreteType",
+            ),
+            (None, {}, "Unsupported request type: None"),
+            (COMPUTE_TASK_EXECUTION_REQUEST, None, "no request provided"),
+            (
+                COMPUTE_TASK_EXECUTION_REQUEST,
+                {"concreteType": COMPUTE_TASK_EXECUTION_REQUEST},
+                "missing taskId in request",
+            ),
+            (
+                COMPUTE_TASK_EXECUTION_REQUEST,
+                {"concreteType": COMPUTE_TASK_EXECUTION_REQUEST, "taskId": None},
+                "missing taskId in request",
+            ),
+            (
+                COMPUTE_TASK_EXECUTION_REQUEST,
+                {"concreteType": COMPUTE_TASK_EXECUTION_REQUEST, "taskId": ""},
+                "missing taskId in request",
+            ),
+        ],
+        ids=[
+            "unregistered_request_type",
+            "no_request_type",
+            "placeholder_with_no_request",
+            "placeholder_absent_from_request",
+            "placeholder_none_in_request",
+            "placeholder_empty_in_request",
+        ],
+    )
+    def test_unresolvable_uri_raises(
+        self, request_type: str | None, job_request: dict | None, expected_error: str
+    ) -> None:
+        """A uri that cannot be completed fails loudly instead of being requested."""
+        with pytest.raises(ValueError, match=expected_error):
+            _resolve_async_job_uri(request_type=request_type, request=job_request)
+
+    @pytest.mark.parametrize(
+        "uri",
+        [
+            "/foo/{entity-id}/async",
+            "/foo/{taskId}/{entity-id}/async",
+        ],
+        ids=["only_placeholder_is_unparseable", "one_placeholder_is_unparseable"],
+    )
+    def test_placeholder_that_is_not_an_identifier_raises(
+        self, monkeypatch: pytest.MonkeyPatch, uri: str
+    ) -> None:
+        """A placeholder the resolver cannot fill must raise, not reach the server."""
+        # GIVEN a registered uri with a placeholder that is not a plain identifier.
+        fake_request_type = "org.sagebionetworks.repo.model.FakeRequest"
+        monkeypatch.setitem(ASYNC_JOB_URIS, fake_request_type, uri)
+
+        # WHEN I resolve it with a request that carries every value the uri names
+        # THEN I should get a ValueError naming what could not be resolved, rather
+        # than a uri that still contains braces and would be sent to Synapse as-is
+        with pytest.raises(ValueError, match="cannot name a request key"):
+            _resolve_async_job_uri(
+                request_type=fake_request_type,
+                request={
+                    "concreteType": fake_request_type,
+                    "taskId": 42,
+                    "entity-id": "syn123",
+                },
+            )
+
+    def test_synapse_ids_are_not_altered_by_encoding(self) -> None:
+        """Percent-encoding leaves the ids callers actually pass untouched."""
+        # GIVEN a request carrying an ordinary synId
+        uri = _resolve_async_job_uri(
+            request_type=QUERY_BUNDLE_REQUEST,
+            request={"concreteType": QUERY_BUNDLE_REQUEST, "entityId": "syn123"},
+        )
+
+        # THEN the synId should appear verbatim: percent-encoding must not disturb
+        # the values that are actually used in practice
+        assert uri == "/entity/syn123/table/query/async"
+
+    @pytest.mark.parametrize(
+        "task_id,expected",
+        [
+            ("123/../../../admin", "123%2F..%2F..%2F..%2Fadmin"),
+            ("123?foo=bar", "123%3Ffoo%3Dbar"),
+            ("123 456", "123%20456"),
+        ],
+        ids=["path_traversal", "query_injection", "space"],
+    )
+    def test_placeholder_is_encoded_as_a_single_path_segment(
+        self, task_id: str, expected: str
+    ) -> None:
+        """A placeholder value cannot change which endpoint is called."""
+        # GIVEN a request whose id carries characters that are significant in a uri.
+        # task_id is annotated int but dataclasses do not enforce annotations, so a
+        # string can reach this point.
+        uri = _resolve_async_job_uri(
+            request_type=COMPUTE_TASK_EXECUTION_REQUEST,
+            request={
+                "concreteType": COMPUTE_TASK_EXECUTION_REQUEST,
+                "taskId": task_id,
+            },
+        )
+
+        # THEN the value should be percent-encoded, leaving the surrounding path
+        # structure intact: the id still occupies exactly one segment
+        assert uri == f"/curation/task/{expected}/execute/async"
+        assert uri.split("/") == ["", "curation", "task", expected, "execute", "async"]
 
 
 class TestSendJobAsync:

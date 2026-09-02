@@ -3,7 +3,7 @@
 import os
 import tempfile
 import uuid
-from typing import Callable
+from typing import AsyncGenerator, Callable
 
 import pandas as pd
 import pytest
@@ -16,19 +16,28 @@ from synapseclient.models import (
     CurationTask,
     CurationTaskStatus,
     EntityView,
+    File,
     FileBasedMetadataTaskProperties,
     Folder,
     Grid,
     GridExecutionDetails,
+    JSONSchema,
     Project,
     RecordBasedMetadataTaskProperties,
     RecordSet,
+    RecordSetGenerationExecutionDetails,
+    RecordSetGenerationExecutionProperties,
+    SampleSheetGenerationExecutionDetails,
+    SampleSheetGenerationExecutionProperties,
+    SchemaOrganization,
     TaskState,
     UserProfile,
     ViewTypeMask,
+    query_async,
 )
 from synapseclient.models.table_components import Query
-from tests.integration import ASYNC_JOB_TIMEOUT_SEC
+from tests.integration import ASYNC_JOB_TIMEOUT_SEC, QUERY_TIMEOUT_SEC
+from tests.integration.helpers import wait_for_condition
 
 
 @pytest.fixture(scope="function")
@@ -983,3 +992,313 @@ class TestCurationTaskSetTaskStateAsync:
         # AND the change persists on the server
         refetched_status = await stored_task.get_status_async(synapse_client=syn)
         assert refetched_status.state == TaskState.IN_PROGRESS
+
+
+class TestCurationTaskExecuteAsync:
+    """Tests for the CurationTask.execute_async method."""
+
+    # The generated sample sheet format is established by the JSON Schema bound to the
+    # destination RecordSet, so both compute task kinds need a destination whose
+    # RecordSet carries a schema.
+    SAMPLE_SHEET_COLUMNS = ["specimen_id", "assay", "read_length"]
+
+    @pytest.fixture(scope="function")
+    async def sample_sheet_schema_uri(
+        self, syn: Synapse, schedule_for_cleanup: Callable[..., None]
+    ) -> str:
+        """Create a JSON schema describing the target sample sheet format."""
+        random_name = "".join(i for i in str(uuid.uuid4()) if i.isalpha())
+        organization = SchemaOrganization(name=f"SYNPY.TEST.{random_name}")
+        await organization.store_async(synapse_client=syn)
+        # The cleanup list is reversed at teardown, so the organization must be
+        # scheduled before its schema: Synapse refuses to delete an organization that
+        # still owns a schema.
+        schedule_for_cleanup(organization)
+
+        json_schema = JSONSchema(
+            name="curation.compute.samplesheet", organization_name=organization.name
+        )
+        await json_schema.store_async(
+            schema_body={
+                "$schema": "http://json-schema.org/draft-07/schema#",
+                "title": "Curation Compute Sample Sheet",
+                "type": "object",
+                "properties": {
+                    "specimen_id": {
+                        "description": "The identifier of the specimen",
+                        "type": "string",
+                    },
+                    "assay": {
+                        "description": "The assay the specimen was run through",
+                        "type": "string",
+                    },
+                    "read_length": {
+                        "description": "The sequencing read length",
+                        "type": "integer",
+                    },
+                },
+            },
+            version="0.0.1",
+            synapse_client=syn,
+        )
+        schedule_for_cleanup(json_schema)
+
+        return json_schema.uri
+
+    @pytest.fixture(scope="function")
+    async def destination_task(
+        self,
+        syn: Synapse,
+        project_model: Project,
+        schedule_for_cleanup: Callable[..., None],
+        sample_sheet_schema_uri: str,
+    ) -> AsyncGenerator[CurationTask, None]:
+        """
+        Create the record-based CurationTask that a compute task writes its output to.
+
+        Its RecordSet is seeded with the target columns and has the sample sheet
+        schema bound to it.
+        """
+        folder = await Folder(
+            name=str(uuid.uuid4()),
+            parent_id=project_model.id,
+        ).store_async(synapse_client=syn)
+        schedule_for_cleanup(folder.id)
+
+        temp_fd, filename = tempfile.mkstemp(suffix=".csv")
+        os.close(temp_fd)
+        schedule_for_cleanup(filename)
+        pd.DataFrame(columns=self.SAMPLE_SHEET_COLUMNS).to_csv(filename, index=False)
+
+        record_set = await RecordSet(
+            name=str(uuid.uuid4()),
+            parent_id=folder.id,
+            path=filename,
+            upsert_keys=["specimen_id"],
+        ).store_async(synapse_client=syn)
+        schedule_for_cleanup(record_set.id)
+
+        await record_set.bind_schema_async(
+            json_schema_uri=sample_sheet_schema_uri, synapse_client=syn
+        )
+
+        yield await CurationTask(
+            data_type=f"destination_{str(uuid.uuid4()).replace('-', '_')}",
+            project_id=project_model.id,
+            instructions="Receives the output of a compute task.",
+            task_properties=RecordBasedMetadataTaskProperties(
+                record_set_id=record_set.id
+            ),
+        ).store_async(synapse_client=syn)
+
+        # Synapse refuses to delete a schema that is still bound to an object, and the
+        # RecordSet is not deleted until session teardown. Unbind here, at function
+        # teardown, so the scheduled cleanup can delete the schema.
+        await record_set.unbind_schema_async(synapse_client=syn)
+
+    async def test_execute_record_set_generation_async(
+        self,
+        syn: Synapse,
+        project_model: Project,
+        destination_task: CurationTask,
+        schedule_for_cleanup: Callable[..., None],
+    ) -> None:
+        # GIVEN a folder of small source files to transform
+        source_folder = await Folder(
+            name=str(uuid.uuid4()),
+            parent_id=project_model.id,
+        ).store_async(synapse_client=syn)
+        schedule_for_cleanup(source_folder.id)
+
+        for index, specimen in enumerate(["SPEC_001", "SPEC_002"]):
+            temp_fd, source_path = tempfile.mkstemp(suffix=".csv")
+            os.close(temp_fd)
+            schedule_for_cleanup(source_path)
+            pd.DataFrame(
+                {
+                    "specimen_id": [specimen],
+                    "assay": ["rna_seq"],
+                    "read_length": [100 + index],
+                }
+            ).to_csv(source_path, index=False)
+
+            source_file = await File(
+                parent_id=source_folder.id,
+                name=f"source_{index}.csv",
+                path=source_path,
+            ).store_async(synapse_client=syn)
+            schedule_for_cleanup(source_file.id)
+
+        # AND a compute task that transforms that folder into the destination RecordSet
+        compute_task = await CurationTask(
+            data_type=f"record_set_generation_{str(uuid.uuid4()).replace('-', '_')}",
+            project_id=project_model.id,
+            instructions="Transform the source files into the destination RecordSet.",
+            task_properties=RecordSetGenerationExecutionProperties(
+                folder_id=source_folder.id,
+                instructions=(
+                    "Each file describes one specimen. Produce one row per specimen "
+                    "with its specimen_id, assay, and read_length."
+                ),
+                destination_task_id=destination_task.task_id,
+            ),
+        ).store_async(synapse_client=syn)
+
+        # AND the round trip preserved the compute properties
+        assert isinstance(
+            compute_task.task_properties, RecordSetGenerationExecutionProperties
+        )
+        assert compute_task.task_properties.folder_id == source_folder.id
+        assert (
+            compute_task.task_properties.destination_task_id == destination_task.task_id
+        )
+
+        # AND the task is made executable, since a new task has no execution details
+        # and Synapse will not dispatch one without them
+        status_with_details = await compute_task.set_execution_details_async(
+            execution_details=RecordSetGenerationExecutionDetails(),
+            synapse_client=syn,
+        )
+        assert isinstance(
+            status_with_details.execution_details, RecordSetGenerationExecutionDetails
+        )
+        # AND attaching the details did not transition the task out of NOT_STARTED
+        assert status_with_details.state == TaskState.NOT_STARTED
+
+        # WHEN I execute the task
+        details = await compute_task.execute_async(
+            timeout=ASYNC_JOB_TIMEOUT_SEC, synapse_client=syn
+        )
+
+        # THEN the job reports back details of the matching kind
+        assert isinstance(details, RecordSetGenerationExecutionDetails)
+        assert details.started_by is not None
+        assert details.started_on is not None
+        assert details.error_message is None, (
+            "The record set generation job failed: "
+            f"{details.error_message} {details.error_details}"
+        )
+
+        # AND the task's status carries the same kind of details, with the results
+        # left pending human review
+        final_status = await compute_task.get_status_async(synapse_client=syn)
+        assert isinstance(
+            final_status.execution_details, RecordSetGenerationExecutionDetails
+        )
+        assert final_status.execution_details.started_on == details.started_on
+        assert final_status.state == TaskState.IN_REVIEW
+
+    async def test_execute_sample_sheet_generation_async(
+        self,
+        syn: Synapse,
+        project_model: Project,
+        destination_task: CurationTask,
+        folder_with_view: tuple[Folder, EntityView],
+        schedule_for_cleanup: Callable[..., None],
+    ) -> None:
+        # GIVEN a folder whose files carry the annotations the sample sheet is built
+        # from, and an EntityView over that folder
+        folder, entity_view = folder_with_view
+
+        for index, specimen in enumerate(["SPEC_001", "SPEC_002"]):
+            annotated_file = await File(
+                parent_id=folder.id,
+                name=f"annotated_{index}.txt",
+                path=make_bogus_uuid_file(),
+                annotations={
+                    "specimen_id": [specimen],
+                    "assay": ["rna_seq"],
+                    "read_length": [100 + index],
+                },
+            ).store_async(synapse_client=syn)
+            schedule_for_cleanup(annotated_file.id)
+
+        # AND the view has indexed those files, since the computation reads the
+        # annotations through the view rather than from the file contents
+        async def view_has_indexed_the_files() -> bool:
+            rows = await query_async(
+                query=f"SELECT * FROM {entity_view.id}", synapse_client=syn
+            )
+            return len(rows) >= 2
+
+        await wait_for_condition(
+            view_has_indexed_the_files,
+            timeout_seconds=QUERY_TIMEOUT_SEC,
+            description="entity view to index the annotated files",
+        )
+
+        # AND a file-based curation task over that folder to act as the input
+        input_task = await CurationTask(
+            data_type=f"sample_sheet_input_{str(uuid.uuid4()).replace('-', '_')}",
+            project_id=project_model.id,
+            instructions="Provides the annotated files for the sample sheet.",
+            task_properties=FileBasedMetadataTaskProperties(
+                upload_folder_id=folder.id,
+                file_view_id=entity_view.id,
+            ),
+        ).store_async(synapse_client=syn)
+
+        # AND a compute task that builds a sample sheet from the input task
+        compute_task = await CurationTask(
+            data_type=f"sample_sheet_generation_{str(uuid.uuid4()).replace('-', '_')}",
+            project_id=project_model.id,
+            instructions="Generate the sample sheet from the annotated files.",
+            task_properties=SampleSheetGenerationExecutionProperties(
+                input_task_id=input_task.task_id,
+                destination_task_id=destination_task.task_id,
+            ),
+        ).store_async(synapse_client=syn)
+
+        # AND the round trip preserved the compute properties
+        assert isinstance(
+            compute_task.task_properties, SampleSheetGenerationExecutionProperties
+        )
+        assert compute_task.task_properties.input_task_id == input_task.task_id
+        assert (
+            compute_task.task_properties.destination_task_id == destination_task.task_id
+        )
+
+        # AND the task is made executable, since a new task has no execution details
+        # and Synapse will not dispatch one without them
+        status_with_details = await compute_task.set_execution_details_async(
+            execution_details=SampleSheetGenerationExecutionDetails(),
+            synapse_client=syn,
+        )
+        assert isinstance(
+            status_with_details.execution_details,
+            SampleSheetGenerationExecutionDetails,
+        )
+        # AND attaching the details did not transition the task out of NOT_STARTED
+        assert status_with_details.state == TaskState.NOT_STARTED
+
+        # WHEN I execute the task
+        details = await compute_task.execute_async(
+            timeout=ASYNC_JOB_TIMEOUT_SEC, synapse_client=syn
+        )
+
+        # THEN the job reports back details of the matching kind
+        assert isinstance(details, SampleSheetGenerationExecutionDetails)
+        assert details.started_by is not None
+        assert details.started_on is not None
+        assert details.error_message is None, (
+            "The sample sheet generation job failed: "
+            f"{details.error_message} {details.error_details}"
+        )
+
+        # AND the task's status carries the same kind of details, with the results
+        # left pending human review
+        final_status = await compute_task.get_status_async(synapse_client=syn)
+        assert isinstance(
+            final_status.execution_details, SampleSheetGenerationExecutionDetails
+        )
+        assert final_status.execution_details.started_on == details.started_on
+        assert final_status.state == TaskState.IN_REVIEW
+
+    async def test_execute_validation_error_async(self, syn: Synapse) -> None:
+        # GIVEN a CurationTask without a task_id
+        # WHEN I try to execute it
+        # THEN it should raise a ValueError before any request is sent
+        with pytest.raises(
+            ValueError, match="task_id is required to execute a CurationTask"
+        ):
+            await CurationTask().execute_async(synapse_client=syn)

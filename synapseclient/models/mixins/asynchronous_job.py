@@ -3,7 +3,9 @@ import json
 import time
 from dataclasses import dataclass
 from enum import Enum
+from string import Formatter
 from typing import Any, Dict, Optional
+from urllib.parse import quote
 
 from tqdm.contrib.logging import logging_redirect_tqdm
 from typing_extensions import Self
@@ -11,6 +13,7 @@ from typing_extensions import Self
 from synapseclient import Synapse
 from synapseclient.core.constants.concrete_types import (
     AGENT_CHAT_REQUEST,
+    COMPUTE_TASK_EXECUTION_REQUEST,
     CREATE_GRID_REQUEST,
     CREATE_SCHEMA_REQUEST,
     DOWNLOAD_FROM_GRID_REQUEST,
@@ -41,6 +44,7 @@ _async_job_duration = meter.create_histogram("synapse.async_job.duration", unit=
 
 ASYNC_JOB_URIS = {
     AGENT_CHAT_REQUEST: "/agent/chat/async",
+    COMPUTE_TASK_EXECUTION_REQUEST: "/curation/task/{taskId}/execute/async",
     CREATE_GRID_REQUEST: "/grid/session/async",
     DOWNLOAD_FROM_GRID_REQUEST: "/grid/download/csv/async",
     DOWNLOAD_LIST_MANIFEST_REQUEST: "/download/list/manifest/async",
@@ -56,6 +60,82 @@ ASYNC_JOB_URIS = {
     UPLOAD_TO_TABLE_PREVIEW_REQUEST: "/table/upload/csv/preview/async",
     SEARCH_INDEX_QUERY: "/search/query/async",
 }
+
+
+def _resolve_async_job_uri(
+    request_type: str, request: dict[str, Any] | None = None
+) -> str:
+    """
+    Looks up the asynchronous job URI for a request type and fills in any path
+    placeholders (for example {entityId} or {taskId}) from the request body.
+
+    A placeholder matches the camelCase key that the request's to_synapse_request()
+    emits, so a URI of /curation/task/{taskId}/execute/async is resolved with the
+    taskId of the request.
+
+    Placeholders are read with the same parser that fills them in, so a URI whose
+    placeholder cannot name a request key is rejected here rather than being sent to
+    Synapse with its braces intact.
+
+    Each value is percent-encoded as a single path segment. Request values come from
+    plain model attributes that are not type-checked at runtime, so a value carrying
+    a slash or a dot-dot segment must not be able to change which endpoint is called.
+
+    Arguments:
+        request_type: The concreteType of the asynchronous job request.
+        request: The serialized job body that to_synapse_request() emits for this
+            request type, in the camelCase form that is sent to the server. Its keys
+            are what the URI placeholders are resolved against, so a URI containing
+            {taskId} requires a taskId key here. Only required when the URI for the
+            request type contains placeholders; request types with a static URI can
+            omit it.
+
+    Returns:
+        The asynchronous job URI with all placeholders resolved.
+
+    Raises:
+        ValueError: If the request type is not supported, if the URI has a placeholder
+            that is not a plain name, or if it has a placeholder whose value is
+            missing from the request, None, or an empty string.
+    """
+    if not request_type or request_type not in ASYNC_JOB_URIS:
+        raise ValueError(f"Unsupported request type: {request_type}")
+    uri = ASYNC_JOB_URIS[request_type]
+
+    # The braced names in the URI, e.g. entityId for /entity/{entityId}/table/query/async.
+    # Each one names a key of the serialized request that supplies that path segment.
+    placeholders = [
+        field_name
+        for _, field_name, _, _ in Formatter().parse(uri)
+        if field_name is not None
+    ]
+    if not placeholders:
+        return uri
+
+    # Placeholders that could never name a request key, such as the positional {} or
+    # an indexed {0}. These are typos in ASYNC_JOB_URIS rather than caller mistakes, so
+    # they are caught before the request is looked at.
+    unusable = [name for name in placeholders if not name.isidentifier()]
+    if unusable:
+        raise ValueError(
+            f"Cannot resolve async job uri {uri}: {unusable} cannot name a request "
+            "key. Each placeholder must be a plain camelCase name matching a key "
+            "that to_synapse_request() emits."
+        )
+
+    if not request:
+        raise ValueError(f"Cannot resolve async job uri {uri}: no request provided.")
+
+    for placeholder in placeholders:
+        value = request.get(placeholder)
+        if value is None or str(value) == "":
+            raise ValueError(
+                f"Cannot resolve async job uri {uri}: missing {placeholder} in request."
+            )
+
+    return uri.format(
+        **{key: quote(str(request[key]), safe="") for key in placeholders}
+    )
 
 
 class AsynchronousCommunicator:
@@ -421,15 +501,8 @@ async def send_job_async(
 
     request_type = request.get("concreteType")
 
-    if not request_type or request_type not in ASYNC_JOB_URIS:
-        raise ValueError(f"Unsupported request type: {request_type}")
-
     client = Synapse.get_client(synapse_client=synapse_client)
-    uri = ASYNC_JOB_URIS[request_type]
-    if "{entityId}" in uri:
-        if "entityId" not in request:
-            raise ValueError(f"Attempting to send job with missing id in uri: {uri}")
-        uri = uri.format(entityId=request["entityId"])
+    uri = _resolve_async_job_uri(request_type=request_type, request=request)
 
     response = await client.rest_post_async(
         uri=f"{uri}/start", body=json.dumps(request)
@@ -478,23 +551,14 @@ async def get_job_async(
     last_progress = 0
     last_total = 1
     progressed = False
+    uri = _resolve_async_job_uri(request_type=request_type, request=request)
     progress_bar = create_progress_bar(
         total=last_total,
-        desc="",
+        desc=uri,
         synapse_client=client,
     )
     with logging_redirect_tqdm(loggers=[client.logger]):
         while time.time() - start_time < timeout:
-            uri = ASYNC_JOB_URIS[request_type]
-            if "{entityId}" in uri:
-                if not request:
-                    raise ValueError("Attempting to get job with missing request.")
-                if "entityId" not in request:
-                    raise ValueError(
-                        f"Attempting to get job with missing id in uri: {uri}"
-                    )
-                uri = uri.format(entityId=request["entityId"])
-            progress_bar.desc = uri
             result = await client.rest_get_async(
                 uri=f"{uri}/get/{job_id}",
                 endpoint=endpoint,
@@ -520,7 +584,7 @@ async def get_job_async(
                     last_total = job_status.progress_total
                     updated = False
 
-                    if progress_bar.desc != last_message:
+                    if getattr(progress_bar, "desc", None) != last_message:
                         progress_bar.desc = last_message
                         updated = True
 

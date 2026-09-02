@@ -16,6 +16,8 @@
             - list_async
             - create_grid_session_async
             - set_task_state_async
+            - set_execution_details_async
+            - execute_async
             - synchronize_active_grid_session_async
 ---
 
@@ -39,6 +41,12 @@
             - validate_schema_async
             - get_schema_derived_keys_async
 ---
+[](){ #CurationTaskProperties-reference-async }
+::: synapseclient.models.CurationTaskProperties
+    options:
+        inherited_members: true
+        members:
+---
 [](){ #RecordBasedMetadataTaskProperties-reference-async }
 ::: synapseclient.models.RecordBasedMetadataTaskProperties
     options:
@@ -47,6 +55,54 @@
 ---
 [](){ #FileBasedMetadataTaskProperties-reference-async }
 ::: synapseclient.models.FileBasedMetadataTaskProperties
+    options:
+        inherited_members: true
+        members:
+---
+[](){ #SampleSheetGenerationExecutionProperties-reference-async }
+::: synapseclient.models.SampleSheetGenerationExecutionProperties
+    options:
+        inherited_members: true
+        members:
+---
+[](){ #RecordSetGenerationExecutionProperties-reference-async }
+::: synapseclient.models.RecordSetGenerationExecutionProperties
+    options:
+        inherited_members: true
+        members:
+---
+[](){ #UnknownCurationTaskProperties-reference-async }
+::: synapseclient.models.UnknownCurationTaskProperties
+    options:
+        inherited_members: true
+        members:
+---
+[](){ #TaskExecutionDetails-reference-async }
+::: synapseclient.models.TaskExecutionDetails
+    options:
+        inherited_members: true
+        members:
+---
+[](){ #ExecutableTaskExecutionDetails-reference-async }
+::: synapseclient.models.ExecutableTaskExecutionDetails
+    options:
+        inherited_members: true
+        members:
+---
+[](){ #SampleSheetGenerationExecutionDetails-reference-async }
+::: synapseclient.models.SampleSheetGenerationExecutionDetails
+    options:
+        inherited_members: true
+        members:
+---
+[](){ #RecordSetGenerationExecutionDetails-reference-async }
+::: synapseclient.models.RecordSetGenerationExecutionDetails
+    options:
+        inherited_members: true
+        members:
+---
+[](){ #UnknownTaskExecutionDetails-reference-async }
+::: synapseclient.models.UnknownTaskExecutionDetails
     options:
         inherited_members: true
         members:

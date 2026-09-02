@@ -16,6 +16,8 @@
             - list
             - create_grid_session
             - set_task_state
+            - set_execution_details
+            - execute
             - synchronize_active_grid_session
 ---
 
@@ -39,6 +41,12 @@
             - validate_schema
             - get_schema_derived_keys
 ---
+[](){ #CurationTaskProperties-reference }
+::: synapseclient.models.CurationTaskProperties
+    options:
+        inherited_members: true
+        members:
+---
 [](){ #RecordBasedMetadataTaskProperties-reference }
 ::: synapseclient.models.RecordBasedMetadataTaskProperties
     options:
@@ -47,6 +55,54 @@
 ---
 [](){ #FileBasedMetadataTaskProperties-reference }
 ::: synapseclient.models.FileBasedMetadataTaskProperties
+    options:
+        inherited_members: true
+        members:
+---
+[](){ #SampleSheetGenerationExecutionProperties-reference }
+::: synapseclient.models.SampleSheetGenerationExecutionProperties
+    options:
+        inherited_members: true
+        members:
+---
+[](){ #RecordSetGenerationExecutionProperties-reference }
+::: synapseclient.models.RecordSetGenerationExecutionProperties
+    options:
+        inherited_members: true
+        members:
+---
+[](){ #UnknownCurationTaskProperties-reference }
+::: synapseclient.models.UnknownCurationTaskProperties
+    options:
+        inherited_members: true
+        members:
+---
+[](){ #TaskExecutionDetails-reference }
+::: synapseclient.models.TaskExecutionDetails
+    options:
+        inherited_members: true
+        members:
+---
+[](){ #ExecutableTaskExecutionDetails-reference }
+::: synapseclient.models.ExecutableTaskExecutionDetails
+    options:
+        inherited_members: true
+        members:
+---
+[](){ #SampleSheetGenerationExecutionDetails-reference }
+::: synapseclient.models.SampleSheetGenerationExecutionDetails
+    options:
+        inherited_members: true
+        members:
+---
+[](){ #RecordSetGenerationExecutionDetails-reference }
+::: synapseclient.models.RecordSetGenerationExecutionDetails
+    options:
+        inherited_members: true
+        members:
+---
+[](){ #UnknownTaskExecutionDetails-reference }
+::: synapseclient.models.UnknownTaskExecutionDetails
     options:
         inherited_members: true
         members:

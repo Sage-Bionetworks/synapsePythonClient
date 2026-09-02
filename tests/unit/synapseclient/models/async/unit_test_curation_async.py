@@ -8,32 +8,41 @@ import pytest
 from synapseclient import Synapse
 from synapseclient.core.constants.concrete_types import (
     CELL_VALUE_FILTER,
+    COMPUTE_TASK_EXECUTION_REQUEST,
     COUNT_STAR,
     FILE_BASED_METADATA_TASK_PROPERTIES,
     GRID_CSV_IMPORT_REQUEST,
     GRID_EXECUTION_DETAILS,
     GRID_QUERY_JOB_REQUEST,
     RECORD_BASED_METADATA_TASK_PROPERTIES,
+    RECORD_SET_GENERATION_EXECUTION_DETAILS,
+    RECORD_SET_GENERATION_EXECUTION_PROPERTIES,
     ROW_ID_FILTER,
     ROW_IS_VALID_FILTER,
     ROW_SELECTION_FILTER,
     ROW_VALIDATION_RESULT_FILTER,
+    SAMPLE_SHEET_GENERATION_EXECUTION_DETAILS,
+    SAMPLE_SHEET_GENERATION_EXECUTION_PROPERTIES,
     SELECT_ALL,
     SELECT_BY_NAME,
     SELECT_SELECTION,
     UPLOAD_TO_TABLE_PREVIEW_REQUEST,
 )
+from synapseclient.core.exceptions import SynapseError
 from synapseclient.models import EntityView, RecordSet
 from synapseclient.models.curation import (
     AuthorizationMode,
     CellValueFilter,
     CellValueOperator,
+    ComputeTaskExecutionRequest,
     CountStar,
     CreateGridRequest,
     CreateReplicaRequest,
     CurationTask,
+    CurationTaskProperties,
     CurationTaskStatus,
     DownloadFromGridRequest,
+    ExecutableTaskExecutionDetails,
     FileBasedMetadataTaskProperties,
     Grid,
     GridCsvImportRequest,
@@ -47,18 +56,26 @@ from synapseclient.models.curation import (
     GridRow,
     QueryRequest,
     RecordBasedMetadataTaskProperties,
+    RecordSetGenerationExecutionDetails,
+    RecordSetGenerationExecutionProperties,
     RowIdFilter,
     RowIsValidFilter,
     RowSelectionFilter,
     RowValidationResultFilter,
+    SampleSheetGenerationExecutionDetails,
+    SampleSheetGenerationExecutionProperties,
     SelectAll,
     SelectByName,
     SelectColumn,
     SelectSelection,
     SynchronizeGridRequest,
     SyncType,
+    TaskExecutionDetails,
     TaskState,
+    UnknownCurationTaskProperties,
+    UnknownTaskExecutionDetails,
     UploadToTablePreviewRequest,
+    _create_task_execution_details_from_dict,
     _create_task_properties_from_dict,
 )
 from synapseclient.models.recordset import ValidationSummary
@@ -85,6 +102,15 @@ STARTED_BY = "user-1"
 STARTED_ON = "2024-03-01T00:00:00.000Z"
 FILE_HANDLE_ID = "1234567"
 OWNER_PRINCIPAL_ID = 987654
+ASYNC_JOB_ID = "async-job-abc-123"
+ERROR_MESSAGE = "Execution failed"
+ERROR_DETAILS = "A longer explanation of the failure"
+UNKNOWN_EXECUTION_DETAILS_CONCRETE_TYPE = (
+    "org.sagebionetworks.repo.model.curation.execution.FutureExecutionDetails"
+)
+UNKNOWN_TASK_PROPERTIES_CONCRETE_TYPE = (
+    "org.sagebionetworks.repo.model.curation.metadata.FutureTaskProperties"
+)
 REPLICA_ID = 12345
 
 
@@ -170,6 +196,47 @@ def _get_curation_task_status_response(
             "activeSessionId": active_session_id,
         }
     return response
+
+
+class TestCurationTaskProperties:
+    """Tests for the CurationTaskProperties abstract base class."""
+
+    def test_cannot_be_instantiated(self) -> None:
+        # GIVEN the abstract base class
+        # WHEN I try to instantiate it
+        # THEN a TypeError is raised because it defines no concreteType
+        with pytest.raises(TypeError, match="abstract"):
+            CurationTaskProperties()
+
+    @pytest.mark.parametrize(
+        "properties_class,expected_concrete_type",
+        [
+            (FileBasedMetadataTaskProperties, FILE_BASED_METADATA_TASK_PROPERTIES),
+            (RecordBasedMetadataTaskProperties, RECORD_BASED_METADATA_TASK_PROPERTIES),
+            (
+                SampleSheetGenerationExecutionProperties,
+                SAMPLE_SHEET_GENERATION_EXECUTION_PROPERTIES,
+            ),
+            (
+                RecordSetGenerationExecutionProperties,
+                RECORD_SET_GENERATION_EXECUTION_PROPERTIES,
+            ),
+        ],
+    )
+    def test_implementations_share_the_base_contract(
+        self, properties_class: type, expected_concrete_type: str
+    ) -> None:
+        # GIVEN an implementation of CurationTaskProperties
+        properties = properties_class()
+
+        # THEN it is an instance of the base class and reports its concreteType
+        assert isinstance(properties, CurationTaskProperties)
+        assert properties.concrete_type == expected_concrete_type
+
+        # AND an empty instance serializes to just the concreteType
+        assert properties.to_synapse_request() == {
+            "concreteType": expected_concrete_type
+        }
 
 
 class TestFileBasedMetadataTaskProperties:
@@ -341,14 +408,513 @@ class TestCreateTaskPropertiesFromDict:
         assert isinstance(result, RecordBasedMetadataTaskProperties)
         assert result.record_set_id == RECORD_SET_ID
 
-    def test_unknown_concrete_type_raises_error(self) -> None:
-        # GIVEN a dict with an unknown concrete type
-        data = {"concreteType": "org.sagebionetworks.Unknown"}
+    def test_sample_sheet_generation_properties(self) -> None:
+        # GIVEN a dict with the sample sheet generation concrete type
+        data = {
+            "concreteType": SAMPLE_SHEET_GENERATION_EXECUTION_PROPERTIES,
+            "inputTaskId": TASK_ID,
+            "destinationTaskId": TASK_ID_2,
+        }
 
-        # WHEN I attempt to create task properties
-        # THEN it should raise a ValueError
-        with pytest.raises(ValueError, match="Unknown concreteType"):
-            _create_task_properties_from_dict(data)
+        # WHEN I create task properties from the dict
+        result = _create_task_properties_from_dict(data)
+
+        # THEN it should be a SampleSheetGenerationExecutionProperties
+        assert isinstance(result, SampleSheetGenerationExecutionProperties)
+        assert result.input_task_id == TASK_ID
+        assert result.destination_task_id == TASK_ID_2
+
+    def test_record_set_generation_properties(self) -> None:
+        # GIVEN a dict with the record set generation concrete type
+        data = {
+            "concreteType": RECORD_SET_GENERATION_EXECUTION_PROPERTIES,
+            "folderId": UPLOAD_FOLDER_ID,
+            "instructions": INSTRUCTIONS,
+            "destinationTaskId": TASK_ID_2,
+        }
+
+        # WHEN I create task properties from the dict
+        result = _create_task_properties_from_dict(data)
+
+        # THEN it should be a RecordSetGenerationExecutionProperties
+        assert isinstance(result, RecordSetGenerationExecutionProperties)
+        assert result.folder_id == UPLOAD_FOLDER_ID
+        assert result.instructions == INSTRUCTIONS
+        assert result.destination_task_id == TASK_ID_2
+
+    def test_unknown_concrete_type_falls_back(self) -> None:
+        # GIVEN a dict with a concrete type this client does not recognize
+        data = {
+            "concreteType": UNKNOWN_TASK_PROPERTIES_CONCRETE_TYPE,
+            "someFutureField": "a value this client knows nothing about",
+        }
+
+        # WHEN I create task properties from it
+        result = _create_task_properties_from_dict(data)
+
+        # THEN the properties are returned as the fallback rather than raising, so the
+        # rest of the task remains readable
+        assert isinstance(result, UnknownCurationTaskProperties)
+        assert result.concrete_type == UNKNOWN_TASK_PROPERTIES_CONCRETE_TYPE
+        assert result.raw_properties == data
+
+
+class TestUnknownCurationTaskProperties:
+    """Tests for the fallback used when a properties concreteType is not recognized."""
+
+    def test_to_synapse_request_round_trips_unmodelled_fields(self) -> None:
+        """Serializing back must not drop the fields this client cannot model."""
+        # GIVEN properties of an unknown type carrying a field no known subtype has
+        response = {
+            "concreteType": UNKNOWN_TASK_PROPERTIES_CONCRETE_TYPE,
+            "uploadFolderId": UPLOAD_FOLDER_ID,
+            "someFutureField": "a value this client knows nothing about",
+        }
+
+        # WHEN I read the properties and serialize them back
+        properties = UnknownCurationTaskProperties().fill_from_dict(response)
+        request = properties.to_synapse_request()
+
+        # THEN the response is reproduced exactly, so storing a task this client cannot
+        # fully model does not erase the parts it does not understand
+        assert request == response
+
+    def test_nested_values_are_not_shared_with_the_response(self) -> None:
+        """The copy must be deep: the point of raw_properties is a verbatim record."""
+        # GIVEN a response whose unmodelled portion is a nested structure
+        response = {
+            "concreteType": UNKNOWN_TASK_PROPERTIES_CONCRETE_TYPE,
+            "someFutureField": {"nested": "original"},
+        }
+        properties = UnknownCurationTaskProperties().fill_from_dict(response)
+
+        # WHEN the caller mutates the nested value in the original response
+        response["someFutureField"]["nested"] = "mutated"
+
+        # THEN the properties still hold what Synapse actually sent
+        assert properties.raw_properties["someFutureField"]["nested"] == "original"
+
+    def test_to_synapse_request_is_a_copy(self) -> None:
+        # GIVEN properties read from a response
+        response = {
+            "concreteType": UNKNOWN_TASK_PROPERTIES_CONCRETE_TYPE,
+            "uploadFolderId": UPLOAD_FOLDER_ID,
+        }
+        properties = UnknownCurationTaskProperties().fill_from_dict(response)
+
+        # WHEN a caller mutates the request dict
+        request = properties.to_synapse_request()
+        request["uploadFolderId"] = "mutated"
+
+        # THEN neither the properties nor the original response are affected
+        assert properties.to_synapse_request()["uploadFolderId"] == UPLOAD_FOLDER_ID
+        assert response["uploadFolderId"] == UPLOAD_FOLDER_ID
+
+    def test_concrete_type_is_empty_when_absent(self) -> None:
+        # GIVEN properties that were never populated from a Synapse response
+        properties = UnknownCurationTaskProperties()
+
+        # THEN the concrete type reads as empty rather than raising
+        assert properties.concrete_type == ""
+
+    def test_to_synapse_request_without_a_response_raises(self) -> None:
+        """An empty fallback must not be sent as taskProperties.
+
+        The class is exported, so a user can construct one; serializing it would send
+        a taskProperties with no concreteType for the server to dispatch on.
+        """
+        # GIVEN properties that were never populated from a Synapse response
+        properties = UnknownCurationTaskProperties()
+
+        # WHEN I convert them to a request dict
+        # THEN it should raise rather than produce a payload with no concreteType
+        with pytest.raises(
+            ValueError, match="can only be serialized after being populated"
+        ):
+            properties.to_synapse_request()
+
+    def test_to_synapse_request_without_a_concrete_type_raises(self) -> None:
+        """Populated but unusable properties must not be sent either.
+
+        The fallback catches a missing concreteType as well as an unrecognized one,
+        so raw_properties can be non-empty while still carrying nothing for the
+        server to dispatch on. Guarding on emptiness alone would let that through.
+        """
+        # GIVEN properties read from a response that named no concreteType
+        properties = _create_task_properties_from_dict(
+            {"someFutureField": "a value with nothing to dispatch on"}
+        )
+
+        # THEN the fallback should have accepted it, non-empty but with no type
+        assert isinstance(properties, UnknownCurationTaskProperties)
+        assert properties.raw_properties
+        assert properties.concrete_type == ""
+
+        # WHEN I convert them to a request dict
+        # THEN it should raise here rather than sending a payload the server will
+        # reject for having no concreteType
+        with pytest.raises(
+            ValueError, match="can only be serialized after being populated"
+        ):
+            properties.to_synapse_request()
+
+    async def test_delete_source_is_refused(self, syn: Synapse) -> None:
+        """delete_source cannot work when the source cannot be identified."""
+        # GIVEN a task whose properties this client does not recognize
+        task = CurationTask(
+            task_id=TASK_ID,
+            task_properties=UnknownCurationTaskProperties().fill_from_dict(
+                {"concreteType": UNKNOWN_TASK_PROPERTIES_CONCRETE_TYPE}
+            ),
+        )
+
+        # WHEN I delete it with delete_source
+        # THEN it should raise, naming the type Synapse reported
+        with pytest.raises(
+            ValueError,
+            match=f"delete_source is not supported for task properties of type "
+            f"{UNKNOWN_TASK_PROPERTIES_CONCRETE_TYPE}",
+        ):
+            await task.delete_async(delete_source=True, synapse_client=syn)
+
+
+class TestSampleSheetGenerationExecutionProperties:
+    """Tests for the SampleSheetGenerationExecutionProperties dataclass."""
+
+    def test_fill_from_dict(self) -> None:
+        # GIVEN a response dict where the task ids are returned as strings
+        response = {
+            "concreteType": SAMPLE_SHEET_GENERATION_EXECUTION_PROPERTIES,
+            "inputTaskId": str(TASK_ID),
+            "destinationTaskId": str(TASK_ID_2),
+        }
+
+        # WHEN I fill the properties from the dict
+        props = SampleSheetGenerationExecutionProperties().fill_from_dict(response)
+
+        # THEN the task ids should be coerced to ints
+        assert props.input_task_id == TASK_ID
+        assert props.destination_task_id == TASK_ID_2
+
+    def test_fill_from_dict_empty(self) -> None:
+        # GIVEN a response dict with no task ids
+        # WHEN I fill the properties from the dict
+        props = SampleSheetGenerationExecutionProperties().fill_from_dict(
+            {"concreteType": SAMPLE_SHEET_GENERATION_EXECUTION_PROPERTIES}
+        )
+
+        # THEN both task ids should be None rather than coerced from None
+        assert props.input_task_id is None
+        assert props.destination_task_id is None
+
+    def test_to_synapse_request(self) -> None:
+        # GIVEN properties with only an input task id
+        props = SampleSheetGenerationExecutionProperties(input_task_id=TASK_ID)
+
+        # WHEN I convert them to a request dict
+        request = props.to_synapse_request()
+
+        # THEN the concreteType is included and the absent id is dropped
+        assert request == {
+            "concreteType": SAMPLE_SHEET_GENERATION_EXECUTION_PROPERTIES,
+            "inputTaskId": TASK_ID,
+        }
+
+
+class TestRecordSetGenerationExecutionProperties:
+    """Tests for the RecordSetGenerationExecutionProperties dataclass."""
+
+    def test_fill_from_dict(self) -> None:
+        # GIVEN a response dict where the destination task id is returned as a string
+        response = {
+            "concreteType": RECORD_SET_GENERATION_EXECUTION_PROPERTIES,
+            "folderId": UPLOAD_FOLDER_ID,
+            "instructions": INSTRUCTIONS,
+            "destinationTaskId": str(TASK_ID_2),
+        }
+
+        # WHEN I fill the properties from the dict
+        props = RecordSetGenerationExecutionProperties().fill_from_dict(response)
+
+        # THEN all fields should be populated and the id coerced to an int
+        assert props.folder_id == UPLOAD_FOLDER_ID
+        assert props.instructions == INSTRUCTIONS
+        assert props.destination_task_id == TASK_ID_2
+
+    def test_to_synapse_request(self) -> None:
+        # GIVEN properties with a folder and instructions but no destination
+        props = RecordSetGenerationExecutionProperties(
+            folder_id=UPLOAD_FOLDER_ID, instructions=INSTRUCTIONS
+        )
+
+        # WHEN I convert them to a request dict
+        request = props.to_synapse_request()
+
+        # THEN the concreteType is included and the absent id is dropped
+        assert request == {
+            "concreteType": RECORD_SET_GENERATION_EXECUTION_PROPERTIES,
+            "folderId": UPLOAD_FOLDER_ID,
+            "instructions": INSTRUCTIONS,
+        }
+
+
+class TestExecutableTaskExecutionDetails:
+    """Tests for the ExecutableTaskExecutionDetails implementations."""
+
+    @pytest.mark.parametrize(
+        "details_class,concrete_type",
+        [
+            (
+                SampleSheetGenerationExecutionDetails,
+                SAMPLE_SHEET_GENERATION_EXECUTION_DETAILS,
+            ),
+            (
+                RecordSetGenerationExecutionDetails,
+                RECORD_SET_GENERATION_EXECUTION_DETAILS,
+            ),
+        ],
+    )
+    def test_fill_from_dict(self, details_class, concrete_type: str) -> None:
+        # GIVEN a response dict for a failed execution
+        response = {
+            "concreteType": concrete_type,
+            "asyncJobId": ASYNC_JOB_ID,
+            "startedBy": STARTED_BY,
+            "startedOn": STARTED_ON,
+            "errorMessage": ERROR_MESSAGE,
+            "errorDetails": ERROR_DETAILS,
+        }
+
+        # WHEN I fill the details from the dict
+        details = details_class().fill_from_dict(response)
+
+        # THEN every field should be populated
+        assert details.async_job_id == ASYNC_JOB_ID
+        assert details.started_by == STARTED_BY
+        assert details.started_on == STARTED_ON
+        assert details.error_message == ERROR_MESSAGE
+        assert details.error_details == ERROR_DETAILS
+        assert details.concrete_type == concrete_type
+
+    @pytest.mark.parametrize(
+        "details_class,concrete_type",
+        [
+            (
+                SampleSheetGenerationExecutionDetails,
+                SAMPLE_SHEET_GENERATION_EXECUTION_DETAILS,
+            ),
+            (
+                RecordSetGenerationExecutionDetails,
+                RECORD_SET_GENERATION_EXECUTION_DETAILS,
+            ),
+        ],
+    )
+    def test_to_synapse_request_empty_sends_only_concrete_type(
+        self, details_class, concrete_type: str
+    ) -> None:
+        # GIVEN empty details, as constructed to make a task executable
+        details = details_class()
+
+        # WHEN I convert them to a request dict
+        request = details.to_synapse_request()
+
+        # THEN only the concreteType is sent: every other field is None and dropped,
+        # so set_execution_details does not claim ownership of server-managed fields
+        assert request == {"concreteType": concrete_type}
+
+    @pytest.mark.parametrize(
+        "details_class,concrete_type",
+        [
+            (
+                SampleSheetGenerationExecutionDetails,
+                SAMPLE_SHEET_GENERATION_EXECUTION_DETAILS,
+            ),
+            (
+                RecordSetGenerationExecutionDetails,
+                RECORD_SET_GENERATION_EXECUTION_DETAILS,
+            ),
+        ],
+    )
+    def test_to_synapse_request_round_trips_populated_fields(
+        self, details_class, concrete_type: str
+    ) -> None:
+        # GIVEN details read back from an earlier failed run
+        details = details_class(
+            async_job_id=ASYNC_JOB_ID,
+            started_by=STARTED_BY,
+            started_on=STARTED_ON,
+            error_message=ERROR_MESSAGE,
+            error_details=ERROR_DETAILS,
+        )
+
+        # WHEN I convert them to a request dict
+        request = details.to_synapse_request()
+
+        # THEN every populated field is sent. The status endpoint replaces
+        # executionDetails rather than merging, so a read-modify-write that omitted
+        # these would delete the recorded failure reason server-side.
+        assert request == {
+            "concreteType": concrete_type,
+            "asyncJobId": ASYNC_JOB_ID,
+            "startedBy": STARTED_BY,
+            "startedOn": STARTED_ON,
+            "errorMessage": ERROR_MESSAGE,
+            "errorDetails": ERROR_DETAILS,
+        }
+
+
+class TestUnknownTaskExecutionDetails:
+    """Tests for the fallback used when a concreteType is not recognized."""
+
+    def test_to_synapse_request_round_trips_unmodelled_fields(self) -> None:
+        """Serializing back must not drop the fields this client cannot model."""
+        # GIVEN details of an unknown type carrying a field no known subtype has
+        response = {
+            "concreteType": UNKNOWN_EXECUTION_DETAILS_CONCRETE_TYPE,
+            "startedOn": STARTED_ON,
+            "errorMessage": ERROR_MESSAGE,
+            "someFutureField": "a value this client knows nothing about",
+        }
+
+        # WHEN I read the details and serialize them back
+        details = UnknownTaskExecutionDetails().fill_from_dict(response)
+        request = details.to_synapse_request()
+
+        # THEN the response is reproduced exactly. The status endpoint replaces
+        # executionDetails rather than merging, so a set_task_state that serialized
+        # only the fields this client understands would erase the rest server-side
+        assert request == response
+
+    def test_to_synapse_request_is_a_copy(self) -> None:
+        # GIVEN details read from a response
+        response = {
+            "concreteType": UNKNOWN_EXECUTION_DETAILS_CONCRETE_TYPE,
+            "startedOn": STARTED_ON,
+        }
+        details = UnknownTaskExecutionDetails().fill_from_dict(response)
+
+        # WHEN a caller mutates the request dict
+        request = details.to_synapse_request()
+        request["startedOn"] = "mutated"
+
+        # THEN neither the details nor the original response are affected
+        assert details.to_synapse_request()["startedOn"] == STARTED_ON
+        assert response["startedOn"] == STARTED_ON
+
+    def test_nested_values_are_not_shared_with_the_response(self) -> None:
+        """The copy must be deep: the point of raw_details is a verbatim record."""
+        # GIVEN a response whose unmodelled portion is a nested structure
+        response = {
+            "concreteType": UNKNOWN_EXECUTION_DETAILS_CONCRETE_TYPE,
+            "someFutureField": {"nested": "original"},
+        }
+        details = UnknownTaskExecutionDetails().fill_from_dict(response)
+
+        # WHEN the caller mutates the nested value in the original response
+        response["someFutureField"]["nested"] = "mutated"
+
+        # THEN the details still hold what Synapse actually sent
+        assert details.raw_details["someFutureField"]["nested"] == "original"
+
+    def test_common_fields_are_read_from_the_raw_response(self) -> None:
+        # GIVEN details of an unknown type carrying every common field
+        details = UnknownTaskExecutionDetails().fill_from_dict(
+            {
+                "concreteType": UNKNOWN_EXECUTION_DETAILS_CONCRETE_TYPE,
+                "asyncJobId": ASYNC_JOB_ID,
+                "startedBy": STARTED_BY,
+                "startedOn": STARTED_ON,
+                "errorMessage": ERROR_MESSAGE,
+                "errorDetails": ERROR_DETAILS,
+            }
+        )
+
+        # THEN every common field is readable as a property over the raw response
+        assert details.concrete_type == UNKNOWN_EXECUTION_DETAILS_CONCRETE_TYPE
+        assert details.async_job_id == ASYNC_JOB_ID
+        assert details.started_by == STARTED_BY
+        assert details.started_on == STARTED_ON
+        assert details.error_message == ERROR_MESSAGE
+        assert details.error_details == ERROR_DETAILS
+
+    def test_common_fields_are_none_when_absent(self) -> None:
+        # GIVEN details carrying nothing but a concreteType
+        details = UnknownTaskExecutionDetails().fill_from_dict(
+            {"concreteType": UNKNOWN_EXECUTION_DETAILS_CONCRETE_TYPE}
+        )
+
+        # THEN the common fields read as None rather than raising
+        assert details.async_job_id is None
+        assert details.started_by is None
+        assert details.started_on is None
+        assert details.error_message is None
+        assert details.error_details is None
+
+    def test_to_synapse_request_without_a_response_raises(self) -> None:
+        """An empty fallback must not be sent as executionDetails.
+
+        The class is exported, so a user can construct one; serializing it would PUT
+        an executionDetails with no concreteType, and the status endpoint replaces
+        rather than merges.
+        """
+        # GIVEN details that were never populated from a Synapse response
+        details = UnknownTaskExecutionDetails()
+
+        # WHEN I convert them to a request dict
+        # THEN it should raise rather than produce a payload with no concreteType
+        with pytest.raises(
+            ValueError, match="can only be serialized after being populated"
+        ):
+            details.to_synapse_request()
+
+    def test_to_synapse_request_without_a_concrete_type_raises(self) -> None:
+        """Populated but unusable details must not be PUT either.
+
+        The fallback catches a missing concreteType as well as an unrecognized one,
+        so raw_details can be non-empty while still carrying nothing for the server
+        to dispatch on. Guarding on emptiness alone would let that through.
+        """
+        # GIVEN details read from a response that named no concreteType
+        details = _create_task_execution_details_from_dict({"asyncJobId": ASYNC_JOB_ID})
+
+        # THEN the fallback should have accepted it, non-empty but with no type
+        assert isinstance(details, UnknownTaskExecutionDetails)
+        assert details.raw_details
+        assert details.concrete_type == ""
+
+        # WHEN I convert them to a request dict
+        # THEN it should raise here rather than PUTting a payload the server will
+        # reject for having no concreteType
+        with pytest.raises(
+            ValueError, match="can only be serialized after being populated"
+        ):
+            details.to_synapse_request()
+
+    def test_is_not_an_executable_task_execution_details(self) -> None:
+        """An unrecognized concreteType must not claim to support execution.
+
+        Not every TaskExecutionDetails subtype is executable (GridExecutionDetails is
+        not), so a type added after this client was released cannot be assumed to be.
+        Callers gate execute() on isinstance(details, ExecutableTaskExecutionDetails),
+        which would wave through a task the server will refuse.
+        """
+        # GIVEN details of a concreteType this client does not recognize
+        details = UnknownTaskExecutionDetails().fill_from_dict(
+            {
+                "concreteType": UNKNOWN_EXECUTION_DETAILS_CONCRETE_TYPE,
+                "asyncJobId": ASYNC_JOB_ID,
+                "errorMessage": ERROR_MESSAGE,
+            }
+        )
+
+        # THEN they are a TaskExecutionDetails, but not an executable one
+        assert isinstance(details, TaskExecutionDetails)
+        assert not isinstance(details, ExecutableTaskExecutionDetails)
+
+        # AND the fields common to every execution details type are still readable,
+        # which is the whole reason the fallback exists
+        assert details.async_job_id == ASYNC_JOB_ID
+        assert details.error_message == ERROR_MESSAGE
 
 
 class TestGridExecutionDetails:
@@ -378,6 +944,23 @@ class TestGridExecutionDetails:
         # THEN the request should contain the concreteType and activeSessionId
         assert request["concreteType"] == GRID_EXECUTION_DETAILS
         assert request["activeSessionId"] == SESSION_ID
+
+    def test_concrete_type(self) -> None:
+        # GIVEN a GridExecutionDetails
+        # WHEN I read its concrete type
+        # THEN it should be readable without serializing the object, the same as
+        # every other TaskExecutionDetails implementation
+        assert GridExecutionDetails().concrete_type == GRID_EXECUTION_DETAILS
+
+    def test_concrete_type_is_not_a_dataclass_field(self) -> None:
+        # GIVEN two GridExecutionDetails with the same session id
+        # WHEN I compare them
+        # THEN they should be equal: concrete_type is a property, so it does not
+        # take part in the generated __init__ or __eq__
+        assert GridExecutionDetails(active_session_id=SESSION_ID) == (
+            GridExecutionDetails(active_session_id=SESSION_ID)
+        )
+        assert "concrete_type" not in GridExecutionDetails.__dataclass_fields__
 
 
 class TestCurationTaskStatus:
@@ -415,21 +998,144 @@ class TestCurationTaskStatus:
         assert status.state == TaskState.NOT_STARTED
 
     def test_fill_from_dict_unknown_execution_details_concrete_type(self) -> None:
-        """An unrecognized concreteType in executionDetails raises ValueError."""
+        """An unrecognized concreteType in executionDetails does not raise."""
         # GIVEN a status response with an unknown executionDetails concreteType
         response = _get_curation_task_status_response(state="NOT_STARTED")
         response["executionDetails"] = {
-            "concreteType": "org.sagebionetworks.repo.model.curation.execution.Unknown",
-            "activeSessionId": SESSION_ID,
+            "concreteType": UNKNOWN_EXECUTION_DETAILS_CONCRETE_TYPE,
+            "startedOn": STARTED_ON,
+            "errorMessage": ERROR_MESSAGE,
         }
 
         # WHEN I fill a CurationTaskStatus from it
-        # THEN it should raise ValueError, consistent with how unknown state
-        # values and unknown task-properties concrete types are handled
-        with pytest.raises(
-            ValueError, match="Unknown concreteType for TaskExecutionDetails"
-        ):
-            CurationTaskStatus().fill_from_dict(response)
+        status = CurationTaskStatus().fill_from_dict(response)
+
+        # THEN the status should still be readable. Execution details report on work
+        # the server has already done, so a subtype added after this client was
+        # released must not make the whole status unreadable
+        assert isinstance(status.execution_details, UnknownTaskExecutionDetails)
+        assert (
+            status.execution_details.concrete_type
+            == UNKNOWN_EXECUTION_DETAILS_CONCRETE_TYPE
+        )
+        assert status.execution_details.started_on == STARTED_ON
+        assert status.execution_details.error_message == ERROR_MESSAGE
+        assert status.state == TaskState.NOT_STARTED
+
+    @pytest.mark.parametrize(
+        "concrete_type,details_class",
+        [
+            (
+                SAMPLE_SHEET_GENERATION_EXECUTION_DETAILS,
+                SampleSheetGenerationExecutionDetails,
+            ),
+            (
+                RECORD_SET_GENERATION_EXECUTION_DETAILS,
+                RecordSetGenerationExecutionDetails,
+            ),
+        ],
+    )
+    def test_fill_from_dict_executable_execution_details(
+        self, concrete_type: str, details_class
+    ) -> None:
+        """The executable execution details concrete types resolve to their classes."""
+        # GIVEN a status response carrying executable execution details
+        response = _get_curation_task_status_response(state="EXECUTING")
+        response["executionDetails"] = {
+            "concreteType": concrete_type,
+            "asyncJobId": ASYNC_JOB_ID,
+            "startedBy": STARTED_BY,
+            "startedOn": STARTED_ON,
+        }
+
+        # WHEN I fill a CurationTaskStatus from it
+        status = CurationTaskStatus().fill_from_dict(response)
+
+        # THEN the execution details should be the matching class, fully populated
+        assert isinstance(status.execution_details, details_class)
+        assert status.execution_details.async_job_id == ASYNC_JOB_ID
+        assert status.execution_details.started_by == STARTED_BY
+        assert status.execution_details.started_on == STARTED_ON
+        assert status.state == TaskState.EXECUTING
+
+
+class TestComputeTaskExecutionRequest:
+    """Tests for the ComputeTaskExecutionRequest async job dataclass."""
+
+    def test_to_synapse_request(self) -> None:
+        # GIVEN a request for a task
+        request = ComputeTaskExecutionRequest(task_id=TASK_ID)
+
+        # WHEN I convert it to a request dict
+        result = request.to_synapse_request()
+
+        # THEN it should carry the concreteType and the taskId, which the async job
+        # layer also uses to resolve the /curation/task/{taskId}/execute/async URI
+        assert result == {
+            "concreteType": COMPUTE_TASK_EXECUTION_REQUEST,
+            "taskId": TASK_ID,
+        }
+
+    def test_fill_from_dict(self) -> None:
+        # GIVEN a ComputeTaskExecutionResponse body
+        response = {
+            "taskId": str(TASK_ID),
+            "executionDetails": {
+                "concreteType": SAMPLE_SHEET_GENERATION_EXECUTION_DETAILS,
+                "startedBy": STARTED_BY,
+                "startedOn": STARTED_ON,
+            },
+        }
+
+        # WHEN I fill the request from the response
+        request = ComputeTaskExecutionRequest().fill_from_dict(response)
+
+        # THEN the task id is coerced to an int and the details are deserialized
+        assert request.task_id == TASK_ID
+        assert isinstance(
+            request.execution_details, SampleSheetGenerationExecutionDetails
+        )
+        assert request.execution_details.started_by == STARTED_BY
+
+    def test_fill_from_dict_without_execution_details(self) -> None:
+        # GIVEN a response body with no execution details
+        # WHEN I fill the request from the response
+        request = ComputeTaskExecutionRequest(task_id=TASK_ID).fill_from_dict(
+            {"taskId": TASK_ID}
+        )
+
+        # THEN execution_details should be None
+        assert request.execution_details is None
+        assert request.task_id == TASK_ID
+
+    def test_fill_from_dict_unknown_execution_details_concrete_type(self) -> None:
+        # GIVEN a response body for a job that ran to completion, carrying an
+        # executionDetails concreteType this client does not know
+        response = {
+            "taskId": TASK_ID,
+            "executionDetails": {
+                "concreteType": UNKNOWN_EXECUTION_DETAILS_CONCRETE_TYPE,
+                "asyncJobId": ASYNC_JOB_ID,
+                "startedBy": STARTED_BY,
+                "startedOn": STARTED_ON,
+            },
+        }
+
+        # WHEN I fill the request from the response
+        request = ComputeTaskExecutionRequest().fill_from_dict(response)
+
+        # THEN the details common to every execution type are still available. The
+        # computation already ran server-side, so raising here would strand the user
+        # with a completed job whose outcome they cannot read
+        assert isinstance(request.execution_details, UnknownTaskExecutionDetails)
+        assert (
+            request.execution_details.concrete_type
+            == UNKNOWN_EXECUTION_DETAILS_CONCRETE_TYPE
+        )
+        assert request.execution_details.async_job_id == ASYNC_JOB_ID
+        assert request.execution_details.started_by == STARTED_BY
+        assert request.execution_details.started_on == STARTED_ON
+        assert request.task_id == TASK_ID
 
 
 class TestCurationTask:
@@ -613,6 +1319,68 @@ class TestCurationTask:
         # THEN it should raise ValueError
         with pytest.raises(ValueError, match="task_id is required to delete"):
             await task.delete_async(synapse_client=self.syn)
+
+    @pytest.mark.parametrize(
+        "task_properties",
+        [
+            SampleSheetGenerationExecutionProperties(destination_task_id=TASK_ID_2),
+            RecordSetGenerationExecutionProperties(
+                folder_id=UPLOAD_FOLDER_ID, destination_task_id=TASK_ID_2
+            ),
+        ],
+        ids=["sample_sheet_generation", "record_set_generation"],
+    )
+    async def test_delete_async_source_for_compute_task_raises(
+        self, task_properties
+    ) -> None:
+        """delete_source is refused for a compute task, which owns no source."""
+        # GIVEN a compute task whose properties name a destination owned by another task
+        task = CurationTask(task_id=TASK_ID, task_properties=task_properties)
+
+        # WHEN I call delete_async with delete_source
+        # THEN it should raise a ValueError naming the actual properties type rather
+        # than claiming they are None, and nothing should be deleted
+        with patch(
+            "synapseclient.models.curation.delete_curation_task",
+            new_callable=AsyncMock,
+        ) as mock_delete:
+            with pytest.raises(
+                ValueError,
+                match=(
+                    "delete_source is not supported for "
+                    f"{type(task_properties).__name__}"
+                ),
+            ):
+                await task.delete_async(delete_source=True, synapse_client=self.syn)
+
+        mock_delete.assert_not_called()
+
+    async def test_delete_async_source_without_task_properties_raises(self) -> None:
+        """delete_source with properties that stay None reports them as None."""
+        # GIVEN a task whose properties are still None after being fetched
+        task = CurationTask(task_id=TASK_ID)
+
+        # WHEN I call delete_async with delete_source
+        # THEN it should raise the ValueError for absent properties
+        with (
+            patch.object(
+                CurationTask, "get_async", new_callable=AsyncMock, return_value=task
+            ),
+            patch(
+                "synapseclient.models.curation.delete_curation_task",
+                new_callable=AsyncMock,
+            ) as mock_delete,
+        ):
+            with pytest.raises(
+                ValueError,
+                match=(
+                    "delete_source requires task properties that identify a "
+                    "source, but 'task_properties' is None."
+                ),
+            ):
+                await task.delete_async(delete_source=True, synapse_client=self.syn)
+
+        mock_delete.assert_not_called()
 
     async def test_store_async_create_new_task(self) -> None:
         # GIVEN a new CurationTask with all required create fields
@@ -962,6 +1730,126 @@ class TestCurationTask:
             assert isinstance(result.execution_details, GridExecutionDetails)
             assert result.execution_details.active_session_id == SESSION_ID
 
+    async def test_set_execution_details_async(self) -> None:
+        """Verify that set_execution_details_async PUTs the given details with a fresh etag."""
+        # GIVEN a compute task with a task_id
+        task = CurationTask(task_id=TASK_ID)
+
+        # AND a current status with no execution details, and an update response
+        # that reflects the newly attached ones
+        get_response = _get_curation_task_status_response(state="NOT_STARTED")
+        put_response = _get_curation_task_status_response(state="NOT_STARTED")
+        put_response["executionDetails"] = {
+            "concreteType": RECORD_SET_GENERATION_EXECUTION_DETAILS
+        }
+
+        # WHEN I call set_execution_details_async with empty executable details
+        with (
+            patch(
+                "synapseclient.models.curation.get_curation_task_status",
+                new_callable=AsyncMock,
+                return_value=get_response,
+            ) as mock_get_status,
+            patch(
+                "synapseclient.models.curation.update_curation_task_status",
+                new_callable=AsyncMock,
+                return_value=put_response,
+            ) as mock_update_status,
+        ):
+            result = await task.set_execution_details_async(
+                execution_details=RecordSetGenerationExecutionDetails(),
+                synapse_client=self.syn,
+            )
+
+            # THEN it should fetch the current status first
+            mock_get_status.assert_called_once_with(
+                task_id=TASK_ID, synapse_client=self.syn
+            )
+
+            # AND PUT a payload carrying the fresh etag, the unchanged state, and
+            # the new execution details
+            put_kwargs = mock_update_status.call_args.kwargs
+            assert put_kwargs["task_id"] == TASK_ID
+            payload = put_kwargs["curation_task_status"]
+            assert payload["etag"] == STATUS_ETAG
+            assert payload["state"] == "NOT_STARTED"
+            assert payload["executionDetails"] == {
+                "concreteType": RECORD_SET_GENERATION_EXECUTION_DETAILS
+            }
+
+            # AND it should return the parsed update response
+            assert isinstance(result, CurationTaskStatus)
+            assert isinstance(
+                result.execution_details, RecordSetGenerationExecutionDetails
+            )
+
+    async def test_set_execution_details_async_replaces_existing_details(self) -> None:
+        """Verify that existing execution details are replaced rather than merged."""
+        # GIVEN a task whose status already carries grid execution details
+        task = CurationTask(task_id=TASK_ID)
+        get_response = _get_curation_task_status_response(
+            state="NOT_STARTED", active_session_id=SESSION_ID
+        )
+        put_response = _get_curation_task_status_response(state="NOT_STARTED")
+        put_response["executionDetails"] = {
+            "concreteType": SAMPLE_SHEET_GENERATION_EXECUTION_DETAILS
+        }
+
+        # WHEN I attach details of a different type
+        with (
+            patch(
+                "synapseclient.models.curation.get_curation_task_status",
+                new_callable=AsyncMock,
+                return_value=get_response,
+            ),
+            patch(
+                "synapseclient.models.curation.update_curation_task_status",
+                new_callable=AsyncMock,
+                return_value=put_response,
+            ) as mock_update_status,
+        ):
+            await task.set_execution_details_async(
+                execution_details=SampleSheetGenerationExecutionDetails(),
+                synapse_client=self.syn,
+            )
+
+        # THEN the payload carries only the new details, with no trace of the
+        # grid session that was there before
+        payload = mock_update_status.call_args.kwargs["curation_task_status"]
+        assert payload["executionDetails"] == {
+            "concreteType": SAMPLE_SHEET_GENERATION_EXECUTION_DETAILS
+        }
+
+    async def test_set_execution_details_async_without_task_id(self) -> None:
+        """Verify that set_execution_details_async raises ValueError when task_id is not set."""
+        # GIVEN a CurationTask without a task_id
+        task = CurationTask()
+
+        # WHEN I call set_execution_details_async
+        # THEN it should raise ValueError (propagated from get_status_async)
+        with pytest.raises(ValueError, match="task_id is required to get"):
+            await task.set_execution_details_async(
+                execution_details=RecordSetGenerationExecutionDetails(),
+                synapse_client=self.syn,
+            )
+
+    async def test_set_execution_details_async_requires_a_keyword(self) -> None:
+        """execution_details is keyword-only, so a positional call is rejected.
+
+        The tracing decorator builds its span name from a lambda that only accepts
+        self, so a positional argument reaching it would raise a TypeError naming
+        the lambda instead of the method. Keyword-only keeps that from happening.
+        """
+        # GIVEN a CurationTask with a task_id
+        task = CurationTask(task_id=TASK_ID)
+
+        # WHEN I pass the execution details positionally
+        # THEN Python should reject the call by name, before any API call
+        with pytest.raises(TypeError, match="set_execution_details_async"):
+            await task.set_execution_details_async(
+                RecordSetGenerationExecutionDetails(), synapse_client=self.syn
+            )
+
     async def test_set_active_grid_session_async_without_task_id(self) -> None:
         """Verify that set_active_grid_session_async raises ValueError when task_id is not set."""
         # GIVEN a CurationTask without a task_id
@@ -1040,6 +1928,95 @@ class TestCurationTask:
             assert result.state == TaskState(expected_state_value)
             assert isinstance(result.execution_details, GridExecutionDetails)
             assert result.execution_details.active_session_id == SESSION_ID
+
+    async def test_set_task_state_async_preserves_executable_execution_details(
+        self,
+    ) -> None:
+        """set_task_state_async must not drop the fields a failed run recorded.
+
+        The status endpoint replaces executionDetails rather than merging, so a
+        read-modify-write that serialized only the concreteType would delete the
+        failure reason server-side.
+        """
+        # GIVEN a compute task whose last run failed, leaving the error on its
+        # executable execution details
+        task = CurationTask(task_id=TASK_ID)
+        get_response = _get_curation_task_status_response(state="NOT_STARTED")
+        get_response["executionDetails"] = {
+            "concreteType": RECORD_SET_GENERATION_EXECUTION_DETAILS,
+            "asyncJobId": ASYNC_JOB_ID,
+            "startedBy": STARTED_BY,
+            "startedOn": STARTED_ON,
+            "errorMessage": ERROR_MESSAGE,
+            "errorDetails": ERROR_DETAILS,
+        }
+        put_response = _get_curation_task_status_response(state="CANCELED")
+        put_response["executionDetails"] = get_response["executionDetails"]
+
+        # WHEN I transition the task to another state
+        with (
+            patch(
+                "synapseclient.models.curation.get_curation_task_status",
+                new_callable=AsyncMock,
+                return_value=get_response,
+            ),
+            patch(
+                "synapseclient.models.curation.update_curation_task_status",
+                new_callable=AsyncMock,
+                return_value=put_response,
+            ) as mock_update_status,
+        ):
+            await task.set_task_state_async(
+                state=TaskState.CANCELED, synapse_client=self.syn
+            )
+
+        # THEN the PUT payload carries every field that was read, so nothing the
+        # server recorded about the failed run is erased
+        payload = mock_update_status.call_args.kwargs["curation_task_status"]
+        assert payload["state"] == "CANCELED"
+        assert payload["executionDetails"] == {
+            "concreteType": RECORD_SET_GENERATION_EXECUTION_DETAILS,
+            "asyncJobId": ASYNC_JOB_ID,
+            "startedBy": STARTED_BY,
+            "startedOn": STARTED_ON,
+            "errorMessage": ERROR_MESSAGE,
+            "errorDetails": ERROR_DETAILS,
+        }
+
+    async def test_set_task_state_async_accepts_a_positional_state(self) -> None:
+        """state is positional-or-keyword, so passing it positionally must work.
+
+        The tracing decorator forwards positional arguments into the lambda that
+        builds the span name, so a lambda accepting only self would fail the call
+        before it reached the method body.
+        """
+        # GIVEN a CurationTask with a task_id
+        task = CurationTask(task_id=TASK_ID)
+        get_response = _get_curation_task_status_response(state="NOT_STARTED")
+        put_response = _get_curation_task_status_response(state="CANCELED")
+
+        # WHEN I pass the state positionally
+        with (
+            patch(
+                "synapseclient.models.curation.get_curation_task_status",
+                new_callable=AsyncMock,
+                return_value=get_response,
+            ),
+            patch(
+                "synapseclient.models.curation.update_curation_task_status",
+                new_callable=AsyncMock,
+                return_value=put_response,
+            ) as mock_update_status,
+        ):
+            result = await task.set_task_state_async(
+                TaskState.CANCELED, synapse_client=self.syn
+            )
+
+        # THEN the transition should be sent, rather than the call failing inside
+        # the tracing decorator
+        payload = mock_update_status.call_args.kwargs["curation_task_status"]
+        assert payload["state"] == "CANCELED"
+        assert result.state == TaskState.CANCELED
 
     async def test_set_task_state_async_invalid_string(self) -> None:
         """Verify that set_task_state_async raises ValueError before any API call when given an unrecognized state string."""
@@ -1380,6 +2357,98 @@ class TestCurationTask:
                 state_filter=["NOT_STARTED", "IN_PROGRESS"],
                 synapse_client=self.syn,
             )
+
+    async def test_execute_async(self) -> None:
+        """execute_async sends a ComputeTaskExecutionRequest and returns the details."""
+        # GIVEN a CurationTask with a task_id
+        task = CurationTask(task_id=TASK_ID)
+
+        # AND a completed job carrying sample sheet generation execution details
+        completed_request = ComputeTaskExecutionRequest(task_id=TASK_ID)
+        completed_request.execution_details = SampleSheetGenerationExecutionDetails(
+            async_job_id=ASYNC_JOB_ID, started_by=STARTED_BY, started_on=STARTED_ON
+        )
+
+        # WHEN I call execute_async
+        with patch.object(
+            ComputeTaskExecutionRequest,
+            "send_job_and_wait_async",
+            new_callable=AsyncMock,
+            return_value=completed_request,
+        ) as mock_send_job:
+            result = await task.execute_async(synapse_client=self.syn)
+
+        # THEN the job should be awaited with the default timeout
+        mock_send_job.assert_awaited_once_with(
+            timeout=120,
+            synapse_client=self.syn,
+        )
+
+        # AND the execution details from the response should be returned
+        assert isinstance(result, SampleSheetGenerationExecutionDetails)
+        assert result.async_job_id == ASYNC_JOB_ID
+        assert result.started_by == STARTED_BY
+        assert result.started_on == STARTED_ON
+
+    async def test_execute_async_passes_timeout(self) -> None:
+        """A caller-supplied timeout is forwarded to the async job."""
+        # GIVEN a CurationTask with a task_id
+        task = CurationTask(task_id=TASK_ID)
+        completed_request = ComputeTaskExecutionRequest(task_id=TASK_ID)
+        completed_request.execution_details = RecordSetGenerationExecutionDetails(
+            async_job_id=ASYNC_JOB_ID
+        )
+
+        # WHEN I call execute_async with a custom timeout
+        with patch.object(
+            ComputeTaskExecutionRequest,
+            "send_job_and_wait_async",
+            new_callable=AsyncMock,
+            return_value=completed_request,
+        ) as mock_send_job:
+            await task.execute_async(timeout=600, synapse_client=self.syn)
+
+        # THEN the timeout should be forwarded
+        mock_send_job.assert_awaited_once_with(
+            timeout=600,
+            synapse_client=self.syn,
+        )
+
+    async def test_execute_async_without_execution_details_raises(self) -> None:
+        """A completed job that carries no execution details raises SynapseError."""
+        # GIVEN a CurationTask with a task_id
+        task = CurationTask(task_id=TASK_ID)
+
+        # AND a completed job whose response carried no executionDetails
+        completed_request = ComputeTaskExecutionRequest(task_id=TASK_ID)
+        assert completed_request.execution_details is None
+
+        # WHEN I call execute_async
+        # THEN it should raise SynapseError rather than returning None, which callers
+        # would dereference for started_on/error_message
+        with patch.object(
+            ComputeTaskExecutionRequest,
+            "send_job_and_wait_async",
+            new_callable=AsyncMock,
+            return_value=completed_request,
+        ):
+            with pytest.raises(
+                SynapseError,
+                match=f"execution job for CurationTask {TASK_ID} completed without",
+            ):
+                await task.execute_async(synapse_client=self.syn)
+
+    async def test_execute_async_without_task_id(self) -> None:
+        """execute_async raises ValueError when task_id is not set."""
+        # GIVEN a CurationTask without a task_id
+        task = CurationTask()
+
+        # WHEN I call execute_async
+        # THEN it should raise ValueError before any API call
+        with pytest.raises(
+            ValueError, match="task_id is required to execute a CurationTask"
+        ):
+            await task.execute_async(synapse_client=self.syn)
 
     async def test_list_async_state_filter_invalid_string_raises(self) -> None:
         # GIVEN a state_filter with an invalid string value

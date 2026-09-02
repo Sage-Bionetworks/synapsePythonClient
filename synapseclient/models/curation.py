@@ -51,6 +51,7 @@ from synapseclient.core.async_utils import (
 )
 from synapseclient.core.constants.concrete_types import (
     CELL_VALUE_FILTER,
+    COMPUTE_TASK_EXECUTION_REQUEST,
     COUNT_STAR,
     CREATE_GRID_REQUEST,
     DOWNLOAD_FROM_GRID_REQUEST,
@@ -62,10 +63,14 @@ from synapseclient.core.constants.concrete_types import (
     LIST_GRID_SESSIONS_REQUEST,
     LIST_GRID_SESSIONS_RESPONSE,
     RECORD_BASED_METADATA_TASK_PROPERTIES,
+    RECORD_SET_GENERATION_EXECUTION_DETAILS,
+    RECORD_SET_GENERATION_EXECUTION_PROPERTIES,
     ROW_ID_FILTER,
     ROW_IS_VALID_FILTER,
     ROW_SELECTION_FILTER,
     ROW_VALIDATION_RESULT_FILTER,
+    SAMPLE_SHEET_GENERATION_EXECUTION_DETAILS,
+    SAMPLE_SHEET_GENERATION_EXECUTION_PROPERTIES,
     SELECT_ALL,
     SELECT_BY_NAME,
     SELECT_SELECTION,
@@ -73,6 +78,7 @@ from synapseclient.core.constants.concrete_types import (
     UPLOAD_TO_TABLE_PREVIEW_REQUEST,
 )
 from synapseclient.core.download.download_functions import download_from_url
+from synapseclient.core.exceptions import SynapseError
 from synapseclient.core.upload.upload_functions_async import upload_synapse_s3
 from synapseclient.core.utils import (
     coerce_enum_list,
@@ -154,7 +160,57 @@ class SyncType(ForwardCompatibleStrEnum):
 
 
 @dataclass
-class FileBasedMetadataTaskProperties(EnumCoercionMixin):
+class CurationTaskProperties(ABC):
+    """
+    Base class for the properties of a CurationTask, describing what is being curated
+    and where the curated data lives.
+
+    <https://rest-docs.synapse.org/rest/org/sagebionetworks/repo/model/curation/CurationTaskProperties.html>
+
+    The concrete subclass is determined by the concreteType field in the REST response.
+
+    This class is abstract and cannot be instantiated: it does not define a
+    concreteType. Construct one of its subclasses instead, matching the kind of work
+    the task describes: FileBasedMetadataTaskProperties,
+    RecordBasedMetadataTaskProperties, SampleSheetGenerationExecutionProperties or
+    RecordSetGenerationExecutionProperties. Use this class for isinstance checks or
+    type hints when the kind of properties does not matter.
+    """
+
+    @property
+    @abstractmethod
+    def concrete_type(self) -> str:
+        """The concreteType of this implementation of CurationTaskProperties."""
+        ...
+
+    @abstractmethod
+    def fill_from_dict(
+        self, synapse_response: dict[str, Any]
+    ) -> "CurationTaskProperties":
+        """
+        Converts a response from the REST API into this dataclass.
+
+        Arguments:
+            synapse_response: The response from the REST API.
+
+        Returns:
+            The CurationTaskProperties object.
+        """
+        ...
+
+    @abstractmethod
+    def to_synapse_request(self) -> dict[str, Any]:
+        """
+        Converts this dataclass to a dictionary suitable for a Synapse REST API request.
+
+        Returns:
+            A dictionary representation of this object for API requests.
+        """
+        ...
+
+
+@dataclass
+class FileBasedMetadataTaskProperties(CurationTaskProperties, EnumCoercionMixin):
     """
     A CurationTaskProperties for file-based data, describing where data is uploaded
     and a view which contains the annotations.
@@ -180,13 +236,13 @@ class FileBasedMetadataTaskProperties(EnumCoercionMixin):
         "suggested_authorization_mode": AuthorizationMode
     }
 
-    upload_folder_id: Optional[str] = None
+    upload_folder_id: str | None = None
     """The synId of the folder where data files of this type are to be uploaded"""
 
-    file_view_id: Optional[str] = None
+    file_view_id: str | None = None
     """The synId of the FileView that shows all data of this type"""
 
-    suggested_authorization_mode: Optional[Union[AuthorizationMode, str]] = None
+    suggested_authorization_mode: AuthorizationMode | str | None = None
     """Recommends who is allowed to access the curation
         grid session that a client opens for this task. The value is stored on the
         task as a suggestion; the client applies it when it creates a new session.
@@ -201,13 +257,18 @@ class FileBasedMetadataTaskProperties(EnumCoercionMixin):
         resets the task's active session, so a new grid session must be opened
         before curation can continue."""
 
-    collaborator_principal_ids: Optional[list[str]] = None
+    collaborator_principal_ids: list[str] | None = None
     """Not actively used at this time.
     The set of principal IDs that should collaborate on the grid session. Used to set
     the owner(s) of a linked GridSession when suggested_authorization_mode is SESSION_OWNER"""
 
+    @property
+    def concrete_type(self) -> str:
+        """The concreteType of a FileBasedMetadataTaskProperties."""
+        return FILE_BASED_METADATA_TASK_PROPERTIES
+
     def fill_from_dict(
-        self, synapse_response: Union[Dict[str, Any], Any]
+        self, synapse_response: dict[str, Any]
     ) -> "FileBasedMetadataTaskProperties":
         """
         Converts a response from the REST API into this dataclass.
@@ -228,7 +289,7 @@ class FileBasedMetadataTaskProperties(EnumCoercionMixin):
         )
         return self
 
-    def to_synapse_request(self) -> Dict[str, Any]:
+    def to_synapse_request(self) -> dict[str, Any]:
         """
         Converts this dataclass to a dictionary suitable for a Synapse REST API request.
 
@@ -236,7 +297,7 @@ class FileBasedMetadataTaskProperties(EnumCoercionMixin):
             A dictionary representation of this object for API requests.
         """
         request_dict = {
-            "concreteType": FILE_BASED_METADATA_TASK_PROPERTIES,
+            "concreteType": self.concrete_type,
             "uploadFolderId": self.upload_folder_id,
             "fileViewId": self.file_view_id,
             "suggestedAuthorizationMode": (
@@ -251,7 +312,7 @@ class FileBasedMetadataTaskProperties(EnumCoercionMixin):
 
 
 @dataclass
-class RecordBasedMetadataTaskProperties(EnumCoercionMixin):
+class RecordBasedMetadataTaskProperties(CurationTaskProperties, EnumCoercionMixin):
     """
     A CurationTaskProperties for record-based metadata.
 
@@ -275,10 +336,10 @@ class RecordBasedMetadataTaskProperties(EnumCoercionMixin):
         "suggested_authorization_mode": AuthorizationMode
     }
 
-    record_set_id: Optional[str] = None
+    record_set_id: str | None = None
     """The synId of the RecordSet that will contain all record-based metadata"""
 
-    suggested_authorization_mode: Optional[Union[AuthorizationMode, str]] = None
+    suggested_authorization_mode: AuthorizationMode | str | None = None
     """Recommends who is allowed to access the curation
         grid session that a client opens for this task. The value is stored on the
         task as a suggestion; the client applies it when it creates a new session.
@@ -293,13 +354,18 @@ class RecordBasedMetadataTaskProperties(EnumCoercionMixin):
         resets the task's active session, so a new grid session must be opened
         before curation can continue."""
 
-    collaborator_principal_ids: Optional[list[str]] = None
+    collaborator_principal_ids: list[str] | None = None
     """Not actively used at this time.
     The set of principal IDs that should collaborate on the grid session. Used to set
     the owner(s) of a linked GridSession when suggested_authorization_mode is SESSION_OWNER"""
 
+    @property
+    def concrete_type(self) -> str:
+        """The concreteType of a RecordBasedMetadataTaskProperties."""
+        return RECORD_BASED_METADATA_TASK_PROPERTIES
+
     def fill_from_dict(
-        self, synapse_response: Union[Dict[str, Any], Any]
+        self, synapse_response: dict[str, Any]
     ) -> "RecordBasedMetadataTaskProperties":
         """
         Converts a response from the REST API into this dataclass.
@@ -319,7 +385,7 @@ class RecordBasedMetadataTaskProperties(EnumCoercionMixin):
         )
         return self
 
-    def to_synapse_request(self) -> Dict[str, Any]:
+    def to_synapse_request(self) -> dict[str, Any]:
         """
         Converts this dataclass to a dictionary suitable for a Synapse REST API request.
 
@@ -327,7 +393,7 @@ class RecordBasedMetadataTaskProperties(EnumCoercionMixin):
             A dictionary representation of this object for API requests.
         """
         request_dict = {
-            "concreteType": RECORD_BASED_METADATA_TASK_PROPERTIES,
+            "concreteType": self.concrete_type,
             "recordSetId": self.record_set_id,
             "suggestedAuthorizationMode": (
                 self.suggested_authorization_mode.value
@@ -340,29 +406,253 @@ class RecordBasedMetadataTaskProperties(EnumCoercionMixin):
         return request_dict
 
 
-def _create_task_properties_from_dict(
-    properties_dict: Dict[str, Any],
-) -> Union[FileBasedMetadataTaskProperties, RecordBasedMetadataTaskProperties]:
+@dataclass
+class SampleSheetGenerationExecutionProperties(CurationTaskProperties):
     """
-    Factory method to create the appropriate FileBasedMetadataTaskProperties/RecordBasedMetadataTaskProperties
+    A CurationTaskProperties for a task that generates a sample sheet from the
+    annotations of an existing file-based curation task.
+
+    Represents a [Synapse SampleSheetGenerationExecutionProperties](https://rest-docs.synapse.org/rest/org/sagebionetworks/repo/model/curation/execution/SampleSheetGenerationExecutionProperties.html).
+
+    Attributes:
+        input_task_id: The ID of the file-based CurationTask (with
+            FileBasedMetadataTaskProperties) whose FileView provides the source
+            annotations.
+        destination_task_id: The ID of the record-based CurationTask whose RecordSet
+            will receive the generated sample sheet as a new version. The JSON Schema
+            bound to that RecordSet establishes the target sample sheet format.
+    """
+
+    input_task_id: int | None = None
+    """The ID of the file-based CurationTask (with FileBasedMetadataTaskProperties)
+    whose FileView provides the source annotations."""
+
+    destination_task_id: int | None = None
+    """The ID of the record-based CurationTask whose RecordSet will receive the
+    generated sample sheet as a new version. The JSON Schema bound to that RecordSet
+    establishes the target sample sheet format."""
+
+    @property
+    def concrete_type(self) -> str:
+        """The concreteType of a SampleSheetGenerationExecutionProperties."""
+        return SAMPLE_SHEET_GENERATION_EXECUTION_PROPERTIES
+
+    def fill_from_dict(
+        self, synapse_response: dict[str, Any]
+    ) -> "SampleSheetGenerationExecutionProperties":
+        """
+        Converts a response from the REST API into this dataclass.
+
+        Arguments:
+            synapse_response: The response from the REST API.
+
+        Returns:
+            The SampleSheetGenerationExecutionProperties object.
+        """
+        input_task_id = synapse_response.get("inputTaskId", None)
+        self.input_task_id = int(input_task_id) if input_task_id is not None else None
+        destination_task_id = synapse_response.get("destinationTaskId", None)
+        self.destination_task_id = (
+            int(destination_task_id) if destination_task_id is not None else None
+        )
+        return self
+
+    def to_synapse_request(self) -> dict[str, Any]:
+        """
+        Converts this dataclass to a dictionary suitable for a Synapse REST API request.
+
+        Returns:
+            A dictionary representation of this object for API requests.
+        """
+        request_dict = {
+            "concreteType": self.concrete_type,
+            "inputTaskId": self.input_task_id,
+            "destinationTaskId": self.destination_task_id,
+        }
+        delete_none_keys(request_dict)
+        return request_dict
+
+
+@dataclass
+class RecordSetGenerationExecutionProperties(CurationTaskProperties):
+    """
+    A CurationTaskProperties for a task that transforms source files in a folder into
+    a CSV that is written to the RecordSet of another curation task.
+
+    Represents a [Synapse RecordSetGenerationExecutionProperties](https://rest-docs.synapse.org/rest/org/sagebionetworks/repo/model/curation/execution/RecordSetGenerationExecutionProperties.html).
+
+    Attributes:
+        folder_id: The synId of a Folder providing the source FileEntities for the
+            transformation. Limited to 20 direct-child files, each under 100 MB and in
+            PDF, CSV, TXT, or JSON format.
+        instructions: Free-text instructions from the data manager describing how the
+            input files should be transformed to produce the output CSV.
+        destination_task_id: The ID of the record-based CurationTask whose RecordSet
+            will receive the generated CSV output as a new version.
+    """
+
+    folder_id: str | None = None
+    """The synId of a Folder providing the source FileEntities for the transformation.
+    Limited to 20 direct-child files, each under 100 MB and in PDF, CSV, TXT, or JSON
+    format."""
+
+    instructions: str | None = None
+    """Free-text instructions from the data manager describing how the input files
+    should be transformed to produce the output CSV."""
+
+    destination_task_id: int | None = None
+    """The ID of the record-based CurationTask whose RecordSet will receive the
+    generated CSV output as a new version."""
+
+    @property
+    def concrete_type(self) -> str:
+        """The concreteType of a RecordSetGenerationExecutionProperties."""
+        return RECORD_SET_GENERATION_EXECUTION_PROPERTIES
+
+    def fill_from_dict(
+        self, synapse_response: dict[str, Any]
+    ) -> "RecordSetGenerationExecutionProperties":
+        """
+        Converts a response from the REST API into this dataclass.
+
+        Arguments:
+            synapse_response: The response from the REST API.
+
+        Returns:
+            The RecordSetGenerationExecutionProperties object.
+        """
+        self.folder_id = synapse_response.get("folderId", None)
+        self.instructions = synapse_response.get("instructions", None)
+        destination_task_id = synapse_response.get("destinationTaskId", None)
+        self.destination_task_id = (
+            int(destination_task_id) if destination_task_id is not None else None
+        )
+        return self
+
+    def to_synapse_request(self) -> dict[str, Any]:
+        """
+        Converts this dataclass to a dictionary suitable for a Synapse REST API request.
+
+        Returns:
+            A dictionary representation of this object for API requests.
+        """
+        request_dict = {
+            "concreteType": self.concrete_type,
+            "folderId": self.folder_id,
+            "instructions": self.instructions,
+            "destinationTaskId": self.destination_task_id,
+        }
+        delete_none_keys(request_dict)
+        return request_dict
+
+
+@dataclass
+class UnknownCurationTaskProperties(CurationTaskProperties):
+    """
+    Curation task properties whose concreteType this version of the client does not
+    recognize. Produced when Synapse returns a CurationTaskProperties subtype that was
+    added after this client was released.
+
+    The whole response is kept in raw_properties and the concreteType Synapse sent is
+    exposed as a read-only property over it, so a task carrying properties this client
+    cannot model can still be read, listed and stored without losing them. The
+    properties are read-only because there is nothing useful to write: properties this
+    client does not model cannot be constructed correctly, only reported back as they
+    arrived. To edit them, upgrade synapseclient to a version that models this
+    concreteType.
+
+    A task carrying these properties cannot be used with
+    [CurationTask.create_grid_session][synapseclient.models.CurationTask.create_grid_session]
+    or with delete_source on
+    [CurationTask.delete][synapseclient.models.CurationTask.delete], since this client
+    cannot tell where the curated data lives.
+
+    Attributes:
+        raw_properties: The unmodified taskProperties from the response.
+    """
+
+    raw_properties: dict[str, Any] = field(default_factory=dict)
+    """The unmodified taskProperties from the response."""
+
+    @property
+    def concrete_type(self) -> str:
+        """The concreteType that Synapse reported for these properties."""
+        return self.raw_properties.get("concreteType", "")
+
+    def fill_from_dict(
+        self, synapse_response: dict[str, Any]
+    ) -> "UnknownCurationTaskProperties":
+        """
+        Converts a response from the REST API into this dataclass.
+
+        Arguments:
+            synapse_response: The response from the REST API.
+
+        Returns:
+            The UnknownCurationTaskProperties object.
+        """
+        self.raw_properties = deepcopy(synapse_response)
+        return self
+
+    def to_synapse_request(self) -> dict[str, Any]:
+        """
+        Converts this dataclass to a dictionary suitable for a Synapse REST API request.
+
+        Returns the properties exactly as Synapse sent them, so that storing a task
+        this client cannot fully model does not drop the fields it does not know about.
+
+        Returns:
+            A dictionary representation of this object for API requests.
+
+        Raises:
+            ValueError: If these properties carry no concreteType for the server to
+                dispatch on, either because they were never populated from a Synapse
+                response or because the response did not name one.
+        """
+        if not self.concrete_type:
+            raise ValueError(
+                "UnknownCurationTaskProperties can only be serialized after being "
+                "populated from a Synapse response carrying a concreteType. To "
+                "attach properties to a task, construct the type matching the work "
+                "it describes, such as FileBasedMetadataTaskProperties or "
+                "RecordBasedMetadataTaskProperties."
+            )
+        return deepcopy(self.raw_properties)
+
+
+TASK_PROPERTIES_DICT: dict[str, type[CurationTaskProperties]] = {
+    FILE_BASED_METADATA_TASK_PROPERTIES: FileBasedMetadataTaskProperties,
+    RECORD_BASED_METADATA_TASK_PROPERTIES: RecordBasedMetadataTaskProperties,
+    SAMPLE_SHEET_GENERATION_EXECUTION_PROPERTIES: SampleSheetGenerationExecutionProperties,
+    RECORD_SET_GENERATION_EXECUTION_PROPERTIES: RecordSetGenerationExecutionProperties,
+}
+
+
+def _create_task_properties_from_dict(
+    properties_dict: dict[str, Any],
+) -> CurationTaskProperties:
+    """
+    Factory method to create the appropriate CurationTaskProperties implementation
     based on the concreteType.
+
+    An unrecognized concreteType is not an error. Refusing to parse it would make every
+    other field of the task unreadable, including for callers that only want to list
+    tasks or read their state. The properties are returned as
+    UnknownCurationTaskProperties, which reports the concreteType Synapse sent and
+    round-trips the response unchanged.
 
     Arguments:
         properties_dict: Dictionary containing task properties data
 
     Returns:
-        The appropriate FileBasedMetadataTaskProperties/RecordBasedMetadataTaskProperties instance
+        The appropriate CurationTaskProperties instance
     """
     concrete_type = properties_dict.get("concreteType", "")
 
-    if concrete_type == FILE_BASED_METADATA_TASK_PROPERTIES:
-        return FileBasedMetadataTaskProperties().fill_from_dict(properties_dict)
-    elif concrete_type == RECORD_BASED_METADATA_TASK_PROPERTIES:
-        return RecordBasedMetadataTaskProperties().fill_from_dict(properties_dict)
-    else:
-        raise ValueError(
-            f"Unknown concreteType for CurationTaskProperties: {concrete_type}"
-        )
+    properties_class = TASK_PROPERTIES_DICT.get(
+        concrete_type, UnknownCurationTaskProperties
+    )
+    return properties_class().fill_from_dict(properties_dict)
 
 
 @dataclass
@@ -374,6 +664,12 @@ class TaskExecutionDetails(ABC):
 
     The concrete subclass is determined by the concreteType field in the REST response.
     """
+
+    @property
+    @abstractmethod
+    def concrete_type(self) -> str:
+        """The concreteType of this implementation of TaskExecutionDetails."""
+        ...
 
     @abstractmethod
     def fill_from_dict(
@@ -415,6 +711,11 @@ class GridExecutionDetails(TaskExecutionDetails):
     active_session_id: str | None = None
     """The unique identifier of the active CRDT grid session linked to this task."""
 
+    @property
+    def concrete_type(self) -> str:
+        """The concreteType of a GridExecutionDetails."""
+        return GRID_EXECUTION_DETAILS
+
     def fill_from_dict(
         self, synapse_response: dict[str, Any]
     ) -> "GridExecutionDetails":
@@ -437,15 +738,279 @@ class GridExecutionDetails(TaskExecutionDetails):
         Returns:
             A dictionary representation of this object for API requests.
         """
-        request_dict: dict[str, Any] = {"concreteType": GRID_EXECUTION_DETAILS}
+        request_dict: dict[str, Any] = {"concreteType": self.concrete_type}
         if self.active_session_id is not None:
             request_dict["activeSessionId"] = self.active_session_id
         return request_dict
 
 
+@dataclass
+class ExecutableTaskExecutionDetails(TaskExecutionDetails):
+    """
+    Base class for the execution details of a CurationTask that supports automated
+    execution by a sub-worker. The concrete type determines which sub-worker handles
+    the execution.
+
+    <https://rest-docs.synapse.org/rest/org/sagebionetworks/repo/model/curation/execution/ExecutableTaskExecutionDetails.html>
+
+    A CurationTask must have execution details of this kind for
+    [CurationTask.execute][synapseclient.models.CurationTask.execute] to run.
+
+    This class is abstract and cannot be instantiated: it does not define a
+    concreteType. Construct one of its subclasses instead, matching the kind of
+    computation the task's properties describe:
+    SampleSheetGenerationExecutionDetails or RecordSetGenerationExecutionDetails.
+    Use this class for isinstance checks when you need to know whether a task's
+    execution details support automated execution, regardless of their kind. Details
+    whose concreteType this client does not recognize are deliberately excluded from
+    this class, since an unrecognized type may not be executable.
+
+    Attributes:
+        async_job_id: The ID of the async job currently executing this task. Set when
+            execution starts; cleared on completion or failure.
+        started_by: The principal ID of the user who started the execution.
+        started_on: When the execution was started.
+        error_message: If execution failed, the error description.
+        error_details: If execution failed, additional error details.
+    """
+
+    async_job_id: str | None = None
+    """The ID of the async job currently executing this task. Set when execution
+    starts; cleared on completion or failure."""
+
+    started_by: str | None = None
+    """The principal ID of the user who started the execution."""
+
+    started_on: str | None = None
+    """When the execution was started."""
+
+    error_message: str | None = None
+    """If execution failed, the error description."""
+
+    error_details: str | None = None
+    """If execution failed, additional error details."""
+
+    def fill_from_dict(
+        self, synapse_response: dict[str, Any]
+    ) -> "ExecutableTaskExecutionDetails":
+        """
+        Converts a response from the REST API into this dataclass.
+
+        Arguments:
+            synapse_response: The response from the REST API.
+
+        Returns:
+            The ExecutableTaskExecutionDetails object.
+        """
+        self.async_job_id = synapse_response.get("asyncJobId", None)
+        self.started_by = synapse_response.get("startedBy", None)
+        self.started_on = synapse_response.get("startedOn", None)
+        self.error_message = synapse_response.get("errorMessage", None)
+        self.error_details = synapse_response.get("errorDetails", None)
+        return self
+
+    def to_synapse_request(self) -> dict[str, Any]:
+        """
+        Converts this dataclass to a dictionary suitable for a Synapse REST API request.
+
+        Every field that is set is sent. The Synapse status endpoint replaces
+        executionDetails wholesale rather than merging, so omitting a field that the
+        server has populated deletes it. Details constructed empty, as they are when
+        making a task executable, still serialize to just the concreteType because
+        every other field is None.
+
+        Returns:
+            A dictionary representation of this object for API requests.
+        """
+        request_dict: dict[str, Any] = {
+            "concreteType": self.concrete_type,
+            "asyncJobId": self.async_job_id,
+            "startedBy": self.started_by,
+            "startedOn": self.started_on,
+            "errorMessage": self.error_message,
+            "errorDetails": self.error_details,
+        }
+        delete_none_keys(request_dict)
+        return request_dict
+
+
+@dataclass
+class SampleSheetGenerationExecutionDetails(ExecutableTaskExecutionDetails):
+    """
+    Execution details for a curation task that generates a sample sheet. Used with
+    the task's SampleSheetGenerationExecutionProperties.
+
+    <https://rest-docs.synapse.org/rest/org/sagebionetworks/repo/model/curation/execution/SampleSheetGenerationExecutionDetails.html>
+
+    Attributes:
+        async_job_id: The ID of the async job currently executing this task. Set when
+            execution starts; cleared on completion or failure.
+        started_by: The principal ID of the user who started the execution.
+        started_on: When the execution was started.
+        error_message: If execution failed, the error description.
+        error_details: If execution failed, additional error details.
+    """
+
+    @property
+    def concrete_type(self) -> str:
+        """The concreteType of a SampleSheetGenerationExecutionDetails."""
+        return SAMPLE_SHEET_GENERATION_EXECUTION_DETAILS
+
+
+@dataclass
+class RecordSetGenerationExecutionDetails(ExecutableTaskExecutionDetails):
+    """
+    Execution details for a curation task that generates a RecordSet from source
+    files. Used with the task's RecordSetGenerationExecutionProperties.
+
+    <https://rest-docs.synapse.org/rest/org/sagebionetworks/repo/model/curation/execution/RecordSetGenerationExecutionDetails.html>
+
+    Attributes:
+        async_job_id: The ID of the async job currently executing this task. Set when
+            execution starts; cleared on completion or failure.
+        started_by: The principal ID of the user who started the execution.
+        started_on: When the execution was started.
+        error_message: If execution failed, the error description.
+        error_details: If execution failed, additional error details.
+    """
+
+    @property
+    def concrete_type(self) -> str:
+        """The concreteType of a RecordSetGenerationExecutionDetails."""
+        return RECORD_SET_GENERATION_EXECUTION_DETAILS
+
+
+@dataclass
+class UnknownTaskExecutionDetails(TaskExecutionDetails):
+    """
+    Execution details whose concreteType this version of the client does not
+    recognize. Produced when Synapse returns a TaskExecutionDetails subtype that was
+    added after this client was released.
+
+    The whole response is kept in raw_details, and the fields common to every
+    execution details type are exposed as read-only properties over it, so the outcome
+    of a run, including its error message, can still be read. Serializing these
+    details back to Synapse therefore does not lose the fields this client cannot
+    model. The properties are read-only because there is nothing useful to write: an
+    execution detail this client does not model cannot be constructed correctly, only
+    reported back as it arrived.
+
+    These details are not an ExecutableTaskExecutionDetails. Not every
+    TaskExecutionDetails subtype supports automated execution (GridExecutionDetails
+    does not), so an unrecognized concreteType cannot be assumed to be executable.
+    A task carrying these details may or may not be accepted by
+    [CurationTask.execute][synapseclient.models.CurationTask.execute]; upgrade
+    synapseclient to find out locally rather than from the server.
+
+    Attributes:
+        raw_details: The unmodified executionDetails from the response.
+    """
+
+    raw_details: dict[str, Any] = field(default_factory=dict)
+    """The unmodified executionDetails from the response."""
+
+    @property
+    def concrete_type(self) -> str:
+        """The concreteType that Synapse reported for these details."""
+        return self.raw_details.get("concreteType", "")
+
+    @property
+    def async_job_id(self) -> str | None:
+        """The ID of the async job that was executing this task."""
+        return self.raw_details.get("asyncJobId", None)
+
+    @property
+    def started_by(self) -> str | None:
+        """The principal ID of the user who started the execution."""
+        return self.raw_details.get("startedBy", None)
+
+    @property
+    def started_on(self) -> str | None:
+        """When the execution was started."""
+        return self.raw_details.get("startedOn", None)
+
+    @property
+    def error_message(self) -> str | None:
+        """If execution failed, the error description."""
+        return self.raw_details.get("errorMessage", None)
+
+    @property
+    def error_details(self) -> str | None:
+        """If execution failed, additional error details."""
+        return self.raw_details.get("errorDetails", None)
+
+    def fill_from_dict(
+        self, synapse_response: dict[str, Any]
+    ) -> "UnknownTaskExecutionDetails":
+        """
+        Converts a response from the REST API into this dataclass.
+
+        Arguments:
+            synapse_response: The response from the REST API.
+
+        Returns:
+            The UnknownTaskExecutionDetails object.
+        """
+        self.raw_details = deepcopy(synapse_response)
+        return self
+
+    def to_synapse_request(self) -> dict[str, Any]:
+        """
+        Converts this dataclass to a dictionary suitable for a Synapse REST API request.
+
+        Returns the details exactly as Synapse sent them. The status endpoint replaces
+        executionDetails rather than merging, so a read-modify-write that dropped the
+        fields this client does not model would delete them server-side.
+
+        Returns:
+            A dictionary representation of this object for API requests.
+
+        Raises:
+            ValueError: If these details carry no concreteType for the server to
+                dispatch on, either because they were never populated from a Synapse
+                response or because the response did not name one.
+        """
+        if not self.concrete_type:
+            raise ValueError(
+                "UnknownTaskExecutionDetails can only be serialized after being "
+                "populated from a Synapse response carrying a concreteType. To attach "
+                "execution details to a task, construct the type matching its "
+                "properties, such as SampleSheetGenerationExecutionDetails or "
+                "RecordSetGenerationExecutionDetails."
+            )
+        return deepcopy(self.raw_details)
+
+
 TASK_EXECUTION_DETAILS_DICT: dict[str, type[TaskExecutionDetails]] = {
     GRID_EXECUTION_DETAILS: GridExecutionDetails,
+    SAMPLE_SHEET_GENERATION_EXECUTION_DETAILS: SampleSheetGenerationExecutionDetails,
+    RECORD_SET_GENERATION_EXECUTION_DETAILS: RecordSetGenerationExecutionDetails,
 }
+
+
+def _create_task_execution_details_from_dict(
+    details_dict: dict[str, Any],
+) -> TaskExecutionDetails:
+    """
+    Factory method to create the appropriate TaskExecutionDetails implementation
+    based on the concreteType.
+
+    An unrecognized concreteType is not an error. Execution details are a read-only
+    report about work that Synapse has already done, so refusing to parse them would
+    discard the result of a completed job. The details are returned as
+    UnknownTaskExecutionDetails, which reports the concreteType Synapse sent.
+
+    Arguments:
+        details_dict: Dictionary containing task execution details data
+
+    Returns:
+        The appropriate TaskExecutionDetails instance
+    """
+    concrete_type = details_dict.get("concreteType", "")
+    task_execution_details = TASK_EXECUTION_DETAILS_DICT.get(
+        concrete_type, UnknownTaskExecutionDetails
+    )
+    return task_execution_details().fill_from_dict(details_dict)
 
 
 @dataclass
@@ -504,16 +1069,11 @@ class CurationTaskStatus(EnumCoercionMixin):
         self.etag = synapse_response.get("etag")
 
         details_dict: dict[str, Any] | None = synapse_response.get("executionDetails")
-        if details_dict is None:
-            self.execution_details = None
-        else:
-            concrete_type = details_dict.get("concreteType", "")
-            cls = TASK_EXECUTION_DETAILS_DICT.get(concrete_type)
-            if cls is None:
-                raise ValueError(
-                    f"Unknown concreteType for TaskExecutionDetails: {concrete_type}"
-                )
-            self.execution_details = cls().fill_from_dict(details_dict)
+        self.execution_details = (
+            None
+            if details_dict is None
+            else _create_task_execution_details_from_dict(details_dict)
+        )
         return self
 
     def to_synapse_request(self) -> dict[str, Any]:
@@ -711,6 +1271,60 @@ class CurationTaskSynchronousProtocol(Protocol):
         """
         return CurationTaskStatus()
 
+    def set_execution_details(
+        self,
+        *,
+        execution_details: "TaskExecutionDetails",
+        synapse_client: Synapse | None = None,
+    ) -> "CurationTaskStatus":
+        """
+        Replace the execution details on this CurationTask's status.
+
+        Fetches the current CurationTaskStatus first so the update carries a fresh
+        etag, then writes back the given execution details. Does not transition the
+        task state.
+
+        A compute task needs this before it can run: a newly created task has no
+        execution details, and Synapse will not dispatch one without details that
+        support automated execution. Pass empty details of the type matching the
+        task's properties, such as SampleSheetGenerationExecutionDetails or
+        RecordSetGenerationExecutionDetails, and Synapse populates their fields as
+        the job runs.
+
+        Arguments:
+            execution_details: The execution details to attach to this task's status.
+            synapse_client: If not passed in and caching was not disabled by
+                Synapse.allow_client_caching(False) this will use the last created
+                instance from the Synapse class constructor.
+
+        Returns:
+            The updated CurationTaskStatus object.
+
+        Raises:
+            ValueError: If the CurationTask object does not have a task_id.
+
+        Example: Make a compute task executable
+            &nbsp;
+
+            ```python
+            from synapseclient import Synapse
+            from synapseclient.models import (
+                CurationTask,
+                RecordSetGenerationExecutionDetails,
+            )
+
+            syn = Synapse()
+            syn.login()
+
+            task = CurationTask(task_id=123)
+            task.set_execution_details(
+                execution_details=RecordSetGenerationExecutionDetails()
+            )
+            task.execute()
+            ```
+        """
+        return CurationTaskStatus()
+
     def set_task_state(
         self,
         state: "TaskState | str",
@@ -834,6 +1448,66 @@ class CurationTaskSynchronousProtocol(Protocol):
         """
         return Grid()
 
+    def execute(
+        self,
+        *,
+        timeout: int = 120,
+        synapse_client: Synapse | None = None,
+    ) -> "TaskExecutionDetails":
+        """
+        Run the automated computation for this CurationTask and wait for it to finish.
+
+        The task must be in the NOT_STARTED state and its status must carry execution
+        details that support automated execution, such as
+        SampleSheetGenerationExecutionDetails or RecordSetGenerationExecutionDetails.
+        The computation itself is described by the task's task_properties, either
+        SampleSheetGenerationExecutionProperties or
+        RecordSetGenerationExecutionProperties.
+
+        A newly created task has no execution details, and Synapse will not dispatch
+        it until they are set. Attach empty details of the matching type with
+        set_execution_details once, before the first run:
+
+            task.set_execution_details(
+                execution_details=RecordSetGenerationExecutionDetails()
+            )
+
+        The caller must be the assignee of the task or have UPDATE access on the
+        task's project.
+
+        Arguments:
+            timeout: Seconds to wait for the execution job to complete or progress
+                before raising a SynapseTimeoutError. Defaults to 120.
+            synapse_client: If not passed in and caching was not disabled by
+                Synapse.allow_client_caching(False) this will use the last created
+                instance from the Synapse class constructor.
+
+        Returns:
+            The execution details of the task after the job completed.
+
+        Raises:
+            ValueError: If the CurationTask object does not have a task_id.
+            SynapseError: If the execution job fails, or if it completes without
+                returning execution details.
+            SynapseTimeoutError: If the execution job does not complete within the
+                timeout.
+
+        Example: Execute a curation task
+            &nbsp;
+
+            ```python
+            from synapseclient import Synapse
+            from synapseclient.models import CurationTask
+
+            syn = Synapse()
+            syn.login()
+
+            details = CurationTask(task_id=123).execute()
+            print(details.started_on)
+            ```
+        """
+        return RecordSetGenerationExecutionDetails()
+
     def synchronize_active_grid_session(
         self,
         *,
@@ -930,12 +1604,16 @@ class CurationTaskSynchronousProtocol(Protocol):
         Arguments:
             delete_source: If True, the associated source data (EntityView or RecordSet) will also be deleted
                 if the task is a FileBasedMetadataTask or RecordBasedMetadataTask respectively. Defaults to False.
+                A compute task has no source of its own, so passing True for one raises
+                a ValueError.
             synapse_client: If not passed in and caching was not disabled by
                 `Synapse.allow_client_caching(False)` this will use the last created
                 instance from the Synapse class constructor.
 
         Raises:
             ValueError: If the CurationTask object does not have a task_id.
+            ValueError: If delete_source is True and the task properties do not
+                identify a source to delete.
 
         Example: Delete a curation task
             &nbsp;
@@ -1197,8 +1875,10 @@ class CurationTask(CurationTaskSynchronousProtocol):
         data_type: Will match the data type that a contributor plans to contribute
         project_id: The synId of the project
         instructions: Instructions to the data contributor
-        task_properties: The properties of a CurationTask. This can be either
-            FileBasedMetadataTaskProperties or RecordBasedMetadataTaskProperties.
+        task_properties: The properties of a CurationTask. This can be
+            FileBasedMetadataTaskProperties, RecordBasedMetadataTaskProperties,
+            SampleSheetGenerationExecutionProperties, or
+            RecordSetGenerationExecutionProperties.
         etag: Synapse employs an Optimistic Concurrency Control (OCC) scheme to handle
             concurrent updates. Since the E-Tag changes every time an entity is updated
             it is used to detect when a client's current representation of an entity is
@@ -1256,9 +1936,7 @@ class CurationTask(CurationTaskSynchronousProtocol):
     instructions: Optional[str] = None
     """Instructions to the data contributor"""
 
-    task_properties: Optional[
-        Union[FileBasedMetadataTaskProperties, RecordBasedMetadataTaskProperties]
-    ] = None
+    task_properties: Optional[CurationTaskProperties] = None
     """The properties of a CurationTask"""
 
     etag: Optional[str] = None
@@ -1480,6 +2158,8 @@ class CurationTask(CurationTaskSynchronousProtocol):
         Arguments:
             delete_source: If True, the associated source data (EntityView or RecordSet) will also be deleted
                 if the task is a FileBasedMetadataTask or RecordBasedMetadataTask respectively. Defaults to False.
+                A compute task has no source of its own, so passing True for one raises
+                a ValueError.
             synapse_client: If not passed in and caching was not disabled by
                 `Synapse.allow_client_caching(False)` this will use the last created
                 instance from the Synapse class constructor.
@@ -1564,11 +2244,26 @@ class CurationTask(CurationTaskSynchronousProtocol):
                     synapse_client=synapse_client
                 )
 
+            elif self.task_properties is None:
+                raise ValueError(
+                    "delete_source requires task properties that identify a "
+                    "source, but 'task_properties' is None."
+                )
+
+            elif isinstance(self.task_properties, UnknownCurationTaskProperties):
+                raise ValueError(
+                    "delete_source is not supported for task properties of type "
+                    f"{self.task_properties.concrete_type}, which this version of "
+                    "synapseclient does not recognize, so the source of the task "
+                    "cannot be identified. Upgrade synapseclient, or delete this task "
+                    "without delete_source."
+                )
+
             else:
                 raise ValueError(
-                    "'task_property' attribute is None. "
-                    "Deletion only supports FileBasedMetadataTaskProperties or "
-                    "RecordBasedMetadataTaskProperties."
+                    "delete_source is not supported for "
+                    f"{type(self.task_properties).__name__}. A compute task has no "
+                    "source of its own. Delete this task without delete_source."
                 )
 
         await delete_curation_task(task_id=self.task_id, synapse_client=synapse_client)
@@ -1788,16 +2483,80 @@ class CurationTask(CurationTaskSynchronousProtocol):
             asyncio.run(main())
             ```
         """
-        status = await self.get_status_async(synapse_client=synapse_client)
-        status.execution_details = GridExecutionDetails(
-            active_session_id=active_session_id
+        return await self.set_execution_details_async(
+            execution_details=GridExecutionDetails(active_session_id=active_session_id),
+            synapse_client=synapse_client,
         )
+
+    @otel_trace_method(
+        method_to_trace_name=lambda self, *args, **kwargs: (
+            f"CurationTask_SetExecutionDetails: ID: {self.task_id}"
+        )
+    )
+    async def set_execution_details_async(
+        self,
+        *,
+        execution_details: "TaskExecutionDetails",
+        synapse_client: Synapse | None = None,
+    ) -> "CurationTaskStatus":
+        """
+        Replace the execution details on this CurationTask's status.
+
+        Fetches the current CurationTaskStatus first so the update carries a fresh
+        etag, then writes back the given execution details. Does not transition the
+        task state.
+
+        A compute task needs this before it can run: a newly created task has no
+        execution details, and Synapse will not dispatch one without details that
+        support automated execution. Pass empty details of the type matching the
+        task's properties, such as SampleSheetGenerationExecutionDetails or
+        RecordSetGenerationExecutionDetails, and Synapse populates their fields as
+        the job runs.
+
+        Arguments:
+            execution_details: The execution details to attach to this task's status.
+            synapse_client: If not passed in and caching was not disabled by
+                Synapse.allow_client_caching(False) this will use the last created
+                instance from the Synapse class constructor.
+
+        Returns:
+            The updated CurationTaskStatus object.
+
+        Raises:
+            ValueError: If the CurationTask object does not have a task_id.
+
+        Example: Make a compute task executable asynchronously
+            &nbsp;
+
+            ```python
+            import asyncio
+            from synapseclient import Synapse
+            from synapseclient.models import (
+                CurationTask,
+                RecordSetGenerationExecutionDetails,
+            )
+
+            syn = Synapse()
+            syn.login()
+
+            async def main():
+                task = CurationTask(task_id=123)
+                await task.set_execution_details_async(
+                    execution_details=RecordSetGenerationExecutionDetails()
+                )
+                await task.execute_async()
+
+            asyncio.run(main())
+            ```
+        """
+        status = await self.get_status_async(synapse_client=synapse_client)
+        status.execution_details = execution_details
         return await self.update_status_async(
             curation_task_status=status, synapse_client=synapse_client
         )
 
     @otel_trace_method(
-        method_to_trace_name=lambda self, **kwargs: (
+        method_to_trace_name=lambda self, *args, **kwargs: (
             f"CurationTask_SetTaskState: ID: {self.task_id}"
         )
     )
@@ -2033,6 +2792,88 @@ class CurationTask(CurationTaskSynchronousProtocol):
             raise
 
         return grid
+
+    @otel_trace_method(
+        method_to_trace_name=lambda self, **kwargs: (
+            f"CurationTask_Execute: ID: {self.task_id}"
+        )
+    )
+    async def execute_async(
+        self,
+        *,
+        timeout: int = 120,
+        synapse_client: Synapse | None = None,
+    ) -> "TaskExecutionDetails":
+        """
+        Run the automated computation for this CurationTask and wait for it to finish.
+
+        The task must be in the NOT_STARTED state and its status must carry execution
+        details that support automated execution, such as
+        SampleSheetGenerationExecutionDetails or RecordSetGenerationExecutionDetails.
+        The computation itself is described by the task's task_properties, either
+        SampleSheetGenerationExecutionProperties or
+        RecordSetGenerationExecutionProperties.
+
+        A newly created task has no execution details, and Synapse will not dispatch
+        it until they are set. Attach empty details of the matching type with
+        set_execution_details once, before the first run:
+
+            task.set_execution_details(
+                execution_details=RecordSetGenerationExecutionDetails()
+            )
+
+        The caller must be the assignee of the task or have UPDATE access on the
+        task's project.
+
+        Arguments:
+            timeout: Seconds to wait for the execution job to complete or progress
+                before raising a SynapseTimeoutError. Defaults to 120.
+            synapse_client: If not passed in and caching was not disabled by
+                Synapse.allow_client_caching(False) this will use the last created
+                instance from the Synapse class constructor.
+
+        Returns:
+            The execution details of the task after the job completed.
+
+        Raises:
+            ValueError: If the CurationTask object does not have a task_id.
+            SynapseError: If the execution job fails, or if it completes without
+                returning execution details.
+            SynapseTimeoutError: If the execution job does not complete within the
+                timeout.
+
+        Example: Execute a curation task asynchronously
+            &nbsp;
+
+            ```python
+            import asyncio
+            from synapseclient import Synapse
+            from synapseclient.models import CurationTask
+
+            syn = Synapse()
+            syn.login()
+
+            async def main():
+                details = await CurationTask(task_id=123).execute_async()
+                print(details.started_on)
+
+            asyncio.run(main())
+            ```
+        """
+        if not self.task_id:
+            raise ValueError("task_id is required to execute a CurationTask")
+
+        request = ComputeTaskExecutionRequest(task_id=self.task_id)
+        result = await request.send_job_and_wait_async(
+            timeout=timeout,
+            synapse_client=synapse_client,
+        )
+        if result.execution_details is None:
+            raise SynapseError(
+                f"The execution job for CurationTask {self.task_id} completed without "
+                "returning execution details."
+            )
+        return result.execution_details
 
     @skip_async_to_sync
     @classmethod
@@ -2342,6 +3183,72 @@ class CurationTask(CurationTaskSynchronousProtocol):
         return await grid.synchronize_async(
             synapse_client=synapse_client, sync_type=sync_type
         )
+
+
+@dataclass
+class ComputeTaskExecutionRequest(AsynchronousCommunicator):
+    """
+    Start a job to execute the automated computation for a CurationTask.
+
+    The task must be in the NOT_STARTED state and have execution details that support
+    automated execution (an ExecutableTaskExecutionDetails).
+
+    Represents a [Synapse ComputeTaskExecutionRequest](https://rest-docs.synapse.org/rest/org/sagebionetworks/repo/model/curation/ComputeTaskExecutionRequest.html)
+    and the [ComputeTaskExecutionResponse](https://rest-docs.synapse.org/rest/org/sagebionetworks/repo/model/curation/ComputeTaskExecutionResponse.html)
+    it produces.
+
+    Attributes:
+        concrete_type: The concrete type for the request
+        task_id: The ID of the CurationTask to execute
+        execution_details: The execution details of the task after the job completed
+            (populated from response)
+    """
+
+    concrete_type: str = COMPUTE_TASK_EXECUTION_REQUEST
+    """The concrete type for the request"""
+
+    task_id: int | None = None
+    """The ID of the CurationTask to execute"""
+
+    execution_details: TaskExecutionDetails | None = None
+    """The execution details of the task after the job completed. The concrete type
+    determines which task-type-specific properties are available."""
+
+    def fill_from_dict(self, synapse_response: Any) -> "ComputeTaskExecutionRequest":
+        """
+        Converts a response from the REST API into this dataclass.
+
+        Arguments:
+            synapse_response: The response from the REST API.
+
+        Returns:
+            The ComputeTaskExecutionRequest object.
+        """
+        task_id = synapse_response.get("taskId", None)
+        if task_id is not None:
+            self.task_id = int(task_id)
+
+        details_dict = synapse_response.get("executionDetails", None)
+        self.execution_details = (
+            None
+            if details_dict is None
+            else _create_task_execution_details_from_dict(details_dict)
+        )
+        return self
+
+    def to_synapse_request(self) -> dict[str, Any]:
+        """
+        Converts this dataclass to a dictionary suitable for a Synapse REST API request.
+
+        Returns:
+            A dictionary representation of this object for API requests.
+        """
+        request_dict = {
+            "concreteType": self.concrete_type,
+            "taskId": self.task_id,
+        }
+        delete_none_keys(request_dict)
+        return request_dict
 
 
 @dataclass

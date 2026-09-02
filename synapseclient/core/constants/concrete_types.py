@@ -142,8 +142,27 @@ FILE_BASED_METADATA_TASK_PROPERTIES = (
 RECORD_BASED_METADATA_TASK_PROPERTIES = (
     "org.sagebionetworks.repo.model.curation.metadata.RecordBasedMetadataTaskProperties"
 )
+SAMPLE_SHEET_GENERATION_EXECUTION_PROPERTIES = (
+    "org.sagebionetworks.repo.model.curation.execution."
+    "SampleSheetGenerationExecutionProperties"
+)
+RECORD_SET_GENERATION_EXECUTION_PROPERTIES = (
+    "org.sagebionetworks.repo.model.curation.execution."
+    "RecordSetGenerationExecutionProperties"
+)
 GRID_EXECUTION_DETAILS = (
     "org.sagebionetworks.repo.model.curation.execution.GridExecutionDetails"
+)
+SAMPLE_SHEET_GENERATION_EXECUTION_DETAILS = (
+    "org.sagebionetworks.repo.model.curation.execution."
+    "SampleSheetGenerationExecutionDetails"
+)
+RECORD_SET_GENERATION_EXECUTION_DETAILS = (
+    "org.sagebionetworks.repo.model.curation.execution."
+    "RecordSetGenerationExecutionDetails"
+)
+COMPUTE_TASK_EXECUTION_REQUEST = (
+    "org.sagebionetworks.repo.model.curation.ComputeTaskExecutionRequest"
 )
 
 # Download List
