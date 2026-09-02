@@ -6593,7 +6593,7 @@ class TestUpsertRowsResultReporting:
             ),
             (
                 [{"entityId": "syn2", "failureCode": "SOMETHING_NEW"}],
-                ". 1 rows could not be updated: syn2 (UNKNOWN)",
+                ". 1 rows could not be updated: syn2 (SOMETHING_NEW)",
             ),
             (
                 [{"failureMessage": "something broke"}],
