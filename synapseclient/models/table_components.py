@@ -19,6 +19,7 @@ from synapseclient.core.constants.concrete_types import (
 from synapseclient.core.typing_utils import DataFrame as DATA_FRAME_TYPE
 from synapseclient.core.utils import delete_none_keys, from_unix_epoch_time
 from synapseclient.models.mixins.asynchronous_job import AsynchronousCommunicator
+from synapseclient.models.mixins.enum_coercion import ForwardCompatibleStrEnum
 from synapseclient.models.protocols.table_protocol import ColumnSynchronousProtocol
 
 if TYPE_CHECKING:
@@ -477,9 +478,12 @@ class SnapshotRequest:
         return self
 
 
-class EntityUpdateFailureCode(str, Enum):
+class EntityUpdateFailureCode(ForwardCompatibleStrEnum):
     """The reason an entity update within a view failed. Null when the update
     succeeded.
+
+    A failure code that Synapse adds after this release is kept as its raw string
+    value rather than raising an error.
 
     This is modeled from: <https://rest-docs.synapse.org/rest/org/sagebionetworks/repo/model/table/EntityUpdateFailureCode.html>
     """
@@ -588,13 +592,10 @@ class EntityUpdateResult:
     @classmethod
     def fill_from_dict(cls, data: dict[str, Any]) -> "EntityUpdateResult":
         """Create an EntityUpdateResult from a dictionary response."""
-        failure_code = None
         failure_code_value = data.get("failureCode", None)
-        if failure_code_value:
-            try:
-                failure_code = EntityUpdateFailureCode(failure_code_value)
-            except ValueError:
-                failure_code = EntityUpdateFailureCode.UNKNOWN
+        failure_code = (
+            EntityUpdateFailureCode(failure_code_value) if failure_code_value else None
+        )
         return cls(
             entity_id=data.get("entityId", None),
             failure_code=failure_code,

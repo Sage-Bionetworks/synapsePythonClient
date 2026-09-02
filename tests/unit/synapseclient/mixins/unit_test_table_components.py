@@ -5819,7 +5819,7 @@ class TestEntityUpdateResult:
         # THEN the code is the matching enum member
         assert update_result.failure_code == EntityUpdateFailureCode(failure_code)
 
-    def test_unrecognized_failure_code_coerces_to_unknown(self):
+    def test_unrecognized_failure_code_is_retained(self):
         """A failure code added to Synapse after this release must not raise."""
         # GIVEN a result with a failure code we do not model
         # WHEN converting it
@@ -5827,8 +5827,9 @@ class TestEntityUpdateResult:
             {"entityId": "syn1", "failureCode": "SOMETHING_NEW"}
         )
 
-        # THEN it coerces to UNKNOWN rather than raising a ValueError
-        assert update_result.failure_code == EntityUpdateFailureCode.UNKNOWN
+        # THEN the raw code is kept rather than raising a ValueError
+        assert update_result.failure_code == "SOMETHING_NEW"
+        assert not update_result.succeeded
 
     def test_failure_detail_is_retained(self):
         """The failure code and message are kept, not used as a filter and discarded."""
