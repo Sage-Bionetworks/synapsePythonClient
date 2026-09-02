@@ -5109,7 +5109,7 @@ class JSONSchema:
         #  valid JSON Schema keyword
         if self._conditional_dependencies:
             json_schema_dict["allOf"] = self._convert_conditional_properties_to_all_of(
-                self._conditional_dependencies
+                self._conditional_dependencies, self.properties
             )
         json_schema_dict.pop("_conditional_dependencies")
         return json_schema_dict
@@ -5158,18 +5158,19 @@ class JSONSchema:
             enum_value: The value of the watched property that triggers the condition
             dependent_property: The property that becomes required when the condition is triggered
         """
-        if (watched_property, enum_value) not in self._conditional_dependencies:
-            self._conditional_dependencies[(watched_property, enum_value)] = [
-                dependent_property
-            ]
-        else:
-            self._conditional_dependencies[(watched_property, enum_value)].append(
-                dependent_property
-            )
+        dependent_properties = self._conditional_dependencies.setdefault(
+            (watched_property, enum_value), []
+        )
+        # A node can be reached by more than one path in the data model graph, so the
+        #  same dependent property can be added more than once. The draft-07
+        #  meta-schema requires the items of "required" to be unique.
+        if dependent_property not in dependent_properties:
+            dependent_properties.append(dependent_property)
 
     @staticmethod
     def _convert_conditional_properties_to_all_of(
         conditional_dependencies: dict[tuple[str, str], list[str]],
+        properties: dict[str, Property],
     ) -> list[AllOf]:
         """
         Converts the conditional dependencies dict to a list of JSON Schema allOf conditions
@@ -5178,6 +5179,8 @@ class JSONSchema:
             conditional_dependencies: A mapping of conditional dependencies to be added to the "allOf" keyword in JSON Schema.
                 The key is a tuple of (watched_property, enum_value)
                 The value is a list of properties that become required when watched_property has the value enum_value.
+            properties: The properties of the JSON Schema. These are used to determine
+                how the watched property holds the value that triggers the condition.
 
         Returns:
             A list of JSON Schema allOf conditions
@@ -5220,9 +5223,17 @@ class JSONSchema:
             watched_property,
             enum_value,
         ), dependent_properties in conditional_dependencies.items():
+            watched_property_schema = properties.get(watched_property, {})
+            if watched_property_schema.get("type") == "array":
+                trigger_condition: Property = {
+                    "type": "array",
+                    "contains": {"const": enum_value},
+                }
+            else:
+                trigger_condition = {"enum": [enum_value]}
             conditional_dep = {
                 "if": {
-                    "properties": {watched_property: {"enum": [enum_value]}},
+                    "properties": {watched_property: trigger_condition},
                     "required": [watched_property],
                 },
                 "then": {
