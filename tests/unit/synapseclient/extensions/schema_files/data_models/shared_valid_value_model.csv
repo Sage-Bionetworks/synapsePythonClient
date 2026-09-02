@@ -1,0 +1,7 @@
+Attribute,IsTemplate,Description,Valid Values,DependsOn,Properties,Required,Parent,DependsOn Component,Source,Validation Rules,columnType,Format,Maximum,Minimum,Pattern
+Component,,,,,,TRUE,,,,,,,,,
+SharedValidValue,TRUE,Component where one valid value is shared by two attributes,,"Component, Comorbidities, Diagnosis",,FALSE,DataType,,,,,,,,
+Comorbidities,,,"Diabetes, Psoriasis",,,TRUE,DataProperty,,,,string,,,,
+Diagnosis,,,"Healthy, Psoriasis",,,TRUE,DataProperty,,,,string,,,,
+Psoriasis,,,,PASI,,FALSE,ValidValue,,,,,,,,
+PASI,,,,,,FALSE,DataProperty,,,,integer,,,,
