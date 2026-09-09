@@ -3884,7 +3884,7 @@ class CellValueFilter(Filter, EnumCoercionMixin):
             to find undefined values. When using IN or NOT_IN operators,
             value should be an array of candidate values, matching a row when
             the cell equals any of them. When using either 'LIKE' or
-            'NOT_LIKE', the wildcard character '%' is used to represents zero
+            'NOT_LIKE', the wildcard character '%' is used to represent zero
             or more characters, and '_' is used to represent a single
             character.
     """
