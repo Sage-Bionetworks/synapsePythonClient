@@ -3869,20 +3869,23 @@ class CellValueFilter(Filter, EnumCoercionMixin):
     A filter used to select rows based on cell values. For example, to handle a
     user request like 'find all rows where the Project column is Alpha', you
     would set 'columnName' to 'Project', 'operator' to 'EQUALS', and 'value' to
-    ['Alpha'].
+    'Alpha'.
 
     <https://rest-docs.synapse.org/rest/org/sagebionetworks/repo/model/grid/query/CellValueFilter.html>
 
     Attributes:
         column_name: The name of the column to filter by.
         operator: The comparison operator.
-        value: Use operators like 'EQUALS' or 'LIKE' with the 'value' property
-            for standard comparisons. The 'IS_NULL' operator can be used to
-            find null values. The 'IS_UNDEFINED' operator can be used to find
-            undefined values. When using IN or NOT_IN operators, value should
-            be an array of values to compare against. When using either 'LIKE'
-            or 'NOT_LIKE', the wildcard character '%' is used to represents
-            zero or more characters, and '_' is used to represent a single
+        value: For 'EQUALS', 'NOT_EQUALS', the ordering operators, and
+            'LIKE'/'NOT_LIKE', provide a scalar value to match a scalar cell
+            (e.g. 'Alpha'), or a JSON array to match a multi-value LIST cell
+            exactly (e.g. ['Alpha', 'Beta']). The 'IS_NULL' operator can be
+            used to find null values. The 'IS_UNDEFINED' operator can be used
+            to find undefined values. When using IN or NOT_IN operators,
+            value should be an array of candidate values, matching a row when
+            the cell equals any of them. When using either 'LIKE' or
+            'NOT_LIKE', the wildcard character '%' is used to represent zero
+            or more characters, and '_' is used to represent a single
             character.
     """
 
@@ -3895,13 +3898,16 @@ class CellValueFilter(Filter, EnumCoercionMixin):
     """The comparison operator."""
 
     value: Optional[Any] = None
-    """Use operators like 'EQUALS' or 'LIKE' with the 'value' property for
-    standard comparisons. The 'IS_NULL' operator can be used to find null
+    """For 'EQUALS', 'NOT_EQUALS', the ordering operators, and 'LIKE'/
+    'NOT_LIKE', provide a scalar value to match a scalar cell (e.g. 'Alpha'),
+    or a JSON array to match a multi-value LIST cell exactly (e.g.
+    ['Alpha', 'Beta']). The 'IS_NULL' operator can be used to find null
     values. The 'IS_UNDEFINED' operator can be used to find undefined values.
-    When using IN or NOT_IN operators, value should be an array of values to
-    compare against. When using either 'LIKE' or 'NOT_LIKE', the wildcard
-    character '%' is used to represents zero or more characters, and '_' is
-    used to represent a single character."""
+    When using IN or NOT_IN operators, value should be an array of candidate
+    values, matching a row when the cell equals any of them. When using
+    either 'LIKE' or 'NOT_LIKE', the wildcard character '%' is used to
+    represents zero or more characters, and '_' is used to represent a single
+    character."""
 
     def to_synapse_request(self) -> Dict[str, Any]:
         """
