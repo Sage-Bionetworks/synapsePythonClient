@@ -121,6 +121,15 @@ or
 
     pip install git+https://github.com/Sage-Bionetworks/synapsePythonClient@my-commit-hash
 
+To install with optional extras from a git reference, put the extras on the package name
+instead of the URL:
+
+    pip install "synapseclient[pandas, pysftp, boto3] @ git+https://github.com/Sage-Bionetworks/synapsePythonClient@develop"
+
+To install the curator extension from the develop branch:
+
+     pip install "synapseclient[curator] @ git+https://github.com/Sage-Bionetworks/synapsePythonClient@develop"
+
 Command line usage
 ------------------
 
