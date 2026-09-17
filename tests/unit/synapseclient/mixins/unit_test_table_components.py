@@ -1126,6 +1126,69 @@ class TestTableUpsertMixin:
         assert len(indexes_without_changes) == 2
         assert len(syn_id_and_etags) == 0
 
+    def test_construct_partial_rows_for_upsert_with_column_name_containing_special_characters(
+        self,
+    ):
+        # GIVEN an entity with column names that contain a space and a hyphen,
+        # and no actual changes between the queried results and the upsert data
+        test_instance = self.ClassForTest(
+            id="syn123",
+            columns={
+                "col1": Column(name="col1", column_type=ColumnType.STRING, id="id1"),
+                "col with space": Column(
+                    name="col with space", column_type=ColumnType.STRING, id="id2"
+                ),
+                "col-with-hyphen": Column(
+                    name="col-with-hyphen", column_type=ColumnType.STRING, id="id3"
+                ),
+            },
+        )
+
+        results = pd.DataFrame(
+            {
+                "ROW_ID": ["row1", "row2"],
+                "col1": ["A", "B"],
+                "col with space": ["X", "Y"],
+                "col-with-hyphen": ["M", "N"],
+            }
+        )
+
+        chunk_to_check_for_upsert = pd.DataFrame(
+            {
+                "col1": ["A", "B"],
+                "col with space": ["X", "Y"],  # Same values, no changes
+                "col-with-hyphen": ["M", "N"],  # Same values, no changes
+            }
+        )
+
+        primary_keys = ["col1"]
+        contains_etag = False
+        wait_for_eventually_consistent_view = False
+
+        # WHEN I call _construct_partial_rows_for_upsert
+        (
+            rows_to_update,
+            indexes_with_changes,
+            indexes_without_changes,
+            syn_id_and_etags,
+        ) = _construct_partial_rows_for_upsert(
+            entity=test_instance,
+            results=results,
+            chunk_to_check_for_upsert=chunk_to_check_for_upsert,
+            primary_keys=primary_keys,
+            contains_etag=contains_etag,
+            wait_for_eventually_consistent_view=wait_for_eventually_consistent_view,
+        )
+
+        # THEN I expect no rows to be updated, since no values actually changed.
+        # `itertuples` cannot expose "col with space" or "col-with-hyphen" under
+        # their real names, so `hasattr(row, column)` is always False for them
+        # and every row is incorrectly treated as changed.
+        assert len(rows_to_update) == 0
+        assert len(indexes_with_changes) == 0
+        assert len(indexes_without_changes) == 2
+        assert len(syn_id_and_etags) == 0
+
     def test_construct_partial_rows_for_upsert_date_column_from_csv_input_with_changes(
         self,
     ):
