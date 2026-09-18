@@ -1984,6 +1984,15 @@ def _construct_partial_rows_for_upsert(
 
     from pandas import isna
 
+    # `itertuples` builds a namedtuple from the column names, but a namedtuple field
+    # name must be a valid Python identifier. When a column name has a space or a
+    # special character, pandas silently swaps in a fallback name for that field
+    # (e.g. `_5`), so it can no longer be reached by its real name via
+    # `getattr`/`hasattr`. Looking values up by position instead of by name avoids
+    # this, since a row's positions never change, regardless of what its fields are
+    # named.
+    column_positions = {column: i for i, column in enumerate(results.columns)}
+
     rows_to_update: List[PartialRow] = []
     indexs_of_original_df_with_changes = []
     indexs_of_original_df_without_changes = []
@@ -1992,16 +2001,19 @@ def _construct_partial_rows_for_upsert(
         row_etag = None
 
         if contains_etag:
-            row_etag = row.ROW_ETAG
+            row_etag = row[column_positions["ROW_ETAG"]]
 
         partial_change_values = {}
 
         # Find the matching row in `values` that matches the row in `results` for the primary_keys
-        matching_conditions = chunk_to_check_for_upsert[primary_keys[0]] == getattr(
-            row, primary_keys[0]
+        matching_conditions = (
+            chunk_to_check_for_upsert[primary_keys[0]]
+            == row[column_positions[primary_keys[0]]]
         )
         for col in primary_keys[1:]:
-            matching_conditions &= chunk_to_check_for_upsert[col] == getattr(row, col)
+            matching_conditions &= (
+                chunk_to_check_for_upsert[col] == row[column_positions[col]]
+            )
         matching_row = chunk_to_check_for_upsert.loc[matching_conditions]
         # Determines which cells need to be updated
         for column in chunk_to_check_for_upsert.columns:
@@ -2018,10 +2030,12 @@ def _construct_partial_rows_for_upsert(
             cell_value = matching_row[column].values[0]
 
             # Safely compare values, handling pandas NA and arrays
-            row_value = getattr(row, column) if hasattr(row, column) else None
+            row_value = (
+                row[column_positions[column]] if column in column_positions else None
+            )
             values_differ = False
 
-            if not hasattr(row, column):
+            if column not in column_positions:
                 values_differ = True
             else:
                 # Helper to check if value is NA (handles both scalars and arrays)
@@ -2073,7 +2087,7 @@ def _construct_partial_rows_for_upsert(
                     partial_change_values[column_id] = None
         if partial_change_values:
             partial_change = PartialRow(
-                row_id=row.ROW_ID,
+                row_id=row[column_positions["ROW_ID"]],
                 etag=row_etag,
                 values=[
                     {
@@ -2085,8 +2099,10 @@ def _construct_partial_rows_for_upsert(
             )
             rows_to_update.append(partial_change)
             indexs_of_original_df_with_changes.append(matching_row.index[0])
-            if wait_for_eventually_consistent_view and row_etag and row.id:
-                syn_id_and_etags[row.id] = row_etag
+            if wait_for_eventually_consistent_view and row_etag:
+                row_id_value = row[column_positions["id"]]
+                if row_id_value:
+                    syn_id_and_etags[row_id_value] = row_etag
         else:
             indexs_of_original_df_without_changes.append(matching_row.index[0])
     return (
