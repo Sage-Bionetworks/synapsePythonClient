@@ -6,6 +6,7 @@ from opentelemetry import trace
 from synapseclient import Synapse
 from synapseclient.api import (
     create_team,
+    delete_membership_invitation,
     delete_team,
     get_membership_status,
     get_team,
@@ -668,6 +669,51 @@ class Team(TeamSynchronousProtocol):
             team=self.id, synapse_client=synapse_client
         )
         return list(invitations)
+
+    @staticmethod
+    async def delete_invitation_async(
+        invitation_id: str, *, synapse_client: Optional[Synapse] = None
+    ) -> None:
+        """Deletes an open invitation to a team. Note: The client must be an
+        administrator of the Team referenced by the invitation, or the invitee,
+        to make this request.
+
+        Arguments:
+            invitation_id: The ID of the invitation to delete. This can be found
+                on the invitations returned by
+                [open_invitations][synapseclient.models.Team.open_invitations].
+            synapse_client: If not passed in and caching was not disabled by
+                `Synapse.allow_client_caching(False)` this will use the last created
+                instance from the Synapse class constructor.
+
+        Returns:
+            None
+
+        Example: Delete an open invitation to a team
+            &nbsp;
+            ```python
+            import asyncio
+            from synapseclient import Synapse
+            from synapseclient.models import Team
+
+            syn = Synapse()
+            syn.login()
+
+            async def delete_open_invitation():
+                team = await Team.from_id_async(id=123456)
+                open_invitations = await team.open_invitations_async()
+
+                # Delete the first open invitation
+                await Team.delete_invitation_async(
+                    invitation_id=open_invitations[0]["id"]
+                )
+
+            asyncio.run(delete_open_invitation())
+            ```
+        """
+        await delete_membership_invitation(
+            invitation_id=invitation_id, synapse_client=synapse_client
+        )
 
     async def get_user_membership_status_async(
         self,

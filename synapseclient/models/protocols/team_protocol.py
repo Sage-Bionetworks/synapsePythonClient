@@ -292,6 +292,43 @@ class TeamSynchronousProtocol(Protocol):
         """
         return list({})
 
+    @staticmethod
+    def delete_invitation(
+        invitation_id: str, *, synapse_client: Optional[Synapse] = None
+    ) -> None:
+        """Deletes an open invitation to a team. Note: The client must be an
+        administrator of the Team referenced by the invitation, or the invitee,
+        to make this request.
+
+        Arguments:
+            invitation_id: The ID of the invitation to delete. This can be found
+                on the invitations returned by
+                [open_invitations][synapseclient.models.Team.open_invitations].
+            synapse_client: If not passed in and caching was not disabled by
+                `Synapse.allow_client_caching(False)` this will use the last created
+                instance from the Synapse class constructor.
+
+        Returns:
+            None
+
+        Example: Delete an open invitation to a team
+            &nbsp;
+            ```python
+            from synapseclient import Synapse
+            from synapseclient.models import Team
+
+            syn = Synapse()
+            syn.login()
+
+            team = Team.from_id(id=123456)
+            open_invitations = team.open_invitations()
+
+            # Delete the first open invitation
+            Team.delete_invitation(invitation_id=open_invitations[0]["id"])
+            ```
+        """
+        return None
+
     def get_user_membership_status(
         self,
         user_id: str,
