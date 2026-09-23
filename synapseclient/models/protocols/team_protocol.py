@@ -25,6 +25,22 @@ class TeamSynchronousProtocol(Protocol):
 
         Returns:
             Team: The Team object.
+
+        Example: Create a new team
+            &nbsp;
+            ```python
+            from synapseclient import Synapse
+            from synapseclient.models import Team
+
+            syn = Synapse()
+            syn.login()
+
+            team = Team(
+                name="My Uniquely Named Team",
+                description="A team for my project collaborators",
+                can_public_join=False,
+            ).create()
+            ```
         """
         return self
 
@@ -38,6 +54,34 @@ class TeamSynchronousProtocol(Protocol):
 
         Returns:
             None
+
+        Example: Delete a team by ID
+            &nbsp;
+            ```python
+            from synapseclient import Synapse
+            from synapseclient.models import Team
+
+            syn = Synapse()
+            syn.login()
+
+            Team(id=123456).delete()
+            ```
+
+        Example: Get and then delete a team
+            &nbsp;
+            If you do not have the ID of the team, you can first retrieve it from
+            Synapse by name. That will populate the ID attribute in your Team object,
+            at which point you can delete it.
+            ```python
+            from synapseclient import Synapse
+            from synapseclient.models import Team
+
+            syn = Synapse()
+            syn.login()
+
+            team = Team.from_name(name="My Uniquely Named Team")
+            team.delete()
+            ```
         """
         return None
 
@@ -56,6 +100,30 @@ class TeamSynchronousProtocol(Protocol):
 
         Returns:
             Team: The Team object.
+
+        Example: Get a team by ID
+            &nbsp;
+            ```python
+            from synapseclient import Synapse
+            from synapseclient.models import Team
+
+            syn = Synapse()
+            syn.login()
+
+            team = Team(id=123456).get()
+            ```
+
+        Example: Get a team by name
+            &nbsp;
+            ```python
+            from synapseclient import Synapse
+            from synapseclient.models import Team
+
+            syn = Synapse()
+            syn.login()
+
+            team = Team(name="My Uniquely Named Team").get()
+            ```
         """
         return self
 
@@ -71,6 +139,18 @@ class TeamSynchronousProtocol(Protocol):
 
         Returns:
             Team: The Team object.
+
+        Example: Get a team by its ID
+            &nbsp;
+            ```python
+            from synapseclient import Synapse
+            from synapseclient.models import Team
+
+            syn = Synapse()
+            syn.login()
+
+            team = Team.from_id(id=123456)
+            ```
         """
         from synapseclient.models.team import Team
 
@@ -95,6 +175,18 @@ class TeamSynchronousProtocol(Protocol):
 
         Returns:
             Team: The Team object.
+
+        Example: Get a team by its name
+            &nbsp;
+            ```python
+            from synapseclient import Synapse
+            from synapseclient.models import Team
+
+            syn = Synapse()
+            syn.login()
+
+            team = Team.from_name(name="My Uniquely Named Team")
+            ```
         """
         from synapseclient.models.team import Team
 
@@ -114,6 +206,20 @@ class TeamSynchronousProtocol(Protocol):
 
         Returns:
             List[TeamMember]: A List of TeamMember objects.
+
+        Example: List the members of a team
+            &nbsp;
+            ```python
+            from synapseclient import Synapse
+            from synapseclient.models import Team
+
+            syn = Synapse()
+            syn.login()
+
+            team = Team.from_id(id=123456)
+            for member in team.members():
+                print(f"{member.member.user_name} (admin: {member.is_admin})")
+            ```
         """
         from synapseclient.models.team import TeamMember
 
@@ -142,6 +248,19 @@ class TeamSynchronousProtocol(Protocol):
 
         Returns:
             The invite response or None if an invite was not sent.
+
+        Example: Invite a user to a team
+            &nbsp;
+            ```python
+            from synapseclient import Synapse
+            from synapseclient.models import Team
+
+            syn = Synapse()
+            syn.login()
+
+            team = Team.from_id(id=123456)
+            team.invite(user="my_username", message="Please join my team!")
+            ```
         """
         return {}
 
@@ -157,6 +276,19 @@ class TeamSynchronousProtocol(Protocol):
 
         Returns:
             List[dict]: A list of invitations.
+
+        Example: List the open invitations for a team
+            &nbsp;
+            ```python
+            from synapseclient import Synapse
+            from synapseclient.models import Team
+
+            syn = Synapse()
+            syn.login()
+
+            team = Team.from_id(id=123456)
+            open_invitations = team.open_invitations()
+            ```
         """
         return list({})
 

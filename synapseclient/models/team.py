@@ -149,6 +149,65 @@ class Team(TeamSynchronousProtocol):
         modified_on: The date this team was last modified
         created_by: The ID of the user that created this team
         modified_by: The ID of the user that last modified this team
+
+    Example: Create a new team
+        &nbsp;
+        Create a new team on Synapse by storing a Team object with a name.
+        ```python
+        from synapseclient.models import Team
+        from synapseclient import Synapse
+
+        syn = Synapse()
+        syn.login()
+
+        team = Team(
+            name="My Uniquely Named Team",
+            description="A team for my project collaborators",
+        )
+        created_team = team.create()
+        ```
+
+    Example: Get a team by ID or name
+        &nbsp;
+        ```python
+        from synapseclient.models import Team
+        from synapseclient import Synapse
+
+        syn = Synapse()
+        syn.login()
+
+        team_by_id = Team.from_id(id=123456)
+        team_by_name = Team.from_name(name="My Uniquely Named Team")
+        ```
+
+    Example: List the members of a team and invite a new one
+        &nbsp;
+        ```python
+        from synapseclient.models import Team
+        from synapseclient import Synapse
+
+        syn = Synapse()
+        syn.login()
+
+        team = Team.from_id(id=123456)
+        for member in team.members():
+            print(member.member.user_name)
+
+        team.invite(user="my_username", message="Please join my team!")
+        ```
+
+    Example: Delete a team
+        &nbsp;
+        ```python
+        from synapseclient.models import Team
+        from synapseclient import Synapse
+
+        syn = Synapse()
+        syn.login()
+
+        team = Team.from_id(id=123456)
+        team.delete()
+        ```
     """
 
     id: Optional[int] = None
@@ -226,6 +285,27 @@ class Team(TeamSynchronousProtocol):
 
         Returns:
             Team: The Team object.
+
+        Example: Create a new team
+            &nbsp;
+            ```python
+            import asyncio
+            from synapseclient import Synapse
+            from synapseclient.models import Team
+
+            syn = Synapse()
+            syn.login()
+
+            async def create_team():
+                team = await Team(
+                    name="My Uniquely Named Team",
+                    description="A team for my project collaborators",
+                    can_public_join=False,
+                ).create_async()
+                return team
+
+            new_team = asyncio.run(create_team())
+            ```
         """
         trace.get_current_span().set_attributes(
             {
@@ -257,6 +337,42 @@ class Team(TeamSynchronousProtocol):
 
         Returns:
             None
+
+        Example: Delete a team by ID
+            &nbsp;
+            ```python
+            import asyncio
+            from synapseclient import Synapse
+            from synapseclient.models import Team
+
+            syn = Synapse()
+            syn.login()
+
+            async def delete_team():
+                await Team(id=123456).delete_async()
+
+            asyncio.run(delete_team())
+            ```
+
+        Example: Get and then delete a team
+            &nbsp;
+            If you do not have the ID of the team, you can first retrieve it from
+            Synapse by name. That will populate the ID attribute in your Team object,
+            at which point you can delete it.
+            ```python
+            import asyncio
+            from synapseclient import Synapse
+            from synapseclient.models import Team
+
+            syn = Synapse()
+            syn.login()
+
+            async def get_and_delete_team():
+                team = await Team.from_name_async(name="My Uniquely Named Team")
+                await team.delete_async()
+
+            asyncio.run(get_and_delete_team())
+            ```
         """
         await delete_team(id=self.id, synapse_client=synapse_client)
 
@@ -278,6 +394,40 @@ class Team(TeamSynchronousProtocol):
 
         Returns:
             Team: The Team object.
+
+        Example: Get a team by ID
+            &nbsp;
+            ```python
+            import asyncio
+            from synapseclient import Synapse
+            from synapseclient.models import Team
+
+            syn = Synapse()
+            syn.login()
+
+            async def get_team():
+                team = await Team(id=123456).get_async()
+                return team
+
+            my_team = asyncio.run(get_team())
+            ```
+
+        Example: Get a team by name
+            &nbsp;
+            ```python
+            import asyncio
+            from synapseclient import Synapse
+            from synapseclient.models import Team
+
+            syn = Synapse()
+            syn.login()
+
+            async def get_team():
+                team = await Team(name="My Uniquely Named Team").get_async()
+                return team
+
+            my_team = asyncio.run(get_team())
+            ```
         """
         if self.id:
             api_team = await get_team(id=self.id, synapse_client=synapse_client)
@@ -304,6 +454,23 @@ class Team(TeamSynchronousProtocol):
 
         Returns:
             Team: The Team object.
+
+        Example: Get a team by its ID
+            &nbsp;
+            ```python
+            import asyncio
+            from synapseclient import Synapse
+            from synapseclient.models import Team
+
+            syn = Synapse()
+            syn.login()
+
+            async def get_team_by_id():
+                team = await Team.from_id_async(id=123456)
+                return team
+
+            my_team = asyncio.run(get_team_by_id())
+            ```
         """
 
         return await cls(id=id).get_async(synapse_client=synapse_client)
@@ -330,6 +497,23 @@ class Team(TeamSynchronousProtocol):
 
         Returns:
             Team: The Team object.
+
+        Example: Get a team by its name
+            &nbsp;
+            ```python
+            import asyncio
+            from synapseclient import Synapse
+            from synapseclient.models import Team
+
+            syn = Synapse()
+            syn.login()
+
+            async def get_team_by_name():
+                team = await Team.from_name_async(name="My Uniquely Named Team")
+                return team
+
+            my_team = asyncio.run(get_team_by_name())
+            ```
         """
         return await cls(name=name).get_async(synapse_client=synapse_client)
 
@@ -350,6 +534,26 @@ class Team(TeamSynchronousProtocol):
 
         Returns:
             List[TeamMember]: A List of TeamMember objects.
+
+        Example: List the members of a team
+            &nbsp;
+            ```python
+            import asyncio
+            from synapseclient import Synapse
+            from synapseclient.models import Team
+
+            syn = Synapse()
+            syn.login()
+
+            async def list_team_members():
+                team = await Team.from_id_async(id=123456)
+                members = await team.members_async()
+                for member in members:
+                    print(f"{member.member.user_name} (admin: {member.is_admin})")
+                return members
+
+            team_members = asyncio.run(list_team_members())
+            ```
         """
         team_members = await get_team_members(
             team=self.id, synapse_client=synapse_client
@@ -386,6 +590,27 @@ class Team(TeamSynchronousProtocol):
 
         Returns:
             The invite response or None if an invite was not sent.
+
+        Example: Invite a user to a team
+            &nbsp;
+            ```python
+            import asyncio
+            from synapseclient import Synapse
+            from synapseclient.models import Team
+
+            syn = Synapse()
+            syn.login()
+
+            async def invite_user():
+                team = await Team.from_id_async(id=123456)
+                invite = await team.invite_async(
+                    user="my_username",
+                    message="Please join my team!",
+                )
+                return invite
+
+            asyncio.run(invite_user())
+            ```
         """
         invite = await invite_to_team(
             team=self.id,
@@ -420,6 +645,24 @@ class Team(TeamSynchronousProtocol):
 
         Returns:
             List[dict]: A list of invitations.
+
+        Example: List the open invitations for a team
+            &nbsp;
+            ```python
+            import asyncio
+            from synapseclient import Synapse
+            from synapseclient.models import Team
+
+            syn = Synapse()
+            syn.login()
+
+            async def list_open_invitations():
+                team = await Team.from_id_async(id=123456)
+                invitations = await team.open_invitations_async()
+                return invitations
+
+            open_invitations = asyncio.run(list_open_invitations())
+            ```
         """
         invitations = await get_team_open_invitations(
             team=self.id, synapse_client=synapse_client
