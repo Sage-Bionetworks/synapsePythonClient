@@ -291,7 +291,7 @@ async def get_team_open_invitations(
                 instance from the Synapse class constructor.
 
     Returns:
-        List of MembershipRequest dictionaries
+        List of MembershipInvitation dictionaries
     """
     from synapseclient import Synapse
 
