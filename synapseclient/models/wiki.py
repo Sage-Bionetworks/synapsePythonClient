@@ -154,6 +154,7 @@ class WikiOrderHint(WikiOrderHintSynchronousProtocol):
             await wiki_order_hint.store_async()
             print(wiki_order_hint)
             ```
+
         Example: Update the WikiOrderHint for a project
             This example shows how to update a WikiOrderHint for existing wiki pages in a project.
             ```python
@@ -980,6 +981,7 @@ class WikiPage(WikiPageSynchronousProtocol):
 
         Example: Restore a specific version of a wiki page
             This example shows how to restore a specific version of a wiki page.
+
             ```python
             wiki_page_restored = await WikiPage(owner_id=project.id, id=wiki_page.id, wiki_version="0").restore_async()
             print(wiki_page_restored)
@@ -1160,6 +1162,7 @@ class WikiPage(WikiPageSynchronousProtocol):
             attachment_file_or_url = await WikiPage(owner_id=project.id, id=wiki_page.id).get_attachment_async(file_name="attachment.txt", download_file=False)
             print(f"Attachment URL: {attachment_file_or_url}")
             ```
+
         Example: Download the attachment file for a wiki page
             This example shows how to download the attachment file for a wiki page.
             ```python
@@ -1270,10 +1273,11 @@ class WikiPage(WikiPageSynchronousProtocol):
             attachment_preview_url = await WikiPage(owner_id=project.id, id=wiki_page.id).get_attachment_preview_async(file_name="attachment.txt.gz", download_file=False)
             print(f"Attachment preview URL: {attachment_preview_url}")
             ```
+
         Example: Download the attachment preview file for a wiki page
             This example shows how to download the attachment preview file for a wiki page.
             ```python
-            attachment_preview_file_path = WikiPage(owner_id=project.id, id=wiki_page.id).get_attachment_preview(file_name="attachment.txt.gz", download_file=True, download_location="~/temp")
+            attachment_preview_file_path = await WikiPage(owner_id=project.id, id=wiki_page.id).get_attachment_preview_async(file_name="attachment.txt.gz", download_file=True, download_location="~/temp")
             print(f"Attachment preview file path: {attachment_preview_file_path}")
             ```
         """
@@ -1370,6 +1374,7 @@ class WikiPage(WikiPageSynchronousProtocol):
             markdown_url = await WikiPage(owner_id=project.id, id=wiki_page.id).get_markdown_file_async(download_file=False)
             print(f"Markdown URL: {markdown_url}")
             ```
+
         Example: Download the markdown file for a wiki page
             This example shows how to download the markdown file for a wiki page.
             ```python
@@ -1577,6 +1582,7 @@ class WikiPage(WikiPageSynchronousProtocol):
             )
             print(new_wiki_headers)
             ```
+
         Example: Copy a wiki sub-tree and update Synapse ID references
             This example shows how to copy a specific wiki page and its sub-pages,
             rewriting references to syn1234 so they point at syn2345.
