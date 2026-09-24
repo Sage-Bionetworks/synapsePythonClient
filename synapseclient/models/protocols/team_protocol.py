@@ -322,9 +322,11 @@ class TeamSynchronousProtocol(Protocol):
 
             team = Team.from_id(id=123456)
             open_invitations = team.open_invitations()
-
-            # Delete the first open invitation
-            Team.delete_invitation(invitation_id=open_invitations[0]["id"])
+            if not open_invitations:
+                print("No open invitations to delete.")
+            else:
+                # Delete the first open invitation
+                Team.delete_invitation(invitation_id=open_invitations[0]["id"])
             ```
         """
         return None

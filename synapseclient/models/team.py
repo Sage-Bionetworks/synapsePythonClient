@@ -702,6 +702,9 @@ class Team(TeamSynchronousProtocol):
             async def delete_open_invitation():
                 team = await Team.from_id_async(id=123456)
                 open_invitations = await team.open_invitations_async()
+                if not open_invitations:
+                    print("No open invitations to delete.")
+                    return
 
                 # Delete the first open invitation
                 await Team.delete_invitation_async(
