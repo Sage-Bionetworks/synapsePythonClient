@@ -170,6 +170,7 @@ class Team(TeamSynchronousProtocol):
 
     Example: Get a team by ID or name
         &nbsp;
+        Retrieve an existing team using either its ID or its name.
         ```python
         from synapseclient.models import Team
         from synapseclient import Synapse
@@ -183,6 +184,7 @@ class Team(TeamSynchronousProtocol):
 
     Example: List the members of a team and invite a new one
         &nbsp;
+        List current team members and send an invitation to a new user.
         ```python
         from synapseclient.models import Team
         from synapseclient import Synapse
@@ -199,6 +201,7 @@ class Team(TeamSynchronousProtocol):
 
     Example: Delete a team
         &nbsp;
+        Delete a team you no longer need.
         ```python
         from synapseclient.models import Team
         from synapseclient import Synapse
@@ -289,6 +292,7 @@ class Team(TeamSynchronousProtocol):
 
         Example: Create a new team
             &nbsp;
+            Create a new team on Synapse by storing a Team object with a name.
             ```python
             import asyncio
             from synapseclient import Synapse
@@ -341,6 +345,7 @@ class Team(TeamSynchronousProtocol):
 
         Example: Delete a team by ID
             &nbsp;
+            Delete a team using its ID.
             ```python
             import asyncio
             from synapseclient import Synapse
@@ -398,6 +403,7 @@ class Team(TeamSynchronousProtocol):
 
         Example: Get a team by ID
             &nbsp;
+            Retrieve an existing team using its ID.
             ```python
             import asyncio
             from synapseclient import Synapse
@@ -415,6 +421,7 @@ class Team(TeamSynchronousProtocol):
 
         Example: Get a team by name
             &nbsp;
+            Retrieve an existing team using its name.
             ```python
             import asyncio
             from synapseclient import Synapse
@@ -458,6 +465,7 @@ class Team(TeamSynchronousProtocol):
 
         Example: Get a team by its ID
             &nbsp;
+            Retrieve an existing team using its ID.
             ```python
             import asyncio
             from synapseclient import Synapse
@@ -501,6 +509,7 @@ class Team(TeamSynchronousProtocol):
 
         Example: Get a team by its name
             &nbsp;
+            Retrieve an existing team using its name.
             ```python
             import asyncio
             from synapseclient import Synapse
@@ -538,6 +547,7 @@ class Team(TeamSynchronousProtocol):
 
         Example: List the members of a team
             &nbsp;
+            List the current members of a team.
             ```python
             import asyncio
             from synapseclient import Synapse
@@ -594,6 +604,7 @@ class Team(TeamSynchronousProtocol):
 
         Example: Invite a user to a team
             &nbsp;
+            Send an invitation for a user to join a team.
             ```python
             import asyncio
             from synapseclient import Synapse
@@ -649,6 +660,7 @@ class Team(TeamSynchronousProtocol):
 
         Example: List the open invitations for a team
             &nbsp;
+            List all pending invitations for a team.
             ```python
             import asyncio
             from synapseclient import Synapse
@@ -691,6 +703,7 @@ class Team(TeamSynchronousProtocol):
 
         Example: Delete an open invitation to a team
             &nbsp;
+            Cancel a pending invitation to a team.
             ```python
             import asyncio
             from synapseclient import Synapse
@@ -736,33 +749,33 @@ class Team(TeamSynchronousProtocol):
             TeamMembershipStatus object
 
         Example: Check if a user is a member of a team
-        This example shows how to check a user's membership status in a team.
+            &nbsp;
+            This example shows how to check a user's membership status in a team.
+            ```python
+            import asyncio
+            from synapseclient import Synapse
+            from synapseclient.models import Team
 
-        ```python
-        import asyncio
-        from synapseclient import Synapse
-        from synapseclient.models import Team
+            syn = Synapse()
+            syn.login()
 
-        syn = Synapse()
-        syn.login()
+            async def check_membership():
+                # Get a team by ID
+                team = await Team.from_id_async(id=123456)
 
-        async def check_membership():
-            # Get a team by ID
-            team = await Team.from_id_async(123456)
+                # Check membership status for a specific user
+                user_id = "3350396"  # Replace with actual user ID
+                status = await team.get_user_membership_status_async(user_id)
 
-            # Check membership status for a specific user
-            user_id = "3350396"  # Replace with actual user ID
-            status = await team.get_user_membership_status_async(user_id)
+                print(f"User ID: {status.user_id}")
+                print(f"Is member: {status.is_member}")
+                print(f"Can join: {status.can_join}")
+                print(f"Has open invitation: {status.has_open_invitation}")
+                print(f"Has open request: {status.has_open_request}")
+                print(f"Membership approval required: {status.membership_approval_required}")
 
-            print(f"User ID: {status.user_id}")
-            print(f"Is member: {status.is_member}")
-            print(f"Can join: {status.can_join}")
-            print(f"Has open invitation: {status.has_open_invitation}")
-            print(f"Has open request: {status.has_open_request}")
-            print(f"Membership approval required: {status.membership_approval_required}")
-
-        asyncio.run(check_membership())
-        ```
+            asyncio.run(check_membership())
+            ```
         """
         from synapseclient import Synapse
 
