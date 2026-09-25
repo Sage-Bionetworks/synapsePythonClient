@@ -58,6 +58,7 @@ class WikiOrderHintSynchronousProtocol(Protocol):
             ]
             wiki_order_hint.store()
             print(wiki_order_hint)
+            ```
 
         Example: Update the WikiOrderHint for a project
             This example shows how to update a WikiOrderHint for existing wiki pages in a project.
@@ -200,6 +201,8 @@ class WikiPageSynchronousProtocol(Protocol):
 
         Example: Store a wiki page
             This example shows how to store a wiki page.
+
+            ```python
             from synapseclient import Synapse
             from synapseclient.models import (
                 Project,
@@ -211,6 +214,7 @@ class WikiPageSynchronousProtocol(Protocol):
             project = Project(name="My uniquely named project about Alzheimer's Disease").get()
             wiki_page = WikiPage(owner_id=project.id, title="My wiki page").store()
             print(wiki_page)
+            ```
         """
         return self
 
@@ -224,8 +228,11 @@ class WikiPageSynchronousProtocol(Protocol):
 
         Example: Restore a specific version of a wiki page
             This example shows how to restore a specific version of a wiki page.
+
+            ```python
             wiki_page_restored = WikiPage(owner_id=project.id, id=root_wiki_page.id, wiki_version="0").restore()
             print(wiki_page_restored)
+            ```
         """
         return self
 
@@ -239,8 +246,11 @@ class WikiPageSynchronousProtocol(Protocol):
 
         Example: Get a wiki page from Synapse
             This example shows how to get a wiki page from Synapse.
+
+            ```python
             wiki_page = WikiPage(owner_id=project.id, id=wiki_page.id).get()
             print(wiki_page)
+            ```
         """
         return self
 
@@ -254,8 +264,11 @@ class WikiPageSynchronousProtocol(Protocol):
 
         Example: Delete a wiki page
             This example shows how to delete a wiki page.
+
+            ```python
             wiki_page = WikiPage(owner_id=project.id, id=wiki_page.id).delete()
             print(f"Wiki page {wiki_page.title} deleted successfully.")
+            ```
         """
         return None
 
@@ -271,8 +284,11 @@ class WikiPageSynchronousProtocol(Protocol):
 
         Example: Get the file handles of all attachments on a wiki page
             This example shows how to get the file handles of all attachments on a wiki page.
+
+            ```python
             attachment_handles = WikiPage(owner_id=project.id, id=wiki_page.id).get_attachment_handles()
             print(f"Attachment handles: {attachment_handles['list']}")
+            ```
         """
         return list({})
 
@@ -298,13 +314,19 @@ class WikiPageSynchronousProtocol(Protocol):
 
         Example: Get the attachment URL for a wiki page
             This example shows how to get the attachment file or URL for a wiki page.
+
+            ```python
             attachment_file_or_url = WikiPage(owner_id=project.id, id=wiki_page.id).get_attachment(file_name="attachment.txt", download_file=False)
             print(f"Attachment URL: {attachment_file_or_url}")
+            ```
 
         Example: Download the attachment file for a wiki page
             This example shows how to download the attachment file for a wiki page.
+
+            ```python
             attachment_file_path = WikiPage(owner_id=project.id, id=wiki_page.id).get_attachment(file_name="attachment.txt", download_file=True, download_location="~/temp")
             print(f"Attachment file path: {attachment_file_path}")
+            ```
         """
         return ""
 
@@ -330,15 +352,86 @@ class WikiPageSynchronousProtocol(Protocol):
             This example shows how to get the attachment preview URL for a wiki page.
             Instead of using the file_name from the attachmenthandle response when isPreview=True, you should use the original file name in the get_attachment_preview request.
             The downloaded file will still be named according to the file_name provided in the response when isPreview=True.
+
+            ```python
             attachment_preview_url = WikiPage(owner_id=project.id, id=wiki_page.id).get_attachment_preview(file_name="attachment.txt.gz", download_file=False)
             print(f"Attachment preview URL: {attachment_preview_url}")
+            ```
 
         Example: Download the attachment preview file for a wiki page
             This example shows how to download the attachment preview file for a wiki page.
+
+            ```python
             attachment_preview_file_path = WikiPage(owner_id=project.id, id=wiki_page.id).get_attachment_preview(file_name="attachment.txt.gz", download_file=True, download_location="~/temp")
             print(f"Attachment preview file path: {attachment_preview_file_path}")
+            ```
         """
         return ""
+
+    def copy(
+        self,
+        destination_owner_id: str,
+        destination_sub_page_id: Optional[str] = None,
+        update_links: bool = True,
+        entity_map: Optional[Dict[str, str]] = None,
+        *,
+        synapse_client: Optional["Synapse"] = None,
+    ) -> List["WikiHeader"]:
+        """
+        Copy the wiki page tree of the owner entity to another entity and
+        update internal links.
+
+        If id is set on this WikiPage, only the sub-tree rooted at that wiki page
+        is copied. Otherwise the entire wiki of the owner entity is copied.
+
+        Arguments:
+            destination_owner_id: The Synapse ID of the entity that the wiki
+                will be copied to.
+            destination_sub_page_id: Optional ID of a wiki page that already
+                exists in the destination. The root of the copied tree is written
+                into that page, replacing its title, markdown, and attachments,
+                and the rest of the copied pages are created beneath it.
+            update_links: Update all the internal links so that they point at the
+                copied wiki pages. For example, syn1234/wiki/34345 becomes
+                syn3345/wiki/49508. Defaults to True.
+            entity_map: A mapping of old Synapse IDs to new Synapse IDs, for
+                example {"syn1234": "syn2345"}. If provided, the Synapse IDs
+                referenced in the markdown of the copied wiki pages are updated,
+                for example syn1234 becomes syn2345. If omitted, Synapse IDs
+                are left unchanged.
+            synapse_client: If not passed in and caching was not disabled by
+                    Synapse.allow_client_caching(False) this will use the last created
+                    instance from the Synapse class constructor.
+        Returns:
+            A list of WikiHeader objects for the destination entity.
+
+        Example: Copy the entire wiki of an entity to another entity
+            This example shows how to copy all wiki pages from one project to another.
+            ```python
+            from synapseclient import Synapse
+            from synapseclient.models import WikiPage
+
+            syn = Synapse()
+            syn.login()
+
+            new_wiki_headers = WikiPage(owner_id="syn123").copy(
+                destination_owner_id="syn456"
+            )
+            print(new_wiki_headers)
+            ```
+
+        Example: Copy a wiki sub-tree and update Synapse ID references
+            This example shows how to copy a specific wiki page and its sub-pages,
+            rewriting references to syn1234 so they point at syn2345.
+            ```python
+            new_wiki_headers = WikiPage(owner_id="syn123", id="34345").copy(
+                destination_owner_id="syn456",
+                entity_map={"syn1234": "syn2345"},
+            )
+            print(new_wiki_headers)
+            ```
+        """
+        return []
 
     def get_markdown_file(
         self,
@@ -356,12 +449,18 @@ class WikiPageSynchronousProtocol(Protocol):
 
         Example: Get the markdown URL for a wiki page
             This example shows how to get the markdown URL for a wiki page.
+
+            ```python
             markdown_url = WikiPage(owner_id=project.id, id=wiki_page.id).get_markdown_file(download_file=False)
             print(f"Markdown URL: {markdown_url}")
+            ```
 
         Example: Download the markdown file for a wiki page
             This example shows how to download the markdown file for a wiki page.
+
+            ```python
             markdown_file_path = WikiPage(owner_id=project.id, id=wiki_page.id).get_markdown_file(download_file=True, download_location="~/temp")
             print(f"Markdown file path: {markdown_file_path}")
+            ```
         """
         return ""

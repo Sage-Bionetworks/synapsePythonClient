@@ -1,7 +1,7 @@
 """Unit tests for the synapseclient.models.SubmissionBundle class async methods."""
 
 from typing import Dict, Union
-from unittest.mock import AsyncMock, patch
+from unittest.mock import patch
 
 import pytest
 

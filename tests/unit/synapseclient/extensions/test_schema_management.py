@@ -16,7 +16,7 @@ def mock_synapse_client():
 
 @pytest.fixture
 def mock_jsonschema():
-    with patch("synapseclient.models.schema_organization.JSONSchema") as MockSchema:
+    with patch("synapseclient.models.organization.JSONSchema") as MockSchema:
         instance = MockSchema.return_value
         instance.store_async = AsyncMock()
         instance.uri = "syn123.456"

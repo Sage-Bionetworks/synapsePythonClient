@@ -9,9 +9,9 @@ from opentelemetry import trace
 from synapseclient import Synapse
 from synapseclient.api import get_from_entity_factory
 from synapseclient.core.async_utils import async_to_sync, otel_trace_method
+from synapseclient.core.constants.concrete_types import FOLDER_ENTITY
 from synapseclient.core.exceptions import SynapseError
 from synapseclient.core.utils import delete_none_keys, merge_dataclass_entities
-from synapseclient.entity import Folder as Synapse_Folder
 from synapseclient.models import Annotations, File
 from synapseclient.models.mixins import (
     AccessControllable,
@@ -26,7 +26,6 @@ from synapseclient.models.services.storable_entity_components import (
     FailureStrategy,
     store_entity_components,
 )
-from synapseutils import copy
 
 if TYPE_CHECKING:
     from synapseclient.models import (
@@ -35,6 +34,7 @@ if TYPE_CHECKING:
         EntityView,
         MaterializedView,
         Project,
+        SearchIndex,
         SubmissionView,
         Table,
         VirtualTable,
@@ -78,6 +78,7 @@ class Folder(
         datasetcollections: Dataset collections that exist within this folder.
         materializedviews: Materialized views that exist within this folder.
         virtualtables: Virtual tables that exist within this folder.
+        searchindexes: Search indexes that exist within this folder.
         annotations: Additional metadata associated with the folder. The key is the name
             of your desired annotations. The value is an object containing a list of
             values (use empty list to represent no values for key) and the value type
@@ -160,6 +161,9 @@ class Folder(
     virtualtables: List["VirtualTable"] = field(default_factory=list, compare=False)
     """Virtual tables that exist within this folder."""
 
+    searchindexes: List["SearchIndex"] = field(default_factory=list, compare=False)
+    """Search indexes that exist within this folder."""
+
     annotations: Optional[
         Dict[
             str,
@@ -232,7 +236,7 @@ class Folder(
         )
 
     def fill_from_dict(
-        self, synapse_folder: Synapse_Folder, set_annotations: bool = True
+        self, synapse_folder: dict, set_annotations: bool = True
     ) -> "Folder":
         """
         Converts a response from the REST API into this dataclass.
@@ -328,13 +332,14 @@ class Folder(
             }
         )
         if self.has_changed:
-            synapse_folder = Synapse_Folder(
-                id=self.id,
-                name=self.name,
-                parent=parent_id,
-                etag=self.etag,
-                description=self.description,
-            )
+            synapse_folder = {
+                "id": self.id,
+                "name": self.name,
+                "parentId": parent_id,
+                "etag": self.etag,
+                "description": self.description,
+                "concreteType": FOLDER_ENTITY,
+            }
             delete_none_keys(synapse_folder)
             entity = await store_entity(
                 resource=self,
@@ -479,6 +484,9 @@ class Folder(
         """
         if not self.id or not parent_id:
             raise ValueError("The folder must have an ID and parent_id to copy.")
+
+        # Imported lazily to avoid a circular import
+        from synapseutils import copy
 
         loop = asyncio.get_event_loop()
 

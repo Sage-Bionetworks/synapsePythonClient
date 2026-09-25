@@ -1,10 +1,6 @@
 [](){ #team-reference-sync }
 # Team
 
-Contained within this file are experimental interfaces for working with the Synapse Python
-Client. Unless otherwise noted these interfaces are subject to change at any time. Use
-at your own risk.
-
 ## Example Script
 
 <details class="quote">
@@ -23,11 +19,13 @@ at your own risk.
         members:
             - create
             - delete
+            - get
             - from_id
             - from_name
             - members
             - invite
             - open_invitations
+            - delete_invitation
             - get_user_membership_status
 ---
 

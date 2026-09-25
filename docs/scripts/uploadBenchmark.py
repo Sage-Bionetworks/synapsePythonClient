@@ -19,7 +19,6 @@ service catalog EC2 instance. Mainly because this will purge your local Synapse 
 
 import asyncio
 import datetime
-import logging
 import os
 import shutil
 import subprocess  # nosec
@@ -29,9 +28,6 @@ from opentelemetry import trace
 
 import synapseclient
 import synapseutils
-from synapseclient.annotations import Annotations
-from synapseclient.entity import File as SynFile
-from synapseclient.entity import Folder as SynFolder
 from synapseclient.models import File, Folder, Project
 
 # from opentelemetry.sdk.trace import TracerProvider
@@ -244,40 +240,32 @@ def execute_walk_test(
             for directory_name in directory_names:
                 folder_path = os.path.join(directory_path, directory_name)
                 parent_id = parents[directory_path]
-                folder = SynFolder(
+                folder = Folder(
                     name=directory_name,
-                    parent=parent_id,
+                    parent_id=parent_id,
                 )
                 # Store Synapse ID for sub-folders/files
-                folder = syn.store(folder)
+                folder = folder.store()
                 saved_folders.append(folder)
-                parents[folder_path] = folder["id"]
+                parents[folder_path] = folder.id
 
             # Replicate the files on Synapse
             for filename in file_names:
                 filepath = os.path.join(directory_path, filename)
-                file = SynFile(
+                # Setting the annotations directly on the model stores them with the file.
+                file = File(
                     path=filepath,
-                    parent=parents[directory_path],
+                    parent_id=parents[directory_path],
+                    annotations={
+                        "annot1": "value1",
+                        "annot2": 1,
+                        "annot3": 1.2,
+                        "annot4": True,
+                        "annot5": "2020-01-01",
+                    },
                 )
-                saved_file = syn.store(file)
+                saved_file = file.store()
                 saved_files.append(saved_file)
-
-                # Store annotations on the file ------------------------------------------
-                syn.set_annotations(
-                    annotations=Annotations(
-                        id=saved_file.id,
-                        etag=saved_file.etag,
-                        **{
-                            "annot1": "value1",
-                            "annot2": 1,
-                            "annot3": 1.2,
-                            "annot4": True,
-                            "annot5": "2020-01-01",
-                        },
-                    )
-                )
-                # Finish storing annotations on the file ---------------------------------
         print(
             f"\nTime to walk and sync tree: {perf_counter() - time_before_walking_tree}"
         )

@@ -320,9 +320,12 @@ class TestJSONSchema:
             ("Diagnosis", "Healthy"): ["CheckupDate"],
         }
 
+        # AND the watched property is not an array
+        properties = {"Diagnosis": {"enum": ["Cancer", "Healthy"], "title": "enum"}}
+
         # WHEN converting to allOf
         all_of = schema._convert_conditional_properties_to_all_of(
-            conditional_dependencies
+            conditional_dependencies, properties
         )
 
         # THEN the result should match the expected structure
@@ -365,11 +368,57 @@ class TestJSONSchema:
 
         # WHEN converting to allOf
         all_of = schema._convert_conditional_properties_to_all_of(
-            conditional_dependencies
+            conditional_dependencies, {}
         )
 
         # THEN the result also be empty
         assert len(all_of) == 0
+
+    def test_convert_conditional_properties_to_all_of_array(self) -> None:
+        """
+        Test JSONSchema._convert_conditional_properties_to_all_of with an array typed
+        watched property.
+        """
+        # GIVEN a JSONSchema instance
+        schema = JSONSchema()
+
+        # AND a conditional dependency
+        conditional_dependencies = {("Comorbidities", "Psoriasis"): ["PASI"]}
+
+        # AND the watched property is an array
+        properties = {
+            "Comorbidities": {
+                "type": "array",
+                "title": "array",
+                "items": {"enum": ["Diabetes", "Psoriasis"], "type": "string"},
+            }
+        }
+
+        # WHEN converting to allOf
+        all_of = schema._convert_conditional_properties_to_all_of(
+            conditional_dependencies, properties
+        )
+
+        # THEN the if clause matches the array with contains, not enum
+        # AND the if clause also asserts the array type, so that it does not match a
+        #  value of another kind, for which a validator skips the contains keyword
+        assert all_of == [
+            {
+                "if": {
+                    "properties": {
+                        "Comorbidities": {
+                            "type": "array",
+                            "contains": {"const": "Psoriasis"},
+                        }
+                    },
+                    "required": ["Comorbidities"],
+                },
+                "then": {
+                    "properties": {"PASI": {"not": {"type": "null"}}},
+                    "required": ["PASI"],
+                },
+            }
+        ]
 
 
 @pytest.mark.parametrize(
@@ -1166,6 +1215,109 @@ def test_validate_invalid_instances(
     validator = Draft7Validator(schema)
     with pytest.raises(ValidationError):
         validator.validate(instance)
+
+
+def test_create_json_schema_list_typed_trigger_ignores_non_array_value(
+    helpers,
+) -> None:
+    """
+    Tests that a list typed conditional trigger does not fire when the instance holds a
+    value that is not an array.
+
+    In the list_conditional_model data model the Comorbidities attribute has a
+    columnType of string_list, so the if clause of its conditional branch matches the
+    array with the contains keyword. The contains keyword only applies to arrays. A
+    validator skips it for every other kind of value, and a skipped keyword counts as
+    satisfied, so contains alone would let the if clause match a string and a null as
+    well.
+
+    The if clause therefore asserts the array type in addition to contains. Without the
+    type keyword an instance that holds the plain string Diabetes would tell the user
+    that PASI is missing, even though the trigger value Psoriasis was never supplied.
+    """
+    # GIVEN a data model where a list typed attribute drives a conditional
+    dmge = helpers.get_data_model_graph_explorer(
+        path="data_models/list_conditional_model.csv"
+    )
+
+    # AND a JSON Schema created for the component
+    schema_dict = create_json_schema(
+        dmge=dmge,
+        datatype="ListConditional",
+        schema_name="ListConditional_validation",
+        write_schema=False,
+        use_display_labels=False,
+        logger=logging.getLogger(__name__),
+    )
+    validator = Draft7Validator(schema_dict)
+
+    # WHEN an instance holds a value for the trigger attribute that is not an array
+    # AND that value is not the value that triggers the condition
+    instance = {"Component": "ListConditional", "Comorbidities": "Diabetes"}
+    errors = list(validator.iter_errors(instance))
+
+    # THEN the type of the trigger attribute is reported
+    assert any(error.validator == "type" for error in errors), errors
+    # AND the conditional dependency is not reported as missing
+    required_errors = [error for error in errors if error.validator == "required"]
+    assert not required_errors, (
+        "The conditional branch fired for a value that is not an array: "
+        f"{[error.message for error in required_errors]}"
+    )
+
+    # AND the same holds when the trigger attribute is null
+    null_errors = list(
+        validator.iter_errors({"Component": "ListConditional", "Comorbidities": None})
+    )
+    assert not [error for error in null_errors if error.validator == "required"], (
+        "The conditional branch fired for a null value: "
+        f"{[error.message for error in null_errors]}"
+    )
+
+
+def test_create_json_schema_with_valid_value_shared_by_two_attributes(
+    helpers,
+) -> None:
+    """
+    Tests create_json_schema with a data model where one node is reachable by more than
+    one path.
+
+    In the shared_valid_value_model data model both the Comorbidities attribute and the
+    Diagnosis attribute have the valid value Psoriasis, and Psoriasis is also an
+    attribute that dependsOn the PASI attribute. The graph traversal therefore queues
+    Psoriasis twice, once from each attribute.
+
+    The processed node guard in create_json_schema stops Psoriasis from being processed
+    twice, but move_to_next_node records the reverse dependencies of every node it pops.
+    PASI is recorded twice as a reverse dependency of Psoriasis, so
+    add_conditional_dependency appends PASI twice and each branch is written with
+    "required": ["PASI", "PASI"]. The draft-07 meta-schema declares required with
+    uniqueItems set to true, so the generated schema is invalid against the
+    meta-schema and strict validators refuse to load it.
+    """
+    # GIVEN a data model where one valid value is shared by two attributes
+    dmge = helpers.get_data_model_graph_explorer(
+        path="data_models/shared_valid_value_model.csv"
+    )
+
+    # WHEN a JSON Schema is created for the component
+    schema_dict = create_json_schema(
+        dmge=dmge,
+        datatype="SharedValidValue",
+        schema_name="SharedValidValue_validation",
+        write_schema=False,
+        use_display_labels=False,
+        logger=logging.getLogger(__name__),
+    )
+
+    # THEN each of the two attributes drives one conditional branch
+    assert len(schema_dict["allOf"]) == 2
+    # AND no branch repeats a dependent property in its required list
+    for branch in schema_dict["allOf"]:
+        required = branch["then"]["required"]
+        assert required == ["PASI"], f"Duplicate entries in required: {required}"
+    # AND the generated schema is valid against the draft-07 meta-schema
+    Draft7Validator.check_schema(schema_dict)
 
 
 def test_write_data_model_with_schema_path(test_directory: str) -> None:

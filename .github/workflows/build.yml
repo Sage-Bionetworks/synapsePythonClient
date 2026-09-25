@@ -211,7 +211,7 @@ jobs:
             pytest -sv --reruns 3 --cov-append --cov=. --cov-report xml \
               --html=integration-test-report.html --self-contained-html \
               --junit-xml=test-results.xml \
-              -n 8 --dist loadscope \
+              -n 4 --dist loadscope \
               $(cat failed_tests.txt | tr '\n' ' ')
           else
             echo "::notice::First attempt or no previous failures - running full integration test suite"
@@ -220,7 +220,7 @@ jobs:
             pytest -sv --reruns 3 --cov-append --cov=. --cov-report xml \
               --html=integration-test-report.html --self-contained-html \
               --junit-xml=test-results.xml \
-              tests/integration -n 8 $IGNORE_FLAGS --dist loadscope
+              tests/integration -n 4 $IGNORE_FLAGS --dist loadscope
           fi
 
           # Execute the CLI tests in a non-dist way because they were causing some test instability when being run concurrently

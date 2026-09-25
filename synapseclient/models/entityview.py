@@ -171,6 +171,8 @@ class EntityViewSynchronousProtocol(Protocol):
         update_size_bytes: int = 1.9 * MB,
         insert_size_bytes: int = 900 * MB,
         job_timeout: int = 600,
+        date_columns: Optional[List[str]] = None,
+        date_format: Optional[Union[str, Dict[str, str]]] = None,
         wait_for_eventually_consistent_view: bool = False,
         wait_for_eventually_consistent_view_timeout: int = 600,
         synapse_client: Optional[Synapse] = None,
@@ -238,6 +240,22 @@ class EntityViewSynchronousProtocol(Protocol):
                 is reached a `SynapseTimeoutError` will be raised.
                 The default is 600 seconds
 
+            date_columns: (CSV file only) The names of columns in your CSV file that
+                contain dates or datetimes stored as formatted strings
+                (e.g. `"2024-01-15"` or `"01/15/2024 13:30"`). The columns are parsed
+                with `pandas.to_datetime` and converted to epoch time in milliseconds
+                before the data is uploaded, which is the format Synapse requires for
+                `DATE` columns.
+
+            date_format: (CSV file only) How the strings in `date_columns` are
+                formatted — a
+                [strftime format string](https://docs.python.org/3/library/datetime.html#strftime-and-strptime-format-codes)
+                (e.g. `"%m/%d/%Y"`) applied to every column, or a dict mapping column
+                names to their formats. Supply this so that ambiguous dates
+                (e.g. `"01/02/2024"`) are not silently misinterpreted and to optimize
+                the data upload performance. If the values in a column do not match
+                the format a `ValueError` is raised.
+
             wait_for_eventually_consistent_view: Only used if the table is a view. If
                 set to True this will wait for the view to reflect any changes that
                 you've made to the view. This is useful if you need to query the view
@@ -250,7 +268,7 @@ class EntityViewSynchronousProtocol(Protocol):
                 `Synapse.allow_client_caching(False)` this will use the last created
                 instance from the Synapse class constructor
 
-            **kwargs: Additional arguments that are passed to the `pd.DataFrame`
+            **kwargs: Additional arguments that are passed to the `csv_to_pandas_df`
                 function when the `values` argument is a path to a csv file.
         """
         return None

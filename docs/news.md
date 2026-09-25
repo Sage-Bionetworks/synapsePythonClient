@@ -9,6 +9,79 @@ detailing some of the changes.
 the 4.x.x versions hidden behind optional feature flags or different import paths. Any
 breaking changes will not be included until v5.0.
 
+## 4.14.0
+
+## Highlights
+
+- New `SearchIndex` entity and search-management APIs let you build and query full-text search indexes on Synapse data. A new tutorial shows how to use them.
+- Curation tasks can now run compute tasks.
+- Curator improvements: a high-level function to create grids, per-row validation in grid sessions, grid session synchronization, custom column order, and shared grid authorization.
+- New `WikiPage.copy()` method replaces the legacy `synapseutils.copyWiki()`.
+- Many legacy classes and functions now show deprecation warnings with migration guidance, to prepare for v5.0.0.
+- Uploads and downloads are more reliable: better retries, reuse of pre-signed URLs, and file name casing is kept on Windows.
+- Fixes for table upserts with multiple primary keys and with column names that contain spaces or special characters.
+
+## Features
+
+- [SYNPY-1869] Added the SearchIndex entity and search-management APIs; renamed SchemaOrganization to Organization (the old name is kept as a deprecated alias) by @BryanFauble in #1422
+- [SYNPY-1896] Added SearchIndex to the operations layer (store/get/delete) by @BryanFauble in #1445
+- [SYNPY-1895] Added support for compute tasks on curation tasks by @andrewelamb in #1438
+- [SYNPY-1851] Added a high-level function to create grids by @andrewelamb in #1423
+- [SYNPY-1880] Added per-row validation to the Grid data class, with documentation for in-session validation by @linglp in #1428, #1437 and @thomasyu888 in #1430
+- [SYNPY-1894] Added synchronization of an active grid session by @linglp in #1440
+- [SYNPY-1840] Added the ability to set column order when you create file-based and record-based tasks by @andrewelamb in #1443
+- [SYNPY-1849] Added the ability to set the grid authorization mode on a CurationTask by @andrewelamb in #1392
+- [SYNPY-1864] Added the return_entities parameter to create_file_based_metadata_task by @andrewelamb in #1411
+- [SYNPY-1857] Upsert keys are now the first columns when Curator creates RecordSets by @andrewelamb in #1409
+- [SYNPY-1859] The name column is now first when Curator creates entity views by @andrewelamb in #1410
+- [SYNPY-1875] Added WikiPage.copy() and deprecated synapseutils.copyWiki() by @andrewelamb in #1434
+- [SYNPY-1486] All progress bars now go through a factory that obeys silent mode by @BryanFauble in #1426
+- [SYNPY-1861] submission_instructions_message and submission_receipt_message are now optional on Evaluation by @jaymedina in #1401
+- [SYNPY-1883] Date values are now converted to epoch milliseconds during data upload by @danlu1 in #1429
+- Multi-threaded downloads now reuse the pre-signed URL by @BryanFauble in #1407
+- Added Team.delete_invitation(), Team docstring examples, and a complete mkdocs reference for Team by @linglp in #1457
+
+## Bug Fixes
+
+- [SYNPY-1918] Fixed bugs in the conversion of CSV data models to JSON Schema by @andrewelamb in #1451
+- [SYNPY-1912] Fixed upsert_rows reporting Table update responses incorrectly by @andrewelamb in #1446
+- [SYNPY-1885] Fixed an IndexError in upsert_rows with multiple primary keys by @andrewelamb in #1421
+- Fixed upserts when a Synapse column name contains spaces or special characters by @andrewelamb in #1454
+- [SYNPY-1908] Multipart upload part retries now catch connection exceptions by @BryanFauble in #1436
+- [SYNSD-2567] Fixed an httpx.ResponseNotRead crash in the download chunk retry path by @BryanFauble in #1413
+- [SYNPY-1882] File name casing is now kept during upload and download by @danlu1 in #1431
+- [SYNPY-1708] None values no longer become string annotations by @andrewelamb in #1417
+- [SYNPY-1844] Merging dataclasses with nested dataclasses is now recursive, so changes to nested fields are no longer lost by @andrewelamb in #1412
+- [SYNPY-1863] SubmissionStatus now deep-copies annotations, so it can detect changes to submission_annotations by @jaymedina in #1414
+- Added the missing EXECUTING and IN_REVIEW values to the TaskState enum by @andrewelamb in #1432
+- Fixed the incorrect type hints on create_file_based_metadata_task by @andrewelamb in #1415
+
+## Tech Debt
+
+- [SYNPY-1745] Added deprecation warnings and migration guidance to legacy classes and methods, to prepare for v5.0.0 by @andrewelamb in #1418
+- [SYNPY-1872] Deprecated the synapseutils migrate functions by @andrewelamb in #1427
+- [SYNPY-1871] Moved functions from annotations.py to the modules that use them by @andrewelamb in #1424
+- [SYNPY-1870] Rewrote test_caching.py so that it does not use deprecated legacy code by @andrewelamb in #1425
+- [SYNPY-1906] Fixed security vulnerabilities in dependencies and updated pytest-xdist for pytest 9.0.3 by @linglp in #1441, #1442
+- Updated cryptography to 49.0.0 by @andrewelamb in #1416
+- [SYNPY-1829, SYNPY-1856, SYNPY-1858] Re-enabled a skipped test and fixed flaky integration tests by @linglp in #1393
+- [SYNPY-1905] Fixed an intermittent integration test failure by @andrewelamb in #1448
+- [SYNPY-1892] Reduced the number of parallel integration tests on the Synapse dev stack by @BryanFauble in #1450
+- Changed a unit test to write to a temp path, not to the local directory, by @andrewelamb in #1449
+- Added compliance-config.json by @allaway in #1405
+
+## Documentation
+
+- [SYNPY-1893] Added a SearchIndex tutorial by @thomasyu888 in #1447
+- Added an architecture diagram to the README by @allaway in #1404
+- Made the README easier to read (WCAG 3.1.5 target) by @allaway in #1406
+- Updated the documentation after PLFM-9831 by @linglp in #1452
+- Updated the pip install instructions by @andrewelamb in #1453
+- Made it clear that get_invalid_validation only returns results from direct children by @andrewelamb in #1455
+- Fixed broken code fences in the wiki docstring examples by @BryanFauble in #1456
+
+Full Changelog: https://github.com/Sage-Bionetworks/synapsePythonClient/compare/v4.13.0...v4.14.0
+
 ## 4.13.0
 
 ## Highlights

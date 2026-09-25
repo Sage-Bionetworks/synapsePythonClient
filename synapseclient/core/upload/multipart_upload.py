@@ -15,6 +15,7 @@ from contextlib import contextmanager
 from typing import List, Mapping
 
 import requests
+from deprecated import deprecated
 from opentelemetry import trace
 from tqdm import tqdm
 
@@ -26,7 +27,7 @@ from synapseclient.core.exceptions import (  # why is is this a single underscor
     SynapseUploadFailedException,
     _raise_for_status,
 )
-from synapseclient.core.retry import with_retry
+from synapseclient.core.retry import RETRYABLE_CONNECTION_EXCEPTIONS, with_retry
 from synapseclient.core.upload.upload_utils import (
     copy_md5_fn,
     copy_part_request_body_provider_fn,
@@ -83,9 +84,46 @@ def _executor(max_threads, shutdown_wait):
             executor.shutdown(wait=shutdown_wait)
 
 
+@deprecated(
+    version="4.14.0",
+    reason="To be removed in 5.0.0. Use UploadAttemptAsync in "
+    "synapseclient.core.upload.multipart_upload_async instead.",
+)
 class UploadAttempt:
     """
     Used to handle multi-threaded operations for uploading one or parts of a file.
+
+    Example: Migration to the async implementation
+        &nbsp;
+
+        ```python
+        # Old approach (DEPRECATED)
+        # attempt = UploadAttempt(
+        #     syn,
+        #     dest_file_name,
+        #     upload_request_payload,
+        #     part_request_body_provider_fn,
+        #     md5_fn,
+        #     max_threads,
+        #     force_restart,
+        # )
+        # result = attempt()
+
+        # New approach (RECOMMENDED)
+        from synapseclient.core.upload.multipart_upload_async import (
+            UploadAttemptAsync,
+        )
+
+        attempt = UploadAttemptAsync(
+            syn,
+            dest_file_name,
+            upload_request_payload,
+            part_request_body_provider_fn,
+            md5_fn,
+            force_restart,
+        )
+        result = await attempt()
+        ```
     """
 
     def __init__(
@@ -257,7 +295,7 @@ class UploadAttempt:
                 try:
                     # use our backoff mechanism here, we have encountered 500s on puts to AWS signed urls
                     response = with_retry(
-                        put_fn, retry_exceptions=[requests.exceptions.ConnectionError]
+                        put_fn, retry_exceptions=RETRYABLE_CONNECTION_EXCEPTIONS
                     )
                     _raise_for_status(response)
 
@@ -412,6 +450,11 @@ class UploadAttempt:
         return upload_status_response
 
 
+@deprecated(
+    version="4.14.0",
+    reason="To be removed in 5.0.0. Use multipart_upload_file_async in "
+    "synapseclient.core.upload.multipart_upload_async instead.",
+)
 def multipart_upload_file(
     syn,
     file_path: str,
@@ -447,6 +490,20 @@ def multipart_upload_file(
     Keyword arguments are passed down to
     [_multipart_upload()][synapseclient.core.upload.multipart_upload._multipart_upload].
 
+    Example: Migration to the async implementation
+        &nbsp;
+
+        ```python
+        # Old approach (DEPRECATED)
+        # file_handle_id = multipart_upload_file(syn, "/path/to/file.txt")
+
+        # New approach (RECOMMENDED)
+        from synapseclient.core.upload.multipart_upload_async import (
+            multipart_upload_file_async,
+        )
+
+        file_handle_id = await multipart_upload_file_async(syn, "/path/to/file.txt")
+        ```
     """
     trace.get_current_span().set_attributes(
         {
@@ -517,6 +574,11 @@ def multipart_upload_file(
     )
 
 
+@deprecated(
+    version="4.14.0",
+    reason="To be removed in 5.0.0. Use multipart_upload_string_async in "
+    "synapseclient.core.upload.multipart_upload_async instead.",
+)
 def multipart_upload_string(
     syn,
     text: str,
@@ -550,6 +612,22 @@ def multipart_upload_string(
     Keyword arguments are passed down to
     [_multipart_upload()][synapseclient.core.upload.multipart_upload._multipart_upload].
 
+    Example: Migration to the async implementation
+        &nbsp;
+
+        ```python
+        # Old approach (DEPRECATED)
+        # file_handle_id = multipart_upload_string(syn, "some text to upload")
+
+        # New approach (RECOMMENDED)
+        from synapseclient.core.upload.multipart_upload_async import (
+            multipart_upload_string_async,
+        )
+
+        file_handle_id = await multipart_upload_string_async(
+            syn, "some text to upload"
+        )
+        ```
     """
     data = text.encode("utf-8")
     file_size = len(data)
@@ -599,6 +677,11 @@ def multipart_upload_string(
     )
 
 
+@deprecated(
+    version="4.14.0",
+    reason="To be removed in 5.0.0. Use multipart_copy_async in "
+    "synapseclient.core.upload.multipart_upload_async instead.",
+)
 def multipart_copy(
     syn,
     source_file_handle_association,
@@ -630,6 +713,22 @@ def multipart_copy(
     Keyword arguments are passed down to
     [_multipart_upload()][synapseclient.core.upload.multipart_upload._multipart_upload].
 
+    Example: Migration to the async implementation
+        &nbsp;
+
+        ```python
+        # Old approach (DEPRECATED)
+        # file_handle_id = multipart_copy(syn, source_file_handle_association)
+
+        # New approach (RECOMMENDED)
+        from synapseclient.core.upload.multipart_upload_async import (
+            multipart_copy_async,
+        )
+
+        file_handle_id = await multipart_copy_async(
+            syn, source_file_handle_association
+        )
+        ```
     """
     part_size = part_size or DEFAULT_PART_SIZE
 

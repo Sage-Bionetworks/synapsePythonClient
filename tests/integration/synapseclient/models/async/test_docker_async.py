@@ -16,16 +16,15 @@ class TestDockerRepositoryAsync:
     async def readonly_docker_repo(
         self,
         schedule_for_cleanup: Callable[..., None],
+        project_model: Project,
         syn: Synapse,
     ) -> DockerRepository:
-        """Class-scoped fixture for read-only tests. Do not modify or delete."""
-        project = await Project(name=f"test_project_{uuid.uuid4()}").store_async(
-            synapse_client=syn
-        )
-        schedule_for_cleanup(project.id)
-
+        """Class-scoped fixture for read-only tests. Do not modify or delete.
+        Shares the session-scoped project_model instead of creating its own
+        Project."""
         docker_repo = DockerRepository(
-            parent_id=project.id, repository_name="username/test-async-readonly"
+            parent_id=project_model.id,
+            repository_name=f"username/test-async-readonly-{uuid.uuid4().hex[:8]}",
         )
         await docker_repo.store_async(synapse_client=syn)
         schedule_for_cleanup(docker_repo.id)
@@ -35,16 +34,16 @@ class TestDockerRepositoryAsync:
     async def mutable_docker_repo(
         self,
         schedule_for_cleanup: Callable[..., None],
+        project_model: Project,
         syn: Synapse,
     ) -> DockerRepository:
-        """Function-scoped fixture for tests that modify or delete the repo."""
-        project = await Project(name=f"test_project_{uuid.uuid4()}").store_async(
-            synapse_client=syn
-        )
-        schedule_for_cleanup(project.id)
-
+        """Function-scoped fixture for tests that modify or delete the repo.
+        Shares the session-scoped project_model instead of creating its own
+        Project; the repository_name is unique per invocation since this
+        fixture runs once per consuming test."""
         docker_repo = DockerRepository(
-            parent_id=project.id, repository_name="username/test-async-mutable"
+            parent_id=project_model.id,
+            repository_name=f"username/test-async-mutable-{uuid.uuid4().hex[:8]}",
         )
         await docker_repo.store_async(synapse_client=syn)
         schedule_for_cleanup(docker_repo.id)
@@ -93,18 +92,16 @@ class TestDockerRepositoryAsync:
             await docker_repo.get_async(synapse_client=syn)
 
     async def test_get_docker_repo_with_optional_fields(
-        self, schedule_for_cleanup: Callable[..., None], syn: Synapse
+        self,
+        schedule_for_cleanup: Callable[..., None],
+        project_model: Project,
+        syn: Synapse,
     ) -> None:
         """Test retrieving a Docker repository with all optional fields set (async)."""
-        # GIVEN a project and DockerRepository with all fields
-        project = await Project(name=f"test_project_{uuid.uuid4()}").store_async(
-            synapse_client=syn
-        )
-        schedule_for_cleanup(project.id)
-
+        # GIVEN a DockerRepository with all fields, under the shared project_model
         docker_repo = await DockerRepository(
-            parent_id=project.id,
-            repository_name="username/test-async-optional",
+            parent_id=project_model.id,
+            repository_name=f"username/test-async-optional-{uuid.uuid4().hex[:8]}",
             name="My Test Repo Async",
             description="A test repository with all fields (async)",
         ).store_async(synapse_client=syn)

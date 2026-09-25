@@ -152,6 +152,84 @@ class TestPresignedUrlProvider:
         assert expected == download_async._pre_signed_url_expiration_time(url)
 
 
+class TestSeededPresignedUrlProvider:
+    """Tests that a PresignedUrlProvider seeded with an already-fetched URL reuses
+    it on the happy path but still refetches (using the request's file handle
+    identifiers) once the seeded URL nears expiry mid-download."""
+
+    @pytest.fixture(scope="function", autouse=True)
+    def setup_method(self) -> None:
+        self.mock_synapse_client = mock.create_autospec(Synapse)
+        # Request carries the file handle identifiers so a refetch is possible.
+        self.download_request = DownloadRequest(
+            file_handle_id=123,
+            object_id="syn456",
+            object_type="FileEntity",
+            path="/myFakepath",
+        )
+
+    async def test_seeded_url_reused_without_refetch(self) -> None:
+        """A seeded, unexpired URL is returned without calling the batch endpoint."""
+        utc_now = datetime.datetime.now(tz=datetime.timezone.utc)
+        seeded = PresignedUrlInfo(
+            file_name="myFile.txt",
+            url="https://synapse.org/somefile.txt",
+            expiration_utc=utc_now + datetime.timedelta(hours=1),
+        )
+
+        with mock.patch(
+            "synapseclient.core.download.download_async.get_file_handle_for_download",
+        ) as mock_get_file_handle:
+            provider = PresignedUrlProvider(
+                self.mock_synapse_client,
+                request=self.download_request,
+                _cached_info=seeded,
+            )
+            assert seeded == provider.get_info()
+            # No refetch on the happy path.
+            mock_get_file_handle.assert_not_called()
+
+    async def test_seeded_url_refetched_on_expiry_with_identifiers(self) -> None:
+        """When the seeded URL is near expiry, the provider refetches using the
+        request's file handle identifiers (not None)."""
+        utc_now = datetime.datetime.now(tz=datetime.timezone.utc)
+        # Seeded URL expires in the past -> triggers a refetch.
+        expired_seed = PresignedUrlInfo(
+            file_name="myFile.txt",
+            url="https://synapse.org/somefile.txt",
+            expiration_utc=utc_now - datetime.timedelta(seconds=5),
+        )
+        fresh_date = utc_now + datetime.timedelta(hours=1)
+        refetched_url = (
+            "https://synapse.org/refetched.txt"
+            f"?X-Amz-Date={fresh_date.strftime('%Y%m%dT%H%M%SZ')}"
+            "&X-Amz-Expires=3600&X-Amz-Signature=123456"
+        )
+
+        with mock.patch(
+            "synapseclient.core.download.download_async.get_file_handle_for_download",
+            return_value={
+                "fileHandle": {"fileName": "myFile.txt"},
+                "preSignedURL": refetched_url,
+            },
+        ) as mock_get_file_handle:
+            provider = PresignedUrlProvider(
+                self.mock_synapse_client,
+                request=self.download_request,
+                _cached_info=expired_seed,
+            )
+            info = provider.get_info()
+
+            # A single refetch occurred, keyed on the request's identifiers.
+            mock_get_file_handle.assert_called_once_with(
+                file_handle_id=123,
+                synapse_id="syn456",
+                entity_type="FileEntity",
+                synapse_client=self.mock_synapse_client,
+            )
+            assert info.url == refetched_url
+
+
 async def test_generate_chunk_ranges() -> None:
     # test using smaller chunk size
     download_async.SYNAPSE_DEFAULT_DOWNLOAD_PART_SIZE = 8

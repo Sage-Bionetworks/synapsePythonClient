@@ -254,3 +254,18 @@ class TestTeam:
             # AND I expect the expected invitations to be returned
             assert len(open_team_invitations) == 1
             assert open_team_invitations[0] == self.invite_response
+
+    async def test_delete_invitation(self) -> None:
+        with patch(
+            "synapseclient.models.team.delete_membership_invitation",
+            new_callable=AsyncMock,
+            return_value=None,
+        ) as patch_delete_membership_invitation:
+            # WHEN I delete an open invitation
+            await Team.delete_invitation_async(
+                invitation_id="1", synapse_client=self.syn
+            )
+            # THEN I expect the patched method to be called as expected
+            patch_delete_membership_invitation.assert_called_once_with(
+                invitation_id="1", synapse_client=self.syn
+            )

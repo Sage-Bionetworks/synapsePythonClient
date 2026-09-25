@@ -7,6 +7,7 @@ import urllib.parse as urllib_parse
 import uuid
 from typing import TYPE_CHECKING, Dict, Union
 
+from deprecated import deprecated
 from opentelemetry import trace
 
 from synapseclient.api import get_client_authenticated_s3_profile
@@ -27,6 +28,12 @@ if TYPE_CHECKING:
     from synapseclient import Synapse
 
 
+@deprecated(
+    version="4.14.0",
+    reason="To be removed in 5.0.0. This synchronous upload implementation has been "
+    "replaced by the async implementation in "
+    "synapseclient.core.upload.upload_functions_async.",
+)
 def log_upload_message(syn: "Synapse", message: str) -> None:
     # if this upload is in the context of a larger, multi threaded sync upload as indicated by a cumulative progress
     # then we don't print the individual upload messages to the console since they wouldn't be properly interleaved.
@@ -34,6 +41,11 @@ def log_upload_message(syn: "Synapse", message: str) -> None:
         syn.logger.info(message)
 
 
+@deprecated(
+    version="4.14.0",
+    reason="To be removed in 5.0.0. Use upload_file_handle in "
+    "synapseclient.core.upload.upload_functions_async instead.",
+)
 def upload_file_handle(
     syn: "Synapse",
     parent_entity: Union[str, collections.abc.Mapping, numbers.Number],
@@ -63,6 +75,23 @@ def upload_file_handle(
 
     Returns:
         A dictionary of a new FileHandle as a dict that represents the uploaded file
+
+    Example: Migration to the async implementation
+        &nbsp;
+
+        ```python
+        # Old approach (DEPRECATED)
+        # file_handle = upload_file_handle(syn, parent_entity, "/path/to/file.txt")
+
+        # New approach (RECOMMENDED)
+        from synapseclient.core.upload.upload_functions_async import (
+            upload_file_handle,
+        )
+
+        file_handle = await upload_file_handle(
+            syn, parent_entity_id, "/path/to/file.txt"
+        )
+        ```
     """
     if path is None:
         raise ValueError("path can not be None")
@@ -211,6 +240,11 @@ def upload_file_handle(
         )
 
 
+@deprecated(
+    version="4.14.0",
+    reason="To be removed in 5.0.0. Use create_external_file_handle in "
+    "synapseclient.core.upload.upload_functions_async instead.",
+)
 def create_external_file_handle(
     syn: "Synapse",
     path: str,
@@ -218,6 +252,24 @@ def create_external_file_handle(
     md5: str = None,
     file_size: int = None,
 ) -> Dict[str, Union[str, int]]:
+    """Create a file handle in Synapse without uploading any files. This is used in
+    cases where one wishes to store a reference to a file that is not in Synapse.
+
+    Example: Migration to the async implementation
+        &nbsp;
+
+        ```python
+        # Old approach (DEPRECATED)
+        # file_handle = create_external_file_handle(syn, "/path/to/file.txt")
+
+        # New approach (RECOMMENDED)
+        from synapseclient.core.upload.upload_functions_async import (
+            create_external_file_handle,
+        )
+
+        file_handle = await create_external_file_handle(syn, "/path/to/file.txt")
+        ```
+    """
     is_local_file = False  # defaults to false
     url = as_url(os.path.expandvars(os.path.expanduser(path)))
     if is_url(url):
@@ -250,6 +302,11 @@ def create_external_file_handle(
     return file_handle
 
 
+@deprecated(
+    version="4.14.0",
+    reason="To be removed in 5.0.0. Use upload_external_file_handle_sftp in "
+    "synapseclient.core.upload.upload_functions_async instead.",
+)
 def upload_external_file_handle_sftp(
     syn: "Synapse",
     file_path: str,
@@ -257,6 +314,27 @@ def upload_external_file_handle_sftp(
     mimetype: str = None,
     md5: str = None,
 ) -> Dict[str, Union[str, int]]:
+    """Upload a file to an SFTP server and create a file handle in Synapse.
+
+    Example: Migration to the async implementation
+        &nbsp;
+
+        ```python
+        # Old approach (DEPRECATED)
+        # file_handle = upload_external_file_handle_sftp(
+        #     syn, "/path/to/file.txt", "sftp://example.com/path"
+        # )
+
+        # New approach (RECOMMENDED)
+        from synapseclient.core.upload.upload_functions_async import (
+            upload_external_file_handle_sftp,
+        )
+
+        file_handle = await upload_external_file_handle_sftp(
+            syn, "/path/to/file.txt", "sftp://example.com/path"
+        )
+        ```
+    """
     username, password = syn._getUserCredentials(url=sftp_url)
     uploaded_url = SFTPWrapper.upload_file(
         file_path, urllib_parse.unquote(sftp_url), username, password
@@ -272,6 +350,11 @@ def upload_external_file_handle_sftp(
     return file_handle
 
 
+@deprecated(
+    version="4.14.0",
+    reason="To be removed in 5.0.0. Use upload_synapse_s3 in "
+    "synapseclient.core.upload.upload_functions_async instead.",
+)
 def upload_synapse_s3(
     syn: "Synapse",
     file_path: str,
@@ -280,6 +363,23 @@ def upload_synapse_s3(
     max_threads: int = None,
     md5: str = None,
 ):
+    """Upload a file to Synapse storage and create a file handle in Synapse.
+
+    Example: Migration to the async implementation
+        &nbsp;
+
+        ```python
+        # Old approach (DEPRECATED)
+        # file_handle = upload_synapse_s3(syn, "/path/to/file.txt")
+
+        # New approach (RECOMMENDED)
+        from synapseclient.core.upload.upload_functions_async import (
+            upload_synapse_s3,
+        )
+
+        file_handle = await upload_synapse_s3(syn, "/path/to/file.txt")
+        ```
+    """
     file_handle_id = multipart_upload_file(
         syn=syn,
         file_path=file_path,
@@ -293,6 +393,11 @@ def upload_synapse_s3(
     return syn._get_file_handle_as_creator(fileHandle=file_handle_id)
 
 
+@deprecated(
+    version="4.14.0",
+    reason="To be removed in 5.0.0. Use upload_synapse_sts_boto_s3 in "
+    "synapseclient.core.upload.upload_functions_async instead.",
+)
 def upload_synapse_sts_boto_s3(
     syn: "Synapse",
     parent_id: str,
@@ -319,6 +424,25 @@ def upload_synapse_sts_boto_s3(
 
     Returns:
         _description_
+
+    Example: Migration to the async implementation
+        &nbsp;
+
+        ```python
+        # Old approach (DEPRECATED)
+        # file_handle = upload_synapse_sts_boto_s3(
+        #     syn, parent_id, upload_destination, "/path/to/file.txt"
+        # )
+
+        # New approach (RECOMMENDED)
+        from synapseclient.core.upload.upload_functions_async import (
+            upload_synapse_sts_boto_s3,
+        )
+
+        file_handle = await upload_synapse_sts_boto_s3(
+            syn, parent_id, upload_destination, "/path/to/file.txt"
+        )
+        ```
     """
     key_prefix = str(uuid.uuid4())
 
@@ -349,6 +473,11 @@ def upload_synapse_sts_boto_s3(
     )
 
 
+@deprecated(
+    version="4.14.0",
+    reason="To be removed in 5.0.0. Use upload_client_auth_s3 in "
+    "synapseclient.core.upload.upload_functions_async instead.",
+)
 def upload_client_auth_s3(
     syn: "Synapse",
     file_path: str,
@@ -359,6 +488,37 @@ def upload_client_auth_s3(
     mimetype: str = None,
     md5: str = None,
 ) -> Dict[str, Union[str, int]]:
+    """Use the S3 client to upload a file to an S3 bucket.
+
+    Example: Migration to the async implementation
+        &nbsp;
+
+        ```python
+        # Old approach (DEPRECATED)
+        # file_handle = upload_client_auth_s3(
+        #     syn,
+        #     "/path/to/file.txt",
+        #     bucket,
+        #     endpoint_url,
+        #     key_prefix,
+        #     storage_location_id,
+        # )
+
+        # New approach (RECOMMENDED)
+        from synapseclient.core.upload.upload_functions_async import (
+            upload_client_auth_s3,
+        )
+
+        file_handle = await upload_client_auth_s3(
+            syn,
+            "/path/to/file.txt",
+            bucket,
+            endpoint_url,
+            key_prefix,
+            storage_location_id,
+        )
+        ```
+    """
     profile = get_client_authenticated_s3_profile(
         endpoint=endpoint_url, bucket=bucket, config_path=syn.configPath
     )

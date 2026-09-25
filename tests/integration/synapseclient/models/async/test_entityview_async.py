@@ -9,7 +9,6 @@ from pytest_mock import MockerFixture
 import synapseclient.models.mixins.table_components as table_module
 from synapseclient import Synapse
 from synapseclient.api import get_default_columns
-from synapseclient.core import utils
 from synapseclient.core.exceptions import SynapseHTTPError
 from synapseclient.models import (
     Activity,
@@ -47,13 +46,15 @@ class TestEntityView:
 
         # Create files
         files = []
-        filename = utils.make_bogus_uuid_file()
 
-        # First file has a real path
+        # First file gets its own file handle. Only the file's existence and
+        # metadata matter for these tests, not its content, so an
+        # external_url file handle avoids a real upload.
         file1 = await File(
             parent_id=folder.id,
             name="file1",
-            path=filename,
+            external_url=f"https://example.com/bogus-file-{uuid.uuid4()}.txt",
+            synapse_store=False,
             description="file1_description",
         ).store_async(synapse_client=self.syn)
         self.schedule_for_cleanup(file1.id)
@@ -68,6 +69,48 @@ class TestEntityView:
                 description=f"file{i}_description",
             ).store_async(synapse_client=self.syn)
             self.schedule_for_cleanup(file.id)
+            files.append(file)
+
+        return folder, files
+
+    @pytest.fixture(scope="class")
+    async def shared_folder_with_files(
+        self,
+        project_model: Project,
+        syn: Synapse,
+        schedule_for_cleanup: Callable[..., None],
+    ) -> "tuple[Folder, List[File]]":
+        """Folder with 4 files, built once for the class and shared by every
+        read-only scope consumer below (test_entityview_with_files_in_scope,
+        test_update_rows_without_id_column, test_query_with_part_mask,
+        test_snapshot_functionality) -- none of them mutates the folder or its
+        files. test_update_rows_and_annotations keeps its own dedicated folder
+        and files since it writes annotations onto the files, which the other
+        tests' views (scoped to the same folder) would otherwise observe."""
+        folder = await Folder(
+            name=str(uuid.uuid4()), parent_id=project_model.id
+        ).store_async(synapse_client=syn)
+        schedule_for_cleanup(folder.id)
+
+        files = []
+        file1 = await File(
+            parent_id=folder.id,
+            name="file1",
+            external_url=f"https://example.com/bogus-file-{uuid.uuid4()}.txt",
+            synapse_store=False,
+            description="file1_description",
+        ).store_async(synapse_client=syn)
+        schedule_for_cleanup(file1.id)
+        files.append(file1)
+
+        for i in range(2, 5):
+            file = await File(
+                parent_id=folder.id,
+                name=f"file{i}",
+                data_file_handle_id=file1.data_file_handle_id,
+                description=f"file{i}_description",
+            ).store_async(synapse_client=syn)
+            schedule_for_cleanup(file.id)
             files.append(file)
 
         return folder, files
@@ -189,10 +232,14 @@ class TestEntityView:
             in str(e.value)
         )
 
-    async def test_entityview_with_files_in_scope(self, project_model: Project) -> None:
+    async def test_entityview_with_files_in_scope(
+        self,
+        project_model: Project,
+        shared_folder_with_files: "tuple[Folder, List[File]]",
+    ) -> None:
         """Test creating entity view with files in scope and querying it"""
         # GIVEN a folder with files
-        folder, files = await self.setup_files_in_folder(project_model)
+        folder, files = shared_folder_with_files
 
         # WHEN I create an entity view with that folder in its scope
         entityview = EntityView(
@@ -405,10 +452,14 @@ class TestEntityView:
                 else:
                     assert "float_column" not in file_copy.annotations.keys()
 
-    async def test_update_rows_without_id_column(self, project_model: Project) -> None:
+    async def test_update_rows_without_id_column(
+        self,
+        project_model: Project,
+        shared_folder_with_files: "tuple[Folder, List[File]]",
+    ) -> None:
         """Test that updating rows requires the id column"""
         # GIVEN a folder with files and an entity view
-        folder, _ = await self.setup_files_in_folder(project_model, num_files=1)
+        folder, _ = shared_folder_with_files
 
         entityview = EntityView(
             name=str(uuid.uuid4()),
@@ -490,10 +541,14 @@ class TestEntityView:
         assert new_column_name not in retrieved_view.columns
         assert column_to_keep in retrieved_view.columns
 
-    async def test_query_with_part_mask(self, project_model: Project) -> None:
+    async def test_query_with_part_mask(
+        self,
+        project_model: Project,
+        shared_folder_with_files: "tuple[Folder, List[File]]",
+    ) -> None:
         """Test querying an entity view with different part masks"""
         # GIVEN a folder with files
-        folder, files = await self.setup_files_in_folder(project_model, num_files=2)
+        folder, files = shared_folder_with_files
 
         # AND an entity view with the folder in scope
         entityview = EntityView(
@@ -543,10 +598,14 @@ class TestEntityView:
         assert results_only.last_updated_on is None
         assert results_only.result["name"].tolist() == [file.name for file in files]
 
-    async def test_snapshot_functionality(self, project_model: Project) -> None:
+    async def test_snapshot_functionality(
+        self,
+        project_model: Project,
+        shared_folder_with_files: "tuple[Folder, List[File]]",
+    ) -> None:
         """Test creating snapshots of entity views with different activity configurations"""
         # GIVEN a folder with a file
-        folder, [file] = await self.setup_files_in_folder(project_model, num_files=1)
+        folder, _ = shared_folder_with_files
 
         # AND an entity view with an activity
         entityview = EntityView(

@@ -121,11 +121,6 @@ files in the synapse web UI. It should look similar to:
 
 ## References used in this tutorial
 
-- [Annotations][synapseclient.Annotations]
-- [File][file-reference-sync]
-- [syn.login][synapseclient.Synapse.login]
-- [syn.findEntityId][synapseclient.Synapse.findEntityId]
-- [syn.getChildren][synapseclient.Synapse.getChildren]
-- [syn.get_annotations][synapseclient.Synapse.get_annotations]
-- [syn.set_annotations][synapseclient.Synapse.set_annotations]
-- [syn.store][synapseclient.Synapse.store]
+- [File.store][synapseclient.models.File.store]
+- [Folder.get][synapseclient.models.Folder.get]
+- [Project.get][synapseclient.models.Project.get]

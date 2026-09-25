@@ -33,6 +33,7 @@ if TYPE_CHECKING:
         File,
         Folder,
         MaterializedView,
+        SearchIndex,
         SubmissionView,
         Table,
         VirtualTable,
@@ -49,6 +50,7 @@ ENTITY_TYPE_MAPPING = {
     "datasetcollection": "datasetcollections",
     "materializedview": "materializedviews",
     "virtualtable": "virtualtables",
+    "searchindex": "searchindexes",
 }
 
 
@@ -203,6 +205,7 @@ class AccessControllable(AccessControllableSynchronousProtocol):
     datasetcollections: List["DatasetCollection"] = None
     materializedviews: List["MaterializedView"] = None
     virtualtables: List["VirtualTable"] = None
+    searchindexes: List["SearchIndex"] = None
 
     async def get_permissions_async(
         self,

@@ -1,4 +1,4 @@
-"""Integration tests for SchemaOrganization and JSONSchema classes"""
+"""Integration tests for Organization and JSONSchema classes"""
 
 import asyncio
 import uuid
@@ -10,11 +10,11 @@ import pytest_asyncio
 from synapseclient import Synapse
 from synapseclient.core.constants.concrete_types import CREATE_SCHEMA_REQUEST
 from synapseclient.core.exceptions import SynapseHTTPError
-from synapseclient.models import JSONSchema, SchemaOrganization
-from synapseclient.models.schema_organization import (
+from synapseclient.models import JSONSchema, Organization
+from synapseclient.models.organization import (
     CreateSchemaRequest,
     JSONSchemaVersionInfo,
-    list_json_schema_organizations,
+    list_organizations,
 )
 
 
@@ -41,19 +41,19 @@ def org_exists(name: str, synapse_client: Optional[Synapse] = None) -> bool:
     """
     matching_orgs = [
         org
-        for org in list_json_schema_organizations(synapse_client=synapse_client)
+        for org in list_organizations(synapse_client=synapse_client)
         if org.name == name
     ]
     return len(matching_orgs) == 1
 
 
 @pytest.fixture(name="module_organization", scope="module")
-def fixture_module_organization(syn: Synapse, request) -> SchemaOrganization:
+def fixture_module_organization(syn: Synapse, request) -> Organization:
     """
     Returns a created organization at the module scope. Used to hold JSON Schemas created by tests.
     """
     name = create_test_entity_name()
-    org = SchemaOrganization(name)
+    org = Organization(name)
     org.store(synapse_client=syn)
 
     def delete_org():
@@ -67,7 +67,7 @@ def fixture_module_organization(syn: Synapse, request) -> SchemaOrganization:
 
 
 @pytest.fixture(name="json_schema", scope="function")
-def fixture_json_schema(module_organization: SchemaOrganization) -> JSONSchema:
+def fixture_json_schema(module_organization: Organization) -> JSONSchema:
     """
     Returns a JSON Schema
     """
@@ -77,12 +77,12 @@ def fixture_json_schema(module_organization: SchemaOrganization) -> JSONSchema:
 
 
 @pytest_asyncio.fixture(name="organization", loop_scope="function", scope="function")
-async def fixture_organization(syn: Synapse, request) -> SchemaOrganization:
+async def fixture_organization(syn: Synapse, request) -> Organization:
     """
     Returns a Synapse organization.
     """
     name = create_test_entity_name()
-    org = SchemaOrganization(name)
+    org = Organization(name)
 
     def delete_org():
         exists = org_exists(name, syn)
@@ -97,13 +97,13 @@ async def fixture_organization(syn: Synapse, request) -> SchemaOrganization:
 @pytest_asyncio.fixture(
     name="organization_with_schema", loop_scope="function", scope="function"
 )
-async def fixture_organization_with_schema(syn: Synapse, request) -> SchemaOrganization:
+async def fixture_organization_with_schema(syn: Synapse, request) -> Organization:
     """
     Returns a Synapse organization.
     As Cleanup it checks for JSON Schemas and deletes them"""
 
     name = create_test_entity_name()
-    org = SchemaOrganization(name)
+    org = Organization(name)
     await org.store_async(synapse_client=syn)
     js1 = JSONSchema("schema1", name)
     js2 = JSONSchema("schema2", name)
@@ -122,14 +122,14 @@ async def fixture_organization_with_schema(syn: Synapse, request) -> SchemaOrgan
     return org
 
 
-class TestSchemaOrganization:
-    """Asynchronous integration tests for SchemaOrganization."""
+class TestOrganization:
+    """Asynchronous integration tests for Organization."""
 
     @pytest.fixture(autouse=True, scope="function")
     def init(self, syn: Synapse) -> None:
         self.syn = syn
 
-    async def test_create_and_get(self, organization: SchemaOrganization) -> None:
+    async def test_create_and_get(self, organization: Organization) -> None:
         # GIVEN an initialized organization object that hasn't been stored in Synapse
         # THEN it shouldn't have any metadata besides it's name
         assert organization.name is not None
@@ -150,7 +150,7 @@ class TestSchemaOrganization:
         exists = org_exists(organization.name, synapse_client=self.syn)
         assert exists
         # AND it should be getable by future instances with the same name
-        org2 = SchemaOrganization(organization.name)
+        org2 = Organization(organization.name)
         await org2.get_async(synapse_client=self.syn)
         assert organization.name is not None
         assert organization.id is not None
@@ -163,8 +163,8 @@ class TestSchemaOrganization:
 
     async def test_get_json_schemas_async(
         self,
-        organization: SchemaOrganization,
-        organization_with_schema: SchemaOrganization,
+        organization: Organization,
+        organization_with_schema: Organization,
     ) -> None:
         # GIVEN an organization with no schemas and one with 3 schemas
         await organization.store_async(synapse_client=self.syn)
@@ -181,9 +181,7 @@ class TestSchemaOrganization:
             schema_list2.append(item)
         assert len(schema_list2) == 3
 
-    async def test_get_acl_and_update_acl(
-        self, organization: SchemaOrganization
-    ) -> None:
+    async def test_get_acl_and_update_acl(self, organization: Organization) -> None:
         # GIVEN an organization that has been initialized, but not created
         # THEN get_acl should raise an error
         with pytest.raises(
@@ -243,7 +241,7 @@ class TestJSONSchema:
         assert js2.created_by
         assert js2.created_on
 
-    async def test_delete(self, organization_with_schema: SchemaOrganization) -> None:
+    async def test_delete(self, organization_with_schema: Organization) -> None:
         # GIVEN an organization with 3 schema
         schemas: list[JSONSchema] = []
         async for item in organization_with_schema.get_json_schemas_async(
@@ -361,7 +359,7 @@ class TestCreateSchemaRequest:
         self.syn = syn
 
     async def test_create_schema_request_no_version(
-        self, module_organization: SchemaOrganization
+        self, module_organization: Organization
     ) -> None:
         # GIVEN an organization
         # WHEN creating a CreateSchemaRequest with no version given
@@ -408,7 +406,7 @@ class TestCreateSchemaRequest:
         # ]
 
     async def test_create_schema_request_with_version(
-        self, module_organization: SchemaOrganization
+        self, module_organization: Organization
     ) -> None:
         # GIVEN an organization
         # WHEN creating a CreateSchemaRequest with no version given

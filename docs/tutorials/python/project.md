@@ -95,8 +95,5 @@ I just got my project: My uniquely named project about Alzheimer's Disease, id: 
 
 ## References used in this tutorial
 
-- [Project][project-reference-sync]
-- [syn.login][synapseclient.Synapse.login]
-- [syn.store][synapseclient.Synapse.store]
-- [syn.get][synapseclient.Synapse.get]
-- [syn.findEntityId][synapseclient.Synapse.findEntityId]
+- [Project.store][synapseclient.models.Project.store]
+- [Project.get][synapseclient.models.Project.get]

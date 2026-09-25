@@ -24,19 +24,25 @@ If you are changing the storage location of an existing folder to a user specifi
 2. Create a folder and configure it to use external S3 storage:
 
 ```python
-from synapseclient.models import Folder
+from synapseclient.models import Folder, StorageLocation, StorageLocationType
+
 # create a new folder to use with external S3 storage
 folder = Folder(name=folder_name, parent_id=parent).store()
-# You may also use an existing folder like:
-# folder = syn.get("syn123")
-folder, storage_location, project_setting = syn.create_s3_storage_location(
-    folder=folder.id,
-    bucket_name='my-external-synapse-bucket',
+# You may also retrieve an existing folder like:
+# folder = Folder(id="syn123").get()
+
+# create the external S3 storage location
+storage_location = StorageLocation(
+    storage_type=StorageLocationType.EXTERNAL_S3,
+    bucket='my-external-synapse-bucket',
     base_key='path/within/bucket',
- )
+).store()
+
+# assign the storage location to the folder
+folder.set_storage_location(storage_location_id=storage_location.storage_location_id)
 
 # if needed the unique storage location identifier can be obtained e.g.
-storage_location_id = storage_location['storageLocationId']
+storage_location_id = storage_location.storage_location_id
 ```
 
 ### Creating a new project backed by a user specified S3 bucket
@@ -49,24 +55,34 @@ If you are changing the storage location of an existing project to a user specif
 2. Create a project and configure it to use external S3 storage:
 
 ```python
-from synapseclient.models import Project
+from synapseclient.models import Project, StorageLocation, StorageLocationType
+
 # create a new, or retrieve an existing project to use with external S3 storage
 project = Project(name="my_project_name").store()
-project_storage, storage_location, project_setting = syn.create_s3_storage_location(
-    # Despite the KW argument name, this can be a project or folder
-    folder=project.id,
-    bucket_name='my-external-synapse-bucket',
+
+# create the external S3 storage location
+storage_location = StorageLocation(
+    storage_type=StorageLocationType.EXTERNAL_S3,
+    bucket='my-external-synapse-bucket',
     base_key='path/within/bucket',
-)
+).store()
+
+# assign the storage location to the project
+project.set_storage_location(storage_location_id=storage_location.storage_location_id)
 
 # if needed the unique storage location identifier can be obtained e.g.
-storage_location_id = storage_location['storageLocationId']
+storage_location_id = storage_location.storage_location_id
 ```
 
 Once an external S3 storage folder exists, you can interact with it as you would any other folder using Synapse tools. If you wish to add an object that is stored within the bucket to Synapse you can do that by adding a file handle for that object using the Python client and then storing the file to that handle.
 
 ```python
+import boto3
+from synapseclient import Synapse
 from synapseclient.models import File
+
+syn = Synapse()
+syn.login()
 
 parent_synapse_folder_id = 'syn123'
 local_file_path = '/path/to/local/file'
@@ -81,15 +97,20 @@ s3_client.upload_file(
     Key=s3_key
 )
 
-# now we add a file handle for that file and store the file to that handle
+# Create an external S3 file handle for that object. There is not yet an
+# object-oriented equivalent for this call, so the Synapse client method is used.
 file_handle = syn.create_external_s3_file_handle(
     bucket,
     s3_key,
     local_file_path,
     parent=parent_synapse_folder_id,
 )
-file_entity = File(parent_id=folder['id'], data_file_handle_id=file_handle['id'])
-file_entity.store()
+
+# now store a File that points at the existing file handle
+file_entity = File(
+    parent_id=parent_synapse_folder_id,
+    data_file_handle_id=file_handle['id'],
+).store()
 ```
 
 ## Storage location migration
@@ -108,15 +129,16 @@ Migrating a Synapse project or folder programmatically is a two step process.
 
 First ensure that you know the id of the storage location you want to migrate to. More info on storage locations can be found above and [here](https://help.synapse.org/docs/Custom-Storage-Locations.2048327803.html).
 
-Once the storage location is known, the first step to migrate the project or folder is to create a migratable index of its contents using the [index_files_for_migration][synapseutils.migrate_functions.index_files_for_migration] function, e.g.
+Once the storage location is known, the first step to migrate the project or folder is to create a migratable index of its contents using the `index_files_for_migration` method on the [Folder][folder-reference-sync] or [Project][project-reference-sync] model, e.g.
 
 When specifying the `.db` file for the migratable indexes you need to specify a `.db` file that does not already exist for another synapse project or folder on disk. It is the best practice to specify a unique name for the file by including the synapse id in the name of the file, or other unique identifier.
 
 ```python
-import synapseutils
+from synapseclient.models import Folder
 
-entity_id = 'syn123'  # a Synapse entity whose contents need to be migrated, e.g. a Project or Folder
-dest_storage_location_id = '12345'  # the id of the destination storage location being migrated to
+# a Synapse entity whose contents need to be migrated, e.g. a Project or Folder
+entity = Folder(id='syn123').get()
+dest_storage_location_id = 12345  # the id of the destination storage location being migrated to
 
 # a path on disk where this utility can create a sqlite database to store its index.
 # nothing needs to exist at this path, but it must be a valid path on a volume with sufficient
@@ -124,33 +146,30 @@ dest_storage_location_id = '12345'  # the id of the destination storage location
 # a rough rule of thumb is 100kB per 1000 entities indexed.
 db_path = '/tmp/foo/syn123_bar.db'
 
-result = synapseutils.index_files_for_migration(
-    syn,
-    entity_id,
+result = entity.index_files_for_migration(
     dest_storage_location_id,
     db_path,
 
-    # optional args, see function documentation linked above for a description of these parameters
-    source_storage_location_ids=['54321', '98765'],
+    # optional args, see the method documentation for a description of these parameters
+    source_storage_location_ids=[54321, 98765],
     file_version_strategy='new',
     include_table_files=False,
-    continue_on_error=True
+    continue_on_error=True,
 )
 ```
 
-If called on a container (e.g. a Project or Folder) the *index_files_for_migration* function will recursively index all of the children of that container (including its subfolders). Once the entity has been indexed you can optionally programmatically inspect the the contents of the index or output its contents to a csv file in order to manually inspect it using the [available methods][synapseutils.migrate_functions.MigrationResult] on the returned result object.
+If called on a container (e.g. a Project or Folder) the *index_files_for_migration* method will recursively index all of the children of that container (including its subfolders). Once the entity has been indexed you can optionally programmatically inspect the contents of the index via the returned `MigrationResult` object (e.g. `index_result.counts_by_status`) or write it to a csv file with `index_result.as_csv(...)` in order to manually inspect it.
 
-The next step to trigger the migration from the indexed files is using the [migrate_indexed_files][synapseutils.migrate_functions.migrate_indexed_files] function, e.g.
+The next step to trigger the migration from the indexed files is using the `migrate_indexed_files` method on the same model, e.g.
 
 ```python
-result = synapseutils.migrate_indexed_files(
-    syn,
+result = entity.migrate_indexed_files(
     db_path,
 
-    # optional args, see function documentation linked above for a description of these parameters
+    # optional args, see the method documentation for a description of these parameters
     create_table_snapshots=True,
     continue_on_error=False,
-    force=True
+    force=True,
 )
 ```
 
@@ -162,8 +181,9 @@ Note that above the *force* parameter is necessary if running from a non-interac
 
 ```python
 import os
-import synapseutils
+
 import synapseclient
+from synapseclient.models import Folder, StorageLocation, StorageLocationType
 
 my_synapse_project_or_folder_to_migrate = "syn123"
 
@@ -185,46 +205,47 @@ syn = synapseclient.Synapse()
 # Log-in with ~.synapseConfig `authToken`
 syn.login()
 
-# The project or folder I want to migrate everything to this S3 storage location
-project_or_folder = syn.get(my_synapse_project_or_folder_to_migrate)
+# The project or folder I want to migrate everything to this S3 storage location.
+# Use Project(id=...).get() instead if you are migrating a project.
+project_or_folder = Folder(id=my_synapse_project_or_folder_to_migrate).get()
 
-project_or_folder, storage_location, project_setting = syn.create_s3_storage_location(
-    # Despite the KW argument name, this can be a project or folder
-    folder=project_or_folder,
-    bucket_name=external_bucket_name,
+# Create the destination external S3 storage location and assign it
+storage_location = StorageLocation(
+    storage_type=StorageLocationType.EXTERNAL_S3,
+    bucket=external_bucket_name,
     base_key=external_bucket_base_key,
+).store()
+project_or_folder.set_storage_location(
+    storage_location_id=storage_location.storage_location_id
 )
 
 # The id of the destination storage location being migrated to
-storage_location_id = storage_location["storageLocationId"]
+storage_location_id = storage_location.storage_location_id
 print(
     f"Indexing: {project_or_folder.id} for migration to storage_id: {storage_location_id} at: {db_path}"
 )
 
 try:
-    result = synapseutils.index_files_for_migration(
-        syn,
-        project_or_folder.id,
+    index_result = project_or_folder.index_files_for_migration(
         storage_location_id,
         db_path,
         file_version_strategy="all",
     )
 
-    print(f"Indexing result: {result.get_counts_by_status()}")
+    print(f"Indexing result: {index_result.counts_by_status}")
 
     print("Migrating files...")
 
-    result = synapseutils.migrate_indexed_files(
-        syn,
+    migrate_result = project_or_folder.migrate_indexed_files(
         db_path,
         force=True,
     )
 
-    print(f"Migration result: {result.get_counts_by_status()}")
+    print(f"Migration result: {migrate_result.counts_by_status}")
     syn.sendMessage(
         userIds=[my_user_id],
         messageSubject=f"Migration success for {project_or_folder.id}",
-        messageBody=f"Migration result: {result.get_counts_by_status()}",
+        messageBody=f"Migration result: {migrate_result.counts_by_status}",
     )
 except Exception as e:
     syn.sendMessage(
@@ -283,14 +304,19 @@ Create an STS enabled folder to use [AWS Security Token Service](https://help.sy
 Creating an STS enabled folder is similar to creating an external storage folder as described above, but this time passing an additional **sts_enabled=True** keyword parameter. The **bucket_name** and **base_key** parameters apply to external storage locations and can be omitted to use Synapse internal storage. Note also that STS can only be enabled on an empty folder.
 
 ```python
+from synapseclient.models import Folder, StorageLocation, StorageLocationType
+
 # create a new folder to use with STS and external S3 storage
-folder = syn.store(Folder(name=folder_name, parent=parent))
-folder, storage_location, project_setting = syn.create_s3_storage_location(
-    folder=folder,
-    bucket_name='my-external-synapse-bucket',
+folder = Folder(name=folder_name, parent_id=parent).store()
+
+# create an STS-enabled external S3 storage location and assign it
+storage_location = StorageLocation(
+    storage_type=StorageLocationType.EXTERNAL_S3,
+    bucket='my-external-synapse-bucket',
     base_key='path/within/bucket',
     sts_enabled=True,
-)
+).store()
+folder.set_storage_location(storage_location_id=storage_location.storage_location_id)
 ```
 
 ### Using credentials with the awscli
@@ -316,12 +342,17 @@ $ aws s3 cp /path/to/local/file $SYNAPSE_STS_S3_LOCATION --acl bucket-owner-full
 This example illustrates retrieving STS credentials and using them with boto3 within python code, in this case to upload a file.  Note that the bucket-owner-full-control ACL is required when putting an object via STS credentials. This ensures that the object ownership will be transferred to the owner of the AWS bucket.
 
 ```python
+import boto3
+from synapseclient.models import Folder
+
 # the boto output_format is compatible with the boto3 session api.
-credentials = syn.get_sts_storage_token('syn123', 'read_write', output_format='boto')
+credentials = Folder(id='syn123').get_sts_storage_token(
+    permission='read_write', output_format='boto'
+)
 
 s3_client = boto3.client('s3', **credentials)
 s3_client.upload_file(
-    Filename='/path/to/local/file,
+    Filename='/path/to/local/file',
     Bucket='my-external-synapse-bucket',
     Key='path/within/bucket/file',
     ExtraArgs={'ACL': 'bucket-owner-full-control'},

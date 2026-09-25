@@ -4,7 +4,6 @@ import uuid
 import pytest
 from func_timeout import FunctionTimedOut, func_set_timeout
 
-import synapseclient.core.utils as utils
 import synapseutils
 from synapseclient import File, Folder, Project
 
@@ -23,16 +22,23 @@ async def test_walk(syn, schedule_for_cleanup):
 # When running with multiple threads it can lock up and do nothing until pipeline is killed at 6hrs
 @func_set_timeout(120)
 def execute_test_walk(syn, schedule_for_cleanup):
+    # walk only ever inspects entity names/ids/structure, never downloads or reads
+    # file content, so every File below uses an external URL to avoid a real upload.
     walked = []
-    firstfile = utils.make_bogus_data_file()
-    schedule_for_cleanup(firstfile)
     project_entity = syn.store(Project(name=str(uuid.uuid4())))
     schedule_for_cleanup(project_entity.id)
     folder_entity = syn.store(Folder(name=str(uuid.uuid4()), parent=project_entity))
     schedule_for_cleanup(folder_entity.id)
     second_folder = syn.store(Folder(name=str(uuid.uuid4()), parent=project_entity))
     schedule_for_cleanup(second_folder.id)
-    file_entity = syn.store(File(firstfile, parent=project_entity))
+    file_entity = syn.store(
+        File(
+            f"https://example.com/bogus-file-{uuid.uuid4()}.txt",
+            name=f"bogus_file_{uuid.uuid4()}.txt",
+            parent=project_entity,
+            synapseStore=False,
+        )
+    )
     schedule_for_cleanup(file_entity.id)
 
     walked.append(
@@ -48,13 +54,23 @@ def execute_test_walk(syn, schedule_for_cleanup):
 
     nested_folder = syn.store(Folder(name=str(uuid.uuid4()), parent=folder_entity))
     schedule_for_cleanup(nested_folder.id)
-    secondfile = utils.make_bogus_data_file()
-    schedule_for_cleanup(secondfile)
-    second_file = syn.store(File(secondfile, parent=nested_folder))
+    second_file = syn.store(
+        File(
+            f"https://example.com/bogus-file-{uuid.uuid4()}.txt",
+            name=f"bogus_file_{uuid.uuid4()}.txt",
+            parent=nested_folder,
+            synapseStore=False,
+        )
+    )
     schedule_for_cleanup(second_file.id)
-    thirdfile = utils.make_bogus_data_file()
-    schedule_for_cleanup(thirdfile)
-    third_file = syn.store(File(thirdfile, parent=second_folder))
+    third_file = syn.store(
+        File(
+            f"https://example.com/bogus-file-{uuid.uuid4()}.txt",
+            name=f"bogus_file_{uuid.uuid4()}.txt",
+            parent=second_folder,
+            synapseStore=False,
+        )
+    )
     schedule_for_cleanup(third_file.id)
 
     walked.append(

@@ -7,6 +7,7 @@ import os
 import random
 import tempfile
 from io import StringIO
+from pathlib import Path
 from typing import Any, Dict
 from unittest.mock import AsyncMock, MagicMock, Mock, call, create_autospec, patch
 
@@ -610,6 +611,7 @@ def test_sync_from_synapse_manifest_is_all(
                     "datasetcollection",
                     "materializedview",
                     "virtualtable",
+                    "searchindex",
                 ],
                 synapse_client=syn,
             ),
@@ -626,6 +628,7 @@ def test_sync_from_synapse_manifest_is_all(
                     "datasetcollection",
                     "materializedview",
                     "virtualtable",
+                    "searchindex",
                 ],
                 synapse_client=syn,
             ),
@@ -811,6 +814,7 @@ def test_sync_from_synapse_manifest_is_root(
                     "datasetcollection",
                     "materializedview",
                     "virtualtable",
+                    "searchindex",
                 ],
                 synapse_client=syn,
             ),
@@ -827,6 +831,7 @@ def test_sync_from_synapse_manifest_is_root(
                     "datasetcollection",
                     "materializedview",
                     "virtualtable",
+                    "searchindex",
                 ],
                 synapse_client=syn,
             ),
@@ -881,6 +886,7 @@ def test_sync_from_synapse_manifest_is_suppress(
     mock_get_file_entity_provenance_dict: MagicMock,
     mock_generate_manifest: MagicMock,
     syn: Synapse,
+    tmp_path: Path,
 ) -> None:
     """
     Verify manifest argument equal to "suppress" that pass in to syncFromSynapse, it won't create any manifest file.
@@ -962,7 +968,7 @@ def test_sync_from_synapse_manifest_is_suppress(
         ) as patch_activity_from_parent,
     ):
         result = synapseutils.syncFromSynapse(
-            syn=syn, entity=project, path="./", manifest="suppress"
+            syn=syn, entity=project, path=str(tmp_path), manifest="suppress"
         )
         assert [file, file_2] == result
         expected_get_children_agrs = [
@@ -979,6 +985,7 @@ def test_sync_from_synapse_manifest_is_suppress(
                     "datasetcollection",
                     "materializedview",
                     "virtualtable",
+                    "searchindex",
                 ],
                 synapse_client=syn,
             ),
@@ -995,6 +1002,7 @@ def test_sync_from_synapse_manifest_is_suppress(
                     "datasetcollection",
                     "materializedview",
                     "virtualtable",
+                    "searchindex",
                 ],
                 synapse_client=syn,
             ),
@@ -1009,7 +1017,7 @@ def test_sync_from_synapse_manifest_is_suppress(
                 if_collision=method_flags.COLLISION_OVERWRITE_LOCAL,
                 limit_search=None,
                 download_file=True,
-                download_location="./",
+                download_location=str(tmp_path),
                 md5=None,
                 synapse_client=syn,
             ),
@@ -1020,7 +1028,7 @@ def test_sync_from_synapse_manifest_is_suppress(
                 if_collision=method_flags.COLLISION_OVERWRITE_LOCAL,
                 limit_search=None,
                 download_file=True,
-                download_location=f"./{FOLDER_NAME}",
+                download_location=os.path.join(str(tmp_path), FOLDER_NAME),
                 md5=None,
                 synapse_client=syn,
             ),
@@ -1924,9 +1932,9 @@ class TestSyncFromSynapseDeprecation:
     def test_syncFromSynapse_emits_deprecation_warning(self, syn: Synapse) -> None:
         # GIVEN the legacy syncFromSynapse function
         # WHEN it is called
-        # THEN a DeprecationWarning is raised pointing to StorableContainer
+        # THEN a DeprecationWarning is raised pointing to Project or Folder
         with pytest.warns(
-            DeprecationWarning, match="StorableContainer.sync_from_synapse"
+            DeprecationWarning, match="sync_from_synapse method on a Project or"
         ):
             with patch.object(
                 sync,

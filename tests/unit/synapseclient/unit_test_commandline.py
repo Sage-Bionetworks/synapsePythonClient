@@ -13,7 +13,6 @@ from synapseclient.core.exceptions import (
     SynapseAuthenticationError,
     SynapseNoCredentialsError,
 )
-from synapseclient.entity import File
 
 
 def test_command_sync(syn):
@@ -799,7 +798,10 @@ class TestGetFunction:
             call(mock_entity),
         ]
 
-        mock_entity2 = File(path="./tmp_path", parent="syn123")
+        # cmdline.get treats the entity as a dict ("path" in entity), so the mock
+        # must report membership of the "path" key as well as expose entity.path.
+        mock_entity2 = MagicMock(id="syn123", path="./tmp_path")
+        mock_entity2.__contains__.return_value = True
 
         self.syn.get.return_value = mock_entity2
         mock_os.path.exists.return_value = True

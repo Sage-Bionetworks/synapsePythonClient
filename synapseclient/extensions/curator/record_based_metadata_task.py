@@ -12,8 +12,13 @@ from typing import Any, Dict, List, Optional, Union
 from synapseclient import Synapse
 from synapseclient.core.typing_utils import DataFrame as DATA_FRAME_TYPE
 from synapseclient.core.utils import test_import_pandas
-from synapseclient.extensions.curator.utils import project_id_from_entity_id
+from synapseclient.extensions.curator.utils import (
+    project_id_from_entity_id,
+    resolve_column_order_list,
+    validate_column_order_list,
+)
 from synapseclient.models import (
+    AuthorizationMode,
     CurationTask,
     Grid,
     JSONSchema,
@@ -111,7 +116,9 @@ def create_record_based_metadata_task(
     bind_schema_to_record_set: bool = True,
     enable_derived_annotations: bool = False,
     assignee_principal_id: Optional[Union[str, int]] = None,
+    authorization_mode: Optional[Union[AuthorizationMode, str]] = None,
     *,
+    column_order: list[str] | None = None,
     synapse_client: Optional[Synapse] = None,
     project_id: Optional[str] = None,  # Deprecated, will be removed in v5.0.0
     create_grid: bool = True,  # Deprecated, will be removed in v5.0.0
@@ -136,13 +143,13 @@ def create_record_based_metadata_task(
     Example: Creating a record-based metadata curation task with a schema URI
         In this example, we create a RecordSet and CurationTask for biospecimen metadata
         curation using a schema URI. By default this will also bind the schema to the
-        RecordSet, however the `bind_schema_to_record_set` parameter can be set to
+        RecordSet, however the bind_schema_to_record_set parameter can be set to
         False to skip that step.
-
 
         ```python
         import synapseclient
         from synapseclient.extensions.curator import create_record_based_metadata_task
+        from synapseclient.models import AuthorizationMode
 
         syn = synapseclient.Synapse()
         syn.login()
@@ -157,8 +164,39 @@ def create_record_based_metadata_task(
             instructions="Please curate this metadata according to the schema requirements",
             schema_uri="schema-org-schema.name.schema-v1.0.0",
             assignee_principal_id=123456,  # Optional: Assign to a user or team (can be str or int)
+            authorization_mode=AuthorizationMode.SOURCE_BENEFACTOR,
             create_grid=False,  # Opt out of deprecated Grid creation
         )
+        ```
+
+    Example: Controlling the column order of the RecordSet
+        Pass column_order to place specific columns immediately after the upsert keys.
+        You only need to name the columns you care about; every other schema property
+        is appended afterwards in its existing order. Upsert keys always stay leftmost,
+        so naming one in column_order does not duplicate or move it.
+
+        ```python
+        import synapseclient
+        from synapseclient.extensions.curator import create_record_based_metadata_task
+
+        syn = synapseclient.Synapse()
+        syn.login()
+
+        record_set, curation_task = create_record_based_metadata_task(
+            synapse_client=syn,
+            folder_id="syn87654321",
+            record_set_name="BiospecimenMetadata_RecordSet",
+            record_set_description="RecordSet for biospecimen metadata curation",
+            curation_task_name="BiospecimenMetadataTemplate",
+            upsert_keys=["patientId", "specimenID"],
+            column_order=["diagnosis", "assay"],
+            instructions="Please curate this metadata according to the schema requirements",
+            schema_uri="schema-org-schema.name.schema-v1.0.0",
+            create_grid=False,
+        )
+
+        # Resulting column order:
+        # patientId, specimenID, diagnosis, assay, <remaining schema properties>
         ```
 
     Arguments:
@@ -182,6 +220,25 @@ def create_record_based_metadata_task(
             (default), the task will be unassigned. For metadata tasks, this determines
             the owner of the grid session. Team members can all join grid sessions owned
             by their team, while user-owned grid sessions are restricted to that user only.
+        authorization_mode: Recommends who is allowed to access the curation
+            grid session that a client opens for this task. The value is stored on the
+            task as a suggestion; the client applies it when it creates a new session.
+            Choose from:
+            - SESSION_OWNER: only the person or team who owns the session can access it.
+            - SOURCE_BENEFACTOR: anyone with EDIT permission on the
+              data being curated can access the session. This lets editors collaborate
+              in the same session without being added to a shared ownership team.
+            When omitted (None, the default), no recommendation is stored and clients
+            fall back to their usual behavior of finding or creating a private session
+            for the current user. Changing this value after the task already exists
+            resets the task's active session, so a new grid session must be opened
+            before curation can continue.
+        column_order: Optional list of column names placed immediately after the
+            upsert keys, in the order given. Columns that are not named keep their
+            existing relative order and are appended afterwards, so you only need to
+            list the columns that need intentional placement. Naming an upsert key
+            here has no effect, it stays in its leading position. Every name must
+            match a property defined by the schema.
         synapse_client: If not passed in and caching was not disabled by
                 `Synapse.allow_client_caching(False)` this will use the last created
                 instance from the Synapse class constructor.
@@ -195,7 +252,9 @@ def create_record_based_metadata_task(
         If create_grid is False: tuple of (RecordSet, CurationTask).
 
     Raises:
-        ValueError: If required parameters are missing or if schema_uri is not provided.
+        ValueError: If required parameters are missing, if schema_uri is not provided,
+            if any upsert_keys are not found among the schema properties, or if
+            column_order is malformed or names a column that is not a schema property.
         SynapseError: If there are issues with Synapse operations.
     """
     # Validate required parameters
@@ -213,6 +272,7 @@ def create_record_based_metadata_task(
         raise ValueError("instructions is required")
     if not schema_uri:
         raise ValueError("schema_uri is required")
+    validate_column_order_list(column_order)
 
     if project_id:
         synapse_client.logger.warning(
@@ -236,6 +296,24 @@ def create_record_based_metadata_task(
     template_df = extract_schema_properties_from_web(
         syn=synapse_client, schema_uri=schema_uri
     )
+
+    template_columns = set(template_df.columns)
+    missing_upsert_keys = [key for key in upsert_keys if key not in template_columns]
+    if missing_upsert_keys:
+        raise ValueError(
+            "The following upsert_keys were not found among the schema properties: "
+            f"{missing_upsert_keys}. Upsert keys identify each row and must correspond "
+            "to columns defined in the schema."
+        )
+
+    template_df = template_df[
+        resolve_column_order_list(
+            available_columns=template_df.columns.tolist(),
+            pinned_columns=upsert_keys,
+            requested_columns=column_order,
+        )
+    ]
+
     synapse_client.logger.info(
         f"Extracted schema properties and created template: {template_df.columns.tolist()}"
     )
@@ -286,6 +364,7 @@ def create_record_based_metadata_task(
             ),
             task_properties=RecordBasedMetadataTaskProperties(
                 record_set_id=record_set_id,
+                suggested_authorization_mode=authorization_mode,
             ),
         ).store(synapse_client=synapse_client)
         synapse_client.logger.info(

@@ -110,6 +110,10 @@ ANNO_TYPE_TO_FUNC: dict[
 )
 
 
+@deprecated(
+    version="4.14.0",
+    reason="To be removed in 5.0.0. No replacement is provided.",
+)
 def is_synapse_annotations(annotations: Mapping) -> bool:
     """Tests if the given object is a Synapse-style Annotations object.
 
@@ -126,10 +130,21 @@ def is_synapse_annotations(annotations: Mapping) -> bool:
     return annotations.keys() >= {"id", "etag", "annotations"}
 
 
-def _annotation_value_list_element_type(annotation_values: list):
-    if not annotation_values:
-        raise ValueError("annotations value list can not be empty")
+def _annotation_value_list_element_type(annotation_values: list[Any]) -> type:
+    """Infer the common element type of a non-empty annotation value list. The type of
+    the first element is used as the candidate, and if every element is an instance of
+    that type it is returned. Otherwise object is returned to signal a heterogeneous
+    list, which the caller maps to the STRING fallback.
 
+    Callers must pre-filter empty lists, this function indexes the first element and does
+    not handle an empty input.
+
+    Arguments:
+        annotation_values: A non-empty list of annotation element values.
+
+    Returns:
+        The shared element type if the list is homogeneous, otherwise object.
+    """
     first_element_type = type(annotation_values[0])
 
     if all(isinstance(x, first_element_type) for x in annotation_values):
@@ -138,6 +153,11 @@ def _annotation_value_list_element_type(annotation_values: list):
     return object
 
 
+@deprecated(
+    version="4.14.0",
+    reason="To be removed in 5.0.0. No longer part of the public API; it is now an "
+    "internal helper at synapseclient/models/submission_status.py::_is_submission_status_annotations.",
+)
 def is_submission_status_annotations(annotations: collections.abc.Mapping) -> bool:
     """Tests if the given dictionary is in the form of annotations to submission
     status.
@@ -156,6 +176,11 @@ def is_submission_status_annotations(annotations: collections.abc.Mapping) -> bo
     return all([key in keys for key in annotations.keys()])
 
 
+@deprecated(
+    version="4.14.0",
+    reason="To be removed in 5.0.0. No longer part of the public API; it is now an "
+    "internal helper at synapseclient/models/submission_status.py::_to_submission_status_annotations.",
+)
 def to_submission_status_annotations(annotations, is_private=True):
     """
     Converts a normal dictionary to the format used to annotate submission statuses, which is different from the format
@@ -229,6 +254,11 @@ def to_submission_status_annotations(annotations, is_private=True):
     return synapseAnnos
 
 
+@deprecated(
+    version="4.14.0",
+    reason="To be removed in 5.0.0. No longer part of the public API; it is now an "
+    "internal helper at synapseclient/models/submission_status.py::_to_submission_annotations.",
+)
 def to_submission_annotations(
     id: Union[str, int],
     etag: str,
@@ -350,7 +380,9 @@ def to_submission_annotations(
     return submission_annos
 
 
-# TODO: this should accept a status object and return its annotations or an empty dict if there are none
+# TODO: https://sagebionetworks.jira.com/browse/SYNPY-1874
+# This function is still used by Synapse.store_async
+# Deprecate this function once its not used anymore
 def from_submission_status_annotations(annotations) -> dict:
     """
     Convert back from submission status annotation format to a normal dictionary.
@@ -379,6 +411,10 @@ def from_submission_status_annotations(annotations) -> dict:
     return dictionary
 
 
+@deprecated(
+    version="4.14.0",
+    reason="To be removed in 5.0.0. No replacement is provided.",
+)
 def set_privacy(
     annotations,
     key,
@@ -526,6 +562,10 @@ class Annotations(dict):
         self._etag = str(value)
 
 
+@deprecated(
+    version="4.14.0",
+    reason="To be removed in 5.0.0. No replacement is provided.",
+)
 def to_synapse_annotations(annotations: Annotations) -> dict[str, Any]:
     """Transforms a simple flat dictionary to a Synapse-style Annotation object. See
     the [Synapse API](https://rest-docs.synapse.org/rest/org/sagebionetworks/repo/model/annotation/v2/Annotations.html)
@@ -555,10 +595,81 @@ def to_synapse_annotations(annotations: Annotations) -> dict[str, Any]:
     return synapse_annos
 
 
-def _convert_to_annotations_list(annotations):
+def _is_missing_annotation_value(value: Any) -> bool:
+    """Return True if a scalar annotation value represents the absence of data and
+    should be omitted rather than stored. This covers None, the empty string, NaN
+    values of any real-number type (Python float, the numpy float widths, and
+    decimal.Decimal), and the pandas missing-value sentinels pandas.NA and pandas.NaT.
+
+    pandas/numpy are optional dependencies, so they are never imported here. NaN is
+    detected via the fact that NaN is the only value not equal to itself, and the pandas
+    sentinels are detected by class name. Ordering matters: the pandas check runs first
+    because pandas.NA != pandas.NA raises, and both run before the empty-string
+    comparison because pandas.NA == "" returns pandas.NA, which raises when coerced to a
+    bool.
+
+    Arguments:
+        value: A scalar annotation value (or list element) to test.
+
+    Returns:
+        True if the value should be treated as missing and omitted, otherwise False.
+    """
+    if value is None:
+        return True
+    # pandas.NA / pandas.NaT — detect by class name to avoid importing pandas. This must
+    # run before the NaN test below because pandas.NA != pandas.NA raises.
+    if value.__class__.__name__ in ("NAType", "NaTType"):
+        return True
+    # NaN is the only value not equal to itself. This catches NaN of any numeric type
+    # (float, numpy float16/32/64, Decimal) without calling math.isnan on non-numbers,
+    # which return False here since any normal object equals itself.
+    if value != value:
+        return True
+    # Reached only for normal scalars, so the comparison is unambiguous
+    return value == ""
+
+
+def _convert_to_annotations_list(
+    annotations: Mapping[str, Any],
+) -> dict[str, dict[str, Any]]:
+    """Convert a flat dictionary of annotation values into the Synapse-style
+    annotation list format. Each value is wrapped into a list and tagged with the
+    Synapse annotation type (STRING, BOOLEAN, LONG, DOUBLE, or TIMESTAMP_MS) inferred
+    from its element type. A list whose elements are not all of a single supported
+    type falls back to STRING, with each element coerced via str().
+    See the https://rest-docs.synapse.org/rest/org/sagebionetworks/repo/model/annotation/v2/Annotations.html
+    documentation for more information on the target format.
+
+    Missing values are stripped from list values, where a missing value is None, an
+    empty string, a NaN float, or a pandas missing-value sentinel (pandas.NA or
+    pandas.NaT). A scalar missing value, an empty list, or a list whose elements are all
+    missing is treated as the absence of a value and the key is omitted from the result
+    rather than being stored as the string "None"/"nan" or raising an error. A list
+    mixing missing values with real values keeps only the real values (for example
+    [None, "", "value"] is stored as ["value"]).
+
+    Arguments:
+        annotations: A flat mapping of annotation keys to their values. A value may be
+            a scalar or a list of scalars of a single supported type.
+
+    Returns:
+        A dictionary mapping each annotation key to a dict with type and value keys,
+        where value is a list of stringified elements.
+    """
     nested_annos = {}
     for key, value in annotations.items():
-        elements = to_list(value)
+        # Missing values (None, "", NaN, pandas.NA/NaT) don't become annotations
+        if _is_missing_annotation_value(value):
+            continue
+        # Strip missing elements so they aren't stored as "None"/"nan"/etc.
+        elements = [
+            element
+            for element in to_list(value)
+            if not _is_missing_annotation_value(element)
+        ]
+        # Empty lists or lists with only missing values don't become annotations
+        if not elements:
+            continue
         element_cls = _annotation_value_list_element_type(elements)
         if issubclass(element_cls, str):
             nested_annos[key] = {"type": "STRING", "value": elements}
@@ -581,6 +692,10 @@ def _convert_to_annotations_list(annotations):
     return nested_annos
 
 
+@deprecated(
+    version="4.14.0",
+    reason="To be removed in 5.0.0. No replacement is provided.",
+)
 def from_synapse_annotations(raw_annotations: dict[str, Any]) -> Annotations:
     """Transforms a Synapse-style Annotation object to a simple flat dictionary.
 
@@ -605,11 +720,18 @@ def from_synapse_annotations(raw_annotations: dict[str, Any]) -> Annotations:
     return annos
 
 
+# TODO: https://sagebionetworks.jira.com/browse/SYNPY-1874
+# This function is still used by Synapse.store_async
+# Deprecate this function once its not used anymore
 def check_annotations_changed(bundle_annotations, new_annotations):
     converted_annos = _convert_to_annotations_list(new_annotations)
     return bundle_annotations["annotations"] != converted_annos
 
 
+@deprecated(
+    version="4.14.0",
+    reason="To be removed in 5.0.0. No replacement is provided.",
+)
 def convert_old_annotation_json(annotations):
     """Transforms a parsed JSON dictionary of old style annotations
     into a new style consistent with the entity bundle v2 format.

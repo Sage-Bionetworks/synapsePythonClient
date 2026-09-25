@@ -23,9 +23,10 @@ if TYPE_CHECKING:
         JSONSchema,
         Link,
         MaterializedView,
+        Organization,
         Project,
         RecordSet,
-        SchemaOrganization,
+        SearchIndex,
         SubmissionView,
         Table,
         Team,
@@ -242,7 +243,8 @@ def store(
         "MaterializedView",
         "Project",
         "RecordSet",
-        "SchemaOrganization",
+        "Organization",
+        "SearchIndex",
         "SubmissionView",
         "Table",
         "Team",
@@ -273,7 +275,8 @@ def store(
     "MaterializedView",
     "Project",
     "RecordSet",
-    "SchemaOrganization",
+    "Organization",
+    "SearchIndex",
     "SubmissionView",
     "Table",
     "Team",
@@ -534,7 +537,8 @@ async def store_async(
         "MaterializedView",
         "Project",
         "RecordSet",
-        "SchemaOrganization",
+        "Organization",
+        "SearchIndex",
         "SubmissionView",
         "Table",
         "Team",
@@ -565,7 +569,8 @@ async def store_async(
     "MaterializedView",
     "Project",
     "RecordSet",
-    "SchemaOrganization",
+    "Organization",
+    "SearchIndex",
     "SubmissionView",
     "Table",
     "Team",
@@ -773,9 +778,10 @@ async def store_async(
         JSONSchema,
         Link,
         MaterializedView,
+        Organization,
         Project,
         RecordSet,
-        SchemaOrganization,
+        SearchIndex,
         SubmissionView,
         Table,
         Team,
@@ -824,6 +830,12 @@ async def store_async(
             synapse_client=synapse_client,
         )
 
+    elif isinstance(entity, SearchIndex):
+        return await entity.store_async(
+            dry_run=table_options.dry_run if table_options else False,
+            synapse_client=synapse_client,
+        )
+
     elif isinstance(entity, Evaluation):
         return await entity.store_async(synapse_client=synapse_client)
 
@@ -833,7 +845,7 @@ async def store_async(
         else:
             return await entity.create_async(synapse_client=synapse_client)
 
-    elif isinstance(entity, SchemaOrganization):
+    elif isinstance(entity, Organization):
         return await entity.store_async(synapse_client=synapse_client)
 
     elif isinstance(entity, CurationTask):
@@ -875,5 +887,5 @@ async def store_async(
             "Supported types are: AgentSession, CurationTask, "
             "Dataset, DatasetCollection, EntityView, Evaluation, File, Folder, FormData, "
             "FormGroup, Grid, JSONSchema, Link, MaterializedView, Project, RecordSet, "
-            "SchemaOrganization, SubmissionView, Table, Team, VirtualTable."
+            "Organization, SearchIndex, SubmissionView, Table, Team, VirtualTable."
         )

@@ -14,7 +14,7 @@ from synapseclient.core.async_utils import wrap_async_to_sync
 if TYPE_CHECKING:
     from synapseclient import Synapse
     from synapseclient.models.mixins.json_schema import JSONSchemaBinding
-    from synapseclient.models.schema_organization import JSONSchema
+    from synapseclient.models.organization import JSONSchema
 
 
 def register_jsonschema(
@@ -129,7 +129,7 @@ async def register_jsonschema_async(
         ```
     """
     from synapseclient import Synapse
-    from synapseclient.models.schema_organization import JSONSchema
+    from synapseclient.models.organization import JSONSchema
 
     syn = Synapse.get_client(synapse_client=synapse_client)
 

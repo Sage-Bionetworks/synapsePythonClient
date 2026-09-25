@@ -1,10 +1,19 @@
 import os
 import typing
 
+from deprecated import deprecated
+
 import synapseclient
 from synapseclient.entity import is_container
 
 
+@deprecated(
+    version="4.14.0",
+    reason=(
+        "To be removed in 5.0.0. Use Project.walk or Folder.walk from "
+        "synapseclient.models instead."
+    ),
+)
 def walk(
     syn: synapseclient.Synapse,
     synId: str,

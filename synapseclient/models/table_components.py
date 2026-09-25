@@ -1,5 +1,6 @@
 import json
 import os
+from abc import ABC, abstractmethod
 from dataclasses import dataclass, field, replace
 from enum import Enum
 from typing import TYPE_CHECKING, Any, AsyncGenerator, Dict, List, Optional, Union
@@ -18,6 +19,7 @@ from synapseclient.core.constants.concrete_types import (
 from synapseclient.core.typing_utils import DataFrame as DATA_FRAME_TYPE
 from synapseclient.core.utils import delete_none_keys, from_unix_epoch_time
 from synapseclient.models.mixins.asynchronous_job import AsynchronousCommunicator
+from synapseclient.models.mixins.enum_coercion import ForwardCompatibleStrEnum
 from synapseclient.models.protocols.table_protocol import ColumnSynchronousProtocol
 
 if TYPE_CHECKING:
@@ -194,17 +196,72 @@ class PartialRowSet:
         }
 
 
+class TableUpdateRequest(ABC):
+    """
+    The abstract base class for a single change that may be included in a
+    TableUpdateTransaction. Every change that Synapse accepts within a transaction is
+    modeled by one of the concrete subclasses:
+
+    - AppendableRowSetRequest: Add or update rows of a table, or the entities that
+      back a view.
+    - UploadToTableRequest: Apply the rows of an uploaded CSV file to a table.
+    - TableSchemaChangeRequest: Change the columns of a table or view.
+    - TableSearchChangeRequest: Enable or disable full text search on a table or view.
+
+    | Request                    | Target           | Response                  |
+    |----------------------------|------------------|---------------------------|
+    | AppendableRowSetRequest    | Table            | RowReferenceSetResults    |
+    | AppendableRowSetRequest    | View / Dataset   | EntityUpdateResults       |
+    | UploadToTableRequest       | Table            | UploadToTableResult       |
+    | UploadToTableRequest       | View / Dataset   | EntityUpdateResults       |
+    | TableSchemaChangeRequest   | either           | TableSchemaChangeResponse |
+    | TableSearchChangeRequest   | either           | TableSearchChangeResponse |
+
+    A view has no rows of its own. Its rows are projections of the annotations on the
+    entities that back it. Writing a row of a view therefore updates those entities,
+    which can fail for one entity and succeed for another, so Synapse returns
+    EntityUpdateResults to report the status of each entity.
+
+    This is modeled from:
+     <https://rest-docs.synapse.org/rest/org/sagebionetworks/repo/model/table/TableUpdateRequest.html>
+    """
+
+    concrete_type: str
+    """The concrete type that identifies this change to Synapse."""
+
+    entity_id: str
+    """The Synapse ID of the entity that this change is applied to."""
+
+    @abstractmethod
+    def to_synapse_request(self) -> dict[str, Any]:
+        """Converts the request to a request expected of the Synapse REST API."""
+
+
 @dataclass
-class AppendableRowSetRequest:
+class AppendableRowSetRequest(TableUpdateRequest):
     """
     A request to append rows to a table. This is used to append rows to a table. This
-    request is used in the `TableUpdateTransaction` to indicate what rows should
+    request is used in the TableUpdateTransaction to indicate what rows should
     be upserted in the table.
+
+    This is modeled from:
+     <https://rest-docs.synapse.org/rest/org/sagebionetworks/repo/model/table/AppendableRowSetRequest.html>
     """
 
     entity_id: str
+    """The Synapse ID of the table or view that the rows are appended to. Set it to the
+    same entity as the enclosing TableUpdateTransaction."""
+
     to_append: PartialRowSet
-    concrete_type: str = concrete_types.APPENDABLE_ROWSET_REQUEST
+    """The set of rows to append to the entity. Each PartialRow of the set names the
+    row to change by its row ID, and holds only the cells to write. A PartialRow with
+    no row ID adds a new row."""
+
+    concrete_type: str = field(
+        default=concrete_types.APPENDABLE_ROWSET_REQUEST, init=False
+    )
+    """The concrete type that identifies this change to Synapse. This is always
+    APPENDABLE_ROWSET_REQUEST and cannot be given to the constructor."""
 
     def to_synapse_request(self):
         """Converts the request to a request expected of the Synapse REST API."""
@@ -216,18 +273,69 @@ class AppendableRowSetRequest:
 
 
 @dataclass
-class UploadToTableRequest:
+class UploadToTableRequest(TableUpdateRequest):
     """
     A request to upload a file to a table. This is used to insert any rows via a CSV
     file into a table. This request is used in the `TableUpdateTransaction`.
+    <https://rest-docs.synapse.org/rest/org/sagebionetworks/repo/model/table/UploadToTableRequest.html>
     """
 
-    table_id: str
-    upload_file_handle_id: str
-    update_etag: str
+    entity_id: str | None = None
+    """The Synapse ID of the entity that this change is applied to. This is the name
+    that every other change within a transaction uses for its target, and it is an
+    alias of table_id. Give either this field or table_id, and they are made equal
+    after the request is created."""
+
+    table_id: str | None = None
+    """The Synapse ID of the entity that this change is applied to. This is the name
+    that every other change within a transaction uses for its target, and it is an
+    alias of entity_id. Give either this field or table_id, and they are made equal
+    after the request is created."""
+
+    upload_file_handle_id: str = field(kw_only=True)
+    """The ID of the file handle of the CSV that holds the rows to apply. Upload the CSV
+    to Synapse first, with multipart_upload_file_async, and pass the file handle ID that
+    it returns."""
+
+    update_etag: str | None = None
+    """The etag of the change set that this update is applied to. Every RowSet that
+    Synapse returns carries the current etag of its change set, and that etag must be
+    given back to update the rows of that set. Leave this as None when the CSV only adds
+    rows."""
+
     lines_to_skip: int = 0
+    """The number of lines to skip from the start of the file before the rows are read.
+    The default of 0 reads the file from its first line."""
+
     csv_table_descriptor: CsvTableDescriptor = field(default_factory=CsvTableDescriptor)
-    concrete_type: str = concrete_types.UPLOAD_TO_TABLE_REQUEST
+    """The separator, quote character, escape character, line end, and header flag that
+    describe the uploaded CSV. The default describes a comma separated file whose first
+    line is a header."""
+
+    concrete_type: str = field(
+        default=concrete_types.UPLOAD_TO_TABLE_REQUEST, init=False
+    )
+    """The concrete type that identifies this change to Synapse. This is always
+    UPLOAD_TO_TABLE_REQUEST and cannot be given to the constructor."""
+
+    def __post_init__(self) -> None:
+        """Makes table_id and entity_id equal, because both name the table that the
+        rows are applied to."""
+        if self.table_id is None and self.entity_id is None:
+            raise ValueError(
+                "Either table_id or entity_id must be given to name the table that "
+                "the rows of the uploaded CSV are applied to."
+            )
+        elif self.table_id is None:
+            self.table_id = self.entity_id
+        elif self.entity_id is None:
+            self.entity_id = self.table_id
+        elif self.table_id != self.entity_id:
+            raise ValueError(
+                "table_id and entity_id both name the table that the rows of the "
+                "uploaded CSV are applied to, so they must be equal. Received "
+                f"table_id: {self.table_id}, entity_id: {self.entity_id}."
+            )
 
     def to_synapse_request(self):
         """Converts the request to a request expected of the Synapse REST API."""
@@ -270,17 +378,36 @@ class ColumnChange:
 
 
 @dataclass
-class TableSchemaChangeRequest:
+class TableSchemaChangeRequest(TableUpdateRequest):
     """
     A request to change the schema of a table. This is used to change the columns in a
     table. This request is used in the `TableUpdateTransaction` to indicate what
     changes should be made to the columns in the table.
+
+    This is modeled from:
+     <https://rest-docs.synapse.org/rest/org/sagebionetworks/repo/model/table/TableSchemaChangeRequest.html>
     """
 
     entity_id: str
-    changes: List[ColumnChange]
-    ordered_column_ids: List[str]
-    concrete_type: str = concrete_types.TABLE_SCHEMA_CHANGE_REQUEST
+    """The Synapse ID of the table or view whose columns are changed. Set it to the same
+    entity as the enclosing TableUpdateTransaction."""
+
+    changes: list[ColumnChange]
+    """The list of changes that describes the column additions, deletions, and updates.
+    Each ColumnChange names the old column ID, the new column ID, or both. Give the new
+    column ID alone to add a column, the old column ID alone to remove one, and both to
+    replace one column with another."""
+
+    ordered_column_ids: list[str]
+    """The IDs of the columns in the order that the table presents them. This list must
+    hold the ID of every column that remains in the schema after the changes of this
+    request are applied. Synapse reads it to set the column order."""
+
+    concrete_type: str = field(
+        default=concrete_types.TABLE_SCHEMA_CHANGE_REQUEST, init=False
+    )
+    """The concrete type that identifies this change to Synapse. This is always
+    TABLE_SCHEMA_CHANGE_REQUEST and cannot be given to the constructor."""
 
     def to_synapse_request(self):
         """Converts the request to a request expected of the Synapse REST API."""
@@ -289,6 +416,36 @@ class TableSchemaChangeRequest:
             "entityId": self.entity_id,
             "changes": [change.to_synapse_request() for change in self.changes],
             "orderedColumnIds": self.ordered_column_ids,
+        }
+
+
+@dataclass
+class TableSearchChangeRequest(TableUpdateRequest):
+    """
+    A request to change the full text search status of a table or view. This request is
+    used in the `TableUpdateTransaction` to enable or disable search on the entity.
+
+    This is modeled from: <https://rest-docs.synapse.org/rest/org/sagebionetworks/repo/model/table/TableSearchChangeRequest.html>
+    """
+
+    entity_id: str
+    """The Synapse ID of the table or view to change the search status of."""
+
+    search_enabled: bool
+    """Specifies if the search should be enabled or disabled on the table."""
+
+    concrete_type: str = field(
+        default=concrete_types.TABLE_SEARCH_CHANGE_REQUEST, init=False
+    )
+    """The concrete type that identifies this change to Synapse. This is always
+    TABLE_SEARCH_CHANGE_REQUEST and cannot be given to the constructor."""
+
+    def to_synapse_request(self):
+        """Converts the request to a request expected of the Synapse REST API."""
+        return {
+            "concreteType": self.concrete_type,
+            "entityId": self.entity_id,
+            "searchEnabled": self.search_enabled,
         }
 
 
@@ -321,32 +478,526 @@ class SnapshotRequest:
         return self
 
 
+class EntityUpdateFailureCode(ForwardCompatibleStrEnum):
+    """The reason an entity update within a view failed. Null when the update
+    succeeded.
+
+    A failure code that Synapse adds after this release is kept as its raw string
+    value rather than raising an error.
+
+    This is modeled from: <https://rest-docs.synapse.org/rest/org/sagebionetworks/repo/model/table/EntityUpdateFailureCode.html>
+    """
+
+    NOT_FOUND = "NOT_FOUND"
+    """The specified entity could not be found."""
+
+    UNAUTHORIZED = "UNAUTHORIZED"
+    """The user does not have permission to update the entity."""
+
+    CONCURRENT_UPDATE = "CONCURRENT_UPDATE"
+    """The entity was updated concurrently by another process."""
+
+    ILLEGAL_ARGUMENT = "ILLEGAL_ARGUMENT"
+    """The update request contained invalid or illegal arguments."""
+
+    UNKNOWN = "UNKNOWN"
+    """An unknown error occurred during the update."""
+
+
+@dataclass
+class RowReference:
+    """
+    A reference to a single version of a single row of a table.
+
+    This result is modeled from: <https://rest-docs.synapse.org/rest/org/sagebionetworks/repo/model/table/RowReference.html>
+    """
+
+    row_id: int | None = None
+    """The immutable ID issued to a new row."""
+
+    version_number: int | None = None
+    """The version number of this row. Each row version is immutable, so when a row
+    is updated a new version is created."""
+
+    @classmethod
+    def fill_from_dict(cls, data: dict[str, Any]) -> "RowReference":
+        """Create a RowReference from a dictionary response."""
+        return cls(
+            row_id=data.get("rowId", None),
+            version_number=data.get("versionNumber", None),
+        )
+
+
+@dataclass
+class RowReferenceSet:
+    """
+    Represents a set of RowReferences of a table.
+
+    This result is modeled from: <https://rest-docs.synapse.org/rest/org/sagebionetworks/repo/model/table/RowReferenceSet.html>
+    """
+
+    table_id: str | None = None
+    """The ID of the table that owns these rows."""
+
+    etag: str | None = None
+    """When a RowReferenceSet is returned from a table update, this will be set to
+    the current etag of the table."""
+
+    headers: list["SelectColumn"] | None = None
+    """The list of SelectColumns that describes the rows of this set."""
+
+    rows: list[RowReference] | None = None
+    """Each RowReference of this list refers to a single version of a single row of
+    the table."""
+
+    @classmethod
+    def fill_from_dict(cls, data: dict[str, Any]) -> "RowReferenceSet":
+        """Create a RowReferenceSet from a dictionary response."""
+        headers_data = data.get("headers", None)
+        rows_data = data.get("rows", None)
+        return cls(
+            table_id=data.get("tableId", None),
+            etag=data.get("etag", None),
+            headers=(
+                [SelectColumn.fill_from_dict(header) for header in headers_data]
+                if headers_data
+                else None
+            ),
+            rows=(
+                [RowReference.fill_from_dict(row) for row in rows_data]
+                if rows_data
+                else None
+            ),
+        )
+
+
+@dataclass
+class EntityUpdateResult:
+    """
+    The result of updating a single entity through a view.
+
+    This result is modeled from: <https://rest-docs.synapse.org/rest/org/sagebionetworks/repo/model/table/EntityUpdateResult.html>
+    """
+
+    entity_id: str | None = None
+    """The ID of the updated entity."""
+
+    failure_code: EntityUpdateFailureCode | None = None
+    """If the entity update failed, a failure code will be included. Null if the
+    update was successful."""
+
+    failure_message: str | None = None
+    """Failure message for unknown and illegal errors."""
+
+    @classmethod
+    def fill_from_dict(cls, data: dict[str, Any]) -> "EntityUpdateResult":
+        """Create an EntityUpdateResult from a dictionary response."""
+        failure_code_value = data.get("failureCode", None)
+        failure_code = (
+            EntityUpdateFailureCode(failure_code_value) if failure_code_value else None
+        )
+        return cls(
+            entity_id=data.get("entityId", None),
+            failure_code=failure_code,
+            failure_message=data.get("failureMessage", None),
+        )
+
+    @property
+    def succeeded(self) -> bool:
+        """True when Synapse reported neither a failure code nor a failure message."""
+        return not self.failure_code and not self.failure_message
+
+
+@dataclass
+class TableUpdateResponse(ABC):
+    """
+    The abstract base class for a single response within a
+    TableUpdateTransactionResponse. One response is returned for each change that was
+    included in the transaction request, in the same order as the requested changes.
+
+    Each concrete subclass models one of the response types that Synapse may return.
+    Use table_update_response_from_dict to convert a response into the subclass that
+    models it. See TableUpdateRequest for the table that maps each request and target entity type to
+    the response that Synapse returns.
+
+    This result is modeled from: <https://rest-docs.synapse.org/rest/org/sagebionetworks/repo/model/table/TableUpdateResponse.html>
+    """
+
+    concrete_type: str | None
+    """The concrete type of this response, as reported by Synapse."""
+
+    @classmethod
+    @abstractmethod
+    def fill_from_dict(cls, data: dict[str, Any]) -> "TableUpdateResponse":
+        """
+        Convert a response from the REST API into this dataclass.
+
+        Arguments:
+            data: One element of the results array of a
+                TableUpdateTransactionResponse.
+
+        Returns:
+            An instance of this class.
+        """
+
+    @property
+    def rows_changed(self) -> int | None:
+        """The number of rows that Synapse confirmed it applied, when the response
+        reports a row count. None when the response type carries no row count, as is
+        the case for a schema or a search change."""
+        return None
+
+
+@dataclass
+class EntityUpdateResults(TableUpdateResponse):
+    """
+    The response to a change applied to the entities that back a view. This is the
+    response type for a partial row set that was sent to a view.
+
+    This result is modeled from: <https://rest-docs.synapse.org/rest/org/sagebionetworks/repo/model/table/EntityUpdateResults.html>
+    """
+
+    concrete_type: str = field(default=concrete_types.ENTITY_UPDATE_RESULTS, init=False)
+    """The concrete type that identifies this change to Synapse. This is always
+    ENTITY_UPDATE_RESULTS and cannot be given to the constructor."""
+
+    update_results: list[EntityUpdateResult] | None = None
+    """The result of the update for each entity that was included in the change."""
+
+    @classmethod
+    def fill_from_dict(cls, data: dict[str, Any]) -> "EntityUpdateResults":
+        """Create an EntityUpdateResults from a dictionary response."""
+        update_results_data = data.get("updateResults", None)
+        return cls(
+            update_results=(
+                [
+                    EntityUpdateResult.fill_from_dict(update_result)
+                    for update_result in update_results_data
+                ]
+                if update_results_data
+                else None
+            ),
+        )
+
+    @property
+    def successful_entity_updates(self) -> list[EntityUpdateResult]:
+        """The updates for which Synapse reported no failure code and no failure
+        message."""
+        return [
+            update_result
+            for update_result in (self.update_results or [])
+            if update_result.succeeded
+        ]
+
+    @property
+    def successful_entity_ids(self) -> list[str]:
+        """The IDs of the entities that were updated without a reported failure. This
+        is the subset of successful_entity_updates that reported an entity ID, so it
+        may be shorter than rows_changed."""
+        return [
+            update_result.entity_id
+            for update_result in self.successful_entity_updates
+            if update_result.entity_id
+        ]
+
+    @property
+    def failed_entity_updates(self) -> list[EntityUpdateResult]:
+        """The updates for which Synapse reported a failure code or message."""
+        return [
+            update_result
+            for update_result in (self.update_results or [])
+            if not update_result.succeeded
+        ]
+
+    @property
+    def rows_changed(self) -> int | None:
+        """The number of entities that were updated without a reported failure. An
+        update that succeeded without an entity ID is counted here, so this is not
+        always the length of successful_entity_ids."""
+        return len(self.successful_entity_updates)
+
+
+@dataclass
+class RowReferenceSetResults(TableUpdateResponse):
+    """
+    The response to a change applied to the rows of a table. This is the response
+    type for a partial row set that was sent to a table.
+
+    This result is modeled from: <https://rest-docs.synapse.org/rest/org/sagebionetworks/repo/model/table/RowReferenceSetResults.html>
+    """
+
+    concrete_type: str = field(
+        default=concrete_types.ROW_REFERENCE_SET_RESULTS, init=False
+    )
+    """The concrete type that identifies this change to Synapse. This is always
+    ROW_REFERENCE_SET_RESULTS and cannot be given to the constructor."""
+
+    row_reference_set: RowReferenceSet | None = None
+    """A reference to each row version that the change created."""
+
+    @classmethod
+    def fill_from_dict(cls, data: dict[str, Any]) -> "RowReferenceSetResults":
+        """Create a RowReferenceSetResults from a dictionary response."""
+        row_reference_set_data = data.get("rowReferenceSet", None)
+        return cls(
+            row_reference_set=(
+                RowReferenceSet.fill_from_dict(row_reference_set_data)
+                if row_reference_set_data
+                else None
+            ),
+        )
+
+    @property
+    def rows_changed(self) -> int | None:
+        """The number of row versions that the change created. This response type
+        always carries a row count, so a change that created no row version reports a
+        confirmed 0 rather than None, whether Synapse omitted the row reference set or
+        returned one that holds no row."""
+        if not self.row_reference_set:
+            return 0
+        return len(self.row_reference_set.rows or [])
+
+
+@dataclass
+class UploadToTableResult(TableUpdateResponse):
+    """
+    The result of a CSV table upload job. This is the response type for rows that
+    were inserted into a table from a file.
+
+    This result is modeled from: <https://rest-docs.synapse.org/rest/org/sagebionetworks/repo/model/table/UploadToTableResult.html>
+    """
+
+    concrete_type: str = field(
+        default=concrete_types.UPLOAD_TO_TABLE_RESULT, init=False
+    )
+    """The concrete type that identifies this change to Synapse. This is always
+    UPLOAD_TO_TABLE_RESULT and cannot be given to the constructor."""
+
+    rows_processed: int | None = None
+    """The number of rows that were read from the provided file and applied to the
+    table."""
+
+    etag: str | None = None
+    """The new etag of the version applied to the table."""
+
+    @classmethod
+    def fill_from_dict(cls, data: dict[str, Any]) -> "UploadToTableResult":
+        """Create an UploadToTableResult from a dictionary response."""
+        return cls(
+            rows_processed=data.get("rowsProcessed", None),
+            etag=data.get("etag", None),
+        )
+
+    @property
+    def rows_changed(self) -> int | None:
+        """The number of rows that were read from the file and applied to the table."""
+        return self.rows_processed
+
+
+@dataclass
+class TableSchemaChangeResponse(TableUpdateResponse):
+    """
+    The response to a change applied to the schema of a table or view.
+
+    This result is modeled from: <https://rest-docs.synapse.org/rest/org/sagebionetworks/repo/model/table/TableSchemaChangeResponse.html>
+    """
+
+    concrete_type: str = field(
+        default=concrete_types.TABLE_SCHEMA_CHANGE_RESPONSE, init=False
+    )
+    """The concrete type that identifies this change to Synapse. This is always
+    TABLE_SCHEMA_CHANGE_RESPONSE and cannot be given to the constructor."""
+
+    schema: list["Column"] | None = None
+    """The resulting schema after the change."""
+
+    @classmethod
+    def fill_from_dict(cls, data: dict[str, Any]) -> "TableSchemaChangeResponse":
+        """Create a TableSchemaChangeResponse from a dictionary response."""
+        schema_data = data.get("schema", None)
+        return cls(
+            schema=(
+                [Column().fill_from_dict(column) for column in schema_data]
+                if schema_data
+                else None
+            ),
+        )
+
+
+@dataclass
+class TableSearchChangeResponse(TableUpdateResponse):
+    """
+    The response to a change applied to the search status of a table or view.
+
+    This result is modeled from: <https://rest-docs.synapse.org/rest/org/sagebionetworks/repo/model/table/TableSearchChangeResponse.html>
+    """
+
+    concrete_type: str = field(
+        default=concrete_types.TABLE_SEARCH_CHANGE_RESPONSE, init=False
+    )
+    """The concrete type that identifies this change to Synapse. This is always
+    TABLE_SEARCH_CHANGE_RESPONSE and cannot be given to the constructor."""
+
+    search_enabled: bool | None = None
+    """The resulting status of the search after the change."""
+
+    @classmethod
+    def fill_from_dict(cls, data: dict[str, Any]) -> "TableSearchChangeResponse":
+        """Create a TableSearchChangeResponse from a dictionary response."""
+        return cls(search_enabled=data.get("searchEnabled", None))
+
+
+@dataclass
+class UnknownTableUpdateResponse(TableUpdateResponse):
+    """
+    A response that this version of the client does not model. The raw response is
+    held as-is so that no information is lost, and so that a response type added to
+    Synapse after this release does not fail the caller.
+    """
+
+    concrete_type: str | None = None
+    """The concrete type of this response as reported by Synapse, or None when the
+    response did not report one."""
+
+    data: dict[str, Any] | None = None
+    """The raw response as it was returned by Synapse."""
+
+    @classmethod
+    def fill_from_dict(cls, data: dict[str, Any]) -> "UnknownTableUpdateResponse":
+        """Create an UnknownTableUpdateResponse from a dictionary response."""
+        return cls(
+            concrete_type=data.get("concreteType", None),
+            data=data,
+        )
+
+
+_TABLE_UPDATE_RESPONSE_TYPES: dict[str, type] = {
+    concrete_types.ENTITY_UPDATE_RESULTS: EntityUpdateResults,
+    concrete_types.ROW_REFERENCE_SET_RESULTS: RowReferenceSetResults,
+    concrete_types.UPLOAD_TO_TABLE_RESULT: UploadToTableResult,
+    concrete_types.TABLE_SCHEMA_CHANGE_RESPONSE: TableSchemaChangeResponse,
+    concrete_types.TABLE_SEARCH_CHANGE_RESPONSE: TableSearchChangeResponse,
+}
+"""Maps the concrete type reported by Synapse to the class that models it."""
+
+
+def table_update_response_from_dict(data: dict[str, Any]) -> TableUpdateResponse:
+    """
+    Convert a single response of a TableUpdateTransactionResponse into the dataclass
+    that models it. Dispatch is on the concrete type that Synapse reported. A response
+    that reports no concrete type, or one that this release does not model, is held as
+    an UnknownTableUpdateResponse rather than guessed at from the keys it carries.
+
+    Arguments:
+        data: One element of the results array of a
+            <https://rest-docs.synapse.org/rest/org/sagebionetworks/repo/model/table/TableUpdateTransactionResponse.html>
+
+    Returns:
+        An instance of the matching TableUpdateResponse subclass, or an
+        UnknownTableUpdateResponse holding the raw response when the response
+        cannot be identified.
+    """
+    response_class = _TABLE_UPDATE_RESPONSE_TYPES.get(data.get("concreteType", None))
+
+    if response_class is None:
+        response_class = UnknownTableUpdateResponse
+
+    return response_class.fill_from_dict(data)
+
+
 @dataclass
 class TableUpdateTransaction(AsynchronousCommunicator):
     """
     A request to update a table. This is used to update a table with a set of changes.
+    <https://rest-docs.synapse.org/rest/org/sagebionetworks/repo/model/table/TableUpdateTransactionRequest.html>
 
-    After calling the `send_job_and_wait_async` method the `results` attribute will be
-    filled in based off <https://rest-docs.synapse.org/rest/org/sagebionetworks/repo/model/table/TableUpdateTransactionResponse.html>.
+    After calling the send_job_and_wait_async method the results attribute will
+    be filled in based off
+    <https://rest-docs.synapse.org/rest/org/sagebionetworks/repo/model/table/TableUpdateTransactionResponse.html>.
     """
 
     entity_id: str
+    """The Synapse ID of the table or view that this transaction is applied to. Every
+    change within the transaction must be applied to this same entity."""
     concrete_type: str = concrete_types.TABLE_UPDATE_TRANSACTION_REQUEST
+    """The concrete type that identifies this request to Synapse. Leave this as the
+    default."""
     create_snapshot: bool = False
-    changes: Optional[
-        List[
-            Union[
-                TableSchemaChangeRequest, UploadToTableRequest, AppendableRowSetRequest
-            ]
-        ]
-    ] = None
-    snapshot_options: Optional[SnapshotRequest] = None
-    results: Optional[List[Dict[str, Any]]] = None
-    snapshot_version_number: Optional[int] = None
-    entities_with_changes_applied: Optional[List[str]] = None
-
-    """This will be an array of
+    """Whether Synapse creates a new version of the entity once every change in this
+    transaction has been applied. Set this to True to capture the state that the
+    transaction produced as an immutable version, and use snapshot_options to label
+    that version. The version number that Synapse assigns is reported in
+    snapshot_version_number."""
+    changes: list[TableUpdateRequest] | None = None
+    """The changes to apply within this transaction, in the order that they should be
+    applied."""
+    snapshot_options: SnapshotRequest | None = None
+    """The label, comment, and activity to attach to the snapshot that this transaction
+    creates. Sent to Synapse only when create_snapshot is True, and ignored otherwise.
+    Leave this as None to let Synapse pick the defaults for the new version."""
+    results: list[TableUpdateResponse] | None = None
+    """The responses that Synapse returned for this transaction, as the dataclass that
+    models each one. One response per change that was included in the request, in the
+    same order as the requested changes. Each is a subclass of
     <https://rest-docs.synapse.org/rest/org/sagebionetworks/repo/model/table/TableUpdateResponse.html>."""
+    snapshot_version_number: int | None = None
+    """The version number of the snapshot that Synapse created for this transaction.
+    This is filled in only when create_snapshot was True, and stays None otherwise. Use
+    it to read the entity at the version that was just captured."""
+
+    @property
+    def entities_with_changes_applied(self) -> list[str] | None:
+        """The Synapse IDs of the entities that Synapse confirmed it applied a change
+        to. This is derived from the update results of a view transaction, and holds
+        only the entities that reported no failure code and no failure message. An
+        entity that Synapse rejected is left out. This is None when the transaction
+        reported no such entity, which is the case for a transaction against the rows
+        of a table."""
+        if self.results is None:
+            return None
+
+        successful_entities = [
+            entity_id
+            for response in self.results
+            if isinstance(response, EntityUpdateResults)
+            for entity_id in response.successful_entity_ids
+        ]
+        return successful_entities or None
+
+    @property
+    def failed_entity_updates(self) -> list[EntityUpdateResult]:
+        """The updates that Synapse rejected, as the result it reported for each one.
+        Each holds the entity ID together with the failure code and the failure message
+        that Synapse gave, so the caller can report why the update did not apply. This
+        is derived from the update results of a view transaction. It is always empty for
+        a transaction against the rows of a table, because a rejected row update fails
+        the asynchronous job and raises instead of reporting a per-row failure."""
+        if self.results is None:
+            return []
+
+        return [
+            failed_update
+            for response in self.results
+            if isinstance(response, EntityUpdateResults)
+            for failed_update in response.failed_entity_updates
+        ]
+
+    @property
+    def total_rows_changed(self) -> int | None:
+        """The total number of rows that Synapse confirmed it changed for this
+        transaction, derived from the modelled responses in results. The count of every
+        change that reports one is added together, whether the change was applied to
+        the rows of a table or to the entities that back a view. A change that carries
+        no row count, such as a schema or a search change, contributes nothing. This is
+        None until the transaction has been sent, and is 0 when no row was changed."""
+        if self.results is None:
+            return None
+
+        return sum(
+            response.rows_changed
+            for response in self.results
+            if response.rows_changed is not None
+        )
 
     def to_synapse_request(self):
         """Converts the request to a request expected of the Synapse REST API."""
@@ -365,33 +1016,27 @@ class TableUpdateTransaction(AsynchronousCommunicator):
 
         return request
 
-    def fill_from_dict(self, synapse_response: Dict[str, str]) -> "Self":
+    def fill_from_dict(self, synapse_response: dict[str, Any]) -> "Self":
         """
         Converts a response from the REST API into this dataclass.
 
         Arguments:
-            synapse_response: The response from the REST API that matches <https://rest-docs.synapse.org/rest/org/sagebionetworks/repo/model/table/TableUpdateTransactionResponse.html>
+            synapse_response: The response from the REST API that matches
+              <https://rest-docs.synapse.org/rest/org/sagebionetworks/repo/model/table/TableUpdateTransactionResponse.html>
 
         Returns:
             An instance of this class.
         """
-        self.results = synapse_response.get("results", None)
         self.snapshot_version_number = synapse_response.get(
             "snapshotVersionNumber", None
         )
 
-        if "results" in synapse_response:
-            successful_entities = []
-            for result in synapse_response["results"]:
-                if "updateResults" in result:
-                    for update_result in result["updateResults"]:
-                        failure_code = update_result.get("failureCode", None)
-                        failure_message = update_result.get("failureMessage", None)
-                        entity_id = update_result.get("entityId", None)
-                        if not failure_code and not failure_message and entity_id:
-                            successful_entities.append(entity_id)
-            if successful_entities:
-                self.entities_with_changes_applied = successful_entities
+        results_data = synapse_response.get("results", None)
+        self.results = (
+            [table_update_response_from_dict(result) for result in results_data]
+            if results_data is not None
+            else None
+        )
         return self
 
 
@@ -673,16 +1318,10 @@ class SelectColumn:
     @classmethod
     def fill_from_dict(cls, data: Dict[str, Any]) -> "SelectColumn":
         """Create a SelectColumn from a dictionary response."""
-        column_type = None
-        column_type_value = data.get("columnType")
-        if column_type_value:
-            try:
-                column_type = ColumnType(column_type_value)
-            except ValueError:
-                column_type = None
+        column_type = data.get("columnType")
         return cls(
             name=data.get("name"),
-            column_type=column_type,
+            column_type=ColumnType(column_type) if column_type else None,
             id=data.get("id"),
         )
 
@@ -1068,19 +1707,13 @@ class JsonSubColumn:
     @classmethod
     def fill_from_dict(cls, synapse_sub_column: Dict[str, Any]) -> "JsonSubColumn":
         """Converts a response from the synapseclient into this dataclass."""
+        column_type = synapse_sub_column.get("columnType", None)
+        facet_type = synapse_sub_column.get("facetType", None)
         return cls(
             name=synapse_sub_column.get("name", ""),
-            column_type=(
-                ColumnType(synapse_sub_column.get("columnType", None))
-                if synapse_sub_column.get("columnType", None)
-                else ColumnType.STRING
-            ),
+            column_type=(ColumnType(column_type) if column_type else ColumnType.STRING),
             json_path=synapse_sub_column.get("jsonPath", ""),
-            facet_type=(
-                FacetType(synapse_sub_column.get("facetType", None))
-                if synapse_sub_column.get("facetType", None)
-                else None
-            ),
+            facet_type=FacetType(facet_type) if facet_type else None,
         )
 
     def to_synapse_request(self) -> Dict[str, Any]:
@@ -1267,16 +1900,10 @@ class Column(ColumnSynchronousProtocol):
         """Converts a response from the synapseclient into this dataclass."""
         self.id = synapse_column.get("id", None)
         self.name = synapse_column.get("name", None)
-        self.column_type = (
-            ColumnType(synapse_column.get("columnType", None))
-            if synapse_column.get("columnType", None)
-            else None
-        )
-        self.facet_type = (
-            FacetType(synapse_column.get("facetType", None))
-            if synapse_column.get("facetType", None)
-            else None
-        )
+        column_type = synapse_column.get("columnType", None)
+        self.column_type = ColumnType(column_type) if column_type else None
+        facet_type = synapse_column.get("facetType", None)
+        self.facet_type = FacetType(facet_type) if facet_type else None
         self.default_value = synapse_column.get("defaultValue", None)
         self.maximum_size = synapse_column.get("maximumSize", None)
         self.maximum_list_length = synapse_column.get("maximumListLength", None)

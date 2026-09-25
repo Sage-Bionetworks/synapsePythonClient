@@ -25,11 +25,9 @@ class TestDeleteOperationsAsync:
     async def test_delete_file_by_id_string(self, project_model: Project) -> None:
         """Test deleting a file using a string ID."""
         # GIVEN a file stored in synapse
-        filename = utils.make_bogus_uuid_file()
-        self.schedule_for_cleanup(filename)
-
         file = File(
-            path=filename,
+            external_url=f"https://example.com/bogus-file-{uuid.uuid4()}.txt",
+            synapse_store=False,
             parent_id=project_model.id,
             description="Test file for deletion",
         )
@@ -48,11 +46,9 @@ class TestDeleteOperationsAsync:
     async def test_delete_file_by_object(self, project_model: Project) -> None:
         """Test deleting a file using a File object."""
         # GIVEN a file stored in synapse
-        filename = utils.make_bogus_uuid_file()
-        self.schedule_for_cleanup(filename)
-
         file = File(
-            path=filename,
+            external_url=f"https://example.com/bogus-file-{uuid.uuid4()}.txt",
+            synapse_store=False,
             parent_id=project_model.id,
             description="Test file for deletion",
         )
@@ -249,11 +245,9 @@ class TestDeleteOperationsAsync:
     ) -> None:
         """Test that version_only=True without a version number raises an error."""
         # GIVEN a file without version_number set
-        filename = utils.make_bogus_uuid_file()
-        self.schedule_for_cleanup(filename)
-
         file = File(
-            path=filename,
+            external_url=f"https://example.com/bogus-file-{uuid.uuid4()}.txt",
+            synapse_store=False,
             parent_id=project_model.id,
             description="Test file",
         )
@@ -310,11 +304,9 @@ class TestDeleteOperationsAsync:
     ) -> None:
         """Test that using dot notation without version_only=True raises an error."""
         # GIVEN a file with multiple versions
-        filename = utils.make_bogus_uuid_file()
-        self.schedule_for_cleanup(filename)
-
         file = File(
-            path=filename,
+            external_url=f"https://example.com/bogus-file-{uuid.uuid4()}.txt",
+            synapse_store=False,
             parent_id=project_model.id,
             description="Test file version 1",
         )
@@ -373,11 +365,9 @@ class TestDeleteOperationsAsync:
     ) -> None:
         """Test that no warning is logged when version parameter is used without conflict."""
         # GIVEN a file with multiple versions
-        filename = utils.make_bogus_uuid_file()
-        self.schedule_for_cleanup(filename)
-
         file = File(
-            path=filename,
+            external_url=f"https://example.com/bogus-file-{uuid.uuid4()}.txt",
+            synapse_store=False,
             parent_id=project_model.id,
             description="Test file version 1",
         )
@@ -434,11 +424,9 @@ class TestDeleteOperationsAsync:
     ) -> None:
         """Test that no warning is logged when version_only=False even with version conflict."""
         # GIVEN a file
-        filename = utils.make_bogus_uuid_file()
-        self.schedule_for_cleanup(filename)
-
         file = File(
-            path=filename,
+            external_url=f"https://example.com/bogus-file-{uuid.uuid4()}.txt",
+            synapse_store=False,
             parent_id=project_model.id,
             description="Test file",
         )
@@ -466,11 +454,9 @@ class TestDeleteOperationsAsync:
     ) -> None:
         """Test that no warning when entity.version_number is explicitly None."""
         # GIVEN a file with multiple versions
-        filename = utils.make_bogus_uuid_file()
-        self.schedule_for_cleanup(filename)
-
         file = File(
-            path=filename,
+            external_url=f"https://example.com/bogus-file-{uuid.uuid4()}.txt",
+            synapse_store=False,
             parent_id=project_model.id,
             description="Test file version 1",
         )

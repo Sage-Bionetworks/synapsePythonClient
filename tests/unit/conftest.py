@@ -7,6 +7,7 @@ import os
 import platform
 import time
 import urllib.request
+from unittest.mock import Mock
 
 import pytest
 from pytest_socket import SocketBlockedError, disable_socket
@@ -53,3 +54,11 @@ def syn():
     syn.logger = logging.getLogger(SILENT_LOGGER_NAME)
     Synapse.set_client(syn)
     return syn
+
+
+@pytest.fixture
+def mock_synapse_client():
+    """A Synapse-spec mock with a usable logger."""
+    client = Mock(spec=Synapse)
+    client.logger = Mock()
+    return client

@@ -17,6 +17,33 @@ from synapseclient.models import (
 )
 
 
+@pytest.fixture(scope="module")
+async def test_evaluation(
+    project_model: Project,
+    syn: Synapse,
+    schedule_for_cleanup: Callable[..., None],
+) -> Evaluation:
+    """
+    Shared by TestSubmissionBundleRetrievalAsync and
+    TestSubmissionBundleDataIntegrityAsync: neither asserts on the total
+    submission count for this evaluation, only that its own submissions are
+    present, so one evaluation for both is safe.
+
+    TestSubmissionBundleEdgeCasesAsync defines its own test_evaluation
+    below, which shadows this one for that class only - its tests assert
+    the evaluation has zero submissions, so it must stay isolated.
+    """
+    evaluation = await Evaluation(
+        name=f"test_evaluation_{uuid.uuid4()}",
+        description="Test evaluation for SubmissionBundle async testing",
+        content_source=project_model.id,
+        submission_instructions_message="Submit your files here",
+        submission_receipt_message="Thank you for your submission!",
+    ).store_async(synapse_client=syn)
+    schedule_for_cleanup(evaluation.id)
+    return evaluation
+
+
 class TestSubmissionBundleRetrievalAsync:
     """Tests for retrieving SubmissionBundle objects using async methods."""
 
@@ -25,50 +52,18 @@ class TestSubmissionBundleRetrievalAsync:
         self.syn = syn
         self.schedule_for_cleanup = schedule_for_cleanup
 
-    @pytest.fixture(scope="class")
-    async def test_project(
-        self, syn: Synapse, schedule_for_cleanup: Callable[..., None]
-    ) -> Project:
-        project = await Project(name=f"test_project_{uuid.uuid4()}").store_async(
-            synapse_client=syn
-        )
-        schedule_for_cleanup(project.id)
-        return project
-
-    @pytest.fixture(scope="class")
-    async def test_evaluation(
-        self,
-        test_project: Project,
-        syn: Synapse,
-        schedule_for_cleanup: Callable[..., None],
-    ) -> Evaluation:
-        evaluation = await Evaluation(
-            name=f"test_evaluation_{uuid.uuid4()}",
-            description="Test evaluation for SubmissionBundle async testing",
-            content_source=test_project.id,
-            submission_instructions_message="Submit your files here",
-            submission_receipt_message="Thank you for your submission!",
-        ).store_async(synapse_client=syn)
-        schedule_for_cleanup(evaluation.id)
-        return evaluation
-
     @pytest.fixture(scope="function")
     async def test_file(
         self,
-        test_project: Project,
+        project_model: Project,
         syn: Synapse,
         schedule_for_cleanup: Callable[..., None],
     ) -> File:
-        file_content = (
-            f"Test file content for submission bundle async tests {uuid.uuid4()}"
-        )
-        with open("test_file_for_submission_bundle_async.txt", "w") as f:
-            f.write(file_content)
-
         file_entity = await File(
-            path="test_file_for_submission_bundle_async.txt",
+            external_url=f"https://example.com/bogus-file-{uuid.uuid4()}.txt",
+            synapse_store=False,
             name=f"test_submission_file_async_{uuid.uuid4()}",
-            parent_id=test_project.id,
+            parent_id=project_model.id,
         ).store_async(synapse_client=syn)
         schedule_for_cleanup(file_entity.id)
         return file_entity
@@ -320,50 +315,18 @@ class TestSubmissionBundleDataIntegrityAsync:
         self.syn = syn
         self.schedule_for_cleanup = schedule_for_cleanup
 
-    @pytest.fixture(scope="class")
-    async def test_project(
-        self, syn: Synapse, schedule_for_cleanup: Callable[..., None]
-    ) -> Project:
-        project = await Project(name=f"test_project_{uuid.uuid4()}").store_async(
-            synapse_client=syn
-        )
-        schedule_for_cleanup(project.id)
-        return project
-
-    @pytest.fixture(scope="class")
-    async def test_evaluation(
-        self,
-        test_project: Project,
-        syn: Synapse,
-        schedule_for_cleanup: Callable[..., None],
-    ) -> Evaluation:
-        evaluation = await Evaluation(
-            name=f"test_evaluation_{uuid.uuid4()}",
-            description="Test evaluation for data integrity async testing",
-            content_source=test_project.id,
-            submission_instructions_message="Submit your files here",
-            submission_receipt_message="Thank you for your submission!",
-        ).store_async(synapse_client=syn)
-        schedule_for_cleanup(evaluation.id)
-        return evaluation
-
     @pytest.fixture(scope="function")
     async def test_file(
         self,
-        test_project: Project,
+        project_model: Project,
         syn: Synapse,
         schedule_for_cleanup: Callable[..., None],
     ) -> File:
-        file_content = (
-            f"Test file content for data integrity async tests {uuid.uuid4()}"
-        )
-        with open("test_file_for_data_integrity_async.txt", "w") as f:
-            f.write(file_content)
-
         file_entity = await File(
-            path="test_file_for_data_integrity_async.txt",
+            external_url=f"https://example.com/bogus-file-{uuid.uuid4()}.txt",
+            synapse_store=False,
             name=f"test_integrity_file_async_{uuid.uuid4()}",
-            parent_id=test_project.id,
+            parent_id=project_model.id,
         ).store_async(synapse_client=syn)
         schedule_for_cleanup(file_entity.id)
         return file_entity
@@ -499,67 +462,28 @@ class TestSubmissionBundleEdgeCasesAsync:
         self.schedule_for_cleanup = schedule_for_cleanup
 
     @pytest.fixture(scope="class")
-    async def test_project(
-        self, syn: Synapse, schedule_for_cleanup: Callable[..., None]
-    ) -> Project:
-        project = await Project(name=f"test_project_{uuid.uuid4()}").store_async(
-            synapse_client=syn
-        )
-        schedule_for_cleanup(project.id)
-        return project
-
-    @pytest.fixture(scope="class")
     async def test_evaluation(
         self,
-        test_project: Project,
+        project_model: Project,
         syn: Synapse,
         schedule_for_cleanup: Callable[..., None],
     ) -> Evaluation:
+        """
+        Deliberately isolated from the module-level test_evaluation fixture:
+        this class's tests assert the evaluation has zero submissions, so it
+        cannot be shared with the classes above that submit to theirs. It
+        still reuses the existing project_model instead of creating another
+        project, since nothing here asserts the project itself is empty.
+        """
         evaluation = await Evaluation(
             name=f"test_evaluation_{uuid.uuid4()}",
             description="Test evaluation for edge case async testing",
-            content_source=test_project.id,
+            content_source=project_model.id,
             submission_instructions_message="Submit your files here",
             submission_receipt_message="Thank you for your submission!",
         ).store_async(synapse_client=syn)
         schedule_for_cleanup(evaluation.id)
         return evaluation
-
-    @pytest.fixture(scope="function")
-    async def test_file(
-        self,
-        test_project: Project,
-        syn: Synapse,
-        schedule_for_cleanup: Callable[..., None],
-    ) -> File:
-        file_content = f"Test file content for edge case async tests {uuid.uuid4()}"
-        with open("test_file_for_edge_case_async.txt", "w") as f:
-            f.write(file_content)
-
-        file_entity = await File(
-            path="test_file_for_edge_case_async.txt",
-            name=f"test_edge_case_file_async_{uuid.uuid4()}",
-            parent_id=test_project.id,
-        ).store_async(synapse_client=syn)
-        schedule_for_cleanup(file_entity.id)
-        return file_entity
-
-    @pytest.fixture(scope="function")
-    async def test_submission(
-        self,
-        test_evaluation: Evaluation,
-        test_file: File,
-        syn: Synapse,
-        schedule_for_cleanup: Callable[..., None],
-    ) -> Submission:
-        submission = await Submission(
-            name=f"test_submission_{uuid.uuid4()}",
-            entity_id=test_file.id,
-            evaluation_id=test_evaluation.id,
-            submitter_alias="test_user_edge_case_async",
-        ).store_async(synapse_client=syn)
-        schedule_for_cleanup(submission.id)
-        return submission
 
     async def test_get_evaluation_submission_bundles_empty_evaluation_async(
         self, test_evaluation: Evaluation

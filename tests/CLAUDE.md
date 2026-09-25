@@ -1,4 +1,4 @@
-<!-- Last reviewed: 2026-03 -->
+<!-- Last reviewed: 2026-08 -->
 
 ## Project
 
@@ -26,14 +26,14 @@ Use `pytest.mark.parametrize` when possible to merge similar tests into one test
 - `schedule_for_cleanup(item)` — defer entity/file cleanup to session teardown. Always use this instead of inline deletion. Cleanup list is reversed before execution for dependency ordering (children deleted before parents).
 - Use shared resources when possible via fixtures in `conftest.py` files (e.g., `project_model`, `project`). Refer to existing integration tests for the pattern.
 - Per-worker project fixtures (`project_model`, `project`) created during session setup
-- `--reruns 3` for flaky retry, `-n 8 --dist loadscope` for parallelism
-- OpenTelemetry tracing opt-in via `SYNAPSE_INTEGRATION_TEST_OTEL_ENABLED` env var
+- `--reruns 3` for flaky retry, `-n 4 --dist loadscope` for parallelism
+- OpenTelemetry tracing and metrics opt-in via `SYNAPSE_INTEGRATION_TEST_OTEL_ENABLED` (strict truthiness: only `1`/`true`/`yes`/`on`, case-insensitive). Each pytest-xdist worker gets a distinct `service.instance.id` so per-worker counters don't collide.
 - Two client fixtures: `syn` (silent logger) and `syn_with_logger` (verbose)
 - conftest.py locations: `tests/unit/conftest.py` (session client, socket blocking, UTC timezone), `tests/integration/conftest.py` (logged-in client, per-worker projects, cleanup fixture)
 
 ### Test utilities
 - `tests/test_utils.py`: `spy_for_async_function(original_func)` — wraps async function for pytest-mock spying while preserving async behavior. `spy_for_function(original_func)` — sync variant.
-- `tests/integration/helpers.py`: `wait_for_condition(condition_fn, timeout_seconds=60)` — async polling helper with exponential backoff. Accepts sync or async condition functions.
+- `tests/integration/helpers.py`: `wait_for_condition(condition_fn, timeout_seconds=60)` — async polling helper with exponential backoff. Accepts sync or async condition functions. `telemetry_enabled(env)` and `worker_telemetry_env(env)` — pure helpers behind `setup_otel` in `conftest.py` for the OTel truthiness check and per-worker `OTEL_SERVICE_INSTANCE_ID`/`OTEL_RESOURCE_ATTRIBUTES` values.
 - `tests/integration/__init__.py`: `QUERY_TIMEOUT_SEC = 600`, `ASYNC_JOB_TIMEOUT_SEC = 600`
 - Test data generators in production code: `core/utils.py` has `make_bogus_data_file()`, `make_bogus_binary_file(n)`, `make_bogus_uuid_file()`
 

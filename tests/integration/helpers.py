@@ -2,11 +2,105 @@
 
 import asyncio
 import logging
-from typing import Any, Awaitable, Callable, Optional, TypeVar, Union
+from typing import Awaitable, Callable, Dict, List, Mapping, Optional, TypeVar, Union
 
 logger = logging.getLogger(__name__)
 
 T = TypeVar("T")
+
+_TELEMETRY_TRUTHY_VALUES = ("1", "true", "yes", "on")
+
+# Logger name used by the OTLP exporters to report rejected exports (e.g. a 401
+# from a malformed `OTEL_EXPORTER_OTLP_HEADERS`).
+OTLP_EXPORTER_LOGGER = "opentelemetry.exporter.otlp.proto.http"
+
+
+class ExportFailureRecorder(logging.Handler):
+    """Captures ERROR-level log records emitted by the OTLP exporters, so a
+    rejected export can fail the run instead of leaving it silently green.
+    """
+
+    def __init__(self) -> None:
+        super().__init__(level=logging.ERROR)
+        self.messages: List[str] = []
+
+    def emit(self, record: logging.LogRecord) -> None:
+        self.messages.append(record.getMessage())
+
+
+def export_failure_summary(messages: List[str]) -> Optional[str]:
+    """Build a one-line summary of captured OTLP export failures.
+
+    Args:
+        messages: The messages captured by `ExportFailureRecorder`.
+
+    Returns:
+        None if messages is empty, otherwise a string naming the count and the
+        first message.
+    """
+    if not messages:
+        return None
+    return f"{len(messages)} OTLP export failure(s); first: {messages[0]}"
+
+
+def telemetry_enabled(env: Mapping[str, str]) -> bool:
+    """Whether integration-test OpenTelemetry export is enabled.
+
+    Args:
+        env: The environment to check, typically `os.environ`.
+
+    Returns:
+        True if `SYNAPSE_INTEGRATION_TEST_OTEL_ENABLED` is `1`/`true`/`yes`/`on`
+        (case-insensitive), False otherwise.
+    """
+    value = env.get("SYNAPSE_INTEGRATION_TEST_OTEL_ENABLED", "")
+    return value.strip().lower() in _TELEMETRY_TRUTHY_VALUES
+
+
+def worker_telemetry_env(env: Mapping[str, str]) -> Dict[str, str]:
+    """Build the env-var deltas that give each pytest-xdist worker a distinct
+    OpenTelemetry resource identity.
+
+    Args:
+        env: The environment to derive the deltas from, typically `os.environ`.
+
+    Returns:
+        A dict of env vars to apply via `os.environ.update(...)`:
+        `OTEL_SERVICE_INSTANCE_ID` (only present if there is a worker id or an
+        existing base value to preserve) and `OTEL_RESOURCE_ATTRIBUTES` (always
+        present, appended to any existing value rather than overwriting it).
+    """
+    worker_id = env.get("PYTEST_XDIST_WORKER")
+    base_instance_id = env.get("OTEL_SERVICE_INSTANCE_ID")
+    if worker_id:
+        service_instance_id = (
+            f"{base_instance_id}-{worker_id}" if base_instance_id else worker_id
+        )
+    else:
+        service_instance_id = base_instance_id
+
+    resource_attribute_parts = [
+        f"run.label={env.get('SYNAPSE_TEST_RUN_LABEL') or 'unlabeled'}"
+    ]
+    git_sha = env.get("GITHUB_SHA")
+    if git_sha:
+        resource_attribute_parts.append(f"git.sha={git_sha}")
+    worker_count = env.get("PYTEST_XDIST_WORKER_COUNT")
+    if worker_count:
+        resource_attribute_parts.append(f"xdist.workers={worker_count}")
+
+    new_resource_attributes = ",".join(resource_attribute_parts)
+    existing_resource_attributes = env.get("OTEL_RESOURCE_ATTRIBUTES")
+    resource_attributes = (
+        f"{existing_resource_attributes},{new_resource_attributes}"
+        if existing_resource_attributes
+        else new_resource_attributes
+    )
+
+    result = {"OTEL_RESOURCE_ATTRIBUTES": resource_attributes}
+    if service_instance_id:
+        result["OTEL_SERVICE_INSTANCE_ID"] = service_instance_id
+    return result
 
 
 async def wait_for_condition(

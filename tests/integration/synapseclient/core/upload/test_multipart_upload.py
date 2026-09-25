@@ -11,7 +11,7 @@ from unittest import mock, skip
 
 import synapseclient.core.config
 import synapseclient.core.utils as utils
-from synapseclient import File, Project, Synapse
+from synapseclient import File, Synapse
 from synapseclient.core.download import download_by_file_handle
 from synapseclient.core.upload.multipart_upload import (
     MIN_PART_SIZE,
@@ -20,16 +20,17 @@ from synapseclient.core.upload.multipart_upload import (
     multipart_upload_string,
 )
 from synapseclient.core.upload.multipart_upload_async import multipart_upload_file_async
+from synapseclient.models import Project
 
 
-async def test_round_trip(syn: Synapse, project: Project, schedule_for_cleanup):
+async def test_round_trip(syn: Synapse, project_model: Project, schedule_for_cleanup):
     fhid = None
     filepath = utils.make_bogus_binary_file(MIN_PART_SIZE + 777771)
     try:
         fhid = multipart_upload_file(syn, filepath)
 
         # Download the file and compare it with the original
-        junk = File(parent=project, dataFileHandleId=fhid)
+        junk = File(parent=project_model.id, dataFileHandleId=fhid)
         junk.properties.update(syn._createEntity(junk.properties))
         _, tmp_path = tempfile.mkstemp()
         schedule_for_cleanup(tmp_path)
@@ -65,7 +66,7 @@ async def test_single_thread_upload(syn: Synapse):
 
 
 async def test_randomly_failing_parts(
-    syn: Synapse, project: Project, schedule_for_cleanup
+    syn: Synapse, project_model: Project, schedule_for_cleanup
 ) -> None:
     """Verify that we can recover gracefully with some randomly inserted errors
     while uploading parts."""
@@ -105,7 +106,7 @@ async def test_randomly_failing_parts(
             )
 
             # Download the file and compare it with the original
-            junk = File(parent=project, dataFileHandleId=fhid)
+            junk = File(parent=project_model.id, dataFileHandleId=fhid)
             junk.properties.update(syn._createEntity(junk.properties))
             tmp_f, tmp_path = tempfile.mkstemp()
             schedule_for_cleanup(tmp_path)
@@ -132,7 +133,7 @@ async def test_randomly_failing_parts(
 
 
 async def test_multipart_upload_big_string(
-    syn: Synapse, project: Project, schedule_for_cleanup
+    syn: Synapse, project_model: Project, schedule_for_cleanup
 ):
     cities = [
         "Seattle",
@@ -179,7 +180,7 @@ async def test_multipart_upload_big_string(
     fhid = multipart_upload_string(syn, text)
 
     # Download the file and compare it with the original
-    junk = File(parent=project, dataFileHandleId=fhid)
+    junk = File(parent=project_model.id, dataFileHandleId=fhid)
     junk.properties.update(syn._createEntity(junk.properties))
     _, tmp_path = tempfile.mkstemp()
     schedule_for_cleanup(tmp_path)
@@ -199,7 +200,7 @@ async def test_multipart_upload_big_string(
 
 
 def _multipart_copy_test(
-    syn: Synapse, project: Project, schedule_for_cleanup, part_size: int
+    syn: Synapse, project_model: Project, schedule_for_cleanup, part_size: int
 ):
     import logging
 
@@ -210,7 +211,7 @@ def _multipart_copy_test(
 
     # create a new folder with a storage location we own that we can copy to
     dest_folder, storage_location_setting, _ = syn.create_s3_storage_location(
-        parent=project, folder_name=dest_folder_name
+        parent=project_model.id, folder_name=dest_folder_name
     )
 
     part_size = part_size
@@ -242,7 +243,7 @@ def _multipart_copy_test(
     with open(tmp.name, "w") as tmp_out:
         tmp_out.write(file_content)
 
-    file = File(tmp.name, parent=project)
+    file = File(tmp.name, parent=project_model.id)
     entity = syn.store(file)
 
     fhid = entity["dataFileHandleId"]
@@ -283,13 +284,13 @@ def _multipart_copy_test(
     assert file_content == dest_file_content
 
 
-def test_multipart_copy(syn: Synapse, project: Project, schedule_for_cleanup):
+def test_multipart_copy(syn: Synapse, project_model: Project, schedule_for_cleanup):
     """Test multi part copy using the minimum part size."""
-    _multipart_copy_test(syn, project, schedule_for_cleanup, MIN_PART_SIZE)
+    _multipart_copy_test(syn, project_model, schedule_for_cleanup, MIN_PART_SIZE)
 
 
 @skip("Skip in normal testing because the large size makes it slow")
 def test_multipart_copy__big_parts(
-    syn: Synapse, project: Project, schedule_for_cleanup
+    syn: Synapse, project_model: Project, schedule_for_cleanup
 ):
-    _multipart_copy_test(syn, project, schedule_for_cleanup, 100 * utils.MB)
+    _multipart_copy_test(syn, project_model, schedule_for_cleanup, 100 * utils.MB)

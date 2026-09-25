@@ -739,6 +739,36 @@ class TestGetAsyncUnknownEntityType:
         assert result == mock_bundle
 
 
+class TestGetSearchIndexRoute:
+    """Tests for SearchIndex routing in get_async."""
+
+    @patch(_PATCH_GET_ENTITY_TYPE, new_callable=AsyncMock)
+    async def test_get_search_index_routes_to_search_index(self, mock_get_entity_type):
+        """Test that SEARCH_INDEX_ENTITY routes to SearchIndex.get_async."""
+        # GIVEN get_entity_type returns SEARCH_INDEX_ENTITY
+        mock_header = MagicMock()
+        mock_header.type = concrete_types.SEARCH_INDEX_ENTITY
+        mock_get_entity_type.return_value = mock_header
+
+        from synapseclient.models import SearchIndex
+
+        with patch.object(SearchIndex, "get_async", new_callable=AsyncMock) as mock_get:
+            mock_index = SearchIndex(id="syn123456")
+            mock_get.return_value = mock_index
+
+            # WHEN I call get_async with table options that do not apply
+            result = await get_async(
+                synapse_id="syn123456",
+                table_options=TableOptions(include_columns=True),
+                synapse_client=MagicMock(),
+            )
+
+            # THEN SearchIndex.get_async is called without include_columns
+            mock_get.assert_awaited_once()
+            assert "include_columns" not in mock_get.await_args.kwargs
+            assert result is mock_index
+
+
 class TestGetSyncWrapper:
     """Tests for the synchronous get() wrapper."""
 

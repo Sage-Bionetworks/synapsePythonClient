@@ -5,13 +5,19 @@ This module provides library functions for creating file-based metadata curation
 in Synapse, including EntityView creation, CurationTask setup, and Wiki attachment.
 """
 
+from collections import OrderedDict
 from typing import Any, Optional, Tuple, Union
 
 from synapseclient import Synapse  # type: ignore
 from synapseclient import Wiki  # type: ignore
 from synapseclient.core.exceptions import SynapseHTTPError  # type: ignore
-from synapseclient.extensions.curator.utils import project_id_from_entity_id
+from synapseclient.extensions.curator.utils import (
+    project_id_from_entity_id,
+    resolve_column_order_list,
+    validate_column_order_list,
+)
 from synapseclient.models import (  # type: ignore
+    AuthorizationMode,
     Column,
     ColumnType,
     EntityView,
@@ -37,35 +43,48 @@ LIST_TYPE_DICT = {
 }
 
 
-def create_json_schema_entity_view(
-    syn: Synapse,
+def _create_json_schema_entity_view(
     synapse_entity_id: str,
     entity_view_name: str = "JSON Schema view",
     view_type_mask: Union[int, ViewTypeMask] = ViewTypeMask.FILE,
-) -> str:
+    column_order: list[str] | None = None,
+    syn: Optional[Synapse] = None,
+) -> EntityView:
     """
-    Creates a Synapse entity view based on a JSON Schema that is bound to a Synapse entity
-    This functionality is needed only temporarily. See note at top of module.
+    Creates a Synapse entity view based on a JSON Schema that is bound to a Synapse
+    entity and returns the stored EntityView object.
 
-    Args:
-        syn: A Synapse object thats been logged in
+    Arguments:
         synapse_entity_id: The ID of the entity in Synapse to bind the JSON Schema to
         entity_view_name: The name the crated entity view will have
         view_type_mask: The view type mask for the EntityView. Defaults to
             ViewTypeMask.FILE. Additional types can be added using bitwise OR
             (e.g., ViewTypeMask.FILE | ViewTypeMask.DOCKER). Accepts either a
             ViewTypeMask enum member or its raw integer value.
+        column_order: Optional list of column names to place immediately after the
+            pinned name and id columns, in the order given. Remaining columns keep
+            their existing relative order.
+        syn: A Synapse object thats been logged in
 
     Returns:
-        The Synapse id of the crated entity view
+        The created EntityView object
+
+    Raises:
+        ValueError: If synapse_entity_id is not a Folder or a Project, or if
+            column_order is malformed or names a column that is not present on the
+            created EntityView.
     """
     entity = get(
         file_options=FileOptions(download_file=False),
         synapse_id=synapse_entity_id,
         synapse_client=syn,
     )
-    assert isinstance(entity, (Folder, Project))
-    jsb = entity.get_schema()
+    if not isinstance(entity, (Folder, Project)):
+        raise ValueError(
+            f"A JSON Schema can only be read from a Folder or a Project, but "
+            f"{synapse_entity_id} is a {type(entity).__name__}."
+        )
+    jsb = entity.get_schema(synapse_client=syn)
     version_info = jsb.json_schema_version_info
     schema = JSONSchema(version_info.schema_name, version_info.organization_name)
     body = schema.get_body(version=version_info.semantic_version, synapse_client=syn)
@@ -77,12 +96,29 @@ def create_json_schema_entity_view(
         view_type_mask=view_type_mask,
         columns=columns,
     ).store(synapse_client=syn)
-    # This reorder is so that these show up in the front of the EntityView in Synapse
-    view.reorder_column(name="createdBy", index=0)
-    view.reorder_column(name="name", index=0)
-    view.reorder_column(name="id", index=0)
+
+    try:
+        available_columns = list(view.columns.keys())
+        ordered_columns = resolve_column_order_list(
+            available_columns=available_columns,
+            pinned_columns=["name", "id"],
+            requested_columns=column_order,
+        )
+        view.columns = OrderedDict(
+            (column, view.columns[column]) for column in ordered_columns
+        )
+    except ValueError:
+        try:
+            view.delete(synapse_client=syn)
+        except Exception:
+            Synapse.get_client(synapse_client=syn).logger.exception(
+                f"Could not delete the created EntityView {view.id}. Delete it "
+                "yourself, either from the Synapse web UI, or with the Python "
+                f"client: EntityView(id='{view.id}').delete()"
+            )
+        raise
     view.store(synapse_client=syn)
-    return view.id
+    return view
 
 
 def create_or_update_wiki_with_entity_view(
@@ -325,9 +361,15 @@ def create_file_based_metadata_task(
     enable_derived_annotations: bool = False,
     assignee_principal_id: Optional[Union[str, int]] = None,
     view_type_mask: Union[int, ViewTypeMask] = ViewTypeMask.FILE,
+    authorization_mode: Optional[Union[AuthorizationMode, str]] = None,
+    # TODO: https://sagebionetworks.jira.com/browse/SYNPY-1865
+    # In v5.0.0 make entity-returning the default: remove the return_entities
+    # parameter and change the return type to Tuple[EntityView, CurationTask].
+    return_entities: bool = False,
     *,
+    column_order: list[str] | None = None,
     synapse_client: Optional[Synapse] = None,
-) -> Tuple[str, str]:
+) -> Union[Tuple[str, int], Tuple[EntityView, CurationTask]]:
     """
     Create a file view for a schema-bound folder using schematic.
 
@@ -338,22 +380,71 @@ def create_file_based_metadata_task(
         ```python
         import synapseclient
         from synapseclient.extensions.curator import create_file_based_metadata_task
-        from synapseclient.models import ViewTypeMask
+        from synapseclient.models import AuthorizationMode, ViewTypeMask
 
         syn = synapseclient.Synapse()
         syn.login()
 
         entity_view_id, task_id = create_file_based_metadata_task(
+            folder_id="syn12345678",
+            curation_task_name="BiospecimenMetadataTemplate",
+            instructions="Please curate this metadata according to the schema requirements",
+            attach_wiki=False, # Optional: whether to attach a Synapse Wiki
+            entity_view_name="Biospecimen Metadata View", # Optional: name for the created entity view
+            schema_uri="sage.schemas.v2571-amp.Biospecimen.schema-0.0.1", # Optional: JSON schema URI to bind to the folder
+            assignee_principal_id=123456, # Optional: Assign to a user or team (can be str or int)
+            view_type_mask=ViewTypeMask.FILE | ViewTypeMask.DOCKER, # Optional: include additional entity types in the view
+            authorization_mode=AuthorizationMode.SOURCE_BENEFACTOR, # Optional: recommended access mode for the grid session
+            synapse_client=syn, # Optional: defaults to the last created Synapse client
+        )
+        ```
+
+    Example: Returning the created EntityView and CurationTask objects
+        Pass return_entities=True to receive the full EntityView and CurationTask
+        objects instead of their ID strings. This avoids a second round-trip to
+        Synapse when you need to read or modify the created entities, and matches the
+        return shape of create_record_based_metadata_task.
+
+        ```python
+        import synapseclient
+        from synapseclient.extensions.curator import create_file_based_metadata_task
+
+        syn = synapseclient.Synapse()
+        syn.login()
+
+        entity_view, curation_task = create_file_based_metadata_task(
             synapse_client=syn,
             folder_id="syn12345678",
             curation_task_name="BiospecimenMetadataTemplate",
             instructions="Please curate this metadata according to the schema requirements",
-            attach_wiki=False,
-            entity_view_name="Biospecimen Metadata View",
-            schema_uri="sage.schemas.v2571-amp.Biospecimen.schema-0.0.1",
-            assignee_principal_id=123456,  # Optional: Assign to a user or team (can be str or int)
-            view_type_mask=ViewTypeMask.FILE | ViewTypeMask.DOCKER,  # Optional: include additional entity types in the view
+            return_entities=True,
         )
+        ```
+
+    Example: Controlling the column order of the EntityView
+        Pass column_order to place specific columns immediately after the pinned name
+        and id columns. You only need to name the columns you care about; every other
+        column, including Synapse managed columns such as createdBy, is appended
+        afterwards in its existing order.
+
+        ```python
+        import synapseclient
+        from synapseclient.extensions.curator import create_file_based_metadata_task
+
+        syn = synapseclient.Synapse()
+        syn.login()
+
+        entity_view, curation_task = create_file_based_metadata_task(
+            synapse_client=syn,
+            folder_id="syn12345678",
+            curation_task_name="BiospecimenMetadataTemplate",
+            instructions="Please curate this metadata according to the schema requirements",
+            column_order=["patientId", "sampleId", "assay", "fileFormat"],
+            return_entities=True,
+        )
+
+        # Resulting column order:
+        # name, id, patientId, sampleId, assay, fileFormat, <remaining columns>
         ```
 
     Arguments:
@@ -377,17 +468,47 @@ def create_file_based_metadata_task(
             ViewTypeMask.FILE. Additional types can be added using bitwise OR
             (e.g., ViewTypeMask.FILE | ViewTypeMask.DOCKER). Accepts either a
             ViewTypeMask enum member or its raw integer value.
+        authorization_mode: Recommends who is allowed to access the curation
+            grid session that a client opens for this task. The value is stored on the
+            task as a suggestion; the client applies it when it creates a new session.
+            Choose from:
+            - SESSION_OWNER: only the person or team who owns the session can access it.
+            - SOURCE_BENEFACTOR: anyone with EDIT permission on the
+              data being curated can access the session. This lets editors collaborate
+              in the same session without being added to a shared ownership team.
+            When omitted (None, the default), no recommendation is stored and clients
+            fall back to their usual behavior of finding or creating a private session
+            for the current user. Changing this value after the task already exists
+            resets the task's active session, so a new grid session must be opened
+            before curation can continue.
+        return_entities: If True, return the created EntityView and CurationTask
+            objects instead of their ID strings. Defaults to False for backwards
+            compatibility. The entity-returning shape will become the default in
+            v5.0.0, at which point this parameter will be removed.
+        column_order: Optional list of column names placed immediately after the
+            pinned name and id columns, in the order given. Columns that are not
+            named keep their existing relative order and are appended afterwards, so
+            you only need to list the columns that need intentional placement. The
+            name and id columns always remain the two leftmost columns, so naming
+            either of them here has no effect. Every name must match a column on the
+            created EntityView, which includes the JSON Schema properties as well as
+            the Synapse managed columns such as createdBy and modifiedOn.
         synapse_client: If not passed in and caching was not disabled by
                 `Synapse.allow_client_caching(False)` this will use the last created
                 instance from the Synapse class constructor.
 
     Returns:
-        A tuple containing:
+        If return_entities is False (default): a tuple containing
           - The Synapse ID of the entity view created
           - The task ID of the curation task created
 
+        If return_entities is True: a tuple containing
+          - The created EntityView object
+          - The created CurationTask object
+
     Raises:
-        ValueError: If required parameters are missing.
+        ValueError: If required parameters are missing, or if column_order is
+            malformed or names a column that is not on the created EntityView.
         SynapseError: If there are issues with Synapse operations.
     """
     # Validate required parameters
@@ -397,6 +518,7 @@ def create_file_based_metadata_task(
         raise ValueError("curation_task_name is required")
     if not instructions:
         raise ValueError("instructions is required")
+    validate_column_order_list(column_order)
 
     synapse_client = Synapse.get_client(synapse_client=synapse_client)
 
@@ -423,12 +545,14 @@ def create_file_based_metadata_task(
 
     synapse_client.logger.info("Attempting to create entity view.")
     try:
-        entity_view_id = create_json_schema_entity_view(
+        entity_view = _create_json_schema_entity_view(
             syn=synapse_client,
             synapse_entity_id=folder_id,
             entity_view_name=entity_view_name,
             view_type_mask=view_type_mask,
+            column_order=column_order,
         )
+        entity_view_id = entity_view.id
     except Exception as e:
         synapse_client.logger.exception("Error creating entity view")
         raise e
@@ -481,6 +605,7 @@ def create_file_based_metadata_task(
             task_properties=FileBasedMetadataTaskProperties(
                 upload_folder_id=folder_id,
                 file_view_id=entity_view_id,
+                suggested_authorization_mode=authorization_mode,
             ),
         ).store(synapse_client=synapse_client)
     except Exception as e:
@@ -488,4 +613,17 @@ def create_file_based_metadata_task(
         raise e
     synapse_client.logger.info("Created the CurationTask.")
 
+    # TODO: https://sagebionetworks.jira.com/browse/SYNPY-1865
+    # In v5.0.0 remove this warning and the ID-tuple return below; return
+    # (entity_view, task) unconditionally.
+
+    if return_entities:
+        return (entity_view, task)
+
+    synapse_client.logger.warning(
+        "create_file_based_metadata_task will return the created EntityView and "
+        "CurationTask objects instead of their ID strings starting in v5.0.0. Pass "
+        "return_entities=True to opt in to the new return type early and silence this "
+        "warning."
+    )
     return (entity_view_id, task.task_id)

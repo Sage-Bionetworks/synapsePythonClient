@@ -2,7 +2,6 @@
 
 import csv
 import os
-import platform
 import uuid
 from pathlib import Path
 from typing import Callable
@@ -11,9 +10,7 @@ import pandas as pd
 import pytest
 import pytest_asyncio
 
-import synapseclient.core.utils as utils
 from synapseclient import Synapse
-from synapseclient.core.exceptions import SynapseHTTPError
 from synapseclient.models import File, Folder, Project
 from synapseclient.models.activity import UsedURL
 
@@ -71,11 +68,10 @@ class TestSyncToSynapse:
 
     async def _create_test_file(self, project: Project, **kwargs) -> File:
         """Upload a small test file to Synapse and return the File model."""
-        path = utils.make_bogus_uuid_file()
-        self.schedule_for_cleanup(path)
         file = File(
             parent_id=project.id,
-            path=path,
+            external_url=f"https://example.com/bogus-file-{uuid.uuid4()}.txt",
+            synapse_store=False,
             name=f"test_file_{uuid.uuid4()}",
             **kwargs,
         )

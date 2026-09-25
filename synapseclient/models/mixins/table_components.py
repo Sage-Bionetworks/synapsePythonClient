@@ -9,7 +9,7 @@ import time
 import uuid
 from collections import OrderedDict
 from dataclasses import dataclass, field
-from datetime import datetime
+from datetime import date, datetime
 from io import BytesIO
 from typing import Any, Dict, List, Optional, Protocol, Tuple, Union
 
@@ -35,6 +35,7 @@ from synapseclient.core.download.download_functions import (
     ensure_download_location_is_directory,
 )
 from synapseclient.core.exceptions import SynapseTimeoutError
+from synapseclient.core.transfer_bar import create_progress_bar
 from synapseclient.core.typing_utils import DataFrame as DATA_FRAME_TYPE
 from synapseclient.core.typing_utils import Series as SERIES_TYPE
 from synapseclient.core.upload.multipart_upload_async import (
@@ -48,6 +49,7 @@ from synapseclient.core.utils import (
     log_dataclass_diff,
     merge_dataclass_entities,
     test_import_pandas,
+    to_unix_epoch_time,
 )
 from synapseclient.models import Activity
 from synapseclient.models.services.search import get_id
@@ -74,6 +76,7 @@ from synapseclient.models.table_components import (
     SchemaStorageStrategy,
     SnapshotRequest,
     TableSchemaChangeRequest,
+    TableUpdateRequest,
     TableUpdateTransaction,
     UploadToTableRequest,
 )
@@ -1262,7 +1265,7 @@ class GetMixin:
 
         await get_from_entity_factory(
             entity_to_update=self,
-            version=self.version_number,
+            version=self.version_number if hasattr(self, "version_number") else None,
             synapse_id_or_path=entity_id,
             synapse_client=synapse_client,
         )
@@ -1691,6 +1694,191 @@ class ColumnMixin:
     """Mixin class providing methods for upserting data into a `Table`-like entity."""
 
 
+def _format_primary_key_value_for_where(value: Any, column_type: ColumnType) -> str:
+    """
+    Format a single primary-key value as a SQL literal for use in the WHERE clause
+    of an upsert query.
+
+    Arguments:
+        value: The value to format.
+        column_type: The Synapse column type of the primary key column.
+
+    Returns:
+        The value formatted as a SQL literal (quoted for string-like and boolean
+        columns, unquoted otherwise). Single quotes embedded in string-like values
+        are escaped by doubling them.
+    """
+    if column_type in (
+        ColumnType.STRING,
+        ColumnType.MEDIUMTEXT,
+        ColumnType.LARGETEXT,
+        ColumnType.LINK,
+        ColumnType.ENTITYID,
+    ):
+        escaped_value = str(value).replace("'", "''")
+        return f"'{escaped_value}'"
+    elif column_type == ColumnType.BOOLEAN:
+        return "'true'" if value else "'false'"
+    else:
+        return str(value)
+
+
+def _construct_single_key_where_statement(
+    entity: TableBase,
+    df: DATA_FRAME_TYPE,
+    primary_key: str,
+) -> str:
+    """
+    Build the WHERE clause used to match rows on a single-column primary key.
+
+    A single primary key can be matched with a simple IN clause. There is no
+    cross-product risk with a single column.
+
+    This will look something like: primary_key IN ('val1', 'val2')
+
+    Primary key values MUST BE non-null
+
+    Arguments:
+        entity: The table entity whose column types are used to format values.
+        df: The DataFrame that contains the data to be upserted.
+        primary_key: The column that is the primary key for this table
+
+    Returns:
+        The WHERE clause matching every unique primary key value in the DataFrame.
+    """
+    column_type = entity.columns[primary_key].column_type
+    values = {
+        _format_primary_key_value_for_where(value, column_type)
+        for value in df[primary_key]
+    }
+    return f"\"{primary_key}\" IN ({', '.join(sorted(values))})"
+
+
+def _construct_composite_key_conditions(
+    entity: TableBase,
+    primary_keys: list[str],
+    row: tuple,
+) -> list[str]:
+    """
+    Build the per-column conditions matching a single primary key tuple.
+
+    Arguments:
+        entity: The table entity whose column types are used to format values.
+        primary_keys: A list of the columns that are used to determine if a row
+            already exists in the table.
+        row: The primary key values for a single row, in the same order as
+            primary_keys.
+
+    Returns:
+        A list of SQL conditions, one per primary key column.
+    """
+    conditions = []
+    for upsert_column, value in zip(primary_keys, row):
+        column_type = entity.columns[upsert_column].column_type
+        formatted_value = _format_primary_key_value_for_where(value, column_type)
+        conditions.append(f'"{upsert_column}" = {formatted_value}')
+    return conditions
+
+
+def _construct_composite_key_where_statement(
+    entity: TableBase,
+    df: DATA_FRAME_TYPE,
+    primary_keys: list[str],
+) -> str:
+    """
+    Build the WHERE clause used to match rows on a composite (multi-column)
+    primary key.
+
+    Composite primary keys must be matched as exact key tuples using OR-of-ANDs.
+    Filtering each key column independently (e.g. "a" IN (...) AND "b" IN (...))
+    would match the cross-product of key values and could return rows whose exact
+    key combination is not present in the input. e.g.
+        ("a" = 'x' AND "b" = 'y') OR ("a" = 'p' AND "b" = 'q')
+
+    Primary key values MUST BE non-null,
+
+    Arguments:
+        entity: The table entity whose column types are used to format values.
+        df: The DataFrame that contains the data to be upserted.
+        primary_keys: A list of the columns that are used to determine if a row
+            already exists in the table.
+
+    Returns:
+        The WHERE clause matching every unique primary key tuple in the DataFrame.
+        Duplicate key tuples are de-duplicated so each tuple appears only once.
+    """
+    row_clauses = []
+    primary_key_tuples = set()
+    for row in df[primary_keys].itertuples(index=False, name=None):
+        if row in primary_key_tuples:
+            continue
+        primary_key_tuples.add(row)
+        conditions = _construct_composite_key_conditions(entity, primary_keys, row)
+        row_clauses.append("(" + " AND ".join(conditions) + ")")
+    return " OR ".join(row_clauses)
+
+
+def _validate_primary_keys(
+    values: DATA_FRAME_TYPE,
+    primary_keys: list[str],
+) -> None:
+    """
+    Validate the primary key columns used for an upsert.
+
+    Every primary key must be a column in the data being upserted, and none of the
+    primary key columns may contain null values. A null value cannot identify an
+    existing row, so a null primary key can never be matched for update. Rejecting
+    null primary keys up front avoids silently treating those rows as inserts, which
+    would not be idempotent.
+
+    Arguments:
+        values: The DataFrame that contains the data to be upserted.
+        primary_keys: A list of the columns that are used to determine if a row
+            already exists in the table.
+
+    Raises:
+        ValueError: If no primary keys are provided, if any primary key is not a
+            string, if a primary key column is not present in the data, or if any
+            row has a null value in one of the primary key columns.
+    """
+    if not primary_keys:
+        raise ValueError(
+            "At least one primary key column must be provided for upsert, but "
+            "the primary_keys argument was empty. Specify the column(s) that "
+            "uniquely identify a row before upserting."
+        )
+
+    non_string_primary_keys = [key for key in primary_keys if not isinstance(key, str)]
+    if non_string_primary_keys:
+        raise ValueError(
+            "Primary key columns used for upsert must be strings, but the "
+            "following primary key(s) are not strings: "
+            f"{non_string_primary_keys}. Provide the column name(s) as strings "
+            "before upserting."
+        )
+
+    missing_primary_key_columns = [
+        key for key in primary_keys if key not in values.columns
+    ]
+    if missing_primary_key_columns:
+        raise ValueError(
+            "Primary key columns used for upsert must be present in the data being "
+            "upserted, but the following primary key column(s) are missing: "
+            f"{missing_primary_key_columns}. Add these columns to the data or update "
+            "the primary_keys argument before upserting."
+        )
+
+    null_primary_key_columns = [key for key in primary_keys if values[key].isna().any()]
+    if null_primary_key_columns:
+        raise ValueError(
+            "Primary key columns used for upsert must not contain null values, but "
+            "null values were found in the following primary key column(s): "
+            f"{null_primary_key_columns}. A null primary key cannot be matched "
+            "against an existing row. Remove these rows or populate the primary key "
+            "values before upserting."
+        )
+
+
 def _construct_select_statement_for_upsert(
     entity: TableBase,
     df: DATA_FRAME_TYPE,
@@ -1703,6 +1891,8 @@ def _construct_select_statement_for_upsert(
     from Synapse to determine if a row already exists in the table. This is used
     in the upsert method to determine if a row should be updated or inserted.
 
+    Primary key values MUST BE non-null.
+
     Arguments:
         df: The DataFrame that contains the data to be upserted.
         all_columns_from_df: A list of all the columns in the DataFrame.
@@ -1714,7 +1904,7 @@ def _construct_select_statement_for_upsert(
 
     Returns:
         The select statement that can be used to query Synapse to determine if a row
-        already exists in the
+        already exists in the table.
     """
 
     if entity.__class__.__name__ in CLASSES_THAT_CONTAIN_ROW_ETAG:
@@ -1730,7 +1920,7 @@ def _construct_select_statement_for_upsert(
         select_statement = "SELECT ROW_ID, "
 
     select_statement += f"{', '.join(all_columns_from_df)} FROM {entity.id} WHERE "
-    where_statements = []
+
     for upsert_column in primary_keys:
         column_model = entity.columns[upsert_column]
         if (
@@ -1747,46 +1937,16 @@ def _construct_select_statement_for_upsert(
             raise ValueError(
                 f"Column type {column_model.column_type} is not supported for primary_keys"
             )
-        elif column_model.column_type in (
-            ColumnType.STRING,
-            ColumnType.MEDIUMTEXT,
-            ColumnType.LARGETEXT,
-            ColumnType.LINK,
-            ColumnType.ENTITYID,
-        ):
-            values_for_where_statement = set(
-                [f"'{value}'" for value in df[upsert_column] if value is not None]
-            )
 
-        elif column_model.column_type == ColumnType.BOOLEAN:
-            include_true = False
-            include_false = False
-            for value in df[upsert_column]:
-                if value is None:
-                    continue
-                if value:
-                    include_true = True
-                else:
-                    include_false = True
-                if include_true and include_false:
-                    break
-            if include_true and include_false:
-                values_for_where_statement = ["'true'", "'false'"]
-            elif include_true:
-                values_for_where_statement = ["'true'"]
-            elif include_false:
-                values_for_where_statement = ["'false'"]
-        else:
-            values_for_where_statement = set(
-                [str(value) for value in df[upsert_column] if value is not None]
-            )
-        if not values_for_where_statement:
-            continue
-        where_statements.append(
-            f"\"{upsert_column}\" IN ({', '.join(values_for_where_statement)})"
+    if len(primary_keys) == 1:
+        where_statement = _construct_single_key_where_statement(
+            entity, df, primary_keys[0]
+        )
+    else:
+        where_statement = _construct_composite_key_where_statement(
+            entity, df, primary_keys
         )
 
-    where_statement = " AND ".join(where_statements)
     select_statement += where_statement
     return select_statement
 
@@ -1824,6 +1984,15 @@ def _construct_partial_rows_for_upsert(
 
     from pandas import isna
 
+    # `itertuples` builds a namedtuple from the column names, but a namedtuple field
+    # name must be a valid Python identifier. When a column name has a space or a
+    # special character, pandas silently swaps in a fallback name for that field
+    # (e.g. `_5`), so it can no longer be reached by its real name via
+    # `getattr`/`hasattr`. Looking values up by position instead of by name avoids
+    # this, since a row's positions never change, regardless of what its fields are
+    # named.
+    column_positions = {column: i for i, column in enumerate(results.columns)}
+
     rows_to_update: List[PartialRow] = []
     indexs_of_original_df_with_changes = []
     indexs_of_original_df_without_changes = []
@@ -1832,16 +2001,19 @@ def _construct_partial_rows_for_upsert(
         row_etag = None
 
         if contains_etag:
-            row_etag = row.ROW_ETAG
+            row_etag = row[column_positions["ROW_ETAG"]]
 
         partial_change_values = {}
 
         # Find the matching row in `values` that matches the row in `results` for the primary_keys
-        matching_conditions = chunk_to_check_for_upsert[primary_keys[0]] == getattr(
-            row, primary_keys[0]
+        matching_conditions = (
+            chunk_to_check_for_upsert[primary_keys[0]]
+            == row[column_positions[primary_keys[0]]]
         )
         for col in primary_keys[1:]:
-            matching_conditions &= chunk_to_check_for_upsert[col] == getattr(row, col)
+            matching_conditions &= (
+                chunk_to_check_for_upsert[col] == row[column_positions[col]]
+            )
         matching_row = chunk_to_check_for_upsert.loc[matching_conditions]
         # Determines which cells need to be updated
         for column in chunk_to_check_for_upsert.columns:
@@ -1858,10 +2030,12 @@ def _construct_partial_rows_for_upsert(
             cell_value = matching_row[column].values[0]
 
             # Safely compare values, handling pandas NA and arrays
-            row_value = getattr(row, column) if hasattr(row, column) else None
+            row_value = (
+                row[column_positions[column]] if column in column_positions else None
+            )
             values_differ = False
 
-            if not hasattr(row, column):
+            if column not in column_positions:
                 values_differ = True
             else:
                 # Helper to check if value is NA (handles both scalars and arrays)
@@ -1913,7 +2087,7 @@ def _construct_partial_rows_for_upsert(
                     partial_change_values[column_id] = None
         if partial_change_values:
             partial_change = PartialRow(
-                row_id=row.ROW_ID,
+                row_id=row[column_positions["ROW_ID"]],
                 etag=row_etag,
                 values=[
                     {
@@ -1925,8 +2099,10 @@ def _construct_partial_rows_for_upsert(
             )
             rows_to_update.append(partial_change)
             indexs_of_original_df_with_changes.append(matching_row.index[0])
-            if wait_for_eventually_consistent_view and row_etag and row.id:
-                syn_id_and_etags[row.id] = row_etag
+            if wait_for_eventually_consistent_view and row_etag:
+                row_id_value = row[column_positions["id"]]
+                if row_id_value:
+                    syn_id_and_etags[row_id_value] = row_etag
         else:
             indexs_of_original_df_without_changes.append(matching_row.index[0])
     return (
@@ -2033,11 +2209,10 @@ async def _wait_for_eventually_consistent_changes(
                         original_synids_and_etags_to_track.get(entity_with_change)
                     )
         number_of_changes_to_wait_for = len(etags_to_track)
-        progress_bar = tqdm(
+        progress_bar = create_progress_bar(
             total=number_of_changes_to_wait_for,
             desc="Waiting for eventually-consistent changes to show up in the view",
-            unit_scale=True,
-            smoothing=0,
+            synapse_client=synapse_client,
         )
         start_time = time.time()
 
@@ -2072,9 +2247,86 @@ async def _wait_for_eventually_consistent_changes(
             )
 
 
+def _log_upsert_summary(
+    entity: TableBase | ViewBase,
+    row_update_results: list[TableUpdateTransaction],
+    total_row_count_to_update: int,
+    row_count_to_insert: int,
+    client: Synapse,
+) -> None:
+    """
+    Log how many rows an upsert updated and inserted, along with any per-row
+    failures that Synapse reported.
+
+    Arguments:
+        entity: The table or view that was upserted.
+        row_update_results: The results of every row update sent to Synapse. This
+            is empty for a dry run since nothing is sent.
+        total_row_count_to_update: The number of rows this client sent for update.
+        row_count_to_insert: The number of rows that are inserted after the update.
+        client: The Synapse client used for logging.
+    """
+    total_rows_updated = sum(
+        result.total_rows_changed
+        for result in row_update_results
+        if result.total_rows_changed is not None
+    )
+
+    # Only the entities that back a view report a per-row outcome. A rejected row update
+    # on a table fails the asynchronous job and raises before this point, so for a table
+    # this list is always empty.
+    failed_row_updates = [
+        failed_update
+        for result in row_update_results
+        for failed_update in result.failed_entity_updates
+    ]
+
+    additional_message = ""
+    if failed_row_updates:
+        failure_details = []
+        for failed_update in failed_row_updates:
+            failure_reason = (
+                failed_update.failure_code.value
+                if failed_update.failure_code
+                else "UNKNOWN"
+            )
+            if failed_update.failure_message:
+                failure_reason = f"{failure_reason}: {failed_update.failure_message}"
+            failure_details.append(
+                f"{failed_update.entity_id or 'unknown row'} ({failure_reason})"
+            )
+        additional_message = (
+            f". {len(failed_row_updates)} rows could not be updated:"
+            f" {'; '.join(failure_details)}"
+        )
+
+    reported_row_count_to_update = (
+        total_rows_updated if row_update_results else total_row_count_to_update
+    )
+
+    client.logger.info(
+        f"[{entity.id}:{entity.name}]: Found {reported_row_count_to_update}"
+        f" rows to update and {row_count_to_insert} rows to insert" + additional_message
+    )
+
+    if (
+        row_update_results
+        and not failed_row_updates
+        and total_rows_updated < total_row_count_to_update
+    ):
+        client.logger.debug(
+            f"[{entity.id}:{entity.name}]: Synapse confirmed"
+            f" {total_rows_updated} of the"
+            f" {total_row_count_to_update} rows sent for update and reported no"
+            " failure. This is a gap in how this client counts the responses it"
+            " received, most likely a response type it does not model, and not a"
+            " failed update."
+        )
+
+
 async def _upsert_rows_async(
     entity: Union[TableBase, ViewBase],
-    values: DATA_FRAME_TYPE,
+    values: Union[str, Dict[str, Any], DATA_FRAME_TYPE],
     primary_keys: List[str],
     dry_run: bool = False,
     *,
@@ -2082,6 +2334,8 @@ async def _upsert_rows_async(
     update_size_bytes: int = 1.9 * MB,
     insert_size_bytes: int = 900 * MB,
     job_timeout: int = 600,
+    date_columns: Optional[List[str]] = None,
+    date_format: Optional[Union[str, Dict[str, str]]] = None,
     wait_for_eventually_consistent_view: bool = False,
     wait_for_eventually_consistent_view_timeout: int = 600,
     synapse_client: Optional[Synapse] = None,
@@ -2112,6 +2366,13 @@ async def _upsert_rows_async(
         values = DataFrame(values).convert_dtypes()
     elif isinstance(values, str):
         values = csv_to_pandas_df(filepath=values, **kwargs)
+        if date_columns:
+            values = _parse_df_date_cols_to_datetime(
+                df=values,
+                date_columns=date_columns,
+                date_format=date_format,
+                synapse_client=synapse_client,
+            )
     elif isinstance(values, DataFrame):
         values = values.convert_dtypes()
     else:
@@ -2120,8 +2381,22 @@ async def _upsert_rows_async(
         )
 
     client = Synapse.get_client(synapse_client=synapse_client)
+    # Convert datetime columns to epoch time in milliseconds for Synapse DATE column type
+    values = _convert_df_date_cols_to_epoch_time(df=values)
     # Replace pd.NA with None so the columns are converted to object columns instead of 'int64' or 'float64' which are not JSON serializable
     values = convert_dtypes_to_json_serializable(values)
+
+    _validate_primary_keys(values, primary_keys)
+
+    # An empty input is a no-op: there are no rows to match, update, or insert.
+    # Returning early also avoids constructing a WHERE clause from an empty
+    # DataFrame, which would produce malformed SQL.
+    if values.empty:
+        client.logger.info(
+            f"[{entity.id}:{entity.name}]: No rows provided to upsert. Nothing to do."
+        )
+        return
+
     rows_to_update: List[PartialRow] = []
     chunk_list: List[DataFrame] = []
     for i in range(0, len(values), rows_per_query):
@@ -2132,13 +2407,12 @@ async def _upsert_rows_async(
     indexes_of_original_df_with_changes = []
     indexes_of_original_df_with_no_changes = []
     total_row_count_to_update = 0
-    row_update_results = None
+    row_update_results: list[TableUpdateTransaction] = []
     with logging_redirect_tqdm(loggers=[client.logger]):
-        progress_bar = tqdm(
+        progress_bar = create_progress_bar(
             total=len(values),
             desc="Querying & Updating rows",
-            unit_scale=True,
-            smoothing=0,
+            synapse_client=client,
         )
         for individual_chunk in chunk_list:
             select_statement = _construct_select_statement_for_upsert(
@@ -2173,13 +2447,15 @@ async def _upsert_rows_async(
             if syn_id_and_etag_dict:
                 original_synids_and_etags_to_track.update(syn_id_and_etag_dict)
             if not dry_run and rows_to_update:
-                row_update_results = await _push_row_updates_to_synapse(
-                    entity=entity,
-                    rows_to_update=rows_to_update,
-                    update_size_bytes=update_size_bytes,
-                    progress_bar=progress_bar,
-                    client=client,
-                    job_timeout=job_timeout,
+                row_update_results.extend(
+                    await _push_row_updates_to_synapse(
+                        entity=entity,
+                        rows_to_update=rows_to_update,
+                        update_size_bytes=update_size_bytes,
+                        progress_bar=progress_bar,
+                        client=client,
+                        job_timeout=job_timeout,
+                    )
                 )
             elif dry_run:
                 progress_bar.update(len(rows_to_update))
@@ -2196,22 +2472,12 @@ async def _upsert_rows_async(
         )
     ]
 
-    total_row_count_actually_updated = 0
-    if row_update_results:
-        for result in row_update_results:
-            if result.entities_with_changes_applied:
-                total_row_count_actually_updated += len(
-                    result.entities_with_changes_applied
-                )
-
-    additional_message = ""
-    if total_row_count_actually_updated < total_row_count_to_update:
-        additional_message = f". {total_row_count_to_update - total_row_count_actually_updated} rows could not be updated."
-
-    client.logger.info(
-        f"[{entity.id}:{entity.name}]: Found {total_row_count_actually_updated or total_row_count_to_update}"
-        f" rows to update and {len(rows_to_insert_df)} rows to insert"
-        + additional_message
+    _log_upsert_summary(
+        entity=entity,
+        row_update_results=row_update_results,
+        total_row_count_to_update=total_row_count_to_update,
+        row_count_to_insert=len(rows_to_insert_df),
+        client=client,
     )
 
     if wait_for_eventually_consistent_view and original_synids_and_etags_to_track:
@@ -2246,6 +2512,8 @@ class TableUpsertMixin:
         update_size_bytes: int = 1.9 * MB,
         insert_size_bytes: int = 900 * MB,
         job_timeout: int = 600,
+        date_columns: Optional[List[str]] = None,
+        date_format: Optional[Union[str, Dict[str, str]]] = None,
         synapse_client: Optional[Synapse] = None,
         **kwargs,
     ) -> None:
@@ -2284,6 +2552,11 @@ class TableUpsertMixin:
         - The `primary_keys` argument must contain at least one column.
         - The `primary_keys` argument cannot contain columns that are a LIST type.
         - The `primary_keys` argument cannot contain columns that are a JSON type.
+        - The `primary_keys` columns must be present in the data being upserted. A
+            ValueError is raised if a primary key column is missing.
+        - The values in the primary_keys columns cannot be null. A null value cannot
+            be used to match an existing row, so a ValueError is raised if any row
+            has a null value in a primary key column.
         - The values used as the `primary_keys` must be unique in the table. If there
             are multiple rows with the same values in the `primary_keys` the behavior
             is that an exception will be raised.
@@ -2354,7 +2627,7 @@ class TableUpsertMixin:
                 set the log level to DEBUG by setting the debug flag when creating
                 your Synapse class instance like: `syn = Synapse(debug=True)`.
 
-            rows_per_query: The number of rows that will be queries from Synapse per
+            rows_per_query: The number of rows that will be queried from Synapse per
                 request. Since we need to query for the data that is being updated
                 this will determine the number of rows that are queried at a time.
                 The default is 50,000 rows.
@@ -2371,11 +2644,27 @@ class TableUpsertMixin:
                 is reached a `SynapseTimeoutError` will be raised.
                 The default is 600 seconds
 
+            date_columns: (CSV file only) The names of columns in your CSV file that
+                contain dates or datetimes stored as formatted strings
+                (e.g. `"2024-01-15"` or `"01/15/2024 13:30"`). The columns are parsed
+                with `pandas.to_datetime` and converted to epoch time in milliseconds
+                before the data is uploaded, which is the format Synapse requires for
+                `DATE` columns.
+
+            date_format: (CSV file only) How the strings in `date_columns` are
+                formatted — a
+                [strftime format string](https://docs.python.org/3/library/datetime.html#strftime-and-strptime-format-codes)
+                (e.g. `"%m/%d/%Y"`) applied to every column, or a dict mapping column
+                names to their formats. Supply this so that ambiguous dates
+                (e.g. `"01/02/2024"`) are not silently misinterpreted and to optimize
+                the data upload performance. If the values in a column do not match
+                the format a `ValueError` is raised.
+
             synapse_client: If not passed in and caching was not disabled by
                 `Synapse.allow_client_caching(False)` this will use the last created
                 instance from the Synapse class constructor
 
-            **kwargs: Additional arguments that are passed to the `pd.DataFrame`
+            **kwargs: Additional arguments that are passed to the `csv_to_pandas_df`
                 function when the `values` argument is a path to a csv file.
 
 
@@ -2464,6 +2753,54 @@ class TableUpsertMixin:
             | A    |      | 1    |
             | B    | 2    |      |
 
+        Example: Upserting data with date columns
+            In this given example we have a table with the following data:
+
+            | col1 | date_col   |
+            |------|------------|
+            | A    | 2024-01-15 |
+            | B    | 2024-02-20 |
+
+            Suppose we have a CSV file with the following data that we want to upsert:
+
+            | col1 | date_col   |
+            |------|------------|
+            | A    | 03/10/2024 |
+            | C    | 04/01/2024 |
+
+            The `date_columns`/`date_format` arguments tell the client how to parse
+            the formatted date strings in the CSV file so that they can be compared
+            against, and stored in, the table's `DATE` column. The following code
+            will update row `A`'s `date_col` and insert a new row for `C`:
+
+            ```python
+            import asyncio
+            from synapseclient import Synapse
+            from synapseclient.models import Table # Also works with `Dataset`
+
+            syn = Synapse()
+            syn.login()
+
+
+            async def main():
+                await Table(id="syn123").upsert_rows_async(
+                    values="path/to/file.csv",
+                    primary_keys=["col1"],
+                    date_columns=["date_col"],
+                    date_format="%m/%d/%Y",
+                )
+
+            asyncio.run(main())
+            ```
+
+            The resulting table will look like this:
+
+            | col1 | date_col   |
+            |------|------------|
+            | A    | 2024-03-10 |
+            | B    | 2024-02-20 |
+            | C    | 2024-04-01 |
+
         """
         return await _upsert_rows_async(
             entity=self,
@@ -2474,6 +2811,8 @@ class TableUpsertMixin:
             update_size_bytes=update_size_bytes,
             insert_size_bytes=insert_size_bytes,
             job_timeout=job_timeout,
+            date_columns=date_columns,
+            date_format=date_format,
             synapse_client=synapse_client,
             **kwargs,
         )
@@ -2497,6 +2836,8 @@ class ViewUpdateMixin:
         update_size_bytes: int = 1.9 * MB,
         insert_size_bytes: int = 900 * MB,
         job_timeout: int = 600,
+        date_columns: Optional[List[str]] = None,
+        date_format: Optional[Union[str, Dict[str, str]]] = None,
         wait_for_eventually_consistent_view: bool = False,
         wait_for_eventually_consistent_view_timeout: int = 600,
         synapse_client: Optional[Synapse] = None,
@@ -2516,6 +2857,11 @@ class ViewUpdateMixin:
         - The `primary_keys` argument must contain at least one column.
         - The `primary_keys` argument cannot contain columns that are a LIST type.
         - The `primary_keys` argument cannot contain columns that are a JSON type.
+        - The `primary_keys` columns must be present in the data being upserted. A
+            ValueError is raised if a primary key column is missing.
+        - The values in the primary_keys columns cannot be null. A null value cannot
+            be used to match an existing row, so a ValueError is raised if any row
+            has a null value in a primary key column.
         - The values used as the `primary_keys` must be unique in the table. If there
             are multiple rows with the same values in the `primary_keys` the behavior
             is that an exception will be raised.
@@ -2564,6 +2910,22 @@ class ViewUpdateMixin:
                 is reached a `SynapseTimeoutError` will be raised.
                 The default is 600 seconds
 
+            date_columns: (CSV file only) The names of columns in your CSV file that
+                contain dates or datetimes stored as formatted strings
+                (e.g. `"2024-01-15"` or `"01/15/2024 13:30"`). The columns are parsed
+                with `pandas.to_datetime` and converted to epoch time in milliseconds
+                before the data is uploaded, which is the format Synapse requires for
+                `DATE` columns.
+
+            date_format: (CSV file only) How the strings in `date_columns` are
+                formatted — a
+                [strftime format string](https://docs.python.org/3/library/datetime.html#strftime-and-strptime-format-codes)
+                (e.g. `"%m/%d/%Y"`) applied to every column, or a dict mapping column
+                names to their formats. Supply this so that ambiguous dates
+                (e.g. `"01/02/2024"`) are not silently misinterpreted and to optimize
+                the data upload performance. If the values in a column do not match
+                the format a `ValueError` is raised.
+
             wait_for_eventually_consistent_view: Only used if the table is a view. If
                 set to True this will wait for the view to reflect any changes that
                 you've made to the view. This is useful if you need to query the view
@@ -2579,7 +2941,7 @@ class ViewUpdateMixin:
                 `Synapse.allow_client_caching(False)` this will use the last created
                 instance from the Synapse class constructor
 
-            **kwargs: Additional arguments that are passed to the `pd.DataFrame`
+            **kwargs: Additional arguments that are passed to the `csv_to_pandas_df`
                 function when the `values` argument is a path to a csv file.
         """
         await _upsert_rows_async(
@@ -2591,6 +2953,8 @@ class ViewUpdateMixin:
             update_size_bytes=update_size_bytes,
             insert_size_bytes=insert_size_bytes,
             job_timeout=job_timeout,
+            date_columns=date_columns,
+            date_format=date_format,
             wait_for_eventually_consistent_view=wait_for_eventually_consistent_view,
             wait_for_eventually_consistent_view_timeout=wait_for_eventually_consistent_view_timeout,
             synapse_client=synapse_client,
@@ -3216,16 +3580,12 @@ class TableStoreRowMixin:
         schema_storage_strategy: SchemaStorageStrategy = None,
         column_expansion_strategy: ColumnExpansionStrategy = None,
         dry_run: bool = False,
-        additional_changes: List[
-            Union[
-                "TableSchemaChangeRequest",
-                "UploadToTableRequest",
-                "AppendableRowSetRequest",
-            ]
-        ] = None,
+        additional_changes: List["TableUpdateRequest"] = None,
         *,
         insert_size_bytes: int = 900 * MB,
         csv_table_descriptor: Optional[CsvTableDescriptor] = None,
+        date_columns: Optional[List[str]] = None,
+        date_format: Optional[Union[str, Dict[str, str]]] = None,
         read_csv_kwargs: Optional[Dict[str, Any]] = None,
         to_csv_kwargs: Optional[Dict[str, Any]] = None,
         job_timeout: int = 600,
@@ -3255,6 +3615,57 @@ class TableStoreRowMixin:
         - If you use the `store_rows` method and the `schema_storage_strategy` is set to
             `INFER_FROM_DATA` the columns will be added at the end of the columns list.
 
+
+        **How datetime values are interpreted:**
+
+        Synapse `DATE` columns store an exact moment in time, represented as the
+        number of milliseconds since `1970-01-01 00:00:00` UTC. Before upload,
+        datetime values are converted to that representation as follows:
+
+        - Timezone-aware datetimes (e.g. localized with `zoneinfo.ZoneInfo` or
+            `pandas.Series.dt.tz_localize`) are converted to UTC exactly. This is
+            the recommended way to pass datetime data: the stored value does not
+            depend on the timezone settings of the machine performing the upload
+            or on the date the upload is run.
+        - Naive datetimes (no `tzinfo`) are assumed to be in the local timezone
+            of the machine **at the time of upload**. That single UTC offset is
+            applied to every value, including values whose dates fall in a
+            different daylight saving period, which will be stored shifted by one
+            hour. For example, uploading `2017-02-14 11:23` (a PST date, UTC-8)
+            from a machine currently on PDT (UTC-7) stores `2017-02-14 18:23` UTC
+            instead of the correct `19:23` UTC. To avoid this, localize your data
+            first, e.g. `df["col"] = df["col"].dt.tz_localize("America/Los_Angeles")`.
+        - Plain `datetime.date` objects (as opposed to datetimes) are treated
+            as midnight of that date and converted the same way naive
+            datetimes are: using the local timezone of the machine **at the
+            time of upload**, with the same daylight-saving-shift risk
+            described above.
+        - Midnight values deserve extra care: the one-hour daylight saving
+            shift described above can move a naive midnight datetime — or a
+            `datetime.date`, which is treated as midnight — to 11 PM of the
+            previous day, changing the calendar date the value displays as.
+
+        **Why timezone-aware values are recommended:**
+
+        A naive datetime such as `2017-02-14 11:23` is only "what a clock on the
+        wall said." Before it can be stored as an exact moment in time, something
+        has to answer: *a clock where?* Timezone-aware values answer that
+        question in the data itself; naive values leave the client to guess, and
+        it guesses the uploading machine's current timezone.
+
+        A zone name like `"America/Los_Angeles"` does not mean a fixed offset
+        such as UTC-8. It means "a Los Angeles wall clock" — and those clocks
+        move twice a year: UTC-7 in summer (PDT), UTC-8 in winter (PST). When
+        pandas localizes a column with
+        `df["col"].dt.tz_localize("America/Los_Angeles")`, it looks up what LA
+        clocks were set to on each value's own date:
+
+        - `2017-02-14` → winter → interpreted using UTC-8
+        - `2018-10-01` → summer → interpreted using UTC-7
+
+        When the data is queried back with `query(..., convert_to_datetime=True)`,
+        `DATE` columns are returned as timezone-aware datetimes in UTC. Use
+        `Series.dt.tz_convert` to view them in another timezone.
 
         **Limitations:**
 
@@ -3408,7 +3819,10 @@ class TableStoreRowMixin:
                 what actions would be taken without actually performing them.
 
             additional_changes: Additional changes to the table that should execute
-                within the same transaction as appending or updating rows. This is used
+                within the same transaction as appending or updating rows. Each change
+                is a TableUpdateRequest, which is one of TableSchemaChangeRequest,
+                AppendableRowSetRequest, UploadToTableRequest, or
+                TableSearchChangeRequest. This is used
                 as a part of the `upsert_rows` method call to allow for the updating of
                 rows and the updating of the table schema in the same transaction. In
                 most cases you will not need to use this argument.
@@ -3435,10 +3849,35 @@ class TableStoreRowMixin:
                 [CsvTableDescriptor][synapseclient.models.CsvTableDescriptor]
                 for more information.
 
+            date_columns: (CSV file only) The names of columns in your CSV file that
+                contain dates or datetimes stored as formatted strings
+                (e.g. `"2024-01-15"` or `"01/15/2024 13:30"`). The columns are parsed
+                with `pandas.to_datetime` and converted to epoch time in milliseconds
+                before the data is uploaded, which is the format Synapse requires for
+                `DATE` columns. The conversion is done by reading the CSV file into a
+                pandas DataFrame and uploading a temporary copy with the converted
+                values, which requires the CSV file to contain a header row. When `schema_storage_strategy` is
+                set to `INFER_FROM_DATA` the parsed columns will be inferred as `DATE`
+                columns. The parsed values are naive datetimes unless the strings
+                carry a UTC offset — see *How datetime values are interpreted*
+                above for how they are converted to epoch time. When the offsets in
+                a column differ between rows (e.g. a mix of `-0800` and `-0700`
+                values) the values are normalized to UTC, preserving the exact
+                moments in time.
+
+            date_format: (CSV file only) How the strings in `date_columns` are
+                formatted — a
+                [strftime format string](https://docs.python.org/3/library/datetime.html#strftime-and-strptime-format-codes)
+                (e.g. `"%m/%d/%Y"`) applied to every column, or a dict mapping column
+                names to their formats. Supply this so that ambiguous dates
+                (e.g. `"01/02/2024"`) are not silently misinterpreted and to optimize the data upload performance. If the values
+                in a column do not match the format a `ValueError` is raised.
+
             read_csv_kwargs: Additional arguments to pass to the `pd.read_csv` function
                 when reading in a CSV file. This is only used when the `values` argument
-                is a string holding the path to a CSV file and you have set the
-                `schema_storage_strategy` to `INFER_FROM_DATA`. See
+                is a string holding the path to a CSV file and either
+                `schema_storage_strategy` is set to `INFER_FROM_DATA` or `date_columns`
+                is provided. See
                 <https://pandas.pydata.org/docs/reference/api/pandas.read_csv.html>
                 for complete list of supported arguments.
 
@@ -3617,20 +4056,67 @@ class TableStoreRowMixin:
             | B    | 2    | 33   |
             | C    | 3    | 3    |
 
+        Example: Inserting rows from a CSV file that contains date columns
+
+            This example shows how you may insert rows from a CSV file that contains
+            date columns. The date columns are converted
+            to epoch time in milliseconds before the data is uploaded so that Synapse
+            can store them in `DATE` columns.
+
+            Suppose we have a CSV file with the following data:
+
+            | col1 | date_col1  | date_col2  |
+            |------|------------|------------|
+            | A    | 01/15/2024 | 2024-01-20 |
+            | B    | 02/20/2024 | 2024-02-25 |
+
+            ```python
+            import asyncio
+            from synapseclient import Synapse
+            from synapseclient.models import Table, SchemaStorageStrategy
+
+            syn = Synapse()
+            syn.login()
+
+            async def main():
+                await Table(id="syn1234").store_rows_async(
+                    values="path/to/file.csv",
+                    schema_storage_strategy=SchemaStorageStrategy.INFER_FROM_DATA,
+                    date_columns=["date_col1", "date_col2"],
+                    date_format={"date_col1": "%m/%d/%Y", "date_col2": "%Y-%m-%d"},
+                )
+
+            asyncio.run(main())
+            ```
+
         """
         test_import_pandas()
         from pandas import DataFrame
 
         to_csv_kwargs = {"escapechar": DEFAULT_ESCAPE_CHAR, **(to_csv_kwargs or {})}
+        read_csv_kwargs = read_csv_kwargs or {}
 
         original_values = values
         if isinstance(values, dict):
             values = DataFrame(values).convert_dtypes()
-        elif (
-            isinstance(values, str)
-            and schema_storage_strategy == SchemaStorageStrategy.INFER_FROM_DATA
+        elif isinstance(values, str) and (
+            schema_storage_strategy == SchemaStorageStrategy.INFER_FROM_DATA
+            or date_columns
         ):
-            values = csv_to_pandas_df(filepath=values, **(read_csv_kwargs or {}))
+            # ROW_ID/ROW_VERSION must stay as regular columns so they survive the
+            # round-trip to the temporary upload file when `date_columns` is used —
+            # dropping them would turn a row update into an append.
+            values = csv_to_pandas_df(
+                filepath=values,
+                **{"row_id_and_version_in_index": False, **(read_csv_kwargs or {})},
+            )
+            if date_columns:
+                values = _parse_df_date_cols_to_datetime(
+                    df=values,
+                    date_columns=date_columns,
+                    date_format=date_format,
+                    synapse_client=synapse_client,
+                )
         elif isinstance(values, DataFrame):
             values = values.convert_dtypes()
         elif isinstance(values, str):
@@ -3684,20 +4170,35 @@ class TableStoreRowMixin:
             raise ValueError(
                 "The table must have an ID to store rows, or the table could not be found from the given name/parent_id."
             )
-
         if isinstance(original_values, str):
-            with logging_redirect_tqdm(loggers=[client.logger]):
-                await self._chunk_and_upload_csv(
-                    path_to_csv=original_values,
-                    insert_size_bytes=insert_size_bytes,
+            path_to_csv = original_values
+            temp_csv_with_epoch_dates = None
+            if date_columns:
+                # `values` already has the date columns parsed to datetime by
+                # _parse_df_date_cols_to_datetime
+                temp_csv_with_epoch_dates = _convert_csv_date_cols_to_epoch_time(
+                    df=values,
                     csv_table_descriptor=csv_table_descriptor,
-                    schema_change_request=schema_change_request,
-                    client=client,
-                    additional_changes=additional_changes,
-                    job_timeout=job_timeout,
                 )
+                path_to_csv = temp_csv_with_epoch_dates
+            try:
+                with logging_redirect_tqdm(loggers=[client.logger]):
+                    await self._chunk_and_upload_csv(
+                        path_to_csv=path_to_csv,
+                        insert_size_bytes=insert_size_bytes,
+                        csv_table_descriptor=csv_table_descriptor,
+                        schema_change_request=schema_change_request,
+                        client=client,
+                        additional_changes=additional_changes,
+                        job_timeout=job_timeout,
+                    )
+            finally:
+                if temp_csv_with_epoch_dates:
+                    os.remove(temp_csv_with_epoch_dates)
         elif isinstance(values, DataFrame):
             with logging_redirect_tqdm(loggers=[client.logger]):
+                # date columns are converted to epoch time in milliseconds
+                values = _convert_df_date_cols_to_epoch_time(values)
                 await self._chunk_and_upload_df(
                     df=values,
                     insert_size_bytes=insert_size_bytes,
@@ -3720,13 +4221,7 @@ class TableStoreRowMixin:
         table_descriptor: CsvTableDescriptor,
         job_timeout: int,
         file_handle_id: str = None,
-        changes: List[
-            Union[
-                "TableSchemaChangeRequest",
-                "UploadToTableRequest",
-                "AppendableRowSetRequest",
-            ]
-        ] = None,
+        changes: List["TableUpdateRequest"] = None,
     ) -> None:
         """
         Construct the request to send to Synapse to update the table with the
@@ -3741,6 +4236,7 @@ class TableStoreRowMixin:
             file_handle_id: The file handle ID that is being uploaded to Synapse.
             changes: Additional changes to the table that should
                 execute within the same transaction as appending or updating rows.
+                Each change is a TableUpdateRequest.
         """
         all_changes = []
         if changes:
@@ -3842,13 +4338,7 @@ class TableStoreRowMixin:
         progress_bar: tqdm,
         wait_for_update_semaphore: asyncio.Semaphore,
         file_suffix: str,
-        changes: List[
-            Union[
-                "TableSchemaChangeRequest",
-                "UploadToTableRequest",
-                "AppendableRowSetRequest",
-            ]
-        ] = None,
+        changes: List["TableUpdateRequest"] = None,
         to_csv_kwargs: Optional[Dict[str, Any]] = None,
     ) -> None:
         """
@@ -3879,7 +4369,7 @@ class TableStoreRowMixin:
             file_suffix: The suffix that is being used to name the CSV file that is
                 being uploaded.
             changes: Additional changes to the table that should
-                execute within this transaction.
+                execute within this transaction. Each change is a TableUpdateRequest.
             to_csv_kwargs: Additional arguments to pass to the `pd.DataFrame.to_csv`
                 function when writing the data to a CSV file.
         """
@@ -3917,13 +4407,7 @@ class TableStoreRowMixin:
         schema_change_request: TableSchemaChangeRequest,
         client: Synapse,
         job_timeout: int,
-        additional_changes: List[
-            Union[
-                "TableSchemaChangeRequest",
-                "UploadToTableRequest",
-                "AppendableRowSetRequest",
-            ]
-        ] = None,
+        additional_changes: List["TableUpdateRequest"] = None,
     ) -> None:
         """
         Determines if the file we are appending to the table is larger than the
@@ -3942,7 +4426,7 @@ class TableStoreRowMixin:
             client: The Synapse client that is being used to interact with the API.
             job_timeout: The maximum amount of time to wait for a job to complete.
             additional_changes: Additional changes to the table that should execute
-                within this transaction.
+                within this transaction. Each change is a TableUpdateRequest.
         """
         if (file_size := os.path.getsize(path_to_csv)) > insert_size_bytes:
             # Apply schema changes before breaking apart and uploading the file
@@ -3959,13 +4443,11 @@ class TableStoreRowMixin:
                 job_timeout=job_timeout,
             )
 
-            progress_bar = tqdm(
+            progress_bar = create_progress_bar(
                 total=file_size,
                 desc="Splitting CSV and uploading chunks",
-                unit_scale=True,
-                smoothing=0,
                 unit="B",
-                leave=None,
+                synapse_client=client,
             )
             # The original file is read twice, the reason is that on the first pass we
             # are calculating the size of the chunks that we will be uploading and the
@@ -4066,13 +4548,7 @@ class TableStoreRowMixin:
         schema_change_request: TableSchemaChangeRequest,
         client: Synapse,
         job_timeout: int,
-        additional_changes: List[
-            Union[
-                "TableSchemaChangeRequest",
-                "UploadToTableRequest",
-                "AppendableRowSetRequest",
-            ]
-        ] = None,
+        additional_changes: List["TableUpdateRequest"] = None,
         to_csv_kwargs: Optional[Dict[str, Any]] = None,
     ) -> None:
         """
@@ -4092,9 +4568,9 @@ class TableStoreRowMixin:
             client: The Synapse client that is being used to interact with the API.
             job_timeout: The maximum amount of time to wait for a job to complete.
             additional_changes: Additional changes to the table that should execute
-                within this transaction. When there are multiple chunks to upload
-                the changes will be applied right away to prevent going over service
-                limits.
+                within this transaction. Each change is a TableUpdateRequest. When
+                there are multiple chunks to upload the changes will be applied right
+                away to prevent going over service limits.
             to_csv_kwargs: Additional arguments to pass to the `pd.DataFrame.to_csv`
                 function when writing the data to a CSV file.
         """
@@ -4153,17 +4629,15 @@ class TableStoreRowMixin:
         client.logger.info(
             f"[{self.id}:{self.name}]: Found {len(chunks_to_upload)} chunks to upload into table"
         )
-        progress_bar = tqdm(
+        progress_bar = create_progress_bar(
             total=total_df_bytes,
             desc=(
                 "Splitting DataFrame and uploading chunks"
                 if len(chunks_to_upload) > 1
                 else "Uploading DataFrame"
             ),
-            unit_scale=True,
-            smoothing=0,
             unit="B",
-            leave=None,
+            synapse_client=client,
         )
 
         changes = []
@@ -4484,10 +4958,210 @@ def _convert_df_date_cols_to_datetime(
         raise ValueError(
             "Cannot convert epoch time to integer. Please make sure that the date columns that you specified contain valid epoch time value"
         )
-    df[date_columns] = df[date_columns].apply(
-        lambda x: to_datetime(x, unit="ms", utc=True)
+    # The trailing astype forces the datetime64 dtype even when df has zero rows —
+    # on an empty DataFrame, apply does not reliably propagate the dtype that
+    # to_datetime returns, leaving the column as float64.
+    df[date_columns] = (
+        df[date_columns]
+        .apply(lambda x: to_datetime(x, unit="ms", utc=True))
+        .astype("datetime64[ns, UTC]")
     )
     return df
+
+
+def _is_date_list_column(series: SERIES_TYPE) -> bool:
+    """
+    Check if a series is a DATE_LIST column.
+
+    Arguments:
+        series: The series to check.
+
+    Returns:
+        True if the series is a DATE_LIST column, False otherwise.
+    """
+    return any(
+        isinstance(cell, (list, tuple))
+        and any(isinstance(item, (date, datetime)) for item in cell if item is not None)
+        for cell in series
+        if cell is not None
+    )
+
+
+def _convert_df_date_cols_to_epoch_time(df: DATA_FRAME_TYPE) -> DATA_FRAME_TYPE:
+    """
+    Convert date columns with datetime values, and DATE_LIST columns holding a
+    Python list of date/datetime values per cell, to epoch time in milliseconds.
+
+    Arguments:
+        df: The pandas dataframe.
+    Returns:
+        A dataframe with datetime columns converted to epoch time in milliseconds
+    """
+    test_import_pandas()
+    import pandas as pd
+    from pandas.api.types import infer_dtype
+
+    for col in df.columns:
+        dtype = infer_dtype(df[col], skipna=True)
+        if dtype in ("datetime64", "datetime", "date"):
+            df[col] = (
+                df[col]
+                .apply(
+                    lambda cell: to_unix_epoch_time(cell) if pd.notna(cell) else None
+                )
+                .astype("Int64")
+            )
+        elif dtype == "mixed" and _is_date_list_column(df[col]):
+            df[col] = df[col].apply(
+                lambda cell: (
+                    [
+                        to_unix_epoch_time(item) if item is not None else None
+                        for item in cell
+                    ]
+                    if isinstance(cell, (list, tuple))
+                    else None
+                )
+            )
+    return df
+
+
+def _parse_df_date_cols_to_datetime(
+    df: DATA_FRAME_TYPE,
+    date_columns: List[str],
+    date_format: Optional[Union[str, Dict[str, str]]] = None,
+    synapse_client: Optional[Synapse] = None,
+) -> DATA_FRAME_TYPE:
+    """
+    Parse date columns holding date strings into datetime values using
+    `pandas.to_datetime`. A column may hold a formatted date string per cell
+    (a DATE column), or a list of formatted date strings per cell (a
+    DATE_LIST column) each item in every list is parsed the same way a
+    scalar cell would be.
+
+    Timezone-naive inputs are converted to timezone-naive; Timezone-aware inputs
+    with constant time offset are converted to timezone-aware. When the offsets in a column
+    differ between rows (e.g. a mix of `-0800` and `-0700` values), the values are normalized to UTC.
+    For a DATE_LIST column, offsets are compared across every item in every list in the column.
+
+    Arguments:
+        df: A pandas dataframe
+        date_columns: The names of the columns holding formatted date strings,
+            or lists of formatted date strings.
+        date_format: The strftime format of the strings — a single format string
+            applied to every column, or a dict mapping column names to their
+            formats. When `None` the format is inferred by pandas.
+        synapse_client: If not passed in and caching was not disabled by
+                `Synapse.allow_client_caching(False)` this will use the last created
+                instance from the Synapse class constructor.
+    Returns:
+        The dataframe with the date columns parsed to datetime values.
+
+    Raises:
+        ValueError: If a column in `date_columns` is not present in the dataframe,
+            or if the values in a column do not match the supplied format.
+    """
+    test_import_pandas()
+    from pandas import to_datetime
+
+    client = Synapse.get_client(synapse_client=synapse_client)
+
+    missing_cols = list(set(date_columns) - set(df.columns))
+    if missing_cols:
+        raise ValueError(
+            f"The date column(s) {', '.join(missing_cols)} listed in `date_columns` "
+            "are not present in the data. Please ensure that the date columns "
+            "are already in the dataframe."
+        )
+    for col in date_columns:
+        col_format = (
+            date_format.get(col) if isinstance(date_format, dict) else date_format
+        )
+        # TODO SYNPY-1907: add warning for mixed timezones/offsets if the pandas<3.0 pin is ever lifted.
+        #  Mixed offsets will start raising ValueError instead of returning object dtype,
+        # and this spot will need the exception handling back.
+
+        is_list_column = (
+            df[col].apply(lambda cell: isinstance(cell, (list, tuple))).any()
+        )
+
+        offset_pattern = re.compile(r"([Zz\+\-]\d{2}:?\d{2})$")
+        # check if any value in the column holds mixed timezones/offsets by
+        # extracting the UTC offsets
+        flat_col = df[col].explode() if is_list_column else df[col]
+        offsets = set(flat_col.astype("string").str.extract(offset_pattern)[0].dropna())
+        utc = len(offsets) > 1
+        if utc:
+            client.logger.info(
+                f"The date column {col} holds mixed timezones/offsets and will be normalized to UTC."
+            )
+
+        if is_list_column:
+            df[col] = df[col].apply(
+                lambda cell: (
+                    [
+                        (
+                            to_datetime(item, format=col_format, utc=utc)
+                            if item is not None
+                            else None
+                        )
+                        for item in cell
+                    ]
+                    if isinstance(cell, (list, tuple))
+                    else cell
+                )
+            )
+        else:
+            df[col] = to_datetime(df[col], format=col_format, utc=utc)
+    return df
+
+
+def _convert_csv_date_cols_to_epoch_time(
+    df: DATA_FRAME_TYPE,
+    csv_table_descriptor: Optional[CsvTableDescriptor] = None,
+) -> str:
+    """
+    Convert the date columns to epoch time in milliseconds and write the result to
+    a temporary CSV file to be uploaded to Synapse. The date columns must already
+    hold datetime values — parse formatted date strings first (e.g. with
+    `_parse_df_date_cols_to_datetime`) before calling this function, as columns
+    of any other type are written out unchanged.
+
+    Arguments:
+        df: The dataframe holding the CSV data to convert.
+        csv_table_descriptor: The descriptor for the CSV file. Used to write the
+            file with the same separator, quote, and escape characters that Synapse
+            will use to parse the uploaded file.
+
+    Returns:
+        The path to a temporary CSV file with the date columns converted to epoch
+        time in milliseconds. The caller is responsible for deleting this file.
+    """
+    test_import_pandas()
+
+    descriptor = csv_table_descriptor or CsvTableDescriptor()
+    if not descriptor.is_first_line_header:
+        raise ValueError(
+            "The CSV file should have a header row to convert date columns to epoch time."
+        )
+
+    df = _convert_df_date_cols_to_epoch_time(df=df)
+
+    fd, temp_path = tempfile.mkstemp(suffix=".csv")
+    os.close(fd)
+    try:
+        df.to_csv(
+            temp_path,
+            index=False,
+            float_format="%.12g",
+            sep=descriptor.separator,
+            quotechar=descriptor.quote_character,
+            escapechar=descriptor.escape_character,
+            lineterminator=descriptor.line_end,
+        )
+    except Exception:
+        os.remove(temp_path)
+        raise
+    return temp_path
 
 
 def _row_labels_from_id_and_version(rows: List[Tuple[str, str]]) -> List[str]:

@@ -258,6 +258,33 @@ async def list_grid_sessions(
         yield item
 
 
+async def get_grid_session(
+    session_id: str,
+    *,
+    synapse_client: Optional["Synapse"] = None,
+) -> dict[str, Any]:
+    """
+    Get a single grid session by its session id.
+
+    https://rest-docs.synapse.org/rest/GET/grid/session/sessionId.html
+
+    Arguments:
+        session_id: The unique identifier of the grid session to get.
+        synapse_client: If not passed in and caching was not disabled by
+            `Synapse.allow_client_caching(False)` this will use the last created
+            instance from the Synapse class constructor.
+
+    Returns:
+        The GridSession as a dictionary.
+    """
+    from synapseclient import Synapse
+
+    client = Synapse.get_client(synapse_client=synapse_client)
+
+    response = await client.rest_get_async(uri=f"/grid/session/{session_id}")
+    return response
+
+
 async def delete_grid_session(
     session_id: str,
     *,
@@ -284,3 +311,37 @@ async def delete_grid_session(
     client = Synapse.get_client(synapse_client=synapse_client)
 
     await client.rest_delete_async(uri=f"/grid/session/{session_id}")
+
+
+async def create_grid_replica(
+    create_replica_request: Dict[str, Any],
+    session_id: str,
+    *,
+    synapse_client: Optional["Synapse"] = None,
+) -> dict[str, Any]:
+    """
+    Create a new replica for a grid session. A replica represents an
+    'in-memory' grid document identified by a unique replicaId.
+
+    https://rest-docs.synapse.org/rest/POST/grid/session/sessionId/replica.html
+
+    Note: Only the user that started the grid session may create a replica.
+
+    Arguments:
+        create_replica_request: The complete CreateReplicaRequest object.
+        session_id: The grid session ID.
+        synapse_client: If not passed in and caching was not disabled by
+            `Synapse.allow_client_caching(False)` this will use the last created
+            instance from the Synapse class constructor.
+
+    Returns:
+        The CreateReplicaResponse containing information about the created replica.
+    """
+    from synapseclient import Synapse
+
+    client = Synapse.get_client(synapse_client=synapse_client)
+
+    return await client.rest_post_async(
+        uri=f"/grid/session/{session_id}/replica",
+        body=json.dumps(create_replica_request),
+    )

@@ -8,7 +8,7 @@ import pytest
 
 from synapseclient import Synapse
 from synapseclient.core.exceptions import SynapseHTTPError
-from synapseclient.models import Evaluation, Project
+from synapseclient.models import Evaluation, Project, UserProfile
 
 
 class TestEvaluationCreation:
@@ -17,18 +17,12 @@ class TestEvaluationCreation:
         self.syn = syn
         self.schedule_for_cleanup = schedule_for_cleanup
 
-    async def test_create_evaluation(self):
-        # GIVEN a project to work with
-        project = await Project(name=f"test_project_{uuid.uuid4()}").store_async(
-            synapse_client=self.syn
-        )
-        self.schedule_for_cleanup(project.id)
-
+    async def test_create_evaluation(self, project_model: Project):
         # WHEN I create an evaluation using the dataclass method
         evaluation = Evaluation(
             name=f"test_evaluation_{uuid.uuid4()}",
             description="A test evaluation for testing purposes",
-            content_source=project.id,
+            content_source=project_model.id,
             submission_instructions_message="Please submit your results in CSV format",
             submission_receipt_message="Thank you for your submission!",
         )
@@ -42,9 +36,44 @@ class TestEvaluationCreation:
         assert (
             created_evaluation.description == "A test evaluation for testing purposes"
         )
-        assert created_evaluation.content_source == project.id
+        assert created_evaluation.content_source == project_model.id
         assert created_evaluation.owner_id is not None  # Check that owner_id is set
         assert created_evaluation.created_on is not None  # Check that created_on is set
+
+    async def test_create_evaluation_without_optional_message_fields(
+        self, project_model: Project
+    ):
+        # WHEN I create an evaluation without submission_instructions_message or submission_receipt_message
+        evaluation = Evaluation(
+            name=f"test_evaluation_{uuid.uuid4()}",
+            description="A test evaluation without optional message fields",
+            content_source=project_model.id,
+        )
+        created_evaluation = await evaluation.store_async(synapse_client=self.syn)
+        self.schedule_for_cleanup(created_evaluation.id)
+
+        # THEN the evaluation should be created successfully
+        assert created_evaluation.id is not None
+        assert created_evaluation.etag is not None
+        assert created_evaluation.name == evaluation.name
+        assert created_evaluation.content_source == project_model.id
+        assert created_evaluation.submission_instructions_message is None
+        assert created_evaluation.submission_receipt_message is None
+
+        # WHEN I update a field without setting message fields
+        new_description = f"Updated description {uuid.uuid4()}"
+        old_etag = created_evaluation.etag
+        created_evaluation.description = new_description
+        updated_evaluation = await created_evaluation.store_async(
+            synapse_client=self.syn
+        )
+
+        # THEN the update should also succeed without message fields
+        assert updated_evaluation.description == new_description
+        assert updated_evaluation.id == created_evaluation.id
+        assert updated_evaluation.etag != old_etag
+        assert updated_evaluation.submission_instructions_message is None
+        assert updated_evaluation.submission_receipt_message is None
 
 
 class TestGetEvaluation:
@@ -53,21 +82,10 @@ class TestGetEvaluation:
         self.syn = syn
         self.schedule_for_cleanup = schedule_for_cleanup
 
-    @pytest.fixture(scope="class")
-    async def test_project(
-        self, syn: Synapse, schedule_for_cleanup: Callable[..., None]
-    ) -> Project:
-        """Create a test project for evaluation tests."""
-        project = await Project(name=f"test_project_{uuid.uuid4()}").store_async(
-            synapse_client=syn
-        )
-        schedule_for_cleanup(project.id)
-        return project
-
     @pytest.fixture(scope="function")
     async def test_evaluation(
         self,
-        test_project: Project,
+        project_model: Project,
         syn: Synapse,
         schedule_for_cleanup: Callable[..., None],
     ) -> Evaluation:
@@ -75,7 +93,7 @@ class TestGetEvaluation:
         evaluation = Evaluation(
             name=f"test_evaluation_{uuid.uuid4()}",
             description="A test evaluation for get tests",
-            content_source=test_project.id,
+            content_source=project_model.id,
             submission_instructions_message="Please submit your results",
             submission_receipt_message="Thank you!",
         )
@@ -86,7 +104,7 @@ class TestGetEvaluation:
     @pytest.fixture(scope="function")
     async def multiple_evaluations(
         self,
-        test_project: Project,
+        project_model: Project,
         syn: Synapse,
         schedule_for_cleanup: Callable[..., None],
     ) -> list[Evaluation]:
@@ -96,7 +114,7 @@ class TestGetEvaluation:
             evaluation = Evaluation(
                 name=f"test_evaluation_{i}_{uuid.uuid4()}",
                 description=f"Test evaluation {i}",
-                content_source=test_project.id,
+                content_source=project_model.id,
                 submission_instructions_message="Please submit your results",
                 submission_receipt_message="Thank you!",
             )
@@ -106,7 +124,7 @@ class TestGetEvaluation:
         return evaluations
 
     async def test_get_evaluation_by_id(
-        self, test_evaluation: Evaluation, test_project: Project
+        self, test_evaluation: Evaluation, project_model: Project
     ):
         # WHEN I get an evaluation by id using the dataclass method
         retrieved_evaluation = await Evaluation(id=test_evaluation.id).get_async(
@@ -118,14 +136,14 @@ class TestGetEvaluation:
         assert retrieved_evaluation.etag is not None  # Check that etag is set
         assert retrieved_evaluation.name == test_evaluation.name
         assert retrieved_evaluation.description == test_evaluation.description
-        assert retrieved_evaluation.content_source == test_project.id
+        assert retrieved_evaluation.content_source == project_model.id
         assert retrieved_evaluation.owner_id is not None  # Check that owner_id is set
         assert (
             retrieved_evaluation.created_on is not None
         )  # Check that created_on is set
 
     async def test_get_evaluation_by_name(
-        self, test_evaluation: Evaluation, test_project: Project
+        self, test_evaluation: Evaluation, project_model: Project
     ):
         # WHEN I get an evaluation by name using the dataclass method
         retrieved_evaluation = await Evaluation(name=test_evaluation.name).get_async(
@@ -137,7 +155,7 @@ class TestGetEvaluation:
         assert retrieved_evaluation.etag is not None  # Check that etag is set
         assert retrieved_evaluation.name == test_evaluation.name
         assert retrieved_evaluation.description == test_evaluation.description
-        assert retrieved_evaluation.content_source == test_project.id
+        assert retrieved_evaluation.content_source == project_model.id
         assert retrieved_evaluation.owner_id is not None  # Check that owner_id is set
         assert (
             retrieved_evaluation.created_on is not None
@@ -187,11 +205,11 @@ class TestGetEvaluation:
         assert len(evaluations) >= len(multiple_evaluations)
 
     async def test_get_evaluations_by_project(
-        self, test_project: Project, multiple_evaluations: list[Evaluation]
+        self, project_model: Project, multiple_evaluations: list[Evaluation]
     ):
         # WHEN a call is made to get evaluations by project
         evaluations = await Evaluation.get_evaluations_by_project_async(
-            project_id=test_project.id, synapse_client=self.syn
+            project_id=project_model.id, synapse_client=self.syn
         )
 
         # THEN the evaluations should be retrieved
@@ -200,7 +218,7 @@ class TestGetEvaluation:
 
         # AND all returned evaluations belong to the test project
         for evaluation in evaluations:
-            assert evaluation.content_source == test_project.id
+            assert evaluation.content_source == project_model.id
 
 
 class TestStoreEvaluation:
@@ -209,21 +227,10 @@ class TestStoreEvaluation:
         self.syn = syn
         self.schedule_for_cleanup = schedule_for_cleanup
 
-    @pytest.fixture(scope="class")
-    async def test_project(
-        self, syn: Synapse, schedule_for_cleanup: Callable[..., None]
-    ) -> Project:
-        """Create a test project for evaluation tests."""
-        project = await Project(name=f"test_project_{uuid.uuid4()}").store_async(
-            synapse_client=syn
-        )
-        schedule_for_cleanup(project.id)
-        return project
-
     @pytest.fixture(scope="function")
     async def test_evaluation(
         self,
-        test_project: Project,
+        project_model: Project,
         syn: Synapse,
         schedule_for_cleanup: Callable[..., None],
     ) -> Evaluation:
@@ -231,7 +238,7 @@ class TestStoreEvaluation:
         evaluation = Evaluation(
             name=f"test_evaluation_{uuid.uuid4()}",
             description="A test evaluation for update tests",
-            content_source=test_project.id,
+            content_source=project_model.id,
             submission_instructions_message="Please submit your results",
             submission_receipt_message="Thank you!",
         )
@@ -340,21 +347,10 @@ class TestDeleteEvaluation:
         self.syn = syn
         self.schedule_for_cleanup = schedule_for_cleanup
 
-    @pytest.fixture(scope="class")
-    async def test_project(
-        self, syn: Synapse, schedule_for_cleanup: Callable[..., None]
-    ) -> Project:
-        """Create a test project for evaluation tests."""
-        project = await Project(name=f"test_project_{uuid.uuid4()}").store_async(
-            synapse_client=syn
-        )
-        schedule_for_cleanup(project.id)
-        return project
-
     @pytest.fixture(scope="function")
     async def test_evaluation(
         self,
-        test_project: Project,
+        project_model: Project,
         syn: Synapse,
         schedule_for_cleanup: Callable[..., None],
     ) -> Evaluation:
@@ -362,7 +358,7 @@ class TestDeleteEvaluation:
         evaluation = Evaluation(
             name=f"test_evaluation_{uuid.uuid4()}",
             description="A test evaluation for delete tests",
-            content_source=test_project.id,
+            content_source=project_model.id,
             submission_instructions_message="Please submit your results",
             submission_receipt_message="Thank you!",
         )
@@ -385,21 +381,10 @@ class TestEvaluationAccess:
         self.syn = syn
         self.schedule_for_cleanup = schedule_for_cleanup
 
-    @pytest.fixture(scope="class")
-    async def test_project(
-        self, syn: Synapse, schedule_for_cleanup: Callable[..., None]
-    ) -> Project:
-        """Create a test project for evaluation tests."""
-        project = await Project(name=f"test_project_{uuid.uuid4()}").store_async(
-            synapse_client=syn
-        )
-        schedule_for_cleanup(project.id)
-        return project
-
     @pytest.fixture(scope="function")
     async def test_evaluation(
         self,
-        test_project: Project,
+        project_model: Project,
         syn: Synapse,
         schedule_for_cleanup: Callable[..., None],
     ) -> Evaluation:
@@ -407,7 +392,7 @@ class TestEvaluationAccess:
         evaluation = Evaluation(
             name=f"test_evaluation_{uuid.uuid4()}",
             description="A test evaluation for access tests",
-            content_source=test_project.id,
+            content_source=project_model.id,
             submission_instructions_message="Please submit your results",
             submission_receipt_message="Thank you!",
         )
@@ -417,8 +402,8 @@ class TestEvaluationAccess:
 
     async def test_get_evaluation_acl(self, test_evaluation: Evaluation):
         # GIVEN the current user's ID
-        user_profile = self.syn.getUserProfile()
-        current_user_id = int(user_profile.get("ownerId"))
+        user_profile = await UserProfile().get_async(synapse_client=self.syn)
+        current_user_id = user_profile.id
 
         # WHEN we get the evaluation ACL using the dataclass method
         acl = await test_evaluation.get_acl_async(synapse_client=self.syn)
@@ -454,8 +439,8 @@ class TestEvaluationAccess:
     ):
         """Test updating ACL for an evaluation using principal_id and access_type."""
         # GIVEN the current user's ID
-        user_profile = self.syn.getUserProfile()
-        current_user_id = int(user_profile.get("ownerId"))
+        user_profile = await UserProfile().get_async(synapse_client=self.syn)
+        current_user_id = user_profile.id
 
         # WHEN we update the ACL for the current user with specific permissions
         updated_acl = await test_evaluation.update_acl_async(
@@ -491,8 +476,8 @@ class TestEvaluationAccess:
 
         # AND a modified version of the ACL with a changed permission set
         modified_acl = current_acl.copy()
-        user_profile = self.syn.getUserProfile()
-        current_user_id = int(user_profile.get("ownerId"))
+        user_profile = await UserProfile().get_async(synapse_client=self.syn)
+        current_user_id = user_profile.id
 
         # Find the current user in the ACL and update permissions
         for access in modified_acl["resourceAccess"]:
@@ -519,54 +504,3 @@ class TestEvaluationAccess:
             user_access is not None
         ), f"User {current_user_id} not found in updated ACL"
         assert set(user_access["accessType"]) == set(["READ", "DELETE", "SUBMIT"])
-
-
-class TestEvaluationValidation:
-    @pytest.fixture(autouse=True, scope="function")
-    def init(self, syn: Synapse, schedule_for_cleanup: Callable[..., None]) -> None:
-        self.syn = syn
-        self.schedule_for_cleanup = schedule_for_cleanup
-
-    async def test_create_evaluation_missing_required_fields(self):
-        # WHEN I try to create an evaluation with missing required fields
-        evaluation = Evaluation(name="test_evaluation")
-
-        # THEN it should raise a ValueError
-        with pytest.raises(ValueError, match="missing the 'description' attribute"):
-            await evaluation.store_async(synapse_client=self.syn)
-
-    async def test_get_evaluation_missing_id_and_name(self):
-        # WHEN I try to get an evaluation without id or name
-        evaluation = Evaluation()
-
-        # THEN it should raise a ValueError
-        with pytest.raises(
-            ValueError, match="Either id or name must be set to get an evaluation"
-        ):
-            await evaluation.get_async(synapse_client=self.syn)
-
-    async def test_delete_evaluation_missing_id(self):
-        # WHEN I try to delete an evaluation without an id
-        evaluation = Evaluation(name="test_evaluation")
-
-        # THEN it should raise a ValueError
-        with pytest.raises(ValueError, match="id must be set to delete an evaluation"):
-            await evaluation.delete_async(synapse_client=self.syn)
-
-    async def test_get_acl_missing_id(self):
-        # WHEN I try to get ACL for an evaluation without an id
-        evaluation = Evaluation(name="test_evaluation")
-
-        # THEN it should raise a ValueError
-        with pytest.raises(ValueError, match="id must be set to get evaluation ACL"):
-            await evaluation.get_acl_async(synapse_client=self.syn)
-
-    async def test_get_permissions_missing_id(self):
-        # WHEN I try to get permissions for an evaluation without an id
-        evaluation = Evaluation(name="test_evaluation")
-
-        # THEN it should raise a ValueError
-        with pytest.raises(
-            ValueError, match="id must be set to get evaluation permissions"
-        ):
-            await evaluation.get_permissions_async(synapse_client=self.syn)

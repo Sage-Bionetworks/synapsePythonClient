@@ -478,6 +478,71 @@ class TestSubmissionStatus:
             assert request_body["batchToken"] == batch_token
             assert request_body["isFirstBatch"] is False
 
+    def test_in_place_mutation_of_submission_annotations_detected_by_has_changed(
+        self,
+    ) -> None:
+        """
+        Test that in-place .update() on submission_annotations are
+        detected as a change by has_changed.
+        """
+        # GIVEN a status with submission_annotations and a stashed persistent instance
+        submission_status = SubmissionStatus(
+            id=SUBMISSION_STATUS_ID,
+            submission_annotations={"initial_key": ["initial_value"]},
+        )
+        submission_status._set_last_persistent_instance()
+        assert not submission_status.has_changed
+
+        # WHEN I mutate submission_annotations in-place via .update()
+        submission_status.submission_annotations.update({"added_key": ["added_value"]})
+
+        # THEN has_changed should detect the mutation
+        assert submission_status.has_changed
+
+    def test_in_place_mutation_of_annotations_detected_by_has_changed(self) -> None:
+        """
+        That that in-place .update() on annotations are detected as
+        a change by has_changed.
+        """
+        # GIVEN a status with annotations and a stashed persistent instance
+        submission_status = SubmissionStatus(
+            id=SUBMISSION_STATUS_ID,
+            annotations={"initial_key": "initial_value"},
+        )
+        submission_status._set_last_persistent_instance()
+        assert not submission_status.has_changed
+
+        # WHEN I mutate annotations in-place via .update()
+        submission_status.annotations.update({"added_key": "added_value"})
+
+        # THEN has_changed should detect the mutation
+        assert submission_status.has_changed
+
+    async def test_store_async_sends_request_after_in_place_mutation(self) -> None:
+        """Regression test: store_async must call the API when submission_annotations
+        was mutated in-place via .update(), not skip it as 'no changes'."""
+        # GIVEN a status with a stashed persistent instance
+        submission_status = SubmissionStatus(
+            id=SUBMISSION_STATUS_ID,
+            etag=ETAG,
+            status_version=STATUS_VERSION,
+            submission_annotations={"initial_key": ["initial_value"]},
+        )
+        submission_status._set_last_persistent_instance()
+
+        # WHEN I mutate in-place and store
+        submission_status.submission_annotations.update({"added_key": ["added_value"]})
+
+        with patch(
+            "synapseclient.api.evaluation_services.update_submission_status",
+            new_callable=AsyncMock,
+            return_value=self.get_example_submission_status_dict(),
+        ) as mock_update:
+            await submission_status.store_async(synapse_client=self.syn)
+
+            # THEN the API should have been called (not skipped)
+            mock_update.assert_called_once()
+
     def test_set_last_persistent_instance(self) -> None:
         """Test setting the last persistent instance."""
         # GIVEN a SubmissionStatus
