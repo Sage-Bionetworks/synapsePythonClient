@@ -19,11 +19,13 @@
         members:
             - create
             - delete
+            - get
             - from_id
             - from_name
             - members
             - invite
             - open_invitations
+            - delete_invitation
             - get_user_membership_status
 ---
 

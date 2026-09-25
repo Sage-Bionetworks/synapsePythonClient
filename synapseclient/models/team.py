@@ -6,6 +6,7 @@ from opentelemetry import trace
 from synapseclient import Synapse
 from synapseclient.api import (
     create_team,
+    delete_membership_invitation,
     delete_team,
     get_membership_status,
     get_team,
@@ -149,6 +150,68 @@ class Team(TeamSynchronousProtocol):
         modified_on: The date this team was last modified
         created_by: The ID of the user that created this team
         modified_by: The ID of the user that last modified this team
+
+    Example: Create a new team
+        &nbsp;
+        Create a new team on Synapse by storing a Team object with a name.
+        ```python
+        from synapseclient.models import Team
+        from synapseclient import Synapse
+
+        syn = Synapse()
+        syn.login()
+
+        team = Team(
+            name="My Uniquely Named Team",
+            description="A team for my project collaborators",
+        )
+        created_team = team.create()
+        ```
+
+    Example: Get a team by ID or name
+        &nbsp;
+        Retrieve an existing team using either its ID or its name.
+        ```python
+        from synapseclient.models import Team
+        from synapseclient import Synapse
+
+        syn = Synapse()
+        syn.login()
+
+        team_by_id = Team.from_id(id=123456)
+        team_by_name = Team.from_name(name="My Uniquely Named Team")
+        ```
+
+    Example: List the members of a team and invite a new one
+        &nbsp;
+        List current team members and send an invitation to a new user.
+        ```python
+        from synapseclient.models import Team
+        from synapseclient import Synapse
+
+        syn = Synapse()
+        syn.login()
+
+        team = Team.from_id(id=123456)
+        for member in team.members():
+            print(member.member.user_name)
+
+        team.invite(user="my_username", message="Please join my team!")
+        ```
+
+    Example: Delete a team
+        &nbsp;
+        Delete a team you no longer need.
+        ```python
+        from synapseclient.models import Team
+        from synapseclient import Synapse
+
+        syn = Synapse()
+        syn.login()
+
+        team = Team.from_id(id=123456)
+        team.delete()
+        ```
     """
 
     id: Optional[int] = None
@@ -226,6 +289,28 @@ class Team(TeamSynchronousProtocol):
 
         Returns:
             Team: The Team object.
+
+        Example: Create a new team
+            &nbsp;
+            Create a new team on Synapse by storing a Team object with a name.
+            ```python
+            import asyncio
+            from synapseclient import Synapse
+            from synapseclient.models import Team
+
+            syn = Synapse()
+            syn.login()
+
+            async def create_team():
+                team = await Team(
+                    name="My Uniquely Named Team",
+                    description="A team for my project collaborators",
+                    can_public_join=False,
+                ).create_async()
+                return team
+
+            new_team = asyncio.run(create_team())
+            ```
         """
         trace.get_current_span().set_attributes(
             {
@@ -257,6 +342,43 @@ class Team(TeamSynchronousProtocol):
 
         Returns:
             None
+
+        Example: Delete a team by ID
+            &nbsp;
+            Delete a team using its ID.
+            ```python
+            import asyncio
+            from synapseclient import Synapse
+            from synapseclient.models import Team
+
+            syn = Synapse()
+            syn.login()
+
+            async def delete_team():
+                await Team(id=123456).delete_async()
+
+            asyncio.run(delete_team())
+            ```
+
+        Example: Get and then delete a team
+            &nbsp;
+            If you do not have the ID of the team, you can first retrieve it from
+            Synapse by name. That will populate the ID attribute in your Team object,
+            at which point you can delete it.
+            ```python
+            import asyncio
+            from synapseclient import Synapse
+            from synapseclient.models import Team
+
+            syn = Synapse()
+            syn.login()
+
+            async def get_and_delete_team():
+                team = await Team.from_name_async(name="My Uniquely Named Team")
+                await team.delete_async()
+
+            asyncio.run(get_and_delete_team())
+            ```
         """
         await delete_team(id=self.id, synapse_client=synapse_client)
 
@@ -278,6 +400,42 @@ class Team(TeamSynchronousProtocol):
 
         Returns:
             Team: The Team object.
+
+        Example: Get a team by ID
+            &nbsp;
+            Retrieve an existing team using its ID.
+            ```python
+            import asyncio
+            from synapseclient import Synapse
+            from synapseclient.models import Team
+
+            syn = Synapse()
+            syn.login()
+
+            async def get_team():
+                team = await Team(id=123456).get_async()
+                return team
+
+            my_team = asyncio.run(get_team())
+            ```
+
+        Example: Get a team by name
+            &nbsp;
+            Retrieve an existing team using its name.
+            ```python
+            import asyncio
+            from synapseclient import Synapse
+            from synapseclient.models import Team
+
+            syn = Synapse()
+            syn.login()
+
+            async def get_team():
+                team = await Team(name="My Uniquely Named Team").get_async()
+                return team
+
+            my_team = asyncio.run(get_team())
+            ```
         """
         if self.id:
             api_team = await get_team(id=self.id, synapse_client=synapse_client)
@@ -304,6 +462,24 @@ class Team(TeamSynchronousProtocol):
 
         Returns:
             Team: The Team object.
+
+        Example: Get a team by its ID
+            &nbsp;
+            Retrieve an existing team using its ID.
+            ```python
+            import asyncio
+            from synapseclient import Synapse
+            from synapseclient.models import Team
+
+            syn = Synapse()
+            syn.login()
+
+            async def get_team_by_id():
+                team = await Team.from_id_async(id=123456)
+                return team
+
+            my_team = asyncio.run(get_team_by_id())
+            ```
         """
 
         return await cls(id=id).get_async(synapse_client=synapse_client)
@@ -330,6 +506,24 @@ class Team(TeamSynchronousProtocol):
 
         Returns:
             Team: The Team object.
+
+        Example: Get a team by its name
+            &nbsp;
+            Retrieve an existing team using its name.
+            ```python
+            import asyncio
+            from synapseclient import Synapse
+            from synapseclient.models import Team
+
+            syn = Synapse()
+            syn.login()
+
+            async def get_team_by_name():
+                team = await Team.from_name_async(name="My Uniquely Named Team")
+                return team
+
+            my_team = asyncio.run(get_team_by_name())
+            ```
         """
         return await cls(name=name).get_async(synapse_client=synapse_client)
 
@@ -350,6 +544,27 @@ class Team(TeamSynchronousProtocol):
 
         Returns:
             List[TeamMember]: A List of TeamMember objects.
+
+        Example: List the members of a team
+            &nbsp;
+            List the current members of a team.
+            ```python
+            import asyncio
+            from synapseclient import Synapse
+            from synapseclient.models import Team
+
+            syn = Synapse()
+            syn.login()
+
+            async def list_team_members():
+                team = await Team.from_id_async(id=123456)
+                members = await team.members_async()
+                for member in members:
+                    print(f"{member.member.user_name} (admin: {member.is_admin})")
+                return members
+
+            team_members = asyncio.run(list_team_members())
+            ```
         """
         team_members = await get_team_members(
             team=self.id, synapse_client=synapse_client
@@ -386,6 +601,28 @@ class Team(TeamSynchronousProtocol):
 
         Returns:
             The invite response or None if an invite was not sent.
+
+        Example: Invite a user to a team
+            &nbsp;
+            Send an invitation for a user to join a team.
+            ```python
+            import asyncio
+            from synapseclient import Synapse
+            from synapseclient.models import Team
+
+            syn = Synapse()
+            syn.login()
+
+            async def invite_user():
+                team = await Team.from_id_async(id=123456)
+                invite = await team.invite_async(
+                    user="my_username",
+                    message="Please join my team!",
+                )
+                return invite
+
+            asyncio.run(invite_user())
+            ```
         """
         invite = await invite_to_team(
             team=self.id,
@@ -420,11 +657,79 @@ class Team(TeamSynchronousProtocol):
 
         Returns:
             List[dict]: A list of invitations.
+
+        Example: List the open invitations for a team
+            &nbsp;
+            List all pending invitations for a team.
+            ```python
+            import asyncio
+            from synapseclient import Synapse
+            from synapseclient.models import Team
+
+            syn = Synapse()
+            syn.login()
+
+            async def list_open_invitations():
+                team = await Team.from_id_async(id=123456)
+                invitations = await team.open_invitations_async()
+                return invitations
+
+            open_invitations = asyncio.run(list_open_invitations())
+            ```
         """
         invitations = await get_team_open_invitations(
             team=self.id, synapse_client=synapse_client
         )
         return list(invitations)
+
+    @staticmethod
+    async def delete_invitation_async(
+        invitation_id: str, *, synapse_client: Optional[Synapse] = None
+    ) -> None:
+        """Deletes an open invitation to a team. Note: The client must be an
+        administrator of the Team referenced by the invitation, or the invitee,
+        to make this request.
+
+        Arguments:
+            invitation_id: The ID of the invitation to delete. This can be found
+                on the invitations returned by
+                [open_invitations][synapseclient.models.Team.open_invitations].
+            synapse_client: If not passed in and caching was not disabled by
+                `Synapse.allow_client_caching(False)` this will use the last created
+                instance from the Synapse class constructor.
+
+        Returns:
+            None
+
+        Example: Delete an open invitation to a team
+            &nbsp;
+            Cancel a pending invitation to a team.
+            ```python
+            import asyncio
+            from synapseclient import Synapse
+            from synapseclient.models import Team
+
+            syn = Synapse()
+            syn.login()
+
+            async def delete_open_invitation():
+                team = await Team.from_id_async(id=123456)
+                open_invitations = await team.open_invitations_async()
+                if not open_invitations:
+                    print("No open invitations to delete.")
+                    return
+
+                # Delete the first open invitation
+                await Team.delete_invitation_async(
+                    invitation_id=open_invitations[0]["id"]
+                )
+
+            asyncio.run(delete_open_invitation())
+            ```
+        """
+        await delete_membership_invitation(
+            invitation_id=invitation_id, synapse_client=synapse_client
+        )
 
     async def get_user_membership_status_async(
         self,
@@ -444,33 +749,33 @@ class Team(TeamSynchronousProtocol):
             TeamMembershipStatus object
 
         Example: Check if a user is a member of a team
-        This example shows how to check a user's membership status in a team.
+            &nbsp;
+            This example shows how to check a user's membership status in a team.
+            ```python
+            import asyncio
+            from synapseclient import Synapse
+            from synapseclient.models import Team
 
-        ```python
-        import asyncio
-        from synapseclient import Synapse
-        from synapseclient.models import Team
+            syn = Synapse()
+            syn.login()
 
-        syn = Synapse()
-        syn.login()
+            async def check_membership():
+                # Get a team by ID
+                team = await Team.from_id_async(id=123456)
 
-        async def check_membership():
-            # Get a team by ID
-            team = await Team.from_id_async(123456)
+                # Check membership status for a specific user
+                user_id = "3350396"  # Replace with actual user ID
+                status = await team.get_user_membership_status_async(user_id)
 
-            # Check membership status for a specific user
-            user_id = "3350396"  # Replace with actual user ID
-            status = await team.get_user_membership_status_async(user_id)
+                print(f"User ID: {status.user_id}")
+                print(f"Is member: {status.is_member}")
+                print(f"Can join: {status.can_join}")
+                print(f"Has open invitation: {status.has_open_invitation}")
+                print(f"Has open request: {status.has_open_request}")
+                print(f"Membership approval required: {status.membership_approval_required}")
 
-            print(f"User ID: {status.user_id}")
-            print(f"Is member: {status.is_member}")
-            print(f"Can join: {status.can_join}")
-            print(f"Has open invitation: {status.has_open_invitation}")
-            print(f"Has open request: {status.has_open_request}")
-            print(f"Membership approval required: {status.membership_approval_required}")
-
-        asyncio.run(check_membership())
-        ```
+            asyncio.run(check_membership())
+            ```
         """
         from synapseclient import Synapse
 
