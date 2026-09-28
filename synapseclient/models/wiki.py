@@ -723,16 +723,27 @@ class WikiPage(WikiPageSynchronousProtocol):
         )
 
     @otel_trace_method(
-        method_to_trace_name=lambda self, **kwargs: f"Get the markdown file handle: {self.owner_id}"
+        method_to_trace_name=lambda self, **kwargs: f"Upload the markdown file handle: {self.owner_id}"
     )
-    async def _get_markdown_file_handle(self, synapse_client: Synapse) -> "WikiPage":
-        """Get the markdown file handle from the synapse client.
+    async def _upload_markdown_file_handle(self, synapse_client: Synapse) -> "WikiPage":
+        """Upload the markdown of this wiki page to Synapse as a gzipped file and set
+        markdown_file_handle_id to the ID of the new file handle.
+
+        If markdown is None, no upload occurs and this object is not changed.
+        If markdown is an empty string, an empty gzipped file is uploaded,
+        because Synapse requires a markdown file handle for each wiki page.
+
+        The local gzipped file is deleted after the upload, also if the upload
+        fails. If markdown is a path to a .gz file, that file is deleted.
+
         Arguments:
-            synapse_client: The Synapse client to use for cache access.
+            synapse_client: The Synapse client to use for the cache directory,
+                the upload, and logging.
+
         Returns:
-            A WikiPage with the updated markdown file handle id.
+            This WikiPage object, with markdown_file_handle_id set.
         """
-        if not self.markdown:
+        if self.markdown is None:
             return self
         else:
             file_path = self._to_gzip_file(
@@ -892,7 +903,7 @@ class WikiPage(WikiPageSynchronousProtocol):
         # get the markdown file handle and attachment file handles if the wiki action is valid
         if wiki_action:
             # Update self with the returned WikiPage objects that have file handle IDs set
-            self = await self._get_markdown_file_handle(synapse_client=client)
+            self = await self._upload_markdown_file_handle(synapse_client=client)
             self = await self._get_attachment_file_handles(synapse_client=client)
 
         if wiki_action == "create_root_wiki_page":
@@ -1707,7 +1718,7 @@ class WikiPage(WikiPageSynchronousProtocol):
             )
             for new_wiki_id in wiki_id_map.values():
                 new_wiki = new_wikis[new_wiki_id]
-                new_wiki = await new_wiki._get_markdown_file_handle(
+                new_wiki = await new_wiki._upload_markdown_file_handle(
                     synapse_client=client
                 )
                 wiki_data = await put_wiki_page(
@@ -1789,7 +1800,7 @@ async def _copy_wiki_pages(
                 parent_id=wiki_id_map[wiki_header["parentId"]],
                 attachment_file_handle_ids=new_file_handle_ids,
             )
-            new_wiki = await new_wiki._get_markdown_file_handle(
+            new_wiki = await new_wiki._upload_markdown_file_handle(
                 synapse_client=synapse_client
             )
             wiki_data = await post_wiki_page(
@@ -1805,7 +1816,7 @@ async def _copy_wiki_pages(
             destination_wiki_page.markdown = markdown
             destination_wiki_page.attachment_file_handle_ids = new_file_handle_ids
             destination_wiki_page = (
-                await destination_wiki_page._get_markdown_file_handle(
+                await destination_wiki_page._upload_markdown_file_handle(
                     synapse_client=synapse_client
                 )
             )
@@ -1824,7 +1835,7 @@ async def _copy_wiki_pages(
                 parent_id=destination_sub_page_id,
                 attachment_file_handle_ids=new_file_handle_ids,
             )
-            new_wiki = await new_wiki._get_markdown_file_handle(
+            new_wiki = await new_wiki._upload_markdown_file_handle(
                 synapse_client=synapse_client
             )
             wiki_data = await post_wiki_page(
