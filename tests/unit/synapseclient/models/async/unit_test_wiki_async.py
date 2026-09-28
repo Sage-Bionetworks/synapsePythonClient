@@ -678,7 +678,7 @@ class TestWikiPage:
         with pytest.raises(AttributeError):
             WikiPage._should_gzip_file(123)
 
-    async def test_get_markdown_file_handle_success_with_markdown(self) -> WikiPage:
+    async def test_upload_markdown_file_handle_success_with_markdown(self) -> WikiPage:
         with (
             patch(
                 "synapseclient.models.wiki.WikiPage._to_gzip_file",
@@ -693,8 +693,8 @@ class TestWikiPage:
             patch("os.path.exists", return_value=True),
             patch("os.remove") as mock_remove,
         ):
-            # WHEN I call `_get_markdown_file_handle`
-            results = await self.wiki_page._get_markdown_file_handle(
+            # WHEN I call `_upload_markdown_file_handle`
+            results = await self.wiki_page._upload_markdown_file_handle(
                 synapse_client=self.syn
             )
 
@@ -721,7 +721,7 @@ class TestWikiPage:
             expected_results.markdown_file_handle_id = "handle1"
             assert results == expected_results
 
-    async def test_get_markdown_file_handle_no_markdown(self) -> WikiPage:
+    async def test_upload_markdown_file_handle_no_markdown(self) -> WikiPage:
         # GIVEN a WikiPage with no markdown
         wiki_page = WikiPage(
             id="wiki1",
@@ -729,8 +729,10 @@ class TestWikiPage:
             attachments=["test_1.txt", "test_2.txt"],
         )
         with patch.object(self.syn.logger, "info") as mock_logger:
-            # WHEN I call `_get_markdown_file_handle`
-            results = await wiki_page._get_markdown_file_handle(synapse_client=self.syn)
+            # WHEN I call `_upload_markdown_file_handle`
+            results = await wiki_page._upload_markdown_file_handle(
+                synapse_client=self.syn
+            )
 
             # THEN the result should be the same WikiPage
             assert mock_logger.call_count == 0
@@ -1113,7 +1115,7 @@ class TestWikiPage:
                 return_value="create_root_wiki_page",
             ),
             patch(
-                "synapseclient.models.wiki.WikiPage._get_markdown_file_handle",
+                "synapseclient.models.wiki.WikiPage._upload_markdown_file_handle",
                 return_value=mock_wiki_with_markdown,
             ),
             patch(
@@ -1205,7 +1207,7 @@ class TestWikiPage:
                 return_value="update_existing_wiki_page",
             ),
             patch(
-                "synapseclient.models.wiki.WikiPage._get_markdown_file_handle",
+                "synapseclient.models.wiki.WikiPage._upload_markdown_file_handle",
                 return_value=mock_wiki_with_markdown,
             ),
             patch(
@@ -1293,7 +1295,7 @@ class TestWikiPage:
                 return_value="create_sub_wiki_page",
             ),
             patch(
-                "synapseclient.models.wiki.WikiPage._get_markdown_file_handle",
+                "synapseclient.models.wiki.WikiPage._upload_markdown_file_handle",
                 return_value=mock_wiki_with_markdown,
             ),
             patch(
@@ -2580,7 +2582,7 @@ class TestWikiPageCopy:
             ) as mock_entity_ids,
             patch.object(
                 WikiPage,
-                "_get_markdown_file_handle",
+                "_upload_markdown_file_handle",
                 autospec=True,
                 side_effect=lambda self, *args, **kwargs: self,
             ),
@@ -3364,7 +3366,7 @@ class TestCopyWikiPages:
             ),
             patch.object(
                 WikiPage,
-                "_get_markdown_file_handle",
+                "_upload_markdown_file_handle",
                 autospec=True,
                 side_effect=fake_get_fh,
             ),
