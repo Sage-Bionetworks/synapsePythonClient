@@ -729,8 +729,9 @@ class WikiPage(WikiPageSynchronousProtocol):
         """Upload the markdown of this wiki page to Synapse as a gzipped file and set
         markdown_file_handle_id to the ID of the new file handle.
 
-        If markdown is None or an empty string, no upload occurs and this object
-        is not changed.
+        If markdown is None, no upload occurs and this object is not changed.
+        If markdown is an empty string, an empty gzipped file is uploaded,
+        because Synapse requires a markdown file handle for each wiki page.
 
         The local gzipped file is deleted after the upload, also if the upload
         fails. If markdown is a path to a .gz file, that file is deleted.
@@ -742,7 +743,7 @@ class WikiPage(WikiPageSynchronousProtocol):
         Returns:
             This WikiPage object, with markdown_file_handle_id set.
         """
-        if not self.markdown:
+        if self.markdown is None:
             return self
         else:
             file_path = self._to_gzip_file(

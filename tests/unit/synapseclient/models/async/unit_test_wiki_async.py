@@ -738,6 +738,44 @@ class TestWikiPage:
             assert mock_logger.call_count == 0
             assert results == wiki_page
 
+    async def test_upload_markdown_file_handle_empty_markdown(self) -> WikiPage:
+        # GIVEN a WikiPage with empty markdown
+        wiki_page = WikiPage(
+            owner_id="syn123",
+            id="wiki1",
+            title="Test Wiki Page",
+            markdown="",
+        )
+        with (
+            patch(
+                "synapseclient.models.wiki.WikiPage._to_gzip_file",
+                return_value=("test.txt.gz"),
+            ) as mock_to_gzip_file,
+            patch(
+                "synapseclient.models.wiki.upload_file_handle",
+                return_value={"id": "handle1"},
+            ) as mock_upload,
+            patch("os.path.exists", return_value=True),
+            patch("os.remove"),
+        ):
+            # WHEN I call `_upload_markdown_file_handle`
+            results = await wiki_page._upload_markdown_file_handle(
+                synapse_client=self.syn
+            )
+
+            # THEN the empty markdown should be gzipped and uploaded, because
+            # Synapse requires a markdown file handle for every wiki page
+            mock_to_gzip_file.assert_called_once_with(
+                wiki_content="", synapse_client=self.syn
+            )
+            mock_upload.assert_called_once_with(
+                syn=self.syn,
+                parent_entity_id="syn123",
+                path="test.txt.gz",
+            )
+            # AND the markdown file handle ID should be set
+            assert results.markdown_file_handle_id == "handle1"
+
     async def test_get_attachment_file_handles_success_multiple_attachments(
         self,
     ) -> WikiPage:
