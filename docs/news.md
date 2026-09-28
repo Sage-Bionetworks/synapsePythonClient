@@ -53,6 +53,7 @@ breaking changes will not be included until v5.0.
 - [SYNPY-1708] None values no longer become string annotations by @andrewelamb in #1417
 - [SYNPY-1844] Merging dataclasses with nested dataclasses is now recursive, so changes to nested fields are no longer lost by @andrewelamb in #1412
 - [SYNPY-1863] SubmissionStatus now deep-copies annotations, so it can detect changes to submission_annotations by @jaymedina in #1414
+- [SYNPY-1922] WikiPage.copy() no longer fails when a wiki page has empty markdown by @andrewelamb
 - Added the missing EXECUTING and IN_REVIEW values to the TaskState enum by @andrewelamb in #1432
 - Fixed the incorrect type hints on create_file_based_metadata_task by @andrewelamb in #1415
 
