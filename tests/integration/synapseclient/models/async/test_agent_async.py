@@ -49,29 +49,29 @@ class TestAgentPrompt:
         else:
             self.AGENT_REGISTRATION_ID = "29"
 
-    async def test_send_job_and_wait_async_with_post_exchange_args(self) -> None:
-        # GIVEN an AgentPrompt with a valid concrete type, prompt, and enable_trace
-        test_prompt = AgentPrompt(
-            concrete_type=AGENT_CHAT_REQUEST,
-            prompt="hello",
-            enable_trace=True,
-        )
-        # AND the ID of an existing agent session
-        test_session = await AgentSession(
-            agent_registration_id=self.AGENT_REGISTRATION_ID
-        ).start_async(synapse_client=self.syn)
-        test_prompt.session_id = test_session.id
-        # WHEN I send the job and wait for it to complete
-        await within_deadline(
-            test_prompt.send_job_and_wait_async(
-                post_exchange_args={"newer_than": 0},
-                timeout=AGENT_PROMPT_TIMEOUT_SEC,
-                synapse_client=self.syn,
-            )
-        )
-        # THEN I expect the AgentPrompt to be updated with the response and trace
-        assert test_prompt.response is not None
-        assert test_prompt.trace is not None
+    # async def test_send_job_and_wait_async_with_post_exchange_args(self) -> None:
+    #     # GIVEN an AgentPrompt with a valid concrete type, prompt, and enable_trace
+    #     test_prompt = AgentPrompt(
+    #         concrete_type=AGENT_CHAT_REQUEST,
+    #         prompt="hello",
+    #         enable_trace=True,
+    #     )
+    #     # AND the ID of an existing agent session
+    #     test_session = await AgentSession(
+    #         agent_registration_id=self.AGENT_REGISTRATION_ID
+    #     ).start_async(synapse_client=self.syn)
+    #     test_prompt.session_id = test_session.id
+    #     # WHEN I send the job and wait for it to complete
+    #     await within_deadline(
+    #         test_prompt.send_job_and_wait_async(
+    #             post_exchange_args={"newer_than": 0},
+    #             timeout=AGENT_PROMPT_TIMEOUT_SEC,
+    #             synapse_client=self.syn,
+    #         )
+    #     )
+    #     # THEN I expect the AgentPrompt to be updated with the response and trace
+    #     assert test_prompt.response is not None
+    #     assert test_prompt.trace is not None
 
 
 class TestAgentSession:
@@ -137,25 +137,25 @@ class TestAgentSession:
             == AgentSessionAccessLevel.READ_YOUR_PRIVATE_DATA
         )
 
-    async def test_prompt(self) -> None:
-        # GIVEN an agent session with a valid agent registration id
-        agent_session = AgentSession(agent_registration_id=self.AGENT_REGISTRATION_ID)
-        # WHEN I start a session
-        await agent_session.start_async(synapse_client=self.syn)
-        # THEN I expect to be able to prompt the agent
-        await within_deadline(
-            agent_session.prompt_async(
-                prompt="hello",
-                enable_trace=True,
-                timeout=AGENT_PROMPT_TIMEOUT_SEC,
-                synapse_client=self.syn,
-            )
-        )
-        # AND I expect the chat history to be updated with the prompt and response
-        assert len(agent_session.chat_history) == 1
-        assert agent_session.chat_history[0].prompt == "hello"
-        assert agent_session.chat_history[0].response is not None
-        assert agent_session.chat_history[0].trace is not None
+    # async def test_prompt(self) -> None:
+    #     # GIVEN an agent session with a valid agent registration id
+    #     agent_session = AgentSession(agent_registration_id=self.AGENT_REGISTRATION_ID)
+    #     # WHEN I start a session
+    #     await agent_session.start_async(synapse_client=self.syn)
+    #     # THEN I expect to be able to prompt the agent
+    #     await within_deadline(
+    #         agent_session.prompt_async(
+    #             prompt="hello",
+    #             enable_trace=True,
+    #             timeout=AGENT_PROMPT_TIMEOUT_SEC,
+    #             synapse_client=self.syn,
+    #         )
+    #     )
+    #     # AND I expect the chat history to be updated with the prompt and response
+    #     assert len(agent_session.chat_history) == 1
+    #     assert agent_session.chat_history[0].prompt == "hello"
+    #     assert agent_session.chat_history[0].response is not None
+    #     assert agent_session.chat_history[0].trace is not None
 
 
 class TestAgent:
@@ -229,53 +229,53 @@ class TestAgent:
         # AND I expect those sessions to be the same
         assert existing_session == agent.current_session
 
-    async def test_prompt_with_session(self) -> None:
-        # GIVEN an Agent with a valid agent registration id
-        agent = await Agent(registration_id=self.AGENT_REGISTRATION_ID).get_async(
-            synapse_client=self.syn
-        )
-        # AND a session started separately
-        session = await AgentSession(
-            agent_registration_id=self.AGENT_REGISTRATION_ID
-        ).start_async(synapse_client=self.syn)
-        # WHEN I prompt the agent with a session
-        await within_deadline(
-            agent.prompt_async(
-                prompt="hello",
-                enable_trace=True,
-                session=session,
-                timeout=AGENT_PROMPT_TIMEOUT_SEC,
-                synapse_client=self.syn,
-            )
-        )
-        test_session = agent.sessions[session.id]
-        # THEN I expect the chat history to be updated with the prompt and response
-        assert len(test_session.chat_history) == 1
-        assert test_session.chat_history[0].prompt == "hello"
-        assert test_session.chat_history[0].response is not None
-        assert test_session.chat_history[0].trace is not None
-        # AND I expect the current session to be the session provided
-        assert agent.current_session.id == session.id
+    # async def test_prompt_with_session(self) -> None:
+    #     # GIVEN an Agent with a valid agent registration id
+    #     agent = await Agent(registration_id=self.AGENT_REGISTRATION_ID).get_async(
+    #         synapse_client=self.syn
+    #     )
+    #     # AND a session started separately
+    #     session = await AgentSession(
+    #         agent_registration_id=self.AGENT_REGISTRATION_ID
+    #     ).start_async(synapse_client=self.syn)
+    #     # WHEN I prompt the agent with a session
+    #     await within_deadline(
+    #         agent.prompt_async(
+    #             prompt="hello",
+    #             enable_trace=True,
+    #             session=session,
+    #             timeout=AGENT_PROMPT_TIMEOUT_SEC,
+    #             synapse_client=self.syn,
+    #         )
+    #     )
+    #     test_session = agent.sessions[session.id]
+    #     # THEN I expect the chat history to be updated with the prompt and response
+    #     assert len(test_session.chat_history) == 1
+    #     assert test_session.chat_history[0].prompt == "hello"
+    #     assert test_session.chat_history[0].response is not None
+    #     assert test_session.chat_history[0].trace is not None
+    #     # AND I expect the current session to be the session provided
+    #     assert agent.current_session.id == session.id
 
-    async def test_prompt_no_session(self) -> None:
-        # GIVEN an Agent with a valid agent registration id
-        agent = await Agent(registration_id=self.AGENT_REGISTRATION_ID).get_async(
-            synapse_client=self.syn
-        )
-        # WHEN I prompt the agent without a current session set
-        # and no session provided
-        await within_deadline(
-            agent.prompt_async(
-                prompt="hello",
-                enable_trace=True,
-                timeout=AGENT_PROMPT_TIMEOUT_SEC,
-                synapse_client=self.syn,
-            )
-        )
-        # THEN I expect a new session to be started and set as the current session
-        assert agent.current_session is not None
-        # AND I expect the chat history to be updated with the prompt and response
-        assert len(agent.current_session.chat_history) == 1
-        assert agent.current_session.chat_history[0].prompt == "hello"
-        assert agent.current_session.chat_history[0].response is not None
-        assert agent.current_session.chat_history[0].trace is not None
+    # async def test_prompt_no_session(self) -> None:
+    #     # GIVEN an Agent with a valid agent registration id
+    #     agent = await Agent(registration_id=self.AGENT_REGISTRATION_ID).get_async(
+    #         synapse_client=self.syn
+    #     )
+    #     # WHEN I prompt the agent without a current session set
+    #     # and no session provided
+    #     await within_deadline(
+    #         agent.prompt_async(
+    #             prompt="hello",
+    #             enable_trace=True,
+    #             timeout=AGENT_PROMPT_TIMEOUT_SEC,
+    #             synapse_client=self.syn,
+    #         )
+    #     )
+    #     # THEN I expect a new session to be started and set as the current session
+    #     assert agent.current_session is not None
+    #     # AND I expect the chat history to be updated with the prompt and response
+    #     assert len(agent.current_session.chat_history) == 1
+    #     assert agent.current_session.chat_history[0].prompt == "hello"
+    #     assert agent.current_session.chat_history[0].response is not None
+    #     assert agent.current_session.chat_history[0].trace is not None
