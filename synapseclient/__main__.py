@@ -1006,13 +1006,26 @@ def build_parser():
     parser_get.set_defaults(func=get)
 
     parser_manifest = subparsers.add_parser(
-        "manifest", help="Generate manifest for uploading directory tree to Synapse."
+        "manifest",
+        help="Generate manifest for uploading directory tree to Synapse.",
+        description=(
+            "Generate a TSV manifest describing the files in a local directory tree "
+            "for later upload with `synapse sync`. "
+            "IMPORTANT: this command will also create the corresponding folder structure "
+            "in Synapse while walking the directory under --parent-id "
+            "(including any empty folders); only the files are deferred to "
+            "the subsequent `synapse sync` call. "
+            "To upload a subset of files, run `synapse manifest` first, delete the rows "
+            "for files you do not want to upload from the generated manifest, then run "
+            "`synapse sync <manifest>`."
+        ),
     )
     parser_manifest.add_argument(
         "path",
         metavar="PATH",
         type=str,
-        help="A path to a file or folder whose manifest will be generated.",
+        help="Local path to the directory whose contents will be described in the "
+        "manifest. The directory tree is walked recursively.",
     )
     parser_manifest.add_argument(
         "--parent-id",
@@ -1020,13 +1033,18 @@ def build_parser():
         type=str,
         required=True,
         dest="parentid",
-        help="Synapse ID of project or folder where to upload data.",
+        help="Synapse ID of the project or folder that will be the parent of the "
+        "uploaded tree. Required even when only generating a manifest, because the "
+        "matching folder structure (including empty folders) is created in Synapse "
+        "under this parent as the manifest is generated, so that each row in the "
+        "manifest can reference the Synapse ID of its parent folder.",
     )
     parser_manifest.add_argument(
         "--manifest-file",
         metavar="OUTPUT",
-        help="A TSV output file path where the generated manifest is stored. "
-        "(default: stdout)",
+        help="Path where the generated TSV manifest will be written (for example "
+        "`./manifest.tsv`). If omitted, the manifest is printed to stdout; pass an "
+        "explicit path if you intend to edit it before running `synapse sync`.",
     )
     parser_manifest.set_defaults(func=manifest)
 
