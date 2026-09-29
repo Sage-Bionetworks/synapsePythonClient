@@ -7,7 +7,7 @@ import json
 from dataclasses import asdict
 from typing import TYPE_CHECKING, Optional
 
-from synapseclient.annotations import _convert_to_annotations_list
+from synapseclient.core.utils import convert_to_annotations_list
 
 if TYPE_CHECKING:
     from synapseclient import Synapse
@@ -32,7 +32,7 @@ def set_annotations(
     """
     annotations_dict = asdict(annotations)
 
-    synapse_annotations = _convert_to_annotations_list(
+    synapse_annotations = convert_to_annotations_list(
         annotations_dict["annotations"] or {}
     )
     from synapseclient import Synapse
@@ -67,7 +67,7 @@ async def set_annotations_async(
     """
     annotations_dict = asdict(annotations)
 
-    synapse_annotations = _convert_to_annotations_list(
+    synapse_annotations = convert_to_annotations_list(
         annotations_dict["annotations"] or {}
     )
     from synapseclient import Synapse

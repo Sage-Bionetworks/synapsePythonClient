@@ -1,5 +1,7 @@
 """Unit tests for user profile"""
 
+# TODO: delete file in v5.0.0
+
 from unittest.mock import patch
 
 import pytest

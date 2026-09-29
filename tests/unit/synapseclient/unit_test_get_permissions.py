@@ -2,6 +2,8 @@
 Unit test for synapseclient.client.get_permissions
 """
 
+# TODO: delete file in v5.0.0
+
 from typing import Dict
 from unittest.mock import patch
 

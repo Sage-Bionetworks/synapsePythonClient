@@ -370,6 +370,7 @@ async def with_retry_time_based_async(
             retry_exceptions=retry_exceptions,
             retry_errors=retry_errors,
             non_retryable_errors=non_retry_errors,
+            read_response_content=read_response_content,
         )
 
         # Wait then retry
@@ -504,6 +505,7 @@ def with_retry_time_based(
             retry_exceptions=retry_exceptions,
             retry_errors=retry_errors,
             non_retryable_errors=non_retry_errors,
+            read_response_content=read_response_content,
         )
 
         # Wait then retry
@@ -551,6 +553,7 @@ def _is_retryable(
     retry_exceptions: List[Union[Exception, str]],
     retry_errors: List[str],
     non_retryable_errors: List[str],
+    read_response_content: bool = True,
 ) -> bool:
     """Determines if a request should be retried based on the response and caught
     exception.
@@ -564,6 +567,11 @@ def _is_retryable(
         retry_exceptions: The exceptions that should be retried.
         retry_errors: The errors that should be retried.
         non_retryable_errors: The errors that should not be retried.
+        read_response_content: Whether the response body may be read. For streaming
+            responses (e.g. the multi-threaded download path) the body is never read,
+            so accessing it would raise ``httpx.ResponseNotRead``. When False, the
+            retry decision is made from the status code alone and the body is not
+            inspected.
 
     Returns:
         True if the request should be retried, False otherwise.
@@ -572,7 +580,7 @@ def _is_retryable(
     # Check if we got a retry-able HTTP error
     if response is not None and hasattr(response, "status_code"):
         # First check for non-retryable error patterns even in retry status codes
-        if response.status_code in retry_status_codes:
+        if read_response_content and response.status_code in retry_status_codes:
             response_message = response_message or _get_message(response)
             # Check for non-retryable error patterns that should never be retried
             if response_message and any(
@@ -585,7 +593,7 @@ def _is_retryable(
         ) or (response.status_code in retry_status_codes):
             return True
 
-        elif response.status_code not in range(200, 299):
+        elif read_response_content and response.status_code not in range(200, 299):
             # For all other non 200 messages look for retryable errors in the body or reason field
             response_message = response_message or _get_message(response)
             if (
@@ -659,6 +667,8 @@ def _get_message(response):
         else:
             # if the response is not JSON, return the text content
             return response.text
-    except (AttributeError, ValueError):
-        # The response can be truncated. In which case, the message cannot be retrieved.
+    except (AttributeError, ValueError, httpx.StreamError):
+        # The response can be truncated, or it may be an unread streaming response
+        # (httpx.ResponseNotRead is a subclass of httpx.StreamError). In either case
+        # the message cannot be retrieved.
         return None

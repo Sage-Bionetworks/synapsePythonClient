@@ -92,7 +92,7 @@ class TestEvaluationAsync:
         }
 
     def _build_evaluation_with_all_fields(self) -> Evaluation:
-        """Build an Evaluation instance with all required fields for store."""
+        """Build an Evaluation instance with all fields set."""
         return Evaluation(
             name=EVALUATION_NAME,
             description=EVALUATION_DESCRIPTION,

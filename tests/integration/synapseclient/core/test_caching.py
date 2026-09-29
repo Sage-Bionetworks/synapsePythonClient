@@ -14,20 +14,23 @@ from typing import Callable
 import pytest
 
 import synapseclient.core.utils as utils
-from synapseclient import Entity, File, Project, Synapse
+from synapseclient import Synapse
+from synapseclient.api import get_children
+from synapseclient.core.async_utils import wrap_async_generator_to_sync_generator
 from synapseclient.core.exceptions import SynapseError, SynapseHTTPError
+from synapseclient.models import File, Project
 
 
 @pytest.fixture(scope="module")
 def project(syn, schedule_for_cleanup):
-    project = syn.store(Project(name=str(uuid.uuid4())))
+    project = Project(name=str(uuid.uuid4())).store(synapse_client=syn)
     schedule_for_cleanup(project)
     return project
 
 
 @pytest.fixture(scope="module", autouse=True)
 def syn_state(syn):
-    syn.test_keepRunning = True
+    syn.test_keep_running = True
 
     # - Child writeable objects
     syn.test_errors = Queue()
@@ -38,7 +41,7 @@ def syn_state(syn):
 async def sleep_and_end_test(syn: Synapse) -> None:
     """Exit the test after sleeping"""
     await asyncio.sleep(10)
-    syn.test_keepRunning = False
+    syn.test_keep_running = False
 
 
 async def test_threaded_access(
@@ -62,7 +65,7 @@ async def test_threaded_access(
                 asyncio.create_task(
                     wrap_function_as_child_thread(
                         syn,
-                        thread_keep_storing_one_File,
+                        thread_keep_storing_one_file,
                         syn,
                         project,
                         schedule_for_cleanup,
@@ -71,7 +74,7 @@ async def test_threaded_access(
                 asyncio.create_task(
                     wrap_function_as_child_thread(
                         syn,
-                        thread_keep_storing_one_File,
+                        thread_keep_storing_one_file,
                         syn,
                         project,
                         schedule_for_cleanup,
@@ -80,7 +83,7 @@ async def test_threaded_access(
                 asyncio.create_task(
                     wrap_function_as_child_thread(
                         syn,
-                        thread_keep_storing_one_File,
+                        thread_keep_storing_one_file,
                         syn,
                         project,
                         schedule_for_cleanup,
@@ -89,7 +92,7 @@ async def test_threaded_access(
                 asyncio.create_task(
                     wrap_function_as_child_thread(
                         syn,
-                        thread_keep_storing_one_File,
+                        thread_keep_storing_one_file,
                         syn,
                         project,
                         schedule_for_cleanup,
@@ -101,17 +104,17 @@ async def test_threaded_access(
             [
                 asyncio.create_task(
                     wrap_function_as_child_thread(
-                        syn, thread_get_files_from_Project, syn, project
+                        syn, thread_get_files_from_project, syn, project
                     )
                 ),
                 asyncio.create_task(
                     wrap_function_as_child_thread(
-                        syn, thread_get_files_from_Project, syn, project
+                        syn, thread_get_files_from_project, syn, project
                     )
                 ),
                 asyncio.create_task(
                     wrap_function_as_child_thread(
-                        syn, thread_get_files_from_Project, syn, project
+                        syn, thread_get_files_from_project, syn, project
                     )
                 ),
             ]
@@ -121,7 +124,7 @@ async def test_threaded_access(
                 asyncio.create_task(
                     wrap_function_as_child_thread(
                         syn,
-                        thread_get_and_update_file_from_Project,
+                        thread_get_and_update_file_from_project,
                         syn,
                         project,
                         schedule_for_cleanup,
@@ -130,7 +133,7 @@ async def test_threaded_access(
                 asyncio.create_task(
                     wrap_function_as_child_thread(
                         syn,
-                        thread_get_and_update_file_from_Project,
+                        thread_get_and_update_file_from_project,
                         syn,
                         project,
                         schedule_for_cleanup,
@@ -139,7 +142,7 @@ async def test_threaded_access(
                 asyncio.create_task(
                     wrap_function_as_child_thread(
                         syn,
-                        thread_get_and_update_file_from_Project,
+                        thread_get_and_update_file_from_project,
                         syn,
                         project,
                         schedule_for_cleanup,
@@ -150,7 +153,7 @@ async def test_threaded_access(
 
         await asyncio.gather(*tasks)
     finally:
-        syn.test_keepRunning = False
+        syn.test_keep_running = False
 
     # Reset the requests logging level
     requests_log.setLevel(requests_original_level)
@@ -191,59 +194,62 @@ def collect_errors_and_fail(syn: Synapse):
 ######################
 
 
-def thread_keep_storing_one_File(syn: Synapse, project: Project, schedule_for_cleanup):
+def thread_keep_storing_one_file(syn: Synapse, project: Project, schedule_for_cleanup):
     """Makes one file and stores it over and over again."""
 
     # Make a local file to continuously store
     path = utils.make_bogus_data_file()
     schedule_for_cleanup(path)
-    myPrecious = File(
-        path, parent=project, description="This bogus file is MINE", mwa="hahahah"
+    my_precious = File(
+        path=path,
+        parent_id=project.id,
+        description="This bogus file is MINE",
+        annotations={"mwa": ["hahahah"]},
     )
 
-    while syn.test_keepRunning:
+    while syn.test_keep_running:
         stored = None
-        stored = store_catch_412_HTTPError(syn, myPrecious)
+        stored = store_catch_412_http_error(syn, my_precious)
 
         if stored is not None:
-            myPrecious = stored
-        elif "id" in myPrecious:
+            my_precious = stored
+        elif my_precious.id is not None:
             # only attempt to retrieve if the entity was initially saved above without encountering a 412 error
             # and thus has a retrievable synapse id
-            myPrecious = syn.get(myPrecious)
+            my_precious = my_precious.get(synapse_client=syn)
 
         sleep_for_a_bit()
 
 
-def thread_get_files_from_Project(syn: Synapse, project: Project):
+def thread_get_files_from_project(syn: Synapse, project: Project):
     """Continually polls and fetches items from the Project."""
 
-    while syn.test_keepRunning:
-        get_all_ids_from_Project(syn, project)
+    while syn.test_keep_running:
+        get_all_ids_from_project(syn, project)
 
         sleep_for_a_bit()
 
 
-def thread_get_and_update_file_from_Project(
+def thread_get_and_update_file_from_project(
     syn: Synapse, project: Project, schedule_for_cleanup
 ):
     """Fetches one item from the Project and updates it with a new file."""
 
-    while syn.test_keepRunning:
-        id = get_all_ids_from_Project(syn, project)
+    while syn.test_keep_running:
+        id = get_all_ids_from_project(syn, project)
 
         if len(id) == 0:
             sleep_for_a_bit()
             continue
 
         id = id[random.randrange(len(id))]
-        entity = syn.get(id)
+        entity = File(id=id).get(synapse_client=syn)
 
         # Replace the file and re-store
         path = utils.make_bogus_data_file()
         schedule_for_cleanup(path)
         entity.path = path
-        entity = store_catch_412_HTTPError(syn, entity)
+        entity = store_catch_412_http_error(syn, entity)
 
         if entity is not None:
             assert os.stat(entity.path) == os.stat(path)
@@ -263,15 +269,20 @@ def sleep_for_a_bit() -> int:
     return time_to_sleep
 
 
-def get_all_ids_from_Project(syn: Synapse, project: Project):
+def get_all_ids_from_project(syn: Synapse, project: Project):
     """Fetches all currently available Synapse IDs from the parent Project."""
-    return [result["id"] for result in syn.getChildren(project.id)]
+    return [
+        child["id"]
+        for child in wrap_async_generator_to_sync_generator(
+            get_children, parent=project.id, synapse_client=syn
+        )
+    ]
 
 
-def store_catch_412_HTTPError(syn: Synapse, entity: Entity):
+def store_catch_412_http_error(syn: Synapse, entity: File):
     """Returns the stored Entity if the function succeeds or None if the 412 is caught."""
     try:
-        return syn.store(entity)
+        return entity.store(synapse_client=syn)
     except SynapseHTTPError as err:
         # Some other thread modified the Entity, so try again
         if err.response.status_code == 412:

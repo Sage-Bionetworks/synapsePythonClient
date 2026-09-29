@@ -17,13 +17,16 @@ import tempfile
 
 import pandas as pd
 
-from synapseclient import Evaluation, Synapse
+from synapseclient import Synapse
 from synapseclient.models import (
     Activity,
     Column,
     ColumnType,
+    Evaluation,
     File,
     Project,
+    Submission,
+    SubmissionStatus,
     SubmissionView,
     UsedURL,
 )
@@ -40,9 +43,10 @@ print(f"My project ID is: {project_id}")
 evaluation_name = "Test Evaluation Queue for Alzheimer conference"
 evaluation_description = "Evaluation queue for testing submission view"
 evaluation = Evaluation(
-    name=evaluation_name, description=evaluation_description, contentSource=project_id
-)
-evaluation = syn.store(evaluation)
+    name=evaluation_name,
+    description=evaluation_description,
+    content_source=project_id,
+).store()
 print(f"Created evaluation queue with ID: {evaluation.id}")
 # --8<-- [end:setup_and_evaluation]
 
@@ -101,12 +105,11 @@ with tempfile.NamedTemporaryFile(
     ).store()
 
     # Submit the file to the evaluation queue
-    submission = syn.submit(
-        evaluation=evaluation,
-        entity=submission_file,
+    submission = Submission(
+        entity_id=submission_file.id,
+        evaluation_id=evaluation.id,
         name="Test Submission",
-        submitterAlias="Participant 1",
-    )
+    ).store()
 
     print(f"Created submission with ID: {submission.id}")
 # --8<-- [end:submit_file]
@@ -123,13 +126,12 @@ print("Query results:")
 print(results_as_dataframe)
 
 # Update the status to indicate it's been scored
-submission_status = syn.getSubmissionStatus(submission=submission.id)
+submission_status = SubmissionStatus(id=submission.id).get()
 print(f"Submission status: {submission_status.status}")
 submission_status.status = "SCORED"
-submission_status.submissionAnnotations["metric_A"] = 90
-submission_status.submissionAnnotations["metric_B"] = 80
-submission_status.score = 0.7
-submission_status = syn.store(submission_status)
+submission_status.submission_annotations["metric_A"] = [90]
+submission_status.submission_annotations["metric_B"] = [80]
+submission_status = submission_status.store()
 print(f"Updated submission status to: {submission_status.status}")
 
 # --8<-- [end:query_and_update]
@@ -142,9 +144,8 @@ view.get()
 second_evaluation = Evaluation(
     name="Second Test Evaluation Queue for Alzheimer conference",  # Must be globally unique
     description="Another evaluation queue for testing submission view",
-    contentSource=project_id,
-)
-second_evaluation = syn.store(second_evaluation)
+    content_source=project_id,
+).store()
 print(f"Created second evaluation queue with ID: {second_evaluation.id}")
 
 # Add the new evaluation queue to the view's scope

@@ -7,6 +7,7 @@ import pytest
 from numpy import array_equal
 
 import synapseclient
+from synapseclient.models import File
 from synapseutils import describe_functions
 from synapseutils.describe_functions import _describe_wrapper, _open_entity_as_df
 
@@ -40,20 +41,20 @@ class TestOpenEntityAsDf:
     @pytest.fixture
     def setup_csv(self):
         self.df.to_csv(self.csv_path.name)
-        self.csv_ent = synapseclient.File(
-            name="file.csv", id=self.id, path=self.csv_path.name, parentId="8765"
+        self.csv_ent = File(
+            name="file.csv", id=self.id, path=self.csv_path.name, parent_id="8765"
         )
 
     @pytest.fixture
     def setup_tsv(self):
         self.df.to_csv(self.tsv_path.name, sep="\t")
-        self.tsv_ent = synapseclient.File(
-            name="file.tsv", id=self.id, path=self.tsv_path.name, parentId="8765"
+        self.tsv_ent = File(
+            name="file.tsv", id=self.id, path=self.tsv_path.name, parent_id="8765"
         )
 
     def test_open_entity_as_df_csv(self, setup_csv):
         with patch.object(
-            self.syn, "get", return_value=self.csv_ent
+            describe_functions, "get", return_value=self.csv_ent
         ) as mocked_get_entity:
             result_csv = _open_entity_as_df(self.syn, self.id)
             assert type(result_csv) == pd.DataFrame
@@ -66,7 +67,7 @@ class TestOpenEntityAsDf:
 
     def test_open_entity_as_df_tsv(self, setup_tsv):
         with patch.object(
-            self.syn, "get", return_value=self.tsv_ent
+            describe_functions, "get", return_value=self.tsv_ent
         ) as mocked_get_entity:
             result_tsv = _open_entity_as_df(self.syn, self.id)
             assert type(result_tsv) == pd.DataFrame

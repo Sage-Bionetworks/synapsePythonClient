@@ -259,8 +259,20 @@ class TestUploadAttempt:
             None,
         )
 
-    def test_handle_part__connection_error(self, syn):
-        """Test that we retry if we encounter a ConnectionError on a reqeust to PUT to an AWS presigend url"""
+    @pytest.mark.parametrize(
+        "exception",
+        [
+            requests.exceptions.ConnectionError("aborted"),
+            ConnectionResetError("reset"),
+            requests.exceptions.Timeout("timed out"),
+            requests.exceptions.ChunkedEncodingError("truncated"),
+            requests.exceptions.ReadTimeout("read timed out"),
+            requests.exceptions.ConnectTimeout("connect timed out"),
+        ],
+    )
+    def test_handle_part__retryable_connection_exception(self, syn, exception):
+        """Test that we retry if we encounter a retryable connection exception (per
+        RETRYABLE_CONNECTION_EXCEPTIONS) on a request to PUT to an AWS presigned url."""
 
         upload = self._init_upload_attempt(syn)
         upload._upload_id = "123"
@@ -277,12 +289,10 @@ class TestUploadAttempt:
             upload,
             part_number,
             pre_signed_url,
-            # initial call is expired and results in a 500
-            # second call is successful
             [
                 (
                     mock.call(pre_signed_url, chunk, headers=signed_headers),
-                    requests.exceptions.ConnectionError("aborted"),
+                    exception,
                 ),
                 (
                     mock.call(pre_signed_url, chunk, headers=signed_headers),

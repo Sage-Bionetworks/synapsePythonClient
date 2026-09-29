@@ -1,15 +1,38 @@
 """The required data for working with annotations in Synapse"""
 
+import collections
 from dataclasses import dataclass, field
 from datetime import date, datetime
-from typing import Dict, List, Optional, Union
+from typing import Callable, Dict, List, Optional, Union
 
 from synapseclient import Synapse
-from synapseclient.annotations import ANNO_TYPE_TO_FUNC
 from synapseclient.api import set_annotations_async
 from synapseclient.core.async_utils import async_to_sync
+from synapseclient.core.utils import from_unix_epoch_time
 from synapseclient.models.protocols.annotations_protocol import (
     AnnotationsSynchronousProtocol,
+)
+
+
+def _identity(x):
+    return x
+
+
+def _raise_anno_type_error(anno_type: str):
+    raise ValueError(f"Unknown type in annotations response: {anno_type}")
+
+
+_ANNO_TYPE_TO_FUNC: dict[str, Callable[[str], Union[str, int, float, datetime]]] = (
+    collections.defaultdict(
+        _raise_anno_type_error,
+        {
+            "STRING": _identity,
+            "BOOLEAN": lambda bool_str: bool_str and bool_str.lower() == "true",
+            "LONG": int,
+            "DOUBLE": float,
+            "TIMESTAMP_MS": lambda time_str: from_unix_epoch_time(int(time_str)),
+        },
+    )
 )
 
 
@@ -126,7 +149,7 @@ class Annotations(AnnotationsSynchronousProtocol):
         )
         for key in dict_to_convert:
             if isinstance(dict_to_convert[key], dict):
-                conversion_func = ANNO_TYPE_TO_FUNC[dict_to_convert[key]["type"]]
+                conversion_func = _ANNO_TYPE_TO_FUNC[dict_to_convert[key]["type"]]
                 annotations[key] = [
                     conversion_func(v) for v in dict_to_convert[key]["value"]
                 ]

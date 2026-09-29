@@ -1,9 +1,5 @@
 # Wiki
 
-Contained within this file are experimental interfaces for working with the Synapse Python
-Client. Unless otherwise noted these interfaces are subject to change at any time. Use
-at your own risk.
-
 ## API reference
 
 ::: synapseclient.models.WikiOrderHint
@@ -30,6 +26,7 @@ at your own risk.
         - restore_async
         - get_async
         - delete_async
+        - copy_async
         - get_attachment_handles_async
         - get_attachment_async
         - get_attachment_preview_async

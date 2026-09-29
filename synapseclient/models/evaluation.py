@@ -6,7 +6,7 @@ from opentelemetry import trace
 
 from synapseclient import Synapse
 from synapseclient.core.async_utils import async_to_sync
-from synapseclient.core.utils import merge_dataclass_entities
+from synapseclient.core.utils import delete_none_keys, merge_dataclass_entities
 from synapseclient.models.protocols.evaluation_protocol import (
     EvaluationSynchronousProtocol,
 )
@@ -33,11 +33,11 @@ class Evaluation(EvaluationSynchronousProtocol):
         etag: Synapse employs an Optimistic Concurrency Control (OCC) scheme to handle concurrent updates.
               The eTag changes every time an Evaluation is updated; it is used to detect when a client's copy
               of an Evaluation is out-of-date.
-        name: The name of this Evaluation.
-        description: A text description of this Evaluation.
+        name: **Required to store.** The name of this Evaluation.
+        description: **Required to store.** A text description of this Evaluation.
         owner_id: The ID of the Synapse user who created this Evaluation.
         created_on: The date on which Evaluation was created.
-        content_source: The Synapse ID of the Entity to which this Evaluation belongs,
+        content_source: **Required to store.** The Synapse ID of the Entity to which this Evaluation belongs,
                         e.g. a reference to a Synapse project.
         submission_instructions_message: Message to display to users detailing acceptable formatting for Submissions to this Evaluation.
         submission_receipt_message: Message to display to users upon successful submission to this Evaluation.
@@ -56,8 +56,6 @@ class Evaluation(EvaluationSynchronousProtocol):
             name="My Challenge Evaluation",
             description="Evaluation for my data challenge",
             content_source="syn123456",
-            submission_instructions_message="Submit CSV files only",
-            submission_receipt_message="Thank you for your submission!",
         )
         created = evaluation.store()
         ```
@@ -123,10 +121,10 @@ class Evaluation(EvaluationSynchronousProtocol):
     of an Evaluation is out-of-date."""
 
     name: Optional[str] = None
-    """The name of this Evaluation."""
+    """**Required to store.** The name of this Evaluation."""
 
     description: Optional[str] = None
-    """A text description of this Evaluation."""
+    """**Required to store.** A text description of this Evaluation."""
 
     owner_id: Optional[str] = None
     """The ID of the Synapse user who created this Evaluation."""
@@ -135,7 +133,7 @@ class Evaluation(EvaluationSynchronousProtocol):
     """The date on which Evaluation was created."""
 
     content_source: Optional[str] = None
-    """The Synapse ID of the Entity to which this Evaluation belongs,
+    """**Required to store.** The Synapse ID of the Entity to which this Evaluation belongs,
     e.g. a reference to a Synapse project."""
 
     submission_instructions_message: Optional[str] = None
@@ -250,23 +248,26 @@ class Evaluation(EvaluationSynchronousProtocol):
             ValueError: If any required attributes are missing.
         """
 
-        # These attributes are required in our PUT requests for creating or updating an evaluation
-        required_attributes = [
-            "name",
-            "description",
-            "content_source",
-            "submission_instructions_message",
-            "submission_receipt_message",
-        ]
-
-        # For "update" requests, add id and etag
+        if not self.name:
+            raise ValueError(
+                f"Your evaluation object is missing the 'name' attribute. This attribute is required to {request_type.value} an evaluation"
+            )
+        if not self.description:
+            raise ValueError(
+                f"Your evaluation object is missing the 'description' attribute. This attribute is required to {request_type.value} an evaluation"
+            )
+        if not self.content_source:
+            raise ValueError(
+                f"Your evaluation object is missing the 'content_source' attribute. This attribute is required to {request_type.value} an evaluation"
+            )
         if request_type == RequestType.UPDATE:
-            required_attributes.extend(["id", "etag"])
-
-        for attribute in required_attributes:
-            if not getattr(self, attribute):
+            if not self.id:
                 raise ValueError(
-                    f"Your evaluation object is missing the '{attribute}' attribute. This attribute is required to {request_type.value} an evaluation"
+                    f"Your evaluation object is missing the 'id' attribute. This attribute is required to {request_type.value} an evaluation"
+                )
+            if not self.etag:
+                raise ValueError(
+                    f"Your evaluation object is missing the 'etag' attribute. This attribute is required to {request_type.value} an evaluation"
                 )
 
         # Build a request body for storing a brand new evaluation
@@ -277,6 +278,7 @@ class Evaluation(EvaluationSynchronousProtocol):
             "submissionInstructionsMessage": self.submission_instructions_message,
             "submissionReceiptMessage": self.submission_receipt_message,
         }
+        delete_none_keys(request_body)
 
         # For UPDATE request types, add id and etag
         if request_type == RequestType.UPDATE:
@@ -307,7 +309,7 @@ class Evaluation(EvaluationSynchronousProtocol):
 
         Example: Creating a new evaluation
             &nbsp;
-            Create a new evaluation on Synapse by storing an evaluation object with the required fields. If there are any fields missing, an error will be raised.
+            Create a new evaluation on Synapse by storing an evaluation object with the required fields.
             ```python
             from synapseclient.models import Evaluation
             from synapseclient import Synapse
@@ -321,8 +323,6 @@ class Evaluation(EvaluationSynchronousProtocol):
                     name="My Challenge Evaluation",
                     description="Evaluation for my data challenge",
                     content_source="syn123456",
-                    submission_instructions_message="Submit CSV files only",
-                    submission_receipt_message="Thank you for your submission!"
                 ).store_async()
 
                 return evaluation

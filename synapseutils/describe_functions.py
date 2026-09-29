@@ -1,14 +1,17 @@
 import json
 import os
-import typing
 from collections import defaultdict
+from typing import Any, Optional
 
-import synapseclient
 from synapseclient import Synapse
+from synapseclient.core.exceptions import SynapseHTTPError
+from synapseclient.core.typing_utils import DataFrame as DATA_FRAME_TYPE
 from synapseclient.core.utils import test_import_pandas
+from synapseclient.models import File
+from synapseclient.operations import get
 
 
-def _open_entity_as_df(syn: Synapse, entity: str):
+def _open_entity_as_df(syn: Synapse, entity: str) -> Optional[DATA_FRAME_TYPE]:
     """
     Gets a csv or tsv Synapse entity and returns it as a dataframe
 
@@ -26,9 +29,9 @@ def _open_entity_as_df(syn: Synapse, entity: str):
     dataset = None
 
     try:
-        entity = syn.get(entity)
+        entity: File = get(entity, synapse_client=syn)
         _, format = os.path.splitext(entity.path)
-    except synapseclient.core.exceptions.SynapseHTTPError:
+    except SynapseHTTPError:
         syn.logger.exception(str(entity) + " is not a valid Synapse id")
         return dataset  # its value is None here
 
@@ -42,7 +45,7 @@ def _open_entity_as_df(syn: Synapse, entity: str):
     return dataset
 
 
-def _describe_wrapper(df, syn: Synapse) -> dict:
+def _describe_wrapper(df: DATA_FRAME_TYPE, syn: Synapse) -> dict[str, dict[str, Any]]:
     """
     Returns the mode, min, max, mean, and dtype of each column in a dataframe
 
@@ -76,7 +79,7 @@ def _describe_wrapper(df, syn: Synapse) -> dict:
     return stats
 
 
-def describe(syn: Synapse, entity: str) -> typing.Union[dict, None]:
+def describe(syn: Synapse, entity: str) -> dict[str, dict[str, Any]] | None:
     """
     Gets a synapse entity and returns summary statistics about it.
 

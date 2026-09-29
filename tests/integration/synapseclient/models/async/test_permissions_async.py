@@ -3,12 +3,11 @@
 import asyncio
 import logging
 import uuid
-from typing import Callable, Dict, List, Optional, Type, Union
+from typing import Callable, Dict, List, Optional, Tuple, Type, Union
 
 import pytest
 
 from synapseclient import Synapse
-from synapseclient.core import utils
 from synapseclient.core.models.acl import AclListResult
 from synapseclient.models import (
     Column,
@@ -46,10 +45,13 @@ class TestAcl:
         self.schedule_for_cleanup = schedule_for_cleanup
 
     @pytest.fixture(scope="function")
-    def file(self, schedule_for_cleanup: Callable[..., None]) -> File:
-        filename = utils.make_bogus_uuid_file()
-        schedule_for_cleanup(filename)
-        return File(path=filename)
+    def file(self) -> File:
+        # Only the permission-bearing entity matters here, not its content, so
+        # an external_url file handle avoids a real upload.
+        return File(
+            external_url=f"https://example.com/bogus-file-{uuid.uuid4()}.txt",
+            synapse_store=False,
+        )
 
     @pytest.fixture(scope="function")
     def table(self, project_model: Project) -> Table:
@@ -973,10 +975,13 @@ class TestDeletePermissions:
         return project
 
     @pytest.fixture(scope="function")
-    def file(self, schedule_for_cleanup: Callable[..., None]) -> File:
-        filename = utils.make_bogus_uuid_file()
-        schedule_for_cleanup(filename)
-        return File(path=filename)
+    def file(self) -> File:
+        # Only the permission-bearing entity matters here, not its content, so
+        # an external_url file handle avoids a real upload.
+        return File(
+            external_url=f"https://example.com/bogus-file-{uuid.uuid4()}.txt",
+            synapse_store=False,
+        )
 
     async def _set_custom_permissions(
         self, entity: Union[File, Folder, Project]
@@ -1134,7 +1139,9 @@ class TestDeletePermissions:
         self.schedule_for_cleanup(folder_a.id)
 
         file_1 = await File(
-            path=utils.make_bogus_uuid_file(), name=f"file_1_{uuid.uuid4()}"
+            external_url=f"https://example.com/bogus-file-{uuid.uuid4()}.txt",
+            name=f"file_1_{uuid.uuid4()}",
+            synapse_store=False,
         ).store_async(parent=folder_a, synapse_client=self.syn)
         self.schedule_for_cleanup(file_1.id)
 
@@ -1169,7 +1176,9 @@ class TestDeletePermissions:
 
         # Create file_at_1 and level_2 in parallel since they don't depend on each other
         file_at_1_task = File(
-            path=utils.make_bogus_uuid_file(), name=f"file_at_1_{uuid.uuid4()}"
+            external_url=f"https://example.com/bogus-file-{uuid.uuid4()}.txt",
+            name=f"file_at_1_{uuid.uuid4()}",
+            synapse_store=False,
         ).store_async(parent=level_1, synapse_client=self.syn)
         level_2_task = Folder(name=f"level_2_{uuid.uuid4()}").store_async(
             parent=level_1, synapse_client=self.syn
@@ -1181,7 +1190,9 @@ class TestDeletePermissions:
 
         # Create file_at_2 and level_3 in parallel since they don't depend on each other
         file_at_2_task = File(
-            path=utils.make_bogus_uuid_file(), name=f"file_at_2_{uuid.uuid4()}"
+            external_url=f"https://example.com/bogus-file-{uuid.uuid4()}.txt",
+            name=f"file_at_2_{uuid.uuid4()}",
+            synapse_store=False,
         ).store_async(parent=level_2, synapse_client=self.syn)
         level_3_task = Folder(name=f"level_3_{uuid.uuid4()}").store_async(
             parent=level_2, synapse_client=self.syn
@@ -1193,7 +1204,9 @@ class TestDeletePermissions:
 
         # Create file_at_3 and level_4 in parallel since they don't depend on each other
         file_at_3_task = File(
-            path=utils.make_bogus_uuid_file(), name=f"file_at_3_{uuid.uuid4()}"
+            external_url=f"https://example.com/bogus-file-{uuid.uuid4()}.txt",
+            name=f"file_at_3_{uuid.uuid4()}",
+            synapse_store=False,
         ).store_async(parent=level_3, synapse_client=self.syn)
         level_4_task = Folder(name=f"level_4_{uuid.uuid4()}").store_async(
             parent=level_3, synapse_client=self.syn
@@ -1204,7 +1217,9 @@ class TestDeletePermissions:
         self.schedule_for_cleanup(level_4.id)
 
         file_at_4 = await File(
-            path=utils.make_bogus_uuid_file(), name=f"file_at_4_{uuid.uuid4()}"
+            external_url=f"https://example.com/bogus-file-{uuid.uuid4()}.txt",
+            name=f"file_at_4_{uuid.uuid4()}",
+            synapse_store=False,
         ).store_async(parent=level_4, synapse_client=self.syn)
         self.schedule_for_cleanup(file_at_4.id)
 
@@ -1253,15 +1268,18 @@ class TestDeletePermissions:
         # Create files in parallel
         file_tasks = [
             File(
-                path=utils.make_bogus_uuid_file(),
+                external_url=f"https://example.com/bogus-file-{uuid.uuid4()}.txt",
                 name=f"file_{folder_letter}_{uuid.uuid4()}",
+                synapse_store=False,
             ).store_async(parent=folder, synapse_client=self.syn)
             for folder_letter, folder in zip(["a", "b", "c"], folders)
         ]
 
         # Create root file task
         root_file_task = File(
-            path=utils.make_bogus_uuid_file(), name=f"root_file_{uuid.uuid4()}"
+            external_url=f"https://example.com/bogus-file-{uuid.uuid4()}.txt",
+            name=f"root_file_{uuid.uuid4()}",
+            synapse_store=False,
         ).store_async(parent=project_model, synapse_client=self.syn)
 
         # Execute file creation tasks in parallel
@@ -1327,13 +1345,17 @@ class TestDeletePermissions:
 
         # Create first level files and folders
         shallow_file = await File(
-            path=utils.make_bogus_uuid_file(), name=f"shallow_file_{uuid.uuid4()}"
+            external_url=f"https://example.com/bogus-file-{uuid.uuid4()}.txt",
+            name=f"shallow_file_{uuid.uuid4()}",
+            synapse_store=False,
         ).store_async(parent=shallow_folder, synapse_client=self.syn)
         self.schedule_for_cleanup(shallow_file.id)
 
         # Deep branch structure
         deep_file_1_task = File(
-            path=utils.make_bogus_uuid_file(), name=f"deep_file_1_{uuid.uuid4()}"
+            external_url=f"https://example.com/bogus-file-{uuid.uuid4()}.txt",
+            name=f"deep_file_1_{uuid.uuid4()}",
+            synapse_store=False,
         ).store_async(parent=deep_branch, synapse_client=self.syn)
 
         sub_deep_task = Folder(name=f"sub_deep_{uuid.uuid4()}").store_async(
@@ -1346,7 +1368,9 @@ class TestDeletePermissions:
 
         # Continue deep structure
         deep_file_2_task = File(
-            path=utils.make_bogus_uuid_file(), name=f"deep_file_2_{uuid.uuid4()}"
+            external_url=f"https://example.com/bogus-file-{uuid.uuid4()}.txt",
+            name=f"deep_file_2_{uuid.uuid4()}",
+            synapse_store=False,
         ).store_async(parent=sub_deep, synapse_client=self.syn)
 
         sub_sub_deep_task = Folder(name=f"sub_sub_deep_{uuid.uuid4()}").store_async(
@@ -1360,13 +1384,17 @@ class TestDeletePermissions:
         self.schedule_for_cleanup(sub_sub_deep.id)
 
         deep_file_3 = await File(
-            path=utils.make_bogus_uuid_file(), name=f"deep_file_3_{uuid.uuid4()}"
+            external_url=f"https://example.com/bogus-file-{uuid.uuid4()}.txt",
+            name=f"deep_file_3_{uuid.uuid4()}",
+            synapse_store=False,
         ).store_async(parent=sub_sub_deep, synapse_client=self.syn)
         self.schedule_for_cleanup(deep_file_3.id)
 
         # Mixed folder structure
         mixed_file_task = File(
-            path=utils.make_bogus_uuid_file(), name=f"mixed_file_{uuid.uuid4()}"
+            external_url=f"https://example.com/bogus-file-{uuid.uuid4()}.txt",
+            name=f"mixed_file_{uuid.uuid4()}",
+            synapse_store=False,
         ).store_async(parent=mixed_folder, synapse_client=self.syn)
 
         mixed_sub_a_task = Folder(name=f"mixed_sub_a_{uuid.uuid4()}").store_async(
@@ -1387,11 +1415,15 @@ class TestDeletePermissions:
 
         # Create files in mixed sub-folders in parallel
         mixed_file_a_task = File(
-            path=utils.make_bogus_uuid_file(), name=f"mixed_file_a_{uuid.uuid4()}"
+            external_url=f"https://example.com/bogus-file-{uuid.uuid4()}.txt",
+            name=f"mixed_file_a_{uuid.uuid4()}",
+            synapse_store=False,
         ).store_async(parent=mixed_sub_a, synapse_client=self.syn)
 
         mixed_file_b_task = File(
-            path=utils.make_bogus_uuid_file(), name=f"mixed_file_b_{uuid.uuid4()}"
+            external_url=f"https://example.com/bogus-file-{uuid.uuid4()}.txt",
+            name=f"mixed_file_b_{uuid.uuid4()}",
+            synapse_store=False,
         ).store_async(parent=mixed_sub_b, synapse_client=self.syn)
 
         mixed_file_a, mixed_file_b = await asyncio.gather(
@@ -1571,12 +1603,37 @@ class TestDeletePermissions:
             *[self._verify_permissions_deleted(entity) for entity in entities_to_verify]
         )
 
+    @pytest.fixture(scope="class")
+    async def shared_complex_mixed_structure(
+        self, syn: Synapse, schedule_for_cleanup: Callable[..., None]
+    ) -> Tuple[Project, Dict[str, Union[Folder, File, List]]]:
+        """
+        Built once for the whole class rather than once per test: the five
+        `test_delete_permissions_*` tests below each assert a different
+        `delete_permissions_async` behavior against this structure, but each
+        re-sets the permissions it verifies immediately before verifying, so
+        they don't depend on which of them ran first. Repeating the 7 file
+        uploads inside `create_complex_mixed_structure` for every test bought
+        no additional coverage.
+        """
+        self.syn = syn
+        self.schedule_for_cleanup = schedule_for_cleanup
+        project = await Project(
+            name=f"integration_test_project_{uuid.uuid4()}"
+        ).store_async(synapse_client=syn)
+        schedule_for_cleanup(project.id)
+        return project, await self.create_complex_mixed_structure(project)
+
     async def test_delete_permissions_complex_mixed_structure(
-        self, stored_project: Project, caplog: pytest.LogCaptureFixture
+        self,
+        shared_complex_mixed_structure: Tuple[
+            Project, Dict[str, Union[Folder, File, List]]
+        ],
+        caplog: pytest.LogCaptureFixture,
     ) -> None:
         """Test deleting permissions on a complex mixed structure."""
         # GIVEN a complex mixed structure with permissions
-        structure = await self.create_complex_mixed_structure(stored_project)
+        project, structure = shared_complex_mixed_structure
 
         # Set permissions on all entities
         entities_to_set = (
@@ -1600,7 +1657,7 @@ class TestDeletePermissions:
 
         # WHEN - Verify list_acl_functionality before deletion
         await self._verify_list_acl_functionality(
-            entity=stored_project,
+            entity=project,
             expected_entity_count=12,  # complex structure with multiple entities
             recursive=True,
             include_container_content=True,
@@ -1612,7 +1669,7 @@ class TestDeletePermissions:
         caplog.clear()
 
         # WHEN I delete permissions recursively from the project
-        await stored_project.delete_permissions_async(
+        await project.delete_permissions_async(
             recursive=True,
             include_container_content=True,
             dry_run=False,
@@ -1672,7 +1729,9 @@ class TestDeletePermissions:
         self.schedule_for_cleanup(folder.id)
 
         file = await File(
-            path=utils.make_bogus_uuid_file(), name=f"only_file_{uuid.uuid4()}"
+            external_url=f"https://example.com/bogus-file-{uuid.uuid4()}.txt",
+            name=f"only_file_{uuid.uuid4()}",
+            synapse_store=False,
         ).store_async(parent=folder, synapse_client=self.syn)
         self.schedule_for_cleanup(file.id)
 
@@ -1767,11 +1826,15 @@ class TestDeletePermissions:
         )
 
     async def test_delete_permissions_target_files_only_complex(
-        self, stored_project: Project, caplog: pytest.LogCaptureFixture
+        self,
+        shared_complex_mixed_structure: Tuple[
+            Project, Dict[str, Union[Folder, File, List]]
+        ],
+        caplog: pytest.LogCaptureFixture,
     ) -> None:
         """Test deleting permissions targeting only files in a complex structure."""
         # GIVEN a complex structure with permissions
-        structure = await self.create_complex_mixed_structure(stored_project)
+        project, structure = shared_complex_mixed_structure
 
         # Set permissions on all entities
         await asyncio.gather(
@@ -1785,7 +1848,7 @@ class TestDeletePermissions:
 
         # WHEN - Verify list_acl_async with target_entity_types for files only
         await self._verify_list_acl_functionality(
-            entity=stored_project,
+            entity=project,
             expected_entity_count=4,  # shallow_file + 3 deep_files
             recursive=True,
             include_container_content=True,
@@ -1798,7 +1861,7 @@ class TestDeletePermissions:
         caplog.clear()
 
         # WHEN I delete permissions targeting only files
-        await stored_project.delete_permissions_async(
+        await project.delete_permissions_async(
             recursive=True,
             include_container_content=True,
             target_entity_types=["file"],
@@ -1875,11 +1938,15 @@ class TestDeletePermissions:
         )
 
     async def test_delete_permissions_skip_self_complex_structure(
-        self, stored_project: Project, caplog: pytest.LogCaptureFixture
+        self,
+        shared_complex_mixed_structure: Tuple[
+            Project, Dict[str, Union[Folder, File, List]]
+        ],
+        caplog: pytest.LogCaptureFixture,
     ) -> None:
         """Test include_self=False on a complex structure."""
         # GIVEN a complex mixed structure with permissions
-        structure = await self.create_complex_mixed_structure(stored_project)
+        _, structure = shared_complex_mixed_structure
 
         # Set permissions on all entities
         await asyncio.gather(
@@ -1998,11 +2065,15 @@ class TestDeletePermissions:
         )
 
     async def test_delete_permissions_dry_run_complex_logging(
-        self, stored_project: Project, caplog: pytest.LogCaptureFixture
+        self,
+        shared_complex_mixed_structure: Tuple[
+            Project, Dict[str, Union[Folder, File, List]]
+        ],
+        caplog: pytest.LogCaptureFixture,
     ) -> None:
         """Test dry run logging for complex structures."""
         # GIVEN a complex structure with permissions
-        structure = await self.create_complex_mixed_structure(stored_project)
+        _, structure = shared_complex_mixed_structure
 
         # Set permissions on a subset of entities
         await asyncio.gather(
@@ -2069,7 +2140,9 @@ class TestDeletePermissions:
         # Create files in parallel
         file_tasks = [
             File(
-                path=utils.make_bogus_uuid_file(), name=f"large_file_{i}_{uuid.uuid4()}"
+                external_url=f"https://example.com/bogus-file-{uuid.uuid4()}.txt",
+                name=f"large_file_{i}_{uuid.uuid4()}",
+                synapse_store=False,
             ).store_async(parent=large_folder, synapse_client=self.syn)
             for i in range(10)  # Reduced from larger number for test performance
         ]
@@ -2158,8 +2231,9 @@ class TestDeletePermissions:
             for level in range(2):
                 parent_folder = nested_folders[folder_index]
                 file_task = File(
-                    path=utils.make_bogus_uuid_file(),
+                    external_url=f"https://example.com/bogus-file-{uuid.uuid4()}.txt",
                     name=f"{branch_name}_file_{level}_{uuid.uuid4()}",
+                    synapse_store=False,
                 ).store_async(parent=parent_folder, synapse_client=self.syn)
                 file_tasks.append(file_task)
                 folder_index += 1
@@ -2227,10 +2301,14 @@ class TestDeletePermissions:
         # Create files in each branch in parallel
         file_tasks = [
             File(
-                path=utils.make_bogus_uuid_file(), name=f"file_a_{uuid.uuid4()}"
+                external_url=f"https://example.com/bogus-file-{uuid.uuid4()}.txt",
+                name=f"file_a_{uuid.uuid4()}",
+                synapse_store=False,
             ).store_async(parent=branch_a, synapse_client=self.syn),
             File(
-                path=utils.make_bogus_uuid_file(), name=f"file_b_{uuid.uuid4()}"
+                external_url=f"https://example.com/bogus-file-{uuid.uuid4()}.txt",
+                name=f"file_b_{uuid.uuid4()}",
+                synapse_store=False,
             ).store_async(parent=branch_b, synapse_client=self.syn),
         ]
         file_a, file_b = await asyncio.gather(*file_tasks)
@@ -2282,11 +2360,15 @@ class TestDeletePermissions:
         )
 
     async def test_delete_permissions_mixed_entity_types_in_structure(
-        self, stored_project: Project, caplog: pytest.LogCaptureFixture
+        self,
+        shared_complex_mixed_structure: Tuple[
+            Project, Dict[str, Union[Folder, File, List]]
+        ],
+        caplog: pytest.LogCaptureFixture,
     ) -> None:
         """Test deleting permissions with mixed entity types in complex structure."""
         # GIVEN a structure with both files and folders at multiple levels
-        structure = await self.create_complex_mixed_structure(stored_project)
+        project, structure = shared_complex_mixed_structure
 
         # Set permissions on a mix of entities
         await asyncio.gather(
@@ -2300,7 +2382,7 @@ class TestDeletePermissions:
 
         # WHEN - Verify list_acl_async with mixed entity types
         await self._verify_list_acl_functionality(
-            entity=stored_project,
+            entity=project,
             expected_entity_count=5,  # All the entities we set permissions on
             recursive=True,
             include_container_content=True,
@@ -2313,7 +2395,7 @@ class TestDeletePermissions:
         caplog.clear()
 
         # WHEN I delete permissions targeting both files and folders
-        await stored_project.delete_permissions_async(
+        await project.delete_permissions_async(
             recursive=True,
             include_container_content=True,
             target_entity_types=["file", "folder"],
@@ -2341,7 +2423,9 @@ class TestDeletePermissions:
         self.schedule_for_cleanup(parent_folder.id)
 
         child_file = await File(
-            path=utils.make_bogus_uuid_file(), name=f"child_file_{uuid.uuid4()}"
+            external_url=f"https://example.com/bogus-file-{uuid.uuid4()}.txt",
+            name=f"child_file_{uuid.uuid4()}",
+            synapse_store=False,
         ).store_async(parent=parent_folder, synapse_client=self.syn)
         self.schedule_for_cleanup(child_file.id)
 
@@ -2447,12 +2531,11 @@ class TestAllEntityTypesPermissions:
 
         entities = {"project": project_model}
 
-        file_path = utils.make_bogus_uuid_file()
-        self.schedule_for_cleanup(file_path)
         file_entity = File(
             name=f"test_file_{str(uuid.uuid4())}.txt",
             parent_id=project_model.id,
-            path=file_path,
+            external_url=f"https://example.com/bogus-file-{uuid.uuid4()}.txt",
+            synapse_store=False,
         )
         file_entity = await file_entity.store_async(synapse_client=self.syn)
         self.schedule_for_cleanup(file_entity.id)
@@ -2549,11 +2632,32 @@ class TestAllEntityTypesPermissions:
         await asyncio.sleep(2)
         return entities
 
-    async def test_list_acl_async_all_entity_types(self) -> None:
+    @pytest.fixture(scope="class")
+    async def shared_entities_with_acl(
+        self, syn: Synapse, schedule_for_cleanup: Callable[..., None]
+    ) -> Dict[str, any]:
+        """
+        Built once for the class: `test_list_acl_async_all_entity_types`,
+        `test_list_acl_async_specific_entity_types`, and
+        `test_delete_permissions_async_all_entity_types` below only read ACLs or
+        run `delete_permissions_async` with `dry_run=True`, so none of them mutates
+        this structure's permissions. The two `..._actual_deletion` tests below
+        are NOT given this fixture: each removes the local ACLs it just verified
+        were present, which would corrupt the "before" assertions of any test
+        sharing the same structure that ran afterward, so they keep their own
+        fresh entities.
+        """
+        self.syn = syn
+        self.schedule_for_cleanup = schedule_for_cleanup
+        project = Project(name=f"test_project_{uuid.uuid4()}")
+        return await self.create_all_entity_types_with_acl(project)
+
+    async def test_list_acl_async_all_entity_types(
+        self, shared_entities_with_acl: Dict[str, any]
+    ) -> None:
         """Test list_acl_async functionality with all supported entity types."""
         # GIVEN a project with all supported entity types and local ACL permissions
-        project = Project(name=f"test_project_{uuid.uuid4()}")
-        entities = await self.create_all_entity_types_with_acl(project)
+        entities = shared_entities_with_acl
 
         # WHEN I call list_acl_async on the project with all entity types
         result = await entities["project"].list_acl_async(
@@ -2612,11 +2716,12 @@ class TestAllEntityTypesPermissions:
                     entity.id in entities_with_read_permissions
                 ), f"Entity {entity.id} ({entity_type}) should appear in AclListResult with READ permissions"
 
-    async def test_list_acl_async_specific_entity_types(self) -> None:
+    async def test_list_acl_async_specific_entity_types(
+        self, shared_entities_with_acl: Dict[str, any]
+    ) -> None:
         """Test list_acl_async functionality with specific entity types."""
         # GIVEN a project with all supported entity types
-        project = Project(name=f"test_project_{uuid.uuid4()}")
-        entities = await self.create_all_entity_types_with_acl(project)
+        entities = shared_entities_with_acl
 
         # WHEN I call list_acl_async with only table-related entity types
         result = await entities["project"].list_acl_async(
@@ -2712,11 +2817,12 @@ class TestAllEntityTypesPermissions:
                     has_read_permission
                 ), f"Entity {entity_id} should have READ permissions for AUTHENTICATED_USERS"
 
-    async def test_delete_permissions_async_all_entity_types(self) -> None:
+    async def test_delete_permissions_async_all_entity_types(
+        self, shared_entities_with_acl: Dict[str, any]
+    ) -> None:
         """Test delete_permissions_async functionality with all supported entity types."""
         # GIVEN a project with all supported entity types and local ACL permissions
-        project = Project(name=f"test_project_{uuid.uuid4()}")
-        entities = await self.create_all_entity_types_with_acl(project)
+        entities = shared_entities_with_acl
 
         # AND I verify AUTHENTICATED_USERS has READ permissions before deletion
         for entity_type, entity in entities.items():

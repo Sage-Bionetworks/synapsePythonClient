@@ -1242,6 +1242,7 @@ async def get_children(
             "submissionview",
             "dataset",
             "materializedview",
+            "searchindex",
         ]
 
     request_body = {

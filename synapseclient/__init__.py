@@ -3,6 +3,7 @@ import json
 
 import requests  # ensure user-agent is set to track Synapse Python client usage
 
+# TODO remove all legacy classes in v5.0.0
 from .activity import Activity
 from .annotations import Annotations
 

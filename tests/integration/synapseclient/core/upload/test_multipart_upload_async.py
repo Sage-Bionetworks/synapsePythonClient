@@ -319,14 +319,14 @@ async def _multipart_copy_test(
 
 
 async def test_multipart_copy(
-    syn: Synapse, project: Project, schedule_for_cleanup: Callable[..., None]
+    syn: Synapse, project_model: Project, schedule_for_cleanup: Callable[..., None]
 ) -> None:
     """Test multi part copy using the minimum part size."""
-    await _multipart_copy_test(syn, project, schedule_for_cleanup, MIN_PART_SIZE)
+    await _multipart_copy_test(syn, project_model, schedule_for_cleanup, MIN_PART_SIZE)
 
 
 @skip("Skip in normal testing because the large size makes it slow")
 async def test_multipart_copy__big_parts(
-    syn: Synapse, project: Project, schedule_for_cleanup: Callable[..., None]
+    syn: Synapse, project_model: Project, schedule_for_cleanup: Callable[..., None]
 ) -> None:
-    await _multipart_copy_test(syn, project, schedule_for_cleanup, 100 * utils.MB)
+    await _multipart_copy_test(syn, project_model, schedule_for_cleanup, 100 * utils.MB)

@@ -1,9 +1,5 @@
 # Table
 
-Contained within this file are experimental interfaces for working with the Synapse Python
-Client. Unless otherwise noted these interfaces are subject to change at any time. Use
-at your own risk.
-
 ## API Reference
 
 [](){ #table-reference-async }
@@ -84,12 +80,16 @@ at your own risk.
 ::: synapseclient.models.PartialRow
 [](){ #partial-row-set-reference-async }
 ::: synapseclient.models.PartialRowSet
+[](){ #table-update-request-reference-async }
+::: synapseclient.models.TableUpdateRequest
 [](){ #table-schema-change-request-reference-async }
 ::: synapseclient.models.TableSchemaChangeRequest
 [](){ #appendable-row-set-request-reference-async }
 ::: synapseclient.models.AppendableRowSetRequest
 [](){ #upload-to-table-request-reference-async }
 ::: synapseclient.models.UploadToTableRequest
+[](){ #table-search-change-request-reference-async }
+::: synapseclient.models.TableSearchChangeRequest
 [](){ #table-update-transaction-reference-async }
 ::: synapseclient.models.TableUpdateTransaction
 [](){ #csv-table-descriptor-reference-async }

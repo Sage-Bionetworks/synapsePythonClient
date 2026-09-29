@@ -1,11 +1,13 @@
 """
-This file contains the SchemaOrganization and JSONSchema classes.
+This file contains the Organization and JSONSchema classes.
 These are used to manage Organization and JSON Schema entities in Synapse.
 """
 
 import re
 from dataclasses import dataclass, field
 from typing import Any, AsyncGenerator, Generator, Optional, Protocol
+
+from deprecated import deprecated
 
 from synapseclient import Synapse
 from synapseclient.api import (
@@ -30,15 +32,13 @@ from synapseclient.models.mixins.asynchronous_job import AsynchronousCommunicato
 from synapseclient.models.mixins.json_schema import JSONSchemaVersionInfo
 
 
-class SchemaOrganizationProtocol(Protocol):
+class OrganizationProtocol(Protocol):
     """
     The protocol for methods that are asynchronous but also
     have a synchronous counterpart that may also be called.
     """
 
-    def get(
-        self, *, synapse_client: Optional["Synapse"] = None
-    ) -> "SchemaOrganization":
+    def get(self, *, synapse_client: Optional["Synapse"] = None) -> "Organization":
         """
         Gets the metadata from Synapse for this organization
 
@@ -50,17 +50,17 @@ class SchemaOrganizationProtocol(Protocol):
         Returns:
             Itself
 
-        Example: Get an existing SchemaOrganization
+        Example: Get an existing Organization
             &nbsp;
 
             ```python
-            from synapseclient.models import SchemaOrganization
+            from synapseclient.models import Organization
             from synapseclient import Synapse
 
             syn = Synapse()
             syn.login()
 
-            org = SchemaOrganization("dpetest")
+            org = Organization("dpetest")
             org.get()
             print(org)
             ```
@@ -68,9 +68,7 @@ class SchemaOrganizationProtocol(Protocol):
         """
         return self
 
-    def store(
-        self, *, synapse_client: Optional["Synapse"] = None
-    ) -> "SchemaOrganization":
+    def store(self, *, synapse_client: Optional["Synapse"] = None) -> "Organization":
         """
         Stores this organization in Synapse
 
@@ -82,17 +80,17 @@ class SchemaOrganizationProtocol(Protocol):
         Returns:
             Itself
 
-        Example: Store the SchemaOrganization in Synapse
+        Example: Store the Organization in Synapse
             &nbsp;
 
             ```python
-            from synapseclient.models import SchemaOrganization
+            from synapseclient.models import Organization
             from synapseclient import Synapse
 
             syn = Synapse()
             syn.login()
 
-            org = SchemaOrganization("my.org.name")
+            org = Organization("my.org.name")
             org.store()
             print(org)
             ```
@@ -109,17 +107,17 @@ class SchemaOrganizationProtocol(Protocol):
                 `Synapse.allow_client_caching(False)` this will use the last created
                 instance from the Synapse class constructor
 
-        Example: Delete the SchemaOrganization from Synapse
+        Example: Delete the Organization from Synapse
             &nbsp;
 
             ```python
-            from synapseclient.models import SchemaOrganization
+            from synapseclient.models import Organization
             from synapseclient import Synapse
 
             syn = Synapse()
             syn.login()
 
-            org = SchemaOrganization("my.org.name")
+            org = Organization("my.org.name")
             org.delete()
             ```
         """
@@ -138,17 +136,17 @@ class SchemaOrganizationProtocol(Protocol):
 
         Returns: A Generator containing the JSONSchemas that belong to this organization
 
-        Example: Get the JSONSchemas that are part of this SchemaOrganization
+        Example: Get the JSONSchemas that are part of this Organization
             &nbsp;
 
             ```python
-            from synapseclient.models import SchemaOrganization
+            from synapseclient.models import Organization
             from synapseclient import Synapse
 
             syn = Synapse()
             syn.login()
 
-            org = SchemaOrganization("dpetest")
+            org = Organization("dpetest")
             js_generator = org.get_json_schemas()
             for item in js_generator:
                 print(item)
@@ -172,17 +170,17 @@ class SchemaOrganizationProtocol(Protocol):
             A dictionary in the form of this response:
               [AccessControlList]https://rest-docs.synapse.org/rest/org/sagebionetworks/repo/model/AccessControlList.html
 
-        Example: Get the ACL for the SchemaOrganization
+        Example: Get the ACL for the Organization
             &nbsp;
 
             ```python
-            from synapseclient.models import SchemaOrganization
+            from synapseclient.models import Organization
             from synapseclient import Synapse
 
             syn = Synapse()
             syn.login()
 
-            org = SchemaOrganization("my.org.name")
+            org = Organization("my.org.name")
             org.get_acl()
             ```
         """
@@ -207,17 +205,17 @@ class SchemaOrganizationProtocol(Protocol):
                 `Synapse.allow_client_caching(False)` this will use the last created
                 instance from the Synapse class constructor
 
-        Example: Update the ACL for the SchemaOrganization
+        Example: Update the ACL for the Organization
             &nbsp;
 
             ```python
-            from synapseclient.models import SchemaOrganization
+            from synapseclient.models import Organization
             from synapseclient import Synapse
 
             syn = Synapse()
             syn.login()
 
-            org = SchemaOrganization("my.org.name")
+            org = Organization("my.org.name")
             org.update_acl(
                 principal_id=1,
                 access_type=["READ"]
@@ -229,7 +227,7 @@ class SchemaOrganizationProtocol(Protocol):
 
 @dataclass()
 @async_to_sync
-class SchemaOrganization(SchemaOrganizationProtocol):
+class Organization(OrganizationProtocol):
     """
     Represents an [Organization](https://rest-docs.synapse.org/rest/org/sagebionetworks/repo/model/schema/Organization.html).
 
@@ -258,7 +256,7 @@ class SchemaOrganization(SchemaOrganizationProtocol):
 
     async def get_async(
         self, *, synapse_client: Optional["Synapse"] = None
-    ) -> "SchemaOrganization":
+    ) -> "Organization":
         """
         Gets the metadata from Synapse for this organization
 
@@ -273,12 +271,12 @@ class SchemaOrganization(SchemaOrganizationProtocol):
         Raises:
             ValueError: If the name has not been set
 
-        Example: Get an existing SchemaOrganization
+        Example: Get an existing Organization
             &nbsp;
 
             ```python
 
-            from synapseclient.models import SchemaOrganization
+            from synapseclient.models import Organization
             from synapseclient import Synapse
             import asyncio
 
@@ -287,7 +285,7 @@ class SchemaOrganization(SchemaOrganizationProtocol):
                 syn = Synapse()
                 syn.login()
 
-                org = SchemaOrganization("dpetest")
+                org = Organization("dpetest")
                 await org.get_async()
                 return org
 
@@ -297,14 +295,14 @@ class SchemaOrganization(SchemaOrganizationProtocol):
             ```
         """
         if not self.name:
-            raise ValueError("SchemaOrganization must have a name")
+            raise ValueError("Organization must have a name")
         response = await get_organization(self.name, synapse_client=synapse_client)
         self.fill_from_dict(response)
         return self
 
     async def store_async(
         self, *, synapse_client: Optional["Synapse"] = None
-    ) -> "SchemaOrganization":
+    ) -> "Organization":
         """
         Stores this organization in Synapse
 
@@ -319,11 +317,11 @@ class SchemaOrganization(SchemaOrganizationProtocol):
         Raises:
             ValueError: If the name has not been set
 
-        Example: Store a new SchemaOrganization
+        Example: Store a new Organization
             &nbsp;
 
             ```python
-            from synapseclient.models import SchemaOrganization
+            from synapseclient.models import Organization
             from synapseclient import Synapse
             import asyncio
 
@@ -332,7 +330,7 @@ class SchemaOrganization(SchemaOrganizationProtocol):
                 syn = Synapse()
                 syn.login()
 
-                org = SchemaOrganization("my.new.org")
+                org = Organization("my.new.org")
                 await org.store_async()
                 return org
 
@@ -342,7 +340,7 @@ class SchemaOrganization(SchemaOrganizationProtocol):
             ```
         """
         if not self.name:
-            raise ValueError("SchemaOrganization must have a name")
+            raise ValueError("Organization must have a name")
         response = await create_organization(self.name, synapse_client=synapse_client)
         self.fill_from_dict(response)
         return self
@@ -356,11 +354,11 @@ class SchemaOrganization(SchemaOrganizationProtocol):
                 `Synapse.allow_client_caching(False)` this will use the last created
                 instance from the Synapse class constructor
 
-        Example: Delete a SchemaOrganization using a name
+        Example: Delete a Organization using a name
             &nbsp;
 
             ```python
-            from synapseclient.models import SchemaOrganization
+            from synapseclient.models import Organization
             from synapseclient import Synapse
             import asyncio
 
@@ -369,17 +367,17 @@ class SchemaOrganization(SchemaOrganizationProtocol):
                 syn = Synapse()
                 syn.login()
 
-                org = SchemaOrganization("my.org")
+                org = Organization("my.org")
                 await org.delete_async()
 
             asyncio.run(delete_org())
             ```
 
-        Example: Delete a SchemaOrganization using an id
+        Example: Delete a Organization using an id
             &nbsp;
 
             ```python
-            from synapseclient.models import SchemaOrganization
+            from synapseclient.models import Organization
             from synapseclient import Synapse
             import asyncio
 
@@ -388,7 +386,7 @@ class SchemaOrganization(SchemaOrganizationProtocol):
                 syn = Synapse()
                 syn.login()
 
-                org = SchemaOrganization(id=1075)
+                org = Organization(id=1075)
                 await org.delete_async()
 
             asyncio.run(delete_org())
@@ -417,11 +415,11 @@ class SchemaOrganization(SchemaOrganizationProtocol):
                 `Synapse.allow_client_caching(False)` this will use the last created
                 instance from the Synapse class constructor
 
-        Example: Get a list of JSONSchemas that belong to the SchemaOrganization
+        Example: Get a list of JSONSchemas that belong to the Organization
             &nbsp;
 
             ```python
-            from synapseclient.models import SchemaOrganization
+            from synapseclient.models import Organization
             from synapseclient import Synapse
             import asyncio
 
@@ -430,7 +428,7 @@ class SchemaOrganization(SchemaOrganizationProtocol):
                 syn = Synapse()
                 syn.login()
 
-                org = SchemaOrganization("dpetest")
+                org = Organization("dpetest")
                 js_generator = org.get_json_schemas_async()
                 async for item in js_generator:
                     print(item)
@@ -440,7 +438,7 @@ class SchemaOrganization(SchemaOrganizationProtocol):
 
         """
         if not self.name:
-            raise ValueError("SchemaOrganization must have a name")
+            raise ValueError("Organization must have a name")
         response = list_json_schemas(self.name, synapse_client=synapse_client)
         async for item in response:
             yield JSONSchema().fill_from_dict(item)
@@ -460,11 +458,11 @@ class SchemaOrganization(SchemaOrganizationProtocol):
             A dictionary in the form of this response:
               [AccessControlList]https://rest-docs.synapse.org/rest/org/sagebionetworks/repo/model/AccessControlList.html
 
-        Example: Get the ACL for a SchemaOrganization
+        Example: Get the ACL for a Organization
             &nbsp;
 
             ```python
-            from synapseclient.models import SchemaOrganization
+            from synapseclient.models import Organization
             from synapseclient import Synapse
             import asyncio
 
@@ -473,7 +471,7 @@ class SchemaOrganization(SchemaOrganizationProtocol):
                 syn = Synapse()
                 syn.login()
 
-                org = SchemaOrganization("dpetest")
+                org = Organization("dpetest")
                 acl = await org.get_acl_async()
                 return acl
 
@@ -512,11 +510,11 @@ class SchemaOrganization(SchemaOrganizationProtocol):
                 `Synapse.allow_client_caching(False)` this will use the last created
                 instance from the Synapse class constructor
 
-            Example: Update the ACL for a SchemaOrganization
+        Example: Update the ACL for a Organization
             &nbsp;
 
             ```python
-            from synapseclient.models import SchemaOrganization
+            from synapseclient.models import Organization
             from synapseclient import Synapse
             import asyncio
 
@@ -525,14 +523,14 @@ class SchemaOrganization(SchemaOrganizationProtocol):
                 syn = Synapse()
                 syn.login()
 
-                org = SchemaOrganization("dpetest")
+                org = Organization("dpetest")
                 await org.update_acl_async(
                     principal_id=1,
                     access_type=["READ"]
                 )
 
             asyncio.run(update_acl())
-
+            ```
         """
         acl = await self.get_acl_async(synapse_client=synapse_client)
 
@@ -557,7 +555,7 @@ class SchemaOrganization(SchemaOrganizationProtocol):
             synapse_client=synapse_client,
         )
 
-    def fill_from_dict(self, response: dict[str, Any]) -> "SchemaOrganization":
+    def fill_from_dict(self, response: dict[str, Any]) -> "Organization":
         """
         Fills in this classes attributes using a Synapse API response
 
@@ -573,6 +571,18 @@ class SchemaOrganization(SchemaOrganizationProtocol):
         self.created_on = response.get("createdOn")
         self.created_by = response.get("createdBy")
         return self
+
+
+@deprecated(
+    version="4.14.0",
+    reason="SchemaOrganization has been renamed to Organization. "
+    "This alias will be removed in a future release; use Organization instead.",
+)
+class SchemaOrganization(Organization):
+    """Deprecated alias for [Organization][synapseclient.models.Organization].
+
+    This class will be removed in a future release. Use `Organization` instead.
+    """
 
 
 class JSONSchemaProtocol(Protocol):
@@ -881,7 +891,7 @@ class JSONSchema(JSONSchemaProtocol):
 
         # Check that the org exists,
         #  if it doesn't list_json_schemas will unhelpfully return an empty generator.
-        org = SchemaOrganization(self.organization_name)
+        org = Organization(self.organization_name)
         await org.get_async(synapse_client=synapse_client)
 
         org_schemas = list_json_schemas(
@@ -1396,9 +1406,9 @@ class CreateSchemaRequest(AsynchronousCommunicator):
         )
 
 
-def list_json_schema_organizations(
+def list_organizations(
     synapse_client: Optional["Synapse"] = None,
-) -> list[SchemaOrganization]:
+) -> list[Organization]:
     """
     Lists all the Schema Organizations currently in Synapse
 
@@ -1408,24 +1418,41 @@ def list_json_schema_organizations(
                 instance from the Synapse class constructor
 
     Returns:
-        A list of SchemaOrganizations
+        A list of Organizations
 
     Example:
-        from synapseclient.models.schema_organization import list_json_schema_organizations
+        from synapseclient.models.organization import list_organizations
         from synapseclient import Synapse
 
         syn = Synapse()
         syn.login()
 
-        all_orgs = list_json_schema_organizations()
+        all_orgs = list_organizations()
         for item in all_orgs:
             print(item)
     """
     all_orgs = [
-        SchemaOrganization().fill_from_dict(org)
+        Organization().fill_from_dict(org)
         for org in list_organizations_sync(synapse_client=synapse_client)
     ]
     return all_orgs
+
+
+@deprecated(
+    version="4.14.0",
+    reason="Renamed to list_organizations. "
+    "This alias will be removed in a future release; use list_organizations instead.",
+)
+def list_json_schema_organizations(
+    synapse_client: Optional["Synapse"] = None,
+) -> list[Organization]:
+    """Deprecated alias for
+    [list_organizations][synapseclient.models.organization.list_organizations].
+
+    This function will be removed in a future release. Use `list_organizations`
+    instead.
+    """
+    return list_organizations(synapse_client=synapse_client)
 
 
 def _check_org_name(name: str) -> None:

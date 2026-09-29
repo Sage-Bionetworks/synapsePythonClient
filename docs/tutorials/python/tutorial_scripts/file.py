@@ -7,7 +7,6 @@ Here is where you'll find the code for the File tutorial.
 import os
 
 import synapseclient
-import synapseutils
 from synapseclient.models import File, Folder, Project
 
 syn = synapseclient.login()

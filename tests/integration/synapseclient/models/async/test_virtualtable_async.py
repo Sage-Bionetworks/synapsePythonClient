@@ -1,6 +1,5 @@
-import asyncio
 import uuid
-from typing import Callable
+from typing import Awaitable, Callable
 
 import pandas as pd
 import pytest
@@ -10,6 +9,24 @@ from synapseclient import Synapse
 from synapseclient.core.exceptions import SynapseHTTPError
 from synapseclient.models import Column, ColumnType, Project, Table, VirtualTable
 from tests.integration import QUERY_TIMEOUT_SEC
+from tests.integration.helpers import wait_for_condition
+
+
+async def _query_until(
+    query_fn: Callable[[], Awaitable[pd.DataFrame]],
+    condition: Callable[[pd.DataFrame], bool],
+    description: str,
+) -> pd.DataFrame:
+    """Poll a virtual table query until the result satisfies condition."""
+    result_holder = {}
+
+    async def _check() -> bool:
+        result = await query_fn()
+        result_holder["value"] = result
+        return condition(result)
+
+    await wait_for_condition(_check, description=description)
+    return result_holder["value"]
 
 
 class TestVirtualTableBasicOperations:
@@ -193,58 +210,27 @@ class TestVirtualTableWithDataOperations:
     ) -> None:
         table = base_table_with_data
 
-        # GIVEN various virtual tables with different SQL transformations
+        # GIVEN a single virtual table whose defining SQL is updated across
+        # different transformations, rather than creating a separate virtual
+        # table per transformation
 
-        # Test case 1: Basic selection of all data
-        virtual_table_all = VirtualTable(
+        # WHEN querying a virtual table that selects all data
+        virtual_table = VirtualTable(
             name=str(uuid.uuid4()),
             parent_id=project_model.id,
             defining_sql=f"SELECT * FROM {table.id}",
         )
-        virtual_table_all = await virtual_table_all.store_async(synapse_client=self.syn)
-        self.schedule_for_cleanup(virtual_table_all.id)
+        virtual_table = await virtual_table.store_async(synapse_client=self.syn)
+        self.schedule_for_cleanup(virtual_table.id)
 
-        # Test case 2: Column selection
-        virtual_table_columns = VirtualTable(
-            name=str(uuid.uuid4()),
-            parent_id=project_model.id,
-            defining_sql=f"SELECT name, city FROM {table.id}",
-        )
-        virtual_table_columns = await virtual_table_columns.store_async(
-            synapse_client=self.syn
-        )
-        self.schedule_for_cleanup(virtual_table_columns.id)
-
-        # Test case 3: Filtering
-        virtual_table_filtered = VirtualTable(
-            name=str(uuid.uuid4()),
-            parent_id=project_model.id,
-            defining_sql=f"SELECT * FROM {table.id} WHERE age > 25",
-        )
-        virtual_table_filtered = await virtual_table_filtered.store_async(
-            synapse_client=self.syn
-        )
-        self.schedule_for_cleanup(virtual_table_filtered.id)
-
-        # Test case 4: Ordering
-        virtual_table_ordered = VirtualTable(
-            name=str(uuid.uuid4()),
-            parent_id=project_model.id,
-            defining_sql=f"SELECT * FROM {table.id} ORDER BY age DESC",
-        )
-        virtual_table_ordered = await virtual_table_ordered.store_async(
-            synapse_client=self.syn
-        )
-        self.schedule_for_cleanup(virtual_table_ordered.id)
-
-        # Wait for the virtual tables to be ready
-        await asyncio.sleep(2)
-
-        # WHEN querying the full-data virtual table
-        all_result = await virtual_table_all.query_async(
-            f"SELECT * FROM {virtual_table_all.id}",
-            synapse_client=self.syn,
-            timeout=QUERY_TIMEOUT_SEC,
+        all_result = await _query_until(
+            lambda: virtual_table.query_async(
+                f"SELECT * FROM {virtual_table.id}",
+                synapse_client=self.syn,
+                timeout=QUERY_TIMEOUT_SEC,
+            ),
+            condition=lambda r: len(r) == 3,
+            description="virtual table row count == 3",
         )
 
         # THEN all data should be returned
@@ -253,11 +239,18 @@ class TestVirtualTableWithDataOperations:
         assert set(all_result["age"].tolist()) == {30, 25, 35}
         assert set(all_result["city"].tolist()) == {"New York", "Boston", "Chicago"}
 
-        # WHEN querying the column-selection virtual table
-        columns_result = await virtual_table_columns.query_async(
-            f"SELECT * FROM {virtual_table_columns.id}",
-            synapse_client=self.syn,
-            timeout=QUERY_TIMEOUT_SEC,
+        # WHEN updating the SQL to select specific columns
+        virtual_table.defining_sql = f"SELECT name, city FROM {table.id}"
+        virtual_table = await virtual_table.store_async(synapse_client=self.syn)
+
+        columns_result = await _query_until(
+            lambda: virtual_table.query_async(
+                f"SELECT * FROM {virtual_table.id}",
+                synapse_client=self.syn,
+                timeout=QUERY_TIMEOUT_SEC,
+            ),
+            condition=lambda r: len(r) == 3 and "age" not in r.columns,
+            description="virtual table columns updated",
         )
 
         # THEN only specified columns should be returned
@@ -266,11 +259,18 @@ class TestVirtualTableWithDataOperations:
         assert "city" in columns_result.columns
         assert "age" not in columns_result.columns
 
-        # WHEN querying the filtered virtual table
-        filtered_result = await virtual_table_filtered.query_async(
-            f"SELECT * FROM {virtual_table_filtered.id}",
-            synapse_client=self.syn,
-            timeout=QUERY_TIMEOUT_SEC,
+        # WHEN updating the SQL to filter rows
+        virtual_table.defining_sql = f"SELECT * FROM {table.id} WHERE age > 25"
+        virtual_table = await virtual_table.store_async(synapse_client=self.syn)
+
+        filtered_result = await _query_until(
+            lambda: virtual_table.query_async(
+                f"SELECT * FROM {virtual_table.id}",
+                synapse_client=self.syn,
+                timeout=QUERY_TIMEOUT_SEC,
+            ),
+            condition=lambda r: len(r) == 2,
+            description="virtual table row count == 2",
         )
 
         # THEN only filtered rows should be returned
@@ -278,11 +278,18 @@ class TestVirtualTableWithDataOperations:
         assert set(filtered_result["name"].tolist()) == {"Alice", "Charlie"}
         assert set(filtered_result["age"].tolist()) == {30, 35}
 
-        # WHEN querying the ordered virtual table
-        ordered_result = await virtual_table_ordered.query_async(
-            f"SELECT * FROM {virtual_table_ordered.id}",
-            synapse_client=self.syn,
-            timeout=QUERY_TIMEOUT_SEC,
+        # WHEN updating the SQL to order rows
+        virtual_table.defining_sql = f"SELECT * FROM {table.id} ORDER BY age DESC"
+        virtual_table = await virtual_table.store_async(synapse_client=self.syn)
+
+        ordered_result = await _query_until(
+            lambda: virtual_table.query_async(
+                f"SELECT * FROM {virtual_table.id}",
+                synapse_client=self.syn,
+                timeout=QUERY_TIMEOUT_SEC,
+            ),
+            condition=lambda r: r["age"].tolist() == [35, 30, 25],
+            description="virtual table ordered by age desc",
         )
 
         # THEN data should be in the specified order
@@ -315,12 +322,13 @@ class TestVirtualTableWithDataOperations:
         virtual_table = await virtual_table.store_async(synapse_client=self.syn)
         self.schedule_for_cleanup(virtual_table.id)
 
-        # Wait for the virtual table to be ready
-        await asyncio.sleep(2)
-
         # WHEN querying the virtual table with empty source table
-        empty_result = await virtual_table.query_async(
-            f"SELECT * FROM {virtual_table.id}", synapse_client=self.syn
+        empty_result = await _query_until(
+            lambda: virtual_table.query_async(
+                f"SELECT * FROM {virtual_table.id}", synapse_client=self.syn
+            ),
+            condition=lambda r: len(r) == 0,
+            description="virtual table ready with no data",
         )
 
         # THEN no data should be returned
@@ -330,12 +338,13 @@ class TestVirtualTableWithDataOperations:
         data = pd.DataFrame({"name": ["Alice", "Bob"], "age": [30, 25]})
         await table.store_rows_async(data, synapse_client=self.syn)
 
-        # Wait for the updates to propagate
-        await asyncio.sleep(2)
-
         # AND querying the virtual table again
-        added_data_result = await virtual_table.query_async(
-            f"SELECT * FROM {virtual_table.id}", synapse_client=self.syn
+        added_data_result = await _query_until(
+            lambda: virtual_table.query_async(
+                f"SELECT * FROM {virtual_table.id}", synapse_client=self.syn
+            ),
+            condition=lambda r: len(r) == 2,
+            description="virtual table reflects added data",
         )
 
         # THEN the virtual table should reflect the new data
@@ -348,12 +357,13 @@ class TestVirtualTableWithDataOperations:
             query=f"SELECT ROW_ID, ROW_VERSION FROM {table.id}", synapse_client=self.syn
         )
 
-        # Wait for changes to propagate
-        await asyncio.sleep(2)
-
         # AND querying the virtual table again
-        removed_data_result = await virtual_table.query_async(
-            f"SELECT * FROM {virtual_table.id}", synapse_client=self.syn
+        removed_data_result = await _query_until(
+            lambda: virtual_table.query_async(
+                f"SELECT * FROM {virtual_table.id}", synapse_client=self.syn
+            ),
+            condition=lambda r: len(r) == 0,
+            description="virtual table reflects removed data",
         )
 
         # THEN the virtual table should reflect the removed data
@@ -373,12 +383,13 @@ class TestVirtualTableWithDataOperations:
         virtual_table = await virtual_table.store_async(synapse_client=self.syn)
         self.schedule_for_cleanup(virtual_table.id)
 
-        # Wait for the virtual table to be ready
-        await asyncio.sleep(2)
-
         # WHEN querying the virtual table with initial SQL
-        initial_result = await virtual_table.query_async(
-            f"SELECT * FROM {virtual_table.id}", synapse_client=self.syn
+        initial_result = await _query_until(
+            lambda: virtual_table.query_async(
+                f"SELECT * FROM {virtual_table.id}", synapse_client=self.syn
+            ),
+            condition=lambda r: len(r) == 3,
+            description="virtual table ready with initial SQL",
         )
 
         # THEN all columns should be present
@@ -391,12 +402,13 @@ class TestVirtualTableWithDataOperations:
         virtual_table.defining_sql = f"SELECT name, city FROM {table.id}"
         virtual_table = await virtual_table.store_async(synapse_client=self.syn)
 
-        # Wait for the update to propagate
-        await asyncio.sleep(2)
-
         # AND querying the virtual table again
-        updated_result = await virtual_table.query_async(
-            f"SELECT * FROM {virtual_table.id}", synapse_client=self.syn
+        updated_result = await _query_until(
+            lambda: virtual_table.query_async(
+                f"SELECT * FROM {virtual_table.id}", synapse_client=self.syn
+            ),
+            condition=lambda r: len(r) == 3 and "age" not in r.columns,
+            description="virtual table reflects SQL change",
         )
 
         # THEN the result should reflect the SQL change
@@ -451,12 +463,13 @@ class TestVirtualTableWithDataOperations:
         virtual_table = await virtual_table.store_async(synapse_client=self.syn)
         self.schedule_for_cleanup(virtual_table.id)
 
-        # Wait for virtual table to be ready
-        await asyncio.sleep(2)
-
         # WHEN querying the aggregation virtual table
-        query_result = await virtual_table.query_async(
-            f"SELECT * FROM {virtual_table.id}", synapse_client=self.syn
+        query_result = await _query_until(
+            lambda: virtual_table.query_async(
+                f"SELECT * FROM {virtual_table.id}", synapse_client=self.syn
+            ),
+            condition=lambda r: len(r) == 3,
+            description="virtual table aggregation ready",
         )
 
         # THEN the result should contain the aggregated data

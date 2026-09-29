@@ -1,4 +1,4 @@
-"""Unit tests for the SchemaOrganization and JSONSchema models."""
+"""Unit tests for the Organization and JSONSchema models."""
 
 from unittest.mock import AsyncMock, MagicMock, patch
 
@@ -6,10 +6,10 @@ import pytest
 
 from synapseclient import Synapse
 from synapseclient.models.mixins.json_schema import JSONSchemaVersionInfo
-from synapseclient.models.schema_organization import (
+from synapseclient.models.organization import (
     CreateSchemaRequest,
     JSONSchema,
-    SchemaOrganization,
+    Organization,
     _check_org_name,
     _check_schema_name,
 )
@@ -153,8 +153,8 @@ class TestCheckSchemaName:
             _check_schema_name("mytest.1invalid")
 
 
-class TestSchemaOrganization:
-    """Unit tests for the SchemaOrganization model."""
+class TestOrganization:
+    """Unit tests for the Organization model."""
 
     @pytest.fixture(autouse=True, scope="function")
     def init_syn(self, syn: Synapse) -> None:
@@ -164,8 +164,8 @@ class TestSchemaOrganization:
         # GIVEN an organization API response
         response = _get_organization_response()
 
-        # WHEN I fill a SchemaOrganization from the response
-        org = SchemaOrganization()
+        # WHEN I fill a Organization from the response
+        org = Organization()
         org.fill_from_dict(response)
 
         # THEN all fields should be populated
@@ -175,12 +175,12 @@ class TestSchemaOrganization:
         assert org.created_by == CREATED_BY
 
     async def test_store_async(self) -> None:
-        # GIVEN a SchemaOrganization with a name
-        org = SchemaOrganization(name=ORG_NAME)
+        # GIVEN a Organization with a name
+        org = Organization(name=ORG_NAME)
 
         # WHEN I call store_async
         with patch(
-            "synapseclient.models.schema_organization.create_organization",
+            "synapseclient.models.organization.create_organization",
             new_callable=AsyncMock,
             return_value=_get_organization_response(),
         ) as mock_create:
@@ -195,8 +195,8 @@ class TestSchemaOrganization:
             assert result.created_on == CREATED_ON
 
     async def test_store_async_without_name_raises(self) -> None:
-        # GIVEN a SchemaOrganization without a name
-        org = SchemaOrganization()
+        # GIVEN a Organization without a name
+        org = Organization()
 
         # WHEN I call store_async
         # THEN it should raise ValueError
@@ -204,12 +204,12 @@ class TestSchemaOrganization:
             await org.store_async(synapse_client=self.syn)
 
     async def test_get_async(self) -> None:
-        # GIVEN a SchemaOrganization with a name
-        org = SchemaOrganization(name=ORG_NAME)
+        # GIVEN a Organization with a name
+        org = Organization(name=ORG_NAME)
 
         # WHEN I call get_async
         with patch(
-            "synapseclient.models.schema_organization.get_organization",
+            "synapseclient.models.organization.get_organization",
             new_callable=AsyncMock,
             return_value=_get_organization_response(),
         ) as mock_get:
@@ -223,8 +223,8 @@ class TestSchemaOrganization:
             assert result.id == ORG_ID
 
     async def test_get_async_without_name_raises(self) -> None:
-        # GIVEN a SchemaOrganization without a name
-        org = SchemaOrganization()
+        # GIVEN a Organization without a name
+        org = Organization()
 
         # WHEN I call get_async
         # THEN it should raise ValueError
@@ -232,12 +232,12 @@ class TestSchemaOrganization:
             await org.get_async(synapse_client=self.syn)
 
     async def test_delete_async_with_id(self) -> None:
-        # GIVEN a SchemaOrganization with an id
-        org = SchemaOrganization(name=ORG_NAME, id=ORG_ID)
+        # GIVEN a Organization with an id
+        org = Organization(name=ORG_NAME, id=ORG_ID)
 
         # WHEN I call delete_async
         with patch(
-            "synapseclient.models.schema_organization.delete_organization",
+            "synapseclient.models.organization.delete_organization",
             new_callable=AsyncMock,
             return_value=None,
         ) as mock_delete:
@@ -249,18 +249,18 @@ class TestSchemaOrganization:
             )
 
     async def test_delete_async_without_id_triggers_get(self) -> None:
-        # GIVEN a SchemaOrganization with only a name (no id)
-        org = SchemaOrganization(name=ORG_NAME)
+        # GIVEN a Organization with only a name (no id)
+        org = Organization(name=ORG_NAME)
 
         # WHEN I call delete_async
         with (
             patch(
-                "synapseclient.models.schema_organization.get_organization",
+                "synapseclient.models.organization.get_organization",
                 new_callable=AsyncMock,
                 return_value=_get_organization_response(),
             ) as mock_get,
             patch(
-                "synapseclient.models.schema_organization.delete_organization",
+                "synapseclient.models.organization.delete_organization",
                 new_callable=AsyncMock,
                 return_value=None,
             ) as mock_delete,
@@ -276,8 +276,8 @@ class TestSchemaOrganization:
             )
 
     async def test_get_json_schemas_async(self) -> None:
-        # GIVEN a SchemaOrganization with a name
-        org = SchemaOrganization(name=ORG_NAME)
+        # GIVEN a Organization with a name
+        org = Organization(name=ORG_NAME)
 
         schema_response_1 = _get_json_schema_list_response()
         schema_response_2 = _get_json_schema_list_response(
@@ -290,7 +290,7 @@ class TestSchemaOrganization:
 
         # WHEN I call get_json_schemas_async
         with patch(
-            "synapseclient.models.schema_organization.list_json_schemas",
+            "synapseclient.models.organization.list_json_schemas",
             return_value=mock_list(),
         ):
             results = []
@@ -306,8 +306,8 @@ class TestSchemaOrganization:
             assert results[1].name == "another.schema"
 
     async def test_get_json_schemas_async_without_name_raises(self) -> None:
-        # GIVEN a SchemaOrganization without a name
-        org = SchemaOrganization()
+        # GIVEN a Organization without a name
+        org = Organization()
 
         # WHEN I call get_json_schemas_async
         # THEN it should raise ValueError
@@ -316,14 +316,14 @@ class TestSchemaOrganization:
                 pass  # pragma: no cover
 
     async def test_get_acl_async(self) -> None:
-        # GIVEN a SchemaOrganization with an id
-        org = SchemaOrganization(name=ORG_NAME, id=ORG_ID)
+        # GIVEN a Organization with an id
+        org = Organization(name=ORG_NAME, id=ORG_ID)
 
         acl_response = _get_acl_response()
 
         # WHEN I call get_acl_async
         with patch(
-            "synapseclient.models.schema_organization.get_organization_acl",
+            "synapseclient.models.organization.get_organization_acl",
             new_callable=AsyncMock,
             return_value=acl_response,
         ) as mock_get_acl:
@@ -338,20 +338,20 @@ class TestSchemaOrganization:
             assert result["resourceAccess"][0]["principalId"] == PRINCIPAL_ID_1
 
     async def test_get_acl_async_without_id_triggers_get(self) -> None:
-        # GIVEN a SchemaOrganization with only a name
-        org = SchemaOrganization(name=ORG_NAME)
+        # GIVEN a Organization with only a name
+        org = Organization(name=ORG_NAME)
 
         acl_response = _get_acl_response()
 
         # WHEN I call get_acl_async (id will be fetched first)
         with (
             patch(
-                "synapseclient.models.schema_organization.get_organization",
+                "synapseclient.models.organization.get_organization",
                 new_callable=AsyncMock,
                 return_value=_get_organization_response(),
             ) as mock_get,
             patch(
-                "synapseclient.models.schema_organization.get_organization_acl",
+                "synapseclient.models.organization.get_organization_acl",
                 new_callable=AsyncMock,
                 return_value=acl_response,
             ) as mock_get_acl,
@@ -365,20 +365,20 @@ class TestSchemaOrganization:
             mock_get_acl.assert_called_once_with(ORG_ID, synapse_client=self.syn)
 
     async def test_update_acl_async_add_new_principal(self) -> None:
-        # GIVEN a SchemaOrganization with an id
-        org = SchemaOrganization(name=ORG_NAME, id=ORG_ID)
+        # GIVEN a Organization with an id
+        org = Organization(name=ORG_NAME, id=ORG_ID)
 
         acl_response = _get_acl_response()
 
         # WHEN I call update_acl_async with a new principal
         with (
             patch(
-                "synapseclient.models.schema_organization.get_organization_acl",
+                "synapseclient.models.organization.get_organization_acl",
                 new_callable=AsyncMock,
                 return_value=acl_response,
             ),
             patch(
-                "synapseclient.models.schema_organization.update_organization_acl",
+                "synapseclient.models.organization.update_organization_acl",
                 new_callable=AsyncMock,
                 return_value=None,
             ) as mock_update,
@@ -407,20 +407,20 @@ class TestSchemaOrganization:
             assert new_entry["accessType"] == ["READ"]
 
     async def test_update_acl_async_update_existing_principal(self) -> None:
-        # GIVEN a SchemaOrganization with an id
-        org = SchemaOrganization(name=ORG_NAME, id=ORG_ID)
+        # GIVEN a Organization with an id
+        org = Organization(name=ORG_NAME, id=ORG_ID)
 
         acl_response = _get_acl_response()
 
         # WHEN I call update_acl_async for an existing principal with new permissions
         with (
             patch(
-                "synapseclient.models.schema_organization.get_organization_acl",
+                "synapseclient.models.organization.get_organization_acl",
                 new_callable=AsyncMock,
                 return_value=acl_response,
             ),
             patch(
-                "synapseclient.models.schema_organization.update_organization_acl",
+                "synapseclient.models.organization.update_organization_acl",
                 new_callable=AsyncMock,
                 return_value=None,
             ) as mock_update,
@@ -695,12 +695,12 @@ class TestJSONSchema:
         # WHEN I call get_async (org exists and schema is found)
         with (
             patch(
-                "synapseclient.models.schema_organization.get_organization",
+                "synapseclient.models.organization.get_organization",
                 new_callable=AsyncMock,
                 return_value=_get_organization_response(),
             ),
             patch(
-                "synapseclient.models.schema_organization.list_json_schemas",
+                "synapseclient.models.organization.list_json_schemas",
                 return_value=mock_list(),
             ),
         ):
@@ -726,12 +726,12 @@ class TestJSONSchema:
         # WHEN I call get_async
         with (
             patch(
-                "synapseclient.models.schema_organization.get_organization",
+                "synapseclient.models.organization.get_organization",
                 new_callable=AsyncMock,
                 return_value=_get_organization_response(),
             ),
             patch(
-                "synapseclient.models.schema_organization.list_json_schemas",
+                "synapseclient.models.organization.list_json_schemas",
                 return_value=mock_list(),
             ),
         ):
@@ -763,7 +763,7 @@ class TestJSONSchema:
 
         # WHEN I call delete_async without a version
         with patch(
-            "synapseclient.models.schema_organization.delete_json_schema",
+            "synapseclient.models.organization.delete_json_schema",
             new_callable=AsyncMock,
             return_value=None,
         ) as mock_delete:
@@ -778,7 +778,7 @@ class TestJSONSchema:
 
         # WHEN I call delete_async with a specific version
         with patch(
-            "synapseclient.models.schema_organization.delete_json_schema",
+            "synapseclient.models.organization.delete_json_schema",
             new_callable=AsyncMock,
             return_value=None,
         ) as mock_delete:
@@ -819,7 +819,7 @@ class TestJSONSchema:
 
         # WHEN I call get_versions_async
         with patch(
-            "synapseclient.models.schema_organization.list_json_schema_versions",
+            "synapseclient.models.organization.list_json_schema_versions",
             return_value=mock_list(),
         ):
             results = []
@@ -859,7 +859,7 @@ class TestJSONSchema:
 
         # WHEN I call get_versions_async
         with patch(
-            "synapseclient.models.schema_organization.list_json_schema_versions",
+            "synapseclient.models.organization.list_json_schema_versions",
             return_value=mock_list(),
         ):
             results = []
@@ -880,7 +880,7 @@ class TestJSONSchema:
 
         # WHEN I call get_body_async without a version (latest)
         with patch(
-            "synapseclient.models.schema_organization.get_json_schema_body",
+            "synapseclient.models.organization.get_json_schema_body",
             new_callable=AsyncMock,
             return_value=expected_body,
         ) as mock_get_body:
@@ -900,7 +900,7 @@ class TestJSONSchema:
 
         # WHEN I call get_body_async with a specific version
         with patch(
-            "synapseclient.models.schema_organization.get_json_schema_body",
+            "synapseclient.models.organization.get_json_schema_body",
             new_callable=AsyncMock,
             return_value=expected_body,
         ) as mock_get_body:

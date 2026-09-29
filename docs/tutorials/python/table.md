@@ -11,6 +11,7 @@ In this tutorial you will:
 1. Update your Table
 1. Change Table structure
 1. Deleting Table rows and Tables
+1. Work with dates and datetimes
 
 
 ## Prerequisites
@@ -24,6 +25,8 @@ In this tutorial you will:
 ```python
 import synapseclient
 from synapseclient.models import Column, Project, query, SchemaStorageStrategy, Table
+from datetime import date, datetime, timezone
+import pandas as pd
 
 syn = synapseclient.Synapse()
 syn.login()
@@ -216,8 +219,241 @@ Qux2,4,203001,204001,+,False
     table.delete()
     ```
 
+## 6. Working with dates and datetimes
+
+Synapse `DATE` columns store an exact moment in time, represented as the number
+of milliseconds since `1970-01-01 00:00:00` UTC. Before upload, the client
+converts the datetime values in your data to that representation, and how a
+value is converted depends on whether it carries timezone information. The
+examples below create a small table with a `DATE` column and walk through the
+different ways datetime data can be stored and queried.
+
+```python
+table = Table(
+    name="Sample Collection Dates",
+    parent_id=project.id,
+    columns=[
+        Column(name="sample_id", column_type="STRING", maximum_size=20),
+        Column(name="collected_on", column_type="DATE"),
+    ],
+)
+table = table.store()
+```
+### Storing timezone-aware datetimes (recommended)
+
+A timezone-aware datetime is converted to UTC exactly — the stored value does
+not depend on the timezone settings of the machine performing the upload or on
+the date the upload is run. Localizing with a zone name like
+`"America/Los_Angeles"` interprets each value using the UTC offset in effect on
+that value's own date, so values on either side of a daylight saving switch are
+both stored correctly.
+
+```python
+df = pd.DataFrame(
+{
+    "sample_id": ["S1", "S2"],
+    "collected_on": [
+        datetime(2017, 2, 14, 11, 23),  # winter in Los Angeles (PST, UTC-8)
+        datetime(2018, 10, 1, 9, 30),  # summer in Los Angeles (PDT, UTC-7)
+    ],
+}
+)
+
+# Localize the values so each one carries its own timezone information.
+# tz_localize looks up the UTC offset in effect on each value's own date:
+# UTC-8 for the February value, UTC-7 for the October value.
+df["collected_on"] = df["collected_on"].dt.tz_localize("America/Los_Angeles")
+
+table.store_rows(values=df)
+
+```
+<details class="example">
+  <summary>The collected_on column will contain timezone-aware datetimes in UTC:</summary>
+```
+  sample_id               collected_on
+0        S1  2017-02-14 19:23:00+00:00
+1        S2  2018-10-01 16:30:00+00:00
+```
+
+</details>
+
+### Storing naive datetimes
+A naive datetime (one without `tzinfo`) is assumed to be in the local timezone
+of the machine **at the time of upload**, and that single UTC offset is applied
+to every value in the upload.
+
+```python
+naive_df = pd.DataFrame(
+    {
+        "sample_id": ["S3"],
+        "collected_on": [datetime(2017, 2, 14, 11, 23)],  # no timezone info; for this example, the local timezone is UTC-7
+
+    }
+)
+
+table.store_rows(values=naive_df)
+```
+
+<details class="example">
+  <summary>The collected_on column will contain timezone-aware datetimes in UTC:</summary>
+```
+  sample_id               collected_on
+0        S1  2017-02-14 19:23:00+00:00
+1        S2  2018-10-01 16:30:00+00:00
+2        S3  2017-02-14 18:23:00+00:00
+```
+
+</details>
+
+
+This is convenient when your data and your machine share a timezone and daylight
+saving period, but any value whose date falls in a different daylight saving
+period than the upload date is stored shifted by one hour. Here, `2017-02-14
+11:23` is a winter (PST, UTC-8) wall-clock time; uploading it from a machine
+currently on summer time (PDT, UTC-7) stores `18:23` UTC instead of the correct
+`19:23` UTC. Midnight values deserve extra care: the same one-hour shift can
+move a naive midnight to 11 PM of the previous day, changing the calendar date
+the value displays as. To avoid all of this, localize your data first as shown
+in the previous example.
+
+### Storing dates without a time of day
+
+Plain `datetime.date` objects (as opposed to datetimes) are treated as
+`midnight` of that date and converted the same way naive datetimes are: using
+the local timezone of the machine at the time of upload, with the same
+daylight-saving-shift risk described above.
+
+```python
+date_df = pd.DataFrame(
+    {
+        "sample_id": ["S4"],
+        "collected_on": [date(2017, 2, 14)],  # a date, not a datetime
+    }
+)
+
+table.store_rows(values=date_df)
+
+query_results = query(
+f"SELECT * FROM {table.id} ORDER BY collected_on",
+include_row_id_and_row_version=False,
+convert_to_datetime=True,
+)
+print(query_results)
+```
+<details class="example">
+  <summary>The collected_on column will contain timezone-aware datetimes in UTC:</summary>
+```
+  sample_id               collected_on
+0        S1  2017-02-14 19:23:00+00:00
+1        S2  2018-10-01 16:30:00+00:00
+2        S4  2017-02-14 07:00:00+00:00
+3        S3  2017-02-14 18:23:00+00:00
+```
+
+</details>
+
+### Loading date columns from a CSV
+
+When storing rows from a CSV file, use `date_columns` and `date_format` to tell
+the client which columns hold formatted date strings and how to parse them.
+Including the UTC offset in the strings (parsed by `%z`) keeps the values
+timezone-aware, with the same benefits as localizing a DataFrame column.
+
+```python
+csv_content = (
+    "sample_id,collected_on\n"
+    "S5,2017-02-14 11:23 -0800\n"
+    "S6,2018-10-01 09:30 -0700\n"
+)
+with open("collection_dates.csv", "w") as f:
+    f.write(csv_content)
+
+table.store_rows(
+    values="collection_dates.csv",
+    date_columns=["collected_on"],
+    date_format="%Y-%m-%d %H:%M %z",
+)
+```
+
+### Querying datetime data back
+
+Pass `convert_to_datetime=True` to `query` to get `DATE` columns back as
+timezone-aware datetimes in UTC instead of raw epoch-millisecond integers.
+
+```python
+results = query(
+    f"SELECT * FROM {table.id} ORDER BY collected_on",
+    include_row_id_and_row_version=False,
+    convert_to_datetime=True,
+)
+print(results)
+```
+
+<details class="example">
+  <summary>The collected_on column will contain timezone-aware datetimes in UTC:</summary>
+```
+  sample_id               collected_on
+0        S1  2017-02-14 19:23:00+00:00
+1        S2  2018-10-01 16:30:00+00:00
+2        S3  2017-02-14 18:23:00+00:00
+3        S4  2017-02-14 07:00:00+00:00
+4        S5  2017-02-14 19:23:00+00:00
+5        S6  2018-10-01 16:30:00+00:00
+```
+</details>
+
+```python
+# DATE columns are returned as timezone-aware datetimes in UTC. Use tz_convert to view them on another wall clock:
+results["collected_on"] = results["collected_on"].dt.tz_convert("America/Los_Angeles")
+print(results)
+```
+
+<details class="example">
+  <summary>The collected_on column now displays timezone-aware datetimes converted to America/Los_Angeles time:</summary>
+```
+  sample_id               collected_on
+0        S1  2017-02-14 19:23:00+00:00
+1        S2  2018-10-01 16:30:00+00:00
+2        S3  2017-02-14 18:23:00+00:00
+3        S4  2017-02-14 07:00:00+00:00
+4        S5  2017-02-14 19:23:00+00:00
+5        S6  2018-10-01 16:30:00+00:00
+```
+
+Note how the timezone-aware rows (`S1`, `S2`, `S5`, `S6`) round-trip back to the
+exact wall-clock times they were created with, while the naive datetime row `S3`
+and date row `S4` were converted using that same upload-time PDT offset. For
+`S4`, that offset is applied to midnight because dates have no time of day.
+</details>
+
+To filter on a `DATE` column in a query, compare it against epoch milliseconds:
+
+```python
+# In a WHERE clause, compare a DATE column against epoch milliseconds:
+# Example: filter for rows where 'collected_on' is on or after January 1, 2018
+cutoff = int(datetime(2018, 1, 1, tzinfo=timezone.utc).timestamp() * 1000)
+recent = query(
+    f"SELECT sample_id FROM {table.id} WHERE collected_on >= {cutoff}",
+    include_row_id_and_row_version=False,
+)
+print(recent)
+```
+
+<details class="example">
+  <summary>The printed results will look like:</summary>
+```
+  sample_id
+0        S2
+1        S6
+```
+</details>
+
+For the full details of how datetime values are interpreted during upload, see
+the [store_rows][synapseclient.models.Table.store_rows] reference documentation.
+
 ## References used in this tutorial
 
 - [Project][project-reference-sync]
 - [syn.login][synapseclient.Synapse.login]
 - [Table][table-reference-sync]
+- [Column][column-reference-sync]

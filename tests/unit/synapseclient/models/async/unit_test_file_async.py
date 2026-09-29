@@ -6,7 +6,6 @@ from unittest.mock import AsyncMock, patch
 
 import pytest
 
-from synapseclient import File as Synapse_File
 from synapseclient import Synapse
 from synapseclient.core import utils
 from synapseclient.core.constants import concrete_types
@@ -58,44 +57,26 @@ class TestFile:
     def init_syn(self, syn: Synapse) -> None:
         self.syn = syn
 
-    def get_example_synapse_file(self) -> Synapse_File:
-        return Synapse_File(
-            id=SYN_123,
-            name=FILE_NAME,
-            path=PATH,
-            description=DESCRIPTION,
-            etag=ETAG,
-            createdOn=CREATED_ON,
-            modifiedOn=MODIFIED_ON,
-            createdBy=CREATED_BY,
-            contentSize=FILE_HANDLE_CONTENT_SIZE,
-            contentType=FILE_HANDLE_CONTENT_TYPE,
-            modifiedBy=MODIFIED_BY,
-            parentId=PARENT_ID,
-            versionNumber=1,
-            versionLabel=VERSION_LABEL,
-            versionComment=VERSION_COMMENT,
-            dataFileHandleId=DATA_FILE_HANDLE_ID,
-        )
-
-    def get_example_synapse_file_output(self, path: str = PATH) -> Synapse_File:
-        return Synapse_File(
-            id=SYN_123,
-            name=FILE_NAME,
-            path=path,
-            description=DESCRIPTION,
-            etag=ETAG,
-            createdOn=CREATED_ON,
-            modifiedOn=MODIFIED_ON,
-            createdBy=CREATED_BY,
-            modifiedBy=MODIFIED_BY,
-            parentId=PARENT_ID,
-            versionNumber=1,
-            versionLabel=VERSION_LABEL,
-            versionComment=VERSION_COMMENT,
-            dataFileHandleId=DATA_FILE_HANDLE_ID,
-            _file_handle=self.get_example_synapse_file_handle(),
-        )
+    def get_example_synapse_file_output(
+        self, path: str = PATH
+    ) -> dict[str, Union[str, int, dict]]:
+        return {
+            "id": SYN_123,
+            "name": FILE_NAME,
+            "path": path,
+            "description": DESCRIPTION,
+            "etag": ETAG,
+            "createdOn": CREATED_ON,
+            "modifiedOn": MODIFIED_ON,
+            "createdBy": CREATED_BY,
+            "modifiedBy": MODIFIED_BY,
+            "parentId": PARENT_ID,
+            "versionNumber": 1,
+            "versionLabel": VERSION_LABEL,
+            "versionComment": VERSION_COMMENT,
+            "dataFileHandleId": DATA_FILE_HANDLE_ID,
+            "_file_handle": self.get_example_synapse_file_handle(),
+        }
 
     def get_example_rest_api_file_output(
         self, path: str = PATH

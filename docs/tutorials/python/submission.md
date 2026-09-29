@@ -164,9 +164,9 @@ Script setup:
 </details>
 
 ## References
-- [Evaluation][synapseclient.models.Evaluation]
-- [File][synapseclient.models.File]
-- [Submission][synapseclient.models.Submission]
-- [SubmissionStatus][synapseclient.models.SubmissionStatus]
-- [SubmissionBundle][synapseclient.models.SubmissionBundle]
+- [Evaluation][evaluation-reference-sync]
+- [File][file-reference-sync]
+- [Submission][submission-reference-sync]
+- [SubmissionStatus][submission-status-reference-sync]
+- [SubmissionBundle][submission-bundle-reference-sync]
 - [syn.login][synapseclient.Synapse.login]

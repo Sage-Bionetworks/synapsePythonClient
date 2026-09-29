@@ -8,14 +8,24 @@ from synapseclient.models.agent import (
 )
 from synapseclient.models.annotations import Annotations
 from synapseclient.models.curation import (
+    AuthorizationMode,
     CurationTask,
+    CurationTaskProperties,
     CurationTaskStatus,
+    ExecutableTaskExecutionDetails,
     FileBasedMetadataTaskProperties,
     Grid,
     GridExecutionDetails,
     RecordBasedMetadataTaskProperties,
+    RecordSetGenerationExecutionDetails,
+    RecordSetGenerationExecutionProperties,
+    SampleSheetGenerationExecutionDetails,
+    SampleSheetGenerationExecutionProperties,
+    SyncType,
     TaskExecutionDetails,
     TaskState,
+    UnknownCurationTaskProperties,
+    UnknownTaskExecutionDetails,
 )
 from synapseclient.models.dataset import Dataset, DatasetCollection, EntityRef
 from synapseclient.models.docker import DockerRepository
@@ -27,10 +37,30 @@ from synapseclient.models.form import FormData, FormGroup
 from synapseclient.models.link import Link
 from synapseclient.models.materializedview import MaterializedView
 from synapseclient.models.mixins.table_components import QueryMixin
+from synapseclient.models.organization import (
+    JSONSchema,
+    Organization,
+    SchemaOrganization,
+)
 from synapseclient.models.project import Project
 from synapseclient.models.project_setting import ProjectSetting
 from synapseclient.models.recordset import RecordSet
-from synapseclient.models.schema_organization import JSONSchema, SchemaOrganization
+from synapseclient.models.search_index import SearchIndex
+from synapseclient.models.search_management import (
+    ColumnAnalyzerOverride,
+    ColumnAnalyzerOverrideEntry,
+    SearchAutocompleteRequest,
+    SearchConfigBinding,
+    SearchConfiguration,
+    SearchFieldValue,
+    SearchHighlight,
+    SearchHit,
+    SearchIndexQuery,
+    SearchQuery,
+    SearchQueryPart,
+    SynonymSet,
+    TextAnalyzer,
+)
 from synapseclient.models.services import FailureStrategy
 from synapseclient.models.storage_location import (
     StorageLocation,
@@ -50,6 +80,9 @@ from synapseclient.models.table_components import (
     ColumnExpansionStrategy,
     ColumnType,
     CsvTableDescriptor,
+    EntityUpdateFailureCode,
+    EntityUpdateResult,
+    EntityUpdateResults,
     FacetType,
     JsonSubColumn,
     PartialRow,
@@ -62,13 +95,24 @@ from synapseclient.models.table_components import (
     QueryResultBundle,
     QueryResultOutput,
     Row,
+    RowReference,
+    RowReferenceSet,
+    RowReferenceSetResults,
     RowSet,
     SchemaStorageStrategy,
     SelectColumn,
     SumFileSizes,
     TableSchemaChangeRequest,
+    TableSchemaChangeResponse,
+    TableSearchChangeRequest,
+    TableSearchChangeResponse,
+    TableUpdateRequest,
+    TableUpdateResponse,
     TableUpdateTransaction,
+    UnknownTableUpdateResponse,
     UploadToTableRequest,
+    UploadToTableResult,
+    table_update_response_from_dict,
 )
 from synapseclient.models.team import Team, TeamMember, TeamMembershipStatus
 from synapseclient.models.user import UserGroupHeader, UserPreference, UserProfile
@@ -97,14 +141,24 @@ __all__ = [
     "Team",
     "TeamMember",
     "TeamMembershipStatus",
+    "AuthorizationMode",
     "CurationTask",
     "CurationTaskStatus",
+    "CurationTaskProperties",
     "FileBasedMetadataTaskProperties",
     "RecordBasedMetadataTaskProperties",
+    "SampleSheetGenerationExecutionProperties",
+    "RecordSetGenerationExecutionProperties",
+    "UnknownCurationTaskProperties",
     "TaskState",
     "Grid",
     "GridExecutionDetails",
+    "SyncType",
     "TaskExecutionDetails",
+    "ExecutableTaskExecutionDetails",
+    "SampleSheetGenerationExecutionDetails",
+    "RecordSetGenerationExecutionDetails",
+    "UnknownTaskExecutionDetails",
     "UserProfile",
     "UserPreference",
     "UserGroupHeader",
@@ -131,10 +185,26 @@ __all__ = [
     "ColumnChange",
     "PartialRow",
     "PartialRowSet",
+    # TableUpdateRequest models
+    "TableUpdateRequest",
     "TableSchemaChangeRequest",
     "AppendableRowSetRequest",
     "UploadToTableRequest",
+    "TableSearchChangeRequest",
     "TableUpdateTransaction",
+    # TableUpdateResponse models
+    "TableUpdateResponse",
+    "EntityUpdateResults",
+    "EntityUpdateResult",
+    "EntityUpdateFailureCode",
+    "RowReferenceSetResults",
+    "RowReferenceSet",
+    "RowReference",
+    "UploadToTableResult",
+    "TableSchemaChangeResponse",
+    "TableSearchChangeResponse",
+    "UnknownTableUpdateResponse",
+    "table_update_response_from_dict",
     "CsvTableDescriptor",
     "MaterializedView",
     "VirtualTable",
@@ -164,6 +234,7 @@ __all__ = [
     "WikiHistorySnapshot",
     "WikiHeader",
     # JSON Schema models
+    "Organization",
     "SchemaOrganization",
     "JSONSchema",
     # Form models
@@ -175,6 +246,21 @@ __all__ = [
     "UploadType",
     # Project Setting models
     "ProjectSetting",
+    # SearchIndex / Search Management models
+    "SearchIndex",
+    "SearchIndexQuery",
+    "SearchQuery",
+    "SearchQueryPart",
+    "SearchAutocompleteRequest",
+    "SearchHit",
+    "SearchFieldValue",
+    "SearchHighlight",
+    "SearchConfiguration",
+    "SearchConfigBinding",
+    "TextAnalyzer",
+    "ColumnAnalyzerOverride",
+    "ColumnAnalyzerOverrideEntry",
+    "SynonymSet",
 ]
 
 # Static methods to expose as functions

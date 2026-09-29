@@ -1,6 +1,7 @@
 """OpenTelemetry configuration for Synapse Python Client."""
 
 import os
+import platform
 import sys
 from typing import Any, Dict, List, Optional
 
@@ -85,19 +86,19 @@ class AttributePropagatingSpanProcessor(SpanProcessor):
         """No-op method that does nothing when the span processor is forced to flush."""
 
 
-def configure_traces(
+def _build_resource_attributes(
     resource_attributes: Optional[Dict[str, Any]] = None,
     include_context: bool = True,
-) -> TracerProvider:
+) -> Dict[str, Any]:
     """
-    Configure OpenTelemetry tracing for the Synapse Python Client.
+    Build the resource attributes shared by the trace and metric providers.
 
     Args:
         resource_attributes: Additional resource attributes to include
         include_context: Whether to include contextual information about the runtime environment
 
     Returns:
-        The configured TracerProvider
+        The resource attributes to pass to `Resource.create`
     """
     resource_attrs = {
         SERVICE_NAME: os.environ.get("OTEL_SERVICE_NAME", DEFAULT_SERVICE_NAME),
@@ -112,7 +113,7 @@ def configure_traces(
             str(v) for v in sys.version_info[:3]
         )
 
-        resource_attrs["os.type"] = os.name
+        resource_attrs["os.type"] = platform.system().lower()
 
         try:
             from synapseclient import __version__ as client_version
@@ -124,7 +125,26 @@ def configure_traces(
     if resource_attributes:
         resource_attrs.update(resource_attributes)
 
-    resource = Resource.create(resource_attrs)
+    return resource_attrs
+
+
+def configure_traces(
+    resource_attributes: Optional[Dict[str, Any]] = None,
+    include_context: bool = True,
+) -> TracerProvider:
+    """
+    Configure OpenTelemetry tracing for the Synapse Python Client.
+
+    Args:
+        resource_attributes: Additional resource attributes to include
+        include_context: Whether to include contextual information about the runtime environment
+
+    Returns:
+        The configured TracerProvider
+    """
+    resource = Resource.create(
+        _build_resource_attributes(resource_attributes, include_context)
+    )
 
     provider = TracerProvider(resource=resource)
 
@@ -165,29 +185,9 @@ def configure_metrics(
     Returns:
         The configured MeterProvider
     """
-    resource_attrs = {
-        SERVICE_NAME: os.environ.get("OTEL_SERVICE_NAME", DEFAULT_SERVICE_NAME),
-        SYNAPSE_SERVICE_VERSION: CLIENT_VERSION,
-    }
-
-    if include_context:
-        resource_attrs["python.version"] = ".".join(
-            str(v) for v in sys.version_info[:3]
-        )
-
-        resource_attrs["os.type"] = os.name
-
-        try:
-            from synapseclient import __version__ as client_version
-
-            resource_attrs[SYNAPSE_SERVICE_VERSION] = client_version
-        except ImportError:
-            pass
-
-    if resource_attributes:
-        resource_attrs.update(resource_attributes)
-
-    resource = Resource.create(resource_attrs)
+    resource = Resource.create(
+        _build_resource_attributes(resource_attributes, include_context)
+    )
 
     readers = []
 

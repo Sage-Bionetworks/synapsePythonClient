@@ -100,7 +100,5 @@ Now that you have created your folders you'll be able to inspect this on the Fil
 
 ## References used in this tutorial
 
-- [Folder][folder-reference-sync]
-- [syn.login][synapseclient.Synapse.login]
-- [syn.findEntityId][synapseclient.Synapse.findEntityId]
-- [syn.store][synapseclient.Synapse.store]
+- [Folder.store][synapseclient.models.Folder.store]
+- [Project.get][synapseclient.models.Project.get]

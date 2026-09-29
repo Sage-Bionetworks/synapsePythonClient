@@ -373,7 +373,7 @@ class TestRecordSetGetDetailedValidationResultsAsync:
         self.syn = syn
         self.schedule_for_cleanup = schedule_for_cleanup
 
-    @pytest.fixture(scope="function")
+    @pytest.fixture(scope="class")
     def create_test_schema(
         self, syn: Synapse
     ) -> Generator[Tuple[JsonSchemaOrganization, str, list], None, None]:
@@ -448,13 +448,17 @@ class TestRecordSetGetDetailedValidationResultsAsync:
             except Exception:
                 pass  # Ignore if org can't be deleted
 
-    @pytest.fixture(scope="function")
+    @pytest.fixture(scope="class")
     async def record_set_with_validation_fixture(
         self,
+        syn: Synapse,
         project_model: Project,
         create_test_schema: Tuple[JsonSchemaOrganization, str, list],
+        schedule_for_cleanup: Callable[..., None],
     ) -> RecordSet:
-        """Create and store a RecordSet with schema bound, then export via Grid to generate validation results."""
+        """Create and store a RecordSet with schema bound, then export via Grid to generate
+        validation results. Shared by every test in this class that reads validation results;
+        none of them mutates the RecordSet or its validation results."""
         from tests.integration import ASYNC_JOB_TIMEOUT_SEC
 
         _, schema_uri, record_set_ids = create_test_schema
@@ -495,7 +499,7 @@ class TestRecordSetGetDetailedValidationResultsAsync:
         try:
             os.close(temp_fd)  # Close the file descriptor
             test_data.to_csv(filename, index=False)
-            self.schedule_for_cleanup(filename)
+            schedule_for_cleanup(filename)
 
             # Create and store the RecordSet
             record_set = RecordSet(
@@ -508,9 +512,9 @@ class TestRecordSetGetDetailedValidationResultsAsync:
             )
 
             stored_record_set = await record_set.store_async(
-                parent=project_model, synapse_client=self.syn
+                parent=project_model, synapse_client=syn
             )
-            self.schedule_for_cleanup(stored_record_set.id)
+            schedule_for_cleanup(stored_record_set.id)
             record_set_ids.append(stored_record_set.id)  # Track for schema cleanup
 
             await asyncio.sleep(3)
@@ -519,11 +523,11 @@ class TestRecordSetGetDetailedValidationResultsAsync:
             await stored_record_set.bind_schema_async(
                 json_schema_uri=schema_uri,
                 enable_derived_annotations=False,
-                synapse_client=self.syn,
+                synapse_client=syn,
             )
 
             # Verify the schema is bound by getting the schema from the entity
-            await stored_record_set.get_schema_async(synapse_client=self.syn)
+            await stored_record_set.get_schema_async(synapse_client=syn)
 
             # Wait for schema binding to be fully processed by backend
             await asyncio.sleep(5)
@@ -531,22 +535,22 @@ class TestRecordSetGetDetailedValidationResultsAsync:
             # Create a Grid session from the RecordSet
             grid = Grid(record_set_id=stored_record_set.id)
             created_grid = await grid.create_async(
-                timeout=ASYNC_JOB_TIMEOUT_SEC, synapse_client=self.syn
+                timeout=ASYNC_JOB_TIMEOUT_SEC, synapse_client=syn
             )
 
             await asyncio.sleep(3)
 
             # Export the Grid back to RecordSet to generate validation results
             exported_grid = await created_grid.export_to_record_set_async(
-                timeout=ASYNC_JOB_TIMEOUT_SEC, synapse_client=self.syn
+                timeout=ASYNC_JOB_TIMEOUT_SEC, synapse_client=syn
             )
 
             # Clean up the Grid session
-            await exported_grid.delete_async(synapse_client=self.syn)
+            await exported_grid.delete_async(synapse_client=syn)
 
             # Re-fetch the RecordSet to get the updated validation_file_handle_id
             updated_record_set = await RecordSet(id=stored_record_set.id).get_async(
-                synapse_client=self.syn
+                synapse_client=syn
             )
 
             return updated_record_set

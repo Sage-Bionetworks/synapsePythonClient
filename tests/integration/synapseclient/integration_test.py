@@ -27,6 +27,7 @@ from synapseclient import (
     client,
 )
 from synapseclient.core.exceptions import SynapseHTTPError, SynapseNoCredentialsError
+from synapseclient.models import Project as ProjectModel
 
 PUBLIC = 273949  # PrincipalId of public "user"
 AUTHENTICATED_USERS = 273948
@@ -102,9 +103,9 @@ def testCustomConfigFile(schedule_for_cleanup):
 
 
 # @skip("Skip integration tests for soon to be removed code")
-def test_entity_version(syn, project, schedule_for_cleanup):
+def test_entity_version(syn, project_model, schedule_for_cleanup):
     # Make an Entity and make sure the version is one
-    entity = File(parent=project["id"])
+    entity = File(parent=project_model.id)
     entity["path"] = utils.make_bogus_data_file()
     schedule_for_cleanup(entity["path"])
     entity = syn.store(entity)
@@ -115,7 +116,8 @@ def test_entity_version(syn, project, schedule_for_cleanup):
 
     # Update the Entity and make sure the version is incremented
     entity.foo = 998877
-    entity["name"] = "foobarbat"
+    unique_name = f"foobarbat-{uuid.uuid4()}"
+    entity["name"] = unique_name
     entity["description"] = "This is a test entity..."
     entity = syn.store(entity, forceVersion=True, versionLabel="Prada remix")
     assert entity.versionNumber == 2
@@ -132,7 +134,7 @@ def test_entity_version(syn, project, schedule_for_cleanup):
     returnEntity = syn.get(entity)
     assert returnEntity.versionNumber == 2
     assert returnEntity["foo"][0] == 998877
-    assert returnEntity["name"] == "foobarbat"
+    assert returnEntity["name"] == unique_name
     assert returnEntity["description"] == "This is a test entity..."
     assert returnEntity["versionLabel"] == "Prada remix"
 
@@ -157,12 +159,12 @@ def test_entity_version(syn, project, schedule_for_cleanup):
 
 
 # @skip("Skip integration tests for soon to be removed code")
-def test_md5_query(syn, project, schedule_for_cleanup):
+def test_md5_query(syn, project_model, schedule_for_cleanup):
     # Add the same Entity several times
     path = utils.make_bogus_data_file()
     schedule_for_cleanup(path)
     repeated = File(
-        path, parent=project["id"], description="Same data over and over again"
+        path, parent=project_model.id, description="Same data over and over again"
     )
 
     # Retrieve the data via MD5
@@ -179,11 +181,11 @@ def test_md5_query(syn, project, schedule_for_cleanup):
 
 
 # @skip("Skip integration tests for soon to be removed code")
-def test_uploadFile_given_dictionary(syn, project, schedule_for_cleanup):
+def test_uploadFile_given_dictionary(syn, project_model, schedule_for_cleanup):
     # Make a Folder Entity the old fashioned way
     folder = {
         "concreteType": Folder._synapse_entity_type,
-        "parentId": project["id"],
+        "parentId": project_model.id,
         "name": "fooDictionary",
         "foo": 334455,
     }
@@ -191,7 +193,7 @@ def test_uploadFile_given_dictionary(syn, project, schedule_for_cleanup):
 
     # Download and verify that it is the same file
     entity = syn.get(entity)
-    assert entity.parentId == project.id
+    assert entity.parentId == project_model.id
     assert entity.foo[0] == 334455
 
     # Update via a dictionary
@@ -212,7 +214,7 @@ def test_uploadFile_given_dictionary(syn, project, schedule_for_cleanup):
 
 # @skip("Skip integration tests for soon to be removed code")
 def test_upload_file_with_force_version_false(
-    syn: Synapse, project: Project, schedule_for_cleanup
+    syn: Synapse, project_model: ProjectModel, schedule_for_cleanup
 ) -> None:
     # GIVEN A bogus file to upload to synapse
     path = utils.make_bogus_uuid_file()
@@ -220,7 +222,7 @@ def test_upload_file_with_force_version_false(
     entity = File(
         name=FILE_NAME_PREFIX + str(uuid.uuid4()),
         path=path,
-        parentId=project["id"],
+        parentId=project_model.id,
         description=FILE_DESCRIPTION,
     )
 
@@ -246,7 +248,7 @@ def test_upload_file_with_force_version_false(
 
 # @skip("Skip integration tests for soon to be removed code")
 def test_upload_file_changed_with_force_version_false(
-    syn: Synapse, project: Project, schedule_for_cleanup
+    syn: Synapse, project_model: ProjectModel, schedule_for_cleanup
 ) -> None:
     # GIVEN A bogus file to upload to synapse
     path = utils.make_bogus_uuid_file()
@@ -254,7 +256,7 @@ def test_upload_file_changed_with_force_version_false(
     entity = File(
         name=FILE_NAME_PREFIX + str(uuid.uuid4()),
         path=path,
-        parentId=project["id"],
+        parentId=project_model.id,
         description=FILE_DESCRIPTION,
     )
 
@@ -281,7 +283,7 @@ def test_upload_file_changed_with_force_version_false(
 
 
 # @skip("Skip integration tests for soon to be removed code")
-def test_uploadFileEntity(syn, project, schedule_for_cleanup):
+def test_uploadFileEntity(syn, project_model, schedule_for_cleanup):
     # Create a FileEntity
     # Dictionaries default to FileEntity as a type
     fname = utils.make_bogus_data_file()
@@ -289,7 +291,7 @@ def test_uploadFileEntity(syn, project, schedule_for_cleanup):
     entity = File(
         name=FILE_NAME_PREFIX + str(uuid.uuid4()),
         path=fname,
-        parentId=project["id"],
+        parentId=project_model.id,
         description=FILE_DESCRIPTION,
     )
     entity = syn.store(entity)
@@ -319,7 +321,7 @@ def test_uploadFileEntity(syn, project, schedule_for_cleanup):
 
 
 # @skip("Skip integration tests for soon to be removed code")
-def test_download_multithreaded(syn, project, schedule_for_cleanup):
+def test_download_multithreaded(syn, project_model, schedule_for_cleanup):
     # Create a FileEntity
     # Dictionaries default to FileEntity as a type
     fname = utils.make_bogus_data_file()
@@ -327,7 +329,7 @@ def test_download_multithreaded(syn, project, schedule_for_cleanup):
     entity = File(
         name="testMultiThreadDownload" + str(uuid.uuid4()),
         path=fname,
-        parentId=project["id"],
+        parentId=project_model.id,
     )
     entity = syn.store(entity)
 
@@ -351,11 +353,11 @@ def test_downloadFile(schedule_for_cleanup):
 
 
 # @skip("Skip integration tests for soon to be removed code")
-def test_provenance(syn, project, schedule_for_cleanup):
+def test_provenance(syn, project_model, schedule_for_cleanup):
     # Create a File Entity
     fname = utils.make_bogus_data_file()
     schedule_for_cleanup(fname)
-    data_entity = syn.store(File(fname, parent=project["id"]))
+    data_entity = syn.store(File(fname, parent=project_model.id))
 
     # Create a File Entity of Code
     fd, path = tempfile.mkstemp(suffix=".py")
@@ -368,7 +370,7 @@ def test_provenance(syn, project, schedule_for_cleanup):
             data = [random.gauss(mu=0.0, sigma=1.0) for i in range(100)]
             """))
     schedule_for_cleanup(path)
-    code_entity = syn.store(File(path, parent=project["id"]))
+    code_entity = syn.store(File(path, parent=project_model.id))
 
     # Create a new Activity asserting that the Code Entity was 'used'
     activity = Activity(name="random.gauss", description="Generate some random numbers")
@@ -396,9 +398,9 @@ def test_provenance(syn, project, schedule_for_cleanup):
 
 
 # @skip("Skip integration tests for soon to be removed code")
-def test_annotations(syn, project, schedule_for_cleanup):
+def test_annotations(syn, project_model, schedule_for_cleanup):
     # Get the annotations of an Entity
-    entity = syn.store(Folder(parent=project["id"]))
+    entity = syn.store(Folder(parent=project_model.id))
     anno = syn.get_annotations(entity)
     assert hasattr(anno, "id")
     assert hasattr(anno, "etag")
@@ -446,12 +448,12 @@ def test_annotations(syn, project, schedule_for_cleanup):
 
 # @skip("Skip integration tests for soon to be removed code")
 def test_annotations_on_file_during_create_no_annotations(
-    syn: Synapse, project: Project, schedule_for_cleanup
+    syn: Synapse, project_model: ProjectModel, schedule_for_cleanup
 ):
     # GIVEN a bogus file
     path = utils.make_bogus_data_file()
     schedule_for_cleanup(path)
-    file = File(path, parent=project["id"], description="test_annotations_on_file")
+    file = File(path, parent=project_model.id, description="test_annotations_on_file")
 
     # AND the file is stored
     with patch.object(syn, "set_annotations") as mock_set_annotations:
@@ -474,7 +476,7 @@ def test_annotations_on_file_during_create_no_annotations(
 
 # @skip("Skip integration tests for soon to be removed code")
 def test_annotations_on_file_during_create_with_annotations(
-    syn: Synapse, project: Project, schedule_for_cleanup
+    syn: Synapse, project_model: ProjectModel, schedule_for_cleanup
 ):
     # GIVEN a bogus file
     path = utils.make_bogus_data_file()
@@ -483,7 +485,7 @@ def test_annotations_on_file_during_create_with_annotations(
     # AND annotations have been set on the file
     file = File(
         path,
-        parent=project["id"],
+        parent=project_model.id,
         description="test_annotations_on_file",
         annotations={"label_1": "value_1", "label_2": "value_2"},
     )
@@ -1160,26 +1162,28 @@ class TestAsyncRestInterfaces:
         self.schedule_for_cleanup = schedule_for_cleanup
 
     # @skip("Skip integration tests for soon to be removed code")
-    async def test_rest_get_async(self, project: Project) -> None:
+    async def test_rest_get_async(self, project_model: ProjectModel) -> None:
         # GIVEN a project stored in synapse
 
         # WHEN I get the project from synapse
-        new_project_instance = await self.syn.rest_get_async(f"/entity/{project.id}")
+        new_project_instance = await self.syn.rest_get_async(
+            f"/entity/{project_model.id}"
+        )
 
         # THEN I expect the project to be the same
-        assert new_project_instance["id"] == project["id"]
-        assert new_project_instance["name"] == project["name"]
-        assert new_project_instance["etag"] == project["etag"]
+        assert new_project_instance["id"] == project_model.id
+        assert new_project_instance["name"] == project_model.name
+        assert new_project_instance["etag"] == project_model.etag
 
     # @skip("Skip integration tests for soon to be removed code")
-    async def test_rest_post_async(self, project: Project) -> None:
+    async def test_rest_post_async(self, project_model: ProjectModel) -> None:
         # GIVEN A bogus file to upload to synapse
         path = utils.make_bogus_uuid_file()
         self.schedule_for_cleanup(path)
         entity = File(
             name=FILE_NAME_PREFIX + str(uuid.uuid4()),
             path=path,
-            parentId=project["id"],
+            parentId=project_model.id,
             description=FILE_DESCRIPTION,
         )
 
@@ -1202,14 +1206,14 @@ class TestAsyncRestInterfaces:
         assert entity_bundle["entity"]["etag"] == entity.etag
 
     # @skip("Skip integration tests for soon to be removed code")
-    async def test_rest_put_async(self, project: Project) -> None:
+    async def test_rest_put_async(self, project_model: ProjectModel) -> None:
         # GIVEN A bogus file to upload to synapse
         path = utils.make_bogus_uuid_file()
         self.schedule_for_cleanup(path)
         entity = File(
             name=FILE_NAME_PREFIX + str(uuid.uuid4()),
             path=path,
-            parentId=project["id"],
+            parentId=project_model.id,
             description=FILE_DESCRIPTION,
         )
 
@@ -1251,14 +1255,14 @@ class TestAsyncRestInterfaces:
         assert entity_bundle_copy["entity"]["description"] == NEW_DESCRIPTION
 
     # @skip("Skip integration tests for soon to be removed code")
-    async def test_rest_delete_async(self, project: Project) -> None:
+    async def test_rest_delete_async(self, project_model: ProjectModel) -> None:
         # GIVEN A bogus file to upload to synapse
         path = utils.make_bogus_uuid_file()
         self.schedule_for_cleanup(path)
         entity = File(
             name=FILE_NAME_PREFIX + str(uuid.uuid4()),
             path=path,
-            parentId=project["id"],
+            parentId=project_model.id,
             description=FILE_DESCRIPTION,
         )
 

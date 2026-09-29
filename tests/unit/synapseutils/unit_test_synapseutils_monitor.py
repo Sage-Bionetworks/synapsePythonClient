@@ -6,14 +6,12 @@ from synapseutils import notifyMe, with_progress_bar
 
 def test_notifyMe__successful_call(syn):
     subject = "some message subject"
-    owner_id = "12434"
-    user_profile = {"ownerId": owner_id}
+    owner_id = 12434
     with (
         patch.object(syn, "sendMessage") as mocked_send_message,
-        patch.object(
-            syn, "getUserProfile", return_value=user_profile
-        ) as mocked_get_user_profile,
+        patch("synapseutils.monitor.UserProfile") as mocked_user_profile_class,
     ):
+        mocked_user_profile_class.return_value.get.return_value.id = owner_id
         mocked_func = MagicMock()
 
         @notifyMe(syn, messageSubject=subject)
@@ -21,9 +19,11 @@ def test_notifyMe__successful_call(syn):
             mocked_func()
 
         test_function()
-        mocked_get_user_profile.assert_called_once()
+        mocked_user_profile_class.return_value.get.assert_called_once_with(
+            synapse_client=syn
+        )
         mocked_send_message.assert_called_once_with(
-            [owner_id],
+            [str(owner_id)],
             subject,
             messageBody="Call to test_function completed successfully!",
         )
@@ -31,12 +31,12 @@ def test_notifyMe__successful_call(syn):
 
 def test_notifyMe__exception_thrown_and_retry_fail(syn):
     subject = "some message subject"
-    owner_id = "12434"
-    user_profile = {"ownerId": owner_id}
+    owner_id = 12434
     with (
         patch.object(syn, "sendMessage") as mocked_send_message,
-        patch.object(syn, "getUserProfile", return_value=user_profile),
+        patch("synapseutils.monitor.UserProfile") as mocked_user_profile_class,
     ):
+        mocked_user_profile_class.return_value.get.return_value.id = owner_id
         mocked_func = MagicMock(
             side_effect=[Exception("first time fails"), "second time is Fine"]
         )
@@ -55,20 +55,20 @@ def test_notifyMe__exception_thrown_and_retry_fail(syn):
         second_call_args = mocked_send_message.call_args_list[1][0]
         second_call_kwargs = mocked_send_message.call_args_list[1][1]
 
-        assert ([owner_id], subject) == first_call_args
+        assert ([str(owner_id)], subject) == first_call_args
         assert (
             "Encountered a temporary Failure during upload"
             in first_call_kwargs["messageBody"]
         )
 
-        assert ([owner_id], subject) == first_call_args
+        assert ([str(owner_id)], subject) == first_call_args
         assert 1 == len(first_call_kwargs)
         assert (
             "Encountered a temporary Failure during upload"
             in first_call_kwargs["messageBody"]
         )
 
-        assert ([owner_id], subject) == second_call_args
+        assert ([str(owner_id)], subject) == second_call_args
         assert 1 == len(second_call_kwargs)
         assert (
             "Call to test_function completed successfully!"

@@ -5,7 +5,6 @@ from __future__ import annotations
 import importlib
 import os
 import uuid
-from typing import Callable
 
 import boto3
 import pytest
@@ -224,9 +223,9 @@ class TestExternalS3StorageLocation:
                 parent_id=self.project.id,
             ).store_async(synapse_client=self.syn)
 
-            self.syn.setStorageLocation(
-                entity=folder.id,
+            await folder.set_storage_location_async(
                 storage_location_id=stored_location.storage_location_id,
+                synapse_client=self.syn,
             )
 
             # WHEN we upload a file to the folder
@@ -355,9 +354,9 @@ class TestExternalGCSStorageLocation:
                 parent_id=self.project.id,
             ).store_async(synapse_client=self.syn)
 
-            self.syn.setStorageLocation(
-                entity=folder.id,
+            await folder.set_storage_location_async(
                 storage_location_id=stored.storage_location_id,
+                synapse_client=self.syn,
             )
 
             upload_file = syn_utils.make_bogus_uuid_file()

@@ -1,17 +1,17 @@
 import asyncio
-import tempfile
 import uuid
 from typing import Callable
 
 import pandas as pd
 import pytest
 
-from synapseclient import Evaluation, Synapse
+from synapseclient import Synapse
 from synapseclient.core.exceptions import SynapseHTTPError
 from synapseclient.models import (
     Activity,
     Column,
     ColumnType,
+    Evaluation,
     File,
     Project,
     SubmissionView,
@@ -32,13 +32,11 @@ class TestSubmissionViewCreation:
     ) -> None:
         # GIVEN a project to work with
         # AND an evaluation to use in the scope
-        evaluation = await self.syn.store_async(
-            Evaluation(
-                name=str(uuid.uuid4()),
-                description="Test evaluation for submission view",
-                contentSource=project_model.id,
-            )
-        )
+        evaluation = await Evaluation(
+            name=str(uuid.uuid4()),
+            description="Test evaluation for submission view",
+            content_source=project_model.id,
+        ).store_async(synapse_client=self.syn)
         self.schedule_for_cleanup(evaluation)
 
         # Test Case 1: Submissionview with default columns
@@ -144,13 +142,11 @@ class TestSubmissionViewCreation:
     ) -> None:
         # GIVEN a project to work with
         # AND an evaluation to use in the scope
-        evaluation = await self.syn.store_async(
-            Evaluation(
-                name=str(uuid.uuid4()),
-                description="Test evaluation for submission view",
-                contentSource=project_model.id,
-            )
-        )
+        evaluation = await Evaluation(
+            name=str(uuid.uuid4()),
+            description="Test evaluation for submission view",
+            content_source=project_model.id,
+        ).store_async(synapse_client=self.syn)
         self.schedule_for_cleanup(evaluation)
 
         # Test Case 1: Creating a submissionview with an invalid column
@@ -238,17 +234,34 @@ class TestColumnAndScopeModifications:
         self.syn = syn
         self.schedule_for_cleanup = schedule_for_cleanup
 
-    async def test_column_modifications(self, project_model: Project) -> None:
+    @pytest.fixture(scope="class")
+    async def shared_evaluations(
+        self,
+        project_model: Project,
+        syn: Synapse,
+        schedule_for_cleanup: Callable[..., None],
+    ) -> "list[Evaluation]":
+        """Two evaluations, built once for the class. Both tests below only use
+        these as scope_ids targets on their own submissionviews -- neither
+        submits to, deletes, or otherwise mutates the evaluations themselves,
+        and neither queries submission content, so sharing them is read-only."""
+        evaluations = []
+        for i in range(2):
+            evaluation = await Evaluation(
+                name=str(uuid.uuid4()),
+                description=f"Test evaluation {i + 1} for submission view",
+                content_source=project_model.id,
+            ).store_async(synapse_client=syn)
+            schedule_for_cleanup(evaluation)
+            evaluations.append(evaluation)
+        return evaluations
+
+    async def test_column_modifications(
+        self, project_model: Project, shared_evaluations: "list[Evaluation]"
+    ) -> None:
         # GIVEN a project to work with
         # AND an evaluation to use in the scope
-        evaluation = await self.syn.store_async(
-            Evaluation(
-                name=str(uuid.uuid4()),
-                description="Test evaluation for submission view",
-                contentSource=project_model.id,
-            )
-        )
-        self.schedule_for_cleanup(evaluation)
+        evaluation = shared_evaluations[0]
 
         # AND a submissionview in Synapse with two columns
         submissionview_name = str(uuid.uuid4())
@@ -303,26 +316,12 @@ class TestColumnAndScopeModifications:
         assert new_column_name not in updated_view2.columns
         assert column_to_keep in updated_view2.columns
 
-    async def test_scope_modifications(self, project_model: Project) -> None:
+    async def test_scope_modifications(
+        self, project_model: Project, shared_evaluations: "list[Evaluation]"
+    ) -> None:
         # GIVEN a project to work with
         # AND two evaluations for testing scope changes
-        evaluation1 = await self.syn.store_async(
-            Evaluation(
-                name=str(uuid.uuid4()),
-                description="Test evaluation 1",
-                contentSource=project_model.id,
-            )
-        )
-        self.schedule_for_cleanup(evaluation1)
-
-        evaluation2 = await self.syn.store_async(
-            Evaluation(
-                name=str(uuid.uuid4()),
-                description="Test evaluation 2",
-                contentSource=project_model.id,
-            )
-        )
-        self.schedule_for_cleanup(evaluation2)
+        evaluation1, evaluation2 = shared_evaluations
 
         # AND a submissionview with one evaluation in scope
         submissionview_name = str(uuid.uuid4())
@@ -380,13 +379,11 @@ class TestQuerying:
     async def test_query_submissionview(self, project_model: Project) -> None:
         # GIVEN a project to work with
         # AND an evaluation to use in the scope
-        evaluation = await self.syn.store_async(
-            Evaluation(
-                name=str(uuid.uuid4()),
-                description="Test evaluation for submission view",
-                contentSource=project_model.id,
-            )
-        )
+        evaluation = await Evaluation(
+            name=str(uuid.uuid4()),
+            description="Test evaluation for submission view",
+            content_source=project_model.id,
+        ).store_async(synapse_client=self.syn)
         self.schedule_for_cleanup(evaluation)
 
         # AND a submissionview with the evaluation in scope
@@ -441,13 +438,11 @@ class TestSnapshotting:
     async def test_submissionview_snapshots(self, project_model: Project) -> None:
         # GIVEN a project to work with
         # AND an evaluation to use in the scope
-        evaluation = await self.syn.store_async(
-            Evaluation(
-                name=str(uuid.uuid4()),
-                description="Test evaluation for submission view",
-                contentSource=project_model.id,
-            )
-        )
+        evaluation = await Evaluation(
+            name=str(uuid.uuid4()),
+            description="Test evaluation for submission view",
+            content_source=project_model.id,
+        ).store_async(synapse_client=self.syn)
         self.schedule_for_cleanup(evaluation)
 
         # Test Case 1: Snapshot with Activity
@@ -539,13 +534,11 @@ class TestSubmissionViewWithSubmissions:
     async def test_submission_lifecycle(self, project_model: Project) -> None:
         """Test submission lifecycle in a submission view: adding and removing submissions."""
         # GIVEN an evaluation
-        evaluation = await self.syn.store_async(
-            Evaluation(
-                name=str(uuid.uuid4()),
-                description="Test evaluation for submission view",
-                contentSource=project_model.id,
-            )
-        )
+        evaluation = await Evaluation(
+            name=str(uuid.uuid4()),
+            description="Test evaluation for submission view",
+            content_source=project_model.id,
+        ).store_async(synapse_client=self.syn)
         self.schedule_for_cleanup(evaluation)
 
         # AND a submissionview that includes the evaluation
@@ -559,12 +552,15 @@ class TestSubmissionViewWithSubmissions:
         self.schedule_for_cleanup(submissionview)
 
         # AND a file for submission
-        with tempfile.NamedTemporaryFile(mode="w", suffix=".txt", delete=False) as f:
-            filename = f.name
-            f.write("Test content for submission")
-            self.schedule_for_cleanup(filename)
-
-        file_entity = File(path=filename, parent_id=project_model.id, name="Test file")
+        # Only the file's existence as a submission subject matters here,
+        # not its content, so an external_url file handle avoids a real
+        # upload.
+        file_entity = File(
+            external_url=f"https://example.com/bogus-file-{uuid.uuid4()}.txt",
+            synapse_store=False,
+            parent_id=project_model.id,
+            name="Test file",
+        )
         file_entity = await file_entity.store_async(synapse_client=self.syn)
         self.schedule_for_cleanup(file_entity.id)
 
@@ -625,13 +621,11 @@ class TestSubmissionViewWithSubmissions:
     async def test_multiple_submissions(self, project_model: Project) -> None:
         """Test that multiple submissions to an evaluation appear in a submission view."""
         # GIVEN an evaluation
-        evaluation = await self.syn.store_async(
-            Evaluation(
-                name=str(uuid.uuid4()),
-                description="Test evaluation for multiple submissions",
-                contentSource=project_model.id,
-            )
-        )
+        evaluation = await Evaluation(
+            name=str(uuid.uuid4()),
+            description="Test evaluation for multiple submissions",
+            content_source=project_model.id,
+        ).store_async(synapse_client=self.syn)
         self.schedule_for_cleanup(evaluation)
 
         # AND a submissionview that includes the evaluation
@@ -649,17 +643,14 @@ class TestSubmissionViewWithSubmissions:
         submissions = []
 
         for i in range(3):
-            # Create test file
-            with tempfile.NamedTemporaryFile(
-                mode="w", suffix=".txt", delete=False
-            ) as f:
-                filename = f.name
-                f.write(f"Test content for submission {i}")
-                self.schedule_for_cleanup(filename)
-
-            # Store file in Synapse
+            # Create test file. Only the file's existence as a submission
+            # subject matters here, not its content, so an external_url
+            # file handle avoids a real upload.
             file_entity = File(
-                path=filename, parent_id=project_model.id, name=f"Test file {i}"
+                external_url=f"https://example.com/bogus-file-{uuid.uuid4()}.txt",
+                synapse_store=False,
+                parent_id=project_model.id,
+                name=f"Test file {i}",
             )
             file_entity = await file_entity.store_async(synapse_client=self.syn)
             self.schedule_for_cleanup(file_entity.id)

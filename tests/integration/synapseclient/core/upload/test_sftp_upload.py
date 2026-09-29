@@ -37,7 +37,7 @@ def check_test_preconditions():
 
 @pytest.fixture(scope="module", autouse=True)
 @unittest.skipIf(*check_test_preconditions())
-def project_setting_id(request, syn, project):
+def project_setting_id(request, syn, project_model):
     server_prefix = get_sftp_server_prefix()
     username, _ = syn._getUserCredentials(server_prefix)
     user_home_path = get_user_home_path(username)
@@ -65,7 +65,9 @@ def project_setting_id(request, syn, project):
         for x in external_storage_destination_settings
     ]
 
-    sftp_project_setting_id = syn.setStorageLocation(project, destinations)["id"]
+    sftp_project_setting_id = syn.setStorageLocation(project_model.id, destinations)[
+        "id"
+    ]
 
     def delete_project_setting():
         syn.restDELETE("/projectSettings/%s" % sftp_project_setting_id)
@@ -74,11 +76,11 @@ def project_setting_id(request, syn, project):
 
 
 @unittest.skipIf(*check_test_preconditions())
-async def test_synStore_sftpIntegration(syn, project, schedule_for_cleanup):
+async def test_synStore_sftpIntegration(syn, project_model, schedule_for_cleanup):
     """Creates a File Entity on an sftp server and add the external url."""
     filepath = utils.make_bogus_binary_file(1 * utils.MB - 777771)
     try:
-        file = await syn.store_async(File(filepath, parent=project))
+        file = await syn.store_async(File(filepath, parent=project_model.id))
         file2 = await syn.get_async(file)
         assert file.externalURL == file2.externalURL
         assert urlparse(file2.externalURL).scheme == "sftp"
@@ -99,7 +101,7 @@ async def test_synStore_sftpIntegration(syn, project, schedule_for_cleanup):
 
 
 @unittest.skipIf(*check_test_preconditions())
-async def test_synGet_sftpIntegration(syn, project):
+async def test_synGet_sftpIntegration(syn, project_model):
     # Create file by uploading directly to sftp and creating entity from URL
     server_prefix = get_sftp_server_prefix()
     username, password = syn._getUserCredentials(server_prefix)
@@ -114,7 +116,9 @@ async def test_synGet_sftpIntegration(syn, project):
     url = SFTPWrapper.upload_file(
         filepath, url=server_url, username=username, password=password
     )
-    file = await syn.store_async(File(path=url, parent=project, synapseStore=False))
+    file = await syn.store_async(
+        File(path=url, parent=project_model.id, synapseStore=False)
+    )
 
     junk = await syn.get_async(file, downloadLocation=os.getcwd(), downloadFile=True)
     filecmp.cmp(filepath, junk.path)

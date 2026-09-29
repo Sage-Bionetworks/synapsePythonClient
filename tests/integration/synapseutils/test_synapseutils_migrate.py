@@ -33,17 +33,23 @@ def _create_temp_file():
         return temp.name
 
 
-def _migrate_file_version_test_helper(request, syn, project, schedule_for_cleanup):
+def _migrate_file_version_test_helper(
+    request, syn, project_model, schedule_for_cleanup
+):
     entity_name = request.node.name
     temp_path_1 = _create_temp_file()
     schedule_for_cleanup(temp_path_1)
-    file = synapseclient.File(name=entity_name, path=temp_path_1, parent=project)
+    file = synapseclient.File(
+        name=entity_name, path=temp_path_1, parent=project_model.id
+    )
     v1 = syn.store(file)
 
     # create another revision
     temp_path_2 = _create_temp_file()
     schedule_for_cleanup(temp_path_2)
-    file = synapseclient.File(name=entity_name, path=temp_path_2, parent=project)
+    file = synapseclient.File(
+        name=entity_name, path=temp_path_2, parent=project_model.id
+    )
     v2 = syn.store(file)
 
     return v1, v2

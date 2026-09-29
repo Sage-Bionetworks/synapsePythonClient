@@ -1,0 +1,20 @@
+{
+    "collects_health_info": false,
+    "has_identifiable_health_info": false,
+    "is_health_plan": false,
+    "is_healthcare_provider": false,
+    "offers_certified_hit": false,
+    "enables_ehi_exchange": false,
+    "requires_prescription": false,
+    "works_for_covered_entity": false,
+    "intended_for_medical_use": false,
+    "is_administrative_or_lifestyle_only": false,
+    "is_low_risk": true,
+    "has_fda_regulated_function": false,
+    "is_consumer_facing": false,
+    "interacts_with_phr": false,
+    "intended_for_children": false,
+    "has_child_oriented_features": false,
+    "children_using_app": false,
+    "offers_substance_use_treatment": false
+}

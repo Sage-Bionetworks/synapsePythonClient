@@ -1,10 +1,82 @@
+from http import HTTPStatus
 from unittest.mock import AsyncMock, MagicMock
 
+import httpx
 import pytest
 from requests import Response
 
-from synapseclient.core.exceptions import SynapseError
-from synapseclient.core.retry import with_retry, with_retry_time_based_async
+from synapseclient.core.exceptions import SynapseError, SynapseHTTPError
+from synapseclient.core.retry import (
+    with_retry,
+    with_retry_time_based,
+    with_retry_time_based_async,
+)
+
+
+def _unread_streaming_http_error() -> SynapseHTTPError:
+    """Build a SynapseHTTPError wrapping a genuinely-unread httpx streaming response.
+
+    This mirrors the multi-threaded chunk download path: ``session.stream(...)``
+    yields a response whose body has NOT been read, and ``_raise_for_status_httpx``
+    attaches that unread response to the raised ``SynapseHTTPError``. Accessing
+    ``response.text`` on it raises ``httpx.ResponseNotRead``.
+    """
+    request = httpx.Request("GET", "https://example.org/presigned-download")
+    response = httpx.Response(
+        status_code=503,
+        request=request,
+        stream=httpx.ByteStream(b"Slow Down"),
+    )
+    # Sanity check: this is the exact failure the user reported.
+    with pytest.raises(httpx.ResponseNotRead):
+        _ = response.text
+    return SynapseHTTPError("503 Server Error", response=response)
+
+
+def test_with_retry_time_based__unread_streaming_response_retryable_status() -> None:
+    """Regression test for the ``httpx.ResponseNotRead`` crash in the download path.
+
+    When a chunk range request fails with a retryable status, the retry layer is
+    called with ``read_response_content=False`` because the streaming body was never
+    read. ``_is_retryable`` must decide to retry purely from the status code WITHOUT
+    touching the body. The bug caused it to call ``_get_message`` -> ``response.text``,
+    raising ``httpx.ResponseNotRead`` and escaping the retry loop entirely.
+
+    Correct behavior: the request is retried, and once the (tiny) retry budget is
+    exhausted the original ``SynapseHTTPError`` is re-raised -- never
+    ``httpx.ResponseNotRead``.
+    """
+    error = _unread_streaming_http_error()
+    function = MagicMock(side_effect=error)
+
+    with pytest.raises(SynapseHTTPError):
+        with_retry_time_based(
+            function,
+            expected_status_codes=(HTTPStatus.PARTIAL_CONTENT,),
+            read_response_content=False,
+            retry_max_wait_before_failure=0.01,
+        )
+
+    # The status code alone should have driven the retry decision.
+    assert function.call_count > 1
+
+
+async def test_with_retry_time_based_async__unread_streaming_response_retryable_status() -> (
+    None
+):
+    """Async twin of the unread-streaming-response regression test."""
+    error = _unread_streaming_http_error()
+    function = AsyncMock(side_effect=error)
+
+    with pytest.raises(SynapseHTTPError):
+        await with_retry_time_based_async(
+            function,
+            expected_status_codes=(HTTPStatus.PARTIAL_CONTENT,),
+            read_response_content=False,
+            retry_max_wait_before_failure=0.01,
+        )
+
+    assert function.call_count > 1
 
 
 def test_with_retry():

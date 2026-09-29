@@ -1,7 +1,5 @@
 """Integration tests for the synapseclient.models.SubmissionStatus class async methods."""
 
-import os
-import tempfile
 import uuid
 from typing import Callable
 
@@ -26,6 +24,52 @@ POSSIBLE_STATUSES = [
 ]
 
 
+@pytest.fixture(scope="module")
+async def test_evaluation(
+    project_model: Project,
+    syn: Synapse,
+    schedule_for_cleanup: Callable[..., None],
+) -> Evaluation:
+    """
+    Create a test evaluation shared by every class in this module: none of
+    them mutate the Evaluation itself, only the Submission/SubmissionStatus
+    objects created against it, so one evaluation for the whole file is safe.
+    """
+    evaluation = Evaluation(
+        name=f"test_evaluation_{uuid.uuid4()}",
+        description="A test evaluation for submission status tests",
+        content_source=project_model.id,
+        submission_instructions_message="Please submit your results",
+        submission_receipt_message="Thank you!",
+    )
+    created_evaluation = await evaluation.store_async(synapse_client=syn)
+    schedule_for_cleanup(created_evaluation.id)
+    return created_evaluation
+
+
+@pytest.fixture(scope="module")
+async def test_file(
+    project_model: Project,
+    syn: Synapse,
+    schedule_for_cleanup: Callable[..., None],
+) -> File:
+    """
+    Create a test file shared by every class in this module that needs a
+    single submittable entity. None of these tests assert on file content,
+    only on submission/status behavior, so an external_url file handle
+    avoids a real upload.
+    """
+    file = File(
+        external_url=f"https://example.com/bogus-file-{uuid.uuid4()}.txt",
+        synapse_store=False,
+        name=f"test_file_{uuid.uuid4()}.txt",
+        parent_id=project_model.id,
+    )
+    stored_file = await file.store_async(synapse_client=syn)
+    schedule_for_cleanup(stored_file.id)
+    return stored_file
+
+
 class TestSubmissionStatusRetrieval:
     """Tests for retrieving SubmissionStatus objects async."""
 
@@ -33,53 +77,6 @@ class TestSubmissionStatusRetrieval:
     def init(self, syn: Synapse, schedule_for_cleanup: Callable[..., None]) -> None:
         self.syn = syn
         self.schedule_for_cleanup = schedule_for_cleanup
-
-    @pytest.fixture(scope="class")
-    async def test_evaluation(
-        self,
-        project_model: Project,
-        syn: Synapse,
-        schedule_for_cleanup: Callable[..., None],
-    ) -> Evaluation:
-        """Create a test evaluation for submission status tests."""
-        evaluation = Evaluation(
-            name=f"test_evaluation_{uuid.uuid4()}",
-            description="A test evaluation for submission status tests",
-            content_source=project_model.id,
-            submission_instructions_message="Please submit your results",
-            submission_receipt_message="Thank you!",
-        )
-        created_evaluation = await evaluation.store_async(synapse_client=syn)
-        schedule_for_cleanup(created_evaluation.id)
-        return created_evaluation
-
-    @pytest.fixture(scope="class")
-    async def test_file(
-        self,
-        project_model: Project,
-        syn: Synapse,
-        schedule_for_cleanup: Callable[..., None],
-    ) -> File:
-        """Create a test file for submission status tests."""
-        # Create a temporary file
-        with tempfile.NamedTemporaryFile(
-            mode="w", delete=False, suffix=".txt"
-        ) as temp_file:
-            temp_file.write("This is test content for submission status testing.")
-            temp_file_path = temp_file.name
-
-        try:
-            file = File(
-                path=temp_file_path,
-                name=f"test_file_{uuid.uuid4()}.txt",
-                parent_id=project_model.id,
-            )
-            stored_file = await file.store_async(synapse_client=syn)
-            schedule_for_cleanup(stored_file.id)
-            return stored_file
-        finally:
-            # Clean up the temporary file
-            os.unlink(temp_file_path)
 
     @pytest.fixture(scope="function")
     async def test_submission(
@@ -144,53 +141,6 @@ class TestSubmissionStatusUpdates:
     def init(self, syn: Synapse, schedule_for_cleanup: Callable[..., None]) -> None:
         self.syn = syn
         self.schedule_for_cleanup = schedule_for_cleanup
-
-    @pytest.fixture(scope="class")
-    async def test_evaluation(
-        self,
-        project_model: Project,
-        syn: Synapse,
-        schedule_for_cleanup: Callable[..., None],
-    ) -> Evaluation:
-        """Create a test evaluation for submission status tests."""
-        evaluation = Evaluation(
-            name=f"test_evaluation_{uuid.uuid4()}",
-            description="A test evaluation for submission status tests",
-            content_source=project_model.id,
-            submission_instructions_message="Please submit your results",
-            submission_receipt_message="Thank you!",
-        )
-        created_evaluation = await evaluation.store_async(synapse_client=syn)
-        schedule_for_cleanup(created_evaluation.id)
-        return created_evaluation
-
-    @pytest.fixture(scope="class")
-    async def test_file(
-        self,
-        project_model: Project,
-        syn: Synapse,
-        schedule_for_cleanup: Callable[..., None],
-    ) -> File:
-        """Create a test file for submission status tests."""
-        # Create a temporary file
-        with tempfile.NamedTemporaryFile(
-            mode="w", delete=False, suffix=".txt"
-        ) as temp_file:
-            temp_file.write("This is test content for submission status testing.")
-            temp_file_path = temp_file.name
-
-        try:
-            file = File(
-                path=temp_file_path,
-                name=f"test_file_{uuid.uuid4()}.txt",
-                parent_id=project_model.id,
-            )
-            stored_file = await file.store_async(synapse_client=syn)
-            schedule_for_cleanup(stored_file.id)
-            return stored_file
-        finally:
-            # Clean up the temporary file
-            os.unlink(temp_file_path)
 
     @pytest.fixture(scope="function")
     async def test_submission(
@@ -497,7 +447,13 @@ class TestSubmissionStatusBulkOperations:
         syn: Synapse,
         schedule_for_cleanup: Callable[..., None],
     ) -> Evaluation:
-        """Create a test evaluation for submission status tests."""
+        """
+        Deliberately isolated from the module-level test_evaluation fixture:
+        this class's tests exercise get_all_submission_statuses_async's
+        default page (limit=10), so submissions created against the shared
+        evaluation by the other classes in this module would already fill
+        that page and make the assertions below flaky.
+        """
         evaluation = Evaluation(
             name=f"test_evaluation_{uuid.uuid4()}",
             description="A test evaluation for submission status tests",
@@ -516,30 +472,22 @@ class TestSubmissionStatusBulkOperations:
         syn: Synapse,
         schedule_for_cleanup: Callable[..., None],
     ) -> list[File]:
-        """Create multiple test files for submission status tests."""
+        """
+        Create multiple test files for submission status tests. None of
+        these tests assert on file content, so external_url file handles
+        avoid real uploads.
+        """
         files = []
         for i in range(3):
-            # Create a temporary file
-            with tempfile.NamedTemporaryFile(
-                mode="w", delete=False, suffix=".txt"
-            ) as temp_file:
-                temp_file.write(
-                    f"This is test content {i} for submission status testing."
-                )
-                temp_file_path = temp_file.name
-
-            try:
-                file = File(
-                    path=temp_file_path,
-                    name=f"test_file_{i}_{uuid.uuid4()}.txt",
-                    parent_id=project_model.id,
-                )
-                stored_file = await file.store_async(synapse_client=syn)
-                schedule_for_cleanup(stored_file.id)
-                files.append(stored_file)
-            finally:
-                # Clean up the temporary file
-                os.unlink(temp_file_path)
+            file = File(
+                external_url=f"https://example.com/bogus-file-{i}-{uuid.uuid4()}.txt",
+                synapse_store=False,
+                name=f"test_file_{i}_{uuid.uuid4()}.txt",
+                parent_id=project_model.id,
+            )
+            stored_file = await file.store_async(synapse_client=syn)
+            schedule_for_cleanup(stored_file.id)
+            files.append(stored_file)
 
         return files
 
@@ -677,53 +625,6 @@ class TestSubmissionStatusCancellation:
     def init(self, syn: Synapse, schedule_for_cleanup: Callable[..., None]) -> None:
         self.syn = syn
         self.schedule_for_cleanup = schedule_for_cleanup
-
-    @pytest.fixture(scope="class")
-    async def test_evaluation(
-        self,
-        project_model: Project,
-        syn: Synapse,
-        schedule_for_cleanup: Callable[..., None],
-    ) -> Evaluation:
-        """Create a test evaluation for submission status tests."""
-        evaluation = Evaluation(
-            name=f"test_evaluation_{uuid.uuid4()}",
-            description="A test evaluation for submission status tests",
-            content_source=project_model.id,
-            submission_instructions_message="Please submit your results",
-            submission_receipt_message="Thank you!",
-        )
-        created_evaluation = await evaluation.store_async(synapse_client=syn)
-        schedule_for_cleanup(created_evaluation.id)
-        return created_evaluation
-
-    @pytest.fixture(scope="class")
-    async def test_file(
-        self,
-        project_model: Project,
-        syn: Synapse,
-        schedule_for_cleanup: Callable[..., None],
-    ) -> File:
-        """Create a test file for submission status tests."""
-        # Create a temporary file
-        with tempfile.NamedTemporaryFile(
-            mode="w", delete=False, suffix=".txt"
-        ) as temp_file:
-            temp_file.write("This is test content for submission status testing.")
-            temp_file_path = temp_file.name
-
-        try:
-            file = File(
-                path=temp_file_path,
-                name=f"test_file_{uuid.uuid4()}.txt",
-                parent_id=project_model.id,
-            )
-            stored_file = await file.store_async(synapse_client=syn)
-            schedule_for_cleanup(stored_file.id)
-            return stored_file
-        finally:
-            # Clean up the temporary file
-            os.unlink(temp_file_path)
 
     @pytest.fixture(scope="function")
     async def test_submission(

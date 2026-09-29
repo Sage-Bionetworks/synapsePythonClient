@@ -8,6 +8,7 @@ data or metadata in Synapse.
 import asyncio
 import os
 from abc import ABC, abstractmethod
+from contextlib import asynccontextmanager, contextmanager
 from copy import deepcopy
 from dataclasses import dataclass, field, replace
 from datetime import datetime, timezone
@@ -23,17 +24,20 @@ from typing import (
     Union,
 )
 
+from deprecated import deprecated
 from opentelemetry import trace
 
 from synapseclient import Synapse
 from synapseclient.api import (
     create_curation_task,
+    create_grid_replica,
     delete_curation_task,
     delete_grid_session,
     get_curation_task,
     get_curation_task_status,
     get_file_handle,
     get_file_handle_presigned_url,
+    get_grid_session,
     list_curation_tasks,
     list_grid_sessions,
     update_curation_task,
@@ -46,19 +50,35 @@ from synapseclient.core.async_utils import (
     wrap_async_generator_to_sync_generator,
 )
 from synapseclient.core.constants.concrete_types import (
+    CELL_VALUE_FILTER,
+    COMPUTE_TASK_EXECUTION_REQUEST,
+    COUNT_STAR,
     CREATE_GRID_REQUEST,
     DOWNLOAD_FROM_GRID_REQUEST,
     FILE_BASED_METADATA_TASK_PROPERTIES,
     GRID_CSV_IMPORT_REQUEST,
     GRID_EXECUTION_DETAILS,
+    GRID_QUERY_JOB_REQUEST,
     GRID_RECORD_SET_EXPORT_REQUEST,
     LIST_GRID_SESSIONS_REQUEST,
     LIST_GRID_SESSIONS_RESPONSE,
     RECORD_BASED_METADATA_TASK_PROPERTIES,
+    RECORD_SET_GENERATION_EXECUTION_DETAILS,
+    RECORD_SET_GENERATION_EXECUTION_PROPERTIES,
+    ROW_ID_FILTER,
+    ROW_IS_VALID_FILTER,
+    ROW_SELECTION_FILTER,
+    ROW_VALIDATION_RESULT_FILTER,
+    SAMPLE_SHEET_GENERATION_EXECUTION_DETAILS,
+    SAMPLE_SHEET_GENERATION_EXECUTION_PROPERTIES,
+    SELECT_ALL,
+    SELECT_BY_NAME,
+    SELECT_SELECTION,
     SYNCHRONIZE_GRID_REQUEST,
     UPLOAD_TO_TABLE_PREVIEW_REQUEST,
 )
 from synapseclient.core.download.download_functions import download_from_url
+from synapseclient.core.exceptions import SynapseError
 from synapseclient.core.upload.upload_functions_async import upload_synapse_s3
 from synapseclient.core.utils import (
     coerce_enum_list,
@@ -66,7 +86,10 @@ from synapseclient.core.utils import (
     merge_dataclass_entities,
 )
 from synapseclient.models.mixins.asynchronous_job import AsynchronousCommunicator
-from synapseclient.models.mixins.enum_coercion import EnumCoercionMixin
+from synapseclient.models.mixins.enum_coercion import (
+    EnumCoercionMixin,
+    ForwardCompatibleStrEnum,
+)
 from synapseclient.models.recordset import ValidationSummary
 from synapseclient.models.table_components import Column, CsvTableDescriptor, Query
 
@@ -84,6 +107,12 @@ class TaskState(str, Enum):
     IN_PROGRESS = "IN_PROGRESS"
     """The assignee has actively started the task."""
 
+    EXECUTING = "EXECUTING"
+    """An automated execution (async job) is currently running for this task."""
+
+    IN_REVIEW = "IN_REVIEW"
+    """The automated execution completed successfully and the results are pending human review."""
+
     COMPLETED = "COMPLETED"
     """The task has been completed and verified."""
 
@@ -91,8 +120,97 @@ class TaskState(str, Enum):
     """The task has been canceled and is no longer needed."""
 
 
+class AuthorizationMode(str, Enum):
+    """
+    The authorization mode a client should use when creating a linked grid session
+    for a CurationTask.
+
+    See <https://rest-docs.synapse.org/rest/org/sagebionetworks/repo/model/grid/AuthorizationMode.html>.
+    """
+
+    SESSION_OWNER = "SESSION_OWNER"
+    """Access is limited to the session owner or members of the owner's team. This is
+    the default setting. When a view serves as the source, the owner can access all
+    available rows, while other team members see data according to the owner's
+    permission scope."""
+
+    SOURCE_BENEFACTOR = "SOURCE_BENEFACTOR"
+    """Access is granted to any user who has EDIT (UPDATE) access on all benefactor IDs
+    captured when the session was created. This mode allows project administrators to
+    enable collaborative grid access for all editors without maintaining a separate
+    ownership team. User visibility of rows depends on their individual permissions."""
+
+
+class SyncType(ForwardCompatibleStrEnum):
+    """
+    The type of synchronization to perform on a grid session.
+
+    See <https://rest-docs.synapse.org/rest/org/sagebionetworks/repo/model/grid/SyncType.html>.
+    """
+
+    PULL = "PULL"
+    """Update the grid with the latest data from the source, without writing the
+    grid back to the source. Currently only supported for RecordSet-based grids."""
+
+    PULL_PUSH = "PULL_PUSH"
+    """Update the grid with the latest data from the source, then update the source
+    (the referenced entities for EntityView-based grids, or the source RecordSet for
+    RecordSet-based grids) with the grid data. This is the default when sync_type is
+    not specified."""
+
+
 @dataclass
-class FileBasedMetadataTaskProperties:
+class CurationTaskProperties(ABC):
+    """
+    Base class for the properties of a CurationTask, describing what is being curated
+    and where the curated data lives.
+
+    <https://rest-docs.synapse.org/rest/org/sagebionetworks/repo/model/curation/CurationTaskProperties.html>
+
+    The concrete subclass is determined by the concreteType field in the REST response.
+
+    This class is abstract and cannot be instantiated: it does not define a
+    concreteType. Construct one of its subclasses instead, matching the kind of work
+    the task describes: FileBasedMetadataTaskProperties,
+    RecordBasedMetadataTaskProperties, SampleSheetGenerationExecutionProperties or
+    RecordSetGenerationExecutionProperties. Use this class for isinstance checks or
+    type hints when the kind of properties does not matter.
+    """
+
+    @property
+    @abstractmethod
+    def concrete_type(self) -> str:
+        """The concreteType of this implementation of CurationTaskProperties."""
+        ...
+
+    @abstractmethod
+    def fill_from_dict(
+        self, synapse_response: dict[str, Any]
+    ) -> "CurationTaskProperties":
+        """
+        Converts a response from the REST API into this dataclass.
+
+        Arguments:
+            synapse_response: The response from the REST API.
+
+        Returns:
+            The CurationTaskProperties object.
+        """
+        ...
+
+    @abstractmethod
+    def to_synapse_request(self) -> dict[str, Any]:
+        """
+        Converts this dataclass to a dictionary suitable for a Synapse REST API request.
+
+        Returns:
+            A dictionary representation of this object for API requests.
+        """
+        ...
+
+
+@dataclass
+class FileBasedMetadataTaskProperties(CurationTaskProperties, EnumCoercionMixin):
     """
     A CurationTaskProperties for file-based data, describing where data is uploaded
     and a view which contains the annotations.
@@ -102,16 +220,55 @@ class FileBasedMetadataTaskProperties:
     Attributes:
         upload_folder_id: The synId of the folder where data files of this type are to be uploaded
         file_view_id: The synId of the FileView that shows all data of this type
+        suggested_authorization_mode: Recommends who is allowed to access the curation
+            grid session that a client opens for this task. The value is stored on the
+            task as a suggestion; the client applies it when it creates a new session.
+            Choose from SESSION_OWNER (only the person or team who owns the session can
+            access it) or SOURCE_BENEFACTOR (anyone with EDIT permission on the data being
+            curated can access the session). When omitted (None, the default), no
+            recommendation is stored and clients fall back to their usual behavior.
+        collaborator_principal_ids: Not actively used at this time. The set of principal
+            IDs that should collaborate on the grid session. Used to set the owner(s) of a
+            linked GridSession when suggested_authorization_mode is SESSION_OWNER.
     """
 
-    upload_folder_id: Optional[str] = None
+    _ENUM_FIELDS: ClassVar[dict[str, type]] = {
+        "suggested_authorization_mode": AuthorizationMode
+    }
+
+    upload_folder_id: str | None = None
     """The synId of the folder where data files of this type are to be uploaded"""
 
-    file_view_id: Optional[str] = None
+    file_view_id: str | None = None
     """The synId of the FileView that shows all data of this type"""
 
+    suggested_authorization_mode: AuthorizationMode | str | None = None
+    """Recommends who is allowed to access the curation
+        grid session that a client opens for this task. The value is stored on the
+        task as a suggestion; the client applies it when it creates a new session.
+        Choose from:
+        - SESSION_OWNER: only the person or team who owns the session can access it.
+        - SOURCE_BENEFACTOR: anyone with EDIT permission on the
+            data being curated can access the session. This lets editors collaborate
+            in the same session without being added to a shared ownership team.
+        When omitted (None, the default), no recommendation is stored and clients
+        fall back to their usual behavior of finding or creating a private session
+        for the current user. Changing this value after the task already exists
+        resets the task's active session, so a new grid session must be opened
+        before curation can continue."""
+
+    collaborator_principal_ids: list[str] | None = None
+    """Not actively used at this time.
+    The set of principal IDs that should collaborate on the grid session. Used to set
+    the owner(s) of a linked GridSession when suggested_authorization_mode is SESSION_OWNER"""
+
+    @property
+    def concrete_type(self) -> str:
+        """The concreteType of a FileBasedMetadataTaskProperties."""
+        return FILE_BASED_METADATA_TASK_PROPERTIES
+
     def fill_from_dict(
-        self, synapse_response: Union[Dict[str, Any], Any]
+        self, synapse_response: dict[str, Any]
     ) -> "FileBasedMetadataTaskProperties":
         """
         Converts a response from the REST API into this dataclass.
@@ -124,25 +281,38 @@ class FileBasedMetadataTaskProperties:
         """
         self.upload_folder_id = synapse_response.get("uploadFolderId", None)
         self.file_view_id = synapse_response.get("fileViewId", None)
+        self.suggested_authorization_mode = synapse_response.get(
+            "suggestedAuthorizationMode", None
+        )
+        self.collaborator_principal_ids = synapse_response.get(
+            "collaboratorPrincipalIds", None
+        )
         return self
 
-    def to_synapse_request(self) -> Dict[str, Any]:
+    def to_synapse_request(self) -> dict[str, Any]:
         """
         Converts this dataclass to a dictionary suitable for a Synapse REST API request.
 
         Returns:
             A dictionary representation of this object for API requests.
         """
-        request_dict = {"concreteType": FILE_BASED_METADATA_TASK_PROPERTIES}
-        if self.upload_folder_id is not None:
-            request_dict["uploadFolderId"] = self.upload_folder_id
-        if self.file_view_id is not None:
-            request_dict["fileViewId"] = self.file_view_id
+        request_dict = {
+            "concreteType": self.concrete_type,
+            "uploadFolderId": self.upload_folder_id,
+            "fileViewId": self.file_view_id,
+            "suggestedAuthorizationMode": (
+                self.suggested_authorization_mode.value
+                if self.suggested_authorization_mode is not None
+                else None
+            ),
+            "collaboratorPrincipalIds": self.collaborator_principal_ids,
+        }
+        delete_none_keys(request_dict)
         return request_dict
 
 
 @dataclass
-class RecordBasedMetadataTaskProperties:
+class RecordBasedMetadataTaskProperties(CurationTaskProperties, EnumCoercionMixin):
     """
     A CurationTaskProperties for record-based metadata.
 
@@ -150,13 +320,52 @@ class RecordBasedMetadataTaskProperties:
 
     Attributes:
         record_set_id: The synId of the RecordSet that will contain all record-based metadata
+        suggested_authorization_mode: Recommends who is allowed to access the curation
+            grid session that a client opens for this task. The value is stored on the
+            task as a suggestion; the client applies it when it creates a new session.
+            Choose from SESSION_OWNER (only the person or team who owns the session can
+            access it) or SOURCE_BENEFACTOR (anyone with EDIT permission on the data being
+            curated can access the session). When omitted (None, the default), no
+            recommendation is stored and clients fall back to their usual behavior.
+        collaborator_principal_ids: Not actively used at this time. The set of principal
+            IDs that should collaborate on the grid session. Used to set the owner(s) of a
+            linked GridSession when suggested_authorization_mode is SESSION_OWNER.
     """
 
-    record_set_id: Optional[str] = None
+    _ENUM_FIELDS: ClassVar[dict[str, type]] = {
+        "suggested_authorization_mode": AuthorizationMode
+    }
+
+    record_set_id: str | None = None
     """The synId of the RecordSet that will contain all record-based metadata"""
 
+    suggested_authorization_mode: AuthorizationMode | str | None = None
+    """Recommends who is allowed to access the curation
+        grid session that a client opens for this task. The value is stored on the
+        task as a suggestion; the client applies it when it creates a new session.
+        Choose from:
+        - SESSION_OWNER: only the person or team who owns the session can access it.
+        - SOURCE_BENEFACTOR: anyone with EDIT permission on the
+            data being curated can access the session. This lets editors collaborate
+            in the same session without being added to a shared ownership team.
+        When omitted (None, the default), no recommendation is stored and clients
+        fall back to their usual behavior of finding or creating a private session
+        for the current user. Changing this value after the task already exists
+        resets the task's active session, so a new grid session must be opened
+        before curation can continue."""
+
+    collaborator_principal_ids: list[str] | None = None
+    """Not actively used at this time.
+    The set of principal IDs that should collaborate on the grid session. Used to set
+    the owner(s) of a linked GridSession when suggested_authorization_mode is SESSION_OWNER"""
+
+    @property
+    def concrete_type(self) -> str:
+        """The concreteType of a RecordBasedMetadataTaskProperties."""
+        return RECORD_BASED_METADATA_TASK_PROPERTIES
+
     def fill_from_dict(
-        self, synapse_response: Union[Dict[str, Any], Any]
+        self, synapse_response: dict[str, Any]
     ) -> "RecordBasedMetadataTaskProperties":
         """
         Converts a response from the REST API into this dataclass.
@@ -168,44 +377,282 @@ class RecordBasedMetadataTaskProperties:
             The RecordBasedMetadataTaskProperties object.
         """
         self.record_set_id = synapse_response.get("recordSetId", None)
+        self.suggested_authorization_mode = synapse_response.get(
+            "suggestedAuthorizationMode", None
+        )
+        self.collaborator_principal_ids = synapse_response.get(
+            "collaboratorPrincipalIds", None
+        )
         return self
 
-    def to_synapse_request(self) -> Dict[str, Any]:
+    def to_synapse_request(self) -> dict[str, Any]:
         """
         Converts this dataclass to a dictionary suitable for a Synapse REST API request.
 
         Returns:
             A dictionary representation of this object for API requests.
         """
-        request_dict = {"concreteType": RECORD_BASED_METADATA_TASK_PROPERTIES}
-        if self.record_set_id is not None:
-            request_dict["recordSetId"] = self.record_set_id
+        request_dict = {
+            "concreteType": self.concrete_type,
+            "recordSetId": self.record_set_id,
+            "suggestedAuthorizationMode": (
+                self.suggested_authorization_mode.value
+                if self.suggested_authorization_mode is not None
+                else None
+            ),
+            "collaboratorPrincipalIds": self.collaborator_principal_ids,
+        }
+        delete_none_keys(request_dict)
         return request_dict
 
 
-def _create_task_properties_from_dict(
-    properties_dict: Dict[str, Any],
-) -> Union[FileBasedMetadataTaskProperties, RecordBasedMetadataTaskProperties]:
+@dataclass
+class SampleSheetGenerationExecutionProperties(CurationTaskProperties):
     """
-    Factory method to create the appropriate FileBasedMetadataTaskProperties/RecordBasedMetadataTaskProperties
+    A CurationTaskProperties for a task that generates a sample sheet from the
+    annotations of an existing file-based curation task.
+
+    Represents a [Synapse SampleSheetGenerationExecutionProperties](https://rest-docs.synapse.org/rest/org/sagebionetworks/repo/model/curation/execution/SampleSheetGenerationExecutionProperties.html).
+
+    Attributes:
+        input_task_id: The ID of the file-based CurationTask (with
+            FileBasedMetadataTaskProperties) whose FileView provides the source
+            annotations.
+        destination_task_id: The ID of the record-based CurationTask whose RecordSet
+            will receive the generated sample sheet as a new version. The JSON Schema
+            bound to that RecordSet establishes the target sample sheet format.
+    """
+
+    input_task_id: int | None = None
+    """The ID of the file-based CurationTask (with FileBasedMetadataTaskProperties)
+    whose FileView provides the source annotations."""
+
+    destination_task_id: int | None = None
+    """The ID of the record-based CurationTask whose RecordSet will receive the
+    generated sample sheet as a new version. The JSON Schema bound to that RecordSet
+    establishes the target sample sheet format."""
+
+    @property
+    def concrete_type(self) -> str:
+        """The concreteType of a SampleSheetGenerationExecutionProperties."""
+        return SAMPLE_SHEET_GENERATION_EXECUTION_PROPERTIES
+
+    def fill_from_dict(
+        self, synapse_response: dict[str, Any]
+    ) -> "SampleSheetGenerationExecutionProperties":
+        """
+        Converts a response from the REST API into this dataclass.
+
+        Arguments:
+            synapse_response: The response from the REST API.
+
+        Returns:
+            The SampleSheetGenerationExecutionProperties object.
+        """
+        input_task_id = synapse_response.get("inputTaskId", None)
+        self.input_task_id = int(input_task_id) if input_task_id is not None else None
+        destination_task_id = synapse_response.get("destinationTaskId", None)
+        self.destination_task_id = (
+            int(destination_task_id) if destination_task_id is not None else None
+        )
+        return self
+
+    def to_synapse_request(self) -> dict[str, Any]:
+        """
+        Converts this dataclass to a dictionary suitable for a Synapse REST API request.
+
+        Returns:
+            A dictionary representation of this object for API requests.
+        """
+        request_dict = {
+            "concreteType": self.concrete_type,
+            "inputTaskId": self.input_task_id,
+            "destinationTaskId": self.destination_task_id,
+        }
+        delete_none_keys(request_dict)
+        return request_dict
+
+
+@dataclass
+class RecordSetGenerationExecutionProperties(CurationTaskProperties):
+    """
+    A CurationTaskProperties for a task that transforms source files in a folder into
+    a CSV that is written to the RecordSet of another curation task.
+
+    Represents a [Synapse RecordSetGenerationExecutionProperties](https://rest-docs.synapse.org/rest/org/sagebionetworks/repo/model/curation/execution/RecordSetGenerationExecutionProperties.html).
+
+    Attributes:
+        folder_id: The synId of a Folder providing the source FileEntities for the
+            transformation. Limited to 20 direct-child files, each under 100 MB and in
+            PDF, CSV, TXT, or JSON format.
+        instructions: Free-text instructions from the data manager describing how the
+            input files should be transformed to produce the output CSV.
+        destination_task_id: The ID of the record-based CurationTask whose RecordSet
+            will receive the generated CSV output as a new version.
+    """
+
+    folder_id: str | None = None
+    """The synId of a Folder providing the source FileEntities for the transformation.
+    Limited to 20 direct-child files, each under 100 MB and in PDF, CSV, TXT, or JSON
+    format."""
+
+    instructions: str | None = None
+    """Free-text instructions from the data manager describing how the input files
+    should be transformed to produce the output CSV."""
+
+    destination_task_id: int | None = None
+    """The ID of the record-based CurationTask whose RecordSet will receive the
+    generated CSV output as a new version."""
+
+    @property
+    def concrete_type(self) -> str:
+        """The concreteType of a RecordSetGenerationExecutionProperties."""
+        return RECORD_SET_GENERATION_EXECUTION_PROPERTIES
+
+    def fill_from_dict(
+        self, synapse_response: dict[str, Any]
+    ) -> "RecordSetGenerationExecutionProperties":
+        """
+        Converts a response from the REST API into this dataclass.
+
+        Arguments:
+            synapse_response: The response from the REST API.
+
+        Returns:
+            The RecordSetGenerationExecutionProperties object.
+        """
+        self.folder_id = synapse_response.get("folderId", None)
+        self.instructions = synapse_response.get("instructions", None)
+        destination_task_id = synapse_response.get("destinationTaskId", None)
+        self.destination_task_id = (
+            int(destination_task_id) if destination_task_id is not None else None
+        )
+        return self
+
+    def to_synapse_request(self) -> dict[str, Any]:
+        """
+        Converts this dataclass to a dictionary suitable for a Synapse REST API request.
+
+        Returns:
+            A dictionary representation of this object for API requests.
+        """
+        request_dict = {
+            "concreteType": self.concrete_type,
+            "folderId": self.folder_id,
+            "instructions": self.instructions,
+            "destinationTaskId": self.destination_task_id,
+        }
+        delete_none_keys(request_dict)
+        return request_dict
+
+
+@dataclass
+class UnknownCurationTaskProperties(CurationTaskProperties):
+    """
+    Curation task properties whose concreteType this version of the client does not
+    recognize. Produced when Synapse returns a CurationTaskProperties subtype that was
+    added after this client was released.
+
+    The whole response is kept in raw_properties and the concreteType Synapse sent is
+    exposed as a read-only property over it, so a task carrying properties this client
+    cannot model can still be read, listed and stored without losing them. The
+    properties are read-only because there is nothing useful to write: properties this
+    client does not model cannot be constructed correctly, only reported back as they
+    arrived. To edit them, upgrade synapseclient to a version that models this
+    concreteType.
+
+    A task carrying these properties cannot be used with
+    [CurationTask.create_grid_session][synapseclient.models.CurationTask.create_grid_session]
+    or with delete_source on
+    [CurationTask.delete][synapseclient.models.CurationTask.delete], since this client
+    cannot tell where the curated data lives.
+
+    Attributes:
+        raw_properties: The unmodified taskProperties from the response.
+    """
+
+    raw_properties: dict[str, Any] = field(default_factory=dict)
+    """The unmodified taskProperties from the response."""
+
+    @property
+    def concrete_type(self) -> str:
+        """The concreteType that Synapse reported for these properties."""
+        return self.raw_properties.get("concreteType", "")
+
+    def fill_from_dict(
+        self, synapse_response: dict[str, Any]
+    ) -> "UnknownCurationTaskProperties":
+        """
+        Converts a response from the REST API into this dataclass.
+
+        Arguments:
+            synapse_response: The response from the REST API.
+
+        Returns:
+            The UnknownCurationTaskProperties object.
+        """
+        self.raw_properties = deepcopy(synapse_response)
+        return self
+
+    def to_synapse_request(self) -> dict[str, Any]:
+        """
+        Converts this dataclass to a dictionary suitable for a Synapse REST API request.
+
+        Returns the properties exactly as Synapse sent them, so that storing a task
+        this client cannot fully model does not drop the fields it does not know about.
+
+        Returns:
+            A dictionary representation of this object for API requests.
+
+        Raises:
+            ValueError: If these properties carry no concreteType for the server to
+                dispatch on, either because they were never populated from a Synapse
+                response or because the response did not name one.
+        """
+        if not self.concrete_type:
+            raise ValueError(
+                "UnknownCurationTaskProperties can only be serialized after being "
+                "populated from a Synapse response carrying a concreteType. To "
+                "attach properties to a task, construct the type matching the work "
+                "it describes, such as FileBasedMetadataTaskProperties or "
+                "RecordBasedMetadataTaskProperties."
+            )
+        return deepcopy(self.raw_properties)
+
+
+TASK_PROPERTIES_DICT: dict[str, type[CurationTaskProperties]] = {
+    FILE_BASED_METADATA_TASK_PROPERTIES: FileBasedMetadataTaskProperties,
+    RECORD_BASED_METADATA_TASK_PROPERTIES: RecordBasedMetadataTaskProperties,
+    SAMPLE_SHEET_GENERATION_EXECUTION_PROPERTIES: SampleSheetGenerationExecutionProperties,
+    RECORD_SET_GENERATION_EXECUTION_PROPERTIES: RecordSetGenerationExecutionProperties,
+}
+
+
+def _create_task_properties_from_dict(
+    properties_dict: dict[str, Any],
+) -> CurationTaskProperties:
+    """
+    Factory method to create the appropriate CurationTaskProperties implementation
     based on the concreteType.
+
+    An unrecognized concreteType is not an error. Refusing to parse it would make every
+    other field of the task unreadable, including for callers that only want to list
+    tasks or read their state. The properties are returned as
+    UnknownCurationTaskProperties, which reports the concreteType Synapse sent and
+    round-trips the response unchanged.
 
     Arguments:
         properties_dict: Dictionary containing task properties data
 
     Returns:
-        The appropriate FileBasedMetadataTaskProperties/RecordBasedMetadataTaskProperties instance
+        The appropriate CurationTaskProperties instance
     """
     concrete_type = properties_dict.get("concreteType", "")
 
-    if concrete_type == FILE_BASED_METADATA_TASK_PROPERTIES:
-        return FileBasedMetadataTaskProperties().fill_from_dict(properties_dict)
-    elif concrete_type == RECORD_BASED_METADATA_TASK_PROPERTIES:
-        return RecordBasedMetadataTaskProperties().fill_from_dict(properties_dict)
-    else:
-        raise ValueError(
-            f"Unknown concreteType for CurationTaskProperties: {concrete_type}"
-        )
+    properties_class = TASK_PROPERTIES_DICT.get(
+        concrete_type, UnknownCurationTaskProperties
+    )
+    return properties_class().fill_from_dict(properties_dict)
 
 
 @dataclass
@@ -217,6 +664,12 @@ class TaskExecutionDetails(ABC):
 
     The concrete subclass is determined by the concreteType field in the REST response.
     """
+
+    @property
+    @abstractmethod
+    def concrete_type(self) -> str:
+        """The concreteType of this implementation of TaskExecutionDetails."""
+        ...
 
     @abstractmethod
     def fill_from_dict(
@@ -258,6 +711,11 @@ class GridExecutionDetails(TaskExecutionDetails):
     active_session_id: str | None = None
     """The unique identifier of the active CRDT grid session linked to this task."""
 
+    @property
+    def concrete_type(self) -> str:
+        """The concreteType of a GridExecutionDetails."""
+        return GRID_EXECUTION_DETAILS
+
     def fill_from_dict(
         self, synapse_response: dict[str, Any]
     ) -> "GridExecutionDetails":
@@ -280,15 +738,279 @@ class GridExecutionDetails(TaskExecutionDetails):
         Returns:
             A dictionary representation of this object for API requests.
         """
-        request_dict: dict[str, Any] = {"concreteType": GRID_EXECUTION_DETAILS}
+        request_dict: dict[str, Any] = {"concreteType": self.concrete_type}
         if self.active_session_id is not None:
             request_dict["activeSessionId"] = self.active_session_id
         return request_dict
 
 
+@dataclass
+class ExecutableTaskExecutionDetails(TaskExecutionDetails):
+    """
+    Base class for the execution details of a CurationTask that supports automated
+    execution by a sub-worker. The concrete type determines which sub-worker handles
+    the execution.
+
+    <https://rest-docs.synapse.org/rest/org/sagebionetworks/repo/model/curation/execution/ExecutableTaskExecutionDetails.html>
+
+    A CurationTask must have execution details of this kind for
+    [CurationTask.execute][synapseclient.models.CurationTask.execute] to run.
+
+    This class is abstract and cannot be instantiated: it does not define a
+    concreteType. Construct one of its subclasses instead, matching the kind of
+    computation the task's properties describe:
+    SampleSheetGenerationExecutionDetails or RecordSetGenerationExecutionDetails.
+    Use this class for isinstance checks when you need to know whether a task's
+    execution details support automated execution, regardless of their kind. Details
+    whose concreteType this client does not recognize are deliberately excluded from
+    this class, since an unrecognized type may not be executable.
+
+    Attributes:
+        async_job_id: The ID of the async job currently executing this task. Set when
+            execution starts; cleared on completion or failure.
+        started_by: The principal ID of the user who started the execution.
+        started_on: When the execution was started.
+        error_message: If execution failed, the error description.
+        error_details: If execution failed, additional error details.
+    """
+
+    async_job_id: str | None = None
+    """The ID of the async job currently executing this task. Set when execution
+    starts; cleared on completion or failure."""
+
+    started_by: str | None = None
+    """The principal ID of the user who started the execution."""
+
+    started_on: str | None = None
+    """When the execution was started."""
+
+    error_message: str | None = None
+    """If execution failed, the error description."""
+
+    error_details: str | None = None
+    """If execution failed, additional error details."""
+
+    def fill_from_dict(
+        self, synapse_response: dict[str, Any]
+    ) -> "ExecutableTaskExecutionDetails":
+        """
+        Converts a response from the REST API into this dataclass.
+
+        Arguments:
+            synapse_response: The response from the REST API.
+
+        Returns:
+            The ExecutableTaskExecutionDetails object.
+        """
+        self.async_job_id = synapse_response.get("asyncJobId", None)
+        self.started_by = synapse_response.get("startedBy", None)
+        self.started_on = synapse_response.get("startedOn", None)
+        self.error_message = synapse_response.get("errorMessage", None)
+        self.error_details = synapse_response.get("errorDetails", None)
+        return self
+
+    def to_synapse_request(self) -> dict[str, Any]:
+        """
+        Converts this dataclass to a dictionary suitable for a Synapse REST API request.
+
+        Every field that is set is sent. The Synapse status endpoint replaces
+        executionDetails wholesale rather than merging, so omitting a field that the
+        server has populated deletes it. Details constructed empty, as they are when
+        making a task executable, still serialize to just the concreteType because
+        every other field is None.
+
+        Returns:
+            A dictionary representation of this object for API requests.
+        """
+        request_dict: dict[str, Any] = {
+            "concreteType": self.concrete_type,
+            "asyncJobId": self.async_job_id,
+            "startedBy": self.started_by,
+            "startedOn": self.started_on,
+            "errorMessage": self.error_message,
+            "errorDetails": self.error_details,
+        }
+        delete_none_keys(request_dict)
+        return request_dict
+
+
+@dataclass
+class SampleSheetGenerationExecutionDetails(ExecutableTaskExecutionDetails):
+    """
+    Execution details for a curation task that generates a sample sheet. Used with
+    the task's SampleSheetGenerationExecutionProperties.
+
+    <https://rest-docs.synapse.org/rest/org/sagebionetworks/repo/model/curation/execution/SampleSheetGenerationExecutionDetails.html>
+
+    Attributes:
+        async_job_id: The ID of the async job currently executing this task. Set when
+            execution starts; cleared on completion or failure.
+        started_by: The principal ID of the user who started the execution.
+        started_on: When the execution was started.
+        error_message: If execution failed, the error description.
+        error_details: If execution failed, additional error details.
+    """
+
+    @property
+    def concrete_type(self) -> str:
+        """The concreteType of a SampleSheetGenerationExecutionDetails."""
+        return SAMPLE_SHEET_GENERATION_EXECUTION_DETAILS
+
+
+@dataclass
+class RecordSetGenerationExecutionDetails(ExecutableTaskExecutionDetails):
+    """
+    Execution details for a curation task that generates a RecordSet from source
+    files. Used with the task's RecordSetGenerationExecutionProperties.
+
+    <https://rest-docs.synapse.org/rest/org/sagebionetworks/repo/model/curation/execution/RecordSetGenerationExecutionDetails.html>
+
+    Attributes:
+        async_job_id: The ID of the async job currently executing this task. Set when
+            execution starts; cleared on completion or failure.
+        started_by: The principal ID of the user who started the execution.
+        started_on: When the execution was started.
+        error_message: If execution failed, the error description.
+        error_details: If execution failed, additional error details.
+    """
+
+    @property
+    def concrete_type(self) -> str:
+        """The concreteType of a RecordSetGenerationExecutionDetails."""
+        return RECORD_SET_GENERATION_EXECUTION_DETAILS
+
+
+@dataclass
+class UnknownTaskExecutionDetails(TaskExecutionDetails):
+    """
+    Execution details whose concreteType this version of the client does not
+    recognize. Produced when Synapse returns a TaskExecutionDetails subtype that was
+    added after this client was released.
+
+    The whole response is kept in raw_details, and the fields common to every
+    execution details type are exposed as read-only properties over it, so the outcome
+    of a run, including its error message, can still be read. Serializing these
+    details back to Synapse therefore does not lose the fields this client cannot
+    model. The properties are read-only because there is nothing useful to write: an
+    execution detail this client does not model cannot be constructed correctly, only
+    reported back as it arrived.
+
+    These details are not an ExecutableTaskExecutionDetails. Not every
+    TaskExecutionDetails subtype supports automated execution (GridExecutionDetails
+    does not), so an unrecognized concreteType cannot be assumed to be executable.
+    A task carrying these details may or may not be accepted by
+    [CurationTask.execute][synapseclient.models.CurationTask.execute]; upgrade
+    synapseclient to find out locally rather than from the server.
+
+    Attributes:
+        raw_details: The unmodified executionDetails from the response.
+    """
+
+    raw_details: dict[str, Any] = field(default_factory=dict)
+    """The unmodified executionDetails from the response."""
+
+    @property
+    def concrete_type(self) -> str:
+        """The concreteType that Synapse reported for these details."""
+        return self.raw_details.get("concreteType", "")
+
+    @property
+    def async_job_id(self) -> str | None:
+        """The ID of the async job that was executing this task."""
+        return self.raw_details.get("asyncJobId", None)
+
+    @property
+    def started_by(self) -> str | None:
+        """The principal ID of the user who started the execution."""
+        return self.raw_details.get("startedBy", None)
+
+    @property
+    def started_on(self) -> str | None:
+        """When the execution was started."""
+        return self.raw_details.get("startedOn", None)
+
+    @property
+    def error_message(self) -> str | None:
+        """If execution failed, the error description."""
+        return self.raw_details.get("errorMessage", None)
+
+    @property
+    def error_details(self) -> str | None:
+        """If execution failed, additional error details."""
+        return self.raw_details.get("errorDetails", None)
+
+    def fill_from_dict(
+        self, synapse_response: dict[str, Any]
+    ) -> "UnknownTaskExecutionDetails":
+        """
+        Converts a response from the REST API into this dataclass.
+
+        Arguments:
+            synapse_response: The response from the REST API.
+
+        Returns:
+            The UnknownTaskExecutionDetails object.
+        """
+        self.raw_details = deepcopy(synapse_response)
+        return self
+
+    def to_synapse_request(self) -> dict[str, Any]:
+        """
+        Converts this dataclass to a dictionary suitable for a Synapse REST API request.
+
+        Returns the details exactly as Synapse sent them. The status endpoint replaces
+        executionDetails rather than merging, so a read-modify-write that dropped the
+        fields this client does not model would delete them server-side.
+
+        Returns:
+            A dictionary representation of this object for API requests.
+
+        Raises:
+            ValueError: If these details carry no concreteType for the server to
+                dispatch on, either because they were never populated from a Synapse
+                response or because the response did not name one.
+        """
+        if not self.concrete_type:
+            raise ValueError(
+                "UnknownTaskExecutionDetails can only be serialized after being "
+                "populated from a Synapse response carrying a concreteType. To attach "
+                "execution details to a task, construct the type matching its "
+                "properties, such as SampleSheetGenerationExecutionDetails or "
+                "RecordSetGenerationExecutionDetails."
+            )
+        return deepcopy(self.raw_details)
+
+
 TASK_EXECUTION_DETAILS_DICT: dict[str, type[TaskExecutionDetails]] = {
     GRID_EXECUTION_DETAILS: GridExecutionDetails,
+    SAMPLE_SHEET_GENERATION_EXECUTION_DETAILS: SampleSheetGenerationExecutionDetails,
+    RECORD_SET_GENERATION_EXECUTION_DETAILS: RecordSetGenerationExecutionDetails,
 }
+
+
+def _create_task_execution_details_from_dict(
+    details_dict: dict[str, Any],
+) -> TaskExecutionDetails:
+    """
+    Factory method to create the appropriate TaskExecutionDetails implementation
+    based on the concreteType.
+
+    An unrecognized concreteType is not an error. Execution details are a read-only
+    report about work that Synapse has already done, so refusing to parse them would
+    discard the result of a completed job. The details are returned as
+    UnknownTaskExecutionDetails, which reports the concreteType Synapse sent.
+
+    Arguments:
+        details_dict: Dictionary containing task execution details data
+
+    Returns:
+        The appropriate TaskExecutionDetails instance
+    """
+    concrete_type = details_dict.get("concreteType", "")
+    task_execution_details = TASK_EXECUTION_DETAILS_DICT.get(
+        concrete_type, UnknownTaskExecutionDetails
+    )
+    return task_execution_details().fill_from_dict(details_dict)
 
 
 @dataclass
@@ -347,16 +1069,11 @@ class CurationTaskStatus(EnumCoercionMixin):
         self.etag = synapse_response.get("etag")
 
         details_dict: dict[str, Any] | None = synapse_response.get("executionDetails")
-        if details_dict is None:
-            self.execution_details = None
-        else:
-            concrete_type = details_dict.get("concreteType", "")
-            cls = TASK_EXECUTION_DETAILS_DICT.get(concrete_type)
-            if cls is None:
-                raise ValueError(
-                    f"Unknown concreteType for TaskExecutionDetails: {concrete_type}"
-                )
-            self.execution_details = cls().fill_from_dict(details_dict)
+        self.execution_details = (
+            None
+            if details_dict is None
+            else _create_task_execution_details_from_dict(details_dict)
+        )
         return self
 
     def to_synapse_request(self) -> dict[str, Any]:
@@ -554,6 +1271,60 @@ class CurationTaskSynchronousProtocol(Protocol):
         """
         return CurationTaskStatus()
 
+    def set_execution_details(
+        self,
+        *,
+        execution_details: "TaskExecutionDetails",
+        synapse_client: Synapse | None = None,
+    ) -> "CurationTaskStatus":
+        """
+        Replace the execution details on this CurationTask's status.
+
+        Fetches the current CurationTaskStatus first so the update carries a fresh
+        etag, then writes back the given execution details. Does not transition the
+        task state.
+
+        A compute task needs this before it can run: a newly created task has no
+        execution details, and Synapse will not dispatch one without details that
+        support automated execution. Pass empty details of the type matching the
+        task's properties, such as SampleSheetGenerationExecutionDetails or
+        RecordSetGenerationExecutionDetails, and Synapse populates their fields as
+        the job runs.
+
+        Arguments:
+            execution_details: The execution details to attach to this task's status.
+            synapse_client: If not passed in and caching was not disabled by
+                Synapse.allow_client_caching(False) this will use the last created
+                instance from the Synapse class constructor.
+
+        Returns:
+            The updated CurationTaskStatus object.
+
+        Raises:
+            ValueError: If the CurationTask object does not have a task_id.
+
+        Example: Make a compute task executable
+            &nbsp;
+
+            ```python
+            from synapseclient import Synapse
+            from synapseclient.models import (
+                CurationTask,
+                RecordSetGenerationExecutionDetails,
+            )
+
+            syn = Synapse()
+            syn.login()
+
+            task = CurationTask(task_id=123)
+            task.set_execution_details(
+                execution_details=RecordSetGenerationExecutionDetails()
+            )
+            task.execute()
+            ```
+        """
+        return CurationTaskStatus()
+
     def set_task_state(
         self,
         state: "TaskState | str",
@@ -630,6 +1401,15 @@ class CurationTaskSynchronousProtocol(Protocol):
         Always creates a new Grid session. To attach an existing session to a task,
         use set_active_grid_session instead.
 
+        The new session is created with the task's suggested_authorization_mode
+        (from task_properties), which the server uses to determine access:
+
+        - SESSION_OWNER: access is limited to the session owner (owner_principal_id,
+          or the caller when not provided) and their team.
+        - SOURCE_BENEFACTOR: access is inherited from the benefactor of the source
+          entity (anyone with EDIT rights).
+        - Unset (legacy): the caller becomes the owner.
+
         After the Grid is created, updates the CurationTaskStatus to point its
         active_session_id at the new session. If that update fails for any reason,
         the newly created Grid is deleted on a best-effort basis and the original
@@ -668,6 +1448,150 @@ class CurationTaskSynchronousProtocol(Protocol):
         """
         return Grid()
 
+    def execute(
+        self,
+        *,
+        timeout: int = 120,
+        synapse_client: Synapse | None = None,
+    ) -> "TaskExecutionDetails":
+        """
+        Run the automated computation for this CurationTask and wait for it to finish.
+
+        The task must be in the NOT_STARTED state and its status must carry execution
+        details that support automated execution, such as
+        SampleSheetGenerationExecutionDetails or RecordSetGenerationExecutionDetails.
+        The computation itself is described by the task's task_properties, either
+        SampleSheetGenerationExecutionProperties or
+        RecordSetGenerationExecutionProperties.
+
+        A newly created task has no execution details, and Synapse will not dispatch
+        it until they are set. Attach empty details of the matching type with
+        set_execution_details once, before the first run:
+
+            task.set_execution_details(
+                execution_details=RecordSetGenerationExecutionDetails()
+            )
+
+        The caller must be the assignee of the task or have UPDATE access on the
+        task's project.
+
+        Arguments:
+            timeout: Seconds to wait for the execution job to complete or progress
+                before raising a SynapseTimeoutError. Defaults to 120.
+            synapse_client: If not passed in and caching was not disabled by
+                Synapse.allow_client_caching(False) this will use the last created
+                instance from the Synapse class constructor.
+
+        Returns:
+            The execution details of the task after the job completed.
+
+        Raises:
+            ValueError: If the CurationTask object does not have a task_id.
+            SynapseError: If the execution job fails, or if it completes without
+                returning execution details.
+            SynapseTimeoutError: If the execution job does not complete within the
+                timeout.
+
+        Example: Execute a curation task
+            &nbsp;
+
+            ```python
+            from synapseclient import Synapse
+            from synapseclient.models import CurationTask
+
+            syn = Synapse()
+            syn.login()
+
+            details = CurationTask(task_id=123).execute()
+            print(details.started_on)
+            ```
+        """
+        return RecordSetGenerationExecutionDetails()
+
+    def synchronize_active_grid_session(
+        self,
+        *,
+        sync_type: "SyncType | str",
+        synapse_client: Synapse | None = None,
+    ) -> Optional["Grid"]:
+        """
+        Synchronize this task's active grid session against its source entity.
+
+        If task_properties is not yet populated on this object, it is fetched
+        from Synapse first. If the task has no active grid session, a warning
+        is logged and None is returned; no new grid session is created.
+
+        `sync_type` is always required, for both task types. FileBasedMetadataTaskProperties
+        tasks always perform a SyncType.PULL_PUSH regardless of the value passed in.
+
+        Arguments:
+            sync_type: The type of synchronization to perform. Required.
+
+                - SyncType.PULL: Update the grid session with the latest data/schema
+                  from the source RecordSet, without writing the grid back to it.
+                  Use this to preview an incoming schema or data change in the grid
+                  before committing it. Only supported for record-based tasks.
+                - SyncType.PULL_PUSH: Update the grid session with the latest data
+                  from the source, then write the grid's data back to the source
+                  (the source RecordSet for record-based tasks, or the referenced
+                  entities for file-based tasks). This commits any in-progress
+                  curation in the grid as a new version of the source.
+
+                For record-based tasks, this determines whether the call previews
+                (PULL) or commits (PULL_PUSH). For file-based tasks, the value is
+                ignored and the call always behaves as SyncType.PULL_PUSH.
+            synapse_client: If not passed in and caching was not disabled by
+                Synapse.allow_client_caching(False) this will use the last created
+                instance from the Synapse class constructor.
+
+        Returns:
+            The synchronized Grid, or None if the task has no active grid session.
+
+        Raises:
+            ValueError: If task_id is unset, task_properties is of an unsupported
+                type, or sync_type is not provided for a record-based task.
+
+        Example: Synchronize a record-based curation task's grid session
+            &nbsp;
+
+            ```python
+            from synapseclient import Synapse
+            from synapseclient.models import CurationTask
+            from synapseclient.models.curation import SyncType
+
+            syn = Synapse()
+            syn.login()
+
+            grid = CurationTask(task_id=123).synchronize_active_grid_session(
+                sync_type=SyncType.PULL_PUSH
+            )
+            if grid is not None:
+                print(grid.session_id)
+            ```
+
+        Example: Synchronize a file-based curation task's grid session
+            &nbsp;
+
+            File-based tasks always synchronize with SyncType.PULL_PUSH, so any
+            value works here -- but `sync_type` still has to be passed.
+
+            ```python
+            from synapseclient import Synapse
+            from synapseclient.models import CurationTask
+            from synapseclient.models.curation import SyncType
+
+            syn = Synapse()
+            syn.login()
+
+            grid = CurationTask(task_id=456).synchronize_active_grid_session(
+                sync_type=SyncType.PULL_PUSH
+            )
+            if grid is not None:
+                print(grid.session_id)
+            ```
+        """
+        return Grid()
+
     def delete(
         self,
         delete_source: bool = False,
@@ -680,12 +1604,16 @@ class CurationTaskSynchronousProtocol(Protocol):
         Arguments:
             delete_source: If True, the associated source data (EntityView or RecordSet) will also be deleted
                 if the task is a FileBasedMetadataTask or RecordBasedMetadataTask respectively. Defaults to False.
+                A compute task has no source of its own, so passing True for one raises
+                a ValueError.
             synapse_client: If not passed in and caching was not disabled by
                 `Synapse.allow_client_caching(False)` this will use the last created
                 instance from the Synapse class constructor.
 
         Raises:
             ValueError: If the CurationTask object does not have a task_id.
+            ValueError: If delete_source is True and the task properties do not
+                identify a source to delete.
 
         Example: Delete a curation task
             &nbsp;
@@ -947,8 +1875,10 @@ class CurationTask(CurationTaskSynchronousProtocol):
         data_type: Will match the data type that a contributor plans to contribute
         project_id: The synId of the project
         instructions: Instructions to the data contributor
-        task_properties: The properties of a CurationTask. This can be either
-            FileBasedMetadataTaskProperties or RecordBasedMetadataTaskProperties.
+        task_properties: The properties of a CurationTask. This can be
+            FileBasedMetadataTaskProperties, RecordBasedMetadataTaskProperties,
+            SampleSheetGenerationExecutionProperties, or
+            RecordSetGenerationExecutionProperties.
         etag: Synapse employs an Optimistic Concurrency Control (OCC) scheme to handle
             concurrent updates. Since the E-Tag changes every time an entity is updated
             it is used to detect when a client's current representation of an entity is
@@ -1006,9 +1936,7 @@ class CurationTask(CurationTaskSynchronousProtocol):
     instructions: Optional[str] = None
     """Instructions to the data contributor"""
 
-    task_properties: Optional[
-        Union[FileBasedMetadataTaskProperties, RecordBasedMetadataTaskProperties]
-    ] = None
+    task_properties: Optional[CurationTaskProperties] = None
     """The properties of a CurationTask"""
 
     etag: Optional[str] = None
@@ -1230,6 +2158,8 @@ class CurationTask(CurationTaskSynchronousProtocol):
         Arguments:
             delete_source: If True, the associated source data (EntityView or RecordSet) will also be deleted
                 if the task is a FileBasedMetadataTask or RecordBasedMetadataTask respectively. Defaults to False.
+                A compute task has no source of its own, so passing True for one raises
+                a ValueError.
             synapse_client: If not passed in and caching was not disabled by
                 `Synapse.allow_client_caching(False)` this will use the last created
                 instance from the Synapse class constructor.
@@ -1314,11 +2244,26 @@ class CurationTask(CurationTaskSynchronousProtocol):
                     synapse_client=synapse_client
                 )
 
+            elif self.task_properties is None:
+                raise ValueError(
+                    "delete_source requires task properties that identify a "
+                    "source, but 'task_properties' is None."
+                )
+
+            elif isinstance(self.task_properties, UnknownCurationTaskProperties):
+                raise ValueError(
+                    "delete_source is not supported for task properties of type "
+                    f"{self.task_properties.concrete_type}, which this version of "
+                    "synapseclient does not recognize, so the source of the task "
+                    "cannot be identified. Upgrade synapseclient, or delete this task "
+                    "without delete_source."
+                )
+
             else:
                 raise ValueError(
-                    "'task_property' attribute is None. "
-                    "Deletion only supports FileBasedMetadataTaskProperties or "
-                    "RecordBasedMetadataTaskProperties."
+                    "delete_source is not supported for "
+                    f"{type(self.task_properties).__name__}. A compute task has no "
+                    "source of its own. Delete this task without delete_source."
                 )
 
         await delete_curation_task(task_id=self.task_id, synapse_client=synapse_client)
@@ -1538,16 +2483,80 @@ class CurationTask(CurationTaskSynchronousProtocol):
             asyncio.run(main())
             ```
         """
-        status = await self.get_status_async(synapse_client=synapse_client)
-        status.execution_details = GridExecutionDetails(
-            active_session_id=active_session_id
+        return await self.set_execution_details_async(
+            execution_details=GridExecutionDetails(active_session_id=active_session_id),
+            synapse_client=synapse_client,
         )
+
+    @otel_trace_method(
+        method_to_trace_name=lambda self, *args, **kwargs: (
+            f"CurationTask_SetExecutionDetails: ID: {self.task_id}"
+        )
+    )
+    async def set_execution_details_async(
+        self,
+        *,
+        execution_details: "TaskExecutionDetails",
+        synapse_client: Synapse | None = None,
+    ) -> "CurationTaskStatus":
+        """
+        Replace the execution details on this CurationTask's status.
+
+        Fetches the current CurationTaskStatus first so the update carries a fresh
+        etag, then writes back the given execution details. Does not transition the
+        task state.
+
+        A compute task needs this before it can run: a newly created task has no
+        execution details, and Synapse will not dispatch one without details that
+        support automated execution. Pass empty details of the type matching the
+        task's properties, such as SampleSheetGenerationExecutionDetails or
+        RecordSetGenerationExecutionDetails, and Synapse populates their fields as
+        the job runs.
+
+        Arguments:
+            execution_details: The execution details to attach to this task's status.
+            synapse_client: If not passed in and caching was not disabled by
+                Synapse.allow_client_caching(False) this will use the last created
+                instance from the Synapse class constructor.
+
+        Returns:
+            The updated CurationTaskStatus object.
+
+        Raises:
+            ValueError: If the CurationTask object does not have a task_id.
+
+        Example: Make a compute task executable asynchronously
+            &nbsp;
+
+            ```python
+            import asyncio
+            from synapseclient import Synapse
+            from synapseclient.models import (
+                CurationTask,
+                RecordSetGenerationExecutionDetails,
+            )
+
+            syn = Synapse()
+            syn.login()
+
+            async def main():
+                task = CurationTask(task_id=123)
+                await task.set_execution_details_async(
+                    execution_details=RecordSetGenerationExecutionDetails()
+                )
+                await task.execute_async()
+
+            asyncio.run(main())
+            ```
+        """
+        status = await self.get_status_async(synapse_client=synapse_client)
+        status.execution_details = execution_details
         return await self.update_status_async(
             curation_task_status=status, synapse_client=synapse_client
         )
 
     @otel_trace_method(
-        method_to_trace_name=lambda self, **kwargs: (
+        method_to_trace_name=lambda self, *args, **kwargs: (
             f"CurationTask_SetTaskState: ID: {self.task_id}"
         )
     )
@@ -1654,6 +2663,15 @@ class CurationTask(CurationTaskSynchronousProtocol):
         Always creates a new Grid session. To attach an existing session to a task,
         use set_active_grid_session_async instead.
 
+        The new session is created with the task's suggested_authorization_mode
+        (from task_properties), which the server uses to determine access:
+
+        - SESSION_OWNER: access is limited to the session owner (owner_principal_id,
+          or the caller when not provided) and their team.
+        - SOURCE_BENEFACTOR: access is inherited from the benefactor of the source
+          entity (anyone with EDIT rights).
+        - Unset (legacy): the caller becomes the owner.
+
         After the Grid is created, updates the CurationTaskStatus to point its
         active_session_id at the new session. If that update fails for any reason,
         the newly created Grid is deleted on a best-effort basis and the original
@@ -1718,6 +2736,7 @@ class CurationTask(CurationTaskSynchronousProtocol):
             grid = Grid(
                 record_set_id=self.task_properties.record_set_id,
                 owner_principal_id=owner_principal_id,
+                authorization_mode=self.task_properties.suggested_authorization_mode,
             )
         elif isinstance(self.task_properties, FileBasedMetadataTaskProperties):
             if not self.task_properties.file_view_id:
@@ -1736,6 +2755,7 @@ class CurationTask(CurationTaskSynchronousProtocol):
                     sql=f"SELECT * FROM {self.task_properties.file_view_id}"
                 ),
                 owner_principal_id=owner_principal_id,
+                authorization_mode=self.task_properties.suggested_authorization_mode,
             )
         else:
             raise ValueError(
@@ -1772,6 +2792,88 @@ class CurationTask(CurationTaskSynchronousProtocol):
             raise
 
         return grid
+
+    @otel_trace_method(
+        method_to_trace_name=lambda self, **kwargs: (
+            f"CurationTask_Execute: ID: {self.task_id}"
+        )
+    )
+    async def execute_async(
+        self,
+        *,
+        timeout: int = 120,
+        synapse_client: Synapse | None = None,
+    ) -> "TaskExecutionDetails":
+        """
+        Run the automated computation for this CurationTask and wait for it to finish.
+
+        The task must be in the NOT_STARTED state and its status must carry execution
+        details that support automated execution, such as
+        SampleSheetGenerationExecutionDetails or RecordSetGenerationExecutionDetails.
+        The computation itself is described by the task's task_properties, either
+        SampleSheetGenerationExecutionProperties or
+        RecordSetGenerationExecutionProperties.
+
+        A newly created task has no execution details, and Synapse will not dispatch
+        it until they are set. Attach empty details of the matching type with
+        set_execution_details once, before the first run:
+
+            task.set_execution_details(
+                execution_details=RecordSetGenerationExecutionDetails()
+            )
+
+        The caller must be the assignee of the task or have UPDATE access on the
+        task's project.
+
+        Arguments:
+            timeout: Seconds to wait for the execution job to complete or progress
+                before raising a SynapseTimeoutError. Defaults to 120.
+            synapse_client: If not passed in and caching was not disabled by
+                Synapse.allow_client_caching(False) this will use the last created
+                instance from the Synapse class constructor.
+
+        Returns:
+            The execution details of the task after the job completed.
+
+        Raises:
+            ValueError: If the CurationTask object does not have a task_id.
+            SynapseError: If the execution job fails, or if it completes without
+                returning execution details.
+            SynapseTimeoutError: If the execution job does not complete within the
+                timeout.
+
+        Example: Execute a curation task asynchronously
+            &nbsp;
+
+            ```python
+            import asyncio
+            from synapseclient import Synapse
+            from synapseclient.models import CurationTask
+
+            syn = Synapse()
+            syn.login()
+
+            async def main():
+                details = await CurationTask(task_id=123).execute_async()
+                print(details.started_on)
+
+            asyncio.run(main())
+            ```
+        """
+        if not self.task_id:
+            raise ValueError("task_id is required to execute a CurationTask")
+
+        request = ComputeTaskExecutionRequest(task_id=self.task_id)
+        result = await request.send_job_and_wait_async(
+            timeout=timeout,
+            synapse_client=synapse_client,
+        )
+        if result.execution_details is None:
+            raise SynapseError(
+                f"The execution job for CurationTask {self.task_id} completed without "
+                "returning execution details."
+            )
+        return result.execution_details
 
     @skip_async_to_sync
     @classmethod
@@ -1942,9 +3044,215 @@ class CurationTask(CurationTaskSynchronousProtocol):
             task = cls().fill_from_dict(synapse_response=task_dict)
             yield task
 
+    @otel_trace_method(
+        method_to_trace_name=lambda self, **kwargs: (
+            f"CurationTask_SynchronizeActiveGridSession: ID: {self.task_id}"
+        )
+    )
+    async def synchronize_active_grid_session_async(
+        self,
+        *,
+        sync_type: Union["SyncType", str],
+        synapse_client: Optional[Synapse] = None,
+    ) -> Optional["Grid"]:
+        """
+        Synchronize this task's active grid session against its source entity.
+
+        If task_properties is not yet populated on this object, it is fetched
+        from Synapse first. If the task has no active grid session, a warning
+        is logged and None is returned; no new grid session is created.
+
+        `sync_type` is always required, for both task types. FileBasedMetadataTaskProperties
+        tasks always perform a SyncType.PULL_PUSH regardless of the value passed in.
+
+        Arguments:
+            sync_type: The type of synchronization to perform. Required.
+
+                - SyncType.PULL: Update the grid session with the latest data/schema
+                  from the source RecordSet, without writing the grid back to it.
+                  Use this to preview an incoming schema or data change in the grid
+                  before committing it. Only supported for record-based tasks.
+                - SyncType.PULL_PUSH: Update the grid session with the latest data
+                  from the source, then write the grid's data back to the source
+                  (the source RecordSet for record-based tasks, or the referenced
+                  entities for file-based tasks). This commits any in-progress
+                  curation in the grid as a new version of the source.
+
+                For record-based tasks, this determines whether the call previews
+                (PULL) or commits (PULL_PUSH). For file-based tasks, the value is
+                ignored and the call always behaves as SyncType.PULL_PUSH.
+            synapse_client: If not passed in and caching was not disabled by
+                Synapse.allow_client_caching(False) this will use the last created
+                instance from the Synapse class constructor.
+
+        Returns:
+            The synchronized Grid, or None if the task has no active grid session.
+
+        Raises:
+            ValueError: If task_id is unset, task_properties is of an unsupported
+                type, or sync_type is not provided for a record-based task.
+
+        Example: Synchronize a record-based curation task's grid session
+            &nbsp;
+
+            ```python
+            import asyncio
+            from synapseclient import Synapse
+            from synapseclient.models import CurationTask
+            from synapseclient.models.curation import SyncType
+
+            syn = Synapse()
+            syn.login()
+
+            async def main():
+                grid = await CurationTask(task_id=123).synchronize_active_grid_session_async(
+                    sync_type=SyncType.PULL_PUSH
+                )
+                if grid is not None:
+                    print(grid.session_id)
+
+            asyncio.run(main())
+            ```
+
+        Example: Synchronize a file-based curation task's grid session
+            &nbsp;
+
+            File-based tasks always synchronize with SyncType.PULL_PUSH, so any
+            value works here -- but `sync_type` still has to be passed.
+
+            ```python
+            import asyncio
+            from synapseclient import Synapse
+            from synapseclient.models import CurationTask
+            from synapseclient.models.curation import SyncType
+
+            syn = Synapse()
+            syn.login()
+
+            async def main():
+                grid = await CurationTask(task_id=456).synchronize_active_grid_session_async(
+                    sync_type=SyncType.PULL_PUSH
+                )
+                if grid is not None:
+                    print(grid.session_id)
+
+            asyncio.run(main())
+            ```
+        """
+        client = Synapse.get_client(synapse_client=synapse_client)
+
+        if not self.task_properties:
+            await self.get_async(synapse_client=synapse_client)
+
+        if isinstance(self.task_properties, FileBasedMetadataTaskProperties):
+            if sync_type is not None and sync_type != SyncType.PULL_PUSH:
+                client.logger.warning(
+                    f"Ignoring sync_type={sync_type} for CurationTask "
+                    f"{self.task_id}: FileBasedMetadataTaskProperties tasks always "
+                    "use SyncType.PULL_PUSH."
+                )
+            sync_type = SyncType.PULL_PUSH
+        elif isinstance(self.task_properties, RecordBasedMetadataTaskProperties):
+            if not sync_type:
+                raise ValueError(
+                    "sync_type must be provided for RecordBasedMetadataTaskProperties"
+                )
+        else:
+            raise ValueError(
+                f"Synchronization only supports FileBasedMetadataTaskProperties or "
+                f"RecordBasedMetadataTaskProperties, got {type(self.task_properties).__name__}."
+            )
+
+        status = await self.get_status_async(synapse_client=synapse_client)
+        if (
+            status.execution_details is None
+            or status.execution_details.active_session_id is None
+        ):
+            client.logger.warning(
+                f"No active grid session found for task {self.task_id}. Skipping "
+                "synchronization."
+            )
+            return None
+        active_grid_session_id = status.execution_details.active_session_id
+
+        client.logger.info(
+            f"Synchronizing active grid session {active_grid_session_id} for "
+            f"task {self.task_id}"
+        )
+        grid = Grid(session_id=active_grid_session_id)
+        return await grid.synchronize_async(
+            synapse_client=synapse_client, sync_type=sync_type
+        )
+
 
 @dataclass
-class CreateGridRequest(AsynchronousCommunicator):
+class ComputeTaskExecutionRequest(AsynchronousCommunicator):
+    """
+    Start a job to execute the automated computation for a CurationTask.
+
+    The task must be in the NOT_STARTED state and have execution details that support
+    automated execution (an ExecutableTaskExecutionDetails).
+
+    Represents a [Synapse ComputeTaskExecutionRequest](https://rest-docs.synapse.org/rest/org/sagebionetworks/repo/model/curation/ComputeTaskExecutionRequest.html)
+    and the [ComputeTaskExecutionResponse](https://rest-docs.synapse.org/rest/org/sagebionetworks/repo/model/curation/ComputeTaskExecutionResponse.html)
+    it produces.
+
+    Attributes:
+        concrete_type: The concrete type for the request
+        task_id: The ID of the CurationTask to execute
+        execution_details: The execution details of the task after the job completed
+            (populated from response)
+    """
+
+    concrete_type: str = COMPUTE_TASK_EXECUTION_REQUEST
+    """The concrete type for the request"""
+
+    task_id: int | None = None
+    """The ID of the CurationTask to execute"""
+
+    execution_details: TaskExecutionDetails | None = None
+    """The execution details of the task after the job completed. The concrete type
+    determines which task-type-specific properties are available."""
+
+    def fill_from_dict(self, synapse_response: Any) -> "ComputeTaskExecutionRequest":
+        """
+        Converts a response from the REST API into this dataclass.
+
+        Arguments:
+            synapse_response: The response from the REST API.
+
+        Returns:
+            The ComputeTaskExecutionRequest object.
+        """
+        task_id = synapse_response.get("taskId", None)
+        if task_id is not None:
+            self.task_id = int(task_id)
+
+        details_dict = synapse_response.get("executionDetails", None)
+        self.execution_details = (
+            None
+            if details_dict is None
+            else _create_task_execution_details_from_dict(details_dict)
+        )
+        return self
+
+    def to_synapse_request(self) -> dict[str, Any]:
+        """
+        Converts this dataclass to a dictionary suitable for a Synapse REST API request.
+
+        Returns:
+            A dictionary representation of this object for API requests.
+        """
+        request_dict = {
+            "concreteType": self.concrete_type,
+            "taskId": self.task_id,
+        }
+        delete_none_keys(request_dict)
+        return request_dict
+
+
+@dataclass
+class CreateGridRequest(EnumCoercionMixin, AsynchronousCommunicator):
     """
     Start a job to create a new Grid session.
 
@@ -1961,6 +3269,8 @@ class CreateGridRequest(AsynchronousCommunicator):
             In order to allow other users to access the grid, set this value to the id of a team.
             When a team ID is provided as the owner, all members of that team will have equal access to the grid.
             Note: If a team ID is provided, the creator of the grid must be a member of the team.
+        authorization_mode: Controls access permissions and row visibility at session
+            creation time. See AuthorizationMode. Defaults to SESSION_OWNER when omitted.
         session_id: The session ID of the created grid (populated from response)
     """
 
@@ -1983,8 +3293,14 @@ class CreateGridRequest(AsynchronousCommunicator):
     When a team ID is provided as the owner, all members of that team will have equal access to the grid.
     Note: If a team ID is provided, the creator of the grid must be a member of the team."""
 
+    authorization_mode: Optional[Union[AuthorizationMode, str]] = None
+    """Controls access permissions and row visibility at session creation time.
+    See AuthorizationMode. When omitted, the service defaults to SESSION_OWNER."""
+
     session_id: Optional[str] = None
     """The session ID of the created grid (populated from response)"""
+
+    _ENUM_FIELDS: ClassVar[dict[str, type]] = {"authorization_mode": AuthorizationMode}
 
     _grid_session_data: Optional[Dict[str, Any]] = field(default=None, compare=False)
     """Internal storage of the full grid session data from the response for later use."""
@@ -2034,7 +3350,11 @@ class CreateGridRequest(AsynchronousCommunicator):
         grid_session.last_replica_id_service = data.get("lastReplicaIdService", None)
         grid_session.grid_json_schema_id = data.get("gridJsonSchema$Id", None)
         grid_session.source_entity_id = data.get("sourceEntityId", None)
-        grid_session.owner_principal_id = data.get("ownerPrincipalId")
+        owner_principal_id = data.get("ownerPrincipalId")
+        grid_session.owner_principal_id = (
+            int(owner_principal_id) if owner_principal_id is not None else None
+        )
+        grid_session.authorization_mode = data.get("authorizationMode", None)
 
         return grid_session
 
@@ -2051,6 +3371,11 @@ class CreateGridRequest(AsynchronousCommunicator):
             self.initial_query.to_synapse_request() if self.initial_query else None
         )
         request_dict["ownerPrincipalId"] = self.owner_principal_id
+        request_dict["authorizationMode"] = (
+            self.authorization_mode.value
+            if self.authorization_mode is not None
+            else None
+        )
         delete_none_keys(request_dict)
         return request_dict
 
@@ -2122,6 +3447,761 @@ class GridCsvImportRequest(AsynchronousCommunicator):
             "fileHandleId": self.file_handle_id,
             "csvDescriptor": self.csv_descriptor.to_synapse_request(),
             "schema": [col.to_synapse_request() for col in self.schema],
+        }
+        delete_none_keys(request_dict)
+        return request_dict
+
+
+@dataclass
+class SelectColumn:
+    """
+    Information about a selected column in a grid query result.
+
+    Represents a [Synapse SelectColumn](https://rest-docs.synapse.org/rest/org/sagebionetworks/repo/model/grid/query/result/SelectColumn.html).
+
+    Note: This is distinct from the table
+    [SelectColumn](https://rest-docs.synapse.org/rest/org/sagebionetworks/repo/model/table/SelectColumn.html)
+    (`org.sagebionetworks.repo.model.table.SelectColumn`), which additionally carries
+    `id` and `columnType`. This grid-query `SelectColumn` only has `column_name`.
+
+    Attributes:
+        column_name: The name of the column. Will be the alias if one is
+            provided in the select item.
+    """
+
+    column_name: Optional[str] = None
+    """The name of the column. Will be the alias if one is provided in the select item."""
+
+    def fill_from_dict(self, synapse_response: Dict[str, Any]) -> "SelectColumn":
+        """
+        Converts a response from the REST API into this dataclass.
+
+        Arguments:
+            synapse_response: The response from the REST API.
+
+        Returns:
+            The SelectColumn object.
+        """
+        self.column_name = synapse_response.get("columnName", None)
+        return self
+
+
+@dataclass
+class GridQueryValidationResult:
+    """
+    Results of a grid row against a JSON schema
+
+    Represents a [Synapse ValidationResults](https://rest-docs.synapse.org/rest/org/sagebionetworks/repo/model/grid/query/result/ValidationResults.html).
+
+    Note: This is distinct from the general-purpose
+    [ValidationResults](https://rest-docs.synapse.org/rest/org/sagebionetworks/repo/model/schema/ValidationResults.html)
+    (`org.sagebionetworks.repo.model.schema.ValidationResults`), which is used
+    for validating entities/containers against a schema and carries additional
+    fields (`objectId`, `objectType`, `objectEtag`, `schema$id`, `validatedOn`,
+    `validationException`) that this grid-row-specific type does not have.
+
+    Attributes:
+        is_valid: Will be 'true' if the row is valid according to the JSON
+            schema. Will be 'false' when the row is invalid.
+        validation_error_message: If the object is not valid according to the
+            schema, a simple one line error message will be provided.
+        all_validation_messages: If the object is not valid according to the
+            schema, a the flat list of error messages will be provided with one
+            error message per sub-schema. Included only if
+            includeValidationMessages was set to true in the query. Otherwise,
+            this array is omitted to optimize performance.
+    """
+
+    is_valid: Optional[bool] = None
+    """Will be 'true' if the row is valid according to the JSON schema. Will be
+    'false' when the row is invalid."""
+
+    validation_error_message: Optional[str] = None
+    """If the object is not valid according to the schema, a simple one line
+    error message will be provided."""
+
+    all_validation_messages: Optional[list[str]] = None
+    """If the object is not valid according to the schema, a the flat list of
+    error messages will be provided with one error message per sub-schema.
+    Included only if includeValidationMessages was set to true in the query.
+    Otherwise, this array is omitted to optimize performance."""
+
+    def fill_from_dict(
+        self, synapse_response: Dict[str, Any]
+    ) -> "GridQueryValidationResult":
+        """
+        Converts a response from the REST API into this dataclass.
+
+        Arguments:
+            synapse_response: The response from the REST API.
+
+        Returns:
+            The GridQueryValidationResult object.
+        """
+        self.is_valid = synapse_response.get("isValid", None)
+        self.validation_error_message = synapse_response.get(
+            "validationErrorMessage", None
+        )
+        self.all_validation_messages = synapse_response.get(
+            "allValidationMessages", None
+        )
+        return self
+
+
+@dataclass
+class GridRow:
+    """
+    A single row of a grid query result.
+
+    Represents a [Synapse Row](https://rest-docs.synapse.org/rest/org/sagebionetworks/repo/model/grid/query/result/Row.html).
+
+    Note: This is distinct from the SQL-based table
+    [Row](https://rest-docs.synapse.org/rest/org/sagebionetworks/repo/model/table/Row.html)
+    (`org.sagebionetworks.repo.model.table.Row`), which represents a row of a
+    table/view query result rather than a grid query result.
+
+    Attributes:
+        row_id: Logical timestamp identifying the row in compact form
+            `replicaId.sequenceNumber` (e.g. `123.456`). Used in filtering
+            operations and update/patch procedures.
+        data: The JSON object representing a single row.
+        validation_results: Results of validating this row against a JSON
+            schema, if a schema is bound.
+    """
+
+    row_id: Optional[str] = None
+    """Logical timestamp identifying the row in compact form `replicaId.sequenceNumber`."""
+
+    data: Optional[Dict[str, Any]] = None
+    """The JSON object representing a single row."""
+
+    validation_results: Optional[GridQueryValidationResult] = None
+    """Results of validating this row against a JSON schema, if a schema is bound."""
+
+    def fill_from_dict(self, synapse_response: Dict[str, Any]) -> "GridRow":
+        """
+        Converts a response from the REST API into this dataclass.
+
+        Arguments:
+            synapse_response: The response from the REST API.
+
+        Returns:
+            The GridRow object.
+        """
+        self.row_id = synapse_response.get("rowId", None)
+        self.data = synapse_response.get("data", None)
+        validation_results_data = synapse_response.get("validationResults", None)
+        self.validation_results = (
+            GridQueryValidationResult().fill_from_dict(validation_results_data)
+            if validation_results_data is not None
+            else None
+        )
+        return self
+
+
+@dataclass
+class GridQueryResult:
+    """
+    A single page of rows returned from a grid query.
+
+    Represents a [Synapse QueryResult](https://rest-docs.synapse.org/rest/org/sagebionetworks/repo/model/grid/query/result/QueryResult.html).
+
+    Note: This is distinct from the SQL-based table
+    [QueryResult](https://rest-docs.synapse.org/rest/org/sagebionetworks/repo/model/table/QueryResult.html)
+    (`org.sagebionetworks.repo.model.table.QueryResult`), which wraps SQL query
+    results rather than a grid query's SelectColumn/Row objects.
+
+    Attributes:
+        select_columns: Information about the selected columns.
+        rows: A single page of rows.
+    """
+
+    select_columns: Optional[list[SelectColumn]] = None
+    """Information about the selected columns."""
+
+    rows: Optional[list[GridRow]] = None
+    """A single page of rows."""
+
+    def fill_from_dict(self, synapse_response: Dict[str, Any]) -> "GridQueryResult":
+        """
+        Converts a response from the REST API into this dataclass.
+
+        Arguments:
+            synapse_response: The response from the REST API.
+
+        Returns:
+            The GridQueryResult object.
+        """
+        select_columns_data = synapse_response.get("selectColumns", None)
+        self.select_columns = (
+            [SelectColumn().fill_from_dict(col) for col in select_columns_data]
+            if select_columns_data is not None
+            else None
+        )
+
+        rows_data = synapse_response.get("rows", None)
+        self.rows = (
+            [GridRow().fill_from_dict(row) for row in rows_data]
+            if rows_data is not None
+            else None
+        )
+        return self
+
+
+class ValidationOperator(str, Enum):
+    """
+    The comparison operator.
+
+    See <https://rest-docs.synapse.org/rest/org/sagebionetworks/repo/model/grid/query/ValidationOperator.html>.
+    """
+
+    LIKE = "LIKE"
+    NOT_LIKE = "NOT_LIKE"
+
+
+class CellValueOperator(str, Enum):
+    """
+    The comparison operator.
+
+    See <https://rest-docs.synapse.org/rest/org/sagebionetworks/repo/model/grid/query/CellValueOperator.html>.
+    """
+
+    EQUALS = "EQUALS"
+    NOT_EQUALS = "NOT_EQUALS"
+    GREATER_THAN = "GREATER_THAN"
+    LESS_THAN = "LESS_THAN"
+    GREATER_THAN_OR_EQUALS = "GREATER_THAN_OR_EQUALS"
+    LESS_THAN_OR_EQUALS = "LESS_THAN_OR_EQUALS"
+    IN = "IN"
+    NOT_IN = "NOT_IN"
+    LIKE = "LIKE"
+    NOT_LIKE = "NOT_LIKE"
+    IS_NULL = "IS_NULL"
+    IS_NOT_NULL = "IS_NOT_NULL"
+    IS_UNDEFINED = "IS_UNDEFINED"
+    IS_DEFINED = "IS_DEFINED"
+
+
+@dataclass
+class SelectItem(ABC):
+    """
+    A generic select item.
+
+    <https://rest-docs.synapse.org/rest/org/sagebionetworks/repo/model/grid/query/SelectItem.html>
+
+    Known implementations: SelectByName, SelectAll, CountStar, SelectSelection.
+
+    The concrete subclass is determined by the concreteType field in the REST response.
+    """
+
+    @abstractmethod
+    def to_synapse_request(self) -> Dict[str, Any]:
+        """
+        Converts this dataclass to a dictionary suitable for a Synapse REST API request.
+
+        Returns:
+            A dictionary representation of this object for API requests.
+        """
+        ...
+
+
+@dataclass
+class SelectByName(SelectItem):
+    """
+    A SelectItem that will result in the selection of a single column by its name.
+
+    <https://rest-docs.synapse.org/rest/org/sagebionetworks/repo/model/grid/query/SelectByName.html>
+
+    Attributes:
+        column_name: The name of the column to include in the select.
+    """
+
+    column_name: Optional[str] = None
+    """The name of the column to include in the select."""
+
+    def to_synapse_request(self) -> Dict[str, Any]:
+        """
+        Converts this dataclass to a dictionary suitable for a Synapse REST API request.
+
+        Returns:
+            A dictionary representation of this object for API requests.
+        """
+        request_dict = {"concreteType": SELECT_BY_NAME, "columnName": self.column_name}
+        delete_none_keys(request_dict)
+        return request_dict
+
+
+@dataclass
+class SelectAll(SelectItem):
+    """
+    A SelectItem that will result in the selection of all columns.
+
+    <https://rest-docs.synapse.org/rest/org/sagebionetworks/repo/model/grid/query/SelectAll.html>
+    """
+
+    def to_synapse_request(self) -> Dict[str, Any]:
+        """
+        Converts this dataclass to a dictionary suitable for a Synapse REST API request.
+
+        Returns:
+            A dictionary representation of this object for API requests.
+        """
+        return {"concreteType": SELECT_ALL}
+
+
+@dataclass
+class CountStar(SelectItem):
+    """
+    Use this to count the total number of rows that match the query. For example,
+    for a user request like 'how many rows are there in total?', select this item.
+    The alias property can be used to name the resulting count column.
+
+    <https://rest-docs.synapse.org/rest/org/sagebionetworks/repo/model/grid/query/function/CountStar.html>
+
+    Attributes:
+        alias: Used to name the resulting count column.
+    """
+
+    alias: Optional[str] = None
+    """Used to name the resulting count column."""
+
+    def to_synapse_request(self) -> Dict[str, Any]:
+        """
+        Converts this dataclass to a dictionary suitable for a Synapse REST API request.
+
+        Returns:
+            A dictionary representation of this object for API requests.
+        """
+        request_dict = {"concreteType": COUNT_STAR, "alias": self.alias}
+        delete_none_keys(request_dict)
+        return request_dict
+
+
+@dataclass
+class SelectSelection(SelectItem):
+    """
+    A SelectItem that will result in the selection of the columns the user has
+    actively selected in the interface.
+
+    <https://rest-docs.synapse.org/rest/org/sagebionetworks/repo/model/grid/query/SelectSelection.html>
+    """
+
+    def to_synapse_request(self) -> Dict[str, Any]:
+        """
+        Converts this dataclass to a dictionary suitable for a Synapse REST API request.
+
+        Returns:
+            A dictionary representation of this object for API requests.
+        """
+        return {"concreteType": SELECT_SELECTION}
+
+
+@dataclass
+class Filter(ABC):
+    """
+    There are five different types of filters that can be applied to a grid query.
+
+    <https://rest-docs.synapse.org/rest/org/sagebionetworks/repo/model/grid/query/Filter.html>
+
+    Known implementations: RowValidationResultFilter, CellValueFilter,
+    RowSelectionFilter, RowIsValidFilter, RowIdFilter.
+
+    The concrete subclass is determined by the concreteType field in the REST response.
+    """
+
+    @abstractmethod
+    def to_synapse_request(self) -> Dict[str, Any]:
+        """
+        Converts this dataclass to a dictionary suitable for a Synapse REST API request.
+
+        Returns:
+            A dictionary representation of this object for API requests.
+        """
+        ...
+
+
+@dataclass
+class RowValidationResultFilter(Filter, EnumCoercionMixin):
+    """
+    Use this filter to find rows that have data quality issues or schema
+    validation errors.
+
+    <https://rest-docs.synapse.org/rest/org/sagebionetworks/repo/model/grid/query/RowValidationResultFilter.html>
+
+    To find type errors, use the LIKE operator with '%expected type:%' as the
+    validation result value.
+
+    Attributes:
+        operator: The comparison operator.
+        validation_result_value: A validation result value. For wildcards use
+            '%' to represents zero or more characters, and '_' to represents a
+            single character.
+    """
+
+    _ENUM_FIELDS: ClassVar[dict[str, type]] = {"operator": ValidationOperator}
+
+    operator: Optional[Union[ValidationOperator, str]] = None
+    """The comparison operator."""
+
+    validation_result_value: Optional[str] = None
+    """A validation result value. For wildcards use '%' to represents zero or
+    more characters, and '_' to represents a single character."""
+
+    def to_synapse_request(self) -> Dict[str, Any]:
+        """
+        Converts this dataclass to a dictionary suitable for a Synapse REST API request.
+
+        Returns:
+            A dictionary representation of this object for API requests.
+        """
+        request_dict = {
+            "concreteType": ROW_VALIDATION_RESULT_FILTER,
+            "operator": self.operator.value if self.operator is not None else None,
+            "validationResultValue": self.validation_result_value,
+        }
+        delete_none_keys(request_dict)
+        return request_dict
+
+
+@dataclass
+class CellValueFilter(Filter, EnumCoercionMixin):
+    """
+    A filter used to select rows based on cell values. For example, to handle a
+    user request like 'find all rows where the Project column is Alpha', you
+    would set 'columnName' to 'Project', 'operator' to 'EQUALS', and 'value' to
+    'Alpha'.
+
+    <https://rest-docs.synapse.org/rest/org/sagebionetworks/repo/model/grid/query/CellValueFilter.html>
+
+    Attributes:
+        column_name: The name of the column to filter by.
+        operator: The comparison operator.
+        value: For 'EQUALS', 'NOT_EQUALS', the ordering operators, and
+            'LIKE'/'NOT_LIKE', provide a scalar value to match a scalar cell
+            (e.g. 'Alpha'), or a JSON array to match a multi-value LIST cell
+            exactly (e.g. ['Alpha', 'Beta']). The 'IS_NULL' operator can be
+            used to find null values. The 'IS_UNDEFINED' operator can be used
+            to find undefined values. When using IN or NOT_IN operators,
+            value should be an array of candidate values, matching a row when
+            the cell equals any of them. When using either 'LIKE' or
+            'NOT_LIKE', the wildcard character '%' is used to represent zero
+            or more characters, and '_' is used to represent a single
+            character.
+    """
+
+    _ENUM_FIELDS: ClassVar[dict[str, type]] = {"operator": CellValueOperator}
+
+    column_name: Optional[str] = None
+    """The name of the column to filter by."""
+
+    operator: Optional[Union[CellValueOperator, str]] = None
+    """The comparison operator."""
+
+    value: Optional[Any] = None
+    """For 'EQUALS', 'NOT_EQUALS', the ordering operators, and 'LIKE'/
+    'NOT_LIKE', provide a scalar value to match a scalar cell (e.g. 'Alpha'),
+    or a JSON array to match a multi-value LIST cell exactly (e.g.
+    ['Alpha', 'Beta']). The 'IS_NULL' operator can be used to find null
+    values. The 'IS_UNDEFINED' operator can be used to find undefined values.
+    When using IN or NOT_IN operators, value should be an array of candidate
+    values, matching a row when the cell equals any of them. When using
+    either 'LIKE' or 'NOT_LIKE', the wildcard character '%' is used to
+    represents zero or more characters, and '_' is used to represent a single
+    character."""
+
+    def to_synapse_request(self) -> Dict[str, Any]:
+        """
+        Converts this dataclass to a dictionary suitable for a Synapse REST API request.
+
+        Returns:
+            A dictionary representation of this object for API requests.
+        """
+        request_dict = {
+            "concreteType": CELL_VALUE_FILTER,
+            "columnName": self.column_name,
+            "operator": self.operator.value if self.operator is not None else None,
+            "value": self.value,
+        }
+        delete_none_keys(request_dict)
+        return request_dict
+
+
+@dataclass
+class RowSelectionFilter(Filter):
+    """
+    Use this filter to narrow down results based on rows the user has actively
+    selected in the interface. For user requests like 'show me only my selected
+    items' or 'run this analysis on the rows I've checked', set the
+    'isSelected' property to true.
+
+    <https://rest-docs.synapse.org/rest/org/sagebionetworks/repo/model/grid/query/RowSelectionFilter.html>
+
+    Attributes:
+        is_selected: When true, only rows that the user has selected will be
+            returned. When false, rows that the user has selected will be
+            excluded.
+    """
+
+    is_selected: Optional[bool] = None
+    """When true, only rows that the user has selected will be returned. When
+    false, rows that the user has selected will be excluded."""
+
+    def to_synapse_request(self) -> Dict[str, Any]:
+        """
+        Converts this dataclass to a dictionary suitable for a Synapse REST API request.
+
+        Returns:
+            A dictionary representation of this object for API requests.
+        """
+        request_dict = {
+            "concreteType": ROW_SELECTION_FILTER,
+            "isSelected": self.is_selected,
+        }
+        delete_none_keys(request_dict)
+        return request_dict
+
+
+@dataclass
+class RowIsValidFilter(Filter):
+    """
+    Use this filter for simple requests to find all 'valid' or 'invalid' rows
+    based on their overall validation status.
+
+    <https://rest-docs.synapse.org/rest/org/sagebionetworks/repo/model/grid/query/RowIsValidFilter.html>
+
+    Attributes:
+        value: Set to true to find rows that are valid according to the
+            schema. Set to false to find rows that are invalid and have
+            validation errors.
+    """
+
+    value: Optional[bool] = None
+    """Set to true to find rows that are valid according to the schema. Set to
+    false to find rows that are invalid and have validation errors."""
+
+    def to_synapse_request(self) -> Dict[str, Any]:
+        """
+        Converts this dataclass to a dictionary suitable for a Synapse REST API request.
+
+        Returns:
+            A dictionary representation of this object for API requests.
+        """
+        request_dict = {"concreteType": ROW_IS_VALID_FILTER, "value": self.value}
+        delete_none_keys(request_dict)
+        return request_dict
+
+
+@dataclass
+class RowIdFilter(Filter):
+    """
+    Row ID inclusion filter. Use when you need to operate on specific existing
+    rows by their explicit row IDs obtained from a prior grid query (e.g., an
+    update). The filter matches any row whose ID is in the provided list
+    (logical OR semantics). Do not use for pattern matching or broad selection;
+    supply only the exact row IDs you intend to modify or retrieve.
+
+    <https://rest-docs.synapse.org/rest/org/sagebionetworks/repo/model/grid/query/RowIdFilter.html>
+
+    Attributes:
+        row_ids_in: Array of explicit row IDs. The result will include any row
+            whose ID appears in this list (logical OR). Provide only IDs
+            previously obtained from a grid query. Omit this filter if you do
+            not know the IDs. Do not include duplicates or IDs not present in
+            the current grid.
+    """
+
+    row_ids_in: Optional[list[str]] = None
+    """Array of explicit row IDs. The result will include any row whose ID
+    appears in this list (logical OR). Provide only IDs previously obtained
+    from a grid query. Omit this filter if you do not know the IDs. Do not
+    include duplicates or IDs not present in the current grid."""
+
+    def to_synapse_request(self) -> Dict[str, Any]:
+        """
+        Converts this dataclass to a dictionary suitable for a Synapse REST API request.
+
+        Returns:
+            A dictionary representation of this object for API requests.
+        """
+        request_dict = {"concreteType": ROW_ID_FILTER, "rowIdsIn": self.row_ids_in}
+        delete_none_keys(request_dict)
+        return request_dict
+
+
+@dataclass
+class GridQuery:
+    """
+    A structured grid query, expressed with JSON SelectItem and Filter objects
+    rather than SQL syntax.
+
+    Represents a [Synapse Query](https://rest-docs.synapse.org/rest/org/sagebionetworks/repo/model/grid/query/Query.html).
+
+    Note: This is distinct from the SQL-based table
+    [Query](https://rest-docs.synapse.org/rest/org/sagebionetworks/repo/model/table/Query.html)
+    (`org.sagebionetworks.repo.model.table.Query`, imported here as `Query`), which
+    takes a SQL string rather than structured select items and filters.
+
+    Attributes:
+        column_selection: One or more SelectItem is required to define the
+            columns that will be returned by this query (e.g. SelectAll,
+            CountStar).
+        filters: Each filter must be a complete JSON object with the required
+            'concreteType' property. Multiple filters are combined with AND logic.
+        limit: Limit of the number of rows returned to avoid loading more data
+            than needed into your context window.
+        offset: Specifies where the first returned row begins in the result set.
+        include_validation_messages: Controls whether the
+            'allValidationMessages' array appears in the response. Defaults to
+            false to conserve token usage.
+    """
+
+    column_selection: list[SelectItem] = field(default_factory=list)
+    """One or more SelectItem is required to define the columns that will be
+    returned by this query."""
+
+    limit: Optional[int] = None
+    """Limit of the number of rows returned to avoid loading more data than
+    needed into your context window."""
+
+    filters: Optional[list[Filter]] = None
+    """Each filter must be a complete JSON object with the required
+    'concreteType' property. Multiple filters are combined with AND logic."""
+
+    offset: Optional[int] = None
+    """Specifies where the first returned row begins in the result set."""
+
+    include_validation_messages: Optional[bool] = None
+    """Controls whether the 'allValidationMessages' array appears in the response."""
+
+    def to_synapse_request(self) -> Dict[str, Any]:
+        """
+        Converts this dataclass to a dictionary suitable for a Synapse REST API request.
+
+        Returns:
+            A dictionary representation of this object for API requests.
+
+        Raises:
+            ValueError: If column_selection is empty.
+        """
+        if not self.column_selection:
+            raise ValueError(
+                "column_selection is required and must contain at least one "
+                "SelectItem."
+            )
+
+        request_dict = {
+            "columnSelection": [
+                item.to_synapse_request() for item in self.column_selection
+            ],
+            "filters": (
+                [item.to_synapse_request() for item in self.filters]
+                if self.filters is not None
+                else None
+            ),
+            "limit": self.limit,
+            "offset": self.offset,
+            "includeValidationMessages": self.include_validation_messages,
+        }
+        delete_none_keys(request_dict)
+        return request_dict
+
+
+@dataclass
+class QueryRequest:
+    """
+    Request to run a query.
+
+    Represents a [Synapse QueryRequest](https://rest-docs.synapse.org/rest/org/sagebionetworks/repo/model/grid/query/QueryRequest.html).
+
+    Attributes:
+        query: Defines a structured query using JSON SelectItems and Filters objects - NOT SQL syntax.
+    """
+
+    query: Optional[GridQuery] = None
+    """Defines a structured query using JSON SelectItems and Filters objects (not SQL syntax)."""
+
+    def to_synapse_request(self) -> Dict[str, Any]:
+        """
+        Converts this dataclass to a dictionary suitable for a Synapse REST API request.
+
+        Returns:
+            A dictionary representation of this object for API requests.
+        """
+        request_dict = {
+            "query": self.query.to_synapse_request() if self.query else None,
+        }
+        delete_none_keys(request_dict)
+        return request_dict
+
+
+@dataclass
+class GridQueryJobRequest(AsynchronousCommunicator):
+    """
+    Asynchronous job request to query a grid session and return a single page of
+    rows with optional per-row validation data.
+
+    This request is modeled from: <https://rest-docs.synapse.org/rest/org/sagebionetworks/repo/model/grid/GridQueryJobRequest.html>
+
+    The response is modeled from: <https://rest-docs.synapse.org/rest/org/sagebionetworks/repo/model/grid/GridQueryJobResponse.html>
+    """
+
+    session_id: str
+    """The grid session ID for querying."""
+
+    replica_id: int
+    """The caller's replica ID. Used for row-selection filtering and must be owned by the caller."""
+
+    query_request: QueryRequest = field(default_factory=QueryRequest)
+    """Request to run a query."""
+
+    concrete_type: str = GRID_QUERY_JOB_REQUEST
+    """The concrete type for this request."""
+
+    # Response fields (populated by fill_from_dict)
+    query_result: Optional[GridQueryResult] = field(default=None, compare=False)
+    """Results of a query against a grid session."""
+
+    def fill_from_dict(self, synapse_response: Dict[str, Any]) -> "GridQueryJobRequest":
+        """
+        Converts a response from the REST API into this dataclass.
+
+        Arguments:
+            synapse_response: The response from the REST API.
+
+        Returns:
+            The GridQueryJobRequest object.
+        """
+        query_result_data = synapse_response.get("queryResult", None)
+        self.query_result = (
+            GridQueryResult().fill_from_dict(query_result_data)
+            if query_result_data is not None
+            else None
+        )
+        return self
+
+    def to_synapse_request(self) -> Dict[str, Any]:
+        """
+        Converts this dataclass to a dictionary suitable for a Synapse REST API request.
+
+        Returns:
+            A dictionary representation of this object for API requests.
+
+        Raises:
+            ValueError: If query_request or its nested query is not set, since
+                Synapse would reject the request regardless.
+        """
+        if not self.query_request or not self.query_request.query:
+            raise ValueError(
+                "query_request.query is required to query the grid. "
+                "Set query_request=QueryRequest(query=GridQuery(...)) before "
+                "sending this request."
+            )
+
+        request_dict = {
+            "concreteType": self.concrete_type,
+            "sessionId": self.session_id,
+            "replicaId": self.replica_id,
+            "queryRequest": self.query_request.to_synapse_request(),
         }
         delete_none_keys(request_dict)
         return request_dict
@@ -2277,11 +4357,21 @@ class UploadToTablePreviewRequest(AsynchronousCommunicator):
         return request_dict
 
 
+@deprecated(
+    version="4.14.0",
+    reason="Backs the deprecated Grid.export_to_record_set()/export_to_record_set_async(). "
+    "Use Grid.synchronize()/synchronize_async() with sync_type=SyncType.PULL_PUSH instead.",
+)
 @dataclass
 class GridRecordSetExportRequest(AsynchronousCommunicator):
     """
     A request to export a grid created from a record set back to the original record set.
     A CSV file will be generated and set as a new version of the recordset.
+
+    WARNING - This class is deprecated and will be removed in a future release. It
+    backs the deprecated `Grid.export_to_record_set()`/`export_to_record_set_async()`
+    methods. Use `Grid.synchronize()`/`synchronize_async()` with
+    `sync_type=SyncType.PULL_PUSH` instead.
 
     Represents a [Synapse GridRecordSetExportRequest](https://rest-docs.synapse.org/rest/org/sagebionetworks/repo/model/grid/GridRecordSetExportRequest.html).
 
@@ -2367,7 +4457,7 @@ class GridRecordSetExportRequest(AsynchronousCommunicator):
 
 
 @dataclass
-class SynchronizeGridRequest(AsynchronousCommunicator):
+class SynchronizeGridRequest(EnumCoercionMixin, AsynchronousCommunicator):
     """
     A request to synchronize a grid session.
 
@@ -2379,11 +4469,18 @@ class SynchronizeGridRequest(AsynchronousCommunicator):
     grid_session_id: str
     """The ID of the grid session to synchronize."""
 
+    sync_type: Optional[Union[SyncType, str]] = field(default=None)
+    """The type of synchronization to perform. Optional; the server defaults to
+    SyncType.PULL_PUSH when omitted. SyncType.PULL is currently only supported for
+    RecordSet-based grids."""
+
     concrete_type: str = field(default=SYNCHRONIZE_GRID_REQUEST)
     """The concrete type for this request."""
 
     error_messages: Optional[list[str]] = field(default=None, compare=False)
     """Any error messages generated during the synchronization process."""
+
+    _ENUM_FIELDS: ClassVar[dict[str, type]] = {"sync_type": SyncType}
 
     def fill_from_dict(
         self, synapse_response: Dict[str, Any]
@@ -2407,10 +4504,13 @@ class SynchronizeGridRequest(AsynchronousCommunicator):
         Returns:
             A dictionary representation of this object for API requests.
         """
-        return {
+        request_dict = {
             "concreteType": self.concrete_type,
             "gridSessionId": self.grid_session_id,
+            "syncType": self.sync_type.value if self.sync_type is not None else None,
         }
+        delete_none_keys(request_dict)
+        return request_dict
 
 
 @dataclass
@@ -2566,6 +4666,82 @@ class ListGridSessionsResponse:
         return self
 
 
+@dataclass
+class GridReplica:
+    """
+    Information about a replica.
+
+    Represents a [Synapse GridReplica](https://rest-docs.synapse.org/rest/org/sagebionetworks/repo/model/grid/GridReplica.html).
+
+    Attributes:
+        grid_session_id: The ID of the grid session.
+        replica_id: The unique identifier for the new replica.
+        created_by: The user that created this replica.
+        is_agent_replica: When true, this replica belongs to the createdBy
+            user's agent.
+        created_on: The date-time when the user created this replica.
+    """
+
+    grid_session_id: Optional[str] = None
+    """The ID of the grid session."""
+
+    replica_id: Optional[int] = None
+    """The unique identifier for the new replica."""
+
+    created_by: Optional[str] = None
+    """The user that created this replica."""
+
+    is_agent_replica: Optional[bool] = None
+    """When true, this replica belongs to the createdBy user's agent."""
+
+    created_on: Optional[str] = None
+    """The date-time when the user created this replica."""
+
+    def fill_from_dict(self, synapse_response: Dict[str, Any]) -> "GridReplica":
+        """
+        Converts a response from the REST API into this dataclass.
+
+        Arguments:
+            synapse_response: The response from the REST API.
+
+        Returns:
+            The GridReplica object.
+        """
+        self.grid_session_id = synapse_response.get("gridSessionId", None)
+        self.replica_id = synapse_response.get("replicaId", None)
+        self.created_by = synapse_response.get("createdBy", None)
+        self.is_agent_replica = synapse_response.get("isAgentReplica", None)
+        self.created_on = synapse_response.get("createdOn", None)
+        return self
+
+
+@dataclass
+class CreateReplicaRequest:
+    """
+    Request to create a new replica. A replica represents an 'in-memory' grid
+    document identified by a unique replicaId.
+
+    This request is modeled from: <https://rest-docs.synapse.org/rest/org/sagebionetworks/repo/model/grid/CreateReplicaRequest.html>
+
+    Attributes:
+        grid_session_id: The ID of the grid session.
+    """
+
+    grid_session_id: Optional[str] = None
+    """The ID of the grid session."""
+
+    def to_synapse_request(self) -> dict[str, Any]:
+        """
+        Converts this dataclass to a dictionary suitable for a Synapse REST API request.
+
+        Returns:
+            A dictionary representation of this object for API requests.
+        """
+        request_dict = {"gridSessionId": self.grid_session_id}
+        delete_none_keys(request_dict)
+        return request_dict
+
+
 class GridSynchronousProtocol(Protocol):
     """
     The protocol for methods that are asynchronous but also
@@ -2633,12 +4809,46 @@ class GridSynchronousProtocol(Protocol):
         """
         return self
 
+    def get(self, *, synapse_client: Optional[Synapse] = None) -> "Grid":
+        """
+        Get a grid session from Synapse by its session_id.
+
+        Arguments:
+            synapse_client: If not passed in and caching was not disabled by
+                `Synapse.allow_client_caching(False)` this will use the last created
+                instance from the Synapse class constructor.
+
+        Returns:
+            The Grid object populated with the session data from Synapse.
+
+        Raises:
+            ValueError: If session_id is not provided.
+
+        Example: Get a grid session by its session id
+            &nbsp;
+
+            ```python
+            from synapseclient import Synapse
+            from synapseclient.models import Grid
+
+            syn = Synapse()
+            syn.login()
+
+            grid = Grid(session_id="abc-123-def").get()
+            print(f"Source entity: {grid.source_entity_id}")
+            ```
+        """
+        return self
+
     def export_to_record_set(
         self, *, timeout: int = 120, synapse_client: Optional[Synapse] = None
     ) -> "Grid":
         """
         Exports the grid session data back to a record set. This will create a new version
         of the original record set with the modified data from the grid session.
+
+        WARNING - This method is deprecated and will be removed in a future release.
+        Use `synchronize`/`synchronize_async` with `sync_type=SyncType.PULL_PUSH` instead.
 
         Arguments:
             timeout: The number of seconds to wait for the job to complete or progress
@@ -2653,37 +4863,57 @@ class GridSynchronousProtocol(Protocol):
         Raises:
             ValueError: If session_id is not provided.
 
-        Example: Export grid session data back to record set
+        Example: Migration to synchronize
             &nbsp;
 
             ```python
             from synapseclient import Synapse
             from synapseclient.models import Grid
+            from synapseclient.models.curation import SyncType
 
             syn = Synapse()
             syn.login()
 
-            # Export modified grid data back to the record set
             grid = Grid(session_id="abc-123-def")
-            grid = grid.export_to_record_set()
-            print(f"Exported to record set: {grid.record_set_id}")
-            print(f"Version number: {grid.record_set_version_number}")
-            if grid.validation_summary_statistics:
-                print(f"Valid records: {grid.validation_summary_statistics.number_of_valid_children}")
+
+            # Old approach (DEPRECATED)
+            # grid = grid.export_to_record_set()
+            # print(f"Exported to record set: {grid.record_set_id}")
+            # print(f"Version number: {grid.record_set_version_number}")
+            # if grid.validation_summary_statistics:
+            #     print(f"Valid records: {grid.validation_summary_statistics.number_of_valid_children}")
+
+            # New approach (RECOMMENDED)
+            # Note: unlike export_to_record_set, synchronize does not populate
+            # record_set_id, record_set_version_number, or
+            # validation_summary_statistics on the returned Grid.
+            grid = grid.synchronize(sync_type=SyncType.PULL_PUSH)
             ```
         """
         return self
 
     def synchronize(
-        self, *, timeout: int = 120, synapse_client: Optional[Synapse] = None
+        self,
+        *,
+        sync_type: Optional[Union[SyncType, str]] = None,
+        timeout: int = 120,
+        synapse_client: Optional[Synapse] = None,
     ) -> "Grid":
         """
         Synchronizes the grid session's schema and row data against its source entity.
 
-        This is intended for grid sessions created from a file view via `initial_query`.
-        Grid sessions backed by a RecordSet should use `export_to_record_set` instead.
+        Grid sessions created from a file view via `initial_query` always perform a
+        full PULL_PUSH. Grid sessions backed by a RecordSet may instead pass
+        `sync_type=SyncType.PULL` to pull the latest RecordSet data/schema into the
+        session for review, without immediately writing the merged result back as a
+        new RecordSet version. Once satisfied with the result, call this method again
+        (with `sync_type` omitted, or explicitly set to `SyncType.PULL_PUSH`) to push
+        the merged data back to the RecordSet as a new version.
 
         Arguments:
+            sync_type: The type of synchronization to perform. Optional; the server
+                defaults to `SyncType.PULL_PUSH` when omitted. `SyncType.PULL` is
+                currently only supported for RecordSet-based grids.
             timeout: The number of seconds to wait for the job to complete or progress
                 before raising a SynapseTimeoutError. Defaults to 120.
             synapse_client: If not passed in and caching was not disabled by
@@ -2715,8 +4945,163 @@ class GridSynchronousProtocol(Protocol):
             # Synchronize the grid with the latest state of the file view
             grid = grid.synchronize()
             ```
+
+        Example: Preview a RecordSet-backed grid's merge before pushing it back
+            &nbsp;
+
+            ```python
+            from synapseclient import Synapse
+            from synapseclient.models import Grid
+            from synapseclient.models.curation import SyncType
+
+            syn = Synapse()
+            syn.login()
+
+            grid = Grid(record_set_id="syn1234567")
+            grid = grid.create()
+
+            # Pull in the latest RecordSet data/schema without pushing back yet
+            grid = grid.synchronize(sync_type=SyncType.PULL)
+
+            # ... review the merged result in the grid session ...
+
+            # Push the merged result back as a new RecordSet version
+            grid = grid.synchronize(sync_type=SyncType.PULL_PUSH)
+            ```
         """
         return self
+
+    def _create_replica(
+        self, *, synapse_client: Optional[Synapse] = None
+    ) -> "GridReplica":
+        """
+        Creates a new replica for this grid session.
+
+        A grid replica is an in-memory document that represents a 'copy' of the
+        grid. Each replica is identified by a unique replicaId, issued by the
+        'hub'. A user can have more than one replica at a time (i.e. using
+        multiple browser tabs/machines). Only the user that started the grid session
+        may create a replica.
+
+        Arguments:
+            synapse_client: If not passed in and caching was not disabled by
+                `Synapse.allow_client_caching(False)` this will use the last created
+                instance from the Synapse class constructor.
+
+        Returns:
+            The newly created GridReplica.
+
+        Raises:
+            ValueError: If session_id is not provided, or if the Synapse response
+                did not contain replica information.
+
+        Example: Create a replica for a grid session
+            &nbsp;
+
+            ```python
+            from synapseclient import Synapse
+            from synapseclient.models import Grid
+
+            syn = Synapse()
+            syn.login()
+
+            grid = Grid(record_set_id="syn1234567")
+            grid = grid.create()
+
+            replica = grid._create_replica()
+            print(f"Replica created with ID: {replica.replica_id}")
+            ```
+        """
+        return None
+
+    def validate_rows(
+        self,
+        *,
+        timeout: int = 120,
+        query_request: "QueryRequest",
+        synapse_client: Optional[Synapse] = None,
+    ) -> Optional["GridQueryResult"]:
+        """
+        Queries this grid session's rows and returns their per-row validation
+        results against the grid's bound JSON schema.
+
+        This Grid must have been obtained from `connect_async` (or `connect`),
+        which binds a replica to it. The given query_request is then submitted
+        to the grid session using that replica, and this waits for the job to
+        complete.
+
+        Arguments:
+            timeout: The number of seconds to wait for the job to complete or progress
+                before raising a SynapseTimeoutError. Defaults to 120.
+            query_request: The structured query to run against the grid, wrapping a
+                GridQuery that defines the column selection, filters, and whether to
+                include the detailed `all_validation_messages` list on each row.
+            synapse_client: If not passed in and caching was not disabled by
+                `Synapse.allow_client_caching(False)` this will use the last created
+                instance from the Synapse class constructor.
+
+        Returns:
+            The GridQueryResult containing the selected columns and rows, each with its own validation_results, or None if the completed job did not return a query_result. Logs a warning if the job completed but no rows matched the query.
+
+        Raises:
+            ValueError: If session_id is not provided, or if no replica is bound
+                to this Grid (see `connect_async`/`connect`).
+
+        Example: Validate every row of a grid session
+            &nbsp;
+
+            ```python
+            from synapseclient import Synapse
+            from synapseclient.models import Grid
+            from synapseclient.models.curation import GridQuery, QueryRequest, SelectAll
+
+            syn = Synapse()
+            syn.login()
+
+            with Grid(record_set_id="syn1234567").connect() as grid:
+                # SelectAll() selects every column in the grid, so each row's full
+                # data is returned alongside its validation results.
+                query_request = QueryRequest(query=GridQuery(column_selection=[SelectAll()]))
+                query_result = grid.validate_rows(query_request=query_request)
+
+                for row in query_result.rows:
+                    validation = row.validation_results
+                    print(f"Row ID: {row.row_id}, Validation Result: {validation}")
+            ```
+
+        Example: Validate only the currently invalid rows of a grid session
+            &nbsp;
+
+            ```python
+            from synapseclient import Synapse
+            from synapseclient.models import Grid
+            from synapseclient.models.curation import (
+                GridQuery,
+                QueryRequest,
+                RowIsValidFilter,
+                SelectAll,
+            )
+
+            syn = Synapse()
+            syn.login()
+
+            with Grid(record_set_id="syn1234567").connect() as grid:
+                # Filter to only the rows that are currently invalid, and request the
+                # detailed allValidationMessages list on each one.
+                query_request = QueryRequest(
+                    query=GridQuery(
+                        column_selection=[SelectAll()],
+                        filters=[RowIsValidFilter(value=False)],
+                        include_validation_messages=True,
+                    )
+                )
+                query_result = grid.validate_rows(query_request=query_request)
+
+                for row in query_result.rows:
+                    print(f"Invalid row {row.row_id}: {row.validation_results}")
+            ```
+        """
+        return None
 
     def delete(self, *, synapse_client: Optional[Synapse] = None) -> None:
         """
@@ -2933,7 +5318,7 @@ class GridSynchronousProtocol(Protocol):
 
 @dataclass
 @async_to_sync
-class Grid(GridSynchronousProtocol):
+class Grid(EnumCoercionMixin, GridSynchronousProtocol):
     """
     A GridSession provides functionality to create and manage grid sessions in Synapse.
     Grid sessions are used for curation workflows where data can be edited in a grid format
@@ -2946,6 +5331,9 @@ class Grid(GridSynchronousProtocol):
         owner_principal_id: The principal ID (user or team) that will own the
             created grid session. When not provided, the principal ID of the
             caller is used.
+        authorization_mode: Controls access permissions and row visibility at
+            session creation time. See AuthorizationMode. When not provided, the
+            service default (SESSION_OWNER) is used.
         session_id: The unique sessionId that identifies the grid session
         started_by: The user that started this session
         started_on: The date-time when the session was started
@@ -2964,6 +5352,7 @@ class Grid(GridSynchronousProtocol):
         ```python
         from synapseclient import Synapse
         from synapseclient.models import Grid
+        from synapseclient.models.curation import GridQuery, QueryRequest, SelectAll, SyncType
 
         syn = Synapse()
         syn.login()
@@ -2973,9 +5362,16 @@ class Grid(GridSynchronousProtocol):
         grid = grid.create()
         print(f"Created grid session: {grid.session_id}")
 
-        # Later, export the modified data back to the record set
-        grid = grid.export_to_record_set()
-        print(f"Exported to version: {grid.record_set_version_number}")
+        # Validate rows. SelectAll() selects every column, so each row's full
+        # data is returned alongside its validation results.
+        with grid.connect() as session:
+            query_request = QueryRequest(query=GridQuery(column_selection=[SelectAll()]))
+            result = session.validate_rows(query_request=query_request)
+            for row in result.rows:
+                print(f"Row ID: {row.row_id}, Validation Result: {row.validation_results}")
+
+        # Later, push the modified data back to the record set
+        grid = grid.synchronize(sync_type=SyncType.PULL_PUSH)
 
         # Clean up by deleting the session when done
         grid.delete()
@@ -2988,6 +5384,7 @@ class Grid(GridSynchronousProtocol):
         from synapseclient import Synapse
         from synapseclient.models import Grid
         from synapseclient.models.table_components import Query
+        from synapseclient.models.curation import GridQuery, QueryRequest, SelectAll, SyncType
 
         syn = Synapse()
         syn.login()
@@ -2997,9 +5394,16 @@ class Grid(GridSynchronousProtocol):
         grid = Grid(initial_query=query)
         grid = grid.create()
 
-        # Work with the grid session...
-        # Export when ready
-        grid = grid.export_to_record_set()
+        # Validate rows. SelectAll() selects every column, so each row's full
+        # data is returned alongside its validation results.
+        with grid.connect() as session:
+            query_request = QueryRequest(query=GridQuery(column_selection=[SelectAll()]))
+            result = session.validate_rows(query_request=query_request)
+            for row in result.rows:
+                print(f"Row ID: {row.row_id}, Validation Result: {row.validation_results}")
+
+        # Push when ready
+        grid = grid.synchronize(sync_type=SyncType.PULL_PUSH)
         ```
     """
 
@@ -3013,6 +5417,11 @@ class Grid(GridSynchronousProtocol):
     owner_principal_id: int | None = None
     """The principal ID (user or team) that will own the created grid session.
     When not provided, the principal ID of the caller is used."""
+
+    authorization_mode: Optional[Union[AuthorizationMode, str]] = None
+    """Controls access permissions and row visibility at session creation time.
+    See AuthorizationMode. When not provided, the service default (SESSION_OWNER)
+    is used."""
 
     session_id: Optional[str] = None
     """The unique sessionId that identifies the grid session"""
@@ -3046,6 +5455,12 @@ class Grid(GridSynchronousProtocol):
 
     validation_summary_statistics: Optional[ValidationSummary] = None
     """Summary statistics for validation results"""
+
+    _replica_id: Optional[int] = field(default=None, repr=False, compare=False)
+    """The replica ID bound to this instance by `connect_async`. Reused by
+    `validate_rows_async` so repeated calls do not each create a new replica."""
+
+    _ENUM_FIELDS: ClassVar[dict[str, type]] = {"authorization_mode": AuthorizationMode}
 
     async def create_async(
         self,
@@ -3132,6 +5547,7 @@ class Grid(GridSynchronousProtocol):
             record_set_id=self.record_set_id,
             initial_query=self.initial_query,
             owner_principal_id=self.owner_principal_id,
+            authorization_mode=self.authorization_mode,
         )
         result = await create_request.send_job_and_wait_async(
             timeout=timeout, synapse_client=synapse_client
@@ -3142,12 +5558,64 @@ class Grid(GridSynchronousProtocol):
 
         return self
 
+    @otel_trace_method(
+        method_to_trace_name=lambda self, **kwargs: f"Grid_Get: ID: {self.session_id}"
+    )
+    async def get_async(self, *, synapse_client: Optional[Synapse] = None) -> "Grid":
+        """
+        Get a grid session from Synapse by its session_id.
+
+        Arguments:
+            synapse_client: If not passed in and caching was not disabled by
+                `Synapse.allow_client_caching(False)` this will use the last created
+                instance from the Synapse class constructor.
+
+        Returns:
+            The Grid object populated with the session data from Synapse.
+
+        Raises:
+            ValueError: If session_id is not provided.
+
+        Example: Get a grid session by its session id asynchronously
+            &nbsp;
+
+            ```python
+            import asyncio
+            from synapseclient import Synapse
+            from synapseclient.models import Grid
+
+            syn = Synapse()
+            syn.login()
+
+            async def main():
+                grid = await Grid(session_id="abc-123-def").get_async()
+                print(f"Source entity: {grid.source_entity_id}")
+
+            asyncio.run(main())
+            ```
+        """
+        if not self.session_id:
+            raise ValueError("session_id is required to get a GridSession")
+
+        response = await get_grid_session(
+            session_id=self.session_id, synapse_client=synapse_client
+        )
+        self.fill_from_dict(response)
+        return self
+
+    @deprecated(
+        version="4.14.0",
+        reason="Use `synchronize_async` with `sync_type=SyncType.PULL_PUSH` instead.",
+    )
     async def export_to_record_set_async(
         self, *, timeout: int = 120, synapse_client: Optional[Synapse] = None
     ) -> "Grid":
         """
         Exports the grid session data back to a record set. This will create a new version
         of the original record set with the modified data from the grid session.
+
+        WARNING - This method is deprecated and will be removed in a future release.
+        Use `synchronize`/`synchronize_async` with `sync_type=SyncType.PULL_PUSH` instead.
 
         Arguments:
             timeout: The number of seconds to wait for the job to complete or progress
@@ -3162,25 +5630,33 @@ class Grid(GridSynchronousProtocol):
         Raises:
             ValueError: If session_id is not provided.
 
-        Example: Export grid session data back to record set asynchronously
+        Example: Migration to synchronize_async
             &nbsp;
 
             ```python
             import asyncio
             from synapseclient import Synapse
             from synapseclient.models import Grid
+            from synapseclient.models.curation import SyncType
 
             syn = Synapse()
             syn.login()
 
             async def main():
-                # Export modified grid data back to the record set
                 grid = Grid(session_id="abc-123-def")
-                grid = await grid.export_to_record_set_async()
-                print(f"Exported to record set: {grid.record_set_id}")
-                print(f"Version number: {grid.record_set_version_number}")
-                if grid.validation_summary_statistics:
-                    print(f"Valid records: {grid.validation_summary_statistics.number_of_valid_children}")
+
+                # Old approach (DEPRECATED)
+                # grid = await grid.export_to_record_set_async()
+                # print(f"Exported to record set: {grid.record_set_id}")
+                # print(f"Version number: {grid.record_set_version_number}")
+                # if grid.validation_summary_statistics:
+                #     print(f"Valid records: {grid.validation_summary_statistics.number_of_valid_children}")
+
+                # New approach (RECOMMENDED)
+                # Note: unlike export_to_record_set_async, synchronize_async
+                # does not populate record_set_id, record_set_version_number,
+                # or validation_summary_statistics on the returned Grid.
+                grid = await grid.synchronize_async(sync_type=SyncType.PULL_PUSH)
 
             asyncio.run(main())
             ```
@@ -3219,7 +5695,11 @@ class Grid(GridSynchronousProtocol):
         )
         self.grid_json_schema_id = synapse_response.get("gridJsonSchema$Id", None)
         self.source_entity_id = synapse_response.get("sourceEntityId", None)
-        self.owner_principal_id = synapse_response.get("ownerPrincipalId")
+        owner_principal_id = synapse_response.get("ownerPrincipalId")
+        self.owner_principal_id = (
+            int(owner_principal_id) if owner_principal_id is not None else None
+        )
+        self.authorization_mode = synapse_response.get("authorizationMode", None)
         return self
 
     @skip_async_to_sync
@@ -3608,15 +6088,27 @@ class Grid(GridSynchronousProtocol):
         method_to_trace_name=lambda self, **kwargs: f"Grid_Synchronize: ID: {self.session_id}"
     )
     async def synchronize_async(
-        self, *, timeout: int = 120, synapse_client: Optional[Synapse] = None
+        self,
+        *,
+        sync_type: Optional[Union[SyncType, str]] = None,
+        timeout: int = 120,
+        synapse_client: Optional[Synapse] = None,
     ) -> "Grid":
         """
         Synchronizes the grid session's schema and row data against its source entity.
 
-        This is intended for grid sessions created from a file view via `initial_query`.
-        Grid sessions backed by a RecordSet should use `export_to_record_set` instead.
+        Grid sessions created from a file view via `initial_query` always perform a
+        full PULL_PUSH. Grid sessions backed by a RecordSet may instead pass
+        `sync_type=SyncType.PULL` to pull the latest RecordSet data/schema into the
+        session for review, without immediately writing the merged result back as a
+        new RecordSet version. Once satisfied with the result, call this method again
+        (with `sync_type` omitted, or explicitly set to `SyncType.PULL_PUSH`) to push
+        the merged data back to the RecordSet as a new version.
 
         Arguments:
+            sync_type: The type of synchronization to perform. Optional; the server
+                defaults to `SyncType.PULL_PUSH` when omitted. `SyncType.PULL` is
+                currently only supported for RecordSet-based grids.
             timeout: The number of seconds to wait for the job to complete or progress
                 before raising a SynapseTimeoutError. Defaults to 120.
             synapse_client: If not passed in and caching was not disabled by
@@ -3652,11 +6144,40 @@ class Grid(GridSynchronousProtocol):
 
             asyncio.run(main())
             ```
+
+        Example: Preview a RecordSet-backed grid's merge before pushing it back
+            &nbsp;
+
+            ```python
+            import asyncio
+            from synapseclient import Synapse
+            from synapseclient.models import Grid
+            from synapseclient.models.curation import SyncType
+
+            syn = Synapse()
+            syn.login()
+
+            async def main():
+                grid = Grid(record_set_id="syn1234567")
+                grid = await grid.create_async()
+
+                # Pull in the latest RecordSet data/schema without pushing back yet
+                grid = await grid.synchronize_async(sync_type=SyncType.PULL)
+
+                # ... review the merged result in the grid session ...
+
+                # Push the merged result back as a new RecordSet version
+                grid = await grid.synchronize_async(sync_type=SyncType.PULL_PUSH)
+
+            asyncio.run(main())
+            ```
         """
         if not self.session_id:
             raise ValueError("session_id is required to synchronize a GridSession")
 
-        request = SynchronizeGridRequest(grid_session_id=self.session_id)
+        request = SynchronizeGridRequest(
+            grid_session_id=self.session_id, sync_type=sync_type
+        )
         result = await request.send_job_and_wait_async(
             timeout=timeout, synapse_client=synapse_client
         )
@@ -3669,3 +6190,406 @@ class Grid(GridSynchronousProtocol):
             )
 
         return self
+
+    @otel_trace_method(
+        method_to_trace_name=lambda self, **kwargs: f"Grid_Create_Replica_Session_ID: {self.session_id}"
+    )
+    async def _create_replica_async(
+        self, *, synapse_client: Optional[Synapse] = None
+    ) -> "GridReplica":
+        """
+        Creates a new replica for this grid session.
+
+        A grid replica is an in-memory document that represents a 'copy' of the
+        grid. Each replica is identified by a unique replicaId, issued by the
+        'hub'. A user can have more than one replica at a time (i.e. using
+        multiple browser tabs/machines). Only the user that started the grid session
+        may create a replica.
+
+        Arguments:
+            synapse_client: If not passed in and caching was not disabled by
+                `Synapse.allow_client_caching(False)` this will use the last created
+                instance from the Synapse class constructor.
+
+        Returns:
+            The newly created GridReplica.
+
+        Raises:
+            ValueError: If session_id is not provided, or if the Synapse response
+                did not contain replica information.
+
+        Example: Create a replica for a grid session
+            &nbsp;
+
+            ```python
+            import asyncio
+            from synapseclient import Synapse
+            from synapseclient.models import Grid
+
+            syn = Synapse()
+            syn.login()
+
+            async def main():
+                grid = Grid(record_set_id="syn1234567")
+                grid = await grid.create_async()
+
+                replica = await grid._create_replica_async()
+                print(f"Replica created with ID: {replica.replica_id}")
+
+            asyncio.run(main())
+            ```
+        """
+        if not self.session_id:
+            raise ValueError(
+                "session_id is required to create a replica for a GridSession"
+            )
+
+        grid_replica = await create_grid_replica(
+            session_id=self.session_id,
+            create_replica_request=CreateReplicaRequest(
+                self.session_id
+            ).to_synapse_request(),
+            synapse_client=synapse_client,
+        )
+        replica_data = grid_replica.get("replica")
+        if not replica_data:
+            raise ValueError(
+                f"Replica could not be created for grid session '{self.session_id}': "
+                f"no replica was returned in the Synapse response."
+            )
+        return GridReplica().fill_from_dict(replica_data)
+
+    @skip_async_to_sync
+    @asynccontextmanager
+    async def connect_async(
+        self,
+        *,
+        attach_to_previous_session: bool = False,
+        timeout: int = 120,
+        synapse_client: Optional[Synapse] = None,
+    ) -> AsyncGenerator["Grid", None]:
+        """
+        Connects to a grid session and binds a single replica to it for the
+        duration of the `async with` block.
+
+        If `session_id` is not already set (e.g. from `create_grid_session`),
+        creates a new grid session first via `record_set_id` or
+        `initial_query`, same as `create_async`. Either way, one replica is
+        then created (see `_create_replica_async`) that is reused by every
+        `validate_rows_async` call made within the block.
+
+        Arguments:
+            attach_to_previous_session: Only applies when creating a new
+                session from `record_set_id`. If True, attaches to an existing
+                active session instead of creating a new one. Defaults to False.
+            timeout: The number of seconds to wait for the job to complete or progress
+                before raising a SynapseTimeoutError. Defaults to 120.
+            synapse_client: If not passed in and caching was not disabled by
+                `Synapse.allow_client_caching(False)` this will use the last created
+                instance from the Synapse class constructor.
+
+        Yields:
+            The connected Grid, with a replica bound to it.
+
+        Example: Validate rows using a newly created grid session
+            &nbsp;
+
+            ```python
+            import asyncio
+            from synapseclient import Synapse
+            from synapseclient.models import Grid
+            from synapseclient.models.curation import GridQuery, QueryRequest, SelectAll
+
+            syn = Synapse()
+            syn.login()
+
+            async def main():
+                async with Grid(record_set_id="syn1234567").connect_async() as session:
+                    query_request = QueryRequest(
+                        query=GridQuery(column_selection=[SelectAll()])
+                    )
+                    result = await session.validate_rows_async(query_request=query_request)
+                    for row in result.rows:
+                        print(f"Row ID: {row.row_id}, Validation Result: {row.validation_results}")
+
+            asyncio.run(main())
+            ```
+
+        Example: Validate rows using an existing grid session
+            &nbsp;
+
+            If a session_id is already set, connect_async will not create a new
+            grid session
+
+            ```python
+            import asyncio
+            from synapseclient import Synapse
+            from synapseclient.models import CurationTask, Grid
+            from synapseclient.models.curation import GridQuery, QueryRequest, SelectAll
+
+            syn = Synapse()
+            syn.login()
+
+            task = CurationTask(task_id="1234")
+            grid = task.create_grid_session()
+
+            async def main():
+                async with grid.connect_async() as session:
+                    query_request = QueryRequest(
+                        query=GridQuery(column_selection=[SelectAll()])
+                    )
+                    result = await session.validate_rows_async(query_request=query_request)
+                    for row in result.rows:
+                        print(f"Row ID: {row.row_id}, Validation Result: {row.validation_results}")
+
+            asyncio.run(main())
+            ```
+        """
+        trace.get_current_span().set_attributes(
+            {
+                "synapse.record_set_id": self.record_set_id or "",
+                "synapse.session_id": self.session_id or "",
+            }
+        )
+
+        if not self.session_id:
+            await self.create_async(
+                attach_to_previous_session=attach_to_previous_session,
+                timeout=timeout,
+                synapse_client=synapse_client,
+            )
+
+        replica = await self._create_replica_async(synapse_client=synapse_client)
+        self._replica_id = replica.replica_id
+        try:
+            yield self
+        finally:
+            self._replica_id = None
+
+    @contextmanager
+    def connect(
+        self,
+        *,
+        attach_to_previous_session: bool = False,
+        timeout: int = 120,
+        synapse_client: Optional[Synapse] = None,
+    ) -> Generator["Grid", None, None]:
+        """
+        Synchronous equivalent of `connect_async`.
+
+        Connects to a grid session and binds a single replica to it for the
+        duration of the `with` block.
+
+        If `session_id` is not already set (e.g. from `create_grid_session`),
+        creates a new grid session first via `record_set_id` or
+        `initial_query`, same as `create`. Either way, one replica is then
+        created (see `_create_replica`) that is reused by every
+        `validate_rows` call made within the block.
+
+        Arguments:
+            attach_to_previous_session: Only applies when creating a new
+                session from `record_set_id`. If True, attaches to an existing
+                active session instead of creating a new one. Defaults to False.
+            timeout: The number of seconds to wait for the job to complete or progress
+                before raising a SynapseTimeoutError. Defaults to 120.
+            synapse_client: If not passed in and caching was not disabled by
+                `Synapse.allow_client_caching(False)` this will use the last created
+                instance from the Synapse class constructor.
+
+        Yields:
+            The connected Grid, with a replica bound to it.
+
+        Example: Validate rows using a newly created grid session
+            &nbsp;
+
+            ```python
+            from synapseclient import Synapse
+            from synapseclient.models import Grid
+            from synapseclient.models.curation import GridQuery, QueryRequest, SelectAll
+
+            syn = Synapse()
+            syn.login()
+
+            with Grid(record_set_id="syn1234567").connect() as session:
+                query_request = QueryRequest(
+                    query=GridQuery(column_selection=[SelectAll()])
+                )
+                result = session.validate_rows(query_request=query_request)
+                for row in result.rows:
+                    print(f"Row ID: {row.row_id}, Validation Result: {row.validation_results}")
+            ```
+
+        Example: Validate rows using an existing grid session
+            &nbsp;
+
+            If a session_id is already set, connect will not create a new grid
+            session.
+
+            ```python
+            from synapseclient import Synapse
+            from synapseclient.models import CurationTask, Grid
+            from synapseclient.models.curation import GridQuery, QueryRequest, SelectAll
+
+            syn = Synapse()
+            syn.login()
+
+            task = CurationTask(task_id="1234")
+            grid = task.create_grid_session()
+
+            with grid.connect() as session:
+                query_request = QueryRequest(
+                    query=GridQuery(column_selection=[SelectAll()])
+                )
+                result = session.validate_rows(query_request=query_request)
+                for row in result.rows:
+                    print(f"Row ID: {row.row_id}, Validation Result: {row.validation_results}")
+            ```
+        """
+        trace.get_current_span().set_attributes(
+            {
+                "synapse.record_set_id": self.record_set_id or "",
+                "synapse.session_id": self.session_id or "",
+            }
+        )
+
+        if not self.session_id:
+            self.create(
+                attach_to_previous_session=attach_to_previous_session,
+                timeout=timeout,
+                synapse_client=synapse_client,
+            )
+
+        replica = self._create_replica(synapse_client=synapse_client)
+        self._replica_id = replica.replica_id
+        try:
+            yield self
+        finally:
+            self._replica_id = None
+
+    @otel_trace_method(
+        method_to_trace_name=lambda self, **kwargs: f"Grid_Validate_Rows_Session_ID: {self.session_id}"
+    )
+    async def validate_rows_async(
+        self,
+        *,
+        timeout: int = 120,
+        query_request: QueryRequest,
+        synapse_client: Optional[Synapse] = None,
+    ) -> Optional["GridQueryResult"]:
+        """
+        Queries this grid session's rows and returns their per-row validation
+        results against the grid's bound JSON schema.
+
+        This Grid must have been obtained from `connect_async` (or `connect`),
+        which binds a replica to it. The given query_request is then submitted
+        to the grid session using that replica, and this waits for the job to
+        complete.
+
+        Arguments:
+            timeout: The number of seconds to wait for the job to complete or progress
+                before raising a SynapseTimeoutError. Defaults to 120.
+            query_request: The structured query to run against the grid, wrapping a
+                GridQuery that defines the column selection, filters, and whether to
+                include the detailed `all_validation_messages` list on each row.
+            synapse_client: If not passed in and caching was not disabled by
+                `Synapse.allow_client_caching(False)` this will use the last created
+                instance from the Synapse class constructor.
+
+        Returns:
+            The GridQueryResult containing the selected columns and rows, each with its own validation_results, or None if the completed job did not return a query_result. Logs a warning if the job completed but no rows matched the query.
+
+        Raises:
+            ValueError: If session_id is not provided, or if no replica is bound
+                to this Grid (see `connect_async`/`connect`).
+
+        Example: Validate every row of a grid session
+            &nbsp;
+
+            ```python
+            import asyncio
+            from synapseclient import Synapse
+            from synapseclient.models import Grid
+            from synapseclient.models.curation import GridQuery, QueryRequest, SelectAll
+
+            syn = Synapse()
+            syn.login()
+
+            async def main():
+                async with Grid(record_set_id="syn1234567").connect_async() as grid:
+                    # SelectAll() selects every column in the grid, so each row's
+                    # full data is returned alongside its validation results.
+                    query_request = QueryRequest(
+                        query=GridQuery(column_selection=[SelectAll()])
+                    )
+                    query_result = await grid.validate_rows_async(query_request=query_request)
+
+                    for row in query_result.rows:
+                        validation = row.validation_results
+                        print(f"Row ID: {row.row_id}, Validation Result: {validation}")
+
+            asyncio.run(main())
+            ```
+
+        Example: Validate only the currently invalid rows of a grid session
+            &nbsp;
+
+            ```python
+            import asyncio
+            from synapseclient import Synapse
+            from synapseclient.models import Grid
+            from synapseclient.models.curation import (
+                GridQuery,
+                QueryRequest,
+                RowIsValidFilter,
+                SelectAll,
+            )
+
+            syn = Synapse()
+            syn.login()
+
+            async def main():
+                async with Grid(record_set_id="syn1234567").connect_async() as grid:
+                    # Filter to only the rows that are currently invalid, and request
+                    # the detailed allValidationMessages list on each one.
+                    query_request = QueryRequest(
+                        query=GridQuery(
+                            column_selection=[SelectAll()],
+                            filters=[RowIsValidFilter(value=False)],
+                            include_validation_messages=True,
+                        )
+                    )
+                    query_result = await grid.validate_rows_async(query_request=query_request)
+
+                    for row in query_result.rows:
+                        print(f"Invalid row {row.row_id}: {row.validation_results}")
+
+            asyncio.run(main())
+            ```
+        """
+        if not self.session_id:
+            raise ValueError("session_id is required to validate rows")
+
+        if self._replica_id is None:
+            raise ValueError(
+                "No replica is bound to this Grid. Use `connect_async` (or "
+                "`connect`) to connect to a grid session before calling "
+                "validate_rows_async."
+            )
+
+        request = GridQueryJobRequest(
+            session_id=self.session_id,
+            replica_id=self._replica_id,
+            query_request=query_request,
+        )
+        request = await request.send_job_and_wait_async(
+            timeout=timeout, synapse_client=synapse_client
+        )
+
+        if not request.query_result or not request.query_result.rows:
+            client = Synapse.get_client(synapse_client=synapse_client)
+            client.logger.warning(
+                f"Validation job for grid session '{self.session_id}' completed but "
+                "did not return any row validation results. This grid may not have "
+                "any rows matching the query."
+            )
+        return request.query_result

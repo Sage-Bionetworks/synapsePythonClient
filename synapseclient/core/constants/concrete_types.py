@@ -62,6 +62,12 @@ TABLE_SCHEMA_CHANGE_RESPONSE = (
 TABLE_SCHEMA_CHANGE_REQUEST = (
     "org.sagebionetworks.repo.model.table.TableSchemaChangeRequest"
 )
+TABLE_SEARCH_CHANGE_RESPONSE = (
+    "org.sagebionetworks.repo.model.table.TableSearchChangeResponse"
+)
+TABLE_SEARCH_CHANGE_REQUEST = (
+    "org.sagebionetworks.repo.model.table.TableSearchChangeRequest"
+)
 TABLE_UPDATE_TRANSACTION_REQUEST = (
     "org.sagebionetworks.repo.model.table.TableUpdateTransactionRequest"
 )
@@ -89,7 +95,11 @@ ENTITY_VIEW = "org.sagebionetworks.repo.model.table.EntityView"
 MATERIALIZED_VIEW = "org.sagebionetworks.repo.model.table.MaterializedView"
 SUBMISSION_VIEW = "org.sagebionetworks.repo.model.table.SubmissionView"
 VIRTUAL_TABLE = "org.sagebionetworks.repo.model.table.VirtualTable"
+SEARCH_INDEX_ENTITY = "org.sagebionetworks.repo.model.search.table.SearchIndex"
 DOCKER_REPOSITORY = "org.sagebionetworks.repo.model.docker.DockerRepository"
+
+# Search Management
+SEARCH_INDEX_QUERY = "org.sagebionetworks.repo.model.search.table.SearchIndexQuery"
 
 # upload requests
 MULTIPART_UPLOAD_REQUEST = "org.sagebionetworks.repo.model.file.MultipartUploadRequest"
@@ -132,8 +142,27 @@ FILE_BASED_METADATA_TASK_PROPERTIES = (
 RECORD_BASED_METADATA_TASK_PROPERTIES = (
     "org.sagebionetworks.repo.model.curation.metadata.RecordBasedMetadataTaskProperties"
 )
+SAMPLE_SHEET_GENERATION_EXECUTION_PROPERTIES = (
+    "org.sagebionetworks.repo.model.curation.execution."
+    "SampleSheetGenerationExecutionProperties"
+)
+RECORD_SET_GENERATION_EXECUTION_PROPERTIES = (
+    "org.sagebionetworks.repo.model.curation.execution."
+    "RecordSetGenerationExecutionProperties"
+)
 GRID_EXECUTION_DETAILS = (
     "org.sagebionetworks.repo.model.curation.execution.GridExecutionDetails"
+)
+SAMPLE_SHEET_GENERATION_EXECUTION_DETAILS = (
+    "org.sagebionetworks.repo.model.curation.execution."
+    "SampleSheetGenerationExecutionDetails"
+)
+RECORD_SET_GENERATION_EXECUTION_DETAILS = (
+    "org.sagebionetworks.repo.model.curation.execution."
+    "RecordSetGenerationExecutionDetails"
+)
+COMPUTE_TASK_EXECUTION_REQUEST = (
+    "org.sagebionetworks.repo.model.curation.ComputeTaskExecutionRequest"
 )
 
 # Download List
@@ -157,6 +186,23 @@ LIST_GRID_SESSIONS_RESPONSE = (
 )
 SYNCHRONIZE_GRID_REQUEST = "org.sagebionetworks.repo.model.grid.SynchronizeGridRequest"
 GRID_CSV_IMPORT_REQUEST = "org.sagebionetworks.repo.model.grid.GridCsvImportRequest"
+GRID_QUERY_JOB_REQUEST = "org.sagebionetworks.repo.model.grid.GridQueryJobRequest"
+
+# Grid Query SelectItem Types
+SELECT_BY_NAME = "org.sagebionetworks.repo.model.grid.query.SelectByName"
+SELECT_ALL = "org.sagebionetworks.repo.model.grid.query.SelectAll"
+COUNT_STAR = "org.sagebionetworks.repo.model.grid.query.function.CountStar"
+SELECT_SELECTION = "org.sagebionetworks.repo.model.grid.query.SelectSelection"
+
+# Grid Query Filter Types
+ROW_VALIDATION_RESULT_FILTER = (
+    "org.sagebionetworks.repo.model.grid.query.RowValidationResultFilter"
+)
+CELL_VALUE_FILTER = "org.sagebionetworks.repo.model.grid.query.CellValueFilter"
+ROW_SELECTION_FILTER = "org.sagebionetworks.repo.model.grid.query.RowSelectionFilter"
+ROW_IS_VALID_FILTER = "org.sagebionetworks.repo.model.grid.query.RowIsValidFilter"
+ROW_ID_FILTER = "org.sagebionetworks.repo.model.grid.query.RowIdFilter"
+
 UPLOAD_TO_TABLE_PREVIEW_REQUEST = (
     "org.sagebionetworks.repo.model.table.UploadToTablePreviewRequest"
 )

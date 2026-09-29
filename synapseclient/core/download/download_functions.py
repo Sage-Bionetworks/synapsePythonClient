@@ -12,6 +12,7 @@ import urllib.parse as urllib_urlparse
 import urllib.request as urllib_request
 from typing import TYPE_CHECKING, Dict, Optional, Union
 
+from deprecated import deprecated
 from opentelemetry import trace
 from tqdm import tqdm
 from tqdm.contrib.logging import logging_redirect_tqdm
@@ -51,6 +52,7 @@ from synapseclient.core.retry import (
 )
 from synapseclient.core.transfer_bar import (
     close_download_progress_bar,
+    create_progress_bar,
     get_or_create_download_progress_bar,
     increment_progress_bar,
     increment_progress_bar_total,
@@ -79,6 +81,11 @@ STANDARD_RETRY_PARAMS = {
 tracer = get_tracer()
 
 
+@deprecated(
+    version="4.14.0",
+    reason="To be removed in 5.0.0. "
+    "Use download_file_entity_model with the synapseclient.models.File object instead.",
+)
 @tracer.start_as_current_span("synapse.transfer.download")
 async def download_file_entity(
     download_location: str,
@@ -90,6 +97,9 @@ async def download_file_entity(
 ) -> None:
     """
     Download file entity
+
+    WARNING - This function is deprecated and will no longer be maintained. Please use
+    download_file_entity_model with the synapseclient.models.File object instead.
 
     Arguments:
         download_location: The location on disk where the entity will be downloaded. If
@@ -107,6 +117,41 @@ async def download_file_entity(
         synapse_client: If not passed in and caching was not disabled by
                 `Synapse.allow_client_caching(False)` this will use the last created
                 instance from the Synapse class constructor.
+
+    Example: Migration to the object-oriented model
+        &nbsp;
+
+        The user-facing way to download a file is now File.get(). Internally this
+        maps to download_file_entity_model, which takes a synapseclient.models.File
+        object instead of a legacy Entity.
+
+        ```python
+        # Old approach (DEPRECATED)
+        # await download_file_entity(
+        #     download_location="/tmp/data",
+        #     entity=entity,
+        #     if_collision="overwrite.local",
+        #     submission=None,
+        # )
+
+        # New approach (RECOMMENDED)
+        from synapseclient import Synapse
+        from synapseclient.models import File
+
+        syn = Synapse()
+        syn.login()
+
+        file = File(id="syn123", path="/tmp/data").get()
+
+        # Or, using the internal model function directly:
+        # from synapseclient.core.download import download_file_entity_model
+        # await download_file_entity_model(
+        #     download_location="/tmp/data",
+        #     file=File(id="syn123"),
+        #     if_collision="overwrite.local",
+        #     submission=None,
+        # )
+        ```
     """
     from synapseclient import Synapse
 
@@ -602,6 +647,18 @@ async def download_by_file_handle(
             ):
                 span.set_attribute("synapse.storage.provider", "s3")
 
+                # Reuse the pre-signed URL already retrieved above rather than
+                # requesting a second one inside the multi-threaded downloader. The
+                # file_handle_id/object_id/object_type are still passed so the
+                # downloader can refetch the URL if it expires mid-download.
+                presigned_url_info = PresignedUrlInfo(
+                    file_name=file_handle["fileName"],
+                    url=file_handle_result["preSignedURL"],
+                    expiration_utc=_pre_signed_url_expiration_time(
+                        file_handle_result["preSignedURL"]
+                    ),
+                )
+
                 # run the download multi threaded if the file supports it, we're configured to do so,
                 # and the file is large enough that it would be broken into parts to take advantage of
                 # multiple downloading threads. otherwise it's more efficient to run the download as a simple
@@ -612,6 +669,7 @@ async def download_by_file_handle(
                     object_type=entity_type,
                     destination=destination,
                     expected_md5=actual_md5,
+                    presigned_url=presigned_url_info,
                     synapse_client=syn,
                 )
 
@@ -738,7 +796,13 @@ async def download_from_url_multi_threaded(
             # If the destination is a directory, then the file name should be the same as the file name in the presigned url
             # This is added to ensure the temp file can be copied to the desired destination without changing the file name
             destination = os.path.join(destination, presigned_url.file_name)
+        # Pass through the file handle identifiers so the downloader can refetch a
+        # fresh pre-signed URL if the seeded one expires mid-download. Callers that
+        # cannot refetch (e.g. wiki attachments) omit these, leaving them as None.
         request = DownloadRequest(
+            file_handle_id=int(file_handle_id) if file_handle_id is not None else None,
+            object_id=object_id,
+            object_type=object_type,
             path=temp_destination,
             debug=client.debug,
             presigned_url=presigned_url,
@@ -754,7 +818,16 @@ async def download_from_url_multi_threaded(
     await download_file(client=client, download_request=request)
 
     if expected_md5:  # if md5 not set (should be the case for all except http download)
-        actual_md5 = utils.md5_for_file_hex(filename=temp_destination)
+        md5_progress_bar = create_progress_bar(
+            total=os.path.getsize(temp_destination),
+            desc="Calculating MD5",
+            unit="B",
+            postfix=os.path.basename(destination),
+            synapse_client=client,
+        )
+        actual_md5 = utils.md5_for_file_hex(
+            filename=temp_destination, progress_bar=md5_progress_bar
+        )
         # check md5 if given
         if actual_md5 != expected_md5:
             try:
@@ -1100,7 +1173,16 @@ def download_from_url(
     if (
         actual_md5 is None
     ):  # if md5 not set (should be the case for all except http download)
-        actual_md5 = utils.md5_for_file_hex(filename=destination)
+        md5_progress_bar = create_progress_bar(
+            total=os.path.getsize(destination),
+            desc="Calculating MD5",
+            unit="B",
+            postfix=os.path.basename(destination),
+            synapse_client=client,
+        )
+        actual_md5 = utils.md5_for_file_hex(
+            filename=destination, progress_bar=md5_progress_bar
+        )
 
     # check md5 if given
     if expected_md5 and actual_md5 != expected_md5:

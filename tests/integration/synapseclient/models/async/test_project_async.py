@@ -1,5 +1,6 @@
 """Integration tests for the synapseclient.models.Project class."""
 
+import copy
 import os
 import uuid
 from typing import Callable, List
@@ -407,13 +408,31 @@ class TestProjectCopySync:
                     assert sub_file.name is not None
                     assert sub_file.parent_id == folder.id
 
-    async def test_copy_project_variations(self) -> None:
+    @pytest.fixture(scope="class")
+    async def _shared_nested_project(
+        self, syn: Synapse, schedule_for_cleanup: Callable[..., None]
+    ) -> Project:
+        """
+        Built once for the whole class rather than once per test:
+        `test_copy_project_variations` and `test_sync_from_synapse` both need a
+        stored project with the same nested files/folders/annotations shape.
+        """
+        self.syn = syn
+        self.schedule_for_cleanup = schedule_for_cleanup
+        project = self.create_nested_project()
+        stored_project = await project.store_async(synapse_client=syn)
+        schedule_for_cleanup(stored_project.id)
+        return stored_project
+
+    @pytest.fixture
+    def shared_nested_project(self, _shared_nested_project: Project) -> Project:
+        return copy.deepcopy(_shared_nested_project)
+
+    async def test_copy_project_variations(
+        self, shared_nested_project: Project
+    ) -> None:
         # GIVEN a nested source project and a destination project
-        source_project = self.create_nested_project()
-        stored_source_project = await source_project.store_async(
-            synapse_client=self.syn
-        )
-        self.schedule_for_cleanup(stored_source_project.id)
+        stored_source_project = shared_nested_project
 
         # Test Case 1: Copy project with all contents
         # Create first destination project
@@ -456,15 +475,13 @@ class TestProjectCopySync:
             copied_project_no_files, stored_source_project, expected_files_empty=True
         )
 
-    async def test_sync_from_synapse(self, file: File) -> None:
+    async def test_sync_from_synapse(
+        self, file: File, shared_nested_project: Project
+    ) -> None:
         # GIVEN a nested project structure
         root_directory_path = os.path.dirname(file.path)
 
-        project = self.create_nested_project()
-
-        # WHEN I store the Project on Synapse
-        stored_project = await project.store_async(synapse_client=self.syn)
-        self.schedule_for_cleanup(project.id)
+        stored_project = shared_nested_project
 
         # AND I sync the project from Synapse
         copied_project = await stored_project.sync_from_synapse_async(
@@ -552,7 +569,8 @@ class TestProjectCopySync:
         file = File(
             name=f"test_file_{str(uuid.uuid4())}.txt",
             parent_id=project_model.id,
-            path=utils.make_bogus_uuid_file(),
+            external_url=f"https://example.com/bogus-file-{uuid.uuid4()}.txt",
+            synapse_store=False,
         )
         file = await file.store_async(synapse_client=self.syn)
         self.schedule_for_cleanup(file.id)
@@ -622,10 +640,11 @@ class TestProjectWalk:
         self.schedule_for_cleanup = schedule_for_cleanup
 
     def create_file_instance(self, schedule_for_cleanup: Callable[..., None]) -> File:
-        filename = utils.make_bogus_uuid_file()
-        schedule_for_cleanup(filename)
+        # Only the entity's existence matters for walk_async results, not its
+        # content, so an external_url file handle avoids a real upload.
         return File(
-            path=filename,
+            external_url=f"https://example.com/bogus-file-{uuid.uuid4()}.txt",
+            synapse_store=False,
             description=DESCRIPTION_FILE,
             content_type=CONTENT_TYPE,
         )

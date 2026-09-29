@@ -1,14 +1,9 @@
-from typing import TYPE_CHECKING
 from unittest.mock import AsyncMock, patch
 
 import pytest
 
 from synapseclient import Synapse
 from synapseclient.models import DockerRepository
-
-if TYPE_CHECKING:
-    from synapseclient import Synapse
-
 
 TEST_ID = "syn1234"
 TEST_NAME = "syn1234"

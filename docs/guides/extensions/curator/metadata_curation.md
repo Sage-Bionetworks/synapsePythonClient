@@ -107,7 +107,7 @@ print(f"Created CurationTask: {curation_task.task_id}")
 Use this when metadata describes individual data files and is stored as annotations directly on each file.
 
 ```python
-entity_view_id, task_id = create_file_based_metadata_task(
+entity_view, task = create_file_based_metadata_task(
     synapse_client=syn,
     folder_id="syn987654321",          # Folder containing your data files
     curation_task_name="FileMetadata_Curation", # Must be unique within the project
@@ -116,11 +116,12 @@ entity_view_id, task_id = create_file_based_metadata_task(
     entity_view_name="Animal Study Files View",
     schema_uri=schema_uri,             # Schema found in Step 2
     assignee_principal_id=123456,    # Optional: Assign to a user or team
-    view_type_mask=ViewTypeMask.FILE   # Optional: include additional entity types in the view (ViewTypeMask.FILE | ViewTypeMask.DOCKER). (Defaults to ViewTypeMask.FILE)
+    view_type_mask=ViewTypeMask.FILE,  # Optional: include additional entity types in the view (ViewTypeMask.FILE | ViewTypeMask.DOCKER). (Defaults to ViewTypeMask.FILE)
+    return_entities=True               # Return EntityView and CurationTask objects (becomes the default in v5.0.0)
 )
 
-print(f"Created EntityView: {entity_view_id}")
-print(f"Created CurationTask: {task_id}")
+print(f"Created EntityView: {entity_view.id}")
+print(f"Created CurationTask: {task.task_id}")
 
 ```
 
@@ -130,6 +131,80 @@ print(f"Created CurationTask: {task_id}")
 - A CurationTask for guided metadata entry
 - Automatic schema binding to the folder for validation
 - Optional wiki attached to the folder
+
+### Controlling the order of the columns
+
+Both [create_record_based_metadata_task][synapseclient.extensions.curator.create_record_based_metadata_task] and [create_file_based_metadata_task][synapseclient.extensions.curator.create_file_based_metadata_task] accept an optional `column_order` that controls the left-to-right order of the columns contributors see in the grid. JSON Schema property order is not reliably preserved by downstream applications, so pass the order explicitly here instead of relying on the schema.
+
+You only need to name the columns that need intentional placement. Every column you leave out stays visible and is appended after the ones you named, in its existing relative order. This keeps the configuration short as properties are added to the schema over time.
+
+A few columns are always pinned to the front and cannot be moved:
+
+- Record-based tasks pin the `upsert_keys`, because they identify each row.
+- File-based tasks pin `name` and `id`.
+
+Naming a pinned column in `column_order` has no effect — it stays in its pinned position and is not duplicated. A name that does not match any available column raises a `ValueError`.
+
+```python
+record_set, curation_task = create_record_based_metadata_task(
+    synapse_client=syn,
+    folder_id="syn987654321",
+    record_set_name="AnimalMetadata_Records",
+    record_set_description="Centralized metadata for animal study data",
+    curation_task_name="AnimalMetadata_Curation",
+    upsert_keys=["StudyKey"],
+    column_order=["diagnosis", "specimenType", "assay"],
+    instructions="Complete all required fields according to the schema.",
+    schema_uri=schema_uri,
+    create_grid=False,
+)
+
+# Resulting column order:
+# StudyKey, diagnosis, specimenType, assay, <remaining schema properties>
+```
+
+```python
+entity_view, task = create_file_based_metadata_task(
+    synapse_client=syn,
+    folder_id="syn987654321",
+    curation_task_name="FileMetadata_Curation",
+    instructions="Annotate each file with metadata according to the schema requirements.",
+    entity_view_name="Animal Study Files View",
+    schema_uri=schema_uri,
+    column_order=["patientId", "sampleId", "assay", "fileFormat"],
+    return_entities=True,
+)
+
+# Resulting column order:
+# name, id, patientId, sampleId, assay, fileFormat, <remaining columns>
+```
+
+For file-based tasks the available columns include the Synapse managed columns such as `createdBy` and `modifiedOn` in addition to the JSON Schema properties, so you may place those wherever you like. They are no longer pinned to the front — only `name` and `id` are — which lets contributor-relevant metadata appear before system metadata.
+
+### Controlling who can access the grid session
+
+Both [create_record_based_metadata_task][synapseclient.extensions.curator.create_record_based_metadata_task] and [create_file_based_metadata_task][synapseclient.extensions.curator.create_file_based_metadata_task] accept an optional `authorization_mode` that tells clients how to scope access when a grid session is created for the task:
+
+- `SESSION_OWNER` (the server default applied when the mode is omitted) limits access to the session owner and their team. Use it when curation should be restricted to a specific user or team.
+- `SOURCE_BENEFACTOR` extends access to anyone with `EDIT` rights on the source entity. Use it when curation should be open to all editors of the source.
+
+```python
+
+entity_view_id, task_id = create_file_based_metadata_task(
+    synapse_client=syn,
+    folder_id="syn987654321",
+    curation_task_name="FileMetadata_Curation",
+    instructions="Annotate each file with metadata according to the schema requirements.",
+    entity_view_name="Animal Study Files View",
+    schema_uri=schema_uri,
+    authorization_mode="SOURCE_BENEFACTOR",
+)
+```
+
+When [CurationTask.create_grid_session][synapseclient.models.CurationTask.create_grid_session] is later called, it forwards this mode to the new grid session and the server uses it to determine access: `SESSION_OWNER` limits access to the session owner (the caller, or an explicit `owner_principal_id`) and their team, while `SOURCE_BENEFACTOR` lets the session inherit access from the source entity's benefactor.
+
+!!! warning "Changing the mode invalidates the active session"
+    Updating `authorization_mode` on an existing task causes the server to automatically clear `activeSessionId` on the task status. The previously active grid session is no longer linked to the task, so you must create a new grid session before curation can continue.
 
 ## Complete example script
 
@@ -176,7 +251,7 @@ print(f"  RecordSet: {record_set.id}")
 print(f"  CurationTask: {curation_task.task_id}")
 
 # Step 3B: Create file-based workflow
-entity_view_id, task_id = create_file_based_metadata_task(
+entity_view, task = create_file_based_metadata_task(
     synapse_client=syn,
     folder_id="syn987654321",
     curation_task_name="FileMetadata_Curation",
@@ -185,12 +260,13 @@ entity_view_id, task_id = create_file_based_metadata_task(
     entity_view_name="Animal Study Files View",
     schema_uri=schema_uri,
     assignee_principal_id=123456,  # Optional: Assign to a user or team
-    view_type_mask=ViewTypeMask.FILE   # Optional: include additional entity types in the view (ViewTypeMask.FILE | ViewTypeMask.DOCKER). (Defaults to ViewTypeMask.FILE)
+    view_type_mask=ViewTypeMask.FILE,  # Optional: include additional entity types in the view (ViewTypeMask.FILE | ViewTypeMask.DOCKER). (Defaults to ViewTypeMask.FILE)
+    return_entities=True               # Return EntityView and CurationTask objects (becomes the default in v5.0.0)
 )
 
 print("File-based workflow created:")
-print(f"  EntityView: {entity_view_id}")
-print(f"  CurationTask: {task_id}")
+print(f"  EntityView: {entity_view.id}")
+print(f"  CurationTask: {task.task_id}")
 ```
 
 ## Step 4: Work with metadata and validate (Record-based workflow)

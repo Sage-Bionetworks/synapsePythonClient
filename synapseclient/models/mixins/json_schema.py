@@ -977,6 +977,10 @@ class ContainerEntityJSONSchema(ContainerEntityJSONSchemaProtocol, BaseJSONSchem
         """
         Get invalid JSON schema validation results for a container entity.
 
+        Note: This only checks the direct children of this entity. It does not
+        check this entity itself, and it does not check grandchildren (entities
+        nested two or more levels below this entity).
+
         Arguments:
             synapse_client (Optional[Synapse], optional): The Synapse client instance. If not provided,
                 the last created instance from the Synapse class constructor will be used.
@@ -1125,6 +1129,10 @@ class ContainerEntityJSONSchema(ContainerEntityJSONSchemaProtocol, BaseJSONSchem
     ) -> Generator[InvalidJSONSchemaValidation, None, None]:
         """
         Get invalid JSON schema validation results for a container entity.
+
+        Note: This only checks the direct children of this entity. It does not
+        check this entity itself, and it does not check grandchildren (entities
+        nested two or more levels below this entity).
 
         Arguments:
             synapse_client (Optional[Synapse], optional): The Synapse client instance. If not provided,

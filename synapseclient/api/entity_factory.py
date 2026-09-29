@@ -343,6 +343,7 @@ async def _cast_into_class_type(
         MaterializedView,
         Project,
         RecordSet,
+        SearchIndex,
         SubmissionView,
         Table,
         VirtualTable,
@@ -379,6 +380,7 @@ async def _cast_into_class_type(
         concrete_types.RECORD_SET_ENTITY: RecordSet,
         concrete_types.SUBMISSION_VIEW: SubmissionView,
         concrete_types.VIRTUAL_TABLE: VirtualTable,
+        concrete_types.SEARCH_INDEX_ENTITY: SearchIndex,
         concrete_types.LINK_ENTITY: Link,
         concrete_types.DOCKER_REPOSITORY: DockerRepository,
     }

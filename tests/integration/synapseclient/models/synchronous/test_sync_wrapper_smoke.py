@@ -15,7 +15,6 @@ from typing import Callable
 import pytest
 
 from synapseclient import Synapse
-from synapseclient.core import utils
 from synapseclient.core.exceptions import SynapseHTTPError
 from synapseclient.models import (
     Column,
@@ -76,11 +75,11 @@ class TestSyncWrapperSmoke:
 
     def test_file_store_and_get(self, project_model: Project) -> None:
         """Verify File store/get sync wrappers work."""
-        # GIVEN a file
-        filename = utils.make_bogus_uuid_file()
-        self.schedule_for_cleanup(filename)
+        # GIVEN a file. Only the store/get wrapper mechanics are under test here
+        # (never the file's content), so an external URL avoids a real upload.
         file = File(
-            path=filename,
+            external_url=f"https://example.com/bogus-file-{uuid.uuid4()}.txt",
+            synapse_store=False,
             name=f"sync_smoke_file_{uuid.uuid4()}.txt",
             description="Sync wrapper smoke test",
             parent_id=project_model.id,

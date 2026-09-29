@@ -1,9 +1,5 @@
 [](){ #tutorial-downloading-data-in-bulk }
 # Downloading data in bulk
-Contained within this tutorial is an experimental interface for working with the
-Synapse Python Client. These interfaces are subject to change at any time.
-Use at your own risk.
-
 
 This tutorial will follow a
 [Flattened Data Layout](../../explanations/structuring_your_project.md#flattened-data-layout-example).

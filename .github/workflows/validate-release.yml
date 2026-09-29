@@ -58,4 +58,4 @@ jobs:
           export EXTERNAL_S3_BUCKET_AWS_ACCESS_KEY_ID="${{secrets.EXTERNAL_S3_BUCKET_AWS_ACCESS_KEY_ID}}"
           export EXTERNAL_S3_BUCKET_AWS_SECRET_ACCESS_KEY="${{secrets.EXTERNAL_S3_BUCKET_AWS_SECRET_ACCESS_KEY}}"
 
-          pytest -sv --reruns 3 tests/integration -n 8 --ignore=tests/integration/synapseclient/test_command_line_client.py --dist loadscope
+          pytest -sv --reruns 3 tests/integration -n 4 --ignore=tests/integration/synapseclient/test_command_line_client.py --dist loadscope

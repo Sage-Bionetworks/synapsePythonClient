@@ -5,7 +5,6 @@ import pandas as pd
 import pytest
 
 from synapseclient import Synapse
-from synapseclient.core import utils
 from synapseclient.core.exceptions import SynapseHTTPError
 from synapseclient.models import (
     Column,
@@ -59,10 +58,11 @@ class TestDataset:
 
     def create_file_instance(self) -> File:
         """Helper to create a file instance"""
-        filename = utils.make_bogus_uuid_file()
-        self.schedule_for_cleanup(filename)
+        # Only the file's existence as a dataset item matters here, not its
+        # content, so an external_url file handle avoids a real upload.
         return File(
-            path=filename,
+            external_url=f"https://example.com/bogus-file-{uuid.uuid4()}.txt",
+            synapse_store=False,
             description=DESCRIPTION_FILE,
             content_type=CONTENT_TYPE,
         )
@@ -426,42 +426,72 @@ class TestDatasetCollection:
         self.syn = syn
         self.schedule_for_cleanup = schedule_for_cleanup
 
-    def create_file_instance(self) -> File:
-        """Helper to create a file instance"""
-        filename = utils.make_bogus_uuid_file()
-        self.schedule_for_cleanup(filename)
-        return File(
-            path=filename,
-            description=DESCRIPTION_FILE,
-            content_type=CONTENT_TYPE,
-        )
-
-    async def create_dataset(
-        self, project_model: Project, has_file: bool = False
-    ) -> Dataset:
-        """Helper to create a dataset"""
-        dataset = Dataset(
-            name=str(uuid.uuid4()),
-            description="Test dataset",
-            parent_id=project_model.id,
-        )
-
-        if has_file:
-            file = self.create_file_instance()
-            stored_file = await file.store_async(
-                parent=project_model, synapse_client=self.syn
+    @pytest.fixture(scope="class")
+    async def shared_datasets_with_file(
+        self,
+        project_model: Project,
+        syn: Synapse,
+        schedule_for_cleanup: Callable[..., None],
+    ) -> List[Dataset]:
+        """Two datasets, each with one item, built once for the class.
+        test_dataset_collection_lifecycle and test_dataset_collection_queries only
+        read id/version_number off these datasets to build EntityRefs and collection
+        rows -- neither mutates the dataset entities themselves. Note:
+        test_dataset_collection_queries writes a 'my_annotation' annotation onto
+        shared_datasets_with_file[0] via its collection's view update, but no other
+        test's collection defines that column, so the write is unobservable
+        elsewhere."""
+        datasets = []
+        for _ in range(2):
+            file = File(
+                external_url=f"https://example.com/bogus-file-{uuid.uuid4()}.txt",
+                synapse_store=False,
+                description=DESCRIPTION_FILE,
+                content_type=CONTENT_TYPE,
             )
-            await dataset.add_item_async(stored_file, synapse_client=self.syn)
+            stored_file = await file.store_async(
+                parent=project_model, synapse_client=syn
+            )
 
-        dataset = await dataset.store_async(synapse_client=self.syn)
-        self.schedule_for_cleanup(dataset.id)
-        return dataset
+            dataset = Dataset(
+                name=str(uuid.uuid4()),
+                description="Test dataset",
+                parent_id=project_model.id,
+            )
+            await dataset.add_item_async(stored_file, synapse_client=syn)
+            dataset = await dataset.store_async(synapse_client=syn)
+            schedule_for_cleanup(dataset.id)
+            datasets.append(dataset)
+        return datasets
 
-    async def test_dataset_collection_lifecycle(self, project_model: Project) -> None:
+    @pytest.fixture(scope="class")
+    async def shared_datasets_without_file(
+        self,
+        project_model: Project,
+        syn: Synapse,
+        schedule_for_cleanup: Callable[..., None],
+    ) -> List[Dataset]:
+        """Two empty datasets built once for the class; used only by
+        test_dataset_collection_versioning as items in its per-test collection.
+        Read-only -- only id/version_number are read off them."""
+        datasets = []
+        for _ in range(2):
+            dataset = Dataset(
+                name=str(uuid.uuid4()),
+                description="Test dataset",
+                parent_id=project_model.id,
+            )
+            dataset = await dataset.store_async(synapse_client=syn)
+            schedule_for_cleanup(dataset.id)
+            datasets.append(dataset)
+        return datasets
+
+    async def test_dataset_collection_lifecycle(
+        self, project_model: Project, shared_datasets_with_file: List[Dataset]
+    ) -> None:
         """Test creating, updating, and deleting a DatasetCollection"""
         # GIVEN two datasets
-        dataset1 = await self.create_dataset(project_model, has_file=True)
-        dataset2 = await self.create_dataset(project_model, has_file=True)
+        dataset1, dataset2 = shared_datasets_with_file
 
         # WHEN I create a DatasetCollection with the first dataset
         collection = DatasetCollection(
@@ -522,10 +552,12 @@ class TestDatasetCollection:
         ):
             await DatasetCollection(id=collection.id).get_async(synapse_client=self.syn)
 
-    async def test_dataset_collection_queries(self, project_model: Project) -> None:
+    async def test_dataset_collection_queries(
+        self, project_model: Project, shared_datasets_with_file: List[Dataset]
+    ) -> None:
         """Test querying DatasetCollections with various part masks"""
         # GIVEN a dataset and a collection with that dataset
-        dataset = await self.create_dataset(project_model=project_model, has_file=True)
+        dataset = shared_datasets_with_file[0]
 
         collection = DatasetCollection(
             name=str(uuid.uuid4()),
@@ -665,11 +697,12 @@ class TestDatasetCollection:
         assert second_col not in updated.columns
         assert new_name in updated.columns
 
-    async def test_dataset_collection_versioning(self, project_model: Project) -> None:
+    async def test_dataset_collection_versioning(
+        self, project_model: Project, shared_datasets_without_file: List[Dataset]
+    ) -> None:
         """Test versioning of DatasetCollections"""
         # GIVEN a DatasetCollection and datasets
-        dataset1 = await self.create_dataset(project_model)
-        dataset2 = await self.create_dataset(project_model)
+        dataset1, dataset2 = shared_datasets_without_file
 
         collection = DatasetCollection(
             name=str(uuid.uuid4()),
