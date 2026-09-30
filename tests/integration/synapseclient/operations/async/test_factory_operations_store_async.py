@@ -893,7 +893,9 @@ class TestFactoryOperationsStoreAsync:
         )
 
         # THEN the JSON schema is created
-        assert stored_schema.created_on is not None
+        assert stored_schema.id is not None
+        assert stored_schema.last_stored_version_info is not None
+        assert stored_schema.last_stored_version_info.semantic_version == "1.0.0"
         assert stored_schema.organization_name == stored_org.name
         assert stored_schema.name == "TestSchema"
 
