@@ -220,16 +220,20 @@ class TestJSONSchema:
         assert not json_schema.id
         assert not json_schema.created_by
         assert not json_schema.created_on
+        assert json_schema.last_stored_version_info is None
         # WHEN the object is stored
-        # THEN the Synapse metadata is filled out, minus id (which is not part of the response)
-        await json_schema.store_async({}, synapse_client=self.syn)
+        # THEN the identity fields and the stored version info are filled out
+        await json_schema.store_async({}, version="0.0.1", synapse_client=self.syn)
         assert json_schema.name
         assert json_schema.organization_name
         assert json_schema.uri
         assert json_schema.organization_id
-        assert json_schema.created_by
-        assert json_schema.created_on
-        assert not json_schema.id
+        assert json_schema.id
+        assert json_schema.last_stored_version_info.version_id
+        assert json_schema.last_stored_version_info.semantic_version == "0.0.1"
+        # AND created_by and created_on are not set from the version
+        assert json_schema.created_by is None
+        assert json_schema.created_on is None
         # AND it should be getable by future instances using the same name
         js2 = JSONSchema(json_schema.name, json_schema.organization_name)
         await js2.get_async(synapse_client=self.syn)
@@ -240,6 +244,26 @@ class TestJSONSchema:
         assert js2.id
         assert js2.created_by
         assert js2.created_on
+
+    async def test_store_dry_run(self, json_schema: JSONSchema) -> None:
+        # GIVEN a schema that hasn't been created in Synapse
+        # WHEN the schema is stored with dry_run=True
+        result = await json_schema.store_async(
+            schema_body={}, version="0.0.1", dry_run=True, synapse_client=self.syn
+        )
+        # THEN the same instance is returned
+        assert result is json_schema
+        # AND the instance does not change
+        assert json_schema.last_stored_version_info is None
+        assert json_schema.organization_id is None
+        assert json_schema.id is None
+        assert json_schema.created_by is None
+        assert json_schema.created_on is None
+        # AND no versions exist in Synapse
+        versions = []
+        async for item in json_schema.get_versions_async(synapse_client=self.syn):
+            versions.append(item)
+        assert len(versions) == 0
 
     async def test_delete(self, organization_with_schema: Organization) -> None:
         # GIVEN an organization with 3 schema
@@ -265,6 +289,7 @@ class TestJSONSchema:
         await json_schema.store_async(
             schema_body={}, version="0.0.1", synapse_client=self.syn
         )
+        assert json_schema.last_stored_version_info.semantic_version == "0.0.1"
         # THEN that schema should have one version
         js_versions: list[JSONSchemaVersionInfo] = []
         async for item in json_schema.get_versions_async(synapse_client=self.syn):
@@ -274,6 +299,7 @@ class TestJSONSchema:
         await json_schema.store_async(
             schema_body={}, version="0.0.2", synapse_client=self.syn
         )
+        assert json_schema.last_stored_version_info.semantic_version == "0.0.2"
         # THEN that schema should have two versions
         js_versions = []
         async for item in json_schema.get_versions_async(synapse_client=self.syn):

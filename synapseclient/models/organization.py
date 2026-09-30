@@ -637,13 +637,16 @@ class JSONSchemaProtocol(Protocol):
         Arguments:
             schema_body: The body of the JSONSchema to store
             version: The version of the JSONSchema body to store
-            dry_run: Whether or not to do a dry-run
+            dry_run: Whether or not to do a dry-run. A dry run does not store a
+                version and does not change this instance.
             synapse_client: If not passed in and caching was not disabled by
                 `Synapse.allow_client_caching(False)` this will use the last created
                 instance from the Synapse class constructor
 
         Returns:
-            Itself
+            Itself. After a store that is not a dry run, organization_id, id and
+                uri identify the stored schema, and last_stored_version_info holds
+                the JSONSchemaVersionInfo of the new version.
 
         Example: Store a JSON Schema in Synapse
             &nbsp;
@@ -811,6 +814,10 @@ class JSONSchema(JSONSchemaProtocol):
         created_on: The date this schema was created
         created_by: The ID of the user that created this schema
         uri: The schema identifier in format: <organization_name>-<schema_name>
+        last_stored_version_info: The JSONSchemaVersionInfo of the version that the
+            most recent store call on this instance created. This is None until
+            store is called. It is not guaranteed to be the latest version in
+            Synapse, and get does not set it.
     """
 
     name: Optional[str] = None
@@ -819,7 +826,7 @@ class JSONSchema(JSONSchemaProtocol):
     organization_name: Optional[str] = None
     """The name of the organization the schema belongs to"""
 
-    organization_id: Optional[int] = None
+    organization_id: Optional[str] = None
     """The id of the organization the schema belongs to"""
 
     id: Optional[str] = None
@@ -833,6 +840,15 @@ class JSONSchema(JSONSchemaProtocol):
 
     uri: Optional[str] = field(init=False)
     """The schema identifier in format: <organization_name>-<schema_name>"""
+
+    last_stored_version_info: Optional[JSONSchemaVersionInfo] = field(
+        default=None, init=False, compare=False
+    )
+    """
+    The JSONSchemaVersionInfo of the version that the most recent store call on
+    this instance created. This is None until store is called. It is not
+    guaranteed to be the latest version in Synapse, and get does not set it.
+    """
 
     def __post_init__(self) -> None:
         if self.name:
@@ -922,13 +938,16 @@ class JSONSchema(JSONSchemaProtocol):
         Arguments:
             schema_body: The body of the JSONSchema to store
             version: The version of the JSONSchema body to store
-            dry_run: Whether or not to do a dry-run
+            dry_run: Whether or not to do a dry-run. A dry run does not store a
+                version and does not change this instance.
             synapse_client: If not passed in and caching was not disabled by
                 `Synapse.allow_client_caching(False)` this will use the last created
                 instance from the Synapse class constructor
 
         Returns:
-            Itself
+            Itself. After a store that is not a dry run, organization_id, id and
+                uri identify the stored schema, and last_stored_version_info holds
+                the JSONSchemaVersionInfo of the new version.
 
         Example: Store a JSON Schema in Synapse
             &nbsp;
@@ -961,6 +980,29 @@ class JSONSchema(JSONSchemaProtocol):
 
             asyncio.run(store_schema())
             ```
+
+        Example: Get the version info after a store
+            &nbsp;
+            Store a version of a JSON Schema, then print the version ID and the
+            semantic version that Synapse created.
+            ```python
+            from synapseclient.models import JSONSchema
+            from synapseclient import Synapse
+            import asyncio
+
+            async def store_schema():
+
+                syn = Synapse()
+                syn.login()
+
+                schema = JSONSchema(organization_name="my.org", name="test.schema")
+                schema_body = {"type": "object"}
+                await schema.store_async(schema_body=schema_body, version="0.0.1")
+                print(schema.last_stored_version_info.version_id)
+                print(schema.last_stored_version_info.semantic_version)
+
+            asyncio.run(store_schema())
+            ```
         """
         if not self.name:
             raise ValueError("JSONSchema must have a name")
@@ -980,10 +1022,15 @@ class JSONSchema(JSONSchemaProtocol):
         completed_request: CreateSchemaRequest = await request.send_job_and_wait_async(
             synapse_client=synapse_client
         )
+        # A dry run does not store a version, so do not change the instance
+        if dry_run:
+            return self
+
         new_version_info = completed_request.new_version_info
         self.organization_id = new_version_info.organization_id
-        self.created_by = new_version_info.created_by
-        self.created_on = new_version_info.created_on
+        self.id = new_version_info.schema_id
+        self.uri = f"{self.organization_name}-{self.name}"
+        self.last_stored_version_info = new_version_info
         return self
 
     async def delete_async(
