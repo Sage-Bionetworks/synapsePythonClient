@@ -8,9 +8,7 @@ full-text search, faceted search, and autocomplete.
 from copy import deepcopy
 from dataclasses import dataclass, field, replace
 from datetime import date, datetime
-from typing import TYPE_CHECKING, Any, Dict, List, Optional, Union
-
-from typing_extensions import Self
+from typing import TYPE_CHECKING, Any, Dict, List, Optional, Self, Union
 
 from synapseclient import Synapse
 from synapseclient.core.async_utils import async_to_sync, otel_trace_method

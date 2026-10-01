@@ -3,9 +3,7 @@ import os
 from abc import ABC, abstractmethod
 from dataclasses import dataclass, field, replace
 from enum import Enum
-from typing import TYPE_CHECKING, Any, AsyncGenerator, Dict, List, Optional, Union
-
-from typing_extensions import Self
+from typing import TYPE_CHECKING, Any, AsyncGenerator, Dict, List, Optional, Self, Union
 
 from synapseclient import Column as Synapse_Column
 from synapseclient.core.async_utils import async_to_sync, skip_async_to_sync
