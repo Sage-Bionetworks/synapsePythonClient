@@ -1,7 +1,5 @@
 from dataclasses import dataclass, field
-from typing import AsyncGenerator, Generator, Optional, Protocol, Union
-
-from typing_extensions import Self
+from typing import AsyncGenerator, Generator, Optional, Protocol, Self, Union
 
 from synapseclient import Synapse
 from synapseclient.api import evaluation_services

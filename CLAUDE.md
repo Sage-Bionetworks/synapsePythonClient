@@ -1,4 +1,4 @@
-<!-- Last reviewed: 2026-08 -->
+<!-- Last reviewed: 2026-10 -->
 
 ## Project
 
@@ -6,7 +6,7 @@ Synapse Python Client — official Python SDK and CLI for Synapse (synapse.org),
 
 ## Stack
 
-- Python 3.10–3.14 (`setup.cfg`: `python_requires = >=3.10, <3.15`)
+- Python 3.11–3.14 (`setup.cfg`: `python_requires = >=3.11, <3.15`)
 - HTTP: httpx (async), requests (sync/legacy)
 - Models: stdlib dataclasses (NOT Pydantic)
 - Tests: pytest 9.0.3, pytest-asyncio, pytest-socket, pytest-xdist
@@ -125,7 +125,7 @@ For type annotations referencing pandas types, use `DATA_FRAME_TYPE` and `SERIES
 - Integration tests use `--reruns 3` for flaky retries and `-n 4 --dist loadscope` for parallelism
 - Integration fixtures create per-worker Synapse projects; use `schedule_for_cleanup()` for teardown
 - Auth env vars: `SYNAPSE_AUTH_TOKEN` (bearer token), `SYNAPSE_PROFILE` (config file profile, default: `"default"`), `SYNAPSE_TOKEN_AWS_SSM_PARAMETER_NAME` (AWS SSM path)
-- CI runs integration tests only on Python 3.10 and 3.14 (oldest + newest) to limit Synapse server load
+- CI runs integration tests only on Python 3.11 and 3.14 (oldest + newest) to limit Synapse server load
 
 ## Maintenance
 

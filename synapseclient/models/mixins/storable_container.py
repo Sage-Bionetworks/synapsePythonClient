@@ -10,11 +10,10 @@ from typing import (
     List,
     NoReturn,
     Optional,
+    Self,
     Tuple,
     Union,
 )
-
-from typing_extensions import Self
 
 from synapseclient import Synapse
 from synapseclient.api import get_entity_id_bundle2
