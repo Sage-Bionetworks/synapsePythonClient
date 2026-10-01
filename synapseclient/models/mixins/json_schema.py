@@ -23,6 +23,8 @@ if TYPE_CHECKING:
 
 @dataclass
 class JSONSchemaVersionInfo:
+    """Information about one version of a JSON schema that is registered in Synapse."""
+
     organization_id: str
     """The unique identifier for the organization."""
 
@@ -41,8 +43,11 @@ class JSONSchemaVersionInfo:
     version_id: str
     """The unique identifier for the schema version."""
 
-    semantic_version: str
-    """The semantic version of the schema."""
+    semantic_version: Optional[str]
+    """
+    The semantic version of the schema. This is None when the version was stored
+    without a semantic version.
+    """
 
     json_sha256_hex: str
     """The SHA-256 hash of the schema in hexadecimal format."""
@@ -55,8 +60,14 @@ class JSONSchemaVersionInfo:
 
     @property
     def json_schema_uri(self) -> str:
-        """The JSON schema URI constructed from organization name, schema name, and semantic version."""
-        return f"{self.organization_name}-{self.schema_name}-{self.semantic_version}"
+        """
+        The JSON schema URI constructed from organization name, schema name, and
+        semantic version. The semantic version is not included when it is None.
+        """
+        base = f"{self.organization_name}-{self.schema_name}"
+        if self.semantic_version is None:
+            return base
+        return f"{base}-{self.semantic_version}"
 
 
 @dataclass
