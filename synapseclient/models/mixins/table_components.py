@@ -11,11 +11,10 @@ from collections import OrderedDict
 from dataclasses import dataclass, field
 from datetime import date, datetime
 from io import BytesIO
-from typing import Any, Dict, List, Optional, Protocol, Tuple, Union
+from typing import Any, Dict, List, Optional, Protocol, Self, Tuple, Union
 
 from tqdm import tqdm
 from tqdm.contrib.logging import logging_redirect_tqdm
-from typing_extensions import Self
 
 from synapseclient import Synapse
 from synapseclient.api import (
