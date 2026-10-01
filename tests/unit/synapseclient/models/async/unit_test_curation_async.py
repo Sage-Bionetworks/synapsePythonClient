@@ -97,6 +97,7 @@ FILE_VIEW_ID = "syn2345678"
 RECORD_SET_ID = "syn3456789"
 SESSION_ID = "session-abc-123"
 SOURCE_ENTITY_ID = "syn5555555"
+SOURCE_ENTITY_VERSION_NUMBER = 13
 GRID_ETAG = "grid-etag-456"
 STARTED_BY = "user-1"
 STARTED_ON = "2024-03-01T00:00:00.000Z"
@@ -167,6 +168,7 @@ def _get_grid_session_response():
         "lastReplicaIdService": -5,
         "gridJsonSchema$Id": "my-schema-id",
         "sourceEntityId": SOURCE_ENTITY_ID,
+        "sourceEntityVersionNumber": SOURCE_ENTITY_VERSION_NUMBER,
         # The server returns ownerPrincipalId as a string; the client coerces to int.
         "ownerPrincipalId": str(OWNER_PRINCIPAL_ID),
         "authorizationMode": "SESSION_OWNER",
@@ -2807,6 +2809,7 @@ class TestGrid:
         assert grid.last_replica_id_service == -5
         assert grid.grid_json_schema_id == "my-schema-id"
         assert grid.source_entity_id == SOURCE_ENTITY_ID
+        assert grid.source_entity_version_number == SOURCE_ENTITY_VERSION_NUMBER
         # AND the owner principal id is coerced from the response string to an int
         assert grid.owner_principal_id == OWNER_PRINCIPAL_ID
         assert isinstance(grid.owner_principal_id, int)
@@ -2838,6 +2841,7 @@ class TestGrid:
             assert result.started_by == STARTED_BY
             assert result.started_on == STARTED_ON
             assert result.source_entity_id == SOURCE_ENTITY_ID
+            assert result.source_entity_version_number == SOURCE_ENTITY_VERSION_NUMBER
             assert result.authorization_mode == AuthorizationMode.SESSION_OWNER
 
     async def test_create_async_forwards_authorization_mode_to_request(self) -> None:
@@ -2900,6 +2904,7 @@ class TestGrid:
             assert result.session_id == SESSION_ID
             assert result.started_by == STARTED_BY
             assert result.source_entity_id == SOURCE_ENTITY_ID
+            assert result.source_entity_version_number == SOURCE_ENTITY_VERSION_NUMBER
 
     async def test_create_async_attach_to_previous_no_existing(self) -> None:
         # GIVEN a Grid with a record_set_id
@@ -2935,6 +2940,7 @@ class TestGrid:
 
             # THEN a new grid session should be created
             assert result.session_id == SESSION_ID
+            assert result.source_entity_version_number == SOURCE_ENTITY_VERSION_NUMBER
 
     async def test_export_to_record_set_async(self) -> None:
         # GIVEN a Grid with a session_id
@@ -3013,6 +3019,7 @@ class TestGrid:
             "lastReplicaIdService": -10,
             "gridJsonSchema$Id": None,
             "sourceEntityId": "syn6666666",
+            "sourceEntityVersionNumber": 2,
         }
 
         async def mock_list(*args, **kwargs):
@@ -3032,8 +3039,12 @@ class TestGrid:
             assert len(results) == 2
             assert results[0].session_id == SESSION_ID
             assert results[0].source_entity_id == SOURCE_ENTITY_ID
+            assert (
+                results[0].source_entity_version_number == SOURCE_ENTITY_VERSION_NUMBER
+            )
             assert results[1].session_id == "session-xyz-999"
             assert results[1].source_entity_id == "syn6666666"
+            assert results[1].source_entity_version_number == 2
 
     async def test_list_async_with_source_id(self) -> None:
         # GIVEN mock API responses filtered by source_id
@@ -3244,6 +3255,7 @@ class TestCreateGridRequest:
         assert grid.started_by == STARTED_BY
         assert grid.etag == GRID_ETAG
         assert grid.source_entity_id == SOURCE_ENTITY_ID
+        assert grid.source_entity_version_number == SOURCE_ENTITY_VERSION_NUMBER
         # AND the owner principal id is coerced from the response string to an int
         assert grid.owner_principal_id == OWNER_PRINCIPAL_ID
         assert isinstance(grid.owner_principal_id, int)
