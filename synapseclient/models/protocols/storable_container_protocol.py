@@ -2,9 +2,7 @@
 generated at runtime."""
 
 import asyncio
-from typing import TYPE_CHECKING, List, Literal, Optional, Protocol
-
-from typing_extensions import Self
+from typing import TYPE_CHECKING, List, Literal, Optional, Protocol, Self
 
 from synapseclient import Synapse
 from synapseclient.core.constants.method_flags import COLLISION_OVERWRITE_LOCAL
