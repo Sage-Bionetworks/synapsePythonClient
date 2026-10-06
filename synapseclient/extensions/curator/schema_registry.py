@@ -70,6 +70,8 @@ Flexible Filtering System:
 from dataclasses import dataclass
 from typing import List, Optional, Union
 
+from deprecated import deprecated
+
 from synapseclient import Synapse
 from synapseclient.models import Table
 
@@ -120,6 +122,11 @@ class SchemaRegistryColumnConfig:
     uri_column: str = "uri"
 
 
+@deprecated(
+    version="4.15.0",
+    reason="To be removed in 5.0.0. Use the Organization and JSONSchema models "
+    "from synapseclient.models to find JSON schemas instead.",
+)
 def query_schema_registry(
     synapse_client: Optional[Synapse] = None,
     schema_registry_table_id: Optional[str] = None,
@@ -129,6 +136,29 @@ def query_schema_registry(
 ) -> Union[str, List[str], None]:
     """
     Query the schema registry table to find schemas matching the provided filters.
+
+    **Deprecated:** This function will be removed in 5.0.0. Use
+    [Organization][synapseclient.models.Organization] and
+    [JSONSchema][synapseclient.models.JSONSchema] instead.
+
+    Example: Find JSON schemas with the Organization and JSONSchema models
+        &nbsp;
+        Get the JSON schemas of an organization and the versions of a schema.
+        ```python
+        from synapseclient import Synapse
+        from synapseclient.models import JSONSchema, Organization
+
+        syn = Synapse()
+        syn.login()
+
+        org = Organization(name="my.organization")
+        for schema in org.get_json_schemas():
+            print(schema.uri)
+
+        schema = JSONSchema(organization_name="my.organization", name="my.schema")
+        for version in schema.get_versions():
+            print(version.semantic_version)
+        ```
 
     This function searches the Synapse schema registry table for schemas that match
     the provided filter parameters. Results are sorted by version in descending order
@@ -357,6 +387,11 @@ def query_schema_registry(
         return uri_list
 
 
+@deprecated(
+    version="4.15.0",
+    reason="To be removed in 5.0.0. Use the Organization and JSONSchema models "
+    "from synapseclient.models to find JSON schemas instead.",
+)
 def get_latest_schema_uri(
     synapse_client: Optional[Synapse] = None,
     schema_registry_table_id: Optional[str] = None,
@@ -365,6 +400,29 @@ def get_latest_schema_uri(
 ) -> Optional[str]:
     """
     Get the URI of the latest schema version for the given filter criteria.
+
+    **Deprecated:** This function will be removed in 5.0.0. Use
+    [Organization][synapseclient.models.Organization] and
+    [JSONSchema][synapseclient.models.JSONSchema] instead.
+
+    Example: Find JSON schemas with the Organization and JSONSchema models
+        &nbsp;
+        Get the JSON schemas of an organization and the versions of a schema.
+        ```python
+        from synapseclient import Synapse
+        from synapseclient.models import JSONSchema, Organization
+
+        syn = Synapse()
+        syn.login()
+
+        org = Organization(name="my.organization")
+        for schema in org.get_json_schemas():
+            print(schema.uri)
+
+        schema = JSONSchema(organization_name="my.organization", name="my.schema")
+        for version in schema.get_versions():
+            print(version.semantic_version)
+        ```
 
     This function queries the schema registry and returns the URI of the most recent
     version of the schema that matches the provided filter parameters. This is equivalent
