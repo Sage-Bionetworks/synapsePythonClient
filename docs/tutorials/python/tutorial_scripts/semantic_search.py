@@ -27,6 +27,7 @@ from synapseclient.models.search_dsl import (
     MatchFieldOptions,
     NeuralFieldOptions,
     Query,
+    SearchPipeline,
     SourceFilter,
 )
 
@@ -187,8 +188,9 @@ print_hits("Closest in meaning to 'memory problems in older adults':", results)
 
 # --8<-- [start:hybrid_search]
 # A keyword search for "sequencing" and a semantic search for "forgetfulness
-# and dementia", blended into one ranking
-keyword_clause = HybridClause(match={"abstract": MatchFieldOptions(query="sequencing")})
+# and dementia", blended into one ranking. Any Query works as a clause; only
+# the semantic clause needs HybridClause, for its `neural` key.
+keyword_clause = Query(match={"abstract": MatchFieldOptions(query="sequencing")})
 meaning_clause = HybridClause(
     neural={
         "semantic_search": NeuralFieldOptions(
@@ -211,7 +213,7 @@ print_hits("'sequencing' + 'forgetfulness and dementia', weighted equally:", res
 
 
 # --8<-- [start:weighting]
-def blend(keyword_weight: float, meaning_weight: float) -> dict:
+def blend(keyword_weight: float, meaning_weight: float) -> SearchPipeline:
     """A search pipeline that weights the keyword clause and the meaning
     clause, in the order they are listed in the query."""
     return {

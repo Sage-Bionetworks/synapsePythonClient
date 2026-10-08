@@ -119,7 +119,9 @@ from the query. The Parkinson's study and the healthy aging atlas are not among 
 ## 4. Blend keyword and semantic results
 
 A hybrid search lists up to five clauses in `queries`, each scored on its own. A row
-only has to match one clause to be returned.
+only has to match one clause to be returned. Any keyword clause you would use in a
+regular search works here unchanged; only the semantic clause is written as a
+`HybridClause`.
 
 Here a keyword search for "sequencing" and a semantic search for "forgetfulness and
 dementia" pull in different directions:

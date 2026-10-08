@@ -25,8 +25,11 @@ from synapseclient.models import (
 )
 from synapseclient.models.search_dsl import (
     FuzzyFieldOptions,
+    HybridClause,
+    HybridQuery,
     MatchBoolPrefixFieldOptions,
     MatchFieldOptions,
+    NeuralFieldOptions,
     PrefixFieldOptions,
     Query,
     RangeFieldOptions,
@@ -384,20 +387,24 @@ class TestSemanticSearchIndexQuery:
         # clause under an inline search pipeline weighting them 30/70. The index
         # build (including embedding) is asynchronous, so poll until the
         # expected top hit comes back.
+        keyword_clause = Query(
+            match={"description": MatchFieldOptions(query="dementia")}
+        )
         search_query = SearchQuery(
-            hybrid={
-                "queries": [
-                    {"match": {"description": {"query": "dementia"}}},
-                    {
-                        "neural": {
-                            "semantic_search": {
-                                "query_text": "losing memories with age",
-                                "k": 100,
-                            }
+            # A plain Query is accepted as a hybrid clause; only the neural
+            # clause needs HybridClause
+            hybrid=HybridQuery(
+                queries=[
+                    keyword_clause,
+                    HybridClause(
+                        neural={
+                            "semantic_search": NeuralFieldOptions(
+                                query_text="losing memories with age", k=100
+                            )
                         }
-                    },
+                    ),
                 ]
-            },
+            ),
             search_pipeline={
                 "phase_results_processors": [
                     {

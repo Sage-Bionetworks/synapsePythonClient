@@ -750,12 +750,13 @@ class HybridQuery(TypedDict, total=False):
     `search_after` paging.
     """
 
-    queries: List[HybridClause]
-    """Required. One to five
-    [clauses][synapseclient.models.search_dsl.HybridClause] used to match
-    documents. A document must match at least one clause to be returned. Each
-    clause's relevance score is combined into one score by the search
-    pipeline."""
+    queries: List[Union[HybridClause, Query]]
+    """Required. One to five clauses used to match documents. A document must
+    match at least one clause to be returned. Each clause's relevance score is
+    combined into one score by the search pipeline. Any
+    [Query][synapseclient.models.search_dsl.Query] clause is accepted as-is; a
+    `neural` clause is written as a
+    [HybridClause][synapseclient.models.search_dsl.HybridClause]."""
 
     filter: Query
     """Optional. A filter applied to every clause of the hybrid query, as a
