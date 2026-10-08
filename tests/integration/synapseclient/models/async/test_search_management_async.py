@@ -1,21 +1,14 @@
 """Integration tests for the org-scoped search-management resources: TextAnalyzer,
-SynonymSet, ColumnAnalyzerOverride, SearchConfiguration, and SearchConfigBinding.
+SynonymSet, ColumnAnalyzerOverride, NamedSearchPipeline, SearchConfiguration, and
+SearchConfigBinding.
 
-These tests run against the **dev** Synapse environment. All resources are
-created in dev. If you run these tests locally, make sure to point your
-client to the dev endpoints.
-
-TextAnalyzer, SynonymSet, ColumnAnalyzerOverride, and SearchConfiguration have no
-delete endpoint on the Synapse REST API, so these tests do not create or update
-them -- they only get and list a fixed set of resources pre-seeded under the
-`SEARCH_ORG_NAME` organization (identified by the `*_NAME`/`*_ID` constants
-below), which keeps the tests idempotent and safe to run concurrently on CI.
-Because an Organization cannot be deleted once one of these resources has been
-attached to it, `SEARCH_ORG_NAME` is a permanent, shared test Organization
-rather than one created fresh per test run.
-Each resource's class docstring shows the `store()` call used to seed it.
-SearchConfigBinding does support delete/clear; its test creates and tears down
-its own binding on a freshly-created Folder.
+Each test creates its own uniquely-named resources under the shared
+`search_organization`, so the tests do not depend on pre-seeded data or on each
+other. TextAnalyzer, SynonymSet, ColumnAnalyzerOverride, NamedSearchPipeline,
+and SearchConfiguration have no delete endpoint, so they are left in place after
+the run and are never updated -- a test only creates and reads them.
+Update dispatch is covered by the unit tests. SearchConfigBinding does support
+delete; its test clears its own binding.
 """
 
 import uuid
@@ -27,7 +20,10 @@ from synapseclient import Synapse
 from synapseclient.core.exceptions import SynapseHTTPError
 from synapseclient.models import (
     ColumnAnalyzerOverride,
+    ColumnAnalyzerOverrideEntry,
     Folder,
+    NamedSearchPipeline,
+    Organization,
     Project,
     SearchConfigBinding,
     SearchConfiguration,
@@ -35,66 +31,17 @@ from synapseclient.models import (
     TextAnalyzer,
 )
 
-SEARCH_ORG_NAME = "SYNPY.TEST.SEARCH.MANAGEMENT"
-TEXT_ANALYZER_NAME = "test_analyzer"
-TEXT_ANALYZER_ID = "1001"
-SYNONYM_SET_NAME = "test_synonyms"
-SYNONYM_SET_ID = "1"
-COLUMN_ANALYZER_OVERRIDE_NAME = "disease_column_overrides"
-COLUMN_ANALYZER_OVERRIDE_ID = "1"
-TEST_CONFIG_NAME = "test_config"
-TEST_CONFIG_ID = "2"
+
+def _unique_name() -> str:
+    """A resource name: starts with a letter, letters/digits/underscores only."""
+    return f"synpy_{uuid.uuid4().hex}"
 
 
-@pytest.fixture(scope="function")
-async def folder(
-    project_model: Project,
-    syn: Synapse,
-    schedule_for_cleanup: Callable[..., None],
-) -> Folder:
-    """A fresh Folder under the shared test Project, used as the bind target for
-    SearchConfigBinding tests instead of the shared Project itself."""
-    folder = await Folder(
-        name=str(uuid.uuid4()),
-        parent_id=project_model.id,
-    ).store_async(synapse_client=syn)
-    schedule_for_cleanup(folder.id)
-    return folder
-
-
-class TestTextAnalyzer:
-    async def test_get_and_list(self, syn: Synapse) -> None:
-        """
-        Test that a TextAnalyzer can be retrieved by ID and listed in the
-        organization.
-
-        The TestTextAnalyzer was stored like below:
-
-        from synapseclient import Synapse
-        from synapseclient.models import TextAnalyzer
-
-
-        syn = Synapse()
-        syn.login()
-        analyzer = TextAnalyzer(
-            organization_name="SYNPY.TEST.SEARCH.MANAGEMENT",
-            name="test_analyzer",
-            settings={
-                "analyzer": {
-                    "default": {
-                        "type": "custom",
-                        "tokenizer": "standard",
-                        "filter": ["lowercase"],
-                    }
-                }
-            },
-        )
-        analyzer = analyzer.store(synapse_client=syn)
-        print(f"Created TextAnalyzer: {analyzer.id} ({analyzer.qualified_name})")
-        """
-        # GIVEN a TextAnalyzer definition
-        name = TEXT_ANALYZER_NAME
-        settings = {
+def _text_analyzer(org: str) -> TextAnalyzer:
+    return TextAnalyzer(
+        organization_name=org,
+        name=_unique_name(),
+        settings={
             "analyzer": {
                 "default": {
                     "type": "custom",
@@ -102,183 +49,167 @@ class TestTextAnalyzer:
                     "filter": ["lowercase"],
                 }
             }
-        }
-
-        # AND it can be retrieved by ID with its settings intact
-        retrieved = await TextAnalyzer(id=TEXT_ANALYZER_ID).get_async(
-            synapse_client=syn
-        )
-        assert retrieved.settings == settings
-        # AND it appears when listing analyzers in the organization
-        listed = await TextAnalyzer.list_async(
-            organization_name=SEARCH_ORG_NAME, synapse_client=syn
-        )
-        assert name in [item.name for item in listed]
+        },
+    )
 
 
-class TestSynonymSet:
-    async def test_get_and_list(self, syn: Synapse) -> None:
-        """
-        Test that a SynonymSet can be retrieved by ID and listed in the
-        organization.
-
-        The TestSynonymSet was stored like below:
-
-        from synapseclient import Synapse
-        from synapseclient.models import SynonymSet
+def _synonym_set(org: str) -> SynonymSet:
+    return SynonymSet(
+        organization_name=org,
+        name=_unique_name(),
+        definition={"type": "synonym_graph", "synonyms": ["tumor, neoplasm, cancer"]},
+    )
 
 
-        syn = Synapse()
-        syn.login()
-        synonyms = SynonymSet(
-            organization_name="SYNPY.TEST.SEARCH.MANAGEMENT",
-            name="test_synonyms",
-            definition={
-                "type": "synonym_graph",
-                "synonyms": ["tumor, neoplasm, cancer"],
-            },
-        )
-        synonyms = synonyms.store(synapse_client=syn)
-        print(f"Created SynonymSet: {synonyms.id} ({synonyms.qualified_name})")
-        """
-        # GIVEN a SynonymSet definition
-        name = SYNONYM_SET_NAME
-        definition = {
-            "type": "synonym_graph",
-            "synonyms": ["tumor, neoplasm, cancer"],
-        }
-
-        # AND it can be retrieved by ID with its definition intact
-        retrieved = await SynonymSet(id=SYNONYM_SET_ID).get_async(synapse_client=syn)
-        assert retrieved.definition == definition
-        # AND it appears when listing synonym sets in the organization
-        listed = await SynonymSet.list_async(
-            organization_name=SEARCH_ORG_NAME, synapse_client=syn
-        )
-        assert name in [item.name for item in listed]
+def _column_analyzer_override(org: str) -> ColumnAnalyzerOverride:
+    return ColumnAnalyzerOverride(
+        organization_name=org,
+        name=_unique_name(),
+        overrides=[
+            ColumnAnalyzerOverrideEntry(
+                column_name="disease_code",
+                analyzer={"analyzer": {"default": {"type": "keyword"}}},
+            ),
+            ColumnAnalyzerOverrideEntry(column_name="abstract", semantic=True),
+        ],
+    )
 
 
-class TestColumnAnalyzerOverride:
-    async def test_get_and_list(self, syn: Synapse) -> None:
-        """
-        Test that a ColumnAnalyzerOverride can be retrieved by ID and listed in the
-        organization.
-
-        The TestColumnAnalyzerOverride was stored like below:
-
-        from synapseclient import Synapse
-        from synapseclient.models import ColumnAnalyzerOverride, ColumnAnalyzerOverrideEntry
-
-
-        syn = Synapse()
-        syn.login()
-        override = ColumnAnalyzerOverride(
-            organization_name="SYNPY.TEST.SEARCH.MANAGEMENT",
-            name="disease_column_overrides",
-            description="Use a keyword analyzer for the disease_code column",
-            overrides=[
-                ColumnAnalyzerOverrideEntry(
-                    column_name="disease_code",
-                    analyzer={"analyzer": {"default": {"type": "keyword"}}},
-                ),
-            ],
-        )
-        override = override.store(synapse_client=syn)
-        print(f"Created ColumnAnalyzerOverride: {override.id} ({override.qualified_name})")
-        """
-        # GIVEN a ColumnAnalyzerOverride with a single inline analyzer entry
-        name = COLUMN_ANALYZER_OVERRIDE_NAME
-
-        # AND it can be retrieved by ID with its entry intact
-        retrieved = await ColumnAnalyzerOverride(
-            id=COLUMN_ANALYZER_OVERRIDE_ID
-        ).get_async(synapse_client=syn)
-        assert retrieved.overrides[0].column_name == "disease_code"
-        # AND it appears when listing overrides in the organization
-        listed = await ColumnAnalyzerOverride.list_async(
-            organization_name=SEARCH_ORG_NAME, synapse_client=syn
-        )
-        assert name in [item.name for item in listed]
-
-
-class TestSearchConfiguration:
-    async def test_get_and_list(self, syn: Synapse) -> None:
-        """
-        Test that a SearchConfiguration can be retrieved by ID and listed in the
-        organization.
-
-        The TestSearchConfiguration was stored like below:
-
-        from synapseclient import Synapse
-        from synapseclient.models import ColumnAnalyzerOverride, ColumnAnalyzerOverrideEntry, SearchConfiguration, TextAnalyzer
-
-
-        syn = Synapse()
-        syn.login()
-        analyzer = TextAnalyzer(
-            organization_name="SYNPY.TEST.SEARCH.MANAGEMENT",
-            name="test_analyzer",
-            settings={
-                "analyzer": {
-                    "default": {
-                        "type": "custom",
-                        "tokenizer": "standard",
-                        "filter": ["lowercase"],
+def _named_search_pipeline(org: str) -> NamedSearchPipeline:
+    return NamedSearchPipeline(
+        organization_name=org,
+        name=_unique_name(),
+        settings={
+            "phase_results_processors": [
+                {
+                    "normalization-processor": {
+                        "normalization": {
+                            "technique": "min_max",
+                            "parameters": {
+                                "lower_bounds": [
+                                    {"mode": "clip", "min_score": 0.0},
+                                    {"mode": "apply"},
+                                ]
+                            },
+                        },
+                        "combination": {
+                            "technique": "arithmetic_mean",
+                            "parameters": {"weights": [0.3, 0.7]},
+                        },
                     }
                 }
-            },
-        ).store(synapse_client=syn)
-        override = ColumnAnalyzerOverride(
-            organization_name="SYNPY.TEST.SEARCH.MANAGEMENT",
-            name="disease_column_overrides",
-            description="Use a keyword analyzer for the disease_code column",
-            overrides=[
-                ColumnAnalyzerOverrideEntry(
-                    column_name="disease_code",
-                    analyzer={"analyzer": {"default": {"type": "keyword"}}},
-                ),
-            ],
-        ).store(synapse_client=syn)
-        config = SearchConfiguration(
-            organization_name="SYNPY.TEST.SEARCH.MANAGEMENT",
-            name="test_config",
-            default_analyzer={"$ref": analyzer.qualified_name},
-            column_analyzer_overrides=[{"$ref": override.qualified_name}],
-        )
-        config = config.store(synapse_client=syn)
-        print(f"Created SearchConfiguration: {config.id} ({config.qualified_name})")
-        """
-        # GIVEN a SearchConfiguration referencing a TextAnalyzer and
-        # ColumnAnalyzerOverride by qualified name
-        name = TEST_CONFIG_NAME
-        analyzer_ref = {"$ref": f"{SEARCH_ORG_NAME}-{TEXT_ANALYZER_NAME}"}
-        override_ref = {"$ref": f"{SEARCH_ORG_NAME}-{COLUMN_ANALYZER_OVERRIDE_NAME}"}
+            ]
+        },
+    )
 
-        # AND it can be retrieved by ID with its analyzer references intact
-        retrieved = await SearchConfiguration(id=TEST_CONFIG_ID).get_async(
+
+def _search_configuration(org: str) -> SearchConfiguration:
+    return SearchConfiguration(organization_name=org, name=_unique_name())
+
+
+# (factory, the payload attribute expected to survive the round trip)
+RESOURCES = [
+    (_text_analyzer, "settings"),
+    (_synonym_set, "definition"),
+    (_column_analyzer_override, "overrides"),
+    (_named_search_pipeline, "settings"),
+    (_search_configuration, "name"),
+]
+
+
+class TestOrgScopedResourceLifecycle:
+    @pytest.mark.parametrize(
+        "factory, payload_attribute",
+        RESOURCES,
+        ids=[factory.__name__.lstrip("_") for factory, _ in RESOURCES],
+    )
+    async def test_store_get_list(
+        self,
+        syn: Synapse,
+        search_organization: Organization,
+        factory: Callable[[str], object],
+        payload_attribute: str,
+    ) -> None:
+        # GIVEN a new, uniquely-named resource in the shared Organization
+        resource = factory(search_organization.name)
+        expected_payload = getattr(resource, payload_attribute)
+        cls = type(resource)
+
+        # WHEN storing it
+        created = await resource.store_async(synapse_client=syn)
+
+        # THEN it is created with an ID and its payload intact
+        assert created.id is not None
+        assert getattr(created, payload_attribute) == expected_payload
+
+        # AND it can be retrieved by ID
+        retrieved = await cls(id=created.id).get_async(synapse_client=syn)
+        assert retrieved.qualified_name == (
+            f"{search_organization.name}-{resource.name}"
+        )
+        assert getattr(retrieved, payload_attribute) == expected_payload
+
+        # AND it appears when listing the Organization's resources
+        listed = await cls.list_async(
+            organization_name=search_organization.name, synapse_client=syn
+        )
+        assert created.id in [item.id for item in listed]
+
+    async def test_search_configuration_resolves_refs(
+        self, syn: Synapse, search_organization: Organization
+    ) -> None:
+        # GIVEN a saved analyzer, override and search pipeline
+        org = search_organization.name
+        analyzer = await _text_analyzer(org).store_async(synapse_client=syn)
+        override = await _column_analyzer_override(org).store_async(synapse_client=syn)
+        pipeline = await _named_search_pipeline(org).store_async(synapse_client=syn)
+
+        # WHEN a SearchConfiguration references all three by qualified name
+        config = await SearchConfiguration(
+            organization_name=org,
+            name=_unique_name(),
+            default_analyzer={"$ref": analyzer.qualified_name},
+            default_search_pipeline={"$ref": pipeline.qualified_name},
+            column_analyzer_overrides=[{"$ref": override.qualified_name}],
+        ).store_async(synapse_client=syn)
+
+        # THEN the references are saved as written
+        retrieved = await SearchConfiguration(id=config.id).get_async(
             synapse_client=syn
         )
-        assert retrieved.default_analyzer == analyzer_ref
-        assert retrieved.column_analyzer_overrides == [override_ref]
-        # AND it appears when listing configurations in the organization
-        listed = await SearchConfiguration.list_async(
-            organization_name=SEARCH_ORG_NAME, synapse_client=syn
-        )
-        assert name in [item.name for item in listed]
+        assert retrieved.default_analyzer == {"$ref": analyzer.qualified_name}
+        assert retrieved.default_search_pipeline == {"$ref": pipeline.qualified_name}
+        assert retrieved.column_analyzer_overrides == [
+            {"$ref": override.qualified_name}
+        ]
+
+        # AND a reference to a pipeline that does not exist is rejected
+        with pytest.raises(SynapseHTTPError, match="does not exist"):
+            await SearchConfiguration(
+                organization_name=org,
+                name=_unique_name(),
+                default_search_pipeline={"$ref": f"{org}-missing_pipeline"},
+            ).store_async(synapse_client=syn)
 
 
 class TestSearchConfigBinding:
-    async def test_bind_get_and_clear(self, syn: Synapse, folder: Folder) -> None:
-        """
-        Test that a SearchConfiguration can be bound to a Folder, that the
-        effective binding resolves to it on a fresh get, and that clearing the
-        binding removes it.
-        """
-        # GIVEN a SearchConfiguration to bind
-        config = await SearchConfiguration(id=TEST_CONFIG_ID).get_async(
+    async def test_bind_get_and_clear(
+        self,
+        syn: Synapse,
+        search_organization: Organization,
+        project_model: Project,
+        schedule_for_cleanup: Callable[..., None],
+    ) -> None:
+        # GIVEN a SearchConfiguration and a fresh Folder to bind it to
+        config = await _search_configuration(search_organization.name).store_async(
             synapse_client=syn
         )
-        # WHEN binding it to a Folder
+        folder = await Folder(
+            name=str(uuid.uuid4()), parent_id=project_model.id
+        ).store_async(synapse_client=syn)
+        schedule_for_cleanup(folder.id)
+
+        # WHEN binding it to the Folder
         binding = await SearchConfigBinding(
             object_id=folder.id,
             search_configuration_id=config.id,

@@ -2,13 +2,14 @@
 
 These dataclasses model the org-level search management resources used by
 SearchIndex entities (TextAnalyzer, ColumnAnalyzerOverride, SynonymSet,
-SearchConfiguration, SearchConfigBinding) and the query/response types for
+NamedSearchPipeline, SearchConfiguration, SearchConfigBinding) and the query/response types for
 querying a SearchIndex's OpenSearch index.
 
 The query model is a thin pass-through over the OpenSearch ``_search`` request
 body: ``SearchQuery`` carries the allowlisted top-level keys (``query``,
-``post_filter``, ``aggregations``, ``highlight``, ``collapse``, ``rescore``,
-``sort``, ``_source``, ``from``, ``size``, ``search_after``). Each slot is typed
+``hybrid``, ``search_pipeline``, ``post_filter``, ``aggregations``,
+``highlight``, ``collapse``, ``rescore``, ``sort``, ``_source``, ``from``,
+``size``, ``search_after``). Each slot is typed
 against the OpenSearch query DSL by the ``TypedDict`` shapes in
 `synapseclient.models.search_dsl` -- start at
 [Query][synapseclient.models.search_dsl.Query]. The analyzer-resource
@@ -41,19 +42,23 @@ from synapseclient.api import (
     clear_search_config_binding,
     create_column_analyzer_override,
     create_search_configuration,
+    create_search_pipeline,
     create_synonym_set,
     create_text_analyzer,
     get_column_analyzer_override,
     get_search_config_binding,
     get_search_configuration,
+    get_search_pipeline,
     get_synonym_set,
     get_text_analyzer,
     list_column_analyzer_overrides,
     list_search_configurations,
+    list_search_pipelines,
     list_synonym_sets,
     list_text_analyzers,
     update_column_analyzer_override,
     update_search_configuration,
+    update_search_pipeline,
     update_synonym_set,
     update_text_analyzer,
 )
@@ -69,9 +74,11 @@ from synapseclient.models.search_dsl import (
     AnalyzerRef,
     FieldCollapse,
     Highlight,
+    HybridQuery,
     Query,
     Rescore,
     ScalarValue,
+    SearchPipeline,
     SourceFilter,
 )
 from synapseclient.models.table_components import SelectColumn
@@ -89,11 +96,19 @@ class SearchQueryPart(str, Enum):
     HITS = "HITS"
     TOTAL_HITS = "TOTAL_HITS"
     SELECT_COLUMNS = "SELECT_COLUMNS"
+    EXPLANATION = "EXPLANATION"
+    """A per-hit breakdown of how the score was computed, returned on
+    `SearchHit.explanation`. For debugging relevance and analyzer configuration,
+    not for display -- the engine recomputes the score with instrumentation, so
+    asking for it is not free. The breakdown is relative to this request's result
+    set, so the same query and document explain differently for another user or
+    on the next page."""
 
 
 class OrgScopedResourceProtocol(Protocol):
     """Synchronous interface shared by the org-scoped search-management resources
-    (TextAnalyzer, ColumnAnalyzerOverride, SynonymSet, SearchConfiguration)."""
+    (TextAnalyzer, ColumnAnalyzerOverride, SynonymSet, NamedSearchPipeline,
+    SearchConfiguration)."""
 
     def store(self, *, synapse_client: Optional["Synapse"] = None) -> "Self":
         """Create this resource, or update it if it already has an ID."""
@@ -399,15 +414,38 @@ class ColumnAnalyzerOverrideEntry:
     OpenSearch [`settings.analysis`](https://docs.opensearch.org/latest/analyzers/)
     block."""
 
+    semantic: Optional[bool] = None
+    """Optional. When `True` this column also feeds the index's
+    `semantic_search` vector field, so a
+    [`neural`][synapseclient.models.search_dsl.NeuralFieldOptions] clause of a
+    [hybrid query][synapseclient.models.search_dsl.HybridQuery] can match
+    against it. Only STRING, STRING_LIST, MEDIUMTEXT, LARGETEXT, LINK, and JSON
+    columns may be flagged; flagging any other type, or flagging any column on a
+    source with more than 50,000 rows, fails the index build. A JSON value is
+    embedded as its JSON text. Independent of `analyzer` -- an entry may set
+    either, both, or `semantic` alone. When several overrides name the same
+    column, only the first entry is used, so a `semantic` flag on a later entry
+    for that column is ignored.
+
+    Long values are truncated for embedding: all of a row's flagged columns are
+    joined into a single text of `Name: value` lines capped at 8,000 tokens,
+    and anything past the cap
+    contributes nothing to the vector. The columns themselves are unaffected --
+    each value is indexed and returned in full and stays fully matchable by the
+    keyword clauses, so a hybrid query with a keyword clause still reaches text
+    past the cap."""
+
     def fill_from_dict(self, data: Dict[str, Any]) -> "Self":
         self.column_name = data.get("columnName", None)
         self.analyzer = data.get("analyzer", None)
+        self.semantic = data.get("semantic", None)
         return self
 
     def to_synapse_request(self) -> Dict[str, Any]:
         body = {
             "columnName": self.column_name,
             "analyzer": self.analyzer,
+            "semantic": self.semantic,
         }
         delete_none_keys(body)
         return body
@@ -751,6 +789,208 @@ class SynonymSet(OrgScopedResource):
 
 
 @dataclass
+class NamedSearchPipeline(OrgScopedResource):
+    """A shareable, named
+    [search pipeline][synapseclient.models.search_dsl.SearchPipeline]: how a
+    `hybrid` query's per-clause scores are normalized and combined. Referenced
+    by qualified name `{organizationName}-{name}` via
+    `{"$ref": "{organizationName}-{name}"}` from `SearchQuery.search_pipeline` or
+    `SearchConfiguration.default_search_pipeline`, so one pipeline can be reused
+    and re-tuned centrally.
+
+    A NamedSearchPipeline belongs to an Organization, referenced by
+    `organization_name`. Find an Organization you already have access to with
+    `synapseclient.models.organization.list_organizations()`, or create one with
+    `synapseclient.models.Organization` before creating a NamedSearchPipeline.
+
+    Represents a [Synapse NamedSearchPipeline](https://rest-docs.synapse.org/rest/org/sagebionetworks/repo/model/search/table/NamedSearchPipeline.html).
+
+    Note: NamedSearchPipeline has no delete endpoint on the Synapse REST API.
+    Once created, it cannot be removed, and its owning Organization can no
+    longer be deleted either. Choose `organization_name` and `name` deliberately.
+
+    Example: Create a NamedSearchPipeline.
+        &nbsp;
+        Weights are positional against `hybrid.queries`: a query sending two
+        clauses uses the first two weights, rescaled to sum to 1.0.
+        ```python
+        from synapseclient import Synapse
+        from synapseclient.models import NamedSearchPipeline
+
+        syn = Synapse()
+        syn.login()
+
+        pipeline = NamedSearchPipeline(
+            organization_name="my.existing.organization",
+            name="keyword_heavy",
+            description="Favor keyword relevance over semantic similarity",
+            settings={
+                "phase_results_processors": [
+                    {
+                        "normalization-processor": {
+                            "normalization": {"technique": "min_max"},
+                            "combination": {
+                                "technique": "arithmetic_mean",
+                                "parameters": {"weights": [0.7, 0.3]},
+                            },
+                        }
+                    }
+                ]
+            },
+        )
+        pipeline = pipeline.store()
+        print(f"Created NamedSearchPipeline: {pipeline.id} ({pipeline.qualified_name})")
+        ```
+
+    Example: Get an existing NamedSearchPipeline by ID.
+        &nbsp;
+
+        ```python
+        from synapseclient import Synapse
+        from synapseclient.models import NamedSearchPipeline
+
+        syn = Synapse()
+        syn.login()
+
+        pipeline = NamedSearchPipeline(id="12345").get()
+        print(pipeline.name, pipeline.settings)
+        ```
+
+    Example: Update an existing NamedSearchPipeline.
+        &nbsp;
+
+        ```python
+        from synapseclient import Synapse
+        from synapseclient.models import NamedSearchPipeline
+
+        syn = Synapse()
+        syn.login()
+
+        pipeline = NamedSearchPipeline(id="12345").get()
+        processor = pipeline.settings["phase_results_processors"][0]
+        processor["normalization-processor"]["combination"]["parameters"] = {
+            "weights": [0.5, 0.5]
+        }
+        pipeline = pipeline.store()
+        print(f"Updated NamedSearchPipeline etag: {pipeline.etag}")
+        ```
+
+    Example: List NamedSearchPipelines in an Organization.
+        &nbsp;
+
+        ```python
+        from synapseclient import Synapse
+        from synapseclient.models import NamedSearchPipeline
+
+        syn = Synapse()
+        syn.login()
+
+        pipelines = NamedSearchPipeline.list(
+            organization_name="my.existing.organization"
+        )
+        for pipeline in pipelines:
+            print(pipeline.id, pipeline.qualified_name)
+        ```
+
+    Example: Use a NamedSearchPipeline as an index's default.
+        &nbsp;
+        Every `hybrid` query against an index built with this configuration
+        that omits `search_pipeline` runs through the referenced pipeline.
+        ```python
+        from synapseclient import Synapse
+        from synapseclient.models import SearchConfiguration
+
+        syn = Synapse()
+        syn.login()
+
+        config = SearchConfiguration(id="12345").get()
+        config.default_search_pipeline = {
+            "$ref": "my.existing.organization-keyword_heavy"
+        }
+        config = config.store()
+        ```
+    """
+
+    _CREATE_FN = staticmethod(create_search_pipeline)
+    _GET_FN = staticmethod(get_search_pipeline)
+    _UPDATE_FN = staticmethod(update_search_pipeline)
+    _LIST_FN = staticmethod(list_search_pipelines)
+
+    id: Optional[str] = None
+    """The unique ID of this search pipeline."""
+
+    organization_name: Optional[str] = None
+    """The name of the Organization this resource belongs to. Immutable after
+    creation."""
+
+    name: Optional[str] = None
+    """The resource name. Must start with a letter and contain only letters,
+    digits, and underscores. Unique within the organization and immutable
+    after creation. Used as part of the qualified name
+    ({organizationName}-{name}) when referenced by other resources."""
+
+    description: Optional[str] = None
+    """Optional description of the search pipeline."""
+
+    settings: Optional[SearchPipeline] = None
+    """Required. The [search pipeline][synapseclient.models.search_dsl.SearchPipeline]
+    this resource holds. On save: `phase_results_processors` must hold exactly
+    one entry that sets `normalization-processor`;
+    `combination.parameters.weights`, when set, must hold 2 to 5 entries, each
+    in `[0.0, 1.0]`, with a sum equal to 1.0;
+    `normalization.parameters.lower_bounds` and `upper_bounds`, when set, must
+    hold 2 to 5 entries; the set weights and bounds must hold the same number of
+    entries; and the `z_score` normalization technique is only allowed with the
+    `arithmetic_mean` combination technique."""
+
+    etag: Optional[str] = None
+    """Synapse employs an Optimistic Concurrency Control (OCC) scheme."""
+
+    created_on: Optional[str] = None
+    """The date this resource was created."""
+
+    created_by: Optional[str] = None
+    """The ID of the user that created this resource."""
+
+    modified_on: Optional[str] = None
+    """The date this resource was last modified."""
+
+    modified_by: Optional[str] = None
+    """The ID of the user that last modified this resource."""
+
+    @property
+    def qualified_name(self) -> Optional[str]:
+        if self.organization_name and self.name:
+            return f"{self.organization_name}-{self.name}"
+        return None
+
+    def fill_from_dict(self, data: Dict[str, Any]) -> "Self":
+        self.id = data.get("id", None)
+        self.organization_name = data.get("organizationName", None)
+        self.name = data.get("name", None)
+        self.description = data.get("description", None)
+        self.settings = data.get("settings", None)
+        self.etag = data.get("etag", None)
+        self.created_on = data.get("createdOn", None)
+        self.created_by = data.get("createdBy", None)
+        self.modified_on = data.get("modifiedOn", None)
+        self.modified_by = data.get("modifiedBy", None)
+        return self
+
+    def to_synapse_request(self) -> Dict[str, Any]:
+        body = {
+            "id": self.id,
+            "organizationName": self.organization_name,
+            "name": self.name,
+            "description": self.description,
+            "settings": self.settings,
+            "etag": self.etag,
+        }
+        delete_none_keys(body)
+        return body
+
+
+@dataclass
 class SearchConfiguration(OrgScopedResource):
     """Bundles the index-wide default analyzer and per-column overrides used to
     build a SearchIndex.
@@ -863,6 +1103,27 @@ class SearchConfiguration(OrgScopedResource):
     [AnalyzerRef][synapseclient.models.search_dsl.AnalyzerRef]), or an inline
     OpenSearch [`settings.analysis`](https://docs.opensearch.org/latest/analyzers/)
     block."""
+
+    default_search_pipeline: Optional[Union[AnalyzerRef, SearchPipeline]] = None
+    """Optional. The [search pipeline][synapseclient.models.search_dsl.SearchPipeline]
+    applied to a `hybrid` query against this index when the request omits
+    `SearchQuery.search_pipeline`. Either a reference to a saved
+    [NamedSearchPipeline][synapseclient.models.NamedSearchPipeline] written as
+    `{"$ref": "{organizationName}-{name}"}` (preferred -- supports reuse and
+    central re-tuning; see
+    [AnalyzerRef][synapseclient.models.search_dsl.AnalyzerRef]), or an inline
+    [SearchPipeline][synapseclient.models.search_dsl.SearchPipeline] literal.
+
+    Validated on save: a `$ref` must name an existing NamedSearchPipeline, and an
+    inline literal follows the same rules as a NamedSearchPipeline's `settings`
+    -- in particular `combination.parameters.weights`, when set, must hold 2 to
+    5 entries summing to 1.0 (see
+    [CombinationParameters][synapseclient.models.search_dsl.CombinationParameters]).
+    When neither this nor the request supplies a pipeline, a system default that
+    normalizes with `min_max` and combines with `arithmetic_mean`, weighting
+    every clause equally, is applied; a `hybrid` query is never rejected for
+    lack of a pipeline."""
+
     column_analyzer_overrides: Optional[List[Union[AnalyzerRef, Dict[str, Any]]]] = (
         field(default_factory=list)
     )
@@ -898,6 +1159,7 @@ class SearchConfiguration(OrgScopedResource):
         self.name = data.get("name", None)
         self.description = data.get("description", None)
         self.default_analyzer = data.get("defaultAnalyzer", None)
+        self.default_search_pipeline = data.get("defaultSearchPipeline", None)
         self.column_analyzer_overrides = data.get("columnAnalyzerOverrides", []) or []
         self.etag = data.get("etag", None)
         self.created_on = data.get("createdOn", None)
@@ -913,6 +1175,7 @@ class SearchConfiguration(OrgScopedResource):
             "name": self.name,
             "description": self.description,
             "defaultAnalyzer": self.default_analyzer,
+            "defaultSearchPipeline": self.default_search_pipeline,
             "columnAnalyzerOverrides": self.column_analyzer_overrides or None,
             "etag": self.etag,
         }
@@ -1082,11 +1345,57 @@ class SearchQuery:
     """
 
     query: Optional[Query] = None
-    """Required. The [OpenSearch query DSL](https://docs.opensearch.org/latest/query-dsl/)
+    """The [OpenSearch query DSL](https://docs.opensearch.org/latest/query-dsl/)
     clause -- see [Query][synapseclient.models.search_dsl.Query] for every
     supported clause kind. Use [`{"match_all": {}}`](https://docs.opensearch.org/latest/query-dsl/match-all/)
     to match all documents. See also
-    [query vs. filter context](https://docs.opensearch.org/latest/query-dsl/query-filter-context/)."""
+    [query vs. filter context](https://docs.opensearch.org/latest/query-dsl/query-filter-context/).
+
+    Exactly one of `query` and `hybrid` is required."""
+
+    hybrid: Optional[HybridQuery] = None
+    """A [hybrid query][synapseclient.models.search_dsl.HybridQuery], blending
+    keyword and semantic relevance -- the only way to run a semantic (vector)
+    search, via a `neural` clause on one of its
+    [clauses][synapseclient.models.search_dsl.HybridClause]. Exactly one of
+    `query` and `hybrid` is required. Not accepted by the autocomplete endpoint.
+
+    Always runs through a
+    [search pipeline][synapseclient.models.search_dsl.SearchPipeline]: this
+    request's `search_pipeline` if set, otherwise the index's
+    `SearchConfiguration.default_search_pipeline`, otherwise a system default
+    that normalizes with `min_max` and combines with `arithmetic_mean`, weighting
+    every clause equally.
+
+    A blended score is relative to this request's result set -- each clause is
+    normalized against its own returned candidates -- so it is not comparable
+    across requests, pages, or users. Request the
+    [`EXPLANATION`][synapseclient.models.SearchQueryPart] response part to see
+    the breakdown."""
+
+    search_pipeline: Optional[Union[AnalyzerRef, SearchPipeline]] = None
+    """Optional. The [search pipeline][synapseclient.models.search_dsl.SearchPipeline]
+    that normalizes and combines the `hybrid` clause scores. Accepted only
+    alongside `hybrid`, and rejected without it. Either a reference to a saved
+    [NamedSearchPipeline][synapseclient.models.NamedSearchPipeline] written as
+    `{"$ref": "{organizationName}-{name}"}` (see
+    [AnalyzerRef][synapseclient.models.search_dsl.AnalyzerRef]), or an inline
+    [SearchPipeline][synapseclient.models.search_dsl.SearchPipeline] literal.
+
+    The weights and bounds of a saved or inline pipeline are positional against
+    the clauses this request sends: a `neural` clause is not sent when the index
+    has no semantic field, and the clauses sent take the first entries of each
+    array, in order. A pipeline may hold more entries than the request sends
+    clauses, in which case only the first entries are used and those weights are
+    rescaled to sum to 1.0; a request that sends more clauses than a pipeline's
+    weights or bounds hold is rejected -- see
+    [CombinationParameters][synapseclient.models.search_dsl.CombinationParameters]
+    and [NormalizationParameters][synapseclient.models.search_dsl.NormalizationParameters].
+
+    An inline pipeline is checked only against the SearchPipeline schema, not
+    against the rules a saved NamedSearchPipeline must satisfy. Its kept weights
+    are always rescaled to sum to 1.0, whatever their range, and any other
+    invalid setting is rejected by OpenSearch when the query runs."""
 
     post_filter: Optional[Query] = None
     """Optional. Same DSL shape as `query` (see
@@ -1124,7 +1433,8 @@ class SearchQuery:
     applied in order. Only the `field` and `_score` sort kinds are accepted --
     script and geo-distance sorts are rejected server-side. The pseudo-column
     `_score` sorts by relevance. When omitted, results are sorted by relevance
-    descending."""
+    descending. Ties are broken by row ID ascending, except when `rescore` is
+    supplied or a `hybrid` query is ranked by relevance."""
 
     source: Optional[SourceFilter] = None
     """Optional. [Source filter](https://docs.opensearch.org/latest/search-plugins/searching-data/retrieve-specific-fields/)
@@ -1150,6 +1460,8 @@ class SearchQuery:
 
     def fill_from_dict(self, data: Dict[str, Any]) -> "Self":
         self.query = data.get("query", None)
+        self.hybrid = data.get("hybrid", None)
+        self.search_pipeline = data.get("search_pipeline", None)
         self.post_filter = data.get("post_filter", None)
         self.aggregations = data.get("aggregations", None)
         self.highlight = data.get("highlight", None)
@@ -1165,6 +1477,8 @@ class SearchQuery:
     def to_synapse_request(self) -> Dict[str, Any]:
         body = {
             "query": self.query,
+            "hybrid": self.hybrid,
+            "search_pipeline": self.search_pipeline,
             "post_filter": self.post_filter,
             "aggregations": self.aggregations,
             "highlight": self.highlight,
@@ -1280,10 +1594,21 @@ class SearchHit:
     highlights: Optional[List[SearchHighlight]] = field(default_factory=list)
     """Per-field highlight payloads, if highlight was requested."""
 
+    explanation: Optional[Dict[str, Any]] = None
+    """A per-hit breakdown of why this document matched and how its score was
+    computed, populated when the request asked for the
+    [`EXPLANATION`][synapseclient.models.SearchQueryPart] response part. An
+    opaque recursive `{description, value, details}` tree. Column references
+    appear as bare column ids inside its `description` strings (e.g.
+    `weight(100:tumor)`) and are not rewritten to column names -- request
+    `SELECT_COLUMNS` to map an id back to its column name. See the
+    [Explain API](https://docs.opensearch.org/latest/api-reference/search-apis/explain/)."""
+
     def fill_from_dict(self, data: Dict[str, Any]) -> "Self":
         self.row_id = data.get("rowId", None)
         self.row_version = data.get("rowVersion", None)
         self.score = data.get("score", None)
+        self.explanation = data.get("explanation", None)
         self.fields = [
             SearchFieldValue().fill_from_dict(f) for f in data.get("fields", []) or []
         ]

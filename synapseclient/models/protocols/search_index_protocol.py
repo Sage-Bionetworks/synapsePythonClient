@@ -135,7 +135,9 @@ class SearchIndexSynchronousProtocol(Protocol):
         [OpenSearch Query DSL](https://docs.opensearch.org/latest/query-dsl/)
         carried by a [SearchQuery][synapseclient.models.SearchQuery] — not with
         Synapse SQL. See [Query][synapseclient.models.search_dsl.Query] for the
-        supported clause kinds.
+        supported clause kinds. A semantic (vector) search is expressed as a
+        `neural` clause inside `search_query.hybrid` — see
+        [HybridQuery][synapseclient.models.search_dsl.HybridQuery].
 
         Arguments:
             search_query: The OpenSearch
@@ -176,6 +178,56 @@ class SearchIndexSynchronousProtocol(Protocol):
             print(results.total_hits)
             for hit in results.hits:
                 print(hit.row_id, hit.fields)
+            ```
+
+        Example: Blend keyword and semantic relevance with a hybrid query.
+            &nbsp;
+
+            A `neural` clause matches by meaning rather than by term, against the
+            columns flagged `semantic` on the index's SearchConfiguration. Here
+            it is blended with a keyword clause, weighted 30/70 by an inline
+            search pipeline.
+            ```python
+            from synapseclient import Synapse
+            from synapseclient.models import SearchIndex, SearchQuery, SearchQueryPart
+
+            syn = Synapse()
+            syn.login()
+
+            results = SearchIndex(id="syn12345").query(
+                search_query=SearchQuery(
+                    hybrid={
+                        "queries": [
+                            {"match": {"description": {"query": "memory loss"}}},
+                            {
+                                "neural": {
+                                    "semantic_search": {
+                                        "query_text": "progressive memory loss in older adults",
+                                        "k": 100,
+                                    }
+                                }
+                            },
+                        ]
+                    },
+                    search_pipeline={
+                        "phase_results_processors": [
+                            {
+                                "normalization-processor": {
+                                    "normalization": {"technique": "min_max"},
+                                    "combination": {
+                                        "technique": "arithmetic_mean",
+                                        "parameters": {"weights": [0.3, 0.7]},
+                                    },
+                                }
+                            }
+                        ]
+                    },
+                    size=10,
+                ),
+                response_parts=[SearchQueryPart.TOTAL_HITS],
+            )
+            for hit in results.hits:
+                print(hit.score, hit.fields)
             ```
         """
         from synapseclient.models.search_management import SearchIndexQuery
