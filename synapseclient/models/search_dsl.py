@@ -33,9 +33,11 @@ column's type in the SearchIndex schema."""
 
 
 AnalyzerRef = TypedDict("AnalyzerRef", {"$ref": str}, total=False)
-"""A reference to a saved [TextAnalyzer][synapseclient.models.TextAnalyzer] or
-[SynonymSet][synapseclient.models.SynonymSet] by its qualified name
-`{organizationName}-{name}`, written as `{"$ref": "my.org-stemmed_english"}`."""
+"""A reference to a saved [TextAnalyzer][synapseclient.models.TextAnalyzer],
+[SynonymSet][synapseclient.models.SynonymSet], or
+[NamedSearchPipeline][synapseclient.models.NamedSearchPipeline] by its
+qualified name `{organizationName}-{name}`, written as
+`{"$ref": "my.org-stemmed_english"}`."""
 
 
 class ClauseScoringOptions(TypedDict, total=False):
@@ -107,10 +109,6 @@ class MatchFieldOptions(
     """Optional. Boolean logic used to combine the analyzed query terms: `or`
     (default) or `and`."""
 
-    analyzer: str
-    """Optional. Analyzer used to tokenize the query text. Defaults to the
-    field's search analyzer."""
-
     max_expansions: int
     """Optional. Maximum number of terms the fuzzy expansion will generate."""
 
@@ -136,10 +134,6 @@ class MatchPhraseFieldOptions(ClauseScoringOptions, ZeroTermsQueryOption, total=
     """Required. The phrase to match. A string (or scalar value on a non-text
     column)."""
 
-    analyzer: str
-    """Optional. Analyzer used to tokenize the phrase. Defaults to the field's
-    search analyzer."""
-
     slop: int
     """Optional. Number of positions allowed between matching terms. Default
     `0` (exact phrase)."""
@@ -155,10 +149,6 @@ class MatchPhrasePrefixFieldOptions(
     query: ScalarValue
     """Required. The phrase whose last term is treated as a prefix. A
     string."""
-
-    analyzer: str
-    """Optional. Analyzer used to tokenize the phrase. Defaults to the field's
-    search analyzer."""
 
     slop: int
     """Optional. Number of positions allowed between matching terms. Default
@@ -183,10 +173,6 @@ class MatchBoolPrefixFieldOptions(
     operator: str
     """Optional. Boolean logic used to combine the analyzed terms: `or`
     (default) or `and`."""
-
-    analyzer: str
-    """Optional. Analyzer used to tokenize the query text. Defaults to the
-    field's search analyzer."""
 
     max_expansions: int
     """Optional. Maximum number of terms the final (prefix) term expands into.
@@ -240,8 +226,7 @@ class RangeFieldOptions(ClauseScoringOptions, total=False):
 class PrefixFieldOptions(ClauseScoringOptions, total=False):
     """Per-field options for a [`prefix`](https://docs.opensearch.org/latest/query-dsl/term/prefix/)
     term-level clause. Carried as the value of the field-keyed `prefix` map
-    (the map key is the column name). A leading `*` or `?` in `value` is
-    rejected (it forces a full index scan)."""
+    (the map key is the column name)."""
 
     value: ScalarValue
     """Required. The prefix the indexed term must start with. A string (or
@@ -258,8 +243,7 @@ class PrefixFieldOptions(ClauseScoringOptions, total=False):
 class WildcardFieldOptions(ClauseScoringOptions, total=False):
     """Per-field options for a [`wildcard`](https://docs.opensearch.org/latest/query-dsl/term/wildcard/)
     term-level clause. Carried as the value of the field-keyed `wildcard` map
-    (the map key is the column name). A leading `*` or `?` in the pattern is
-    rejected (it forces a full index scan)."""
+    (the map key is the column name)."""
 
     value: ScalarValue
     """Optional. The wildcard pattern (`*` matches any sequence, `?` matches a
@@ -345,10 +329,6 @@ class MultiMatchQuery(
     """Optional. Weight (0-1) applied to non-best field scores in
     `best_fields` / `cross_fields`."""
 
-    analyzer: str
-    """Optional. Analyzer used to tokenize the query text. Defaults to each
-    field's search analyzer."""
-
     max_expansions: int
     """Optional. Maximum number of terms a fuzzy / prefix expansion will
     generate. Default `50`."""
@@ -391,13 +371,8 @@ class SimpleQueryStringQuery(
     """Optional. Pipe-delimited list of enabled syntax features (e.g.
     `AND|OR|PREFIX`), or `ALL` / `NONE`."""
 
-    analyzer: str
-    """Optional. Analyzer used to tokenize the query text. Defaults to each
-    field's search analyzer."""
-
     analyze_wildcard: bool
-    """Optional. Whether to analyze wildcard terms. Default `false`. A leading
-    wildcard with this enabled is rejected (it forces a full index scan)."""
+    """Optional. Whether to analyze wildcard terms. Default `false`."""
 
     auto_generate_synonyms_phrase_query: bool
     """Optional. Whether to auto-generate phrase queries for multi-term
@@ -421,6 +396,104 @@ class SimpleQueryStringQuery(
     quote_field_suffix: str
     """Optional. Suffix appended to field names for quoted (exact-phrase)
     portions of the query."""
+
+
+class QueryStringQuery(ClauseScoringOptions, MinimumShouldMatchOption, total=False):
+    """A [`query_string`](https://docs.opensearch.org/latest/query-dsl/full-text/query-string/)
+    full-text clause -- the full Lucene query syntax (column prefixes such as
+    `title: wind`, `AND` / `OR` / `NOT`, grouping, ranges, `~` fuzziness, `^`
+    boosts, `/regex/`). The operators have no precedence, so parenthesize any
+    expression that mixes `AND` and `OR`.
+
+    Every column named in `query`, `fields` and `default_field` is resolved
+    against the index schema, and an unknown column is rejected. Inside `query`,
+    a column name containing white space or one of
+    `+ - ! ( ) : ^ [ ] " { } ~ * ? \\ /` must escape that character with a
+    backslash (e.g. `sample\\ id: S-1`); the all-columns prefix `*:` is not
+    supported, and `_exists_:` takes a single column name."""
+
+    query: str
+    """Required. The text to search, which may contain expressions in the
+    query-string syntax."""
+
+    fields: List[str]
+    """Optional. The columns to search, at most `1024`. Each entry may carry a
+    `^boost` suffix (e.g. `["title^4", "description"]`); column-name wildcards
+    are not supported. Defaults to `default_field`."""
+
+    default_field: str
+    """Optional. The column searched by terms that carry no column prefix;
+    column-name wildcards are not supported. When neither this nor `fields` is
+    given, every indexed column is searched. The number of columns multiplied by
+    the number of terms may not exceed `1024`."""
+
+    default_operator: str
+    """Optional. Whether all terms (`AND`) or only one term (`OR`) must match
+    when the query contains several terms with no operator between them.
+    Default `OR`."""
+
+    type: str
+    """Optional. How the per-column matches are combined when `fields` lists
+    more than one column: `best_fields` (default), `most_fields`,
+    `cross_fields`, `phrase`, `phrase_prefix`, or `bool_prefix`."""
+
+    analyze_wildcard: bool
+    """Optional. Whether to attempt to analyze wildcard terms. Default
+    `false`."""
+
+    auto_generate_synonyms_phrase_query: bool
+    """Optional. Whether to create a match-phrase query automatically for
+    multi-term synonyms. Default `true`."""
+
+    enable_position_increments: bool
+    """Optional. When `true`, the resulting queries are aware of position
+    increments, which matters when the removal of stop words leaves an unwanted
+    gap between terms. Default `true`."""
+
+    fuzziness: str
+    """Optional. Allowed [edit distance](https://docs.opensearch.org/latest/query-dsl/term/fuzzy/)
+    when deciding whether a `~` term matched: a non-negative integer or `AUTO`
+    (default, same as `AUTO:3,6`)."""
+
+    fuzzy_max_expansions: int
+    """Optional. The maximum number of terms a fuzzy term can expand to.
+    Default and maximum `50`; a larger value is rejected."""
+
+    fuzzy_prefix_length: int
+    """Optional. Number of leading characters left unchanged when fuzzy
+    matching."""
+
+    fuzzy_transpositions: bool
+    """Optional. Whether to count transpositions (ab -> ba) as a single edit.
+    Default `true`."""
+
+    lenient: bool
+    """Optional. When `true`, data type mismatches between the query and a
+    column are ignored. Default `false`."""
+
+    max_determinized_states: int
+    """Optional. The maximum number of states Lucene may create for a
+    `/regex/` term. Default and maximum `10000`; a larger value is rejected."""
+
+    phrase_slop: float
+    """Optional. The maximum number of words allowed between the matched words
+    of a quoted phrase. Default `0` (the matched words must be adjacent)."""
+
+    quote_field_suffix: str
+    """Optional. A suffix appended to the column searched by quoted (exact)
+    portions of the query, so they can be matched with a different analysis than
+    unquoted terms. For example, with `.keyword`, `title: "wind rises"` is
+    matched against the unanalyzed value of the `title` column."""
+
+    rewrite: str
+    """Optional. How multi-term queries are rewritten and scored:
+    `constant_score` (default), `scoring_boolean`, `constant_score_boolean`,
+    `top_terms_N`, `top_terms_boost_N`, or `top_terms_blended_freqs_N`."""
+
+    time_zone: str
+    """Optional. The UTC offset (e.g. `-08:00`) or time zone ID (e.g.
+    `America/Los_Angeles`) used to interpret dates in range expressions. Default
+    UTC."""
 
 
 class MatchAllQuery(ClauseScoringOptions, total=False):
@@ -564,6 +637,10 @@ class Query(TypedDict, total=False):
     """A [`simple_query_string`](https://docs.opensearch.org/latest/query-dsl/full-text/simple-query-string/)
     full-text clause."""
 
+    query_string: QueryStringQuery
+    """A [`query_string`](https://docs.opensearch.org/latest/query-dsl/full-text/query-string/)
+    full-text clause -- the full Lucene query syntax."""
+
     match_all: MatchAllQuery
     """A [`match_all`](https://docs.opensearch.org/latest/query-dsl/match-all/)
     clause."""
@@ -583,6 +660,294 @@ class Query(TypedDict, total=False):
     boosting: BoostingQuery
     """A [`boosting`](https://docs.opensearch.org/latest/query-dsl/compound/boosting/)
     compound clause."""
+
+
+class NeuralFieldOptions(TypedDict, total=False):
+    """The per-field options of a [`neural`](https://docs.opensearch.org/latest/query-dsl/specialized/neural/)
+    clause -- semantic (vector) matching. Carried as the value of the
+    field-keyed `neural` map on a
+    [HybridClause][synapseclient.models.search_dsl.HybridClause].
+
+    Synapse embeds `query_text` with its own registered model, so you supply
+    text rather than a vector; a caller-supplied raw vector is not accepted
+    because there would be no way to detect an embedding-space mismatch.
+
+    At most one of `k`, `min_score`, and `max_distance` may be set.
+    """
+
+    query_text: str
+    """Required. The query text from which to generate vector embeddings."""
+
+    k: int
+    """Optional. The number of results returned by the k-nearest-neighbours
+    search. Only one of `k`, `min_score`, and `max_distance` may be set; when
+    none is set the default is `k` of 10. A number in the range 100-200 is
+    recommended for datasets up to 10M documents; raising it beyond that
+    increases latency without improving relevance."""
+
+    min_score: float
+    """Optional. The minimum similarity score a candidate must reach. Only one
+    of `k`, `min_score`, and `max_distance` may be set. Bounds which candidates
+    *this* clause contributes, not the final combined score -- for that, see
+    [HybridQuery][synapseclient.models.search_dsl.HybridQuery] `min_score`. See
+    [radial search](https://docs.opensearch.org/latest/vector-search/specialized-operations/radial-search-knn/)."""
+
+    max_distance: float
+    """Optional. The maximum vector distance a candidate may sit at. Only one of
+    `k`, `min_score`, and `max_distance` may be set. See
+    [radial search](https://docs.opensearch.org/latest/vector-search/specialized-operations/radial-search-knn/)."""
+
+    filter: Query
+    """Optional. A clause every candidate of *this* clause must match, evaluated
+    in filter context and applied
+    [during](https://docs.opensearch.org/latest/vector-search/filter-search-knn/efficient-knn-filtering/)
+    the vector search rather than after it, so a selective filter still yields
+    `k` results. Use it only when the semantic clause must draw from a narrower
+    subset than the rest of the query: a narrowing meant for every clause
+    belongs on `HybridQuery.filter`, which is combined with this filter rather
+    than replacing it. Narrowing one clause also rescales it -- each clause is
+    normalized over its own returned candidates, so the best document within the
+    subset takes the top normalized score however weak its absolute
+    similarity."""
+
+
+class HybridClause(Query, total=False):
+    """One entry of `HybridQuery.queries`: any
+    [Query][synapseclient.models.search_dsl.Query] clause, plus the `neural`
+    clause that is accepted only here. Each entry is scored independently and
+    the per-clause scores are then normalized and combined by the
+    [search pipeline][synapseclient.models.search_dsl.SearchPipeline]."""
+
+    neural: Dict[str, NeuralFieldOptions]
+    """A [semantic (vector)](https://docs.opensearch.org/latest/query-dsl/specialized/neural/)
+    clause. `semantic_search` is the only key accepted -- it names a vector
+    field of the document rather than a column, and is added to each document at
+    index build time if at least one column is flagged `semantic` on a
+    [ColumnAnalyzerOverrideEntry][synapseclient.models.ColumnAnalyzerOverrideEntry].
+
+    When the index has no semantic field, `neural` clauses are not sent --
+    along with their pipeline weights and bounds -- and a query whose clauses
+    are all `neural` is rejected."""
+
+
+class HybridQuery(TypedDict, total=False):
+    """A [`hybrid`](https://docs.opensearch.org/latest/query-dsl/compound/hybrid/)
+    query -- several independently-scored clauses whose scores are normalized
+    onto a common scale and then combined, so keyword and semantic relevance can
+    be blended meaningfully. Supplied as `SearchQuery.hybrid` rather than inside
+    `SearchQuery.query`, because OpenSearch requires a hybrid query to be the
+    top-level query.
+
+    The scores are normalized and combined by `SearchQuery.search_pipeline`;
+    when it is omitted, the search configuration's default search pipeline is
+    used, and failing that `min_max` normalization with an `arithmetic_mean`
+    combination of equally-weighted clauses.
+
+    Results are ranked by relevance unless `SearchQuery.sort` names a column.
+    Pages requested with `from_` / `size` are capped at
+    `from_ + size <= 1000`. A relevance-ranked query emits no
+    `next_search_after` and rejects `search_after`; sorting by a column enables
+    `search_after` paging.
+    """
+
+    queries: List[Union[HybridClause, Query]]
+    """Required. One to five clauses used to match documents. A document must
+    match at least one clause to be returned. Each clause's relevance score is
+    combined into one score by the search pipeline. Any
+    [Query][synapseclient.models.search_dsl.Query] clause is accepted as-is; a
+    `neural` clause is written as a
+    [HybridClause][synapseclient.models.search_dsl.HybridClause]."""
+
+    filter: Query
+    """Optional. A filter applied to every clause of the hybrid query, as a
+    single query object -- combine multiple conditions in a
+    [`bool`](https://docs.opensearch.org/latest/query-dsl/compound/bool/)
+    clause. This is the right place for your own filtering:
+    `SearchQuery.post_filter` runs after candidate selection and would starve a
+    semantic clause of results."""
+
+    min_score: float
+    """Optional. Drop hits whose fused score -- after normalization and
+    combination -- is below this value. Distinct from a clause's own
+    `neural.min_score`, which bounds which candidates that clause contributes
+    rather than the final combined score."""
+
+
+class CombinationParameters(TypedDict, total=False):
+    """Parameters of the combination stage."""
+
+    weights: List[float]
+    """Optional. The weight of each hybrid query clause, positional against
+    `HybridQuery.queries`. When set, must hold 2 to 5 entries -- 5 being the
+    maximum `queries` length -- each in the `[0.0, 1.0]` range, with a sum equal
+    to `1.0`. The closer a weight is to `1.0`, the more weight is given to its
+    clause. A query may send fewer clauses than there are weights, in which case
+    the weights of the clauses it sends are rescaled to sum to `1.0`; a query
+    that sends more clauses than there are weights is rejected. If not provided,
+    every clause is given equal weight.
+
+    The 2-to-5 and sum rules are enforced when a
+    [NamedSearchPipeline][synapseclient.models.NamedSearchPipeline] or a
+    `SearchConfiguration.default_search_pipeline` literal is saved; an inline
+    `SearchQuery.search_pipeline` is only schema-checked, and its kept weights
+    are rescaled to sum to `1.0` whatever their range."""
+
+
+class Combination(TypedDict, total=False):
+    """The combination stage of a
+    [normalization processor](https://docs.opensearch.org/latest/search-plugins/search-pipelines/normalization-processor/).
+    """
+
+    technique: str
+    """Optional. How the normalized per-clause scores are combined into one
+    score per document. Default `arithmetic_mean`.
+
+    - `arithmetic_mean` -- weighted [mean](https://en.wikipedia.org/wiki/Arithmetic_mean).
+      Rewards a document scoring strongly on any one clause, and halves the
+      score of a document matching only one of two clauses.
+    - `harmonic_mean` -- weighted [harmonic mean](https://en.wikipedia.org/wiki/Harmonic_mean).
+      Penalizes a document scoring weakly on any clause, favouring documents
+      that match every clause.
+    - `geometric_mean` -- weighted [geometric mean](https://en.wikipedia.org/wiki/Geometric_mean).
+      Same bias as `harmonic_mean`."""
+
+    parameters: CombinationParameters
+    """Optional. Per-clause weighting."""
+
+
+class Normalization(TypedDict, total=False):
+    """The normalization stage of a
+    [normalization processor](https://docs.opensearch.org/latest/search-plugins/search-pipelines/normalization-processor/).
+    """
+
+    technique: str
+    """Optional. How each clause's raw scores are mapped onto a common scale
+    before combination. Default `min_max`.
+
+    - [`min_max`](https://docs.opensearch.org/latest/search-plugins/search-pipelines/normalization-processor/#min-max-normalization)
+      -- rescale each clause's scores so its best candidate is `1.0` and its
+      worst `0.0`. Best default for blending BM25 keyword scores with
+      similarity, because it tolerates BM25's outliers. A normalized zero is
+      rewritten to a small floor, which can reorder low scorers.
+    - [`l2`](https://docs.opensearch.org/latest/search-plugins/search-pipelines/normalization-processor/#l2-normalization)
+      -- divide each score by the L2 norm of its clause's scores. The top score
+      shrinks as the candidate count grows.
+    - [`z_score`](https://docs.opensearch.org/latest/search-plugins/search-pipelines/normalization-processor/#z-score-normalization)
+      -- standardize each clause's scores by mean and standard deviation. Scores
+      are not bounded to 0-1 and may exceed `1`; every below-mean document
+      collapses onto the same floor. Supports only the `arithmetic_mean`
+      combination technique."""
+
+    parameters: "NormalizationParameters"
+    """Optional. Per-clause score bounds. Applies only when `technique` is
+    `min_max`."""
+
+
+class LowerBound(TypedDict, total=False):
+    """The minimum threshold score of one hybrid query clause for `min_max`
+    normalization."""
+
+    mode: str
+    """Optional. How `min_score` is applied. Default `apply`.
+
+    - `apply` -- normalize against the bound without modifying the original
+      scores. A score beyond the bound falls back to the clause's actual
+      minimum score, so it is normalized by the standard min-max formula.
+    - `clip` -- normalize against the bound, and clamp a score below it to
+      `0.0`.
+    - `ignore` -- do not apply a bound to this clause; use the standard min-max
+      formula."""
+
+    min_score: float
+    """Optional. The lower bound threshold, in the `[-10000.0, 10000.0]` range.
+    Has no effect when `mode` is `ignore`. Default `0.0`."""
+
+
+class UpperBound(TypedDict, total=False):
+    """The maximum threshold score of one hybrid query clause for `min_max`
+    normalization."""
+
+    mode: str
+    """Optional. How `max_score` is applied. Default `apply`.
+
+    - `apply` -- normalize against the bound without modifying the original
+      scores. A score beyond the bound falls back to the clause's actual
+      maximum score, so it is normalized by the standard min-max formula.
+    - `clip` -- normalize against the bound, and clamp a score above it to
+      `1.0`.
+    - `ignore` -- do not apply a bound to this clause; use the standard min-max
+      formula."""
+
+    max_score: float
+    """Optional. The upper bound threshold, in the `[-10000.0, 10000.0]` range.
+    Has no effect when `mode` is `ignore`. Default `1.0`."""
+
+
+class NormalizationParameters(TypedDict, total=False):
+    """Parameters of the normalization stage. Applies only to the `min_max`
+    normalization technique.
+
+    Both bound lists are positional against `HybridQuery.queries`. When set,
+    each must hold 2 to 5 entries and as many entries as any other set weights
+    or bounds. A query may send fewer clauses than there are bounds, in which
+    case only the bounds of the clauses it sends are used; a query that sends
+    more clauses than there are bounds is rejected."""
+
+    lower_bounds: List[LowerBound]
+    """Optional. The [lower bound][synapseclient.models.search_dsl.LowerBound]
+    of each clause. If not provided, each clause's actual minimum score is used
+    for normalization."""
+
+    upper_bounds: List[UpperBound]
+    """Optional. The [upper bound][synapseclient.models.search_dsl.UpperBound]
+    of each clause. If not provided, each clause's actual maximum score is used
+    for normalization."""
+
+
+class NormalizationProcessor(TypedDict, total=False):
+    """A [normalization processor](https://docs.opensearch.org/latest/search-plugins/search-pipelines/normalization-processor/):
+    normalizes each hybrid clause's scores onto a common scale, then combines
+    them."""
+
+    normalization: Normalization
+    """Optional. How per-clause scores are rescaled."""
+
+    combination: Combination
+    """Optional. How the rescaled per-clause scores are merged."""
+
+
+PhaseResultsProcessor = TypedDict(
+    "PhaseResultsProcessor",
+    {"normalization-processor": NormalizationProcessor},
+    total=False,
+)
+"""One phase-results processor of a
+[SearchPipeline][synapseclient.models.search_dsl.SearchPipeline]. Exactly one
+processor kind may be set, written as
+`{"normalization-processor": {...}}` -- see
+[NormalizationProcessor][synapseclient.models.search_dsl.NormalizationProcessor]."""
+
+
+class SearchPipeline(TypedDict, total=False):
+    """A [search pipeline](https://docs.opensearch.org/latest/search-plugins/search-pipelines/index/):
+    how a `hybrid` query's per-clause scores are normalized and combined.
+    Supplied inline on `SearchQuery.search_pipeline` to apply to one request,
+    stored on `SearchConfiguration.default_search_pipeline` to apply to every
+    hybrid query against the index, or saved as the `settings` of a
+    [NamedSearchPipeline][synapseclient.models.NamedSearchPipeline] and
+    referenced from either slot by `{"$ref": "{organizationName}-{name}"}`.
+    Rejected on a request that does not set `hybrid`.
+
+    A hybrid query always runs through a pipeline: the request's own if it
+    supplies one, otherwise the index's default, otherwise a system default that
+    normalizes with `min_max` and combines with `arithmetic_mean`, weighting
+    every clause equally.
+    """
+
+    phase_results_processors: List[PhaseResultsProcessor]
+    """Required. Exactly one
+    [phase-results processor][synapseclient.models.search_dsl.PhaseResultsProcessor],
+    which scores the hybrid query."""
 
 
 class ExtendedBounds(TypedDict, total=False):
@@ -660,11 +1025,11 @@ class TermsAggregation(TypedDict, total=False):
 
     min_doc_count: int
     """Optional. Minimum document count for a bucket to be returned. Default
-    `1`."""
+    and minimum `1`; `0` is rejected."""
 
     shard_min_doc_count: int
     """Optional. Per-shard minimum document count before a bucket is
-    considered."""
+    considered. Minimum `1`; `0` is rejected."""
 
     show_term_doc_count_error: bool
     """Optional. Whether to return the per-bucket document-count error

@@ -49,6 +49,7 @@ from synapseclient.models.search_index import SearchIndex
 from synapseclient.models.search_management import (
     ColumnAnalyzerOverride,
     ColumnAnalyzerOverrideEntry,
+    NamedSearchPipeline,
     SearchAutocompleteRequest,
     SearchConfigBinding,
     SearchConfiguration,
@@ -261,6 +262,7 @@ __all__ = [
     "ColumnAnalyzerOverride",
     "ColumnAnalyzerOverrideEntry",
     "SynonymSet",
+    "NamedSearchPipeline",
 ]
 
 # Static methods to expose as functions

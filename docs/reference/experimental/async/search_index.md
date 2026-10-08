@@ -45,6 +45,7 @@
 ::: synapseclient.models.search_dsl.ExistsQuery
 ::: synapseclient.models.search_dsl.MultiMatchQuery
 ::: synapseclient.models.search_dsl.SimpleQueryStringQuery
+::: synapseclient.models.search_dsl.QueryStringQuery
 ::: synapseclient.models.search_dsl.MatchAllQuery
 
 ### Compound clauses
@@ -53,6 +54,21 @@
 ::: synapseclient.models.search_dsl.DisMaxQuery
 ::: synapseclient.models.search_dsl.ConstantScoreQuery
 ::: synapseclient.models.search_dsl.BoostingQuery
+
+### Hybrid and semantic (vector) search
+
+::: synapseclient.models.search_dsl.HybridQuery
+::: synapseclient.models.search_dsl.HybridClause
+::: synapseclient.models.search_dsl.NeuralFieldOptions
+::: synapseclient.models.search_dsl.SearchPipeline
+::: synapseclient.models.search_dsl.PhaseResultsProcessor
+::: synapseclient.models.search_dsl.NormalizationProcessor
+::: synapseclient.models.search_dsl.Normalization
+::: synapseclient.models.search_dsl.NormalizationParameters
+::: synapseclient.models.search_dsl.LowerBound
+::: synapseclient.models.search_dsl.UpperBound
+::: synapseclient.models.search_dsl.Combination
+::: synapseclient.models.search_dsl.CombinationParameters
 
 ### Shared per-field option mixins
 
