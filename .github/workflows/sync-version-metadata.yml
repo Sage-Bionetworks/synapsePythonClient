@@ -1,0 +1,60 @@
+# Keeps the version in the BDF metadata files (bdf.yaml, codemeta.json,
+# CITATION.cff) in sync with the single source of truth:
+# synapseclient/synapsePythonClient ("latestVersion").
+#
+# When a pull request bumps the canonical version (or edits a metadata file),
+# this workflow rewrites the metadata versions to match and commits the fix
+# back onto the same PR branch. For pull requests from forks (where it cannot
+# push) it instead fails with instructions, so drift can never merge silently.
+name: Sync version metadata
+
+on:
+  pull_request:
+    paths:
+      - "synapseclient/synapsePythonClient"
+      - "bdf.yaml"
+      - "codemeta.json"
+      - "CITATION.cff"
+      - ".github/scripts/sync_version_metadata.py"
+      - ".github/workflows/sync-version-metadata.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  sync:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.head_ref }}
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.x"
+
+      - name: Sync metadata versions to latestVersion
+        run: python .github/scripts/sync_version_metadata.py --write
+
+      - name: Commit any changes back to the PR branch
+        # Only same-repo branches grant a writable token; forks cannot be pushed to.
+        if: >-
+          github.event_name == 'workflow_dispatch' ||
+          github.event.pull_request.head.repo.full_name == github.repository
+        run: |
+          if [ -n "$(git status --porcelain)" ]; then
+            git config user.name "github-actions[bot]"
+            git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+            git add bdf.yaml codemeta.json CITATION.cff
+            git commit -m "Sync version metadata to latestVersion [skip ci]"
+            git push
+          else
+            echo "Version metadata already in sync."
+          fi
+
+      - name: Fail if a fork PR left metadata out of sync
+        if: >-
+          github.event_name == 'pull_request' &&
+          github.event.pull_request.head.repo.full_name != github.repository
+        run: python .github/scripts/sync_version_metadata.py --check

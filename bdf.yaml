@@ -1,0 +1,119 @@
+# ARPA-H BDF Toolbox metadata for the Synapse Python Client.
+# Conforms to the ARPA-H-BDF/bdfkb-schema `SystemMetadata` class
+# (src/bdfkb_schema/schema/bdfkb_schema.yaml, tree_root: SystemMetadata).
+# Validate with:
+#   linkml-validate -s <path>/bdfkb_schema.yaml -C SystemMetadata bdf.yaml
+version: "4.13.0"
+
+tool:
+  name: "Synapse Python Client (synapseclient)"
+  repo_url: "https://github.com/Sage-Bionetworks/synapsePythonClient"
+  api_url: "https://repo-prod.prod.sagebase.org/repo/v1"
+  package_url: "https://pypi.org/project/synapseclient/"
+  tool_homepage: "https://www.synapse.org"
+  documentation_url: "https://python-docs.synapse.org"
+  tool_type: "Library"
+  tool_notes: "Python client library and command-line interface (CLI) for the Synapse collaborative research platform. Provides synchronous and asynchronous (OOP) APIs for managing Projects, Folders, Files, Tables, and provenance."
+
+domains:
+  - "biomedical-data-management"
+  - "research-data-sharing"
+  - "collaborative-research"
+  - "data-provenance"
+  - "open-science"
+
+llm:
+  usesLlm: false
+  bringOwnKey: false
+
+input:
+  - name: "Local research data files"
+    dataCategory: "general-biomedical-data"
+    dataClass: "other"
+    dataType: "various"
+    dataStandard:
+      - "Synapse"
+    format:
+      - "various"
+    proprietary: false
+  - name: "Tabular metadata and annotations"
+    dataCategory: "general-biomedical-data"
+    dataClass: "tabular"
+    dataType: "various"
+    dataStandard:
+      - "Synapse"
+    format:
+      - "csv"
+      - "tsv"
+    proprietary: false
+
+output:
+  - name: "Synapse entities (Projects, Folders, Files, Tables)"
+    dataCategory: "general-biomedical-data"
+    dataClass: "structured"
+    dataType: "various"
+    dataStandard:
+      - "Synapse"
+    format:
+      - "json"
+    proprietary: false
+  - name: "Downloaded data files"
+    dataCategory: "general-biomedical-data"
+    dataClass: "other"
+    dataType: "various"
+    dataStandard:
+      - "Synapse"
+    format:
+      - "various"
+    proprietary: false
+
+collaborations:
+  - name: "Synapse platform"
+    description: "The client communicates with the Synapse platform, operated by Sage Bionetworks, through its public REST API."
+    tools:
+      - "Synapse REST API"
+    collaboration_purpose: "Data storage, sharing, governance, and provenance tracking on Synapse."
+
+# TODO: confirm funding source, agreement/award number, and link with the Sage program lead.
+funding:
+  source: "TODO: confirm funding source"
+  agreement: "TODO: confirm agreement / award number"
+  link: "https://example.org/TODO-confirm-funding-link"
+
+maturity:
+  beginning_maturity: 7
+  current_maturity: 8 # TODO: confirm official BDF TRL with Sage program lead
+  final_maturity: 9
+
+license:
+  license_type: "Apache-2.0"
+  link: "https://github.com/Sage-Bionetworks/synapsePythonClient/blob/master/LICENSE"
+  notes: "Apache License 2.0"
+
+credit:
+  - name: "Sage Bionetworks"
+    email:
+      - "platform@sagebase.org" # TODO: confirm preferred BDF contact email
+    url: "https://sagebionetworks.org"
+    role: "Maintainer"
+    org: "Sage Bionetworks"
+    note: "Maintained by the Synapse Engineering Team at Sage Bionetworks."
+
+target_users:
+  primary_user:
+    user_type: "researcher"
+    technical_literacy_level:
+      - "intermediate"
+      - "advanced"
+    biomedical_literacy_level:
+      - "intermediate"
+      - "expert"
+  secondary_user:
+    user_type: "data-curator"
+    technical_literacy_level:
+      - "advanced"
+    biomedical_literacy_level:
+      - "intermediate"
+
+media:
+  - link: "https://python-docs.synapse.org"
