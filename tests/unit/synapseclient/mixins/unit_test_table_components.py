@@ -3,7 +3,7 @@ import re
 import tempfile
 from collections import OrderedDict
 from dataclasses import dataclass, field
-from datetime import date, datetime
+from datetime import date, datetime, timedelta
 from io import BytesIO
 from typing import Any, Dict, List, Optional
 from unittest.mock import AsyncMock, MagicMock, patch
@@ -61,6 +61,7 @@ from synapseclient.models.mixins.table_components import (
     _query_table_csv,
     _query_table_next_page,
     _query_table_row_set,
+    _rowset_to_pandas_df,
     _upsert_rows_async,
     _validate_primary_keys,
     convert_dtypes_to_json_serializable,
@@ -4931,6 +4932,71 @@ class TestQueryTableNextPage:
             assert result.select_columns[0].id == "12345"
 
 
+class TestRowsetToPandasDf:
+    """Test suite for the _rowset_to_pandas_df function with more than one page."""
+
+    @pytest.fixture(autouse=True, scope="function")
+    def init_syn(self, syn: Synapse) -> None:
+        self.syn = syn
+
+    def _make_bundle(
+        self, start: int, count: int, next_page_token: Optional[QueryNextPageToken]
+    ) -> QueryResultBundle:
+        """Make a QueryResultBundle with count rows, starting at row ID start."""
+        rows = [
+            Row(
+                row_id=row_id,
+                version_number=1,
+                etag=f"etag{row_id}",
+                values=[f"value{row_id}", str(row_id * 10)],
+            )
+            for row_id in range(start, start + count)
+        ]
+        rowset = RowSet(
+            table_id="syn123",
+            headers=[
+                SelectColumn(name="col1", column_type=ColumnType.STRING),
+                SelectColumn(name="col2", column_type=ColumnType.INTEGER),
+            ],
+            rows=rows,
+        )
+        return QueryResultBundle(
+            query_result=QueryResult(
+                query_results=rowset, next_page_token=next_page_token
+            )
+        )
+
+    def test_multiple_pages_row_id_and_version_not_in_index(self) -> None:
+        # GIVEN a query result with 3 pages
+        first_page = self._make_bundle(0, 2, QueryNextPageToken(token="token1"))
+        next_pages = [
+            self._make_bundle(2, 2, QueryNextPageToken(token="token2")),
+            self._make_bundle(4, 1, None),
+        ]
+
+        with patch(
+            "synapseclient.models.mixins.table_components._query_table_next_page",
+            side_effect=next_pages,
+        ) as mock_next_page:
+            # WHEN I convert the result with row ID and version as columns
+            df = _rowset_to_pandas_df(
+                query_result_bundle=first_page,
+                synapse_client=self.syn,
+                row_id_and_version_in_index=False,
+            )
+
+        # THEN all pages are fetched
+        assert mock_next_page.call_count == 2
+
+        # AND the DataFrame has one row for each row in all pages
+        assert len(df) == 5
+        assert list(df["ROW_ID"]) == [0, 1, 2, 3, 4]
+        assert list(df["ROW_VERSION"]) == [1, 1, 1, 1, 1]
+        assert list(df["ROW_ETAG"]) == [f"etag{i}" for i in range(5)]
+        assert list(df["col1"]) == [f"value{i}" for i in range(5)]
+        assert list(df["col2"]) == [str(i * 10) for i in range(5)]
+
+
 class TestCsvToPandasDf:
     """Test suite for csv_to_pandas_df function focusing on date and list columns."""
 
@@ -4972,7 +5038,7 @@ class TestCsvToPandasDf:
 
         expected_dates = pd.to_datetime(
             [1609459200000, 1609545600000, 1609632000000], unit="ms", utc=True
-        )
+        ).astype("datetime64[ns, UTC]")
         # THEN assert the create_date column is equal to the expected dates
         pd.testing.assert_series_equal(
             df["created_date"], pd.Series(expected_dates), check_names=False
@@ -5049,7 +5115,7 @@ class TestCsvToPandasDf:
                 "name": ["Alice", "Bob", "Charlie"],
                 "created_date": pd.to_datetime(
                     [1609459200000, 1609545600000, 1609632000000], unit="ms", utc=True
-                ),
+                ).astype("datetime64[ns, UTC]"),
                 "number": [42, 10, 99],
                 "bool": [True, False, True],
                 "string": ["hello", "world", "test"],
@@ -5134,7 +5200,7 @@ class TestCsvToPandasDf:
                 "string": ["hello", "world", "test"],
                 "created_date": pd.to_datetime(
                     [1609459200000, 1609545600000, 1609632000000], unit="ms", utc=True
-                ),
+                ).astype("datetime64[ns, UTC]"),
                 "number_list": [
                     [1, None, 3],
                     [None, 5],
@@ -5207,7 +5273,7 @@ class TestCsvToPandasDf:
                 "string": ["hello", "world", "test"],
                 "created_date": pd.to_datetime(
                     [1609459200000, 1609545600000, 1609632000000], unit="ms", utc=True
-                ),
+                ).astype("datetime64[ns, UTC]"),
                 "number_list": [[1, None, 3], [], [6, None, None, 9]],
                 "bool_list": [[True, None, False], [None, True], [None, None, False]],
                 "string_list": [["tag1", "", "tag3"], ["", "tag2"], ["", "tag4", ""]],
@@ -7090,7 +7156,15 @@ class TestParseDfDateColsToDatetime:
                 ]
             }
         ).convert_dtypes()
-        pd.testing.assert_frame_equal(result, expected_result)
+        # pandas 1.5 gives a pytz.FixedOffset timezone and pandas 2+ gives a
+        # datetime.timezone, so check the offset and compare the values in UTC
+        assert result["date_col"].dt.tz.utcoffset(None) == timedelta(hours=-8)
+        pd.testing.assert_frame_equal(
+            result.assign(date_col=result["date_col"].dt.tz_convert("UTC")),
+            expected_result.assign(
+                date_col=expected_result["date_col"].dt.tz_convert("UTC")
+            ),
+        )
         mock_logger.info.assert_not_called()
 
     def test_mixed_utc_offsets_normalized_to_utc(self):
