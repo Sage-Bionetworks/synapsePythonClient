@@ -43,7 +43,6 @@ def check_curator_imports() -> None:
     try:
         import inflection  # noqa: F401
         import networkx  # noqa: F401
-        import pandarallel  # noqa: F401
         import pandas  # noqa: F401
         import rdflib  # noqa: F401
     except ImportError as exception:
@@ -334,27 +333,18 @@ def find_and_convert_ints(
 
     """
 
-    from pandarallel import pandarallel
     from pandas import DataFrame
     from pandas.api.types import is_integer
 
-    large_manifest_cutoff_size = 1000
     # Find integers stored as strings and replace with entries of type np.int64
-    if (
-        dataframe.size < large_manifest_cutoff_size
-    ):  # If small manifest, iterate as normal for improved performance
-        ints = dataframe.map(  # type: ignore
-            lambda cell: convert_ints(cell), na_action="ignore"
-        ).fillna(False)
-
-    else:  # parallelize iterations for large manifests
-        pandarallel.initialize(verbose=1)
-        ints = dataframe.parallel_applymap(  # type: ignore
-            lambda cell: convert_ints(cell), na_action="ignore"
-        ).fillna(False)
+    # Series.map is used per column because DataFrame.map needs pandas 2.1 or
+    # later, and DataFrame.applymap was removed in pandas 3
+    ints = dataframe.apply(
+        lambda col: col.map(lambda cell: convert_ints(cell), na_action="ignore")
+    ).fillna(False)
 
     # Identify cells converted to integers
-    is_int = ints.map(is_integer)  # type: ignore
+    is_int = ints.apply(lambda col: col.map(is_integer))
 
     assert isinstance(ints, DataFrame)
     assert isinstance(is_int, DataFrame)
@@ -396,7 +386,7 @@ def convert_floats(dataframe: DATA_FRAME_TYPE) -> DATA_FRAME_TYPE:
         float_df[col] = to_numeric(float_df[col], errors="coerce").astype("object")
 
         # replace values that couldn't be converted to float with the original str values
-        float_df[col].fillna(dataframe[col][float_df[col].isna()], inplace=True)
+        float_df[col] = float_df[col].fillna(dataframe[col][float_df[col].isna()])
 
     return float_df
 
@@ -459,7 +449,6 @@ def load_df(
     """
     Universal function to load CSVs and return DataFrames
     Parses string entries to convert as appropriate to type int, float, and pandas timestamp
-    Pandarallel is used for type inference for large manifests to improve performance
 
     Args:
         file_path (str): path of csv to open

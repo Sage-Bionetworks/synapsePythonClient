@@ -608,20 +608,30 @@ def _rowset_to_pandas_df(
         offset += len(rowset.rows)
 
         if not row_id_and_version_in_index:
-            # TODO: Look into why this isn't being assigned
-            series["ROW_ID"].append(
-                pd.Series(name="ROW_ID", data=[row.id for row in rowset.rows])
+            series["ROW_ID"] = pd.concat(
+                [
+                    series["ROW_ID"],
+                    pd.Series(name="ROW_ID", data=[row.row_id for row in rowset.rows]),
+                ]
             )
-            series["ROW_VERSION"].append(
-                pd.Series(
-                    name="ROW_VERSION",
-                    data=[row.version_number for row in rowset.rows],
-                )
+            series["ROW_VERSION"] = pd.concat(
+                [
+                    series["ROW_VERSION"],
+                    pd.Series(
+                        name="ROW_VERSION",
+                        data=[row.version_number for row in rowset.rows],
+                    ),
+                ]
             )
             if append_etag:
-                series["ROW_ETAG"] = pd.Series(
-                    name="ROW_ETAG",
-                    data=[row.etag for row in rowset.rows],
+                series["ROW_ETAG"] = pd.concat(
+                    [
+                        series["ROW_ETAG"],
+                        pd.Series(
+                            name="ROW_ETAG",
+                            data=[row.etag for row in rowset.rows],
+                        ),
+                    ]
                 )
 
         for i, header in enumerate(rowset.headers):

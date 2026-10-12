@@ -430,8 +430,11 @@ def _convert_df_date_cols_to_datetime(
         raise ValueError(
             "Cannot convert epoch time to integer. Please make sure that the date columns that you specified contain valid epoch time value"
         )
-    df[date_columns] = df[date_columns].apply(
-        lambda x: pd.to_datetime(x, unit="ms", utc=True)
+    # pandas 3 returns datetime64[ms, UTC] for unit="ms", so force ns resolution
+    df[date_columns] = (
+        df[date_columns]
+        .apply(lambda x: pd.to_datetime(x, unit="ms", utc=True))
+        .astype("datetime64[ns, UTC]")
     )
     return df
 
@@ -2167,22 +2170,33 @@ class TableQueryResult(TableAbstractBaseClass):
             offset += len(self.rowset["rows"])
 
             if not rowIdAndVersionInIndex:
-                # TODO: Look into why this isn't being assigned
-                series["ROW_ID"].append(
-                    pd.Series(
-                        name="ROW_ID", data=[row["id"] for row in self.rowset["rows"]]
-                    )
+                series["ROW_ID"] = pd.concat(
+                    [
+                        series["ROW_ID"],
+                        pd.Series(
+                            name="ROW_ID",
+                            data=[row["rowId"] for row in self.rowset["rows"]],
+                        ),
+                    ]
                 )
-                series["ROW_VERSION"].append(
-                    pd.Series(
-                        name="ROW_VERSION",
-                        data=[row["version"] for row in self.rowset["rows"]],
-                    )
+                series["ROW_VERSION"] = pd.concat(
+                    [
+                        series["ROW_VERSION"],
+                        pd.Series(
+                            name="ROW_VERSION",
+                            data=[row["versionNumber"] for row in self.rowset["rows"]],
+                        ),
+                    ]
                 )
                 if append_etag:
-                    series["ROW_ETAG"] = pd.Series(
-                        name="ROW_ETAG",
-                        data=[row.get("etag") for row in self.rowset["rows"]],
+                    series["ROW_ETAG"] = pd.concat(
+                        [
+                            series["ROW_ETAG"],
+                            pd.Series(
+                                name="ROW_ETAG",
+                                data=[row.get("etag") for row in self.rowset["rows"]],
+                            ),
+                        ]
                     )
 
             for i, header in enumerate(self.rowset["headers"]):

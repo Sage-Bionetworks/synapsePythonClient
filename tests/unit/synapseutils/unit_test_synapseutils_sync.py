@@ -210,6 +210,32 @@ def test_read_manifest_file_synapse_store_values_not_set(syn: Synapse) -> None:
         assert expected_synapseStore == actual_synapseStore
 
 
+def test_read_manifest_file_synapse_store_values_all_blank(syn: Synapse) -> None:
+    project_id = SYN_123
+    header = "path\tparent\tsynapseStore\n"
+    path1 = os.path.abspath(os.path.expanduser("~/file1.txt"))
+    path2 = SYNAPSE_URL
+    row1 = "%s\t%s\t\n" % (path1, project_id)
+    row2 = "%s\t%s\t\n" % (path2, project_id)
+
+    expected_synapseStore = {
+        str(path1): True,
+        str(path2): False,
+    }
+
+    manifest = StringIO(header + row1 + row2)
+    with (
+        patch.object(syn, "get_async", return_value=Project()),
+        patch.object(os.path, "isfile", return_value=True),
+        patch.object(sync, "_check_size_each_file", return_value=Mock()),
+    ):  # side effect mocks values for: file1.txt
+        manifest_dataframe = synapseutils.sync.readManifestFile(syn, manifest)
+        actual_synapseStore = manifest_dataframe.set_index("path")[
+            "synapseStore"
+        ].to_dict()
+        assert expected_synapseStore == actual_synapseStore
+
+
 def test_read_manifest_file_synapse_store_values_are_set(syn: Synapse) -> None:
     project_id = SYN_123
     header = "path\tparent\tsynapseStore\n"
