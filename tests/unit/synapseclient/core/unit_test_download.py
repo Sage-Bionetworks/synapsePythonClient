@@ -987,7 +987,7 @@ class TestDownloadFromUrl:
             # assert getsize() called 2 times
             # once because exists()=True and another time because response status code = 206
             assert [
-                call(filename=temp_destination)
+                call(temp_destination)
             ] * 2 == mocked_getsize.call_args_list
 
             # assert shutil.move() called 1 time
