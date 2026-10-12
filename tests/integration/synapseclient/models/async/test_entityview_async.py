@@ -416,15 +416,19 @@ class TestEntityView:
                 check_names=True,
                 check_dtype=False,
             )
+            # dtype=object keeps None for missing values, matching the query output,
+            # on all pandas versions
             pd.testing.assert_series_equal(
                 query_results["integer_column"],
-                pd.Series(test_data["integer_column"], name="integer_column"),
+                pd.Series(
+                    test_data["integer_column"], name="integer_column", dtype=object
+                ),
                 check_names=True,
                 check_dtype=False,
             )
             pd.testing.assert_series_equal(
                 query_results["float_column"],
-                pd.Series(test_data["float_column"], name="float_column"),
+                pd.Series(test_data["float_column"], name="float_column", dtype=object),
                 check_names=True,
                 check_dtype=False,
             )
