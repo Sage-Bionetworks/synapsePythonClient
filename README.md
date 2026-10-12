@@ -78,7 +78,7 @@ flowchart TD
 Installation
 ------------
 
-We test the client on Python 3.11, 3.12, 3.13, and 3.14. It runs on Mac OS X, Linux, and Windows.
+We test the client on Python 3.11, 3.12, 3.13, 3.14, and 3.15. It runs on Mac OS X, Linux, and Windows.
 
 **Version 3.0 and later needs Python 3.10 or higher. Version 4.15.0 and later needs Python 3.11 or higher.**
 
