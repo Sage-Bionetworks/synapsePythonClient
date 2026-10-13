@@ -649,7 +649,11 @@ def _rowset_to_pandas_df(
                 verify_integrity=row_id_and_version_in_index,
             )
 
-    return pd.DataFrame(data=series)
+    df = pd.DataFrame(data=series)
+    if not row_id_and_version_in_index:
+        # each page numbers its rows from 0, so renumber the rows across all pages
+        df = df.reset_index(drop=True)
+    return df
 
 
 @dataclass
