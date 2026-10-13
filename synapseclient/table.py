@@ -2214,7 +2214,11 @@ class TableQueryResult(TableAbstractBaseClass):
                     verify_integrity=rowIdAndVersionInIndex,
                 )
 
-        return pd.DataFrame(data=series)
+        df = pd.DataFrame(data=series)
+        if not rowIdAndVersionInIndex:
+            # each page numbers its rows from 0, so renumber the rows across all pages
+            df = df.reset_index(drop=True)
+        return df
 
     def asRowSet(self):
         # Note that as of stack 60, an empty query will omit the headers field
