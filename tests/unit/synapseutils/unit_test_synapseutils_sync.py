@@ -1188,8 +1188,9 @@ async def test_manifest_upload(syn: Synapse) -> None:
         expected_path = data["path"][i]
         expected_parent = data["parent"][i]
         expected_name = data["name"][i]
-        expected_used = data["used"][i]
-        expected_executed = data["executed"][i]
+        # missing provenance values are given to the upload item as empty lists
+        expected_used = data["used"][i] or []
+        expected_executed = data["executed"][i] or []
         expected_annos = expected_anno_data[i]
 
         upload_items.append(upload_item_init.return_value)
@@ -1204,6 +1205,35 @@ async def test_manifest_upload(syn: Synapse) -> None:
 
     for mock_uploader in mocked_uploaders:
         mock_uploader.upload.assert_called_once_with(upload_items)
+
+
+@patch("os.path.isfile")
+async def test_manifest_upload_missing_provenance_builds_dependency_graph(
+    mock_isfile: MagicMock, syn: Synapse
+) -> None:
+    """Verify that a missing used or executed value in the manifest is treated as
+    no provenance, and does not break the real dependency graph build."""
+    mock_isfile.side_effect = lambda path: path.startswith("/tmp")
+
+    df = pd.DataFrame(
+        data={
+            "path": ["/tmp/foo", "/tmp/bar"],
+            "parent": [SYN_123, SYN_123],
+            "used": [[], ["/tmp/foo"]],
+            "executed": [math.nan, []],
+        }
+    )
+
+    with patch.object(
+        _SyncUploader, "_build_tasks_from_dependency_graph", return_value=[]
+    ) as mock_build_tasks:
+        await synapseutils.sync._manifest_upload(syn, df)
+
+    dependency_graph = mock_build_tasks.call_args.kwargs["dependency_graph"]
+    assert dependency_graph.path_to_dependencies == {
+        "/tmp/foo": [],
+        "/tmp/bar": ["/tmp/foo"],
+    }
 
 
 class TestSyncUploader:
