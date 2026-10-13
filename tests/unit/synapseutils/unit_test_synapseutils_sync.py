@@ -211,6 +211,7 @@ def test_read_manifest_file_synapse_store_values_not_set(syn: Synapse) -> None:
 
 
 def test_read_manifest_file_synapse_store_values_all_blank(syn: Synapse) -> None:
+    # GIVEN a manifest with a local path and a URL path, and no synapseStore values
     project_id = SYN_123
     header = "path\tparent\tsynapseStore\n"
     path1 = os.path.abspath(os.path.expanduser("~/file1.txt"))
@@ -229,7 +230,10 @@ def test_read_manifest_file_synapse_store_values_all_blank(syn: Synapse) -> None
         patch.object(os.path, "isfile", return_value=True),
         patch.object(sync, "_check_size_each_file", return_value=Mock()),
     ):  # side effect mocks values for: file1.txt
+        # WHEN I read the manifest file
         manifest_dataframe = synapseutils.sync.readManifestFile(syn, manifest)
+
+        # THEN the local path is True and the URL path is False
         actual_synapseStore = manifest_dataframe.set_index("path")[
             "synapseStore"
         ].to_dict()
@@ -1213,8 +1217,10 @@ async def test_manifest_upload_missing_provenance_builds_dependency_graph(
 ) -> None:
     """Verify that a missing used or executed value in the manifest is treated as
     no provenance, and does not break the real dependency graph build."""
+    # GIVEN local files that exist
     mock_isfile.side_effect = lambda path: path.startswith("/tmp")
 
+    # AND a manifest where one executed value is missing
     df = pd.DataFrame(
         data={
             "path": ["/tmp/foo", "/tmp/bar"],
@@ -1227,8 +1233,10 @@ async def test_manifest_upload_missing_provenance_builds_dependency_graph(
     with patch.object(
         _SyncUploader, "_build_tasks_from_dependency_graph", return_value=[]
     ) as mock_build_tasks:
+        # WHEN I upload the manifest
         await synapseutils.sync._manifest_upload(syn, df)
 
+    # THEN the dependency graph has no dependencies for the missing value
     dependency_graph = mock_build_tasks.call_args.kwargs["dependency_graph"]
     assert dependency_graph.path_to_dependencies == {
         "/tmp/foo": [],
