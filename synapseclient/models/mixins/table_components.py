@@ -539,23 +539,23 @@ def _rowset_to_pandas_df(
 
     import pandas as pd
 
-    def construct_rownames(query_result_bundle, offset=0):
+    def construct_rownames(rowset, offset=0):
         try:
             return (
-                row_labels_from_rows(
-                    query_result_bundle.query_result.query_results.rows
-                )
+                row_labels_from_rows(rowset.rows)
                 if row_id_and_version_in_index
                 else None
             )
         except KeyError:
             # if we don't have row id and version, just number the rows
             # python3 cast range to list for safety
-            return list(range(offset, offset + len(rowset["rows"])))
+            return list(range(offset, offset + len(rowset.rows)))
 
     # first page of rows
     offset = 0
-    rownames = construct_rownames(query_result_bundle, offset)
+    rownames = construct_rownames(
+        query_result_bundle.query_result.query_results, offset
+    )
     query_result = query_result_bundle.query_result
     rowset = query_result.query_results
 

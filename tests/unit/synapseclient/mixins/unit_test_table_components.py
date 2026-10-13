@@ -5021,6 +5021,39 @@ class TestRowsetToPandasDf:
         assert df.index.is_unique
         assert df.index.tolist() == [0, 1, 2, 3, 4]
 
+    def test_multiple_pages_row_id_and_version_in_index(self) -> None:
+        # GIVEN a query result with 3 pages
+        first_page = self._make_bundle(0, 2, QueryNextPageToken(token="token1"))
+        next_pages = [
+            self._make_bundle(2, 2, QueryNextPageToken(token="token2")),
+            self._make_bundle(4, 1, None),
+        ]
+
+        with patch(
+            "synapseclient.models.mixins.table_components._query_table_next_page",
+            side_effect=next_pages,
+        ) as mock_next_page:
+            # WHEN I convert the result with row ID and version in the index
+            df = _rowset_to_pandas_df(
+                query_result_bundle=first_page,
+                synapse_client=self.syn,
+                row_id_and_version_in_index=True,
+            )
+
+        # THEN all pages are fetched
+        assert mock_next_page.call_count == 2
+
+        # AND the index has the row ID, version and etag of each row in all pages
+        assert df.index.tolist() == [f"{i}_1_etag{i}" for i in range(5)]
+
+        # AND the DataFrame has one row for each row in all pages
+        assert len(df) == 5
+        assert "ROW_ID" not in df.columns
+        assert "ROW_VERSION" not in df.columns
+        assert "ROW_ETAG" not in df.columns
+        assert list(df["col1"]) == [f"value{i}" for i in range(5)]
+        assert list(df["col2"]) == [str(i * 10) for i in range(5)]
+
 
 class TestCsvToPandasDf:
     """Test suite for csv_to_pandas_df function focusing on date and list columns."""
