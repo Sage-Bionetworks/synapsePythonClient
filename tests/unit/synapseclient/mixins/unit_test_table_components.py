@@ -4996,6 +4996,31 @@ class TestRowsetToPandasDf:
         assert list(df["col1"]) == [f"value{i}" for i in range(5)]
         assert list(df["col2"]) == [str(i * 10) for i in range(5)]
 
+    def test_multiple_pages_row_id_and_version_not_in_index_has_unique_index(
+        self,
+    ) -> None:
+        # GIVEN a query result with 3 pages
+        first_page = self._make_bundle(0, 2, QueryNextPageToken(token="token1"))
+        next_pages = [
+            self._make_bundle(2, 2, QueryNextPageToken(token="token2")),
+            self._make_bundle(4, 1, None),
+        ]
+
+        with patch(
+            "synapseclient.models.mixins.table_components._query_table_next_page",
+            side_effect=next_pages,
+        ):
+            # WHEN I convert the result with row ID and version as columns
+            df = _rowset_to_pandas_df(
+                query_result_bundle=first_page,
+                synapse_client=self.syn,
+                row_id_and_version_in_index=False,
+            )
+
+        # THEN the index is unique and numbers the rows across all pages
+        assert df.index.is_unique
+        assert df.index.tolist() == [0, 1, 2, 3, 4]
+
 
 class TestCsvToPandasDf:
     """Test suite for csv_to_pandas_df function focusing on date and list columns."""
