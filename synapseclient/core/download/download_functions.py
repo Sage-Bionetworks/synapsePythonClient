@@ -973,7 +973,7 @@ def download_from_url(
                 destination=destination, file_handle_id=file_handle_id
             )
             range_header = (
-                {"Range": f"bytes={os.path.getsize(filename=temp_destination)}-"}
+                {"Range": f"bytes={os.path.getsize(temp_destination)}-"}
                 if os.path.exists(temp_destination)
                 else {}
             )
@@ -1103,7 +1103,7 @@ def download_from_url(
                 # Servers that respect the Range header return 206 Partial Content
                 if response.status_code == 206:
                     mode = "ab"
-                    previously_transferred = os.path.getsize(filename=temp_destination)
+                    previously_transferred = os.path.getsize(temp_destination)
                     to_be_transferred += previously_transferred
                     transferred += previously_transferred
                     increment_progress_bar_total(
