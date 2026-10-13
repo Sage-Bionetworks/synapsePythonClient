@@ -1576,15 +1576,18 @@ def _multi_page_query_results() -> tuple[dict, list[dict]]:
 def test_rowset_asDataFrame__multiple_pages_row_id_and_version_not_in_index(
     syn: Synapse,
 ) -> None:
+    # GIVEN a query result with 3 pages
     query_result, next_pages = _multi_page_query_results()
 
     with (
         patch.object(syn, "_queryTable", return_value=query_result),
         patch.object(syn, "_queryTableNext", side_effect=next_pages),
     ):
+        # WHEN I convert the result with row ID and version as columns
         table = syn.tableQuery("select something from syn123", resultsAs="rowset")
         dataframe = table.asDataFrame(rowIdAndVersionInIndex=False)
 
+    # THEN the DataFrame has one row for each row in all pages
     assert 5 == len(dataframe)
     assert [0, 1, 2, 3, 4] == list(dataframe["ROW_ID"])
     assert [1, 1, 1, 1, 1] == list(dataframe["ROW_VERSION"])
@@ -1595,15 +1598,18 @@ def test_rowset_asDataFrame__multiple_pages_row_id_and_version_not_in_index(
 def test_rowset_asDataFrame__multiple_pages_row_id_and_version_not_in_index_has_unique_index(
     syn: Synapse,
 ) -> None:
+    # GIVEN a query result with 3 pages
     query_result, next_pages = _multi_page_query_results()
 
     with (
         patch.object(syn, "_queryTable", return_value=query_result),
         patch.object(syn, "_queryTableNext", side_effect=next_pages),
     ):
+        # WHEN I convert the result with row ID and version as columns
         table = syn.tableQuery("select something from syn123", resultsAs="rowset")
         dataframe = table.asDataFrame(rowIdAndVersionInIndex=False)
 
+    # THEN the index is unique and numbers the rows across all pages
     assert dataframe.index.is_unique
     assert [0, 1, 2, 3, 4] == dataframe.index.tolist()
 
