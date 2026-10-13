@@ -539,23 +539,23 @@ def _rowset_to_pandas_df(
 
     import pandas as pd
 
-    def construct_rownames(query_result_bundle, offset=0):
+    def construct_rownames(rowset, offset=0):
         try:
             return (
-                row_labels_from_rows(
-                    query_result_bundle.query_result.query_results.rows
-                )
+                row_labels_from_rows(rowset.rows)
                 if row_id_and_version_in_index
                 else None
             )
         except KeyError:
             # if we don't have row id and version, just number the rows
             # python3 cast range to list for safety
-            return list(range(offset, offset + len(rowset["rows"])))
+            return list(range(offset, offset + len(rowset.rows)))
 
     # first page of rows
     offset = 0
-    rownames = construct_rownames(query_result_bundle, offset)
+    rownames = construct_rownames(
+        query_result_bundle.query_result.query_results, offset
+    )
     query_result = query_result_bundle.query_result
     rowset = query_result.query_results
 
@@ -608,20 +608,30 @@ def _rowset_to_pandas_df(
         offset += len(rowset.rows)
 
         if not row_id_and_version_in_index:
-            # TODO: Look into why this isn't being assigned
-            series["ROW_ID"].append(
-                pd.Series(name="ROW_ID", data=[row.id for row in rowset.rows])
+            series["ROW_ID"] = pd.concat(
+                [
+                    series["ROW_ID"],
+                    pd.Series(name="ROW_ID", data=[row.row_id for row in rowset.rows]),
+                ]
             )
-            series["ROW_VERSION"].append(
-                pd.Series(
-                    name="ROW_VERSION",
-                    data=[row.version_number for row in rowset.rows],
-                )
+            series["ROW_VERSION"] = pd.concat(
+                [
+                    series["ROW_VERSION"],
+                    pd.Series(
+                        name="ROW_VERSION",
+                        data=[row.version_number for row in rowset.rows],
+                    ),
+                ]
             )
             if append_etag:
-                series["ROW_ETAG"] = pd.Series(
-                    name="ROW_ETAG",
-                    data=[row.etag for row in rowset.rows],
+                series["ROW_ETAG"] = pd.concat(
+                    [
+                        series["ROW_ETAG"],
+                        pd.Series(
+                            name="ROW_ETAG",
+                            data=[row.etag for row in rowset.rows],
+                        ),
+                    ]
                 )
 
         for i, header in enumerate(rowset.headers):
@@ -639,7 +649,11 @@ def _rowset_to_pandas_df(
                 verify_integrity=row_id_and_version_in_index,
             )
 
-    return pd.DataFrame(data=series)
+    df = pd.DataFrame(data=series)
+    if not row_id_and_version_in_index:
+        # each page numbers its rows from 0, so renumber the rows across all pages
+        df = df.reset_index(drop=True)
+    return df
 
 
 @dataclass
