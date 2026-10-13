@@ -5,6 +5,7 @@ import asyncio
 import csv
 import datetime
 import io
+import math
 import os
 import re
 import sys
@@ -1543,8 +1544,8 @@ async def _manifest_upload(
 
         item = _SyncUploadItem(
             file,
-            _nan_to_none(row["used"]) if "used" in row else [],
-            _nan_to_none(row["executed"]) if "executed" in row else [],
+            _missing_to_empty_list(row["used"]) if "used" in row else [],
+            _missing_to_empty_list(row["executed"]) if "executed" in row else [],
             activity_name=row["activityName"] if "activityName" in row else None,
             activity_description=(
                 row["activityDescription"] if "activityDescription" in row else None
@@ -1558,14 +1559,15 @@ async def _manifest_upload(
     return True
 
 
-def _nan_to_none(value):
-    """Return None if value is NaN, otherwise return value unchanged.
+def _missing_to_empty_list(value):
+    """Return an empty list if value is None or NaN, otherwise return value unchanged.
 
     With pandas 3, iterrows gives a str dtype row when every cell is a string or
-    missing, and the missing cells are NaN, not None.
+    missing, and the missing cells are NaN, not None. An empty list keeps the
+    used and executed values iterable for the upload.
     """
-    if isinstance(value, float) and value != value:
-        return None
+    if value is None or (isinstance(value, float) and math.isnan(value)):
+        return []
     return value
 
 
