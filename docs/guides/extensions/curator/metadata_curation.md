@@ -1,608 +1,413 @@
-# How to Set Up Metadata Curation Workflows
+# How to Create and Manage Metadata Workflows in Curator
 
-This guide is for **curation administrators** — the person responsible for designing a curation workflow: choosing a JSON schema, deciding whether metadata is record-based or file-based, creating the `CurationTask`, and reviewing the validation results contributors submit.
+This guide explains how **Curator administrators** create and manage workflows for collecting metadata in Synapse.
 
-If you're a data contributor opening a task an administrator has already created, see [How to Enter and Update Metadata for a Curation Task](metadata_contribution.md) instead.
+## About Curator
 
-## What you'll accomplish
+Curator is a Synapse tool for collecting and managing metadata through a *spreadsheet-style interface*.
 
-By following this guide, you will:
+**Curator administrators** create curation tasks, define metadata requirements using a **JSON Schema**, and choose how metadata is stored: as structured records in a `RecordSet` or as annotations on individual files.
 
-- Find and select the right JSON schema for your data type
-- Create a record-based or file-based metadata curation workflow
-- Configure curation tasks that guide contributors through metadata entry
+**Data contributors** complete these tasks by entering and updating metadata through the Curator web application or programmatically. If you are a contributor working on an existing task, see [How to Enter and Update Metadata for a Curation Task](metadata_contribution.md).
+
+### In this guide, you will learn how to:
+
+- Choose between record-based and file-based metadata workflows.
+- Select a JSON Schema to define metadata requirements.
+- Create a curation task for either workflow.
+- Configure task parameters and understand the resulting Synapse objects.
+
+## Types of Metadata Workflows
+
+Curator supports **two types of metadata workflows**:
+
+| Workflow | What each row represents | Where metadata is stored |
+| --- | --- | --- |
+| **Record-based metadata** (*structured records*) | One record, such as a participant or biospecimen | A `RecordSet` |
+| **File-based metadata** (*file annotations*) | One Synapse file | Annotations on the individual file |
+
+### Record-based metadata: Structured records
+
+Use **record-based metadata** to manage information about participants, samples, or other items that do not need to correspond to individual data files.
+
+Each row represents one record. The records are stored together in a `RecordSet`, rather than as annotations on individual files.
+
+Records are uniquely identified by one or more **key columns**, configured using `upsert_keys`. These keys allow contributors to add new records or update matching records without creating duplicates.
+
+### File-based metadata: File annotations
+
+Use **file-based metadata** to describe individual files stored in Synapse. Each row represents a file, and its metadata is stored directly on that file as annotations.
+
+> [!TIP]
+> **You can use both workflows in the same Synapse project.** For example, store biospecimen details once in a `RecordSet`, then use a shared identifier such as `sampleId` to associate multiple files with that biospecimen.
 
 ## Prerequisites
 
-- A Synapse account with project creation permissions
-- Python environment with synapseclient and the `curator` extension installed (`pip install --upgrade "synapseclient[curator]"`)
-- An existing Synapse project and folder where you want to manage metadata
-- A JSON Schema registered in Synapse (many schemas are already available for Sage-affiliated projects, or you can register your own by following the [JSON Schema tutorial](../../../tutorials/python/json_schema.md))
-  - If you are using the [Curator CSV data model](../../../explanations/curator_data_model.md), you can create JSON schemas by following this [guide](schema_operations.md)
-- (Optional) An existing Synapse team if you want multiple users to collaborate on the same Grid session. Pass the team's ID as `assignee_principal_id` when creating the curation task.
+Before creating a curation task, make sure you have the following:
 
-## Step 1: Authenticate and import required functions
+- **Synapse account:** Create a Synapse account and complete the Synapse Certification Quiz.
+- **Synapse Python Client:** [Install the client](https://python-docs.synapse.org/en/stable/tutorials/installation/) and [configure your credentials](https://python-docs.synapse.org/en/stable/tutorials/authentication/).
+- **Project and folder permissions:** Have **Edit permissions or higher** for the Synapse project and folder where you will manage metadata. Note the folder's Synapse ID for use in the examples.
+- **JSON Schema:** Browse [existing schemas](https://sage-bionetworks.github.io/core-models/) or create your own. You will need a **versioned schema URI**, such as `MyOrganization-MySchema-1.0.0`. For details, see the [Schema Operations Guide](https://python-docs.synapse.org/en/stable/guides/extensions/curator/schema_operations/).
+
+> [!NOTE]
+> Schema URIs and Synapse IDs in the examples below are *placeholders*. Replace them with values from your own Synapse project.
+
+## Create a Record-Based Metadata Task
+
+This example creates a `RecordSet` to store biospecimen metadata and a corresponding `CurationTask` for contributors.
+
+> [!IMPORTANT]
+> **Before running:** Replace `folder_id` and `schema_uri`. Make sure `upsert_keys` and `column_order` use property names defined in your registered JSON Schema.
 
 ```python
-from synapseclient.extensions.curator import (
-    create_record_based_metadata_task,
-    create_file_based_metadata_task,
-    query_schema_registry
-)
-from synapseclient.models import (
-    ViewTypeMask,
-)
 from synapseclient import Synapse
-from synapseclient.models import Grid
-from synapseclient.models.table_components import Query
+from synapseclient.extensions.curator import create_record_based_metadata_task
 
+# Authenticate with Synapse using your configured credentials.
 syn = Synapse()
 syn.login()
-```
 
-## Step 2: Find the right schema for your data
-
-Before creating a curation task, identify which JSON schema matches your data type. Many schemas are already registered in Synapse for Sage-affiliated projects. The schema registry contains validated schemas organized by data coordination center (DCC) and data type.
-
-**If you need to register your own schema**, follow the [JSON Schema tutorial](../../../tutorials/python/json_schema.md) to understand the registration process.
-
-```python
-# Find the latest schema for your specific data type
-schema_uri = query_schema_registry(
-    synapse_client=syn,
-    dcc="ad",  # Your data coordination center, check out the `syn69735275` table if you do not know your code
-    datatype="IndividualAnimalMetadataTemplate"  # Your specific data type
-)
-
-print("Latest schema URI:", schema_uri)
-```
-
-**When to use this approach:** You know your DCC and data type, you want the most current schema version, and it has already been registered into <https://www.synapse.org/Synapse:syn69735275/tables/>.
-
-**Alternative - browse available schemas:**
-
-```python
-# Get all versions to see what's available
-all_schemas = query_schema_registry(
-    synapse_client=syn,
-    dcc="ad",
-    datatype="IndividualAnimalMetadataTemplate",
-    return_latest_only=False
-)
-```
-
-## Step 3: Choose your metadata workflow type
-
-### Option A: Record-based metadata
-
-Use this when metadata is normalized in structured records to eliminate duplication and ensure consistency.
-
-```python
+# Create a RecordSet and a task for biospecimen metadata.
 record_set, curation_task = create_record_based_metadata_task(
-    synapse_client=syn,
-    folder_id="syn987654321",          # Folder where RecordSet Entity will be stored
-    record_set_name="AnimalMetadata_Records",
-    record_set_description="Centralized metadata for animal study data",
-    curation_task_name="AnimalMetadata_Curation", # Must be unique within the project
-    upsert_keys=["StudyKey"],          # Fields that uniquely identify records
-    instructions="Complete all required fields according to the schema. Use StudyKey to link records to your data files.",
-    schema_uri=schema_uri,             # Schema found in Step 2
+    # Destination folder ID. Edit permissions or higher are required.
+    folder_id="syn12345678",
+
+    # Name and description of the RecordSet that stores the metadata.
+    record_set_name="Biospecimen_Metadata",
+    record_set_description="Metadata describing the biospecimens in this study",
+
+    # Name shown to contributors. An existing task with the same name
+    # in the project may be updated instead of creating a new task.
+    curation_task_name="Curate Biospecimen Metadata",
+
+    # Schema property (or properties) uniquely identifying each record.
+    # Existing matching records are updated; new keys create new records.
+    upsert_keys=["sampleId"],
+
+    # Instructions shown to contributors when completing the task.
+    instructions=(
+        "Enter one record per biospecimen. Complete all required fields and use a unique sampleId for each record."
+    ),
+
+    # URI of the registered JSON Schema. Replace this example URI.
+    schema_uri="MyOrganization-BiospecimenMetadata-1.0.0",
+
+    # True (default): Bind the schema to the RecordSet for validation.
+    # False: Do not bind the schema to the RecordSet.
     bind_schema_to_record_set=True,
-    create_grid=False,
-    assignee_principal_id=123456     # Optional: Assign to a user or team
-)
 
-print(f"Created RecordSet: {record_set.id}")
-print(f"Created CurationTask: {curation_task.task_id}")
-```
+    # True: Enable schema-derived annotation values.
+    # False (default): Disable derived annotations.
+    enable_derived_annotations=False,
 
-**What this creates:**
+    # Optional Synapse user or team principal ID; None leaves it unassigned.
+    assignee_principal_id=None,
 
-- A RecordSet where metadata is stored as structured records (like a spreadsheet)
-- A CurationTask that guides users through completing the metadata
-- Automatic schema binding for validation
-
-### Option B: File-based metadata (for unique per-file metadata)
-
-Use this when metadata describes individual data files and is stored as annotations directly on each file.
-
-```python
-entity_view, task = create_file_based_metadata_task(
-    synapse_client=syn,
-    folder_id="syn987654321",          # Folder containing your data files
-    curation_task_name="FileMetadata_Curation", # Must be unique within the project
-    instructions="Annotate each file with metadata according to the schema requirements.",
-    attach_wiki=False,                 # Creates a wiki in the folder with the entity view (Defaults to False)
-    entity_view_name="Animal Study Files View",
-    schema_uri=schema_uri,             # Schema found in Step 2
-    assignee_principal_id=123456,    # Optional: Assign to a user or team
-    view_type_mask=ViewTypeMask.FILE,  # Optional: include additional entity types in the view (ViewTypeMask.FILE | ViewTypeMask.DOCKER). (Defaults to ViewTypeMask.FILE)
-    return_entities=True               # Return EntityView and CurationTask objects (becomes the default in v5.0.0)
-)
-
-print(f"Created EntityView: {entity_view.id}")
-print(f"Created CurationTask: {task.task_id}")
-
-```
-
-**What this creates:**
-
-- An EntityView that displays all files in the folder
-- A CurationTask for guided metadata entry
-- Automatic schema binding to the folder for validation
-- Optional wiki attached to the folder
-
-### Controlling the order of the columns
-
-Both [create_record_based_metadata_task][synapseclient.extensions.curator.create_record_based_metadata_task] and [create_file_based_metadata_task][synapseclient.extensions.curator.create_file_based_metadata_task] accept an optional `column_order` that controls the left-to-right order of the columns contributors see in the grid. JSON Schema property order is not reliably preserved by downstream applications, so pass the order explicitly here instead of relying on the schema.
-
-You only need to name the columns that need intentional placement. Every column you leave out stays visible and is appended after the ones you named, in its existing relative order. This keeps the configuration short as properties are added to the schema over time.
-
-A few columns are always pinned to the front and cannot be moved:
-
-- Record-based tasks pin the `upsert_keys`, because they identify each row.
-- File-based tasks pin `name` and `id`.
-
-Naming a pinned column in `column_order` has no effect — it stays in its pinned position and is not duplicated. A name that does not match any available column raises a `ValueError`.
-
-```python
-record_set, curation_task = create_record_based_metadata_task(
-    synapse_client=syn,
-    folder_id="syn987654321",
-    record_set_name="AnimalMetadata_Records",
-    record_set_description="Centralized metadata for animal study data",
-    curation_task_name="AnimalMetadata_Curation",
-    upsert_keys=["StudyKey"],
-    column_order=["diagnosis", "specimenType", "assay"],
-    instructions="Complete all required fields according to the schema.",
-    schema_uri=schema_uri,
-    create_grid=False,
-)
-
-# Resulting column order:
-# StudyKey, diagnosis, specimenType, assay, <remaining schema properties>
-```
-
-```python
-entity_view, task = create_file_based_metadata_task(
-    synapse_client=syn,
-    folder_id="syn987654321",
-    curation_task_name="FileMetadata_Curation",
-    instructions="Annotate each file with metadata according to the schema requirements.",
-    entity_view_name="Animal Study Files View",
-    schema_uri=schema_uri,
-    column_order=["patientId", "sampleId", "assay", "fileFormat"],
-    return_entities=True,
-)
-
-# Resulting column order:
-# name, id, patientId, sampleId, assay, fileFormat, <remaining columns>
-```
-
-For file-based tasks the available columns include the Synapse managed columns such as `createdBy` and `modifiedOn` in addition to the JSON Schema properties, so you may place those wherever you like. They are no longer pinned to the front — only `name` and `id` are — which lets contributor-relevant metadata appear before system metadata.
-
-### Controlling who can access the grid session
-
-Both [create_record_based_metadata_task][synapseclient.extensions.curator.create_record_based_metadata_task] and [create_file_based_metadata_task][synapseclient.extensions.curator.create_file_based_metadata_task] accept an optional `authorization_mode` that tells clients how to scope access when a grid session is created for the task:
-
-- `SESSION_OWNER` (the server default applied when the mode is omitted) limits access to the session owner and their team. Use it when curation should be restricted to a specific user or team.
-- `SOURCE_BENEFACTOR` extends access to anyone with `EDIT` rights on the source entity. Use it when curation should be open to all editors of the source.
-
-```python
-
-entity_view_id, task_id = create_file_based_metadata_task(
-    synapse_client=syn,
-    folder_id="syn987654321",
-    curation_task_name="FileMetadata_Curation",
-    instructions="Annotate each file with metadata according to the schema requirements.",
-    entity_view_name="Animal Study Files View",
-    schema_uri=schema_uri,
+    # Suggested access mode for the grid session when it is opened.
+    # Options: "SESSION_OWNER", "SOURCE_BENEFACTOR", or None.
     authorization_mode="SOURCE_BENEFACTOR",
-)
-```
 
-When [CurationTask.create_grid_session][synapseclient.models.CurationTask.create_grid_session] is later called, it forwards this mode to the new grid session and the server uses it to determine access: `SESSION_OWNER` limits access to the session owner (the caller, or an explicit `owner_principal_id`) and their team, while `SOURCE_BENEFACTOR` lets the session inherit access from the source entity's benefactor.
+    # Optional order of columns after the pinned upsert key(s).
+    # All names must match schema properties; remaining columns follow.
+    column_order=["participantId", "specimenType", "tissue"],
 
-!!! warning "Changing the mode invalidates the active session"
-    Updating `authorization_mode` on an existing task causes the server to automatically clear `activeSessionId` on the task status. The previously active grid session is no longer linked to the task, so you must create a new grid session before curation can continue.
-
-## Complete example script
-
-Here's the full script that demonstrates both workflow types:
-
-```python
-from pprint import pprint
-from synapseclient.extensions.curator import (
-    create_record_based_metadata_task,
-    create_file_based_metadata_task,
-    query_schema_registry
-)
-from synapseclient import Synapse
-
-# Step 1: Authenticate
-syn = Synapse()
-syn.login()
-
-# Step 2: Find schema
-schema_uri = query_schema_registry(
+    # Use the authenticated Synapse client created above.
     synapse_client=syn,
-    dcc="ad",
-    datatype="IndividualAnimalMetadataTemplate"
-)
-print("Using schema:", schema_uri)
 
-# Step 3A: Create record-based workflow
-record_set, curation_task = create_record_based_metadata_task(
-    synapse_client=syn,
-    folder_id="syn987654321",
-    record_set_name="AnimalMetadata_Records",
-    record_set_description="Centralized animal study metadata",
-    curation_task_name="AnimalMetadata_Curation",
-    upsert_keys=["StudyKey"],
-    instructions="Complete metadata for all study animals using StudyKey to link records to data files.",
-    schema_uri=schema_uri,
-    bind_schema_to_record_set=True,
-    create_grid=False,
-    assignee_principal_id=123456  # Optional: Assign to a user or team
-)
-
-print("Record-based workflow created:")
-print(f"  RecordSet: {record_set.id}")
-print(f"  CurationTask: {curation_task.task_id}")
-
-# Step 3B: Create file-based workflow
-entity_view, task = create_file_based_metadata_task(
-    synapse_client=syn,
-    folder_id="syn987654321",
-    curation_task_name="FileMetadata_Curation",
-    instructions="Annotate each file with complete metadata according to schema.",
-    attach_wiki=True,
-    entity_view_name="Animal Study Files View",
-    schema_uri=schema_uri,
-    assignee_principal_id=123456,  # Optional: Assign to a user or team
-    view_type_mask=ViewTypeMask.FILE,  # Optional: include additional entity types in the view (ViewTypeMask.FILE | ViewTypeMask.DOCKER). (Defaults to ViewTypeMask.FILE)
-    return_entities=True               # Return EntityView and CurationTask objects (becomes the default in v5.0.0)
-)
-
-print("File-based workflow created:")
-print(f"  EntityView: {entity_view.id}")
-print(f"  CurationTask: {task.task_id}")
-```
-
-## Step 4: Work with metadata and validate (Record-based workflow)
-
-After creating a record-based metadata task, collaborators can enter metadata through the Grid interface. Once metadata entry is complete, you'll want to validate the data against your schema and identify any issues.
-
-### The metadata curation workflow
-
-1. **Data Entry**: Collaborators use the Grid interface (via the curation task link in the Synapse web UI) to enter metadata
-2. **Grid Export**: Export the Grid session back to the RecordSet to save changes (this can be done via the web UI or programmatically)
-3. **Validation**: Retrieve detailed validation results to identify schema violations
-4. **Correction**: Fix any validation errors and repeat as needed
-
-### Creating and exporting a Grid session
-
-Validation results are only generated when a Grid session is exported back to the RecordSet. This triggers Synapse to validate each row against the bound schema. You have two options:
-
-**Option A: Via the Synapse web UI (most common)**
-
-Users can access the curation task through the Synapse web interface, enter/edit data in the Grid, and click the export button. This automatically generates validation results.
-
-**Option B: Programmatically create and export a Grid session**
-
-```python
-from synapseclient import Synapse
-from synapseclient.models import RecordSet
-from synapseclient.models.curation import Grid
-
-syn = Synapse()
-syn.login()
-
-# Get your RecordSet (must have a schema bound)
-record_set = RecordSet(id="syn987654321").get()
-
-# Create a Grid session from the RecordSet
-grid = Grid(record_set_id=record_set.id).create()
-
-# At this point, users can interact with the Grid (either programmatically or via web UI)
-# When ready to save changes and generate validation results, export back to RecordSet
-grid.export_to_record_set()
-
-# Clean up the Grid session
-grid.delete()
-
-# Re-fetch the RecordSet to get the updated validation_file_handle_id
-record_set = RecordSet(id=record_set.id).get()
-```
-
-**Important**: The `validation_file_handle_id` attribute is only populated after a Grid export operation. Until then, `get_detailed_validation_results()` will return `None`.
-
-### Getting detailed validation results
-
-After exporting from a Grid session with a bound schema, Synapse automatically validates each row against the schema and generates a detailed validation report. Here's how to retrieve and analyze those results:
-
-```python
-from synapseclient import Synapse
-from synapseclient.models import RecordSet
-
-syn = Synapse()
-syn.login()
-
-# After Grid export (either via web UI or programmatically)
-# retrieve the updated RecordSet
-record_set = RecordSet(id="syn987654321").get()
-
-# Get detailed validation results as a pandas DataFrame
-validation_results = record_set.get_detailed_validation_results()
-
-if validation_results is not None:
-    print(f"Total rows validated: {len(validation_results)}")
-
-    # Filter for valid and invalid rows
-    valid_rows = validation_results[validation_results['is_valid'] == True]
-    invalid_rows = validation_results[validation_results['is_valid'] == False]
-
-    print(f"Valid rows: {len(valid_rows)}")
-    print(f"Invalid rows: {len(invalid_rows)}")
-
-    # Display details of any validation errors
-    if len(invalid_rows) > 0:
-        print("\nRows with validation errors:")
-        for idx, row in invalid_rows.iterrows():
-            print(f"\nRow {row['row_index']}:")
-            print(f"  Error: {row['validation_error_message']}")
-            print(f"  ValidationError: {row['all_validation_messages']}")
-else:
-    print("No validation results available. The Grid session must be exported to generate validation results.")
-```
-
-### Example: Complete validation workflow for animal study metadata
-
-This example demonstrates the full workflow from creating a curation task through validating the submitted metadata:
-
-```python
-from synapseclient import Synapse
-from synapseclient.extensions.curator import create_record_based_metadata_task, query_schema_registry
-from synapseclient.models import RecordSet
-from synapseclient.models.curation import Grid
-import pandas as pd
-import tempfile
-import os
-import time
-
-syn = Synapse()
-syn.login()
-
-# Step 1: Find the schema
-schema_uri = query_schema_registry(
-    synapse_client=syn,
-    dcc="ad",
-    datatype="IndividualAnimalMetadataTemplate"
-)
-
-# Step 1.5: Create initial test data with validation examples
-# Row 1: VALID - all required fields present and valid
-# Row 2: INVALID - missing required field 'genotype'
-# Row 3: INVALID - invalid enum value for 'sex' ("other" not in enum)
-test_data = pd.DataFrame({
-    "individualID": ["ANIMAL001", "ANIMAL002", "ANIMAL003"],
-    "species": ["Mouse", "Mouse", "Mouse"],
-    "sex": ["female", "male", "other"],  # Row 3: invalid enum
-    "genotype": ["5XFAD", None, "APOE4KI"],  # Row 2: missing required field
-    "genotypeBackground": ["C57BL/6J", "C57BL/6J", "C57BL/6J"],
-    "modelSystemName": ["5XFAD", "5XFAD", "APOE4KI"],
-    "dateBirth": ["2024-01-15", "2024-02-20", "2024-03-10"],
-    "individualIdSource": ["JAX", "JAX", "JAX"],
-})
-
-# Create a temporary CSV file with the test data
-temp_fd, temp_csv = tempfile.mkstemp(suffix=".csv")
-os.close(temp_fd)
-test_data.to_csv(temp_csv, index=False)
-
-# Step 2: Create the curation task (this creates an empty template RecordSet)
-record_set, curation_task = create_record_based_metadata_task(
-    synapse_client=syn,
-    folder_id="syn987654321",
-    record_set_name="AnimalMetadata_Records",
-    record_set_description="Animal study metadata with validation",
-    curation_task_name="AnimalMetadata_Validation_Example",
-    upsert_keys=["individualID"],
-    instructions="Enter metadata for each animal. All required fields must be completed.",
-    schema_uri=schema_uri,
-    bind_schema_to_record_set=True,
+    # False: Return only RecordSet and CurationTask objects.
+    # True: Also create and return a Grid (deprecated behavior).
     create_grid=False,
 )
 
-time.sleep(10)
+# Display IDs for the resources created or updated.
+print(f"RecordSet ID: {record_set.id}")
+print(f"CurationTask ID: {curation_task.task_id}")
+```
+**Example output**
 
-print(f"Curation task created with ID: {curation_task.task_id}")
-print(f"RecordSet created with ID: {record_set.id}")
+```text
+Welcome, <Your Name>!
 
-# Step 2.5: Upload the test data to the RecordSet
-record_set = RecordSet(id=record_set.id).get(synapse_client=syn)
-print("\nUploading test data to RecordSet...")
-record_set.path = temp_csv
-record_set = record_set.store(synapse_client=syn)
-print(f"Test data uploaded to RecordSet {record_set.id}")
-
-# Step 3: Collaborators enter data via the web UI, OR you can create/export a Grid programmatically
-# For demonstration, here's the programmatic approach:
-print("\nCreating Grid session for data entry...")
-grid = Grid(record_set_id=record_set.id).create()
-print("Grid session created. Users can now enter data.")
-
-# After data entry is complete (either via web UI or programmatically),
-# export the Grid to generate validation results
-print("\nExporting Grid to RecordSet to generate validation results...")
-grid.export_to_record_set()
-
-# Clean up the Grid session
-grid.delete()
-print("Grid session exported and deleted.")
-
-# Step 4: Refresh the RecordSet to get the latest validation results
-print("\nRefreshing RecordSet to retrieve validation results...")
-record_set = RecordSet(id=record_set.id).get()
-
-# Step 5: Analyze validation results
-validation_df = record_set.get_detailed_validation_results()
-
-if validation_df is not None:
-    # Summary statistics
-    total_rows = len(validation_df)
-    valid_count = (validation_df['is_valid'] == True).sum()  # noqa: E712
-    invalid_count = (validation_df['is_valid'] == False).sum()  # noqa: E712
-
-    print("\n=== Validation Summary ===")
-    print(f"Total records: {total_rows}")
-    print(f"Valid records: {valid_count} ({valid_count}/{total_rows})")
-    print(f"Invalid records: {invalid_count} ({invalid_count}/{total_rows})")
-
-    # Group errors by type for better understanding
-    if invalid_count > 0:
-        invalid_rows = validation_df[validation_df['is_valid'] == False]  # noqa: E712
-
-        # Export detailed error report for review
-        error_report = invalid_rows[['row_index', 'validation_error_message', 'all_validation_messages']]
-        error_report_path = "validation_errors_report.csv"
-        error_report.to_csv(error_report_path, index=False)
-        print(f"\nDetailed error report saved to: {error_report_path}")
-
-        # Show first few errors as examples
-        print("\n=== Sample Validation Errors ===")
-        for idx, row in error_report.head(3).iterrows():
-            print(f"\nRow {row['row_index']}:")
-            print(f"  Error: {row['validation_error_message']}")
-            print(f"  ValidationError: {row['all_validation_messages']}")
-
-# Clean up temporary file
-if os.path.exists(temp_csv):
-    os.unlink(temp_csv)
-
-# Clean up RecordSet and CurationTask
-curation_task.delete(delete_source=True)
+Extracted schema properties and created template: ['sampleId', 'participantId', 'specimenType', 'tissue', ...]
+Uploading to Synapse storage: 100%|██████████|
+Created RecordSet with ID: syn12345678 in folder syn12345678
+Bound schema MyOrganization-BiospecimenMetadata-1.0.0 to RecordSet ID: syn51234567
+Created CurationTask (1042) with name Curate Biospecimen Metadata
+RecordSet ID: syn12345678
+CurationTask ID: 1234
 ```
 
-In this example you would expect to get results like:
+> [!TIP]
+> **Column placement:** The upsert key (`sampleId`) remains the leftmost column. Columns listed in `column_order` appear next, followed by any remaining schema properties.
 
-```
-=== Sample Validation Errors ===
+## Create a File-Based Metadata Task
 
-Row 0:
-  Error: expected type: String, found: Long
-  ValidationError: ["#/dateBirth: expected type: String, found: Long"]
+This example creates an `EntityView` of files in a folder and a corresponding `CurationTask` for annotating them.
 
-Row 1:
-  Error: 2 schema violations found
-  ValidationError: ["#/genotype: expected type: String, found: Null","#/dateBirth: expected type: String, found: Long"]
 
-Row 2:
-  Error: 2 schema violations found
-  ValidationError: ["#/dateBirth: expected type: String, found: Long","#/sex: other is not a valid enum value"]
-```
-
-**Key points about validation results:**
-
-- **Automatic generation**: Validation results are created automatically when you export data from a Grid session with a bound schema
-- **Row-level detail**: Each row in your RecordSet gets its own validation status and error messages
-- **Multiple violations**: The `all_validation_messages` column contains all schema violations for a row, not just the first one
-- **Iterative correction**: Use the validation results to identify issues, make corrections in the Grid, export again, and re-validate
-
-### When validation results are available
-
-Validation results are only available after:
-1. A JSON schema has been bound to the RecordSet (set `bind_schema_to_record_set=True` when creating the task)
-2. Data has been entered through a Grid session
-3. **The Grid session has been exported back to the RecordSet** - This is the critical step that triggers validation and populates the `validation_file_handle_id` attribute
-
-The export can happen in two ways:
-- **Via the Synapse web UI**: Users click the export/save button in the Grid interface
-- **Programmatically**: Call `grid.export_to_record_set()` after creating a Grid session
-
-If `get_detailed_validation_results()` returns `None`, the most common reason is that the Grid session hasn't been exported yet. Check that `record_set.validation_file_handle_id` is not `None` after exporting.
-
-## Additional utilities
-
-### Validate schema binding on folders
-
-Use this script to verify the schema on a folder against the items contained within that folder:
+> [!IMPORTANT]
+> - **Set `return_entities=True`.** Returning objects is planned to become the default in **v5.0.0**, when `return_entities` will be removed.
+> 
+> - **Before running:** Replace `folder_id` and `schema_uri`. Update `column_order` to match available view columns. This example assumes your schema includes `sampleId`, `assay`, and `fileFormat`.
+> 
+> - **Add at least one file first:** Make sure the folder contains at least one file before you create a file-based metadata task. The `EntityView` lists the files in the folder, so contributors will have nothing to annotate if the folder is empty.
 
 ```python
 from synapseclient import Synapse
-from synapseclient.models import Folder
+from synapseclient.extensions.curator import create_file_based_metadata_task
+from synapseclient.models import ViewTypeMask
 
-# The Synapse ID of the entity you want to bind the JSON Schema to. This should be the ID of a Folder where you want to enforce the schema.
-FOLDER_ID = ""
-
+# Authenticate with Synapse using your configured credentials.
 syn = Synapse()
 syn.login()
 
-folder = Folder(id=FOLDER_ID).get()
-schema_validation = folder.validate_schema()
+# Create an EntityView and a task for file annotations.
+entity_view, curation_task = create_file_based_metadata_task(
+    # Folder containing the files to be annotated.
+    folder_id="syn87654321",
 
-print(f"Schema validation result for folder {FOLDER_ID}: {schema_validation}")
-```
+    # Task name and contributor-facing instructions.
+    curation_task_name="Curate File Metadata",
+    instructions=(
+        "Annotate each file according to the schema requirements. Use sampleId to identify the biospecimen associated with each file."
+    ),
 
-### List existing curation tasks
+    # True: Attach a wiki containing the EntityView to the folder.
+    # False (default): Do not attach a wiki.
+    attach_wiki=False,
 
-Use this script to see all curation tasks in a project:
+    # Name of the EntityView created for the task.
+    entity_view_name="Study File Metadata",
 
-```python
-from pprint import pprint
-from synapseclient import Synapse
-from synapseclient.models.curation import CurationTask
+    # URI of the registered JSON Schema. Replace this example URI.
+    schema_uri="MyOrganization-FileMetadata-1.0.0",
 
-PROJECT_ID = ""  # The Synapse ID of the project to list tasks from
+    # True: Enable schema-derived annotations when binding the schema.
+    # False (default): Disable derived annotations.
+    enable_derived_annotations=False,
 
-syn = Synapse()
-syn.login()
+    # Optional Synapse user or team principal ID; None leaves it unassigned.
+    assignee_principal_id=None,
 
-for curation_task in CurationTask.list(
-    project_id=PROJECT_ID
-):
-    pprint(curation_task)
-```
+    # Include files in the EntityView (the standard file-based setting).
+    view_type_mask=ViewTypeMask.FILE,
 
-### Update the state of a curation task
+    # Suggested access mode when the grid session is opened.
+    authorization_mode="SOURCE_BENEFACTOR",
 
-Use this script to change a task's lifecycle state. Valid states are
-NOT_STARTED, IN_PROGRESS, COMPLETED, and CANCELED.
+    # True: Return EntityView and CurationTask objects rather than IDs.
+    return_entities=True,
 
-```python
-from synapseclient import Synapse
-from synapseclient.models import CurationTask
+    # Optional order after the pinned name and id columns.
+    column_order=["sampleId", "assay", "fileFormat"],
 
-TASK_ID = 123456  # The numeric ID of the CurationTask to update
-
-syn = Synapse()
-syn.login()
-
-status = CurationTask(task_id=TASK_ID).set_task_state(
-    state="COMPLETED",
+    # Use the authenticated Synapse client created above.
     synapse_client=syn,
 )
 
-print(f"Task {TASK_ID} state is now: {status.state}")
+# Display IDs for the resources created or updated.
+print(f"EntityView ID: {entity_view.id}")
+print(f"CurationTask ID: {curation_task.task_id}")
 ```
 
-## References
+**Example output**
 
-### API Documentation
+```text
+Welcome, <Your Name>!
 
-- [query_schema_registry][synapseclient.extensions.curator.query_schema_registry] - Search for schemas in the registry
-- [create_record_based_metadata_task][synapseclient.extensions.curator.create_record_based_metadata_task] - Create RecordSet-based curation workflows
-- [create_file_based_metadata_task][synapseclient.extensions.curator.create_file_based_metadata_task] - Create EntityView-based curation workflows
-- [RecordSet.get_detailed_validation_results][synapseclient.models.RecordSet.get_detailed_validation_results] - Get detailed validation results for RecordSet data
-- [Grid.create][synapseclient.models.curation.Grid.create] - Create a Grid session from a RecordSet or EntityView
-- [Grid.export_to_record_set][synapseclient.models.curation.Grid.export_to_record_set] - Export Grid data back to RecordSet and generate validation results
-- [Folder.bind_schema][synapseclient.models.Folder.bind_schema] - Bind schemas to folders
-- [Folder.validate_schema][synapseclient.models.Folder.validate_schema] - Validate folder schema compliance
-- [CurationTask.list][synapseclient.models.CurationTask.list] - List curation tasks in a project
-- [CurationTask.set_task_state][synapseclient.models.CurationTask.set_task_state] - Update the lifecycle state of a curation task
+Attempting to bind schema MyOrganization-FileMetadata-1.0.0 to folder syn87654321.
+Successfully bound schema MyOrganization-FileMetadata-1.0.0 to folder syn87654321.
+Attempting to create entity view.
+[syn23456789:Study File Metadata]: (Column Order): ['sampleId', 'assay', 'fileFormat', ..., 'name', 'id', ...]
+/entity/syn23456789/table/transaction/async: 100%|██████████| 1.00/1.00 [00:01<00:00]
+[syn23456789:Study File Metadata]: (Column Order): ['name', 'id', 'sampleId', 'assay', 'fileFormat', ...]
+/entity/syn23456789/table/transaction/async: 100%|██████████| 1.00/1.00 [00:01<00:00]
+Created entity view.
+Attempting to get the attached schema.
+Schema retrieval successful
+Attempting to get the Synapse ID of the provided folders project.
+Got the Synapse ID of the provided folders project.
+Attempting to create the CurationTask.
+Created the CurationTask.
+EntityView ID: syn23456789
+CurationTask ID: 2345
+```
 
-### Related Documentation
+Your name, IDs, and column lists will differ. The last two lines come from the `print` statements in the script. The earlier lines are log messages from the client, and their wording may vary between client versions.
 
-- [How to Enter and Update Metadata for a Curation Task](metadata_contribution.md) - The contributor-facing companion to this guide
-- [JSON Schema Tutorial](../../../tutorials/python/json_schema.md) - Learn how to register schemas
-- [Schema Registry](https://synapse.org/Synapse:syn69735275/tables/) - Browse available schemas
+- **Bind schema:** The schema is bound to your folder. These lines appear when you provide `schema_uri`.
+- **Create entity view:** The `EntityView` is created. The `(Column Order)` line appears twice: first with the initial columns, then with `name` and `id` pinned first, followed by your `column_order` columns.
+- **Get the attached schema:** The client reads back the schema bound to the folder.
+- **Create the CurationTask:** The task contributors will see is created.
+
+## Parameter and Property Reference
+
+Use the tables below to configure a workflow or look up a parameter used in either example. **Required** parameters must be supplied; optional parameters show their documented defaults.
+
+### Parameters Shared by Both Functions
+
+These parameters are accepted by both `create_record_based_metadata_task()` and `create_file_based_metadata_task()`.
+
+| Parameter | Type / default | Description and options |
+| --- | --- | --- |
+| `folder_id` | `str` — **required** | Synapse folder ID. For record-based tasks, the destination for the `RecordSet`; for file-based tasks, the folder containing files to curate. |
+| `curation_task_name` | `str` — **required** | Name of the task. Use a unique name within the project to create a new task. |
+| `instructions` | `str` — **required** | Contributor-facing instructions describing each row and the information to enter. |
+| `schema_uri` | `str` — **required** for record-based; `str` or `None` (default: `None`) for file-based | URI of a registered JSON Schema. For file-based tasks, providing a URI binds the schema to the folder before creating the view. |
+| `enable_derived_annotations` | `bool` — default: `False` | Set `True` to enable schema-derived annotations during schema binding. See [Derived annotations](#derived-annotations). |
+| `assignee_principal_id` | `str`, `int`, or `None` — default: `None` | Synapse principal ID of the user or team assigned to the task. `None` leaves it unassigned. |
+| `authorization_mode` | `AuthorizationMode`, `str`, or `None` — default: `None` | Suggested grid access mode: `"SESSION_OWNER"`, `"SOURCE_BENEFACTOR"`, or `None`. See [Grid access options](#grid-access-options). |
+| `column_order` | `list[str]` or `None` — default: `None` | Desired left-to-right column order after pinned columns. Unlisted columns remain visible. See [Column ordering](#column-ordering). |
+| `synapse_client` | `Synapse` or `None` — default: `None` | Client used for the operation. Passing an authenticated client makes the connection explicit. |
+
+> [!NOTE]
+> **Additional behavior:** Reusing an existing task name may update the matching task. If `synapse_client` is omitted, the last-created client is used when client caching is enabled. For file-based tasks, omit `schema_uri` only when the folder already has an applicable schema.
+
+### Record-Based Parameters
+
+The following parameters apply only to `create_record_based_metadata_task()`.
+
+| Parameter | Type / default | Description and options |
+| --- | --- | --- |
+| `record_set_name` | `str` — **required** | Name of the `RecordSet` used to store structured metadata. |
+| `record_set_description` | `str` — **required** | Description of the contents of the `RecordSet`. |
+| `upsert_keys` | `list[str]` — **required** | One or more schema columns that uniquely identify each record. Multiple columns form a *composite key*. |
+| `bind_schema_to_record_set` | `bool` — default: `True` | `True` binds the schema to the `RecordSet` for validation; `False` skips the binding. |
+| `project_id` | `str` or `None` — default: `None` | **Deprecated.** The project is inferred from `folder_id`; omit this parameter. |
+| `create_grid` | `bool` — default: `True` | **Deprecated.** `True` creates a `Grid` and returns it as a third object; `False` returns only the `RecordSet` and `CurationTask`. |
+
+> [!IMPORTANT]
+> **Upsert keys:** `upsert_keys` must be nonempty and refer to properties in the schema. Even if `bind_schema_to_record_set=False`, a `schema_uri` is still required to build the metadata template.
+
+**How keys affect uploads:** A new key adds a record; an existing key updates the matching record. Records absent from an upload remain unchanged. When the key uses multiple columns, contributors must complete *all* of them.
+
+> [!NOTE]
+> The supplied API reference identifies `project_id` and `create_grid` as deprecated and scheduled for removal in **Synapse Python Client v5.0.0**.
+
+### File-Based Parameters
+
+The following parameters apply only to `create_file_based_metadata_task()`.
+
+| Parameter | Type / default | Description and options |
+| --- | --- | --- |
+| `attach_wiki` | `bool` — default: `False` | `True` attaches a wiki containing the `EntityView` to the folder; `False` does not. |
+| `entity_view_name` | `str` — default: `"JSON Schema view"` | Name of the `EntityView` created for the task. |
+| `view_type_mask` | `ViewTypeMask` or `int` — default: `ViewTypeMask.FILE` | Controls which object types are included in the view. Use `ViewTypeMask.FILE` for a standard file-annotation task. |
+| `return_entities` | `bool` — default: `False` | `False` returns view and task IDs; `True` returns `EntityView` and `CurationTask` objects. |
+
+> [!NOTE]
+> The supplied API reference indicates that returning objects is planned to become the default in **v5.0.0**, when `return_entities` is also scheduled for removal.
+
+### Grid Access Options
+
+`authorization_mode` stores a **suggested access mode** on the task. The selected mode is applied when a client creates the grid session; it does *not* immediately create a session.
+
+| Value | Meaning |
+| --- | --- |
+| `"SESSION_OWNER"` or `AuthorizationMode.SESSION_OWNER` | Restricts access to the user or team that owns the session. Team members can join a team-owned session. |
+| `"SOURCE_BENEFACTOR"` or `AuthorizationMode.SOURCE_BENEFACTOR` | Allows users with **Edit** permissions on the source data to collaborate in the session. |
+| `None` | Does not store an explicit recommendation; clients typically fall back to their usual private-session behavior for the current user. |
+
+> [!WARNING]
+> **Changing access mode:** Changing the authorization mode resets the active session link. A new grid session must be opened before curation continues.
+
+### Column Ordering
+
+Use `column_order` to control column placement without listing every column. Do not assume properties will appear in the same order as they are written in the JSON Schema.
+
+| Setting or rule | Behavior |
+| --- | --- |
+| `None` | No custom ordering is requested. |
+| List of column names | Listed columns appear in that order, immediately after pinned columns. |
+| Unlisted columns | Remain visible and follow in their existing relative order. |
+| **Record-based pinned columns** | Columns in `upsert_keys` remain first. |
+| **File-based pinned columns** | `name` and `id` remain first. |
+| Pinned column included in the list | Stays in its pinned position without duplication. |
+| Unknown column name | Raises a `ValueError`. |
+| File-based system columns | Available columns such as `createdBy` and `modifiedOn` can be placed after pinned columns. |
+
+### Derived Annotations
+
+**Derived annotations** are metadata values calculated from rules in a bound JSON Schema, such as `default` values, `const` values, or conditional rules.
+
+- **`enable_derived_annotations=True`:** Enables derived annotations during schema binding.
+- **`enable_derived_annotations=False`:** Disables this behavior (*default*).
+
+Derived annotations are generated only when annotation data is valid against the bound schema.
+
+> [!TIP]
+> For a first curation task, use `False` unless the schema is designed to generate derived annotation values.
+
+### View Type Options
+
+`ViewTypeMask` identifies the types of Synapse objects an `EntityView` can include. The actual objects returned also depend on the view's scope. For a standard file-based workflow, use **`ViewTypeMask.FILE`**.
+
+| Enum member | Integer value | Object type |
+| --- | ---: | --- |
+| `ViewTypeMask.FILE` | 1 | Files |
+| `ViewTypeMask.PROJECT` | 2 | Projects |
+| `ViewTypeMask.TABLE` | 4 | Tables |
+| `ViewTypeMask.FOLDER` | 8 | Folders |
+| `ViewTypeMask.VIEW` | 16 | EntityViews |
+| `ViewTypeMask.DOCKER` | 32 | Docker repositories |
+| `ViewTypeMask.SUBMISSION_VIEW` | 64 | SubmissionViews |
+| `ViewTypeMask.DATASET` | 128 | Datasets |
+| `ViewTypeMask.DATASET_COLLECTION` | 256 | DatasetCollections |
+| `ViewTypeMask.MATERIALIZED_VIEW` | 512 | MaterializedViews |
+
+> [!NOTE]
+> Multiple view types can be combined using the bitwise OR (`|`) operator. The examples in this guide use only `ViewTypeMask.FILE`.
+
+### Return Values
+
+The number and type of values returned by each helper depend on its compatibility settings.
+
+| Function and setting | Returned values, in order |
+| --- | --- |
+| Record-based with `create_grid=False` (*recommended*) | `RecordSet`, `CurationTask` |
+| Record-based with `create_grid=True` (*current default in supplied signature; deprecated*) | `RecordSet`, `CurationTask`, `Grid` |
+| File-based with `return_entities=True` (*recommended*) | `EntityView`, `CurationTask` |
+| File-based with `return_entities=False` (*current default in supplied signature; deprecated*) | `EntityView` ID, task ID |
+
+> [!IMPORTANT]
+> **Keep `return_entities=True` and `create_grid=False`.** The current defaults (`return_entities=False` and `create_grid=True`) are deprecated and scheduled for removal in **Synapse Python Client v5.0.0**. Setting these values explicitly keeps your scripts working the same way after that release.
+
+### Created Objects and Workflow Properties
+
+These properties describe the objects returned by the helper functions; they are *not* additional function parameters.
+
+#### Identifiers
+
+| Property | Description |
+| --- | --- |
+| `record_set.id` | Synapse ID of the created `RecordSet`. |
+| `entity_view.id` | Synapse ID of the created `EntityView`. |
+| `curation_task.task_id` | Numeric ID of the curation task. |
+
+#### Curation task properties
+
+| Property | Description |
+| --- | --- |
+| `curation_task.data_type` | Task's data-type/name field, populated from `curation_task_name`. |
+| `curation_task.project_id` | Synapse ID of the containing project. *Distinct from the deprecated helper parameter.* |
+| `curation_task.instructions` | Instructions shown to contributors. |
+| `curation_task.task_properties` | Configuration connecting the task to its record-based or file-based source. |
+| `curation_task.task_properties.record_set_id` | Record-based: Synapse ID of the `RecordSet`. |
+| `curation_task.task_properties.upload_folder_id` | File-based: folder associated with the files. |
+| `curation_task.task_properties.file_view_id` | File-based: Synapse ID of the `EntityView`. |
+| `curation_task.task_properties.suggested_authorization_mode` | Access-mode recommendation set by `authorization_mode`. |
+
+### Record-Based Validation Properties
+
+After metadata is exported from the grid back to a schema-bound `RecordSet`, Synapse generates a saved **row-level validation report**. Administrators can use the following fields to review the results.
+
+| Property or report column | Description |
+| --- | --- |
+| `record_set.validation_file_handle_id` | Identifies the saved validation report after an export generates validation results. |
+| `row_index` | Identifies the row associated with a validation result. |
+| `is_valid` | Whether the row passed validation: `True` or `False`. |
+| `validation_error_message` | Summary of validation errors for the row. |
+| `all_validation_messages` | All schema-validation messages for the row. |
+
+The detailed report can be retrieved with **`RecordSet.get_detailed_validation_results()`**. If no report is available, the method returns `None`. Confirm that the schema is bound and the grid has been exported back to the `RecordSet`.
