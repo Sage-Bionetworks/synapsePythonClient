@@ -133,7 +133,7 @@ Extracted schema properties and created template: ['sampleId', 'participantId', 
 Uploading to Synapse storage: 100%|██████████|
 Created RecordSet with ID: syn12345678 in folder syn12345678
 Bound schema MyOrganization-BiospecimenMetadata-1.0.0 to RecordSet ID: syn51234567
-Created CurationTask (1042) with name Curate Biospecimen Metadata
+Created CurationTask (1234) with name Curate Biospecimen Metadata
 RecordSet ID: syn12345678
 CurationTask ID: 1234
 ```
