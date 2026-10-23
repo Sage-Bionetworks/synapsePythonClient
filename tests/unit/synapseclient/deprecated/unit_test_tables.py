@@ -1524,6 +1524,96 @@ def test_rowset_asDataFrame__with_ROW_ETAG_column(syn: Synapse) -> None:
         assert expected_indicies == dataframe.index.values.tolist()
 
 
+def _multi_page_query_results() -> tuple[dict, list[dict]]:
+    """Return a first page and 2 next pages of a table query, with 5 rows in total."""
+
+    def make_rowset(start: int, count: int) -> dict:
+        return {
+            "concreteType": "org.sagebionetworks.repo.model.table.RowSet",
+            "etag": "DEFAULT",
+            "tableId": "syn11363411",
+            "headers": [
+                {"id": "61770", "columnType": "STRING", "name": "annotationColumn1"},
+            ],
+            "rows": [
+                {
+                    "values": [f"value{row_id}"],
+                    "etag": f"etag{row_id}",
+                    "rowId": row_id,
+                    "versionNumber": 1,
+                }
+                for row_id in range(start, start + count)
+            ],
+        }
+
+    query_result = {
+        "concreteType": "org.sagebionetworks.repo.model.table.QueryResultBundle",
+        "maxRowsPerPage": 6990,
+        "selectColumns": [
+            {"id": "61770", "columnType": "STRING", "name": "annotationColumn1"},
+        ],
+        "queryCount": 5,
+        "queryResult": {
+            "concreteType": "org.sagebionetworks.repo.model.table.QueryResult",
+            "nextPageToken": "token1",
+            "queryResults": make_rowset(0, 2),
+        },
+    }
+    next_pages = [
+        {
+            "concreteType": "org.sagebionetworks.repo.model.table.QueryResult",
+            "nextPageToken": "token2",
+            "queryResults": make_rowset(2, 2),
+        },
+        {
+            "concreteType": "org.sagebionetworks.repo.model.table.QueryResult",
+            "queryResults": make_rowset(4, 1),
+        },
+    ]
+    return query_result, next_pages
+
+
+def test_rowset_asDataFrame__multiple_pages_row_id_and_version_not_in_index(
+    syn: Synapse,
+) -> None:
+    # GIVEN a query result with 3 pages
+    query_result, next_pages = _multi_page_query_results()
+
+    with (
+        patch.object(syn, "_queryTable", return_value=query_result),
+        patch.object(syn, "_queryTableNext", side_effect=next_pages),
+    ):
+        # WHEN I convert the result with row ID and version as columns
+        table = syn.tableQuery("select something from syn123", resultsAs="rowset")
+        dataframe = table.asDataFrame(rowIdAndVersionInIndex=False)
+
+    # THEN the DataFrame has one row for each row in all pages
+    assert 5 == len(dataframe)
+    assert [0, 1, 2, 3, 4] == list(dataframe["ROW_ID"])
+    assert [1, 1, 1, 1, 1] == list(dataframe["ROW_VERSION"])
+    assert [f"etag{i}" for i in range(5)] == list(dataframe["ROW_ETAG"])
+    assert [f"value{i}" for i in range(5)] == list(dataframe["annotationColumn1"])
+
+
+def test_rowset_asDataFrame__multiple_pages_row_id_and_version_not_in_index_has_unique_index(
+    syn: Synapse,
+) -> None:
+    # GIVEN a query result with 3 pages
+    query_result, next_pages = _multi_page_query_results()
+
+    with (
+        patch.object(syn, "_queryTable", return_value=query_result),
+        patch.object(syn, "_queryTableNext", side_effect=next_pages),
+    ):
+        # WHEN I convert the result with row ID and version as columns
+        table = syn.tableQuery("select something from syn123", resultsAs="rowset")
+        dataframe = table.asDataFrame(rowIdAndVersionInIndex=False)
+
+    # THEN the index is unique and numbers the rows across all pages
+    assert dataframe.index.is_unique
+    assert [0, 1, 2, 3, 4] == dataframe.index.tolist()
+
+
 def test_RowSetTable_len() -> None:
     schema = Schema(
         parentId="syn123", id="syn456", columns=[Column(name="column_name", id="123")]
