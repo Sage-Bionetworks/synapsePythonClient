@@ -6,7 +6,7 @@ Synapse Python Client — official Python SDK and CLI for Synapse (synapse.org),
 
 ## Stack
 
-- Python 3.11–3.14 (`setup.cfg`: `python_requires = >=3.11, <3.15`)
+- Python 3.11–3.15 (`setup.cfg`: `python_requires = >=3.11, <3.16`)
 - HTTP: httpx (async), requests (sync/legacy)
 - Models: stdlib dataclasses (NOT Pydantic)
 - pandas (optional): `pandas>=1.5,<4.0` (`setup.cfg`, 4 places)
@@ -132,7 +132,7 @@ Code must work on every pandas version from 1.5 to 3.x. Use one code path that w
 - Integration tests use `--reruns 3` for flaky retries and `-n 4 --dist loadscope` for parallelism
 - Integration fixtures create per-worker Synapse projects; use `schedule_for_cleanup()` for teardown
 - Auth env vars: `SYNAPSE_AUTH_TOKEN` (bearer token), `SYNAPSE_PROFILE` (config file profile, default: `"default"`), `SYNAPSE_TOKEN_AWS_SSM_PARAMETER_NAME` (AWS SSM path)
-- CI runs integration tests only on Python 3.11 and 3.14 (oldest + newest) to limit Synapse server load
+- CI runs integration tests only on Python 3.11 and 3.15 (oldest + newest) to limit Synapse server load
 - CI job `test-pandas-versions` (`.github/workflows/build.yml`) runs the unit tests on older pandas versions: 1.5.3 on Python 3.11, 2.1.4 on Python 3.12, 2.2.3 on Python 3.13 (ubuntu only). The `package` job needs it. pandas < 2.2.2 requires `numpy<2`, so each matrix entry sets its own numpy requirement.
 
 ## Maintenance
