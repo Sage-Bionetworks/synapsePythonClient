@@ -788,8 +788,14 @@ class RecordSet(RecordSetSynchronousProtocol, AccessControllable, BaseJSONSchema
         )
 
     def _fill_from_file_handle(self) -> None:
-        """Fill the file object from the file handle."""
-        if self.file_handle:
+        """Fill the file object from the file handle.
+
+        This is a no-op when the file handle has no `id`. Synapse withholds the file
+        handle from callers without DOWNLOAD permission (e.g. unmet access
+        requirements), which leaves an empty placeholder `FileHandle` that must not
+        overwrite the `data_file_handle_id` returned on the entity.
+        """
+        if self.file_handle and self.file_handle.id:
             self.data_file_handle_id = self.file_handle.id
             self.content_type = self.file_handle.content_type
             self.content_size = self.file_handle.content_size
