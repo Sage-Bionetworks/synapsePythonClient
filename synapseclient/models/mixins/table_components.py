@@ -230,7 +230,9 @@ def convert_dtypes_to_json_serializable(df) -> "DATA_FRAME_TYPE":
         return x
 
     for col in df.columns:
-        df[col] = df[col].apply(_serialize_json_value)
+        # cast to object first so missing values do not turn an Int64 column into
+        # Float64 (pandas 3), which would write 1 as 1.0
+        df[col] = df[col].astype(object).map(_serialize_json_value)
         # restore the original values of the column especially for the int64 and float64 columns since apply function changes the dtype
         df[col] = df[col].convert_dtypes()
         df[col] = df[col].replace({pd.NA: None}).astype(object)
