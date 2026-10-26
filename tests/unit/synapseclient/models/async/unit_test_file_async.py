@@ -797,6 +797,32 @@ class TestFile:
             assert result.file_handle.is_preview
             assert result.file_handle.external_url == FILE_HANDLE_EXTERNAL_URL
 
+    async def test_get_with_unmet_access_requirement(self) -> None:
+        # GIVEN an example file
+        file = File(id=SYN_123, download_file=False)
+
+        # AND an entity bundle where Synapse withheld the file handle because the
+        # caller has unmet access requirements
+        bundle = self.get_example_rest_api_file_output()
+        bundle["fileHandles"] = []
+        bundle["restrictionInformation"] = {"hasUnmetAccessRequirement": True}
+
+        # WHEN I get the example file
+        with patch(
+            "synapseclient.api.entity_factory.get_entity_id_bundle2",
+            new_callable=AsyncMock,
+            return_value=bundle,
+        ):
+            result = await file.get_async(synapse_client=self.syn)
+
+        # THEN the data_file_handle_id from the entity should be preserved
+        assert result.id == SYN_123
+        assert result.data_file_handle_id == DATA_FILE_HANDLE_ID
+
+        # AND the file handle should have no metadata filled in
+        assert result.file_handle.id is None
+        assert result.content_md5 is None
+
     async def test_get_with_path(self) -> None:
         # GIVEN an example file
         file = File(path=PATH, description=MODIFIED_DESCRIPTION)
