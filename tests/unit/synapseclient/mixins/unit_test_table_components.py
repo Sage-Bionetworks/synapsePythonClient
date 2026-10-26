@@ -5451,6 +5451,57 @@ class TestConvertDtypesToJsonSerializable:
         assert list(result["int_col"]) == [1, 2, None, 4]
         assert list(result["float_col"]) == [1.1, 2.2, None, 4.4]
 
+    @pytest.mark.parametrize(
+        "values, expected_types",
+        [
+            # nullable Int64 with missing values, as made by convert_dtypes()
+            (pd.array([1, 2, pd.NA, 4], dtype="Int64"), [int, int, type(None), int]),
+            # a list of ints with None, as given by a user
+            (pd.Series([1, None, 3]).convert_dtypes(), [int, type(None), int]),
+            # int64 with no missing values
+            (pd.Series([1, 2, 3]), [int, int, int]),
+            # Float64 with missing values stays float
+            (pd.array([1.5, pd.NA, 3.0], dtype="Float64"), [float, type(None), float]),
+        ],
+        ids=["Int64_with_NA", "list_with_None", "int64", "Float64_with_NA"],
+    )
+    def test_number_columns_keep_python_type(self, values, expected_types):
+        """Test that each value keeps its int or float type. The == check alone
+        does not catch an int that changed to a float, because 1.0 == 1."""
+        # GIVEN a dataframe with a number column
+        df = pd.DataFrame({"col": values})
+
+        # WHEN convert_dtypes_to_json_serializable is called
+        result = convert_dtypes_to_json_serializable(df)
+
+        # THEN each value should have the expected Python type
+        assert [type(value) for value in result["col"]] == expected_types
+
+    def test_int_column_with_na_is_written_to_csv_as_int(self):
+        """Test that an int column with missing values is written to CSV without a
+        decimal part. Synapse rejects "1.0" for an INTEGER column and
+        "1609502400000.0" for a DATE column."""
+        # GIVEN a dataframe with INTEGER and DATE (epoch ms) values and a missing value
+        df = pd.DataFrame(
+            {
+                "int_col": [1, None, 3],
+                "date_col": [1609502400000, None, 1708459200000],
+            }
+        ).convert_dtypes()
+
+        # WHEN convert_dtypes_to_json_serializable is called and the result is
+        # written to CSV with the same arguments as the upload
+        result = convert_dtypes_to_json_serializable(df)
+        csv_text = result.to_csv(index=False, float_format="%.12g")
+
+        # THEN the values should be written as integers
+        assert csv_text.splitlines() == [
+            "int_col,date_col",
+            "1,1609502400000",
+            ",",
+            "3,1708459200000",
+        ]
+
     def test_row_columns_remain_int(self):
         """Test that ROW_ID, ROW_VERSION, and ROW_ID.1 columns remain as int while other columns become object"""
         # GIVEN a dataframe with special columns (ROW_ID, ROW_VERSION, ROW_ID.1) and a regular column
