@@ -38,15 +38,16 @@ Records are uniquely identified by one or more **key columns**, configured using
 
 Use **file-based metadata** to describe individual files stored in Synapse. Each row represents a file, and its metadata is stored directly on that file as annotations.
 
-> [!TIP]
-> **You can use both workflows in the same Synapse project.** For example, store biospecimen details once in a `RecordSet`, then use a shared identifier such as `sampleId` to associate multiple files with that biospecimen.
+!!! tip
+
+    **You can use both workflows in the same Synapse project.** For example, store biospecimen details once in a `RecordSet`, then use a shared identifier such as `sampleId` to associate multiple files with that biospecimen.
 
 ## Prerequisites
 
 Before creating a curation task, make sure you have the following:
 
 - **Synapse account:** Create a Synapse account and complete the Synapse Certification Quiz.
-- **Synapse Python Client:** [Install the client](https://python-docs.synapse.org/en/stable/tutorials/installation/) and [configure your credentials](https://python-docs.synapse.org/en/stable/tutorials/authentication/).
+- **Synapse Python Client:** [Install the client](https://python-docs.synapse.org/en/stable/tutorials/installation/) with the Curator extras (`pip install --upgrade "synapseclient[curator]"`) and [configure your credentials](https://python-docs.synapse.org/en/stable/tutorials/authentication/).
 - **Project and folder permissions:** Have **Edit permissions or higher** for the Synapse project and folder where you will manage metadata. Note the folder's Synapse ID for use in the examples.
 - **JSON Schema:** Browse [existing schemas](https://sage-bionetworks.github.io/core-models/) or create your own. You will need a **versioned schema URI**, such as `MyOrganization-MySchema-1.0.0`. For details, see the [Schema Operations Guide](https://python-docs.synapse.org/en/stable/guides/extensions/curator/schema_operations/).
 
@@ -280,7 +281,7 @@ The following parameters apply only to `create_record_based_metadata_task()`.
 > [!IMPORTANT]
 > **Upsert keys:** `upsert_keys` must be nonempty and refer to properties in the schema. Even if `bind_schema_to_record_set=False`, a `schema_uri` is still required to build the metadata template.
 
-**How keys affect uploads:** A new key adds a record; an existing key updates the matching record. Records absent from an upload remain unchanged. When the key uses multiple columns, contributors must complete *all* of them.
+**How keys affect grid CSV imports:** When contributors use `Grid.import_csv()`, a new key adds a record and an existing key updates the matching record; records absent from the import remain unchanged. When the key uses multiple columns, contributors must complete *all* of them. Uploading a CSV directly by setting `RecordSet.path` and calling `RecordSet.store()` replaces the RecordSet's data file instead of upserting its rows.
 
 > [!NOTE]
 > The supplied API reference identifies `project_id` and `create_grid` as deprecated and scheduled for removal in **Synapse Python Client v5.0.0**.
@@ -410,4 +411,4 @@ After metadata is exported from the grid back to a schema-bound `RecordSet`, Syn
 | `validation_error_message` | Summary of validation errors for the row. |
 | `all_validation_messages` | All schema-validation messages for the row. |
 
-The detailed report can be retrieved with **`RecordSet.get_detailed_validation_results()`**. If no report is available, the method returns `None`. Confirm that the schema is bound and the grid has been exported back to the `RecordSet`.
+After contributors synchronize (push) the grid back to the `RecordSet`, fetch the latest version before retrieving the detailed report. Import `RecordSet` with `from synapseclient.models import RecordSet`, then use `record_set = RecordSet(id=record_set.id).get(synapse_client=syn)` to load the latest `validation_file_handle_id`. Retrieve the report with `record_set.get_detailed_validation_results(synapse_client=syn)`. If the method returns `None`, confirm that the schema is bound and the grid changes have been pushed to the `RecordSet`.
