@@ -288,8 +288,9 @@ The following parameters apply only to `create_record_based_metadata_task()`.
 
 **How keys affect grid CSV imports:** When contributors use `Grid.import_csv()`, a new key adds a record and an existing key updates the matching record; records absent from the import remain unchanged. When the key uses multiple columns, contributors must complete *all* of them. Uploading a CSV directly by setting `RecordSet.path` and calling `RecordSet.store()` replaces the RecordSet's data file instead of upserting its rows.
 
-> [!NOTE]
-> The supplied API reference identifies `project_id` and `create_grid` as deprecated and scheduled for removal in **Synapse Python Client v5.0.0**.
+!!! note
+
+    `project_id` and `create_grid` are deprecated and scheduled for removal in **Synapse Python Client v5.0.0**.
 
 ### File-Based Parameters
 
