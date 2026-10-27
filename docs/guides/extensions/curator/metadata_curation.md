@@ -302,8 +302,9 @@ The following parameters apply only to `create_file_based_metadata_task()`.
 | `view_type_mask` | `ViewTypeMask` or `int` — default: `ViewTypeMask.FILE` | Controls which object types are included in the view. Use `ViewTypeMask.FILE` for a standard file-annotation task. |
 | `return_entities` | `bool` — default: `False` | `False` returns view and task IDs; `True` returns `EntityView` and `CurationTask` objects. |
 
-> [!NOTE]
-> The supplied API reference indicates that returning objects is planned to become the default in **v5.0.0**, when `return_entities` is also scheduled for removal.
+!!! note
+
+    The supplied API reference indicates that returning objects is planned to become the default in **v5.0.0**, when `return_entities` is also scheduled for removal.
 
 ### Grid Access Options
 
@@ -315,8 +316,9 @@ The following parameters apply only to `create_file_based_metadata_task()`.
 | `"SOURCE_BENEFACTOR"` or `AuthorizationMode.SOURCE_BENEFACTOR` | Allows users with **Edit** permissions on the source data to collaborate in the session. |
 | `None` | Does not store an explicit recommendation; clients typically fall back to their usual private-session behavior for the current user. |
 
-> [!WARNING]
-> **Changing access mode:** Changing the authorization mode resets the active session link. A new grid session must be opened before curation continues.
+!!! warning
+
+    **Changing access mode:** Changing the authorization mode resets the active session link. A new grid session must be opened before curation continues.
 
 ### Column Ordering
 
