@@ -51,15 +51,17 @@ Before creating a curation task, make sure you have the following:
 - **Project and folder permissions:** Have **Edit permissions or higher** for the Synapse project and folder where you will manage metadata. Note the folder's Synapse ID for use in the examples.
 - **JSON Schema:** Browse [existing schemas](https://sage-bionetworks.github.io/core-models/) or create your own. You will need a **versioned schema URI**, such as `MyOrganization-MySchema-1.0.0`. For details, see the [Schema Operations Guide](https://python-docs.synapse.org/en/stable/guides/extensions/curator/schema_operations/).
 
-> [!NOTE]
-> Schema URIs and Synapse IDs in the examples below are *placeholders*. Replace them with values from your own Synapse project.
+!!! note
+
+    Schema URIs and Synapse IDs in the examples below are *placeholders*. Replace them with values from your own Synapse project.
 
 ## Create a Record-Based Metadata Task
 
 This example creates a `RecordSet` to store biospecimen metadata and a corresponding `CurationTask` for contributors.
 
-> [!IMPORTANT]
-> **Before running:** Replace `folder_id` and `schema_uri`. Make sure `upsert_keys` and `column_order` use property names defined in your registered JSON Schema.
+!!! info
+
+    **Before running:** Replace `folder_id` and `schema_uri`. Make sure `upsert_keys` and `column_order` use property names defined in your registered JSON Schema.
 
 ```python
 from synapseclient import Synapse
@@ -107,6 +109,7 @@ record_set, curation_task = create_record_based_metadata_task(
 
     # Suggested access mode for the grid session when it is opened.
     # Options: "SESSION_OWNER", "SOURCE_BENEFACTOR", or None.
+    # https://rest-docs.synapse.org/rest/org/sagebionetworks/repo/model/grid/AuthorizationMode.html
     authorization_mode="SOURCE_BENEFACTOR",
 
     # Optional order of columns after the pinned upsert key(s).
@@ -139,20 +142,20 @@ RecordSet ID: syn12345678
 CurationTask ID: 1234
 ```
 
-> [!TIP]
-> **Column placement:** The upsert key (`sampleId`) remains the leftmost column. Columns listed in `column_order` appear next, followed by any remaining schema properties.
+!!! tip
+
+    **Column placement:** The upsert key (`sampleId`) remains the leftmost column. Columns listed in `column_order` appear next, followed by any remaining schema properties.
 
 ## Create a File-Based Metadata Task
 
 This example creates an `EntityView` of files in a folder and a corresponding `CurationTask` for annotating them.
 
 
-> [!IMPORTANT]
-> - **Set `return_entities=True`.** Returning objects is planned to become the default in **v5.0.0**, when `return_entities` will be removed.
-> 
-> - **Before running:** Replace `folder_id` and `schema_uri`. Update `column_order` to match available view columns. This example assumes your schema includes `sampleId`, `assay`, and `fileFormat`.
-> 
-> - **Add at least one file first:** Make sure the folder contains at least one file before you create a file-based metadata task. The `EntityView` lists the files in the folder, so contributors will have nothing to annotate if the folder is empty.
+!!! info
+ 
+    - **Set `return_entities=True`.** Returning objects is planned to become the default in **v5.0.0**, when `return_entities` will be removed.
+    - **Before running:** Replace `folder_id` and `schema_uri`. Update `column_order` to match available view columns. This example assumes your schema includes `sampleId`, `assay`, and `fileFormat`.
+    - **Add at least one file first:** Make sure the folder contains at least one file before you create a file-based metadata task. The `EntityView` lists the files in the folder, so contributors will have nothing to annotate if the folder is empty.
 
 ```python
 from synapseclient import Synapse
@@ -262,8 +265,9 @@ These parameters are accepted by both `create_record_based_metadata_task()` and 
 | `column_order` | `list[str]` or `None` — default: `None` | Desired left-to-right column order after pinned columns. Unlisted columns remain visible. See [Column ordering](#column-ordering). |
 | `synapse_client` | `Synapse` or `None` — default: `None` | Client used for the operation. Passing an authenticated client makes the connection explicit. |
 
-> [!NOTE]
-> **Additional behavior:** Reusing an existing task name may update the matching task. If `synapse_client` is omitted, the last-created client is used when client caching is enabled. For file-based tasks, omit `schema_uri` only when the folder already has an applicable schema.
+!!! note
+
+    **Additional behavior:** Reusing an existing task name may update the matching task. If `synapse_client` is omitted, the last-created client is used when client caching is enabled. For file-based tasks, omit `schema_uri` only when the folder already has an applicable schema.
 
 ### Record-Based Parameters
 
@@ -278,8 +282,9 @@ The following parameters apply only to `create_record_based_metadata_task()`.
 | `project_id` | `str` or `None` — default: `None` | **Deprecated.** The project is inferred from `folder_id`; omit this parameter. |
 | `create_grid` | `bool` — default: `True` | **Deprecated.** `True` creates a `Grid` and returns it as a third object; `False` returns only the `RecordSet` and `CurationTask`. |
 
-> [!IMPORTANT]
-> **Upsert keys:** `upsert_keys` must be nonempty and refer to properties in the schema. Even if `bind_schema_to_record_set=False`, a `schema_uri` is still required to build the metadata template.
+!!! info
+
+    **Upsert keys:** `upsert_keys` must be nonempty and refer to properties in the schema. Even if `bind_schema_to_record_set=False`, a `schema_uri` is still required to build the metadata template.
 
 **How keys affect grid CSV imports:** When contributors use `Grid.import_csv()`, a new key adds a record and an existing key updates the matching record; records absent from the import remain unchanged. When the key uses multiple columns, contributors must complete *all* of them. Uploading a CSV directly by setting `RecordSet.path` and calling `RecordSet.store()` replaces the RecordSet's data file instead of upserting its rows.
 
