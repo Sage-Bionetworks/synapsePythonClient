@@ -337,8 +337,9 @@ Use `column_order` to control column placement without listing every column. Do 
 
 Derived annotations are generated only when annotation data is valid against the bound schema.
 
-> [!TIP]
-> For a first curation task, use `False` unless the schema is designed to generate derived annotation values.
+!!! tip
+
+    For a first curation task, use `False` unless the schema is designed to generate derived annotation values.
 
 ### View Type Options
 
@@ -357,8 +358,9 @@ Derived annotations are generated only when annotation data is valid against the
 | `ViewTypeMask.DATASET_COLLECTION` | 256 | DatasetCollections |
 | `ViewTypeMask.MATERIALIZED_VIEW` | 512 | MaterializedViews |
 
-> [!NOTE]
-> Multiple view types can be combined using the bitwise OR (`|`) operator. The examples in this guide use only `ViewTypeMask.FILE`.
+!!! note
+
+    Multiple view types can be combined using the bitwise OR (`|`) operator. The examples in this guide use only `ViewTypeMask.FILE`.
 
 ### Return Values
 
@@ -371,8 +373,9 @@ The number and type of values returned by each helper depend on its compatibilit
 | File-based with `return_entities=True` (*recommended*) | `EntityView`, `CurationTask` |
 | File-based with `return_entities=False` (*current default in supplied signature; deprecated*) | `EntityView` ID, task ID |
 
-> [!IMPORTANT]
-> **Keep `return_entities=True` and `create_grid=False`.** The current defaults (`return_entities=False` and `create_grid=True`) are deprecated and scheduled for removal in **Synapse Python Client v5.0.0**. Setting these values explicitly keeps your scripts working the same way after that release.
+!!! note
+
+    **Keep `return_entities=True` and `create_grid=False`.** The current defaults (`return_entities=False` and `create_grid=True`) are deprecated and scheduled for removal in **Synapse Python Client v5.0.0**. Setting these values explicitly keeps your scripts working the same way after that release.
 
 ### Created Objects and Workflow Properties
 
