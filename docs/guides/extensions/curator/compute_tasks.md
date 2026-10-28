@@ -192,7 +192,7 @@ record_set = RecordSet(id=destination_task.task_properties.record_set_id).get()
 print(f"Now at version {record_set.version_number}")
 ```
 
-Generating a version does not validate it: `validation_file_handle_id` stays empty until a Grid session is exported back to the RecordSet. To check the generated records against the bound schema, open a Grid on the RecordSet and export it, then read the results as described in [Getting detailed validation results](metadata_curation.md#getting-detailed-validation-results).
+Generating a version does not validate it: `validation_file_handle_id` stays empty until a Grid session is exported back to the RecordSet. To check the generated records against the bound schema, open a Grid on the RecordSet and export it, then read the results as described in [Step 8: Review your validation results](metadata_contribution.md#step-8-review-your-validation-results).
 
 Once you're satisfied with the output, close the task out:
 
