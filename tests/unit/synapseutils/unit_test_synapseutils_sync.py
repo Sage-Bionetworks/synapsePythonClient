@@ -210,6 +210,36 @@ def test_read_manifest_file_synapse_store_values_not_set(syn: Synapse) -> None:
         assert expected_synapseStore == actual_synapseStore
 
 
+def test_read_manifest_file_synapse_store_values_all_blank(syn: Synapse) -> None:
+    # GIVEN a manifest with a local path and a URL path, and no synapseStore values
+    project_id = SYN_123
+    header = "path\tparent\tsynapseStore\n"
+    path1 = os.path.abspath(os.path.expanduser("~/file1.txt"))
+    path2 = SYNAPSE_URL
+    row1 = "%s\t%s\t\n" % (path1, project_id)
+    row2 = "%s\t%s\t\n" % (path2, project_id)
+
+    expected_synapseStore = {
+        str(path1): True,
+        str(path2): False,
+    }
+
+    manifest = StringIO(header + row1 + row2)
+    with (
+        patch.object(syn, "get_async", return_value=Project()),
+        patch.object(os.path, "isfile", return_value=True),
+        patch.object(sync, "_check_size_each_file", return_value=Mock()),
+    ):  # side effect mocks values for: file1.txt
+        # WHEN I read the manifest file
+        manifest_dataframe = synapseutils.sync.readManifestFile(syn, manifest)
+
+        # THEN the local path is True and the URL path is False
+        actual_synapseStore = manifest_dataframe.set_index("path")[
+            "synapseStore"
+        ].to_dict()
+        assert expected_synapseStore == actual_synapseStore
+
+
 def test_read_manifest_file_synapse_store_values_are_set(syn: Synapse) -> None:
     project_id = SYN_123
     header = "path\tparent\tsynapseStore\n"
@@ -1162,8 +1192,9 @@ async def test_manifest_upload(syn: Synapse) -> None:
         expected_path = data["path"][i]
         expected_parent = data["parent"][i]
         expected_name = data["name"][i]
-        expected_used = data["used"][i]
-        expected_executed = data["executed"][i]
+        # missing provenance values are given to the upload item as empty lists
+        expected_used = data["used"][i] or []
+        expected_executed = data["executed"][i] or []
         expected_annos = expected_anno_data[i]
 
         upload_items.append(upload_item_init.return_value)
@@ -1178,6 +1209,69 @@ async def test_manifest_upload(syn: Synapse) -> None:
 
     for mock_uploader in mocked_uploaders:
         mock_uploader.upload.assert_called_once_with(upload_items)
+
+
+@patch("os.path.isfile")
+async def test_manifest_upload_missing_provenance_builds_dependency_graph(
+    mock_isfile: MagicMock, syn: Synapse
+) -> None:
+    """Verify that a missing used or executed value in the manifest is treated as
+    no provenance, and does not break the real dependency graph build."""
+    # GIVEN local files that exist
+    mock_isfile.side_effect = lambda path: path.startswith("/tmp")
+
+    # AND a manifest where one executed value is missing
+    df = pd.DataFrame(
+        data={
+            "path": ["/tmp/foo", "/tmp/bar"],
+            "parent": [SYN_123, SYN_123],
+            "used": [[], ["/tmp/foo"]],
+            "executed": [math.nan, []],
+        }
+    )
+
+    with patch.object(
+        _SyncUploader, "_build_tasks_from_dependency_graph", return_value=[]
+    ) as mock_build_tasks:
+        # WHEN I upload the manifest
+        await synapseutils.sync._manifest_upload(syn, df)
+
+    # THEN the dependency graph has no dependencies for the missing value
+    dependency_graph = mock_build_tasks.call_args.kwargs["dependency_graph"]
+    assert dependency_graph.path_to_dependencies == {
+        "/tmp/foo": [],
+        "/tmp/bar": ["/tmp/foo"],
+    }
+
+
+@pytest.mark.parametrize(
+    "value, expected",
+    [
+        (None, []),
+        (math.nan, []),
+        (float("nan"), []),
+        ([], []),
+        (["/tmp/foo", SYN_123], ["/tmp/foo", SYN_123]),
+        ("/tmp/foo", "/tmp/foo"),
+        ("", ""),
+    ],
+    ids=[
+        "none",
+        "math_nan",
+        "float_nan",
+        "empty_list",
+        "list",
+        "str",
+        "empty_str",
+    ],
+)
+def test_missing_to_empty_list(value: Any, expected: Any) -> None:
+    # GIVEN a used or executed value from a manifest row
+    # WHEN I convert the value
+    result = synapseutils.sync._missing_to_empty_list(value)
+
+    # THEN a missing value becomes an empty list, and other values are unchanged
+    assert result == expected
 
 
 class TestSyncUploader:

@@ -313,6 +313,51 @@ jobs:
           name: coverage-report
           path: coverage.xml
 
+  # run unit tests against older pandas versions, since the test job installs only the newest pandas in the supported range
+  test-pandas-versions:
+    needs: [pre-commit]
+    timeout-minutes: 60
+
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          # pandas < 2.2.2 is not compatible with numpy 2, so those entries pin numpy 1.26.4 (the last 1.x release)
+          # pandas 1.5 is the lower bound in setup.cfg and installs only on Python 3.11
+          - python: '3.11'
+            pandas: 'pandas==1.5.3'
+            numpy: 'numpy==1.26.4'
+          # pandas 2.1 is the first version with DataFrame.map and the first to support Python 3.12
+          - python: '3.12'
+            pandas: 'pandas==2.1.4'
+            numpy: 'numpy==1.26.4'
+          # pandas 2.2.3 is the first version to support Python 3.13
+          - python: '3.13'
+            pandas: 'pandas==2.2.3'
+            numpy: 'numpy==2.5.4'
+
+    runs-on: ubuntu-22.04
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: ${{ matrix.python }}
+
+      - name: Install py-dependencies
+        shell: bash
+        run: |
+          python -m pip install --upgrade pip
+
+          pip install -e ".[boto3,pandas,pysftp,tests,curator]" "${{ matrix.pandas }}" "${{ matrix.numpy }}"
+
+      - name: run-unit-tests
+        shell: bash
+        run: |
+          python -c "import numpy, pandas; print(f'pandas {pandas.__version__}, numpy {numpy.__version__}')"
+          pytest -sv tests/unit
+
   sonarcloud:
     needs: [test]
     if: ${{ always() && !cancelled()}}
@@ -350,7 +395,7 @@ jobs:
 
   # on a GitHub release, build the pip package and upload it as a GitHub release asset
   package:
-    needs: [test, pre-commit]
+    needs: [test, test-pandas-versions, pre-commit]
 
     runs-on: ubuntu-22.04
 

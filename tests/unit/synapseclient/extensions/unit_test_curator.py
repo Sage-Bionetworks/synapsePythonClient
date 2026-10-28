@@ -16,6 +16,7 @@ from collections import OrderedDict
 from typing import Any, Callable
 from unittest.mock import Mock, mock_open, patch
 
+import numpy as np
 import pandas as pd
 import pytest
 
@@ -45,6 +46,8 @@ from synapseclient.extensions.curator.record_based_metadata_task import (
     project_id_from_entity_id,
 )
 from synapseclient.extensions.curator.schema_generation import (
+    convert_floats,
+    find_and_convert_ints,
     generate_jsonld,
     generate_jsonschema,
 )
@@ -1965,6 +1968,215 @@ class TestValidateColumnOrderList:
         """A value repeated several times is reported a single time."""
         with pytest.raises(ValueError, match=r"duplicate values: \['patientId'\]"):
             validate_column_order_list(["patientId", "patientId", "patientId"])
+
+
+class TestFindAndConvertInts:
+    """Test cases for find_and_convert_ints in curator.schema_generation."""
+
+    def test_converts_digit_strings_to_ints(self) -> None:
+        """Strings of digits become numpy int64 values and are marked as ints."""
+        # GIVEN a dataframe where every cell is a string of digits
+        df = pd.DataFrame({"a": ["1", "22"], "b": ["0", "333"]})
+
+        # WHEN the integers are found and converted
+        ints, is_int = find_and_convert_ints(df)
+
+        # THEN every cell is converted to an int64 and marked as an int
+        assert ints.to_dict("list") == {"a": [1, 22], "b": [0, 333]}
+        assert all(isinstance(value, np.int64) for value in ints.to_numpy().flatten())
+        assert is_int.to_numpy().all()
+
+    @pytest.mark.parametrize(
+        "value",
+        ["abc", "1.5", "-1", "1e3", " 1", "", 5, 1.0],
+        ids=[
+            "text",
+            "float string",
+            "negative string",
+            "scientific notation",
+            "leading space",
+            "empty string",
+            "int",
+            "float",
+        ],
+    )
+    def test_does_not_convert_other_values(self, value: any) -> None:
+        """Values that are not strings of digits become False."""
+        # GIVEN a dataframe with a value that is not a string of digits
+        df = pd.DataFrame({"a": [value]}, dtype=object)
+
+        # WHEN the integers are found and converted
+        ints, is_int = find_and_convert_ints(df)
+
+        # THEN the value is replaced with False and is not marked as an int
+        # (pandas can give a numpy bool when the whole column is False)
+        assert isinstance(ints.loc[0, "a"], (bool, np.bool_))
+        assert not ints.loc[0, "a"]
+        assert not is_int.loc[0, "a"]
+
+    def test_missing_values_become_false(self) -> None:
+        """Missing values become False and are not marked as ints."""
+        # GIVEN a dataframe with missing values
+        df = pd.DataFrame({"a": ["x", None, np.nan]}, dtype=object)
+
+        # WHEN the integers are found and converted
+        ints, is_int = find_and_convert_ints(df)
+
+        # THEN the missing values are replaced with False
+        assert ints["a"].tolist() == [False, False, False]
+        assert is_int["a"].tolist() == [False, False, False]
+
+    def test_mixed_columns(self) -> None:
+        """Each cell is checked on its own, so a column can be partly converted."""
+        # GIVEN a dataframe that mixes digit strings, text, and floats
+        df = pd.DataFrame(
+            {
+                "id": ["1", "2", "3"],
+                "name": ["x", "10", "y"],
+                "score": ["1.5", "2", "abc"],
+            }
+        )
+
+        # WHEN the integers are found and converted
+        ints, is_int = find_and_convert_ints(df)
+
+        # THEN only the digit strings are converted and marked as ints
+        assert ints.to_dict("list") == {
+            "id": [1, 2, 3],
+            "name": [False, 10, False],
+            "score": [False, 2, False],
+        }
+        assert is_int.to_dict("list") == {
+            "id": [True, True, True],
+            "name": [False, True, False],
+            "score": [False, True, False],
+        }
+
+    def test_returns_dataframes_with_same_shape_and_labels(self) -> None:
+        """Both results keep the index and columns of the input dataframe."""
+        # GIVEN a dataframe with a custom index
+        df = pd.DataFrame({"a": ["1", "x"], "b": ["y", "2"]}, index=["r1", "r2"])
+
+        # WHEN the integers are found and converted
+        ints, is_int = find_and_convert_ints(df)
+
+        # THEN both results are dataframes with the same labels as the input
+        for result in (ints, is_int):
+            assert isinstance(result, pd.DataFrame)
+            assert result.index.tolist() == ["r1", "r2"]
+            assert result.columns.tolist() == ["a", "b"]
+
+    def test_empty_dataframe(self) -> None:
+        """An empty dataframe gives empty results."""
+        # GIVEN an empty dataframe
+        df = pd.DataFrame({"a": []}, dtype=object)
+
+        # WHEN the integers are found and converted
+        ints, is_int = find_and_convert_ints(df)
+
+        # THEN both results are empty
+        assert ints.empty
+        assert is_int.empty
+
+
+class TestConvertFloats:
+    """Test cases for convert_floats in curator.schema_generation."""
+
+    @pytest.mark.parametrize(
+        "value, expected",
+        [
+            ("1.5", 1.5),
+            ("-0.5", -0.5),
+            ("1e3", 1000.0),
+            (" 3", 3.0),
+        ],
+        ids=["float", "negative", "scientific notation", "leading space"],
+    )
+    def test_converts_numeric_strings_to_floats(
+        self, value: str, expected: float
+    ) -> None:
+        """Strings that represent numbers become floats."""
+        # GIVEN a dataframe with a numeric string and a text value
+        df = pd.DataFrame({"a": [value, "abc"]}, dtype=object)
+
+        # WHEN the floats are converted
+        float_df = convert_floats(df)
+
+        # THEN the numeric string is converted to a float
+        assert isinstance(float_df.loc[0, "a"], float)
+        assert float_df.loc[0, "a"] == expected
+
+    @pytest.mark.parametrize(
+        "value",
+        ["abc", "", "nan"],
+        ids=["text", "empty string", "nan string"],
+    )
+    def test_keeps_non_numeric_strings(self, value: str) -> None:
+        """Strings that are not numbers keep their original value."""
+        # GIVEN a dataframe with a numeric string and a non-numeric string
+        df = pd.DataFrame({"a": ["1.5", value]}, dtype=object)
+
+        # WHEN the floats are converted
+        float_df = convert_floats(df)
+
+        # THEN the non-numeric string is not changed
+        assert float_df.loc[1, "a"] == value
+        assert isinstance(float_df.loc[1, "a"], str)
+
+    def test_missing_values_stay_missing(self) -> None:
+        """Missing values are not converted."""
+        # GIVEN a dataframe with a missing value
+        df = pd.DataFrame({"a": ["1.5", None]}, dtype=object)
+
+        # WHEN the floats are converted
+        float_df = convert_floats(df)
+
+        # THEN the missing value is still missing
+        # (pandas 2 gives NaN and pandas 3 gives None)
+        assert float_df.loc[0, "a"] == 1.5
+        assert pd.isna(float_df.loc[1, "a"])
+
+    def test_mixed_columns(self) -> None:
+        """Each cell is checked on its own, so a column can be partly converted."""
+        # GIVEN a dataframe that mixes numeric strings and text
+        df = pd.DataFrame(
+            {"a": ["1", "x"], "b": ["y", "2.5"]},
+            index=["r1", "r2"],
+        )
+
+        # WHEN the floats are converted
+        float_df = convert_floats(df)
+
+        # THEN only the numeric strings are converted
+        assert float_df.to_dict("list") == {"a": [1.0, "x"], "b": ["y", 2.5]}
+        # AND the columns are object dtype, with the same labels as the input
+        assert all(dtype == object for dtype in float_df.dtypes)
+        assert float_df.index.tolist() == ["r1", "r2"]
+        assert float_df.columns.tolist() == ["a", "b"]
+
+    def test_does_not_change_input(self) -> None:
+        """The input dataframe is not changed."""
+        # GIVEN a dataframe with numeric strings
+        df = pd.DataFrame({"a": ["1.5", "x"]})
+        original = df.copy()
+
+        # WHEN the floats are converted
+        convert_floats(df)
+
+        # THEN the input dataframe is not changed
+        pd.testing.assert_frame_equal(df, original)
+
+    def test_empty_dataframe(self) -> None:
+        """An empty dataframe gives an empty result."""
+        # GIVEN an empty dataframe
+        df = pd.DataFrame({"a": []}, dtype=object)
+
+        # WHEN the floats are converted
+        float_df = convert_floats(df)
+
+        # THEN the result is empty
+        assert float_df.empty
+        assert float_df.columns.tolist() == ["a"]
 
 
 class TestResolveColumnOrderList:

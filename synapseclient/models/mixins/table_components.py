@@ -230,7 +230,9 @@ def convert_dtypes_to_json_serializable(df) -> "DATA_FRAME_TYPE":
         return x
 
     for col in df.columns:
-        df[col] = df[col].apply(_serialize_json_value)
+        # cast to object first so missing values do not turn an Int64 column into
+        # Float64 (pandas 3), which would write 1 as 1.0
+        df[col] = df[col].astype(object).map(_serialize_json_value)
         # restore the original values of the column especially for the int64 and float64 columns since apply function changes the dtype
         df[col] = df[col].convert_dtypes()
         df[col] = df[col].replace({pd.NA: None}).astype(object)
@@ -539,23 +541,30 @@ def _rowset_to_pandas_df(
 
     import pandas as pd
 
-    def construct_rownames(query_result_bundle, offset=0):
+    def construct_rownames(rowset, offset=0):
         try:
             return (
-                row_labels_from_rows(
-                    query_result_bundle.query_result.query_results.rows
-                )
+                row_labels_from_rows(rowset.rows)
                 if row_id_and_version_in_index
                 else None
             )
         except KeyError:
             # if we don't have row id and version, just number the rows
             # python3 cast range to list for safety
-            return list(range(offset, offset + len(rowset["rows"])))
+            return list(range(offset, offset + len(rowset.rows)))
+
+    def append_page(column_name, data, index=None, verify_integrity=False):
+        # add the rows from the next page to the end of the column's series
+        series[column_name] = pd.concat(
+            [series[column_name], pd.Series(name=column_name, data=data, index=index)],
+            verify_integrity=verify_integrity,
+        )
 
     # first page of rows
     offset = 0
-    rownames = construct_rownames(query_result_bundle, offset)
+    rownames = construct_rownames(
+        query_result_bundle.query_result.query_results, offset
+    )
     query_result = query_result_bundle.query_result
     rowset = query_result.query_results
 
@@ -608,38 +617,25 @@ def _rowset_to_pandas_df(
         offset += len(rowset.rows)
 
         if not row_id_and_version_in_index:
-            # TODO: Look into why this isn't being assigned
-            series["ROW_ID"].append(
-                pd.Series(name="ROW_ID", data=[row.id for row in rowset.rows])
-            )
-            series["ROW_VERSION"].append(
-                pd.Series(
-                    name="ROW_VERSION",
-                    data=[row.version_number for row in rowset.rows],
-                )
-            )
+            append_page("ROW_ID", [row.row_id for row in rowset.rows])
+            append_page("ROW_VERSION", [row.version_number for row in rowset.rows])
             if append_etag:
-                series["ROW_ETAG"] = pd.Series(
-                    name="ROW_ETAG",
-                    data=[row.etag for row in rowset.rows],
-                )
+                append_page("ROW_ETAG", [row.etag for row in rowset.rows])
 
         for i, header in enumerate(rowset.headers):
-            column_name = header.name
-            series[column_name] = pd.concat(
-                [
-                    series[column_name],
-                    pd.Series(
-                        name=column_name,
-                        data=[row.values[i] for row in rowset.rows],
-                        index=rownames,
-                    ),
-                ],
+            append_page(
+                header.name,
+                [row.values[i] for row in rowset.rows],
+                index=rownames,
                 # can't verify integrity when indices are just numbers instead of 'rowid_rowversion'
                 verify_integrity=row_id_and_version_in_index,
             )
 
-    return pd.DataFrame(data=series)
+    df = pd.DataFrame(data=series)
+    if not row_id_and_version_in_index:
+        # each page numbers its rows from 0, so renumber the rows across all pages
+        df = df.reset_index(drop=True)
+    return df
 
 
 @dataclass
