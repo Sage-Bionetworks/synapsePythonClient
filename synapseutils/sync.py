@@ -1559,7 +1559,9 @@ async def _manifest_upload(
     return True
 
 
-def _missing_to_empty_list(value):
+def _missing_to_empty_list(
+    value: Union[Iterable[str], float, None],
+) -> Iterable[str]:
     """Return an empty list if value is None or NaN, otherwise return value unchanged.
 
     With pandas 3, iterrows gives a str dtype row when every cell is a string or
