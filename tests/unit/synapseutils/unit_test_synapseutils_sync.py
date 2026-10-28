@@ -1244,6 +1244,36 @@ async def test_manifest_upload_missing_provenance_builds_dependency_graph(
     }
 
 
+@pytest.mark.parametrize(
+    "value, expected",
+    [
+        (None, []),
+        (math.nan, []),
+        (float("nan"), []),
+        ([], []),
+        (["/tmp/foo", SYN_123], ["/tmp/foo", SYN_123]),
+        ("/tmp/foo", "/tmp/foo"),
+        ("", ""),
+    ],
+    ids=[
+        "none",
+        "math_nan",
+        "float_nan",
+        "empty_list",
+        "list",
+        "str",
+        "empty_str",
+    ],
+)
+def test_missing_to_empty_list(value: Any, expected: Any) -> None:
+    # GIVEN a used or executed value from a manifest row
+    # WHEN I convert the value
+    result = synapseutils.sync._missing_to_empty_list(value)
+
+    # THEN a missing value becomes an empty list, and other values are unchanged
+    assert result == expected
+
+
 class TestSyncUploader:
     @patch("os.path.isfile")
     def test_order_items(self, mock_isfile: MagicMock, syn: Synapse) -> None:

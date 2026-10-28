@@ -553,6 +553,13 @@ def _rowset_to_pandas_df(
             # python3 cast range to list for safety
             return list(range(offset, offset + len(rowset.rows)))
 
+    def append_page(column_name, data, index=None, verify_integrity=False):
+        # add the rows from the next page to the end of the column's series
+        series[column_name] = pd.concat(
+            [series[column_name], pd.Series(name=column_name, data=data, index=index)],
+            verify_integrity=verify_integrity,
+        )
+
     # first page of rows
     offset = 0
     rownames = construct_rownames(
@@ -610,43 +617,16 @@ def _rowset_to_pandas_df(
         offset += len(rowset.rows)
 
         if not row_id_and_version_in_index:
-            series["ROW_ID"] = pd.concat(
-                [
-                    series["ROW_ID"],
-                    pd.Series(name="ROW_ID", data=[row.row_id for row in rowset.rows]),
-                ]
-            )
-            series["ROW_VERSION"] = pd.concat(
-                [
-                    series["ROW_VERSION"],
-                    pd.Series(
-                        name="ROW_VERSION",
-                        data=[row.version_number for row in rowset.rows],
-                    ),
-                ]
-            )
+            append_page("ROW_ID", [row.row_id for row in rowset.rows])
+            append_page("ROW_VERSION", [row.version_number for row in rowset.rows])
             if append_etag:
-                series["ROW_ETAG"] = pd.concat(
-                    [
-                        series["ROW_ETAG"],
-                        pd.Series(
-                            name="ROW_ETAG",
-                            data=[row.etag for row in rowset.rows],
-                        ),
-                    ]
-                )
+                append_page("ROW_ETAG", [row.etag for row in rowset.rows])
 
         for i, header in enumerate(rowset.headers):
-            column_name = header.name
-            series[column_name] = pd.concat(
-                [
-                    series[column_name],
-                    pd.Series(
-                        name=column_name,
-                        data=[row.values[i] for row in rowset.rows],
-                        index=rownames,
-                    ),
-                ],
+            append_page(
+                header.name,
+                [row.values[i] for row in rowset.rows],
+                index=rownames,
                 # can't verify integrity when indices are just numbers instead of 'rowid_rowversion'
                 verify_integrity=row_id_and_version_in_index,
             )

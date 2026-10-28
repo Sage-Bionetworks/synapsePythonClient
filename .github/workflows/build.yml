@@ -322,19 +322,19 @@ jobs:
       fail-fast: false
       matrix:
         include:
-          # pandas < 2.2.2 is not compatible with numpy 2
+          # pandas < 2.2.2 is not compatible with numpy 2, so those entries pin numpy 1.26.4 (the last 1.x release)
           # pandas 1.5 is the lower bound in setup.cfg and installs only on Python 3.11
           - python: '3.11'
             pandas: 'pandas==1.5.3'
-            numpy: 'numpy<2'
+            numpy: 'numpy==1.26.4'
           # pandas 2.1 is the first version with DataFrame.map and the first to support Python 3.12
           - python: '3.12'
             pandas: 'pandas==2.1.4'
-            numpy: 'numpy<2'
+            numpy: 'numpy==1.26.4'
           # pandas 2.2.3 is the first version to support Python 3.13
           - python: '3.13'
             pandas: 'pandas==2.2.3'
-            numpy: 'numpy'
+            numpy: 'numpy==2.5.4'
 
     runs-on: ubuntu-22.04
 
