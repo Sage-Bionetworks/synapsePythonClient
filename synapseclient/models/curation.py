@@ -5358,6 +5358,12 @@ class Grid(EnumCoercionMixin, GridSynchronousProtocol):
             that this grid was cloned from
         record_set_version_number: The version number of the exported record set
         validation_summary_statistics: Summary statistics for validation results
+        import_total_count: (Read Only) Rows in the CSV of this instance's latest
+            `import_csv` call
+        import_created_count: (Read Only) Rows that call created
+        import_updated_count: (Read Only) Rows that call updated
+        sync_error_messages: (Read Only) Error messages from this instance's latest
+            `synchronize` call; empty when it had none
 
     Example: Create and manage a grid session workflow
         &nbsp;
@@ -5471,6 +5477,19 @@ class Grid(EnumCoercionMixin, GridSynchronousProtocol):
 
     validation_summary_statistics: Optional[ValidationSummary] = None
     """Summary statistics for validation results"""
+
+    import_total_count: Optional[int] = field(default=None, compare=False)
+    """(Read Only) Rows in the CSV of this instance's latest `import_csv` call"""
+
+    import_created_count: Optional[int] = field(default=None, compare=False)
+    """(Read Only) Rows that call created"""
+
+    import_updated_count: Optional[int] = field(default=None, compare=False)
+    """(Read Only) Rows that call updated"""
+
+    sync_error_messages: Optional[list[str]] = field(default=None, compare=False)
+    """(Read Only) Error messages from this instance's latest `synchronize` call;
+    empty when it had none"""
 
     _replica_id: Optional[int] = field(default=None, repr=False, compare=False)
     """The replica ID bound to this instance by `connect_async`. Reused by
@@ -5962,6 +5981,9 @@ class Grid(EnumCoercionMixin, GridSynchronousProtocol):
             f"total created: {import_response.created_count}, "
             f"total updated: {import_response.updated_count}"
         )
+        self.import_total_count = import_response.total_count
+        self.import_created_count = import_response.created_count
+        self.import_updated_count = import_response.updated_count
 
         return self
 
@@ -6204,6 +6226,7 @@ class Grid(EnumCoercionMixin, GridSynchronousProtocol):
             timeout=timeout, synapse_client=synapse_client
         )
 
+        self.sync_error_messages = list(result.error_messages or [])
         if result.error_messages:
             client = Synapse.get_client(synapse_client=synapse_client)
             client.logger.error(

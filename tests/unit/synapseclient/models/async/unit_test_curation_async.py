@@ -3174,6 +3174,11 @@ class TestGrid:
         assert "total created: 1" in log_message
         assert "total updated: 1" in log_message
 
+        # AND the counts are kept on the grid
+        assert result.import_total_count == 1
+        assert result.import_created_count == 1
+        assert result.import_updated_count == 1
+
     async def test_import_csv_no_suggested_columns_async(self) -> None:
         """Raises ValueError when the CSV preview returns no suggested columns."""
         # GIVEN a Grid with a session_id
@@ -3883,6 +3888,9 @@ class TestSynchronizeGrid:
             # THEN the API should be called with the session_id
             mock_sync.assert_called_once_with(synapse_client=self.syn, timeout=120)
 
+        # AND the grid records that there were no errors
+        assert grid.sync_error_messages == []
+
     async def test_synchronize_grid_async_with_errors(self) -> None:
         # GIVEN a Grid with a session_id
         grid = Grid(session_id=SESSION_ID)
@@ -3905,6 +3913,9 @@ class TestSynchronizeGrid:
                 error_message = mock_logger.error.call_args[0][0]
                 assert "sync_error_1" in error_message
                 assert "sync_error_2" in error_message
+
+        # AND the error messages are kept on the grid
+        assert grid.sync_error_messages == ["sync_error_1", "sync_error_2"]
 
 
 class TestSelectColumn:
