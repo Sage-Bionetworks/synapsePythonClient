@@ -9,6 +9,7 @@ detailing some of the changes.
 the 4.x.x versions hidden behind optional feature flags or different import paths. Any
 breaking changes will not be included until v5.0.
 
+
 ## 4.15.0
 
 ## Highlights
@@ -39,6 +40,7 @@ breaking changes will not be included until v5.0.
 - [SYNPY-1942] Fixed critical and high security and code scanning alerts by @andrewelamb in #1475
 - Fixed Trivy failures that blocked Docker image publishing by @BryanFauble in #1468
 - [SYNPY-1924] Disabled agent integration tests that timed out in CI by @linglp in #1460
+
 
 ## 4.14.0
 
