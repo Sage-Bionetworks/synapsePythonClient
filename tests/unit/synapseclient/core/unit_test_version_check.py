@@ -6,9 +6,12 @@ import pytest
 
 from synapseclient.core.version_check import (
     _get_local_package_metadata,
+    _get_version_info_from_pypi,
     _is_current_version_behind,
+    _validate_version,
     _version_check,
     _version_tuple,
+    check_for_updates,
 )
 
 
@@ -130,3 +133,77 @@ def test_version_tuple(
 def test_get_local_files() -> None:
     """Tests for _get_local_package_metadata function"""
     assert _get_local_package_metadata()
+
+
+FORGED_VERSION = "1.2.3\nFORGED LOG ENTRY"
+
+INVALID_VERSIONS = [
+    "",
+    "abc",
+    "1.2.3\n",
+    FORGED_VERSION,
+    "1.2.3.4\nFORGED LOG ENTRY",
+    "1.2.3\r\n",
+    " 1.2.3",
+    "1..2",
+    None,
+    123,
+]
+
+
+@pytest.mark.parametrize(
+    "version",
+    ["1", "1.0", "4.14.0", "0.5.1.dev200", "4.14.0rc1", "4.14.0a1", "4.14.0.post1"],
+)
+async def test_validate_version_valid(version: str) -> None:
+    """Tests that _validate_version returns valid versions unchanged"""
+    assert _validate_version(version) == version
+
+
+@pytest.mark.parametrize("version", INVALID_VERSIONS)
+async def test_validate_version_invalid(version) -> None:
+    """Tests that _validate_version raises an error for invalid versions"""
+    with pytest.raises(ValueError, match="Invalid version"):
+        _validate_version(version)
+
+
+@pytest.mark.parametrize("version", INVALID_VERSIONS)
+async def test_get_version_info_from_pypi_invalid(version) -> None:
+    """Tests that an invalid version from PyPI is not returned"""
+    with (
+        patch("synapseclient.core.version_check.httpx.get"),
+        patch(
+            "synapseclient.core.version_check.json.load",
+            return_value={"info": {"version": version}},
+        ),
+    ):
+        with pytest.raises(ValueError, match="Invalid version"):
+            _get_version_info_from_pypi()
+
+
+async def test_version_check_invalid_local_metadata() -> None:
+    """Tests that an invalid local latest version is not used"""
+    with patch(
+        "synapseclient.core.version_check._get_local_package_metadata",
+        return_value={"latestVersion": FORGED_VERSION},
+    ):
+        with pytest.raises(ValueError, match="Invalid version"):
+            _version_check("1.0.0", use_local_metadata=True)
+
+
+async def test_check_for_updates_invalid_current_version() -> None:
+    """Tests that an invalid current version is not logged"""
+    with (
+        patch(
+            "synapseclient.core.version_check.synapseclient.__version__",
+            FORGED_VERSION,
+        ),
+        patch(
+            "synapseclient.core.version_check._get_version_info_from_pypi",
+            return_value="1.2.3",
+        ),
+        patch("synapseclient.core.version_check.sys.stdout") as mock_stdout,
+    ):
+        with pytest.raises(ValueError, match="Invalid version"):
+            check_for_updates()
+        mock_stdout.write.assert_not_called()
