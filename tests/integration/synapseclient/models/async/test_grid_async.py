@@ -135,6 +135,10 @@ class TestGridAsync:
         assert created_grid.started_on is not None
         assert created_grid.etag is not None
         assert created_grid.source_entity_id == record_set_fixture.id
+        assert (
+            created_grid.source_entity_version_number
+            == record_set_fixture.version_number
+        )
 
         # WHEN: Listing grid sessions
         sessions = []
@@ -156,6 +160,10 @@ class TestGridAsync:
         )
         assert our_session.started_by == created_grid.started_by
         assert our_session.source_entity_id == record_set_fixture.id
+        assert (
+            our_session.source_entity_version_number
+            == record_set_fixture.version_number
+        )
 
     async def test_get_grid_session_async(self, record_set_fixture: RecordSet) -> None:
         # GIVEN: A grid session created from a record set
@@ -176,6 +184,10 @@ class TestGridAsync:
         assert fetched_grid.started_on == created_grid.started_on
         assert fetched_grid.etag == created_grid.etag
         assert fetched_grid.source_entity_id == record_set_fixture.id
+        assert (
+            fetched_grid.source_entity_version_number
+            == record_set_fixture.version_number
+        )
 
     async def test_create_grid_session_with_authorization_mode_async(
         self, record_set_fixture: RecordSet
@@ -198,6 +210,10 @@ class TestGridAsync:
         assert created_grid is grid
         assert created_grid.session_id is not None
         assert created_grid.source_entity_id == record_set_fixture.id
+        assert (
+            created_grid.source_entity_version_number
+            == record_set_fixture.version_number
+        )
         assert created_grid.authorization_mode == AuthorizationMode.SOURCE_BENEFACTOR
 
     async def test_create_grid_session_and_reuse_session_async(
@@ -231,6 +247,10 @@ class TestGridAsync:
         assert created_grid2.started_by == created_grid1.started_by
         assert created_grid2.started_on == created_grid1.started_on
         assert created_grid2.source_entity_id == record_set_fixture.id
+        assert (
+            created_grid2.source_entity_version_number
+            == record_set_fixture.version_number
+        )
 
     async def test_create_grid_session_validation_error_async(self) -> None:
         # GIVEN: A Grid instance with no record_set_id or initial_query
@@ -328,6 +348,9 @@ class TestGridAsync:
         # THEN: The session ID is unchanged
         assert synced_grid.session_id == created_grid.session_id
         assert synced_grid.source_entity_id == ev.id
+        # AND the server currently omits the version for an EntityView source;
+        # update this assert if the server starts returning one
+        assert synced_grid.source_entity_version_number is None
 
         # AND: The downloaded CSV reflects the newly uploaded file
         dest = tempfile.mkdtemp()
@@ -359,6 +382,10 @@ class TestGridAsync:
         # THEN: The session ID is unchanged and the source entity is still the RecordSet
         assert synced_grid.session_id == created_grid.session_id
         assert synced_grid.source_entity_id == record_set_fixture.id
+        assert (
+            synced_grid.source_entity_version_number
+            == record_set_fixture.version_number
+        )
 
     async def test_import_csv_to_grid_session_async(
         self,

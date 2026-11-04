@@ -24,9 +24,17 @@ REST controller: <https://rest-docs.synapse.org/rest/index.html#org.sagebionetwo
 
 from dataclasses import dataclass, field
 from enum import Enum
-from typing import TYPE_CHECKING, Any, Callable, Dict, List, Optional, Protocol, Union
-
-from typing_extensions import Self
+from typing import (
+    TYPE_CHECKING,
+    Any,
+    Callable,
+    Dict,
+    List,
+    Optional,
+    Protocol,
+    Self,
+    Union,
+)
 
 from synapseclient.api import (
     bind_search_config_to_entity,

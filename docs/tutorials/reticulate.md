@@ -35,7 +35,7 @@ install.packages("reticulate")
 
 The Python synapseclient can be installed either directly into the Python installation you intend to use with reticulate or from within R using the reticulate library.
 
-synapseclient has the same requirements and dependencies when installed for use with reticulate as it does in other usage. In particular note that synapseclient requires a Python version of 3.10 or greater.
+synapseclient has the same requirements and dependencies when installed for use with reticulate as it does in other usage. In particular note that synapseclient requires a Python version of 3.11 or greater.
 
 #### Installing into Python
 

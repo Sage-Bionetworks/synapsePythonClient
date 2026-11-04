@@ -3,9 +3,7 @@ import logging
 from copy import deepcopy
 from dataclasses import dataclass, field, replace
 from datetime import date, datetime
-from typing import Any, Optional, Protocol, Union
-
-from typing_extensions import Self
+from typing import Any, Optional, Protocol, Self, Union
 
 from synapseclient import Synapse
 from synapseclient.api import evaluation_services

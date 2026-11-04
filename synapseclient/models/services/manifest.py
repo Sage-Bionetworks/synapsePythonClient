@@ -535,6 +535,8 @@ def _apply_synapse_store_defaults(df: "DataFrame") -> None:
     """
     if "synapseStore" not in df.columns:
         df["synapseStore"] = None
+    # A blank column is read as float64, which cannot hold bool values
+    df["synapseStore"] = df["synapseStore"].astype(object)
     df.loc[df["path"].apply(is_url), "synapseStore"] = False
     df.loc[df["synapseStore"].isnull(), "synapseStore"] = True
     df["synapseStore"] = df["synapseStore"].astype(bool)
@@ -650,6 +652,10 @@ async def _sort_and_fix_provenance(syn: Synapse, df: DataFrame) -> DataFrame:
             path, a URL, nor a valid Synapse ID.
     """
     df = df.set_index("path").copy()
+    # Lists are written into these cells, which a str dtype column cannot hold
+    for col in ("used", "executed"):
+        if col in df.columns:
+            df[col] = df[col].astype(object)
 
     results = await asyncio.gather(
         *[_resolve_row(str(path), row, df, syn) for path, row in df.iterrows()]

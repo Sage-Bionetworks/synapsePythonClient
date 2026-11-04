@@ -63,7 +63,7 @@ def register_jsonschema(
             synapse_client=syn
         )
         print(f"Registered schema URI: {json_schema.uri}")
-        print(f"Schema version: {json_schema.version}")
+        print(f"Schema version: {json_schema.last_stored_version_info.semantic_version}")
         ```
     """
     return wrap_async_to_sync(
@@ -125,7 +125,7 @@ async def register_jsonschema_async(
             synapse_client=syn
         ))
         print(f"Registered schema URI: {json_schema.uri}")
-        print(f"Schema version: {json_schema.version}")
+        print(f"Schema version: {json_schema.last_stored_version_info.semantic_version}")
         ```
     """
     from synapseclient import Synapse

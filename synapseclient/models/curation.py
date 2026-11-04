@@ -3350,6 +3350,9 @@ class CreateGridRequest(EnumCoercionMixin, AsynchronousCommunicator):
         grid_session.last_replica_id_service = data.get("lastReplicaIdService", None)
         grid_session.grid_json_schema_id = data.get("gridJsonSchema$Id", None)
         grid_session.source_entity_id = data.get("sourceEntityId", None)
+        grid_session.source_entity_version_number = data.get(
+            "sourceEntityVersionNumber", None
+        )
         owner_principal_id = data.get("ownerPrincipalId")
         grid_session.owner_principal_id = (
             int(owner_principal_id) if owner_principal_id is not None else None
@@ -4530,6 +4533,8 @@ class GridSession:
         last_replica_id_service: The last replica ID issued to a service
         grid_json_schema_id: The $id of the JSON schema used for model validation
         source_entity_id: The synId of the table/view/csv that this grid was cloned from
+        source_entity_version_number: The version number of the source entity
+            that this grid was cloned from
     """
 
     session_id: Optional[str] = None
@@ -4559,6 +4564,9 @@ class GridSession:
     source_entity_id: Optional[str] = None
     """The synId of the table/view/csv that this grid was cloned from"""
 
+    source_entity_version_number: Optional[int] = None
+    """The version number of the source entity that this grid was cloned from"""
+
     def fill_from_dict(self, synapse_response: Dict[str, Any]) -> "GridSession":
         """
         Converts a response from the REST API into this dataclass.
@@ -4580,6 +4588,9 @@ class GridSession:
         )
         self.grid_json_schema_id = synapse_response.get("gridJsonSchema$Id", None)
         self.source_entity_id = synapse_response.get("sourceEntityId", None)
+        self.source_entity_version_number = synapse_response.get(
+            "sourceEntityVersionNumber", None
+        )
         return self
 
 
@@ -5343,6 +5354,8 @@ class Grid(EnumCoercionMixin, GridSynchronousProtocol):
         last_replica_id_service: The last replica ID issued to a service
         grid_json_schema_id: The $id of the JSON schema used for model validation
         source_entity_id: The synId of the table/view/csv that this grid was cloned from
+        source_entity_version_number: The version number of the source entity
+            that this grid was cloned from
         record_set_version_number: The version number of the exported record set
         validation_summary_statistics: Summary statistics for validation results
 
@@ -5450,6 +5463,9 @@ class Grid(EnumCoercionMixin, GridSynchronousProtocol):
     source_entity_id: Optional[str] = None
     """The synId of the table/view/csv that this grid was cloned from"""
 
+    source_entity_version_number: Optional[int] = None
+    """The version number of the source entity that this grid was cloned from"""
+
     record_set_version_number: Optional[int] = None
     """The version number of the exported record set"""
 
@@ -5540,6 +5556,9 @@ class Grid(EnumCoercionMixin, GridSynchronousProtocol):
                 self.last_replica_id_service = existing_session.last_replica_id_service
                 self.grid_json_schema_id = existing_session.grid_json_schema_id
                 self.source_entity_id = existing_session.source_entity_id
+                self.source_entity_version_number = (
+                    existing_session.source_entity_version_number
+                )
                 return self
 
         # No existing session found, create a new one
@@ -5695,6 +5714,9 @@ class Grid(EnumCoercionMixin, GridSynchronousProtocol):
         )
         self.grid_json_schema_id = synapse_response.get("gridJsonSchema$Id", None)
         self.source_entity_id = synapse_response.get("sourceEntityId", None)
+        self.source_entity_version_number = synapse_response.get(
+            "sourceEntityVersionNumber", None
+        )
         owner_principal_id = synapse_response.get("ownerPrincipalId")
         self.owner_principal_id = (
             int(owner_principal_id) if owner_principal_id is not None else None

@@ -1010,6 +1010,8 @@ class TestRowStorage:
         # The DST column expectations are hardcoded to prove each value converts using the
         # UTC offset in effect on its own date (12:00-08:00 -> 20:00 UTC and
         # 12:00-07:00 -> 19:00 UTC), independent of the machine running the test
+        # dtype=object keeps None for missing values, matching the query output, on all
+        # pandas versions
         expected_results = pd.DataFrame(
             {
                 "column_string": ["value1", "value2", "value3"],
@@ -1022,7 +1024,8 @@ class TestRowStorage:
                     utils.to_unix_epoch_time(date) if date else None
                     for date in naive_dates
                 ],
-            }
+            },
+            dtype=object,
         )
         pd.testing.assert_frame_equal(results, expected_results, check_dtype=False)
 
@@ -1114,6 +1117,8 @@ class TestRowStorage:
             include_row_id_and_row_version=False,
         )
 
+        # dtype=object keeps None for missing values, matching the query output, on all
+        # pandas versions
         expected_results = pd.DataFrame(
             {
                 "column_string": ["value1", "value2", "value3"],
@@ -1122,7 +1127,8 @@ class TestRowStorage:
                     None,
                     utils.to_unix_epoch_time(datetime(2024, 2, 20)),
                 ],
-            }
+            },
+            dtype=object,
         )
         pd.testing.assert_frame_equal(results, expected_results, check_dtype=False)
 
@@ -1170,6 +1176,8 @@ class TestRowStorage:
             include_row_id_and_row_version=False,
         )
 
+        # dtype=object keeps None for missing values, matching the query output, on all
+        # pandas versions
         expected_results = pd.DataFrame(
             {
                 "column_string": ["value1", "value2", "value3"],
@@ -1178,7 +1186,8 @@ class TestRowStorage:
                     None,
                     1708459200000,
                 ],  # date columns are converted to epoch ms
-            }
+            },
+            dtype=object,
         )
         pd.testing.assert_frame_equal(results, expected_results, check_dtype=False)
 

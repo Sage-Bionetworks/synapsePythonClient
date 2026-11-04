@@ -571,6 +571,33 @@ class TestRecordSet:
             assert result.id == SYN_123
             assert result.name == RECORD_SET_NAME
 
+    async def test_get_async_with_unmet_access_requirement(self) -> None:
+        # GIVEN a RecordSet with an id
+        record_set = RecordSet(id=SYN_123, download_file=False)
+
+        # AND an entity bundle where Synapse withheld the file handle because the
+        # caller has unmet access requirements
+        bundle = {
+            "entity": _get_record_set_entity_response(),
+            "fileHandles": [],
+            "restrictionInformation": {"hasUnmetAccessRequirement": True},
+        }
+
+        # WHEN I call get_async
+        with patch(
+            "synapseclient.api.entity_factory.get_entity_id_bundle2",
+            new_callable=AsyncMock,
+            return_value=bundle,
+        ):
+            result = await record_set.get_async(synapse_client=self.syn)
+
+        # THEN the data_file_handle_id from the entity should be preserved
+        assert result.id == SYN_123
+        assert result.data_file_handle_id == DATA_FILE_HANDLE_ID
+
+        # AND the file handle should have no metadata filled in
+        assert result.file_handle.id is None
+
     async def test_get_async_with_path(self) -> None:
         # GIVEN a RecordSet with a path (looking up by local file)
         record_set = RecordSet(path=PATH)

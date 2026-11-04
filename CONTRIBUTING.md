@@ -93,7 +93,7 @@ copied to forks).
 #### Installing the Python Client in a virtual environment with pipenv
 Perform the following one-time steps to set up your local environment.
 
-1. This package uses Python, if you have not already, please install [pyenv](https://github.com/pyenv/pyenv#installation) to manage your Python versions. Versions supported by this package are all versions >=3.10 and <=3.14. If you do not install `pyenv` make sure that Python and `pip` are installed correctly and have been added to your PATH by running `python3 --version` and `pip3 --version`. If your installation was successful, your terminal will return the versions of Python and `pip` that you installed.  **Note**: If you have `pyenv` it will install a specific version of Python for you.
+1. This package uses Python, if you have not already, please install [pyenv](https://github.com/pyenv/pyenv#installation) to manage your Python versions. Versions supported by this package are all versions >=3.11 and <=3.15. If you do not install `pyenv` make sure that Python and `pip` are installed correctly and have been added to your PATH by running `python3 --version` and `pip3 --version`. If your installation was successful, your terminal will return the versions of Python and `pip` that you installed.  **Note**: If you have `pyenv` it will install a specific version of Python for you.
 
 2. Install `pipenv` by running `pip install pipenv`.
     - If you already have `pipenv` installed, ensure that the version is >=2023.9.8 to avoid compatibility issues.
@@ -271,18 +271,18 @@ When adding support for a new Python version or dropping support for an old vers
 
 #### Adding a new Python version
 
-When adding support for a new Python version (e.g., adding Python 3.15), update the following:
+When adding support for a new Python version (e.g., adding Python 3.16), update the following:
 
 **Code configuration files:**
 1. **`setup.cfg`**:
-   - Add the new version to the `classifiers` list under `[metadata]` (e.g., `Programming Language :: Python :: 3.15`)
-   - Update the `python_requires` constraint under `[options]` to include the new version (e.g., `>=3.10, <3.16`)
+   - Add the new version to the `classifiers` list under `[metadata]` (e.g., `Programming Language :: Python :: 3.16`)
+   - Update the `python_requires` constraint under `[options]` to include the new version (e.g., `>=3.11, <3.17`)
 
 2. **`pyproject.toml`**:
    - Update the `target-version` list in the `[tool.black]` section to include the new version if needed
 
 3. **`Dockerfile`**:
-   - Update the base image to use the new Python version (e.g., `FROM python:3.15-slim`)
+   - Update the base image to use the new Python version (e.g., `FROM python:3.16-slim`)
 
 **CI/CD configuration files:**
 1. **`.github/workflows/build.yml`**:
@@ -296,12 +296,12 @@ When adding support for a new Python version (e.g., adding Python 3.15), update 
 
 #### Dropping an old Python version
 
-When dropping support for an old Python version (e.g., removing Python 3.10), update the following:
+When dropping support for an old Python version (e.g., removing Python 3.11), update the following:
 
 **Code configuration files:**
 1. **`setup.cfg`**:
    - Remove the old version from the `classifiers` list under `[metadata]`
-   - Update the `python_requires` constraint under `[options]` to reflect the new minimum version (e.g., `>=3.11, <3.15`)
+   - Update the `python_requires` constraint under `[options]` to reflect the new minimum version (e.g., `>=3.12, <3.16`)
 
 2. **`pyproject.toml`**:
    - Update the `target-version` list in the `[tool.black]` section to remove the old version
@@ -312,7 +312,7 @@ When dropping support for an old Python version (e.g., removing Python 3.10), up
 **CI/CD configuration files:**
 1. **`.github/workflows/build.yml`**:
    - Remove the old version from the `unit-tests` and `integration-tests` job matrices
-   - Update the cache key version (e.g., increment `v28` to `v29`) to invalidate old caches
+   - Update the cache key version (e.g., increment `v34` to `v35`) to invalidate old caches
 
 **Documentation:**
 - Update the README.md and any getting started documentation to reflect the new supported Python version range

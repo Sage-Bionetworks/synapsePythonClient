@@ -3,9 +3,7 @@ from collections import OrderedDict
 from copy import deepcopy
 from dataclasses import dataclass, field
 from datetime import date, datetime
-from typing import Any, Dict, List, Optional, Protocol, Union
-
-from typing_extensions import Self
+from typing import Any, Dict, List, Optional, Protocol, Self, Union
 
 from synapseclient import Synapse
 from synapseclient import Table as Synapse_Table

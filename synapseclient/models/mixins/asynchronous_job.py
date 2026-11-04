@@ -4,11 +4,10 @@ import time
 from dataclasses import dataclass
 from enum import Enum
 from string import Formatter
-from typing import Any, Dict, Optional
+from typing import Any, Dict, Optional, Self
 from urllib.parse import quote
 
 from tqdm.contrib.logging import logging_redirect_tqdm
-from typing_extensions import Self
 
 from synapseclient import Synapse
 from synapseclient.core.constants.concrete_types import (

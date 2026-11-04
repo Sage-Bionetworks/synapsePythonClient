@@ -1,9 +1,7 @@
 """Protocol for the specific methods of this class that have synchronous counterparts
 generated at runtime."""
 
-from typing import TYPE_CHECKING, List, Optional, Protocol
-
-from typing_extensions import Self
+from typing import TYPE_CHECKING, List, Optional, Protocol, Self
 
 from synapseclient import Synapse
 from synapseclient.models.search_dsl import Query, SourceFilter

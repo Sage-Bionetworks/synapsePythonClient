@@ -1,4 +1,3 @@
-import sys
 import tempfile
 from unittest.mock import Mock, patch
 
@@ -122,32 +121,18 @@ class TestDescribe:
             ],
         }
     )
-    if sys.version_info < (3, 7, 0):
-        expected_results = {
-            "gene": {"dtype": "object", "mode": "CD44"},
-            "score": {"dtype": "int64", "mode": 1, "min": 1, "max": 2, "mean": 1.4},
-            "related": {},
-            "presence_in_ad_brain": {
-                "dtype": "bool",
-                "mode": False,
-                "min": False,
-                "max": True,
-                "mean": 0.5,
-            },
-        }
-    else:
-        expected_results = {
-            "gene": {"dtype": "object", "mode": "CD44"},
-            "score": {"dtype": "int64", "mode": 1, "min": 1, "max": 2, "mean": 1.4},
-            "related": {"dtype": "object", "mode": ["CD44"]},
-            "presence_in_ad_brain": {
-                "dtype": "bool",
-                "mode": False,
-                "min": False,
-                "max": True,
-                "mean": 0.5,
-            },
-        }
+    expected_results = {
+        "gene": {"dtype": "object", "mode": "CD44"},
+        "score": {"dtype": "int64", "mode": 1, "min": 1, "max": 2, "mean": 1.4},
+        "related": {"dtype": "object", "mode": ["CD44"]},
+        "presence_in_ad_brain": {
+            "dtype": "bool",
+            "mode": False,
+            "min": False,
+            "max": True,
+            "mean": 0.5,
+        },
+    }
 
     def test_describe_with_mixed_series(self, syn: synapseclient.Synapse):
         result = _describe_wrapper(df=self.df_mixed, syn=syn)

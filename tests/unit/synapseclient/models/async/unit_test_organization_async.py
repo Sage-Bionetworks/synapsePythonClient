@@ -1,5 +1,6 @@
 """Unit tests for the Organization and JSONSchema models."""
 
+import dataclasses
 from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
@@ -21,7 +22,6 @@ CREATED_BY = "111111"
 SCHEMA_NAME = "mytest.schemaname"
 SCHEMA_ID = "5001"
 SCHEMA_URI = f"{ORG_NAME}-{SCHEMA_NAME}"
-ORG_ID_INT = 1075
 VERSION = "1.0.0"
 VERSION_ID = "9001"
 JSON_SHA_HEX = "abc123sha256"
@@ -55,7 +55,7 @@ def _get_organization_response(**overrides):
 def _get_json_schema_list_response(**overrides):
     """Return a mock JSON schema list item response."""
     response = {
-        "organizationId": ORG_ID_INT,
+        "organizationId": ORG_ID,
         "organizationName": ORG_NAME,
         "schemaId": SCHEMA_ID,
         "schemaName": SCHEMA_NAME,
@@ -69,7 +69,7 @@ def _get_json_schema_list_response(**overrides):
 def _get_schema_version_response(semantic_version=VERSION, **overrides):
     """Return a mock JSON schema version info response."""
     response = {
-        "organizationId": ORG_ID_INT,
+        "organizationId": ORG_ID,
         "organizationName": ORG_NAME,
         "schemaId": SCHEMA_ID,
         "$id": f"{ORG_NAME}-{SCHEMA_NAME}-{semantic_version}",
@@ -82,6 +82,24 @@ def _get_schema_version_response(semantic_version=VERSION, **overrides):
     }
     response.update(overrides)
     return response
+
+
+def _get_version_info(**overrides) -> JSONSchemaVersionInfo:
+    """Return a JSONSchemaVersionInfo for store responses."""
+    values = {
+        "organization_id": ORG_ID,
+        "organization_name": ORG_NAME,
+        "schema_id": SCHEMA_ID,
+        "id": f"{ORG_NAME}-{SCHEMA_NAME}",
+        "schema_name": SCHEMA_NAME,
+        "version_id": VERSION_ID,
+        "semantic_version": VERSION,
+        "json_sha256_hex": JSON_SHA_HEX,
+        "created_on": CREATED_ON,
+        "created_by": CREATED_BY,
+    }
+    values.update(overrides)
+    return JSONSchemaVersionInfo(**values)
 
 
 def _get_acl_response():
@@ -477,7 +495,7 @@ class TestJSONSchema:
         schema.fill_from_dict(response)
 
         # THEN all fields should be populated
-        assert schema.organization_id == ORG_ID_INT
+        assert schema.organization_id == ORG_ID
         assert schema.organization_name == ORG_NAME
         assert schema.id == SCHEMA_ID
         assert schema.name == SCHEMA_NAME
@@ -558,7 +576,7 @@ class TestJSONSchema:
         schema = JSONSchema(name=SCHEMA_NAME, organization_name=ORG_NAME)
 
         mock_version_info = JSONSchemaVersionInfo(
-            organization_id=ORG_ID_INT,
+            organization_id=ORG_ID,
             organization_name=ORG_NAME,
             schema_id=SCHEMA_ID,
             id=f"{ORG_NAME}-{SCHEMA_NAME}",
@@ -586,17 +604,24 @@ class TestJSONSchema:
                 synapse_client=self.syn,
             )
 
-            # THEN the result should have updated fields from the version info
-            assert result.organization_id == ORG_ID_INT
-            assert result.created_by == CREATED_BY
-            assert result.created_on == CREATED_ON
+            # THEN the result should have updated identity fields from the version info
+            assert result.organization_id == ORG_ID
+            assert result.id == SCHEMA_ID
+            assert result.uri == SCHEMA_URI
+
+            # AND created_by and created_on should not be set from the version info
+            assert result.created_by is None
+            assert result.created_on is None
+
+            # AND last_stored_version_info should be the new version info
+            assert result.last_stored_version_info is mock_version_info
 
     async def test_store_async_with_version(self) -> None:
         # GIVEN a JSONSchema with name and organization_name
         schema = JSONSchema(name=SCHEMA_NAME, organization_name=ORG_NAME)
 
         mock_version_info = JSONSchemaVersionInfo(
-            organization_id=ORG_ID_INT,
+            organization_id=ORG_ID,
             organization_name=ORG_NAME,
             schema_id=SCHEMA_ID,
             id=f"{ORG_NAME}-{SCHEMA_NAME}-{VERSION}",
@@ -626,27 +651,38 @@ class TestJSONSchema:
             )
 
             # THEN the result should be populated
-            assert result.organization_id == ORG_ID_INT
+            assert result.organization_id == ORG_ID
 
-    async def test_store_async_dry_run(self) -> None:
-        # GIVEN a JSONSchema with name and organization_name
-        schema = JSONSchema(name=SCHEMA_NAME, organization_name=ORG_NAME)
+            # AND last_stored_version_info should have the stored version
+            assert result.last_stored_version_info.semantic_version == VERSION
 
-        mock_version_info = JSONSchemaVersionInfo(
-            organization_id=ORG_ID_INT,
-            organization_name=ORG_NAME,
-            schema_id=SCHEMA_ID,
-            id=f"{ORG_NAME}-{SCHEMA_NAME}",
-            schema_name=SCHEMA_NAME,
-            version_id=VERSION_ID,
-            semantic_version=VERSION,
-            json_sha256_hex=JSON_SHA_HEX,
-            created_on=CREATED_ON,
-            created_by=CREATED_BY,
+    @pytest.mark.parametrize(
+        "filled_from_get",
+        [False, True],
+        ids=["new_schema", "schema_filled_from_get"],
+    )
+    async def test_store_async_dry_run(self, filled_from_get: bool) -> None:
+        # GIVEN a JSONSchema
+        if filled_from_get:
+            # filled from a get response, with a prior last_stored_version_info
+            schema = JSONSchema()
+            schema.fill_from_dict(_get_json_schema_list_response())
+            schema.last_stored_version_info = _get_version_info(version_id="1111")
+        else:
+            # with only name and organization_name
+            schema = JSONSchema(name=SCHEMA_NAME, organization_name=ORG_NAME)
+        values_before = dataclasses.asdict(schema)
+
+        # AND the dry run response has different values
+        dry_run_version_info = _get_version_info(
+            organization_id="9999",
+            schema_id="9999",
+            version_id="2222",
+            created_on="2025-06-06T00:00:00.000Z",
+            created_by="999999",
         )
-
         mock_completed_request = MagicMock()
-        mock_completed_request.new_version_info = mock_version_info
+        mock_completed_request.new_version_info = dry_run_version_info
 
         # WHEN I call store_async with dry_run=True
         with patch.object(
@@ -662,8 +698,129 @@ class TestJSONSchema:
                 synapse_client=self.syn,
             )
 
-            # THEN send_job_and_wait_async should be called
-            mock_send.assert_called_once()
+        # THEN send_job_and_wait_async should be called
+        mock_send.assert_called_once()
+
+        # AND the same instance should be returned
+        assert result is schema
+
+        # AND no attributes should change
+        assert dataclasses.asdict(schema) == values_before
+
+    async def test_store_async_after_get_updates_identity_keeps_created_values(
+        self,
+    ) -> None:
+        # GIVEN a JSONSchema filled from a get response
+        schema = JSONSchema()
+        schema.fill_from_dict(_get_json_schema_list_response())
+
+        # AND the organization_name is changed to a different organization
+        new_org_name = "mytest.otherorganization"
+        new_org_id = "2075"
+        new_schema_id = "6001"
+        schema.organization_name = new_org_name
+
+        # AND the new version has different identity and created values
+        new_created_on = "2025-06-06T00:00:00.000Z"
+        new_created_by = "999999"
+        new_version_info = _get_version_info(
+            organization_id=new_org_id,
+            organization_name=new_org_name,
+            schema_id=new_schema_id,
+            id=f"{new_org_name}-{SCHEMA_NAME}",
+            created_on=new_created_on,
+            created_by=new_created_by,
+        )
+        mock_completed_request = MagicMock()
+        mock_completed_request.new_version_info = new_version_info
+
+        # WHEN I call store_async
+        with patch.object(
+            CreateSchemaRequest,
+            "send_job_and_wait_async",
+            new_callable=AsyncMock,
+            return_value=mock_completed_request,
+        ):
+            self.syn.repoEndpoint = REPO_ENDPOINT
+            await schema.store_async(
+                schema_body=SCHEMA_BODY.copy(),
+                synapse_client=self.syn,
+            )
+
+        # THEN the identity fields should match the new organization
+        assert schema.organization_id == new_org_id
+        assert schema.id == new_schema_id
+        assert schema.uri == f"{new_org_name}-{SCHEMA_NAME}"
+
+        # AND created_on and created_by should keep the values from get
+        assert schema.created_on == CREATED_ON
+        assert schema.created_by == CREATED_BY
+
+        # AND the version values should be in last_stored_version_info
+        assert schema.last_stored_version_info is new_version_info
+        assert schema.last_stored_version_info.created_on == new_created_on
+        assert schema.last_stored_version_info.created_by == new_created_by
+
+    async def test_store_async_second_store_replaces_version_info(self) -> None:
+        # GIVEN a JSONSchema with name and organization_name
+        schema = JSONSchema(name=SCHEMA_NAME, organization_name=ORG_NAME)
+
+        first_version_info = _get_version_info(
+            version_id="1111", semantic_version="0.0.1"
+        )
+        second_version_info = _get_version_info(
+            version_id="2222", semantic_version="0.0.2"
+        )
+        first_request = MagicMock()
+        first_request.new_version_info = first_version_info
+        second_request = MagicMock()
+        second_request.new_version_info = second_version_info
+
+        # WHEN I call store_async two times
+        with patch.object(
+            CreateSchemaRequest,
+            "send_job_and_wait_async",
+            new_callable=AsyncMock,
+            side_effect=[first_request, second_request],
+        ):
+            self.syn.repoEndpoint = REPO_ENDPOINT
+            await schema.store_async(
+                schema_body=SCHEMA_BODY.copy(),
+                version="0.0.1",
+                synapse_client=self.syn,
+            )
+            assert schema.last_stored_version_info is first_version_info
+
+            await schema.store_async(
+                schema_body=SCHEMA_BODY.copy(),
+                version="0.0.2",
+                synapse_client=self.syn,
+            )
+
+        # THEN last_stored_version_info should be the second version info
+        assert schema.last_stored_version_info is second_version_info
+        assert schema.last_stored_version_info.semantic_version == "0.0.2"
+
+    def test_last_stored_version_info_field_definition(self) -> None:
+        # GIVEN a new JSONSchema
+        schema1 = JSONSchema(name=SCHEMA_NAME, organization_name=ORG_NAME)
+
+        # THEN last_stored_version_info should default to None
+        assert schema1.last_stored_version_info is None
+
+        # AND passing last_stored_version_info to the constructor should raise TypeError
+        version_info = _get_version_info()
+        with pytest.raises(TypeError):
+            JSONSchema(
+                name=SCHEMA_NAME,
+                organization_name=ORG_NAME,
+                last_stored_version_info=version_info,
+            )
+
+        # AND two schemas that differ only in last_stored_version_info are equal
+        schema2 = JSONSchema(name=SCHEMA_NAME, organization_name=ORG_NAME)
+        schema1.last_stored_version_info = version_info
+        assert schema1 == schema2
 
     async def test_store_async_without_name_raises(self) -> None:
         # GIVEN a JSONSchema without a name
@@ -686,6 +843,10 @@ class TestJSONSchema:
     async def test_get_async(self) -> None:
         # GIVEN a JSONSchema with name and organization_name
         schema = JSONSchema(name=SCHEMA_NAME, organization_name=ORG_NAME)
+
+        # AND last_stored_version_info from a prior store
+        prior_version_info = _get_version_info()
+        schema.last_stored_version_info = prior_version_info
 
         schema_response = _get_json_schema_list_response()
 
@@ -710,6 +871,9 @@ class TestJSONSchema:
             assert result.name == SCHEMA_NAME
             assert result.organization_name == ORG_NAME
             assert result.id == SCHEMA_ID
+
+            # AND last_stored_version_info should not change
+            assert result.last_stored_version_info is prior_version_info
 
     async def test_get_async_schema_not_found_raises(self) -> None:
         # GIVEN a JSONSchema with a name that does not exist in the org
@@ -841,7 +1005,7 @@ class TestJSONSchema:
         # One version has a semantic version, one does not
         version_with_semantic = _get_schema_version_response(semantic_version="1.0.0")
         version_without_semantic = {
-            "organizationId": ORG_ID_INT,
+            "organizationId": ORG_ID,
             "organizationName": ORG_NAME,
             "schemaId": SCHEMA_ID,
             "$id": f"{ORG_NAME}-{SCHEMA_NAME}",
@@ -934,6 +1098,27 @@ class TestJSONSchema:
             await schema.get_body_async(synapse_client=self.syn)
 
 
+class TestJSONSchemaVersionInfo:
+    """Tests for the JSONSchemaVersionInfo dataclass."""
+
+    @pytest.mark.parametrize(
+        "semantic_version, expected_uri",
+        [
+            (VERSION, f"{ORG_NAME}-{SCHEMA_NAME}-{VERSION}"),
+            (None, f"{ORG_NAME}-{SCHEMA_NAME}"),
+        ],
+        ids=["with_semantic_version", "without_semantic_version"],
+    )
+    def test_json_schema_uri(
+        self, semantic_version: str | None, expected_uri: str
+    ) -> None:
+        # GIVEN a JSONSchemaVersionInfo with or without a semantic version
+        version_info = _get_version_info(semantic_version=semantic_version)
+
+        # THEN json_schema_uri should include the semantic version only when it is set
+        assert version_info.json_schema_uri == expected_uri
+
+
 class TestCreateSchemaRequest:
     """Tests for the CreateSchemaRequest helper dataclass."""
 
@@ -1010,6 +1195,6 @@ class TestCreateSchemaRequest:
 
         # THEN the new_version_info should be populated
         assert request.new_version_info is not None
-        assert request.new_version_info.organization_id == ORG_ID_INT
+        assert request.new_version_info.organization_id == ORG_ID
         assert request.new_version_info.semantic_version == VERSION
         assert request.schema == {"$id": "validated", "type": "object"}

@@ -18,6 +18,7 @@ from synapseclient.models.mixins.json_schema import (
     JSONSchemaDerivedKeys,
     JSONSchemaValidation,
     JSONSchemaValidationStatistics,
+    JSONSchemaVersionInfo,
     ValidationException,
 )
 from synapseclient.models.mixins.storable_container import StorableContainer
@@ -39,6 +40,7 @@ __all__ = [
     "InvalidJSONSchemaValidation",
     "JSONSchemaDerivedKeys",
     "JSONSchemaValidationStatistics",
+    "JSONSchemaVersionInfo",
     "ValidationException",
     "CausingException",
     "FormGroup",

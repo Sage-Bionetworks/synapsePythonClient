@@ -1,4 +1,4 @@
-<!-- Last reviewed: 2026-08 -->
+<!-- Last reviewed: 2026-10 -->
 
 ## Project
 
@@ -6,9 +6,10 @@ Synapse Python Client — official Python SDK and CLI for Synapse (synapse.org),
 
 ## Stack
 
-- Python 3.10–3.14 (`setup.cfg`: `python_requires = >=3.10, <3.15`)
+- Python 3.11–3.15 (`setup.cfg`: `python_requires = >=3.11, <3.16`)
 - HTTP: httpx (async), requests (sync/legacy)
 - Models: stdlib dataclasses (NOT Pydantic)
+- pandas (optional): `pandas>=1.5,<4.0` (`setup.cfg`, 4 places)
 - Tests: pytest 9.0.3, pytest-asyncio, pytest-socket, pytest-xdist
 - Docs: MkDocs with Material theme, mkdocstrings
 - Linting: ruff, black (line-length 88), isort (profile=black), bandit
@@ -107,6 +108,12 @@ pandas, boto3, pysftp, and other optional extras must never be imported at the t
 
 For type annotations referencing pandas types, use `DATA_FRAME_TYPE` and `SERIES_TYPE` from `core/typing_utils.py` rather than `pd.DataFrame` or `pd.Series`. These aliases resolve correctly at type-check time without requiring pandas at runtime.
 
+### pandas version compatibility
+Code must work on every pandas version from 1.5 to 3.x. Use one code path that works on all supported versions. Use a feature check only when no such code path exists. Known pandas 3 traps:
+- Text columns have the `str` dtype, not `object`. Use `pd.api.types.is_string_dtype()` instead of comparing to `object`.
+- `DataFrame.applymap` is replaced by `DataFrame.map`, but `DataFrame.map` is not in pandas < 2.1. Use `df.apply(lambda col: col.map(func))` instead.
+- `iterrows()` gives a `str`-dtype row when all values in the row are strings or missing, and `None` becomes `NaN`. Check each value, not only the column dtype.
+
 ## Constraints
 
 - Do not use Pydantic for models — the codebase uses stdlib dataclasses with custom serialization. Mixing would break the `@async_to_sync` decorator and `fill_from_dict()` pattern.
@@ -125,7 +132,8 @@ For type annotations referencing pandas types, use `DATA_FRAME_TYPE` and `SERIES
 - Integration tests use `--reruns 3` for flaky retries and `-n 4 --dist loadscope` for parallelism
 - Integration fixtures create per-worker Synapse projects; use `schedule_for_cleanup()` for teardown
 - Auth env vars: `SYNAPSE_AUTH_TOKEN` (bearer token), `SYNAPSE_PROFILE` (config file profile, default: `"default"`), `SYNAPSE_TOKEN_AWS_SSM_PARAMETER_NAME` (AWS SSM path)
-- CI runs integration tests only on Python 3.10 and 3.14 (oldest + newest) to limit Synapse server load
+- CI runs integration tests only on Python 3.11 and 3.15 (oldest + newest) to limit Synapse server load
+- CI job `test-pandas-versions` (`.github/workflows/build.yml`) runs the unit tests on older pandas versions: 1.5.3 on Python 3.11, 2.1.4 on Python 3.12, 2.2.3 on Python 3.13 (ubuntu only). The `package` job needs it. pandas < 2.2.2 requires `numpy<2`, so each matrix entry pins its own numpy version (1.26.4, 1.26.4, 2.5.4).
 
 ## Maintenance
 

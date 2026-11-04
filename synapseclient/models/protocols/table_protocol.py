@@ -1,9 +1,7 @@
 """Protocol for the specific methods of this class that have synchronous counterparts
 generated at runtime."""
 
-from typing import Generator, Optional, Protocol
-
-from typing_extensions import Self
+from typing import Generator, Optional, Protocol, Self
 
 from synapseclient import Synapse
 
