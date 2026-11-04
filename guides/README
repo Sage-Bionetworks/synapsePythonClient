@@ -1,0 +1,21 @@
+Guides:
+The purpose of the documents in this folder is to focus on the technincal detail for a
+specific real problem that one might use the client to solve. It is meant to frame the
+picture of the capabilities that are possible with the client.
+
+Guideline:
+- Solve a problem
+- Don't explain concepts: Link to them
+- Adapt to a real-world use-case if possible
+- Be specific with naming and titles
+
+
+
+This guide shows you how to…
+    Describe clearly the problem or task that the guide shows the user how to solve.
+
+If you want x, do y. To achieve w, do z.
+    Use conditional imperatives.
+
+Refer to the x reference guide for a full list of options.
+    Don’t pollute your practical how-to guide with every possible thing the user might do related to x.

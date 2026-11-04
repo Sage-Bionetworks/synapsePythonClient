@@ -1,0 +1,7 @@
+markdown-include
+mkdocs
+mkdocs-material
+mkdocs-open-in-new-tab
+mkdocstrings
+mkdocstrings-python
+termynal
