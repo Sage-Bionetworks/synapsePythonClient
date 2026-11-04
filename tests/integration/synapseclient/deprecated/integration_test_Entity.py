@@ -603,7 +603,7 @@ def test_synapse_store_flag(
         synapseStore=False,
     )
     bogus = syn.store(bogus)
-    bogus = syn.get(bogus)
+    bogus = syn.get(bogus, downloadFile=False)
     assert not bogus.synapseStore
 
     file_handle = bogus["_file_handle"]
