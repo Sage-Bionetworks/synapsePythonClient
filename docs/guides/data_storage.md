@@ -7,7 +7,8 @@ Synapse can use a variety of storage mechanisms to store content, however the mo
 1. Linking External storage locations to new/existing projects or folders
 2. Migration of existing projects or folders to new external storage locations
 3. Creating STS enabled storage locations
-4. Using SFTP
+4. Resuming uploads that stopped
+5. Using SFTP
 
 ## External storage locations
 
@@ -337,6 +338,9 @@ export AWS_SESSION_TOKEN="<session_token>
 $ aws s3 cp /path/to/local/file $SYNAPSE_STS_S3_LOCATION --acl bucket-owner-full-control
 ```
 
+!!! warning
+    `aws s3 cp` cannot resume. If the command stops, the next run sends the file again from byte 0. For large files, see [Resume a direct S3 upload with STS credentials](#resume-a-direct-s3-upload-with-sts-credentials).
+
 ### Using credentials with boto3 in python
 
 This example illustrates retrieving STS credentials and using them with boto3 within python code, in this case to upload a file.  Note that the bucket-owner-full-control ACL is required when putting an object via STS credentials. This ensures that the object ownership will be transferred to the owner of the AWS bucket.
@@ -358,6 +362,21 @@ s3_client.upload_file(
     ExtraArgs={'ACL': 'bucket-owner-full-control'},
 )
 ```
+
+### Resume a direct S3 upload with STS credentials
+
+`upload_file` and `aws s3 cp` abort the S3 multipart upload when they fail. To upload a large file in a way that can resume after a restart, use the boto3 low-level multipart calls and keep the upload ID in a local file:
+
+1. Get `read_write` STS credentials for the folder, as in the example above.
+2. Call `create_multipart_upload` for the S3 key, with `ACL='bucket-owner-full-control'`.
+3. Write the bucket, key, `UploadId`, and part size to a local file. Keep the `UploadId` yourself, because the STS credentials usually do not let you list the uploads in the bucket.
+4. Send each part with `upload_part`.
+5. If the process stops, read the local file, and call `list_parts` to get the parts that S3 has.
+6. Send only the parts that S3 does not have. Use the same part size.
+7. If S3 returns `ExpiredToken`, get new STS credentials and continue. The credentials are valid for 12 hours by default; the `expiration` field gives the exact time.
+8. Call `complete_multipart_upload` with all part numbers and their ETags.
+
+If the bucket has an `AbortIncompleteMultipartUpload` lifecycle rule, you must complete the upload within that time. For the reasons, see [Upload Resume](../explanations/upload_resume.md#direct-s3-uploads-with-sts-credentials).
 
 ### Automatic transfers to/from STS storage locations using boto3 with synapseclient
 
@@ -383,6 +402,20 @@ syn.use_boto_sts_transfers = True
 ```
 
 Note that if boto3 is not installed, then these settings will have no effect.
+
+!!! warning
+    Uploads with automatic boto3 STS transfers cannot resume. If an upload stops, the next run sends the file again from byte 0. See [Resume an upload that stopped](#resume-an-upload-that-stopped).
+
+## Resume an upload that stopped
+
+Uploads to Synapse S3 storage, external S3 storage, and external Google Cloud storage can resume. The client sends only the parts that Synapse does not have.
+
+* If an upload stops because of a network failure, sleep, Ctrl-C, or a crash, run the same command again (for example, `File(path=..., parent_id=...).store()` or `synapse store`). Use the same user and do not change the file, its name, or the destination.
+* Run the command again within 30 days. After 30 days, Synapse deletes the parts and the upload starts from byte 0.
+* If the log shows "Synapse has a record of this upload, but the storage deleted its parts", let the upload continue. It starts again from byte 0.
+* Before the first part is sent, the client reads the full file to calculate its MD5. For a large file, wait for this step to finish.
+
+Automatic boto3 STS transfers, SFTP, and client-authenticated S3-compatible storage cannot resume. For details, see [Upload Resume](../explanations/upload_resume.md).
 
 ## SFTP
 

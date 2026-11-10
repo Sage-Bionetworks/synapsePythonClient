@@ -12,13 +12,17 @@ from typing import Callable
 from unittest import mock, skip
 
 import httpx
+import pytest
 
 import synapseclient.core.config
 import synapseclient.core.utils as utils
 from synapseclient import Synapse
 from synapseclient.core.download import download_by_file_handle
+from synapseclient.core.exceptions import SynapseUploadFailedException
+from synapseclient.core.upload import multipart_upload_async
 from synapseclient.core.upload.multipart_upload_async import (
     MIN_PART_SIZE,
+    RESUME_NOTE,
     multipart_copy_async,
     multipart_upload_file_async,
     multipart_upload_string_async,
@@ -81,6 +85,72 @@ async def test_single_thread_upload(syn: Synapse) -> None:
         assert await multipart_upload_file_async(syn, filepath) is not None
     finally:
         synapseclient.core.config.single_threaded = False
+
+
+async def test_resume_after_failed_attempt(syn: Synapse) -> None:
+    """A second call for the same file resumes the upload that the first call left.
+    The multipart path does no cleanup on failure, so the server state after a
+    failed attempt is the same as after the process is killed."""
+    # GIVEN a file with 3 parts
+    filepath = utils.make_bogus_binary_file(MIN_PART_SIZE * 2 + 1)
+    synapseclient.core.config.single_threaded = True
+
+    responses = []
+    original_post = multipart_upload_async.post_file_multipart
+
+    async def _record_post(*args, **kwargs):
+        response = await original_post(*args, **kwargs)
+        responses.append(response)
+        return response
+
+    s3_puts = 0
+    normal_put = httpx.Client.put
+
+    def _count_put(self, url, *args, **kwargs):
+        nonlocal s3_puts
+        if "s3.amazonaws.com" in url:
+            s3_puts += 1
+        return normal_put(self, url, *args, **kwargs)
+
+    def _fail_second_put(self, url, *args, **kwargs):
+        response = _count_put(self, url, *args, **kwargs)
+        if "s3.amazonaws.com" in url and s3_puts == 2:
+            raise IOError("Artificial upload failure for testing.")
+        return response
+
+    try:
+        with (
+            mock.patch.object(multipart_upload_async, "MAX_RETRIES", 0),
+            mock.patch.object(
+                multipart_upload_async, "post_file_multipart", new=_record_post
+            ),
+        ):
+            # WHEN the first call fails on part 2 with no retries
+            with mock.patch(
+                "httpx.Client.put", side_effect=_fail_second_put, autospec=True
+            ):
+                with pytest.raises(SynapseUploadFailedException) as failure:
+                    await multipart_upload_file_async(
+                        syn, filepath, part_size=MIN_PART_SIZE
+                    )
+            assert RESUME_NOTE in failure.value.__notes__
+
+            # AND I call the same upload again
+            s3_puts = 0
+            with mock.patch("httpx.Client.put", side_effect=_count_put, autospec=True):
+                file_handle_id = await multipart_upload_file_async(
+                    syn, filepath, part_size=MIN_PART_SIZE
+                )
+
+        # THEN the second call resumes the same upload and skips the stored part
+        first, second = responses
+        assert first["uploadId"] == second["uploadId"]
+        assert "1" in second["partsState"]
+        assert s3_puts == second["partsState"].count("0") < 3
+        assert file_handle_id is not None
+    finally:
+        synapseclient.core.config.single_threaded = False
+        os.remove(filepath)
 
 
 async def test_randomly_failing_parts(
