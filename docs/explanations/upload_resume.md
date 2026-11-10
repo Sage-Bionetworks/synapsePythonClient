@@ -53,8 +53,11 @@ still fails, the client tries the full upload again. The client makes up to 8
 attempts in one call, and each attempt resumes from the parts that Synapse has.
 
 Thus, a short network failure or sleep usually does not stop the upload. If the
-call fails, the error has a [note](https://docs.python.org/3/library/exceptions.html#BaseException.add_note)
-that tells you to run the same command again.
+call fails and a second run can continue the upload, the error has a
+[note](https://docs.python.org/3/library/exceptions.html#BaseException.add_note)
+that tells you to run the same command again. Errors that a second run cannot fix,
+for example a permission error (HTTP 403) or an incorrect request (HTTP 400), do
+not have the note. Copies do not have the note.
 
 ## Lost uploads
 
@@ -94,6 +97,10 @@ These upload paths send the full file again after a stop:
   stores).
 
 ## Direct S3 uploads with STS credentials
+
+This section applies only when you upload directly to S3 with STS credentials and
+AWS tools. Uploads with the Synapse client resume automatically, as the sections
+above tell.
 
 With STS credentials from
 [Folder.get_sts_storage_token][synapseclient.models.Folder.get_sts_storage_token],

@@ -383,6 +383,7 @@ import asyncio
 import json
 import math
 import os
+import uuid
 
 import boto3
 from botocore.exceptions import ClientError
@@ -397,7 +398,9 @@ LOCAL_PATH = "/path/to/large/file"
 # The script saves the S3 upload ID here. Keep this file until the script finishes.
 STATE_PATH = LOCAL_PATH + ".upload-state.json"
 # S3 parts must be 5 MiB to 5 GiB, and an upload can have at most 10,000 parts.
+# For a file larger than 10,000 parts of this size, the script uses larger parts.
 PART_SIZE = 100 * 1024 * 1024
+MAX_PARTS = 10_000
 
 syn = Synapse()
 syn.login()
@@ -442,8 +445,16 @@ def load_state(file_stat):
 def start_upload(file_stat):
     s3_client, credentials = get_s3_client()
     bucket = credentials["bucket"]
+    # The UUID makes the key unique, so the upload cannot overwrite another file.
     key = "/".join(
-        filter(None, [credentials.get("baseKey"), os.path.basename(LOCAL_PATH)])
+        filter(
+            None,
+            [
+                credentials.get("baseKey"),
+                str(uuid.uuid4()),
+                os.path.basename(LOCAL_PATH),
+            ],
+        )
     )
     response = s3_client.create_multipart_upload(
         Bucket=bucket, Key=key, ACL="bucket-owner-full-control"
@@ -452,7 +463,7 @@ def start_upload(file_stat):
         "bucket": bucket,
         "key": key,
         "upload_id": response["UploadId"],
-        "part_size": PART_SIZE,
+        "part_size": max(PART_SIZE, math.ceil(file_stat.st_size / MAX_PARTS)),
         "size": file_stat.st_size,
         "mtime": file_stat.st_mtime,
         "complete": False,
@@ -535,7 +546,11 @@ file_handle = asyncio.run(
         parent=FOLDER_ID,
     )
 )
-File(parent_id=FOLDER_ID, data_file_handle_id=file_handle["id"]).store()
+File(
+    parent_id=FOLDER_ID,
+    name=os.path.basename(LOCAL_PATH),
+    data_file_handle_id=file_handle["id"],
+).store()
 os.remove(STATE_PATH)
 ```
 
@@ -600,7 +615,7 @@ The command line equivalent is:
 synapse store /path/to/large/file --parentid syn123
 ```
 
-If the upload fails, the error ends with a note that tells you how to resume:
+If the upload fails because of a transfer failure, an interruption, a connection error, or a server error, the error ends with a note that tells you how to resume:
 
 ```text
 synapseclient.core.exceptions.SynapseUploadFailedException: Part upload failed

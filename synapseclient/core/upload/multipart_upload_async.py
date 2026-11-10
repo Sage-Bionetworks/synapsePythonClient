@@ -145,6 +145,8 @@ LOST_UPLOAD_WARNING = (
 
 _thread_local = threading.local()
 tracer = get_tracer()
+# One cancel (for example, Ctrl-C) can cancel many uploads. Log the note one time.
+_cancel_note_logged = False
 
 
 @contextmanager
@@ -966,8 +968,10 @@ async def _multipart_upload_async(
     add-part or complete, for example after a bucket lifecycle rule aborted it), the
     upload is restarted from
     byte 0 one time with `force_restart=True`. This restart does not count as a
-    retry. A second lost upload is not retried. An error that leaves this function
-    has `RESUME_NOTE` added to it. On cancellation, `RESUME_NOTE` is also logged.
+    retry. A second lost upload is not retried. If a second run can resume the
+    upload (see `_resume_can_help`), `RESUME_NOTE` is added to the error that leaves
+    this function. On cancellation, `RESUME_NOTE` is also logged, one time for each
+    process.
 
     Arguments:
         syn: A Synapse object
@@ -1003,10 +1007,14 @@ async def _multipart_upload_async(
             return upload_status_response["resultFileHandleId"]
 
         except asyncio.CancelledError as ex:
-            # asyncio.run() turns Ctrl-C into a cancel, then raises a new
-            # KeyboardInterrupt, so a note on this error is not shown. Log it.
-            syn.logger.warning(RESUME_NOTE)
-            ex.add_note(RESUME_NOTE)
+            if _resume_can_help(ex, upload_request):
+                # asyncio.run() turns Ctrl-C into a cancel, then raises a new
+                # KeyboardInterrupt, so a note on this error is not shown. Log it.
+                global _cancel_note_logged
+                if not _cancel_note_logged:
+                    _cancel_note_logged = True
+                    syn.logger.warning(RESUME_NOTE)
+                ex.add_note(RESUME_NOTE)
             raise
         except (Exception, KeyboardInterrupt) as ex:
             force_next = False
@@ -1023,8 +1031,34 @@ async def _multipart_upload_async(
             ):
                 retry += 1
                 continue
-            ex.add_note(RESUME_NOTE)
+            if _resume_can_help(ex, upload_request):
+                ex.add_note(RESUME_NOTE)
             raise
+
+
+def _resume_can_help(exception: BaseException, upload_request: Dict) -> bool:
+    """True if running the same upload again can continue it: a transfer failure,
+    an interruption, a connection error, a server error (5xx), or a lost upload.
+    False for copies, because the user has no local file to upload again."""
+    if (
+        upload_request.get("concreteType")
+        == concrete_types.MULTIPART_UPLOAD_COPY_REQUEST
+    ):
+        return False
+    if _is_lost_upload(exception):
+        return True
+    if isinstance(exception, SynapseHTTPError):
+        return exception.response is not None and exception.response.status_code >= 500
+    return isinstance(
+        exception,
+        (
+            SynapseUploadFailedException,
+            SynapseUploadAbortedException,
+            KeyboardInterrupt,
+            asyncio.CancelledError,
+            httpx.TransportError,
+        ),
+    )
 
 
 def _is_lost_upload(exception: BaseException) -> bool:

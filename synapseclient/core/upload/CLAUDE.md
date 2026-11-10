@@ -11,7 +11,7 @@ Multipart file upload to Synapse storage (S3, GCP, SFTP). Dual implementation: s
 - `MIN_PART_SIZE = 5 MB`
 - `DEFAULT_PART_SIZE = 8 MB`
 - `MAX_RETRIES = 7`
-- Upload retry: 60 retries spanning ~30 minutes for resilience
+- Part upload retry: async uses `with_retry_time_based` (stops after ~20 minutes, `DEFAULT_MAX_WAIT_BEFORE_FAIL_ASYNC`); sync uses count-based `with_retry` (3 retries by default)
 
 ### Sync vs async duality
 `multipart_upload.py` (sync/requests) and `multipart_upload_async.py` (async/httpx) must be kept in feature parity. Both implement `UploadAttempt` / `UploadAttemptAsync` classes orchestrating multi-part uploads with presigned URL batching. Exception: the lost-upload restart and `RESUME_NOTE` (see Upload flow) are async-only, because the sync module serves only deprecated callers.
@@ -32,7 +32,7 @@ Multipart file upload to Synapse storage (S3, GCP, SFTP). Dual implementation: s
 3. Multi-part upload with retry per part
 4. Post-upload: complete upload API call, retrieve file handle
 
-Resume: `POST /file/multipart` is idempotent per (request JSON MD5, user), so a second run of the same upload resumes from `partsState`. In `_multipart_upload_async`, an S3 `NoSuchUpload` error (`_is_lost_upload`; arrives as add-part `ADD_FAILED` (HTTP 200) or complete HTTP 400 — part PUTs go to temp objects, not UploadPart, so they never see it) causes one restart with `force_restart=True` that does not use a retry, and every error that leaves the loop gets `RESUME_NOTE` via `add_note`. User docs: `docs/explanations/upload_resume.md`.
+Resume: `POST /file/multipart` is idempotent per (request JSON MD5, user), so a second run of the same upload resumes from `partsState`. In `_multipart_upload_async`, an S3 `NoSuchUpload` error (`_is_lost_upload`; arrives as add-part `ADD_FAILED` (HTTP 200) or complete HTTP 400 — part PUTs go to temp objects, not UploadPart, so they never see it) causes one restart with `force_restart=True` that does not use a retry, and an error that leaves the loop gets `RESUME_NOTE` via `add_note` only if `_resume_can_help` is true (transfer, interrupt, connection, 5xx, or lost-upload errors; never for copies). On cancel, `RESUME_NOTE` is logged one time per process (`_cancel_note_logged`). User docs: `docs/explanations/upload_resume.md`.
 
 ### upload_utils.py
 - `get_partial_file_chunk()` — binary file chunk reader with offset tracking

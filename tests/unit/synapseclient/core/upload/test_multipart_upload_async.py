@@ -4,6 +4,7 @@ from unittest import mock
 import httpx
 import pytest
 
+from synapseclient.core.constants import concrete_types
 from synapseclient.core.exceptions import SynapseHTTPError, SynapseUploadFailedException
 from synapseclient.core.upload import multipart_upload_async
 from synapseclient.core.upload.multipart_upload_async import (
@@ -206,7 +207,11 @@ class TestMultipartUploadLoop:
     """The attempt loop in `_multipart_upload_async`: resume retries, the one
     lost-upload restart, and the resume note."""
 
-    async def _run(self, syn, outcomes, force_restart=False):
+    @pytest.fixture(autouse=True)
+    def _reset_cancel_note(self, monkeypatch):
+        monkeypatch.setattr(multipart_upload_async, "_cancel_note_logged", False)
+
+    async def _run(self, syn, outcomes, force_restart=False, upload_request=None):
         """Run the loop where attempt N gives outcomes[N]. Return the
         force_restart value that each attempt got, and the raised error."""
         calls = []
@@ -221,7 +226,12 @@ class TestMultipartUploadLoop:
         ):
             try:
                 await _multipart_upload_async(
-                    syn, "f.txt", {}, None, None, force_restart=force_restart
+                    syn,
+                    "f.txt",
+                    upload_request or {},
+                    None,
+                    None,
+                    force_restart=force_restart,
                 )
             except BaseException as ex:
                 raised = ex
@@ -254,12 +264,61 @@ class TestMultipartUploadLoop:
         assert RESUME_NOTE in raised.__notes__
         logger.warning.assert_called_once_with(RESUME_NOTE)
 
+    async def test_many_cancels_log_resume_note_once(self, syn):
+        with mock.patch.object(syn, "logger") as logger:
+            for _ in range(3):
+                _, raised = await self._run(syn, [asyncio.CancelledError()])
+                assert RESUME_NOTE in raised.__notes__
+        logger.warning.assert_called_once_with(RESUME_NOTE)
+
     async def test_missing_parts_error_does_not_restart(self, syn):
         missing = _http_error(400, "Missing 1 part(s).")
         calls, raised = await self._run(syn, [missing])
         assert calls == [False]
         assert raised is missing
+
+    @pytest.mark.parametrize(
+        "error",
+        [
+            _http_error(403, "Forbidden"),
+            _http_error(401, "Unauthorized"),
+            _http_error(400, "Bad request"),
+            ValueError("bad value"),
+        ],
+    )
+    async def test_error_that_resume_cannot_fix_has_no_note(self, syn, error):
+        calls, raised = await self._run(syn, [error])
+        assert calls == [False]
+        assert raised is error
+        assert RESUME_NOTE not in getattr(raised, "__notes__", [])
+
+    @pytest.mark.parametrize(
+        "error",
+        [
+            _http_error(503, "Service Unavailable"),
+            httpx.ConnectError("no network"),
+            KeyboardInterrupt(),
+        ],
+    )
+    async def test_error_that_resume_can_fix_has_note(self, syn, error):
+        _, raised = await self._run(syn, [error])
+        assert raised is error
         assert RESUME_NOTE in raised.__notes__
+
+    async def test_copy_failure_has_no_note(self, syn):
+        failures = [
+            SynapseUploadFailedException("Part copy failed")
+            for _ in range(multipart_upload_async.MAX_RETRIES + 1)
+        ]
+        copy_request = {"concreteType": concrete_types.MULTIPART_UPLOAD_COPY_REQUEST}
+        with mock.patch.object(syn, "logger") as logger:
+            _, raised = await self._run(syn, failures, upload_request=copy_request)
+            _, cancel = await self._run(
+                syn, [asyncio.CancelledError()], upload_request=copy_request
+            )
+        assert RESUME_NOTE not in getattr(raised, "__notes__", [])
+        assert RESUME_NOTE not in getattr(cancel, "__notes__", [])
+        logger.warning.assert_not_called()
 
     async def test_failure_has_resume_note(self, syn):
         failures = [
