@@ -133,8 +133,20 @@ MIN_PART_SIZE = 5 * MB
 DEFAULT_PART_SIZE = 8 * MB
 MAX_RETRIES = 7
 
+RESUME_NOTE = (
+    "To resume this upload, run the same command again within 30 days. Do not "
+    "change the file. The client sends only the parts that Synapse does not have. "
+    "See https://python-docs.synapse.org/en/stable/explanations/upload_resume/"
+)
+LOST_UPLOAD_WARNING = (
+    "Synapse has a record of this upload, but the storage deleted its parts. "
+    "The upload starts again from byte 0."
+)
+
 _thread_local = threading.local()
 tracer = get_tracer()
+# One cancel (for example, Ctrl-C) can cancel many uploads. Log the note one time.
+_cancel_note_logged = False
 
 
 @contextmanager
@@ -952,6 +964,15 @@ async def _multipart_upload_async(
     [multipart_copy][synapseclient.core.upload.multipart_upload.multipart_copy].
     Retries cannot exceed 7 retries per call.
 
+    If S3 reports that the multipart upload no longer exists (`NoSuchUpload` from
+    add-part or complete, for example after a bucket lifecycle rule aborted it), the
+    upload is restarted from
+    byte 0 one time with `force_restart=True`. This restart does not count as a
+    retry. A second lost upload is not retried. If a second run can resume the
+    upload (see `_resume_can_help`), `RESUME_NOTE` is added to the error that leaves
+    this function. On cancellation, `RESUME_NOTE` is also logged, one time for each
+    process.
+
     Arguments:
         syn: A Synapse object
         dest_file_name: upload as a different filename
@@ -966,6 +987,10 @@ async def _multipart_upload_async(
 
     """
     retry = 0
+    restarted = False
+    # only force_restart the first attempt (if requested), or the attempt after a
+    # lost upload. Other retries resume the upload.
+    force_next = force_restart
     while True:
         try:
             upload_status_response = await UploadAttemptAsync(
@@ -974,21 +999,89 @@ async def _multipart_upload_async(
                 upload_request,
                 part_fn,
                 md5_fn,
-                # only force_restart the first time through (if requested).
-                # a retry after a caught exception will not restart the upload
-                # from scratch.
-                force_restart and retry == 0,
+                force_next,
                 storage_str=storage_str,
             )()
 
             # success
             return upload_status_response["resultFileHandleId"]
 
-        except SynapseUploadFailedException:
-            if retry < MAX_RETRIES:
+        except asyncio.CancelledError as ex:
+            if _resume_can_help(ex, upload_request):
+                # asyncio.run() turns Ctrl-C into a cancel, then raises a new
+                # KeyboardInterrupt, so a note on this error is not shown. Log it.
+                global _cancel_note_logged
+                if not _cancel_note_logged:
+                    _cancel_note_logged = True
+                    syn.logger.warning(RESUME_NOTE)
+                ex.add_note(RESUME_NOTE)
+            raise
+        except (Exception, KeyboardInterrupt) as ex:
+            force_next = False
+            lost = _is_lost_upload(ex)
+            if lost and not restarted:
+                restarted = True
+                force_next = True
+                syn.logger.warning(LOST_UPLOAD_WARNING)
+                continue
+            if (
+                not lost
+                and isinstance(ex, SynapseUploadFailedException)
+                and retry < MAX_RETRIES
+            ):
                 retry += 1
-            else:
-                raise
+                continue
+            if _resume_can_help(ex, upload_request):
+                ex.add_note(RESUME_NOTE)
+            raise
+
+
+def _resume_can_help(exception: BaseException, upload_request: Dict) -> bool:
+    """True if running the same upload again can continue it: a transfer failure,
+    an interruption, a connection error, a server error (5xx), or a lost upload.
+    False for copies, because the user has no local file to upload again."""
+    if (
+        upload_request.get("concreteType")
+        == concrete_types.MULTIPART_UPLOAD_COPY_REQUEST
+    ):
+        return False
+    if _is_lost_upload(exception):
+        return True
+    if isinstance(exception, SynapseHTTPError):
+        return exception.response is not None and exception.response.status_code >= 500
+    return isinstance(
+        exception,
+        (
+            SynapseUploadFailedException,
+            SynapseUploadAbortedException,
+            KeyboardInterrupt,
+            asyncio.CancelledError,
+            httpx.TransportError,
+        ),
+    )
+
+
+def _is_lost_upload(exception: BaseException) -> bool:
+    """True if the error, or an error in its cause chain, reports that S3 no longer
+    has the multipart upload (`NoSuchUpload`). Synapse reports this from the add-part
+    call (an `ADD_FAILED` state, raised as `SynapseUploadFailedException`) and from
+    the complete call (HTTP 400). S3 reports it directly (HTTP 404) only for part
+    copies."""
+    seen = set()
+    error = exception
+    while error is not None and id(error) not in seen:
+        seen.add(id(error))
+        if "NoSuchUpload" in str(error) and (
+            isinstance(error, SynapseUploadFailedException)
+            or (
+                isinstance(error, SynapseHTTPError)
+                and error.response is not None
+                and error.response.status_code in (400, 404)
+            )
+        ):
+            return True
+        error = error.__cause__ or error.__context__
+    return False
 
 
 @tracer.start_as_current_span("synapse.transfer.upload")
