@@ -966,7 +966,8 @@ async def _multipart_upload_async(
     add-part or complete, for example after a bucket lifecycle rule aborted it), the
     upload is restarted from
     byte 0 one time with `force_restart=True`. This restart does not count as a
-    retry. An error that leaves this function has `RESUME_NOTE` added to it.
+    retry. A second lost upload is not retried. An error that leaves this function
+    has `RESUME_NOTE` added to it. On cancellation, `RESUME_NOTE` is also logged.
 
     Arguments:
         syn: A Synapse object
@@ -1001,14 +1002,25 @@ async def _multipart_upload_async(
             # success
             return upload_status_response["resultFileHandleId"]
 
+        except asyncio.CancelledError as ex:
+            # asyncio.run() turns Ctrl-C into a cancel, then raises a new
+            # KeyboardInterrupt, so a note on this error is not shown. Log it.
+            syn.logger.warning(RESUME_NOTE)
+            ex.add_note(RESUME_NOTE)
+            raise
         except (Exception, KeyboardInterrupt) as ex:
             force_next = False
-            if not restarted and _is_lost_upload(ex):
+            lost = _is_lost_upload(ex)
+            if lost and not restarted:
                 restarted = True
                 force_next = True
                 syn.logger.warning(LOST_UPLOAD_WARNING)
                 continue
-            if isinstance(ex, SynapseUploadFailedException) and retry < MAX_RETRIES:
+            if (
+                not lost
+                and isinstance(ex, SynapseUploadFailedException)
+                and retry < MAX_RETRIES
+            ):
                 retry += 1
                 continue
             ex.add_note(RESUME_NOTE)

@@ -19,6 +19,7 @@ import synapseclient.core.utils as utils
 from synapseclient import Synapse
 from synapseclient.core.download import download_by_file_handle
 from synapseclient.core.exceptions import SynapseUploadFailedException
+from synapseclient.core.pool_provider import SingleThreadExecutor
 from synapseclient.core.upload import multipart_upload_async
 from synapseclient.core.upload.multipart_upload_async import (
     MIN_PART_SIZE,
@@ -124,6 +125,11 @@ async def test_resume_after_failed_attempt(syn: Synapse) -> None:
 
     try:
         with (
+            mock.patch.object(
+                syn,
+                "_get_thread_pool_executor",
+                return_value=SingleThreadExecutor(),
+            ),
             mock.patch.object(multipart_upload_async, "MAX_RETRIES", 0),
             mock.patch.object(
                 multipart_upload_async, "post_file_multipart", new=_record_post

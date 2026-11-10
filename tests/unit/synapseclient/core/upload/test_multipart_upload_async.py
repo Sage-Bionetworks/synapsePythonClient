@@ -1,3 +1,4 @@
+import asyncio
 from unittest import mock
 
 import httpx
@@ -235,13 +236,23 @@ class TestMultipartUploadLoop:
         assert calls == [False, True]
         logger.warning.assert_called_once_with(LOST_UPLOAD_WARNING)
 
-    async def test_second_lost_upload_raises(self, syn):
-        calls, raised = await self._run(
-            syn, [NO_SUCH_UPLOAD_PART, NO_SUCH_UPLOAD_COMPLETE]
-        )
+    @pytest.mark.parametrize(
+        "second_error", [NO_SUCH_UPLOAD_PART, NO_SUCH_UPLOAD_COMPLETE]
+    )
+    async def test_second_lost_upload_raises(self, syn, second_error):
+        calls, raised = await self._run(syn, [NO_SUCH_UPLOAD_PART, second_error])
         assert calls == [False, True]
-        assert raised is NO_SUCH_UPLOAD_COMPLETE
+        assert raised is second_error
         assert RESUME_NOTE in raised.__notes__
+
+    async def test_cancel_logs_resume_note_without_retry(self, syn):
+        cancel = asyncio.CancelledError()
+        with mock.patch.object(syn, "logger") as logger:
+            calls, raised = await self._run(syn, [cancel])
+        assert calls == [False]
+        assert raised is cancel
+        assert RESUME_NOTE in raised.__notes__
+        logger.warning.assert_called_once_with(RESUME_NOTE)
 
     async def test_missing_parts_error_does_not_restart(self, syn):
         missing = _http_error(400, "Missing 1 part(s).")
