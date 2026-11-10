@@ -87,6 +87,10 @@ async def test_single_thread_upload(syn: Synapse) -> None:
         synapseclient.core.config.single_threaded = False
 
 
+def _is_s3_url(url: str) -> bool:
+    return httpx.URL(url).host.endswith(".amazonaws.com")
+
+
 async def test_resume_after_failed_attempt(syn: Synapse) -> None:
     """A second call for the same file resumes the upload that the first call left.
     The multipart path does no cleanup on failure, so the server state after a
@@ -108,13 +112,13 @@ async def test_resume_after_failed_attempt(syn: Synapse) -> None:
 
     def _count_put(self, url, *args, **kwargs):
         nonlocal s3_puts
-        if "s3.amazonaws.com" in url:
+        if _is_s3_url(url):
             s3_puts += 1
         return normal_put(self, url, *args, **kwargs)
 
     def _fail_second_put(self, url, *args, **kwargs):
         response = _count_put(self, url, *args, **kwargs)
-        if "s3.amazonaws.com" in url and s3_puts == 2:
+        if _is_s3_url(url) and s3_puts == 2:
             raise IOError("Artificial upload failure for testing.")
         return response
 

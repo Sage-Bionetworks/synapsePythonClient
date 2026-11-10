@@ -339,7 +339,7 @@ $ aws s3 cp /path/to/local/file $SYNAPSE_STS_S3_LOCATION --acl bucket-owner-full
 ```
 
 !!! warning
-    `aws s3 cp` cannot resume. If the command stops, the next run sends the file again from byte 0. For large files, see [Resume a direct S3 upload with STS credentials](#resume-a-direct-s3-upload-with-sts-credentials).
+    [`aws s3 cp`](https://awscli.amazonaws.com/v2/documentation/api/latest/reference/s3/cp.html) cannot resume an upload. When an upload fails, the AWS CLI aborts the S3 multipart upload, so the next run sends the file again from byte 0. For large files, use the script in [Resume a direct S3 upload with STS credentials](#resume-a-direct-s3-upload-with-sts-credentials).
 
 ### Using credentials with boto3 in python
 
@@ -363,20 +363,189 @@ s3_client.upload_file(
 )
 ```
 
+!!! warning
+    [`upload_file`](https://boto3.amazonaws.com/v1/documentation/api/latest/reference/services/s3/client/upload_file.html) cannot resume an upload. It aborts the S3 multipart upload when it fails, so the next run sends the file again from byte 0. For large files, use the script in the next section.
+
 ### Resume a direct S3 upload with STS credentials
 
-`upload_file` and `aws s3 cp` abort the S3 multipart upload when they fail. To upload a large file in a way that can resume after a restart, use the boto3 low-level multipart calls and keep the upload ID in a local file:
+`aws s3 cp` and boto3 `upload_file` split a large file into an [S3 multipart upload](https://docs.aws.amazon.com/AmazonS3/latest/userguide/mpuoverview.html), but they do not keep a record of it after they stop. The script below calls the S3 multipart API directly and saves the upload ID in a local state file, so a second run can continue from the parts that S3 already has.
 
-1. Get `read_write` STS credentials for the folder, as in the example above.
-2. Call `create_multipart_upload` for the S3 key, with `ACL='bucket-owner-full-control'`.
-3. Write the bucket, key, `UploadId`, and part size to a local file. Keep the `UploadId` yourself, because the STS credentials usually do not let you list the uploads in the bucket.
-4. Send each part with `upload_part`.
-5. If the process stops, read the local file, and call `list_parts` to get the parts that S3 has.
-6. Send only the parts that S3 does not have. Use the same part size.
-7. If S3 returns `ExpiredToken`, get new STS credentials and continue. The credentials are valid for 12 hours by default; the `expiration` field gives the exact time.
-8. Call `complete_multipart_upload` with all part numbers and their ETags.
+The script does these steps:
 
-If the bucket has an `AbortIncompleteMultipartUpload` lifecycle rule, you must complete the upload within that time. For the reasons, see [Upload Resume](../explanations/upload_resume.md#direct-s3-uploads-with-sts-credentials).
+1. Gets `read_write` STS credentials for the folder with [Folder.get_sts_storage_token][synapseclient.models.Folder.get_sts_storage_token]. The credentials are valid for 12 hours by default ([`GET /entity/{id}/sts`](https://rest-docs.synapse.org/rest/GET/entity/id/sts.html)). The Synapse client caches them and gets new credentials when less than one hour remains, so the script asks for them before each part.
+2. Starts the upload with [`create_multipart_upload`](https://boto3.amazonaws.com/v1/documentation/api/latest/reference/services/s3/client/create_multipart_upload.html) and writes the bucket, key, `UploadId`, part size, and file size and modification time to the state file. The script must keep the `UploadId` itself, because STS credentials usually cannot list the multipart uploads in the bucket.
+3. On a second run, reads the state file and gets the parts that S3 has with the [`list_parts`](https://boto3.amazonaws.com/v1/documentation/api/latest/reference/services/s3/paginator/ListParts.html) paginator.
+4. Sends only the other parts with [`upload_part`](https://boto3.amazonaws.com/v1/documentation/api/latest/reference/services/s3/client/upload_part.html), then calls [`complete_multipart_upload`](https://boto3.amazonaws.com/v1/documentation/api/latest/reference/services/s3/client/complete_multipart_upload.html).
+5. Adds the S3 object to the folder as a Synapse File with [post_external_s3_file_handle][synapseclient.api.file_services.post_external_s3_file_handle] and [File.store][synapseclient.models.File.store], then deletes the state file.
+
+```python
+import asyncio
+import json
+import math
+import os
+
+import boto3
+from botocore.exceptions import ClientError
+
+from synapseclient import Synapse
+from synapseclient.api import post_external_s3_file_handle
+from synapseclient.models import File, Folder
+
+# An STS-enabled folder that uses external S3 storage.
+FOLDER_ID = "syn123"
+LOCAL_PATH = "/path/to/large/file"
+# The script saves the S3 upload ID here. Keep this file until the script finishes.
+STATE_PATH = LOCAL_PATH + ".upload-state.json"
+# S3 parts must be 5 MiB to 5 GiB, and an upload can have at most 10,000 parts.
+PART_SIZE = 100 * 1024 * 1024
+
+syn = Synapse()
+syn.login()
+folder = Folder(id=FOLDER_ID)
+
+
+def get_s3_client():
+    """Return an S3 client and the STS credentials for the folder. The Synapse
+    client caches the credentials and gets new ones when less than one hour
+    remains, so it is safe to call this before each part."""
+    credentials = folder.get_sts_storage_token(
+        permission="read_write", output_format="json"
+    )
+    s3_client = boto3.client(
+        "s3",
+        aws_access_key_id=credentials["accessKeyId"],
+        aws_secret_access_key=credentials["secretAccessKey"],
+        aws_session_token=credentials["sessionToken"],
+    )
+    return s3_client, credentials
+
+
+def save_state(state):
+    with open(STATE_PATH, "w") as f:
+        json.dump(state, f)
+
+
+def load_state(file_stat):
+    """Return the saved upload, or None if there is no saved upload."""
+    if not os.path.exists(STATE_PATH):
+        return None
+    with open(STATE_PATH) as f:
+        state = json.load(f)
+    if [state["size"], state["mtime"]] != [file_stat.st_size, file_stat.st_mtime]:
+        raise RuntimeError(
+            f"{LOCAL_PATH} changed after the upload started. "
+            f"Delete {STATE_PATH} to start the upload again."
+        )
+    return state
+
+
+def start_upload(file_stat):
+    s3_client, credentials = get_s3_client()
+    bucket = credentials["bucket"]
+    key = "/".join(
+        filter(None, [credentials.get("baseKey"), os.path.basename(LOCAL_PATH)])
+    )
+    response = s3_client.create_multipart_upload(
+        Bucket=bucket, Key=key, ACL="bucket-owner-full-control"
+    )
+    state = {
+        "bucket": bucket,
+        "key": key,
+        "upload_id": response["UploadId"],
+        "part_size": PART_SIZE,
+        "size": file_stat.st_size,
+        "mtime": file_stat.st_mtime,
+        "complete": False,
+    }
+    save_state(state)
+    return state
+
+
+def get_uploaded_parts(state):
+    """Return {part number: ETag} for the parts that S3 has, or None if S3 no
+    longer has the upload (for example, a lifecycle rule deleted it)."""
+    s3_client, _ = get_s3_client()
+    parts = {}
+    try:
+        for page in s3_client.get_paginator("list_parts").paginate(
+            Bucket=state["bucket"], Key=state["key"], UploadId=state["upload_id"]
+        ):
+            for part in page.get("Parts", []):
+                parts[part["PartNumber"]] = part["ETag"]
+    except ClientError as error:
+        if error.response["Error"]["Code"] == "NoSuchUpload":
+            return None
+        raise
+    return parts
+
+
+def upload_missing_parts(state, parts):
+    part_count = max(1, math.ceil(state["size"] / state["part_size"]))
+    with open(LOCAL_PATH, "rb") as f:
+        for part_number in range(1, part_count + 1):
+            if part_number in parts:
+                continue
+            f.seek((part_number - 1) * state["part_size"])
+            s3_client, _ = get_s3_client()
+            response = s3_client.upload_part(
+                Bucket=state["bucket"],
+                Key=state["key"],
+                UploadId=state["upload_id"],
+                PartNumber=part_number,
+                Body=f.read(state["part_size"]),
+            )
+            parts[part_number] = response["ETag"]
+            print(f"Uploaded part {part_number} of {part_count}")
+
+    s3_client, _ = get_s3_client()
+    s3_client.complete_multipart_upload(
+        Bucket=state["bucket"],
+        Key=state["key"],
+        UploadId=state["upload_id"],
+        MultipartUpload={
+            "Parts": [
+                {"PartNumber": number, "ETag": parts[number]}
+                for number in sorted(parts)
+            ]
+        },
+    )
+    state["complete"] = True
+    save_state(state)
+
+
+file_stat = os.stat(LOCAL_PATH)
+state = load_state(file_stat)
+if state is None:
+    state = start_upload(file_stat)
+
+if not state["complete"]:
+    parts = get_uploaded_parts(state)
+    if parts is None:
+        print("S3 no longer has the upload. Starting again from byte 0.")
+        state = start_upload(file_stat)
+        parts = {}
+    upload_missing_parts(state, parts)
+
+# Add the S3 object to the folder as a Synapse File.
+file_handle = asyncio.run(
+    post_external_s3_file_handle(
+        bucket_name=state["bucket"],
+        s3_file_key=state["key"],
+        file_path=LOCAL_PATH,
+        parent=FOLDER_ID,
+    )
+)
+File(parent_id=FOLDER_ID, data_file_handle_id=file_handle["id"]).store()
+os.remove(STATE_PATH)
+```
+
+To use the script:
+
+1. Set `FOLDER_ID` to an STS-enabled folder that uses external S3 storage (see [Creating an STS enabled folder](#creating-an-sts-enabled-folder)), and `LOCAL_PATH` to the file to upload.
+2. Run the script. If it stops (for example, a network failure, sleep, Ctrl-C, or a crash), run it again with the same values. It prints each part that it sends, so a second run starts after the last part that S3 has.
+3. Do not change the file until the script finishes. If the size or modification time changes, the script stops and tells you to delete the state file.
+
+If the bucket has an [`AbortIncompleteMultipartUpload` lifecycle rule](https://docs.aws.amazon.com/AmazonS3/latest/userguide/mpu-abort-incomplete-mpu-lifecycle-config.html), S3 deletes uploads that are not complete after the number of days in the rule. If that occurs, the script prints a message and starts again from byte 0. For more about why the AWS tools cannot resume, see [Upload Resume](../explanations/upload_resume.md#direct-s3-uploads-with-sts-credentials).
 
 ### Automatic transfers to/from STS storage locations using boto3 with synapseclient
 
@@ -404,18 +573,72 @@ syn.use_boto_sts_transfers = True
 Note that if boto3 is not installed, then these settings will have no effect.
 
 !!! warning
-    Uploads with automatic boto3 STS transfers cannot resume. If an upload stops, the next run sends the file again from byte 0. See [Resume an upload that stopped](#resume-an-upload-that-stopped).
+    Uploads with automatic boto3 STS transfers cannot resume. Each upload uses a new S3 key, and boto3 `upload_file` aborts the S3 multipart upload when it fails, so the next run sends the file again from byte 0. To upload large files that can resume, set `use_boto_sts_transfers` to `False`. See [Resume an upload that stopped](#resume-an-upload-that-stopped).
 
 ## Resume an upload that stopped
 
-Uploads to Synapse S3 storage, external S3 storage, and external Google Cloud storage can resume. The client sends only the parts that Synapse does not have.
+When [File.store][synapseclient.models.File.store] or the [`synapse store`](../tutorials/command_line_client.md#store) command uploads a file to Synapse S3 storage, external S3 storage, or external Google Cloud storage, the client uses the [Synapse multipart upload API](https://rest-docs.synapse.org/rest/POST/file/multipart.html). Synapse keeps a record of the upload and of each part that it received. If the upload stops, run the same upload again: the client finds the earlier upload and sends only the parts that Synapse does not have.
 
-* If an upload stops because of a network failure, sleep, Ctrl-C, or a crash, run the same command again (for example, `File(path=..., parent_id=...).store()` or `synapse store`). Use the same user and do not change the file, its name, or the destination.
-* Run the command again within 30 days. After 30 days, Synapse deletes the parts and the upload starts from byte 0.
-* If the log shows "Synapse has a record of this upload, but the storage deleted its parts", let the upload continue. It starts again from byte 0.
-* Before the first part is sent, the client reads the full file to calculate its MD5. For a large file, wait for this step to finish.
+For example, this script uploads a large file. If the upload stops for any reason (a network failure, sleep, Ctrl-C, or a crash), run the same script again:
 
-Automatic boto3 STS transfers, SFTP, and client-authenticated S3-compatible storage cannot resume. For details, see [Upload Resume](../explanations/upload_resume.md).
+```python
+from synapseclient import Synapse
+from synapseclient.models import File
+
+syn = Synapse()
+syn.login()
+
+# If this upload stops, run this script again with the same path and parent.
+# The client sends only the parts that Synapse does not have.
+file = File(path="/path/to/large/file", parent_id="syn123").store()
+print(f"Uploaded {file.id}")
+```
+
+The command line equivalent is:
+
+```bash
+synapse store /path/to/large/file --parentid syn123
+```
+
+If the upload fails, the error ends with a note that tells you how to resume:
+
+```text
+synapseclient.core.exceptions.SynapseUploadFailedException: Part upload failed
+To resume this upload, run the same command again within 30 days. Do not change the file. The client sends only the parts that Synapse does not have. See https://python-docs.synapse.org/en/stable/explanations/upload_resume/
+```
+
+The second run resumes the upload only if these items are the same as in the first run:
+
+* The Synapse account that you log in with.
+* The file content, the file name, and the destination folder or project.
+
+Synapse deletes an upload that is not complete 30 days after the last part was added to it. After that, the upload starts again from byte 0.
+
+Before the client sends the first part, it reads the full file to calculate its MD5, because the MD5 identifies the upload. For a large file this takes some time, but it is usually much shorter than the upload itself.
+
+### If the log shows a lost-upload warning
+
+The client can log this warning when it resumes an upload to external S3 storage:
+
+```text
+Synapse has a record of this upload, but the storage deleted its parts. The upload starts again from byte 0.
+```
+
+This occurs when S3 deleted the parts before Synapse did, for example because of an [`AbortIncompleteMultipartUpload` lifecycle rule](https://docs.aws.amazon.com/AmazonS3/latest/userguide/mpu-abort-incomplete-mpu-lifecycle-config.html) on the bucket. You do not need to do anything: the client starts a new upload and sends all the parts.
+
+### STS-enabled folders
+
+If [`use_boto_sts_transfers`](#automatic-transfersto-from-sts-storage-locations-using-boto3-with-synapseclient) is `True`, uploads to an STS-enabled folder use boto3 and cannot resume. Set it to `False` to use the Synapse multipart upload API, which can resume:
+
+```python
+syn.use_boto_sts_transfers = False
+```
+
+If you set `use_boto_sts=true` in the `[transfer]` section of your `.synapseConfig` file, remove that line or set it to `false`.
+
+### Storage that cannot resume
+
+Uploads to [SFTP](#sftp) storage and to client-authenticated S3-compatible storage (external object stores) always send the full file again. For the reasons, see [Upload Resume](../explanations/upload_resume.md).
 
 ## SFTP
 
