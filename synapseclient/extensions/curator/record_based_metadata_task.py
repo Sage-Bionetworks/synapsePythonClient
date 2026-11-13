@@ -84,6 +84,12 @@ def extract_schema_properties_from_dict(schema_data: Dict[str, Any]) -> DATA_FRA
     return df
 
 
+def _schema_version(schema_uri: str) -> Optional[str]:
+    """The semantic version an `ORG-NAME-VERSION` schema URI names, or None."""
+    parts = schema_uri.split("-")
+    return parts[2] if len(parts) == 3 else None
+
+
 def extract_schema_properties_from_web(
     syn: Synapse, schema_uri: str
 ) -> DATA_FRAME_TYPE:
@@ -103,7 +109,7 @@ def extract_schema_properties_from_web(
     """
     schema = JSONSchema.from_uri(schema_uri)
     schema.get(synapse_client=syn)
-    body = schema.get_body(synapse_client=syn)
+    body = schema.get_body(version=_schema_version(schema_uri), synapse_client=syn)
     return extract_schema_properties_from_dict(schema_data=body)
 
 
@@ -123,7 +129,9 @@ async def _fetch_schema_properties_from_web(
     """
     schema = JSONSchema.from_uri(schema_uri)
     await schema.get_async(synapse_client=syn)
-    body = await schema.get_body_async(synapse_client=syn)
+    body = await schema.get_body_async(
+        version=_schema_version(schema_uri), synapse_client=syn
+    )
     return extract_schema_properties_from_dict(schema_data=body)
 
 

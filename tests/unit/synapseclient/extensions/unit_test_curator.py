@@ -2114,7 +2114,9 @@ class TestRecordBasedHelperFunctions:
         expected_columns = ["specimenID", "age"]
         assert list(result.columns) == expected_columns
         mock_schema.get.assert_called_once()
-        mock_schema.get_body.assert_called_once()
+        mock_schema.get_body.assert_called_once_with(
+            version="1.0.0", synapse_client=mock_syn
+        )
 
 
 class TestValidateColumnOrderList:
