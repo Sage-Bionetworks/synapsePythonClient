@@ -91,7 +91,12 @@ from synapseclient.models.mixins.enum_coercion import (
     ForwardCompatibleStrEnum,
 )
 from synapseclient.models.recordset import ValidationSummary
-from synapseclient.models.table_components import Column, CsvTableDescriptor, Query
+from synapseclient.models.table_components import (
+    Column,
+    ColumnType,
+    CsvTableDescriptor,
+    Query,
+)
 
 
 class TaskState(str, Enum):
@@ -5285,6 +5290,7 @@ class GridSynchronousProtocol(Protocol):
         *,
         timeout: int = 120,
         csv_table_descriptor: Optional[CsvTableDescriptor] = None,
+        column_types: Optional[Dict[str, ColumnType]] = None,
         synapse_client: Optional[Synapse] = None,
     ) -> "Grid":
         """
@@ -5297,6 +5303,12 @@ class GridSynchronousProtocol(Protocol):
             csv_table_descriptor: The description of the CSV format (delimiter,
                 quote character, etc.). If not provided, the default CSV format
                 will be used.
+            column_types: The type of each column, by column name, used in place
+                of the type the preview guesses from the CSV text. The preview
+                types a column whose cells are all blank as text, and a text
+                column holding only numbers as a number; a caller who knows the
+                column types gives them here. Columns not named keep the
+                preview's type, and names the CSV does not have are ignored.
             timeout: The number of seconds to wait for each async job to complete
                 or progress before raising a SynapseTimeoutError. Defaults to 120.
             synapse_client: If not passed in and caching was not disabled by
@@ -5323,8 +5335,41 @@ class GridSynchronousProtocol(Protocol):
             grid = grid.import_csv(path="/local/path/to/data.csv")
             print(f"Import complete for session: {grid.session_id}")
             ```
+
+        Example: Import a CSV file with known column types
+            &nbsp;
+            Type `weight` as a number and `code` as text, whatever the CSV
+            text looks like.
+            ```python
+            from synapseclient import Synapse
+            from synapseclient.models import ColumnType, Grid
+
+            syn = Synapse()
+            syn.login()
+
+            grid = Grid(session_id="abc-123-def")
+            grid = grid.import_csv(
+                path="/local/path/to/data.csv",
+                column_types={"weight": ColumnType.DOUBLE, "code": ColumnType.STRING},
+            )
+            ```
         """
         return self
+
+
+def _retype_columns(
+    columns: list[Column], column_types: Optional[Dict[str, ColumnType]]
+) -> list[Column]:
+    """Return `columns` with each column named in `column_types` given that type."""
+    if not column_types:
+        return columns
+    retyped = []
+    for column in columns:
+        new_type = column_types.get(column.name)
+        if new_type is not None and ColumnType(new_type) != column.column_type:
+            column = replace(column, column_type=ColumnType(new_type))
+        retyped.append(column)
+    return retyped
 
 
 @dataclass
@@ -5885,6 +5930,7 @@ class Grid(EnumCoercionMixin, GridSynchronousProtocol):
         *,
         timeout: int = 120,
         csv_table_descriptor: Optional[CsvTableDescriptor] = None,
+        column_types: Optional[Dict[str, ColumnType]] = None,
         synapse_client: Optional[Synapse] = None,
     ) -> "Grid":
         """
@@ -5897,6 +5943,12 @@ class Grid(EnumCoercionMixin, GridSynchronousProtocol):
             csv_table_descriptor: The description of the CSV format (delimiter,
                 quote character, etc.). If not provided, the default CSV format
                 will be used.
+            column_types: The type of each column, by column name, used in place
+                of the type the preview guesses from the CSV text. The preview
+                types a column whose cells are all blank as text, and a text
+                column holding only numbers as a number; a caller who knows the
+                column types gives them here. Columns not named keep the
+                preview's type, and names the CSV does not have are ignored.
             timeout: The number of seconds to wait for each async job to complete
                 or progress before raising a SynapseTimeoutError. Defaults to 120.
             synapse_client: If not passed in and caching was not disabled by
@@ -5924,6 +5976,31 @@ class Grid(EnumCoercionMixin, GridSynchronousProtocol):
                 grid = Grid(session_id="abc-123-def")
                 grid = await grid.import_csv_async(path="/local/path/to/data.csv")
                 print(f"Import complete for session: {grid.session_id}")
+
+            asyncio.run(main())
+            ```
+
+        Example: Import a CSV file with known column types asynchronously
+            &nbsp;
+            Type `weight` as a number and `code` as text, whatever the CSV
+            text looks like.
+            ```python
+            import asyncio
+            from synapseclient import Synapse
+            from synapseclient.models import ColumnType, Grid
+
+            syn = Synapse()
+            syn.login()
+
+            async def main():
+                grid = Grid(session_id="abc-123-def")
+                grid = await grid.import_csv_async(
+                    path="/local/path/to/data.csv",
+                    column_types={
+                        "weight": ColumnType.DOUBLE,
+                        "code": ColumnType.STRING,
+                    },
+                )
 
             asyncio.run(main())
             ```
@@ -5969,7 +6046,7 @@ class Grid(EnumCoercionMixin, GridSynchronousProtocol):
         import_request = GridCsvImportRequest(
             session_id=self.session_id,
             file_handle_id=file_handle_id,
-            schema=preview_response.suggested_columns,
+            schema=_retype_columns(preview_response.suggested_columns, column_types),
             csv_descriptor=effective_descriptor,
         )
         import_response = await import_request.send_job_and_wait_async(

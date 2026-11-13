@@ -79,7 +79,7 @@ from synapseclient.models.curation import (
     _create_task_properties_from_dict,
 )
 from synapseclient.models.recordset import ValidationSummary
-from synapseclient.models.table_components import Column, CsvTableDescriptor
+from synapseclient.models.table_components import Column, ColumnType, CsvTableDescriptor
 
 TASK_ID = 42
 TASK_ID_2 = 99
@@ -3229,6 +3229,119 @@ class TestGrid:
                     path="test.csv",
                     csv_table_descriptor=csv_table_descriptor,
                 )
+
+    @pytest.mark.parametrize(
+        "column_types, expected",
+        [
+            pytest.param(
+                None,
+                [
+                    ("code", ColumnType.INTEGER, None, None),
+                    ("weight", ColumnType.STRING, 50, None),
+                    ("tags", ColumnType.STRING_LIST, 50, 10),
+                    ("notes", ColumnType.STRING, 50, None),
+                ],
+                id="omitted",
+            ),
+            pytest.param(
+                {},
+                [
+                    ("code", ColumnType.INTEGER, None, None),
+                    ("weight", ColumnType.STRING, 50, None),
+                    ("tags", ColumnType.STRING_LIST, 50, 10),
+                    ("notes", ColumnType.STRING, 50, None),
+                ],
+                id="empty",
+            ),
+            pytest.param(
+                {
+                    "code": ColumnType.STRING,
+                    "weight": ColumnType.DOUBLE,
+                    "tags": ColumnType.STRING_LIST,
+                    "notInCsv": ColumnType.INTEGER,
+                },
+                [
+                    ("code", ColumnType.STRING, None, None),
+                    ("weight", ColumnType.DOUBLE, 50, None),
+                    ("tags", ColumnType.STRING_LIST, 50, 10),
+                    ("notes", ColumnType.STRING, 50, None),
+                ],
+                id="named-retyped-others-kept-absent-ignored",
+            ),
+        ],
+    )
+    async def test_import_csv_async_column_types(self, column_types, expected) -> None:
+        """The columns sent are the preview's, with each named column retyped."""
+        # GIVEN a preview that types a numeric-looking text column as INTEGER and
+        # an all-blank number column as STRING
+        grid = Grid(session_id=SESSION_ID)
+        suggested = [
+            Column(name="code", column_type=ColumnType.INTEGER),
+            Column(name="weight", column_type=ColumnType.STRING, maximum_size=50),
+            Column(
+                name="tags",
+                column_type=ColumnType.STRING_LIST,
+                maximum_size=50,
+                maximum_list_length=10,
+            ),
+            Column(name="notes", column_type=ColumnType.STRING, maximum_size=50),
+        ]
+        mock_preview_instance = MagicMock()
+        mock_preview_instance.send_job_and_wait_async = AsyncMock(
+            return_value=UploadToTablePreviewRequest(
+                upload_file_handle_id=FILE_HANDLE_ID,
+                suggested_columns=suggested,
+                rows_scanned=2,
+            )
+        )
+        mock_import_instance = MagicMock()
+        mock_import_instance.send_job_and_wait_async = AsyncMock(
+            return_value=GridCsvImportRequest(
+                session_id=SESSION_ID,
+                file_handle_id=FILE_HANDLE_ID,
+                schema=suggested,
+                total_count=2,
+                created_count=2,
+                updated_count=0,
+            )
+        )
+
+        # WHEN I import with the given column_types
+        with (
+            patch("synapseclient.models.curation.os.path.isfile", return_value=True),
+            patch(
+                "synapseclient.models.curation.upload_synapse_s3",
+                new_callable=AsyncMock,
+                return_value={"id": FILE_HANDLE_ID},
+            ),
+            patch(
+                "synapseclient.models.curation.UploadToTablePreviewRequest",
+                return_value=mock_preview_instance,
+            ),
+            patch(
+                "synapseclient.models.curation.GridCsvImportRequest",
+                return_value=mock_import_instance,
+            ) as MockImport,
+            patch.object(self.syn, "logger"),
+        ):
+            await grid.import_csv_async(
+                synapse_client=self.syn,
+                path="test.csv",
+                column_types=column_types,
+            )
+
+        # THEN the request carries each column in preview order, retyped where
+        # named, with the preview's own size fields
+        sent = MockImport.call_args.kwargs["schema"]
+        assert [
+            (c.name, c.column_type, c.maximum_size, c.maximum_list_length) for c in sent
+        ] == expected
+        # AND without column_types the preview's own column list is sent
+        if not column_types:
+            assert sent is suggested
+        # AND the preview's columns are not changed in place
+        assert suggested[0].column_type == ColumnType.INTEGER
+        assert suggested[1].column_type == ColumnType.STRING
 
 
 class TestCreateGridRequest:
