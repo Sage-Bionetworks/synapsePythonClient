@@ -14,7 +14,7 @@ import tempfile
 import unittest
 from collections import OrderedDict
 from typing import Any, Callable
-from unittest.mock import Mock, mock_open, patch
+from unittest.mock import AsyncMock, Mock, mock_open, patch
 
 import numpy as np
 import pandas as pd
@@ -25,6 +25,7 @@ from synapseclient.core.exceptions import SynapseHTTPError
 from synapseclient.extensions.curator import (
     create_file_based_metadata_task,
     create_record_based_metadata_task,
+    create_record_based_metadata_task_async,
     query_schema_registry,
 )
 from synapseclient.extensions.curator.file_based_metadata_task import (
@@ -57,6 +58,7 @@ from synapseclient.extensions.curator.schema_registry import (
     get_latest_schema_uri,
 )
 from synapseclient.extensions.curator.utils import (
+    project_id_from_entity_id_async,
     resolve_column_order_list,
     validate_column_order_list,
 )
@@ -625,13 +627,15 @@ class TestCreateRecordBasedMetadataTask(unittest.TestCase):
             project_id_from_entity_id(entity_id="syn123", synapse_client=self.mock_syn)
 
     @patch(
-        "synapseclient.extensions.curator.record_based_metadata_task.project_id_from_entity_id"
+        "synapseclient.extensions.curator.record_based_metadata_task.project_id_from_entity_id_async",
+        new_callable=AsyncMock,
     )
     @patch(
         "synapseclient.extensions.curator.record_based_metadata_task.Synapse.get_client"
     )
     @patch(
-        "synapseclient.extensions.curator.record_based_metadata_task.extract_schema_properties_from_web"
+        "synapseclient.extensions.curator.record_based_metadata_task._fetch_schema_properties_from_web",
+        new_callable=AsyncMock,
     )
     @patch(
         "synapseclient.extensions.curator.record_based_metadata_task.tempfile.NamedTemporaryFile"
@@ -664,19 +668,19 @@ class TestCreateRecordBasedMetadataTask(unittest.TestCase):
         mock_temp.name = "/tmp/test.csv"
         mock_temp_file.return_value = mock_temp
 
-        mock_record_set = Mock()
+        mock_record_set = AsyncMock()
         mock_record_set.id = "syn87654321"
-        mock_record_set_instance = Mock()
-        mock_record_set_instance.store.return_value = mock_record_set
+        mock_record_set_instance = AsyncMock()
+        mock_record_set_instance.store_async.return_value = mock_record_set
         mock_record_set_cls.return_value = mock_record_set_instance
 
         mock_task = Mock()
         mock_task.task_id = "task123"
-        mock_curation_task = Mock()
-        mock_curation_task.store.return_value = mock_task
+        mock_curation_task = AsyncMock()
+        mock_curation_task.store_async.return_value = mock_task
         mock_curation_task_cls.return_value = mock_curation_task
 
-        mock_grid_instance = Mock()
+        mock_grid_instance = AsyncMock()
         mock_grid_cls.return_value = mock_grid_instance
 
         # WHEN I create the record-based metadata task
@@ -704,7 +708,7 @@ class TestCreateRecordBasedMetadataTask(unittest.TestCase):
         mock_extract_schema.assert_called_once_with(
             syn=self.mock_syn, schema_uri=self.schema_uri
         )
-        mock_record_set.bind_schema.assert_called_once_with(
+        mock_record_set.bind_schema_async.assert_called_once_with(
             json_schema_uri=self.schema_uri,
             enable_derived_annotations=True,
             synapse_client=self.mock_syn,
@@ -716,13 +720,15 @@ class TestCreateRecordBasedMetadataTask(unittest.TestCase):
         )
 
     @patch(
-        "synapseclient.extensions.curator.record_based_metadata_task.project_id_from_entity_id"
+        "synapseclient.extensions.curator.record_based_metadata_task.project_id_from_entity_id_async",
+        new_callable=AsyncMock,
     )
     @patch(
         "synapseclient.extensions.curator.record_based_metadata_task.Synapse.get_client"
     )
     @patch(
-        "synapseclient.extensions.curator.record_based_metadata_task.extract_schema_properties_from_web"
+        "synapseclient.extensions.curator.record_based_metadata_task._fetch_schema_properties_from_web",
+        new_callable=AsyncMock,
     )
     @patch(
         "synapseclient.extensions.curator.record_based_metadata_task.tempfile.NamedTemporaryFile"
@@ -752,10 +758,14 @@ class TestCreateRecordBasedMetadataTask(unittest.TestCase):
         mock_temp.name = "/tmp/test.csv"
         mock_temp_file.return_value = mock_temp
 
-        mock_record_set = Mock()
+        mock_record_set = AsyncMock()
         mock_record_set.id = "syn87654321"
-        mock_record_set_cls.return_value.store.return_value = mock_record_set
-        mock_curation_task_cls.return_value.store.return_value = Mock(task_id="task123")
+        mock_record_set_cls.return_value.store_async = AsyncMock(
+            return_value=mock_record_set
+        )
+        mock_curation_task_cls.return_value.store_async = AsyncMock(
+            return_value=Mock(task_id="task123")
+        )
 
         # WHEN I create the task with multiple upsert keys and a partial column order
         create_record_based_metadata_task(
@@ -781,10 +791,12 @@ class TestCreateRecordBasedMetadataTask(unittest.TestCase):
         assert written_csv.splitlines()[0] == "patientId,specimenID,diagnosis,age,assay"
 
     @patch(
-        "synapseclient.extensions.curator.record_based_metadata_task.project_id_from_entity_id"
+        "synapseclient.extensions.curator.record_based_metadata_task.project_id_from_entity_id_async",
+        new_callable=AsyncMock,
     )
     @patch(
-        "synapseclient.extensions.curator.record_based_metadata_task.extract_schema_properties_from_web"
+        "synapseclient.extensions.curator.record_based_metadata_task._fetch_schema_properties_from_web",
+        new_callable=AsyncMock,
     )
     def test_create_record_based_metadata_task_invalid_column_order(
         self,
@@ -812,13 +824,15 @@ class TestCreateRecordBasedMetadataTask(unittest.TestCase):
         mock_extract_schema.assert_not_called()
 
     @patch(
-        "synapseclient.extensions.curator.record_based_metadata_task.project_id_from_entity_id"
+        "synapseclient.extensions.curator.record_based_metadata_task.project_id_from_entity_id_async",
+        new_callable=AsyncMock,
     )
     @patch(
         "synapseclient.extensions.curator.record_based_metadata_task.Synapse.get_client"
     )
     @patch(
-        "synapseclient.extensions.curator.record_based_metadata_task.extract_schema_properties_from_web"
+        "synapseclient.extensions.curator.record_based_metadata_task._fetch_schema_properties_from_web",
+        new_callable=AsyncMock,
     )
     @patch(
         "synapseclient.extensions.curator.record_based_metadata_task.tempfile.NamedTemporaryFile"
@@ -889,16 +903,16 @@ class TestCreateRecordBasedMetadataTask(unittest.TestCase):
                 mock_temp.name = "/tmp/test.csv"
                 mock_temp_file.return_value = mock_temp
 
-                mock_record_set = Mock()
+                mock_record_set = AsyncMock()
                 mock_record_set.id = "syn87654321"
-                mock_record_set_instance = Mock()
-                mock_record_set_instance.store.return_value = mock_record_set
+                mock_record_set_instance = AsyncMock()
+                mock_record_set_instance.store_async.return_value = mock_record_set
                 mock_record_set_cls.return_value = mock_record_set_instance
 
                 mock_task = Mock()
                 mock_task.task_id = "task123"
-                mock_curation_task = Mock()
-                mock_curation_task.store.return_value = mock_task
+                mock_curation_task = AsyncMock()
+                mock_curation_task.store_async.return_value = mock_task
                 mock_curation_task_cls.return_value = mock_curation_task
 
                 # WHEN I create the record-based metadata task
@@ -930,13 +944,15 @@ class TestCreateRecordBasedMetadataTask(unittest.TestCase):
                 )
 
     @patch(
-        "synapseclient.extensions.curator.record_based_metadata_task.project_id_from_entity_id"
+        "synapseclient.extensions.curator.record_based_metadata_task.project_id_from_entity_id_async",
+        new_callable=AsyncMock,
     )
     @patch(
         "synapseclient.extensions.curator.record_based_metadata_task.Synapse.get_client"
     )
     @patch(
-        "synapseclient.extensions.curator.record_based_metadata_task.extract_schema_properties_from_web"
+        "synapseclient.extensions.curator.record_based_metadata_task._fetch_schema_properties_from_web",
+        new_callable=AsyncMock,
     )
     @patch(
         "synapseclient.extensions.curator.record_based_metadata_task.tempfile.NamedTemporaryFile"
@@ -970,17 +986,19 @@ class TestCreateRecordBasedMetadataTask(unittest.TestCase):
         mock_temp.name = "/tmp/test.csv"
         mock_temp_file.return_value = mock_temp
 
-        mock_record_set = Mock()
+        mock_record_set = AsyncMock()
         mock_record_set.id = "syn87654321"
-        mock_record_set_instance = Mock()
-        mock_record_set_instance.store.return_value = mock_record_set
+        mock_record_set_instance = AsyncMock()
+        mock_record_set_instance.store_async.return_value = mock_record_set
         mock_record_set_cls.return_value = mock_record_set_instance
 
         mock_task = Mock()
         mock_task.task_id = "task123"
-        mock_curation_task = Mock()
-        mock_curation_task.store.return_value = mock_task
+        mock_curation_task = AsyncMock()
+        mock_curation_task.store_async.return_value = mock_task
         mock_curation_task_cls.return_value = mock_curation_task
+
+        mock_grid_cls.return_value = AsyncMock()
 
         # WHEN I create the record-based metadata task with two upsert keys
         create_record_based_metadata_task(
@@ -1001,13 +1019,15 @@ class TestCreateRecordBasedMetadataTask(unittest.TestCase):
         )
 
     @patch(
-        "synapseclient.extensions.curator.record_based_metadata_task.project_id_from_entity_id"
+        "synapseclient.extensions.curator.record_based_metadata_task.project_id_from_entity_id_async",
+        new_callable=AsyncMock,
     )
     @patch(
         "synapseclient.extensions.curator.record_based_metadata_task.Synapse.get_client"
     )
     @patch(
-        "synapseclient.extensions.curator.record_based_metadata_task.extract_schema_properties_from_web"
+        "synapseclient.extensions.curator.record_based_metadata_task._fetch_schema_properties_from_web",
+        new_callable=AsyncMock,
     )
     def test_create_record_based_metadata_task_raises_for_missing_upsert_keys(
         self,
@@ -1040,13 +1060,15 @@ class TestCreateRecordBasedMetadataTask(unittest.TestCase):
         self.assertIn("notAColumn", str(context.exception))
 
     @patch(
-        "synapseclient.extensions.curator.record_based_metadata_task.project_id_from_entity_id"
+        "synapseclient.extensions.curator.record_based_metadata_task.project_id_from_entity_id_async",
+        new_callable=AsyncMock,
     )
     @patch(
         "synapseclient.extensions.curator.record_based_metadata_task.Synapse.get_client"
     )
     @patch(
-        "synapseclient.extensions.curator.record_based_metadata_task.extract_schema_properties_from_web"
+        "synapseclient.extensions.curator.record_based_metadata_task._fetch_schema_properties_from_web",
+        new_callable=AsyncMock,
     )
     @patch(
         "synapseclient.extensions.curator.record_based_metadata_task.tempfile.NamedTemporaryFile"
@@ -1078,19 +1100,19 @@ class TestCreateRecordBasedMetadataTask(unittest.TestCase):
         mock_temp.name = "/tmp/test.csv"
         mock_temp_file.return_value = mock_temp
 
-        mock_record_set = Mock()
+        mock_record_set = AsyncMock()
         mock_record_set.id = "syn87654321"
-        mock_record_set_instance = Mock()
-        mock_record_set_instance.store.return_value = mock_record_set
+        mock_record_set_instance = AsyncMock()
+        mock_record_set_instance.store_async.return_value = mock_record_set
         mock_record_set_cls.return_value = mock_record_set_instance
 
         mock_task = Mock()
         mock_task.task_id = "task123"
-        mock_curation_task = Mock()
-        mock_curation_task.store.return_value = mock_task
+        mock_curation_task = AsyncMock()
+        mock_curation_task.store_async.return_value = mock_task
         mock_curation_task_cls.return_value = mock_curation_task
 
-        mock_grid_instance = Mock()
+        mock_grid_instance = AsyncMock()
         mock_grid_cls.return_value = mock_grid_instance
 
         # WHEN I create the record-based metadata task without schema binding
@@ -1115,7 +1137,7 @@ class TestCreateRecordBasedMetadataTask(unittest.TestCase):
         assert grid == mock_grid_instance
 
         # AND schema binding was skipped
-        mock_record_set.bind_schema.assert_not_called()
+        mock_record_set.bind_schema_async.assert_not_called()
 
     @patch(
         "synapseclient.extensions.curator.record_based_metadata_task.Synapse.get_client"
@@ -1162,13 +1184,15 @@ class TestCreateRecordBasedMetadataTask(unittest.TestCase):
             )
 
     @patch(
-        "synapseclient.extensions.curator.record_based_metadata_task.project_id_from_entity_id"
+        "synapseclient.extensions.curator.record_based_metadata_task.project_id_from_entity_id_async",
+        new_callable=AsyncMock,
     )
     @patch(
         "synapseclient.extensions.curator.record_based_metadata_task.Synapse.get_client"
     )
     @patch(
-        "synapseclient.extensions.curator.record_based_metadata_task.extract_schema_properties_from_web"
+        "synapseclient.extensions.curator.record_based_metadata_task._fetch_schema_properties_from_web",
+        new_callable=AsyncMock,
     )
     @patch(
         "synapseclient.extensions.curator.record_based_metadata_task.tempfile.NamedTemporaryFile"
@@ -1208,13 +1232,15 @@ class TestCreateRecordBasedMetadataTask(unittest.TestCase):
             )
 
     @patch(
-        "synapseclient.extensions.curator.record_based_metadata_task.project_id_from_entity_id"
+        "synapseclient.extensions.curator.record_based_metadata_task.project_id_from_entity_id_async",
+        new_callable=AsyncMock,
     )
     @patch(
         "synapseclient.extensions.curator.record_based_metadata_task.Synapse.get_client"
     )
     @patch(
-        "synapseclient.extensions.curator.record_based_metadata_task.extract_schema_properties_from_web"
+        "synapseclient.extensions.curator.record_based_metadata_task._fetch_schema_properties_from_web",
+        new_callable=AsyncMock,
     )
     @patch(
         "synapseclient.extensions.curator.record_based_metadata_task.tempfile.NamedTemporaryFile"
@@ -1241,8 +1267,8 @@ class TestCreateRecordBasedMetadataTask(unittest.TestCase):
         mock_temp.name = "/tmp/test.csv"
         mock_temp_file.return_value = mock_temp
 
-        mock_record_set_instance = Mock()
-        mock_record_set_instance.store.side_effect = Exception(
+        mock_record_set_instance = AsyncMock()
+        mock_record_set_instance.store_async.side_effect = Exception(
             "RecordSet creation failed"
         )
         mock_record_set_cls.return_value = mock_record_set_instance
@@ -1260,13 +1286,15 @@ class TestCreateRecordBasedMetadataTask(unittest.TestCase):
             )
 
     @patch(
-        "synapseclient.extensions.curator.record_based_metadata_task.project_id_from_entity_id"
+        "synapseclient.extensions.curator.record_based_metadata_task.project_id_from_entity_id_async",
+        new_callable=AsyncMock,
     )
     @patch(
         "synapseclient.extensions.curator.record_based_metadata_task.Synapse.get_client"
     )
     @patch(
-        "synapseclient.extensions.curator.record_based_metadata_task.extract_schema_properties_from_web"
+        "synapseclient.extensions.curator.record_based_metadata_task._fetch_schema_properties_from_web",
+        new_callable=AsyncMock,
     )
     @patch(
         "synapseclient.extensions.curator.record_based_metadata_task.tempfile.NamedTemporaryFile"
@@ -1295,14 +1323,16 @@ class TestCreateRecordBasedMetadataTask(unittest.TestCase):
         mock_temp.name = "/tmp/test.csv"
         mock_temp_file.return_value = mock_temp
 
-        mock_record_set = Mock()
+        mock_record_set = AsyncMock()
         mock_record_set.id = "syn87654321"
-        mock_record_set_instance = Mock()
-        mock_record_set_instance.store.return_value = mock_record_set
+        mock_record_set_instance = AsyncMock()
+        mock_record_set_instance.store_async.return_value = mock_record_set
         mock_record_set_cls.return_value = mock_record_set_instance
 
-        mock_curation_task = Mock()
-        mock_curation_task.store.side_effect = Exception("CurationTask creation failed")
+        mock_curation_task = AsyncMock()
+        mock_curation_task.store_async.side_effect = Exception(
+            "CurationTask creation failed"
+        )
         mock_curation_task_cls.return_value = mock_curation_task
 
         with pytest.raises(Exception, match="CurationTask creation failed"):
@@ -1319,13 +1349,15 @@ class TestCreateRecordBasedMetadataTask(unittest.TestCase):
             )
 
     @patch(
-        "synapseclient.extensions.curator.record_based_metadata_task.project_id_from_entity_id"
+        "synapseclient.extensions.curator.record_based_metadata_task.project_id_from_entity_id_async",
+        new_callable=AsyncMock,
     )
     @patch(
         "synapseclient.extensions.curator.record_based_metadata_task.Synapse.get_client"
     )
     @patch(
-        "synapseclient.extensions.curator.record_based_metadata_task.extract_schema_properties_from_web"
+        "synapseclient.extensions.curator.record_based_metadata_task._fetch_schema_properties_from_web",
+        new_callable=AsyncMock,
     )
     @patch(
         "synapseclient.extensions.curator.record_based_metadata_task.tempfile.NamedTemporaryFile"
@@ -1356,20 +1388,20 @@ class TestCreateRecordBasedMetadataTask(unittest.TestCase):
         mock_temp.name = "/tmp/test.csv"
         mock_temp_file.return_value = mock_temp
 
-        mock_record_set = Mock()
+        mock_record_set = AsyncMock()
         mock_record_set.id = "syn87654321"
-        mock_record_set_instance = Mock()
-        mock_record_set_instance.store.return_value = mock_record_set
+        mock_record_set_instance = AsyncMock()
+        mock_record_set_instance.store_async.return_value = mock_record_set
         mock_record_set_cls.return_value = mock_record_set_instance
 
         mock_task = Mock()
         mock_task.task_id = "task123"
-        mock_curation_task = Mock()
-        mock_curation_task.store.return_value = mock_task
+        mock_curation_task = AsyncMock()
+        mock_curation_task.store_async.return_value = mock_task
         mock_curation_task_cls.return_value = mock_curation_task
 
-        mock_grid_instance = Mock()
-        mock_grid_instance.create.side_effect = Exception("Grid creation failed")
+        mock_grid_instance = AsyncMock()
+        mock_grid_instance.create_async.side_effect = Exception("Grid creation failed")
         mock_grid_cls.return_value = mock_grid_instance
 
         with pytest.raises(Exception, match="Grid creation failed"):
@@ -1386,13 +1418,15 @@ class TestCreateRecordBasedMetadataTask(unittest.TestCase):
             )
 
     @patch(
-        "synapseclient.extensions.curator.record_based_metadata_task.project_id_from_entity_id"
+        "synapseclient.extensions.curator.record_based_metadata_task.project_id_from_entity_id_async",
+        new_callable=AsyncMock,
     )
     @patch(
         "synapseclient.extensions.curator.record_based_metadata_task.Synapse.get_client"
     )
     @patch(
-        "synapseclient.extensions.curator.record_based_metadata_task.extract_schema_properties_from_web"
+        "synapseclient.extensions.curator.record_based_metadata_task._fetch_schema_properties_from_web",
+        new_callable=AsyncMock,
     )
     @patch(
         "synapseclient.extensions.curator.record_based_metadata_task.tempfile.NamedTemporaryFile"
@@ -1442,19 +1476,19 @@ class TestCreateRecordBasedMetadataTask(unittest.TestCase):
                 mock_temp.name = "/tmp/test.csv"
                 mock_temp_file.return_value = mock_temp
 
-                mock_record_set = Mock()
+                mock_record_set = AsyncMock()
                 mock_record_set.id = "syn87654321"
-                mock_record_set_instance = Mock()
-                mock_record_set_instance.store.return_value = mock_record_set
+                mock_record_set_instance = AsyncMock()
+                mock_record_set_instance.store_async.return_value = mock_record_set
                 mock_record_set_cls.return_value = mock_record_set_instance
 
                 mock_task = Mock()
                 mock_task.task_id = "task123"
-                mock_curation_task = Mock()
-                mock_curation_task.store.return_value = mock_task
+                mock_curation_task = AsyncMock()
+                mock_curation_task.store_async.return_value = mock_task
                 mock_curation_task_cls.return_value = mock_curation_task
 
-                mock_grid_instance = Mock()
+                mock_grid_instance = AsyncMock()
                 mock_grid_cls.return_value = mock_grid_instance
 
                 # WHEN I create the record-based metadata task with assignee_principal_id
@@ -1491,13 +1525,15 @@ class TestCreateRecordBasedMetadataTask(unittest.TestCase):
                 )
 
     @patch(
-        "synapseclient.extensions.curator.record_based_metadata_task.project_id_from_entity_id"
+        "synapseclient.extensions.curator.record_based_metadata_task.project_id_from_entity_id_async",
+        new_callable=AsyncMock,
     )
     @patch(
         "synapseclient.extensions.curator.record_based_metadata_task.Synapse.get_client"
     )
     @patch(
-        "synapseclient.extensions.curator.record_based_metadata_task.extract_schema_properties_from_web"
+        "synapseclient.extensions.curator.record_based_metadata_task._fetch_schema_properties_from_web",
+        new_callable=AsyncMock,
     )
     @patch(
         "synapseclient.extensions.curator.record_based_metadata_task.tempfile.NamedTemporaryFile"
@@ -1529,16 +1565,16 @@ class TestCreateRecordBasedMetadataTask(unittest.TestCase):
         mock_temp.name = "/tmp/test.csv"
         mock_temp_file.return_value = mock_temp
 
-        mock_record_set = Mock()
+        mock_record_set = AsyncMock()
         mock_record_set.id = "syn87654321"
-        mock_record_set_instance = Mock()
-        mock_record_set_instance.store.return_value = mock_record_set
+        mock_record_set_instance = AsyncMock()
+        mock_record_set_instance.store_async.return_value = mock_record_set
         mock_record_set_cls.return_value = mock_record_set_instance
 
         mock_task = Mock()
         mock_task.task_id = "task123"
-        mock_curation_task = Mock()
-        mock_curation_task.store.return_value = mock_task
+        mock_curation_task = AsyncMock()
+        mock_curation_task.store_async.return_value = mock_task
         mock_curation_task_cls.return_value = mock_curation_task
 
         # WHEN create_grid=False
@@ -1571,6 +1607,168 @@ class TestCreateRecordBasedMetadataTask(unittest.TestCase):
             if "Grid" in str(call)
         ]
         assert not warning_calls
+
+
+class TestCreateRecordBasedMetadataTaskAsync:
+    """Test cases for create_record_based_metadata_task_async."""
+
+    MODULE = "synapseclient.extensions.curator.record_based_metadata_task"
+
+    @pytest.fixture(autouse=True, scope="function")
+    def init_syn(self, syn, mocker):
+        self.syn = syn
+        self.project_id = "syn11111111"
+        self.folder_id = "syn12345678"
+        self.schema_uri = "sage.schemas.v2571-amp.Biospecimen.schema-0.0.1"
+
+        self.mock_project_id = mocker.patch(
+            f"{self.MODULE}.project_id_from_entity_id_async",
+            new_callable=AsyncMock,
+            return_value=self.project_id,
+        )
+        self.mock_fetch_schema = mocker.patch(
+            f"{self.MODULE}._fetch_schema_properties_from_web",
+            new_callable=AsyncMock,
+            return_value=pd.DataFrame(
+                columns=["age", "assay", "patientId", "diagnosis", "specimenID"]
+            ),
+        )
+
+        self.mock_record_set = AsyncMock()
+        self.mock_record_set.id = "syn87654321"
+        self.mock_record_set_cls = mocker.patch(f"{self.MODULE}.RecordSet")
+        self.mock_record_set_cls.return_value.store_async = AsyncMock(
+            return_value=self.mock_record_set
+        )
+
+        self.mock_task = Mock(task_id="task123")
+        self.mock_curation_task_cls = mocker.patch(f"{self.MODULE}.CurationTask")
+        self.mock_curation_task_cls.return_value.store_async = AsyncMock(
+            return_value=self.mock_task
+        )
+
+        self.mock_grid_cls = mocker.patch(f"{self.MODULE}.Grid")
+        self.mock_grid_cls.return_value.create_async = AsyncMock()
+
+    def _template_path(self) -> str:
+        path = self.mock_record_set_cls.call_args.kwargs["path"]
+        self.cleanup_paths.append(path)
+        return path
+
+    @pytest.fixture(autouse=True, scope="function")
+    def remove_templates(self):
+        self.cleanup_paths = []
+        yield
+        for path in self.cleanup_paths:
+            if os.path.exists(path):
+                os.remove(path)
+
+    async def _create(self, **kwargs):
+        arguments = dict(
+            folder_id=self.folder_id,
+            record_set_name="TestRecordSet",
+            record_set_description="Test description",
+            curation_task_name="TestCurationTask",
+            upsert_keys=["specimenID"],
+            instructions="Test instructions",
+            schema_uri=self.schema_uri,
+            synapse_client=self.syn,
+        )
+        arguments.update(kwargs)
+        return await create_record_based_metadata_task_async(**arguments)
+
+    async def test_created_without_grid(self):
+        # GIVEN Grid creation turned off
+        # WHEN I create the task
+        result = await self._create(create_grid=False)
+        self._template_path()
+
+        # THEN the RecordSet and CurationTask are returned
+        assert result == (self.mock_record_set, self.mock_task)
+
+        # AND the project is looked up from the folder
+        self.mock_project_id.assert_awaited_once_with(
+            entity_id=self.folder_id, synapse_client=self.syn
+        )
+
+        # AND the CurationTask is stored in that project
+        assert (
+            self.mock_curation_task_cls.call_args.kwargs["project_id"]
+            == self.project_id
+        )
+        self.mock_curation_task_cls.return_value.store_async.assert_awaited_once_with(
+            synapse_client=self.syn
+        )
+
+        # AND no Grid is created
+        self.mock_grid_cls.assert_not_called()
+
+    async def test_schema_bound(self):
+        # GIVEN derived annotations turned on
+        # WHEN I create the task with the default schema binding
+        result = await self._create(enable_derived_annotations=True)
+        self._template_path()
+
+        # THEN the schema is bound to the stored RecordSet
+        self.mock_record_set.bind_schema_async.assert_awaited_once_with(
+            json_schema_uri=self.schema_uri,
+            enable_derived_annotations=True,
+            synapse_client=self.syn,
+        )
+
+        # AND a Grid is created and returned with the RecordSet and CurationTask
+        self.mock_grid_cls.assert_called_once_with(record_set_id="syn87654321")
+        self.mock_grid_cls.return_value.create_async.assert_awaited_once_with(
+            synapse_client=self.syn
+        )
+        assert result == (
+            self.mock_record_set,
+            self.mock_task,
+            self.mock_grid_cls.return_value,
+        )
+
+    async def test_missing_upsert_key_raises(self):
+        # GIVEN an upsert key that is not a schema property
+        # WHEN I create the task
+        # THEN a ValueError naming the key is raised
+        with pytest.raises(ValueError, match="notAColumn"):
+            await self._create(upsert_keys=["specimenID", "notAColumn"])
+
+        # AND nothing is stored in Synapse
+        self.mock_record_set_cls.assert_not_called()
+        self.mock_curation_task_cls.assert_not_called()
+
+    async def test_column_order_honored(self):
+        # GIVEN two upsert keys and a partial column order that repeats one of them
+        # WHEN I create the task
+        await self._create(
+            upsert_keys=["patientId", "specimenID"],
+            column_order=["diagnosis", "patientId"],
+            create_grid=False,
+        )
+
+        # THEN the template stored as the RecordSet leads with the upsert keys,
+        # then the requested columns, then the rest in schema order
+        with open(self._template_path(), encoding="utf-8") as template:
+            header = template.readline().strip()
+        assert header == "patientId,specimenID,diagnosis,age,assay"
+
+    async def test_hierarchy_guard(self, mocker):
+        # GIVEN a folder whose parents never reach a project
+        mocker.patch(
+            "synapseclient.extensions.curator.utils.get_async",
+            new_callable=AsyncMock,
+            return_value=Folder(id="syn123", parent_id="syn456"),
+        )
+
+        # WHEN I look up its project
+        # THEN a ValueError is raised once the depth limit is passed
+        with pytest.raises(
+            ValueError, match="Could not find project ID in folder hierarchy"
+        ):
+            await project_id_from_entity_id_async(
+                entity_id="syn123", synapse_client=self.syn
+            )
 
 
 class TestQuerySchemaRegistry(unittest.TestCase):

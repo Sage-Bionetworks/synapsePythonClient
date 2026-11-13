@@ -9,7 +9,10 @@ from .get_or_create_grid import (
     get_or_create_curator_grid,
     get_or_create_curator_grid_async,
 )
-from .record_based_metadata_task import create_record_based_metadata_task
+from .record_based_metadata_task import (
+    create_record_based_metadata_task,
+    create_record_based_metadata_task_async,
+)
 from .schema_generation import generate_jsonld, generate_jsonschema
 from .schema_management import (
     bind_jsonschema,
@@ -24,6 +27,7 @@ __all__ = [
     "get_or_create_curator_grid_async",
     "create_file_based_metadata_task",
     "create_record_based_metadata_task",
+    "create_record_based_metadata_task_async",
     "query_schema_registry",
     "generate_jsonld",
     "generate_jsonschema",

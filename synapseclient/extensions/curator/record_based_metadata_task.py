@@ -10,10 +10,12 @@ import tempfile
 from typing import Any, Dict, List, Optional, Union
 
 from synapseclient import Synapse
+from synapseclient.core.async_utils import wrap_async_to_sync
 from synapseclient.core.typing_utils import DataFrame as DATA_FRAME_TYPE
 from synapseclient.core.utils import test_import_pandas
-from synapseclient.extensions.curator.utils import (
+from synapseclient.extensions.curator.utils import (  # noqa: F401
     project_id_from_entity_id,
+    project_id_from_entity_id_async,
     resolve_column_order_list,
     validate_column_order_list,
 )
@@ -102,6 +104,26 @@ def extract_schema_properties_from_web(
     schema = JSONSchema.from_uri(schema_uri)
     schema.get(synapse_client=syn)
     body = schema.get_body(synapse_client=syn)
+    return extract_schema_properties_from_dict(schema_data=body)
+
+
+async def _fetch_schema_properties_from_web(
+    syn: Synapse, schema_uri: str
+) -> DATA_FRAME_TYPE:
+    """
+    Fetch a JSON schema registered in Synapse and return its property names as the
+    columns of an empty DataFrame.
+
+    Args:
+        syn: Authenticated Synapse client instance
+        schema_uri: URI pointing to the JSON schema resource
+
+    Returns:
+        DataFrame with property titles from the schema as column names
+    """
+    schema = JSONSchema.from_uri(schema_uri)
+    await schema.get_async(synapse_client=syn)
+    body = await schema.get_body_async(synapse_client=syn)
     return extract_schema_properties_from_dict(schema_data=body)
 
 
@@ -257,6 +279,191 @@ def create_record_based_metadata_task(
             column_order is malformed or names a column that is not a schema property.
         SynapseError: If there are issues with Synapse operations.
     """
+    return wrap_async_to_sync(
+        coroutine=create_record_based_metadata_task_async(
+            folder_id=folder_id,
+            record_set_name=record_set_name,
+            record_set_description=record_set_description,
+            curation_task_name=curation_task_name,
+            upsert_keys=upsert_keys,
+            instructions=instructions,
+            schema_uri=schema_uri,
+            bind_schema_to_record_set=bind_schema_to_record_set,
+            enable_derived_annotations=enable_derived_annotations,
+            assignee_principal_id=assignee_principal_id,
+            authorization_mode=authorization_mode,
+            column_order=column_order,
+            synapse_client=synapse_client,
+            project_id=project_id,
+            create_grid=create_grid,
+        )
+    )
+
+
+async def create_record_based_metadata_task_async(
+    folder_id: str,
+    record_set_name: str,
+    record_set_description: str,
+    curation_task_name: str,
+    upsert_keys: List[str],
+    instructions: str,
+    schema_uri: str,
+    bind_schema_to_record_set: bool = True,
+    enable_derived_annotations: bool = False,
+    assignee_principal_id: Optional[Union[str, int]] = None,
+    authorization_mode: Optional[Union[AuthorizationMode, str]] = None,
+    *,
+    column_order: list[str] | None = None,
+    synapse_client: Optional[Synapse] = None,
+    project_id: Optional[str] = None,  # Deprecated, will be removed in v5.0.0
+    create_grid: bool = True,  # Deprecated, will be removed in v5.0.0
+    # TODO: https://sagebionetworks.jira.com/browse/SYNPY-1838
+    # remove Grid tuple here
+) -> tuple[RecordSet, CurationTask, Grid] | tuple[RecordSet, CurationTask]:
+    """
+    This function:
+        - Generates and uploads CSV templates as a RecordSet for record-based metadata
+        - Creates a CurationTask
+        - Optionally creates a Grid if create_grid is True (deprecated, will be removed in v5.0.0)
+
+    A number of schema URIs that are already registered to Synapse can be found at:
+
+    - <https://www.synapse.org/Synapse:syn69735275/tables/>
+
+
+    If you have yet to create and register your JSON schema in Synapse, please refer to
+    the tutorial at <https://python-docs.synapse.org/en/stable/tutorials/python/json_schema/>.
+
+
+    Example: Creating a record-based metadata curation task with a schema URI
+        In this example, we create a RecordSet and CurationTask for biospecimen metadata
+        curation using a schema URI. By default this will also bind the schema to the
+        RecordSet, however the bind_schema_to_record_set parameter can be set to
+        False to skip that step.
+
+        ```python
+        import asyncio
+
+        import synapseclient
+        from synapseclient.extensions.curator import (
+            create_record_based_metadata_task_async,
+        )
+        from synapseclient.models import AuthorizationMode
+
+        syn = synapseclient.Synapse()
+        syn.login()
+
+        record_set, curation_task = asyncio.run(
+            create_record_based_metadata_task_async(
+                synapse_client=syn,
+                folder_id="syn87654321",
+                record_set_name="BiospecimenMetadata_RecordSet",
+                record_set_description="RecordSet for biospecimen metadata curation",
+                curation_task_name="BiospecimenMetadataTemplate",
+                upsert_keys=["specimenID"],
+                instructions="Please curate this metadata according to the schema requirements",
+                schema_uri="schema-org-schema.name.schema-v1.0.0",
+                assignee_principal_id=123456,  # Optional: Assign to a user or team (can be str or int)
+                authorization_mode=AuthorizationMode.SOURCE_BENEFACTOR,
+                create_grid=False,  # Opt out of deprecated Grid creation
+            )
+        )
+        ```
+
+    Example: Controlling the column order of the RecordSet
+        Pass column_order to place specific columns immediately after the upsert keys.
+        You only need to name the columns you care about; every other schema property
+        is appended afterwards in its existing order. Upsert keys always stay leftmost,
+        so naming one in column_order does not duplicate or move it.
+
+        ```python
+        import asyncio
+
+        import synapseclient
+        from synapseclient.extensions.curator import (
+            create_record_based_metadata_task_async,
+        )
+
+        syn = synapseclient.Synapse()
+        syn.login()
+
+        record_set, curation_task = asyncio.run(
+            create_record_based_metadata_task_async(
+                synapse_client=syn,
+                folder_id="syn87654321",
+                record_set_name="BiospecimenMetadata_RecordSet",
+                record_set_description="RecordSet for biospecimen metadata curation",
+                curation_task_name="BiospecimenMetadataTemplate",
+                upsert_keys=["patientId", "specimenID"],
+                column_order=["diagnosis", "assay"],
+                instructions="Please curate this metadata according to the schema requirements",
+                schema_uri="schema-org-schema.name.schema-v1.0.0",
+                create_grid=False,
+            )
+        )
+
+        # Resulting column order:
+        # patientId, specimenID, diagnosis, assay, <remaining schema properties>
+        ```
+
+    Arguments:
+        folder_id: The Synapse ID of the folder to upload RecordSet to.
+        record_set_name: Name for the RecordSet entity that will be created.
+            A RecordSet entity captures record-based metadata as a special type of CSV and stores contributor
+              provided metadata collected via Curator enabling sharing and download of validated metadata in Synapse.
+        record_set_description: Description for the RecordSet.
+        curation_task_name: Name for the CurationTask (used as data_type field).
+            Must be unique within the project, otherwise if it matches an existing
+            CurationTask, that task will be updated with new data.
+        upsert_keys: List of column names to use as upsert keys.
+        instructions: Instructions for the curation task.
+        schema_uri: JSON schema URI for the RecordSet schema.
+            (e.g., 'sage.schemas.v2571-amp.Biospecimen.schema-0.0.1', 'sage.schemas.v2571-ad.Analysis.schema-0.0.0')
+        bind_schema_to_record_set: Whether to bind the given schema to the RecordSet
+            (default: True).
+        enable_derived_annotations: If true, enable derived annotations. Defaults to False.
+        assignee_principal_id: The principal ID of the user or team to assign to this
+            curation task. Can be provided as either a string or an integer. If None
+            (default), the task will be unassigned. For metadata tasks, this determines
+            the owner of the grid session. Team members can all join grid sessions owned
+            by their team, while user-owned grid sessions are restricted to that user only.
+        authorization_mode: Recommends who is allowed to access the curation
+            grid session that a client opens for this task. The value is stored on the
+            task as a suggestion; the client applies it when it creates a new session.
+            Choose from:
+            - SESSION_OWNER: only the person or team who owns the session can access it.
+            - SOURCE_BENEFACTOR: anyone with EDIT permission on the
+              data being curated can access the session. This lets editors collaborate
+              in the same session without being added to a shared ownership team.
+            When omitted (None, the default), no recommendation is stored and clients
+            fall back to their usual behavior of finding or creating a private session
+            for the current user. Changing this value after the task already exists
+            resets the task's active session, so a new grid session must be opened
+            before curation can continue.
+        column_order: Optional list of column names placed immediately after the
+            upsert keys, in the order given. Columns that are not named keep their
+            existing relative order and are appended afterwards, so you only need to
+            list the columns that need intentional placement. Naming an upsert key
+            here has no effect, it stays in its leading position. Every name must
+            match a property defined by the schema.
+        synapse_client: If not passed in and caching was not disabled by
+                `Synapse.allow_client_caching(False)` this will use the last created
+                instance from the Synapse class constructor.
+        project_id: Deprecated, will be removed in v5.0.0
+        create_grid: If True (default), creates a Grid for the RecordSet and returns it as the
+            third element of the tuple. Deprecated — Grid creation will be removed in v5.0.0.
+            Pass False to opt out early and receive only (RecordSet, CurationTask).
+
+    Returns:
+        If create_grid is True: tuple of (RecordSet, CurationTask, Grid).
+        If create_grid is False: tuple of (RecordSet, CurationTask).
+
+    Raises:
+        ValueError: If required parameters are missing, if schema_uri is not provided,
+            if any upsert_keys are not found among the schema properties, or if
+            column_order is malformed or names a column that is not a schema property.
+        SynapseError: If there are issues with Synapse operations.
+    """
     # Validate required parameters
     if not folder_id:
         raise ValueError("folder_id is required")
@@ -289,11 +496,11 @@ def create_record_based_metadata_task(
             "A Grid object will no longer be created by this function starting in v5.0.0."
         )
 
-    project_id = project_id_from_entity_id(
+    project_id = await project_id_from_entity_id_async(
         entity_id=folder_id, synapse_client=synapse_client
     )
 
-    template_df = extract_schema_properties_from_web(
+    template_df = await _fetch_schema_properties_from_web(
         syn=synapse_client, schema_uri=schema_uri
     )
 
@@ -327,20 +534,20 @@ def create_record_based_metadata_task(
         raise e
 
     try:
-        record_set_with_data = RecordSet(
+        record_set_with_data = await RecordSet(
             name=record_set_name,
             parent_id=folder_id,
             description=record_set_description,
             path=tmp.name,
             upsert_keys=upsert_keys,
-        ).store(synapse_client=synapse_client)
+        ).store_async(synapse_client=synapse_client)
         record_set_id = record_set_with_data.id
         synapse_client.logger.info(
             f"Created RecordSet with ID: {record_set_id} in folder {folder_id}"
         )
 
         if bind_schema_to_record_set:
-            record_set_with_data.bind_schema(
+            await record_set_with_data.bind_schema_async(
                 json_schema_uri=schema_uri,
                 enable_derived_annotations=enable_derived_annotations,
                 synapse_client=synapse_client,
@@ -353,7 +560,7 @@ def create_record_based_metadata_task(
         raise e
 
     try:
-        curation_task = CurationTask(
+        curation_task = await CurationTask(
             data_type=curation_task_name,
             project_id=project_id,
             instructions=instructions,
@@ -366,7 +573,7 @@ def create_record_based_metadata_task(
                 record_set_id=record_set_id,
                 suggested_authorization_mode=authorization_mode,
             ),
-        ).store(synapse_client=synapse_client)
+        ).store_async(synapse_client=synapse_client)
         synapse_client.logger.info(
             f"Created CurationTask ({curation_task.task_id}) with name {curation_task_name}"
         )
@@ -381,7 +588,7 @@ def create_record_based_metadata_task(
             curation_grid: Grid = Grid(
                 record_set_id=record_set_id,
             )
-            curation_grid.create(synapse_client=synapse_client)
+            await curation_grid.create_async(synapse_client=synapse_client)
             synapse_client.logger.info(
                 f"Created Grid view for RecordSet ID: {record_set_id} for curation task {curation_task_name}"
             )
