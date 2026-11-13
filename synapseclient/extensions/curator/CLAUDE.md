@@ -1,4 +1,4 @@
-<!-- Last reviewed: 2026-10 -->
+<!-- Last reviewed: 2026-11 -->
 
 ## Project
 
@@ -18,6 +18,9 @@ Uses `wrap_async_to_sync()` for sync versions (not class decorator). `fix_schema
 
 ### utils.py
 `project_id_from_entity_id()` — traverses folder hierarchy up to project (max 1000 iterations). Uses `operations.get` in a loop — known tech debt.
+
+### curation_task_types.py and curation_tasks.py
+Bulk record-based tasks behind `synapse curate plan|apply`. `curation_task_types.py` holds the declarations: the manifest dataclasses (`from_csv`, `check`, `select`), `CurationManifestError`, the plan and outcome dataclasses and enums, and the CSV reader; it never imports `curation_tasks.py`. `curation_tasks.py` holds the logic: planning, filling through a temporary grid session never attached to the task, applying, archiving, and the summary formatter and report writer that only the CLI calls. Public functions are async with `wrap_async_to_sync()` twins. Never deletes tasks, tables or rows.
 
 ## Constraints
 
