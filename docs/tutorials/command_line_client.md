@@ -84,6 +84,7 @@ synapse [-h] [--version] [-u SYNAPSEUSER] [-p SYNAPSE_AUTH_TOKEN] [-c CONFIGPATH
 - [generate-json-schema](#generate-json-schema): Generate JSON Schema(s) from a data model
 - [register-json-schema](#register-json-schema): Register a JSON Schema to a Synapse organization
 - [bind-json-schema](#bind-json-schema): Bind a JSON Schema to a Synapse entity
+- [curate](#curate): Create and fill record-based curation tasks in bulk from a task manifest
 
 ### `get`
 
@@ -591,3 +592,21 @@ synapse bind-json-schema [-h] [--enable-derived-annotations] id json_schema_uri
 | `id`                          | Positional | The Synapse ID of the entity to bind the schema to (e.g., syn12345678)             |         |
 | `json_schema_uri`             | Positional | The URI of the JSON Schema to bind (e.g., 'my.org-schema.name-1.0.0')              |         |
 | `--enable-derived-annotations`| Named      | Enable derived annotations to auto-populate annotations from schema                | False   |
+
+### `curate`
+
+Create and fill record-based curation tasks in bulk from a task manifest, a CSV with one row per task. `plan` shows what would be done and changes nothing in Synapse; `apply` does it without prompting. See [How to Create and Fill Curation Tasks in Bulk](../guides/extensions/curator/bulk_curation_tasks.md) for the manifest's columns and a worked example. Requires the curator extension (`pip install "synapseclient[curator]"`).
+
+```bash
+synapse curate plan  [-h] [--task NAME [NAME ...]] [--overwrite] [--report-dir DIR] MANIFEST
+synapse curate apply [-h] [--task NAME [NAME ...]] [--overwrite] [--report-dir DIR] MANIFEST
+```
+
+| Name           | Type       | Description                                                                                                                                  | Default |
+|----------------|------------|----------------------------------------------------------------------------------------------------------------------------------------------|---------|
+| `MANIFEST`     | Positional | Path to the task manifest                                                                                                                    |         |
+| `--task`       | Named      | Limit the run to these task names from the manifest's `name` column. Takes several names and can be repeated. An undefined name is rejected. | All     |
+| `--overwrite`  | Named      | Rows that differ from Synapse take the input file's non-blank values. With `plan`, shows those rows as to be overwritten.                    | False   |
+| `--report-dir` | Named      | Folder to write the report files `summary.csv`, `differences.csv` and `problems.csv` into. Without it, no files are written.                 |         |
+
+The exit status is 1 when the manifest or command line is rejected, any task is blocked or fails, or any archive fails. Validation problems alone do not change it.

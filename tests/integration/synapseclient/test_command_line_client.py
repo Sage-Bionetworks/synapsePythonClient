@@ -1447,3 +1447,166 @@ class TestSchemaManagementCommands:
         finally:
             folder.unbind_schema(synapse_client=test_state.syn)
             test_state.syn.delete(folder.id)
+
+
+class TestCurateCommands:
+    """Integration test for the curate plan and curate apply CLI commands"""
+
+    @pytest.fixture(scope="class")
+    def curate_schema_uri(self, syn: Synapse, request):
+        """Register a small schema; delete it and its organization at teardown."""
+        from synapseclient.models import JSONSchema, Organization
+
+        organization = Organization(f"test.org.id{str(uuid.uuid4())[:8]}")
+        organization.store(synapse_client=syn)
+        json_schema = JSONSchema(name="curate.cli", organization_name=organization.name)
+        json_schema.store(
+            schema_body={
+                "$schema": "http://json-schema.org/draft-07/schema#",
+                "type": "object",
+                "properties": {
+                    "specimenID": {"type": "string"},
+                    "sampleCode": {"type": "string"},
+                    "count": {"type": "integer"},
+                },
+                "required": ["specimenID"],
+            },
+            version="1.0.0",
+            synapse_client=syn,
+        )
+
+        def cleanup():
+            json_schema.delete(synapse_client=syn)
+            organization.delete(synapse_client=syn)
+
+        request.addfinalizer(cleanup)
+        return f"{organization.name}-curate.cli-1.0.0"
+
+    @pytest.fixture(scope="class")
+    def curate_folder(self, syn: Synapse, project_model, schedule_for_cleanup):
+        """The folder that holds the task's table."""
+        from synapseclient.models import Folder
+
+        folder = Folder(
+            name=f"test.folder.{str(uuid.uuid4())[:8]}", parent_id=project_model.id
+        ).store(synapse_client=syn)
+        schedule_for_cleanup(folder.id)
+        return folder
+
+    @pytest.fixture(scope="class")
+    def curate_team(self, syn: Synapse, schedule_for_cleanup):
+        """The team the task is assigned to."""
+        from synapseclient.models import Team
+
+        team = Team(
+            name=f"curate_cli_team_{uuid.uuid4()}",
+            description="Assignee of the curate CLI integration test",
+        ).create(synapse_client=syn)
+        schedule_for_cleanup(team)
+        return team
+
+    def test_curate_plan_and_apply(
+        self,
+        test_state,
+        curate_schema_uri,
+        curate_folder,
+        curate_team,
+        tmp_path,
+    ):
+        """curate plan shows a new task as create, and curate apply creates and
+        fills it."""
+        import csv
+
+        from synapseclient.models import CurationTask, RecordSet
+
+        # GIVEN a one-task manifest and its input file
+        task_name = f"cli_task_{uuid.uuid4().hex[:8]}"
+        (tmp_path / "input.csv").write_text(
+            "specimenID,sampleCode,count\nS1,0012,3\nS2,0034,4\n", encoding="utf-8"
+        )
+        manifest_path = tmp_path / "manifest.csv"
+        with open(manifest_path, "w", encoding="utf-8", newline="") as file:
+            writer = csv.writer(file)
+            writer.writerow(
+                [
+                    "name",
+                    "project_id",
+                    "folder_id",
+                    "curation_task_name",
+                    "schema_uri",
+                    "upsert_keys",
+                    "assignee_principal_id",
+                    "authorization_mode",
+                    "instructions",
+                    "path",
+                ]
+            )
+            writer.writerow(
+                [
+                    "cli",
+                    test_state.project.id,
+                    curate_folder.id,
+                    task_name,
+                    curate_schema_uri,
+                    "specimenID",
+                    str(curate_team.id),
+                    "SOURCE_BENEFACTOR",
+                    "Fill one row per specimen.",
+                    "input.csv",
+                ]
+            )
+
+        # WHEN I run curate plan
+        output = run(
+            test_state,
+            "synapse",
+            "--skip-checks",
+            "curate",
+            "plan",
+            str(manifest_path),
+        )
+
+        # THEN the summary names the task as one to create
+        assert re.search(r"^cli\s+create\s", output, re.MULTILINE), output
+
+        # WHEN I run curate apply
+        output = run(
+            test_state,
+            "synapse",
+            "--skip-checks",
+            "curate",
+            "apply",
+            str(manifest_path),
+        )
+
+        # THEN the summary names the task as created
+        assert re.search(r"^cli\s+created\s", output, re.MULTILINE), output
+
+        # AND the task exists with its rows
+        [task] = [
+            task
+            for task in CurationTask.list(
+                project_id=test_state.project.id, synapse_client=test_state.syn
+            )
+            if task.data_type == task_name
+        ]
+        record_set_id = task.task_properties.record_set_id
+        test_state.schedule_for_cleanup(record_set_id)
+        test_state.schedule_for_cleanup(task)
+        try:
+            download_folder = tmp_path / "download"
+            download_folder.mkdir()
+            record_set = RecordSet(id=record_set_id, path=str(download_folder)).get(
+                synapse_client=test_state.syn
+            )
+            with open(record_set.path, encoding="utf-8", newline="") as file:
+                rows = list(csv.DictReader(file))
+            assert {row["specimenID"]: row["sampleCode"] for row in rows} == {
+                "S1": "0012",
+                "S2": "0034",
+            }
+        finally:
+            # A schema bound to a RecordSet cannot be deleted, and a trashed
+            # RecordSet cannot be unbound, so unbind before the class teardown
+            # deletes the schema.
+            RecordSet(id=record_set_id).unbind_schema(synapse_client=test_state.syn)
