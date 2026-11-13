@@ -481,13 +481,13 @@ async def create_record_based_metadata_task_async(
         raise ValueError("schema_uri is required")
     validate_column_order_list(column_order)
 
+    synapse_client = Synapse.get_client(synapse_client=synapse_client)
+
     if project_id:
         synapse_client.logger.warning(
             "The 'project_id' parameter is deprecated and will be removed in v5.0.0. "
             "The project ID will be inferred from the folder ID provided."
         )
-
-    synapse_client = Synapse.get_client(synapse_client=synapse_client)
 
     # TODO: https://sagebionetworks.jira.com/browse/SYNPY-1838
     # remove this warning
