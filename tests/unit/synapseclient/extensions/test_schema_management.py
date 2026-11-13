@@ -54,6 +54,7 @@ async def test_register_jsonschema_async(mock_synapse_client, mock_jsonschema):
         result.store_async.assert_awaited_once_with(
             schema_body=schema_content,
             version=version,
+            dry_run=False,
             synapse_client=mock_synapse_client,
         )
 
@@ -95,10 +96,43 @@ async def test_register_jsonschema_async_fix_schema_name(
         result.store_async.assert_awaited_once_with(
             schema_body=schema_content,
             version=version,
+            dry_run=False,
             synapse_client=mock_synapse_client,
         )
 
         assert result.uri == "syn123.456"
+
+
+async def test_register_jsonschema_async_dry_run(mock_synapse_client, mock_jsonschema):
+    # GIVEN a schema file and a JSONSchema whose dry-run store leaves it unchanged
+    schema_content = {"$id": "test_schema", "type": "object"}
+    mock_jsonschema.return_value.uri = None
+
+    with (
+        patch("builtins.open", mock_open(read_data=json.dumps(schema_content))),
+        patch("synapseclient.Synapse.get_client", return_value=mock_synapse_client),
+    ):
+        # WHEN I register it as a dry run
+        result = await register_jsonschema_async(
+            schema_path="mock_path.json",
+            organization_name="test.org",
+            schema_name="my.schema",
+            schema_version="1.0.0",
+            dry_run=True,
+            synapse_client=mock_synapse_client,
+        )
+
+    # THEN the store is a dry run
+    result.store_async.assert_awaited_once_with(
+        schema_body=schema_content,
+        version="1.0.0",
+        dry_run=True,
+        synapse_client=mock_synapse_client,
+    )
+    # AND the log says nothing was stored, without reporting a URI
+    messages = [call.args[0] for call in mock_synapse_client.logger.info.call_args_list]
+    assert any("Nothing was stored" in message for message in messages)
+    assert not any("Schema URI" in message for message in messages)
 
 
 @pytest.mark.parametrize(

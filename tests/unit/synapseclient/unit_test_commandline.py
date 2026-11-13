@@ -978,6 +978,63 @@ class TestGenerateJSONSchemaFunction:
                 os.remove(schema_path)
 
 
+class TestRegisterJSONSchemaFunction:
+    @pytest.fixture(scope="function", autouse=True)
+    @patch("synapseclient.client.Synapse")
+    def setup(self, mock_syn):
+        self.syn = mock_syn
+
+    @patch("synapseclient.__main__.register_jsonschema")
+    def test_register_json_schema_is_not_a_dry_run_by_default(
+        self, mock_register_jsonschema
+    ):
+        # GIVEN the command without --dry-run
+        parser = cmdline.build_parser()
+        args = parser.parse_args(
+            ["register-json-schema", "schema.json", "my.org", "schema.name"]
+        )
+        # WHEN I call register_json_schema
+        cmdline.register_json_schema(args, self.syn)
+        # THEN register_jsonschema should be called with dry_run False
+        mock_register_jsonschema.assert_called_once_with(
+            schema_path="schema.json",
+            organization_name="my.org",
+            schema_name="schema.name",
+            fix_schema_name=False,
+            schema_version=None,
+            dry_run=False,
+            synapse_client=self.syn,
+        )
+
+    @patch("synapseclient.__main__.register_jsonschema")
+    def test_register_json_schema_passes_dry_run(self, mock_register_jsonschema):
+        # GIVEN the command with --dry-run
+        parser = cmdline.build_parser()
+        args = parser.parse_args(
+            [
+                "register-json-schema",
+                "schema.json",
+                "my.org",
+                "schema.name",
+                "--schema-version",
+                "0.0.1",
+                "--dry-run",
+            ]
+        )
+        # WHEN I call register_json_schema
+        cmdline.register_json_schema(args, self.syn)
+        # THEN register_jsonschema should be called with dry_run True
+        mock_register_jsonschema.assert_called_once_with(
+            schema_path="schema.json",
+            organization_name="my.org",
+            schema_name="schema.name",
+            fix_schema_name=False,
+            schema_version="0.0.1",
+            dry_run=True,
+            synapse_client=self.syn,
+        )
+
+
 class TestBindJSONSchemaFunction:
     @pytest.fixture(scope="function", autouse=True)
     @patch("synapseclient.client.Synapse")

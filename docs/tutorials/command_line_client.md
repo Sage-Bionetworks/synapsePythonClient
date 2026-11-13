@@ -566,7 +566,7 @@ synapse generate-json-schema [-h] [--data-types data_type1, data_type2] [--outpu
 Register a JSON Schema to a Synapse organization for later binding to entities.
 
 ```bash
-synapse register-json-schema [-h] [--schema-version VERSION] schema_path organization_name schema_name
+synapse register-json-schema [-h] [--schema-version VERSION] [--dry-run] schema_path organization_name schema_name
 ```
 
 | Name                  | Type       | Description                                                                                            | Default |
@@ -576,6 +576,7 @@ synapse register-json-schema [-h] [--schema-version VERSION] schema_path organiz
 | `schema_name`         | Positional | The name of the JSON schema                                                                            |         |
 | `--schema-version`    | Named      | Version of the schema to register (e.g., '0.0.1'). If not specified, auto-generated                    | None    |
 | `--fix-schema-name`   | Named      | Replaces dashes and underscores with periods in the schema name ('my-schema_name' -> 'my.schema.name') | False   |
+| `--dry-run`           | Named      | Have Synapse validate the schema without storing it                                                    | False   |
 
 ### `bind-json-schema`
 

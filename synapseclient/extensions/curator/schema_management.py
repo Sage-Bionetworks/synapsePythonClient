@@ -23,6 +23,7 @@ def register_jsonschema(
     schema_name: str,
     fix_schema_name: bool = False,
     schema_version: Optional[str] = None,
+    dry_run: bool = False,
     synapse_client: Optional["Synapse"] = None,
 ) -> "JSONSchema":
     """
@@ -39,12 +40,15 @@ def register_jsonschema(
             dashes and underscores with periods. Defaults to False.
         schema_version: Optional version of the schema (e.g., '0.0.1').
                        If not specified, a version will be auto-generated.
+        dry_run: If True, Synapse validates the schema without storing it.
+            Defaults to False.
         synapse_client: If not passed in and caching was not disabled by
                        `Synapse.allow_client_caching(False)` this will use the last created
                        instance from the Synapse class constructor
 
     Returns:
-        The registered JSONSchema object
+        The registered JSONSchema object. After a dry run it has no URI or
+            version info, because nothing was stored.
 
     Example: Register a JSON schema
         ```python
@@ -73,6 +77,7 @@ def register_jsonschema(
             fix_schema_name=fix_schema_name,
             schema_name=schema_name,
             schema_version=schema_version,
+            dry_run=dry_run,
             synapse_client=synapse_client,
         )
     )
@@ -84,6 +89,7 @@ async def register_jsonschema_async(
     schema_name: str,
     fix_schema_name: bool = False,
     schema_version: Optional[str] = None,
+    dry_run: bool = False,
     synapse_client: Optional["Synapse"] = None,
 ) -> "JSONSchema":
     """
@@ -100,12 +106,15 @@ async def register_jsonschema_async(
             dashes and underscores with periods. Defaults to False.
         schema_version: Optional version of the schema (e.g., '0.0.1').
                        If not specified, a version will be auto-generated.
+        dry_run: If True, Synapse validates the schema without storing it.
+            Defaults to False.
         synapse_client: If not passed in and caching was not disabled by
                        `Synapse.allow_client_caching(False)` this will use the last created
                        instance from the Synapse class constructor
 
     Returns:
-        The registered JSONSchema object
+        The registered JSONSchema object. After a dry run it has no URI or
+            version info, because nothing was stored.
 
     Example: Register a JSON schema
         ```python
@@ -149,8 +158,16 @@ async def register_jsonschema_async(
     await json_schema.store_async(
         schema_body=schema_body,
         version=schema_version,
+        dry_run=dry_run,
         synapse_client=syn,
     )
+
+    if dry_run:
+        syn.logger.info(
+            f"Dry run: Synapse accepted schema '{schema_name}' for organization "
+            f"'{organization_name}'. Nothing was stored."
+        )
+        return json_schema
 
     syn.logger.info(
         f"Successfully registered schema '{schema_name}' to organization '{organization_name}'"

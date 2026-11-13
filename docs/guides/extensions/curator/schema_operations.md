@@ -137,6 +137,7 @@ The `register_jsonschema` function:
 - Registers it with the specified organization in Synapse
 - Returns the schema URI and a success message
 - You can optionally specify a version (e.g., "0.0.1") or let it auto-generate
+- With `dry_run=True`, has Synapse validate the schema without storing it
 
 ```python
 # Register a JSON Schema to Synapse

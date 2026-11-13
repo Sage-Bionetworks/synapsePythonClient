@@ -831,6 +831,7 @@ def register_json_schema(args, syn):
         schema_name=args.schema_name,
         fix_schema_name=args.fix_schema_name,
         schema_version=args.schema_version,
+        dry_run=args.dry_run,
         synapse_client=syn,
     )
 
@@ -1910,6 +1911,13 @@ https://rest-docs.synapse.org/rest/org/sagebionetworks/repo/web/controller/Table
         type=str,
         default=None,
         help="Version of the schema to register (e.g., '0.0.1'). If not specified, a version will be auto-generated.",
+    )
+    parser_register_json_schema.add_argument(
+        "--dry-run",
+        dest="dry_run",
+        action="store_true",
+        default=False,
+        help="Have Synapse validate the schema without storing it.",
     )
     parser_register_json_schema.set_defaults(func=register_json_schema)
 
