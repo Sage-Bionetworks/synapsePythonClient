@@ -13,6 +13,7 @@ from synapseclient.core.exceptions import (
     SynapseAuthenticationError,
     SynapseNoCredentialsError,
 )
+from synapseclient.extensions.curator import CurationManifestError
 
 
 def test_command_sync(syn):
@@ -1093,3 +1094,171 @@ class TestBindJSONSchemaFunction:
             enable_derived_annotations=True,
             synapse_client=self.syn,
         )
+
+
+class TestCurateFunction:
+    @pytest.fixture(scope="function", autouse=True)
+    def setup(self, mocker, tmp_path) -> None:
+        self.syn = MagicMock()
+        self.tmp_path = tmp_path
+        self.manifest = MagicMock()
+        self.check_imports = mocker.patch.object(cmdline, "check_curator_imports")
+        self.from_csv = mocker.patch.object(
+            cmdline.CurationTaskManifest, "from_csv", return_value=self.manifest
+        )
+        self.plan = mocker.patch.object(cmdline, "plan_curation_tasks")
+        self.apply = mocker.patch.object(cmdline, "apply_curation_tasks")
+        self.format_summary = mocker.patch.object(
+            cmdline, "format_curation_summary", return_value="the summary"
+        )
+        self.write_report = mocker.patch.object(cmdline, "write_curation_report")
+        self.run_failed = mocker.patch.object(
+            cmdline, "curation_run_failed", return_value=False
+        )
+
+    def _run(self, *argv: str) -> None:
+        args = cmdline.build_parser().parse_args(["curate", *argv])
+        cmdline.curate(args, self.syn)
+
+    @pytest.mark.parametrize(
+        "argv, tasks, overwrite, report_dir",
+        [
+            (["tasks.csv"], None, False, None),
+            (
+                ["tasks.csv", "--task", "lab_a", "lab_b"],
+                ["lab_a", "lab_b"],
+                False,
+                None,
+            ),
+            (
+                ["tasks.csv", "--task", "lab_a", "--task", "lab_b", "lab_c"],
+                ["lab_a", "lab_b", "lab_c"],
+                False,
+                None,
+            ),
+            (["tasks.csv", "--overwrite"], None, True, None),
+            (["tasks.csv", "--report-dir", "out"], None, False, "out"),
+        ],
+    )
+    @pytest.mark.parametrize("command", ["plan", "apply"])
+    def test_arguments_are_parsed(
+        self, command, argv, tasks, overwrite, report_dir
+    ) -> None:
+        # GIVEN a curate command line
+        # WHEN I parse it
+        args = cmdline.build_parser().parse_args(["curate", command, *argv])
+
+        # THEN every value is parsed, and repeated --task names add up
+        assert args.func is cmdline.curate
+        assert args.curate_command == command
+        assert args.manifest == "tasks.csv"
+        assert args.task == tasks
+        assert args.overwrite is overwrite
+        assert args.report_dir == report_dir
+
+    @pytest.mark.parametrize("overwrite", [False, True])
+    @pytest.mark.parametrize("command", ["plan", "apply"])
+    def test_handler_runs_the_library(self, command, overwrite) -> None:
+        # GIVEN a command line naming two tasks, without --report-dir
+        argv = [command, "tasks.csv", "--task", "lab_a", "--task", "lab_b"]
+        if overwrite:
+            argv.append("--overwrite")
+
+        # WHEN I run it
+        self._run(*argv)
+
+        # THEN the imports are checked, the manifest is read, the subcommand's
+        # function gets the parsed values, the summary is logged, nothing is
+        # written and the command does not exit
+        called, other = (
+            (self.plan, self.apply) if command == "plan" else (self.apply, self.plan)
+        )
+        self.check_imports.assert_called_once_with()
+        self.from_csv.assert_called_once_with("tasks.csv")
+        called.assert_called_once_with(
+            self.manifest,
+            tasks=["lab_a", "lab_b"],
+            overwrite=overwrite,
+            synapse_client=self.syn,
+        )
+        other.assert_not_called()
+        self.format_summary.assert_called_once_with(command, called.return_value)
+        self.syn.logger.info.assert_called_once_with("the summary")
+        self.write_report.assert_not_called()
+        self.run_failed.assert_called_once_with(called.return_value)
+
+    def test_report_is_written_when_asked(self) -> None:
+        # GIVEN a command line with --report-dir
+        report_dir = str(self.tmp_path / "report")
+
+        # WHEN I run it
+        self._run("apply", "tasks.csv", "--report-dir", report_dir)
+
+        # THEN the report is written for the run's results
+        self.write_report.assert_called_once_with(
+            report_dir, "apply", self.apply.return_value
+        )
+
+    @pytest.mark.parametrize("failed", [False, True])
+    def test_exit_status_follows_the_run(self, failed) -> None:
+        # GIVEN a run that did or did not fail
+        self.run_failed.return_value = failed
+
+        # WHEN I run it
+        if failed:
+            with pytest.raises(SystemExit) as error:
+                self._run("apply", "tasks.csv")
+            # THEN a failed run exits 1 after the summary
+            assert error.value.code == 1
+        else:
+            # THEN a run with only validation problems returns normally
+            self._run("apply", "tasks.csv")
+        self.syn.logger.info.assert_called_once_with("the summary")
+
+    @pytest.mark.parametrize("raised_by", ["from_csv", "select"])
+    def test_rejected_manifest_exits_without_report(self, raised_by) -> None:
+        # GIVEN a rejected manifest, or an undefined --task name
+        error = CurationManifestError(["row 2: required value 'name' is blank"])
+        if raised_by == "from_csv":
+            self.from_csv.side_effect = error
+        else:
+            self.apply.side_effect = error
+        report_dir = self.tmp_path / "report"
+
+        # WHEN I run it with --report-dir
+        with pytest.raises(SystemExit) as exit_info:
+            self._run("apply", "tasks.csv", "--report-dir", str(report_dir))
+
+        # THEN its problems are logged without a traceback, no summary or report is
+        # made, and the command exits 1
+        assert exit_info.value.code == 1
+        self.syn.logger.error.assert_called_once_with(str(error))
+        self.syn.logger.exception.assert_not_called()
+        self.format_summary.assert_not_called()
+        self.write_report.assert_not_called()
+        assert not report_dir.exists()
+
+    def test_missing_extras_exit(self) -> None:
+        # GIVEN the curator extras are not installed
+        self.check_imports.side_effect = ImportError("install synapseclient[curator]")
+
+        # WHEN I run the command
+        with pytest.raises(SystemExit) as exit_info:
+            self._run("plan", "tasks.csv")
+
+        # THEN the message is logged, nothing is read and the command exits 1
+        assert exit_info.value.code == 1
+        self.syn.logger.error.assert_called_once_with("install synapseclient[curator]")
+        self.from_csv.assert_not_called()
+
+    def test_curate_alone_prints_its_help(self, mocker, capsys) -> None:
+        # GIVEN `synapse curate` with no subcommand
+        args = cmdline.build_parser().parse_args(["curate"])
+        login = mocker.patch.object(cmdline, "login_with_prompt")
+
+        # WHEN I run it
+        cmdline.perform_main(args, self.syn)
+
+        # THEN the curate help is printed, with no login
+        assert "curate [-h] {plan,apply}" in capsys.readouterr().out
+        login.assert_not_called()

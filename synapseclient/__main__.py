@@ -35,7 +35,21 @@ from synapseclient.core.exceptions import (
     SynapseHTTPError,
     SynapseNoCredentialsError,
 )
-from synapseclient.extensions.curator.schema_generation import generate_jsonschema
+from synapseclient.extensions.curator.curation_task_types import (
+    CurationManifestError,
+    CurationTaskManifest,
+)
+from synapseclient.extensions.curator.curation_tasks import (
+    apply_curation_tasks,
+    curation_run_failed,
+    format_curation_summary,
+    plan_curation_tasks,
+    write_curation_report,
+)
+from synapseclient.extensions.curator.schema_generation import (
+    check_curator_imports,
+    generate_jsonschema,
+)
 from synapseclient.extensions.curator.schema_management import (
     bind_jsonschema,
     register_jsonschema,
@@ -848,6 +862,29 @@ def bind_json_schema(args, syn):
         f"Successfully bound schema '{args.json_schema_uri}' to entity '{args.id}'"
     )
     return result
+
+
+def curate(args, syn):
+    """Plan or apply a curation task manifest."""
+    try:
+        check_curator_imports()
+    except ImportError as error:
+        syn.logger.error(str(error))
+        sys.exit(1)
+    run = plan_curation_tasks if args.curate_command == "plan" else apply_curation_tasks
+    try:
+        manifest = CurationTaskManifest.from_csv(args.manifest)
+        results = run(
+            manifest, tasks=args.task, overwrite=args.overwrite, synapse_client=syn
+        )
+    except CurationManifestError as error:
+        syn.logger.error(str(error))
+        sys.exit(1)
+    syn.logger.info(format_curation_summary(args.curate_command, results))
+    if args.report_dir:
+        write_curation_report(args.report_dir, args.curate_command, results)
+    if curation_run_failed(results):
+        sys.exit(1)
 
 
 def build_parser():
@@ -1942,6 +1979,43 @@ https://rest-docs.synapse.org/rest/org/sagebionetworks/repo/web/controller/Table
     )
     parser_bind_json_schema.set_defaults(func=bind_json_schema)
 
+    parser_curate = subparsers.add_parser(
+        "curate", help="Create and fill curation tasks from a task manifest."
+    )
+    parser_curate.set_defaults(print_help=parser_curate.print_help)
+    curate_subparsers = parser_curate.add_subparsers(
+        title="commands", dest="curate_command"
+    )
+    for name, help_text in (
+        ("plan", "Show what applying a task manifest would do, changing nothing."),
+        ("apply", "Create and fill the curation tasks in a task manifest."),
+    ):
+        parser_curate_command = curate_subparsers.add_parser(name, help=help_text)
+        parser_curate_command.add_argument(
+            "manifest", metavar="MANIFEST", help="Path to the task manifest CSV."
+        )
+        parser_curate_command.add_argument(
+            "--task",
+            metavar="NAME",
+            nargs="+",
+            action="extend",
+            default=None,
+            help="Limit the run to the tasks with these names; may be repeated.",
+        )
+        parser_curate_command.add_argument(
+            "--overwrite",
+            action="store_true",
+            default=False,
+            help="Overwrite differing rows with the file's non-blank values.",
+        )
+        parser_curate_command.add_argument(
+            "--report-dir",
+            metavar="DIR",
+            default=None,
+            help="Write the report CSVs into this folder.",
+        )
+        parser_curate_command.set_defaults(func=curate)
+
     parser_migrate.set_defaults(func=migrate)
 
     return parser
@@ -1970,7 +2044,8 @@ def perform_main(args, syn):
         # if no command provided print out help and quit
         # if we require python 3.7 or above, we can use required argument tp
         # add_subparsers instead
-        build_parser().print_help()
+        # a command whose subcommand is missing prints its own help
+        (args.print_help if "print_help" in args else build_parser().print_help)()
 
 
 @tracer.start_as_current_span("main::login_with_prompt")
