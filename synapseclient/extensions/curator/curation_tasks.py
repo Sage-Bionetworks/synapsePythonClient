@@ -33,9 +33,11 @@ from synapseclient.extensions.curator.curation_task_types import (
     TaskOutcome,
     TaskPlan,
     TaskResult,
+    _is_blank,
     read_csv_records,
 )
 from synapseclient.extensions.curator.record_based_metadata_task import (
+    _schema_version,
     create_record_based_metadata_task_async,
 )
 from synapseclient.extensions.curator.utils import project_id_from_entity_id_async
@@ -73,15 +75,11 @@ class _InputFile:
     """An input file as planning reads it.
 
     Attributes:
-        path: The file.
         columns: The header, left-out columns dropped.
         rows: The data rows, blank ones skipped.
         problems: What blocks the task in the file.
         empty: Whether the file was read and has no data rows.
     """
-
-    path: Path
-    """The file."""
 
     columns: list[str] = field(default_factory=list)
     """The header, left-out columns dropped."""
@@ -94,11 +92,6 @@ class _InputFile:
 
     empty: bool = False
     """Whether the file was read and has no data rows."""
-
-
-def _is_blank_cell(cell: str) -> bool:
-    """Whether an input cell is blank: empty or only whitespace."""
-    return not cell.strip()
 
 
 def _describe_key(key: dict[str, str]) -> str:
@@ -127,7 +120,7 @@ def _load_input_file(
     Returns:
         The file's columns, rows and problems.
     """
-    loaded = _InputFile(path=row.path)
+    loaded = _InputFile()
     file = str(row.path)
 
     def problem(message: str, **where: Any) -> None:
@@ -162,7 +155,7 @@ def _load_input_file(
     leave_out = set(row.leave_out_columns)
     seen = set()
     for position, column in enumerate(header, start=1):
-        if _is_blank_cell(column):
+        if _is_blank(column):
             problem(f"column {position} has no name", line=1)
         elif column in seen:
             problem(f"column '{column}' appears more than once", line=1)
@@ -173,7 +166,7 @@ def _load_input_file(
         properties = set(schema_properties)
         for column in dict.fromkeys(loaded.columns):
             if (
-                not _is_blank_cell(column)
+                not _is_blank(column)
                 and column not in properties
                 and column not in key_columns
             ):
@@ -191,7 +184,7 @@ def _load_input_file(
 
     first_line_of_key: dict[tuple[str, ...], int] = {}
     for record in records:
-        if all(_is_blank_cell(cell) for cell in record.cells):
+        if all(_is_blank(cell) for cell in record.cells):
             continue
         if len(record.cells) > len(header):
             problem(
@@ -205,7 +198,7 @@ def _load_input_file(
             if column in leave_out:
                 continue
             cell = record.cells[position] if position < len(record.cells) else ""
-            cells[column] = "" if _is_blank_cell(cell) else cell
+            cells[column] = "" if _is_blank(cell) else cell
         loaded.rows.append(_InputRow(record.line, cells))
 
         key = {column: cells[column] for column in present_keys}
@@ -249,10 +242,12 @@ def _is_not_found(error: Exception) -> bool:
 
 
 class _Schema(NamedTuple):
-    """A registered schema's property names, in schema order, and its body."""
+    """A registered schema's property names, in schema order, its body, and the
+    JSON type of each property that names one."""
 
     properties: list[str]
     body: dict[str, Any]
+    types: dict[str, str]
 
 
 class _RunLookups:
@@ -290,11 +285,10 @@ class _RunLookups:
         if schema_uri not in self._schemas:
             try:
                 schema = JSONSchema.from_uri(schema_uri)
-                parts = schema_uri.split("-")
-                version = parts[2] if len(parts) == 3 else None
                 await schema.get_async(synapse_client=self.synapse_client)
                 body = await schema.get_body_async(
-                    version=version, synapse_client=self.synapse_client
+                    version=_schema_version(schema_uri),
+                    synapse_client=self.synapse_client,
                 )
             except ValueError as error:
                 raise _NotFoundError(schema_uri) from error
@@ -306,6 +300,7 @@ class _RunLookups:
             self._schemas[schema_uri] = _Schema(
                 properties=list(properties) if isinstance(properties, dict) else [],
                 body=body,
+                types=_property_types(body),
             )
         return self._schemas[schema_uri]
 
@@ -371,11 +366,11 @@ async def _check_schema(
     lookups: _RunLookups,
     problems: list[CurationProblem],
     key_columns: list[str],
-) -> list[str] | None:
+) -> _Schema | None:
     """Read the row's schema and check the key columns are properties of it.
 
     Returns:
-        The schema's property names, or None when it could not be read.
+        The schema, or None when it could not be read.
     """
     try:
         schema = await lookups.schema(row.schema_uri)
@@ -403,7 +398,7 @@ async def _check_schema(
                     column=column,
                 )
             )
-    return schema.properties
+    return schema
 
 
 async def _check_folder(
@@ -504,7 +499,7 @@ def _new_table_columns(
     columns = list(key_columns)
     for column in file_columns:
         if (
-            not _is_blank_cell(column)
+            not _is_blank(column)
             and column not in columns
             and (schema_properties is None or column in schema_properties)
         ):
@@ -517,14 +512,15 @@ def _new_table_columns(
 
 async def _plan_new_task(
     row: CurationTaskRow, lookups: _RunLookups, overwrite: bool
-) -> tuple[TaskPlan, _InputFile, list["_RowWrite"]]:
+) -> tuple[TaskPlan, list["_RowWrite"]]:
     """Plan a row whose task does not exist: check Synapse, then read the file.
 
     Returns:
-        The plan, the input file as read, and its rows, every one to write.
+        The plan and the file's rows, every one to write.
     """
     problems: list[CurationProblem] = []
-    schema_properties = await _check_schema(row, lookups, problems, row.upsert_keys)
+    schema = await _check_schema(row, lookups, problems, row.upsert_keys)
+    schema_properties = schema.properties if schema else None
     await _check_folder(row, lookups, problems)
     await _check_team(row, lookups, problems)
 
@@ -547,8 +543,7 @@ async def _plan_new_task(
         problems=problems,
         overwrite=overwrite,
     )
-    writes = [_RowWrite(line, cells, {}) for line, cells in loaded.rows]
-    return plan, loaded, writes
+    return plan, [_RowWrite(line, cells, {}) for line, cells in loaded.rows]
 
 
 class _Table(NamedTuple):
@@ -711,7 +706,7 @@ def _match_rows(
     match = _RowMatch(RowChanges(), [], [])
     matched = set()
     for line, cells in rows:
-        if any(_is_blank_cell(cells.get(column, "")) for column in key_columns):
+        if any(_is_blank(cells.get(column, "")) for column in key_columns):
             continue
         key = _row_key(cells, key_columns, types)
         synapse = first_row.get(key)
@@ -723,7 +718,7 @@ def _match_rows(
         given = {
             column: cells[column]
             for column in table.header
-            if column not in key_columns and not _is_blank_cell(cells.get(column, ""))
+            if column not in key_columns and not _is_blank(cells.get(column, ""))
         }
         differing = {
             column: (value, synapse[column])
@@ -846,7 +841,7 @@ async def _plan_existing_task(
     task: CurationTask,
     lookups: _RunLookups,
     overwrite: bool,
-) -> tuple[TaskPlan, _InputFile | None, list[_RowWrite]]:
+) -> tuple[TaskPlan, list[_RowWrite]]:
     """Plan a row whose task exists, against the task's table as it stands.
 
     The task must be record-based and not canceled, and its table bound to the
@@ -856,9 +851,8 @@ async def _plan_existing_task(
     Settings that differ from the row are listed, never changed.
 
     Returns:
-        The plan, the input file as read or None when it was not, and the rows a
-        run would write: the rows to add and, when overwriting, the merged
-        differing rows.
+        The plan and the rows a run would write: the rows to add and, when
+        overwriting, the merged differing rows.
     """
     plan = TaskPlan(
         row=row,
@@ -874,7 +868,7 @@ async def _plan_existing_task(
         problems.append(
             _synapse_problem(row, f"{described} is not a record-based metadata task")
         )
-        return plan, None, []
+        return plan, []
     plan.record_set_id = properties.record_set_id
 
     plan.state, plan.attached_session_id = await _attached_session(
@@ -898,7 +892,7 @@ async def _plan_existing_task(
                 row, f"Synapse error while reading table {table_id}: {error}"
             )
         )
-        return plan, None, []
+        return plan, []
     plan.table_columns = list(table.header)
     if table.upsert_keys:
         plan.key_columns = list(table.upsert_keys)
@@ -925,10 +919,9 @@ async def _plan_existing_task(
             )
         )
 
-    schema_properties = await _check_schema(row, lookups, problems, plan.key_columns)
-    types = {}
-    if schema_properties is not None:
-        types = _property_types((await lookups.schema(row.schema_uri)).body)
+    schema = await _check_schema(row, lookups, problems, plan.key_columns)
+    schema_properties = schema.properties if schema else None
+    types = schema.types if schema else {}
     loaded = _load_input_file(row, plan.key_columns, schema_properties)
     problems.extend(loaded.problems)
     plan.input_empty = loaded.empty
@@ -938,7 +931,7 @@ async def _plan_existing_task(
     plan.skipped_columns = [
         column
         for column in dict.fromkeys(loaded.columns)
-        if not _is_blank_cell(column)
+        if not _is_blank(column)
         and column not in table.header
         and (schema_properties is None or column in schema_properties)
     ]
@@ -959,8 +952,7 @@ async def _plan_existing_task(
                     f"attached, and {rows}",
                 )
             )
-    writes = match.new_rows + (match.merged_rows if overwrite else [])
-    return plan, loaded, writes
+    return plan, match.new_rows + (match.merged_rows if overwrite else [])
 
 
 async def _plan_archives(
@@ -1008,15 +1000,14 @@ async def _plan_archives(
 
 async def _plan_task(
     row: CurationTaskRow, lookups: _RunLookups, overwrite: bool
-) -> tuple[TaskPlan, _InputFile | None, list[_RowWrite]]:
+) -> tuple[TaskPlan, list[_RowWrite]]:
     """Plan one manifest row.
 
     Any failed check or Synapse error becomes a blocking problem on the plan; none is
     raised.
 
     Returns:
-        The plan, the input file as read or None when it was not read, and the rows
-        a run would write.
+        The plan and the rows a run would write.
     """
     try:
         tasks = await lookups.project_tasks(row.project_id)
@@ -1034,38 +1025,34 @@ async def _plan_task(
             ],
             overwrite=overwrite,
         )
-        return plan, None, []
+        return plan, []
 
     existing = next(
         (task for task in tasks if task.data_type == row.curation_task_name), None
     )
     if existing is not None:
-        plan, loaded, writes = await _plan_existing_task(
-            row, existing, lookups, overwrite
-        )
+        plan, writes = await _plan_existing_task(row, existing, lookups, overwrite)
     else:
-        plan, loaded, writes = await _plan_new_task(row, lookups, overwrite)
+        plan, writes = await _plan_new_task(row, lookups, overwrite)
     plan.archives = await _plan_archives(row, tasks, lookups.synapse_client)
     if plan.blocked:
         plan.action = TaskAction.BLOCKED
-    return plan, loaded, writes
+    return plan, writes
 
 
 def _describe_plan(plan: TaskPlan) -> str:
     """A one-line log message for a plan, naming its task."""
     row = plan.row
     if plan.action is TaskAction.BLOCKED:
-        count = len(plan.problems)
-        return f"{row.name}: blocked by {count} problem{'' if count == 1 else 's'}"
+        return f"{row.name}: blocked by {_count(len(plan.problems), 'problem')}"
     if plan.action is TaskAction.EXISTS:
         return (
             f"{row.name}: curation task '{row.curation_task_name}' exists "
             f"({plan.task_id})"
         )
-    count = plan.rows.to_add
     return (
         f"{row.name}: curation task '{row.curation_task_name}' would be created with "
-        f"{count} row{'' if count == 1 else 's'}"
+        f"{_count(plan.rows.to_add, 'row')}"
     )
 
 
@@ -1204,7 +1191,7 @@ async def plan_curation_tasks_async(
     plans = []
     for number, row in enumerate(rows, start=1):
         client.logger.info(f"Planning task {number} of {len(rows)}: {row.name}")
-        plan, _, _ = await _plan_task(row, lookups, overwrite)
+        plan, _ = await _plan_task(row, lookups, overwrite)
         client.logger.info(_describe_plan(plan))
         plans.append(plan)
     return plans
@@ -1238,7 +1225,6 @@ class _FillResult(NamedTuple):
 
     Attributes:
         session_id: The grid session used, deleted by the time this is returned.
-        rows_imported: The rows the import counted.
         rows: The session's rows, with their validation results, as the last read
             gave them.
         unvalidated: How many of `rows` still lacked a validation result when the
@@ -1247,7 +1233,6 @@ class _FillResult(NamedTuple):
     """
 
     session_id: str
-    rows_imported: int
     rows: list[GridRow]
     unvalidated: int
     sync_errors: list[str]
@@ -1344,7 +1329,7 @@ async def _fill_table(
         synapse_client: The client.
 
     Returns:
-        The import count, the session's rows and the synchronize's errors.
+        The session's rows and the synchronize's errors.
 
     Raises:
         _FillError: When the import counts other than `len(rows)` rows; the session
@@ -1382,7 +1367,6 @@ async def _fill_table(
         )
         return _FillResult(
             session_id=grid.session_id,
-            rows_imported=imported,
             rows=session_rows,
             unvalidated=unvalidated,
             sync_errors=list(grid.sync_error_messages or []),
@@ -1577,7 +1561,7 @@ async def _write_rows(
     types: dict[str, str] = {}
     try:
         schema = await lookups.schema(plan.row.schema_uri)
-        types = _property_types(schema.body)
+        types = schema.types
         fill = await _fill_table(
             record_set_id,
             plan.table_columns,
@@ -1615,10 +1599,7 @@ async def _write_rows(
 
 
 async def _apply_new_task(
-    plan: TaskPlan,
-    loaded: _InputFile,
-    writes: list[_RowWrite],
-    lookups: _RunLookups,
+    plan: TaskPlan, writes: list[_RowWrite], lookups: _RunLookups
 ) -> TaskOutcome:
     """Create a planned task with research R13's arguments, remove the template CSV
     the creator leaves, then fill the task when the file has rows."""
@@ -1638,7 +1619,7 @@ async def _apply_new_task(
             column_order=[
                 column
                 for column in plan.table_columns
-                if column in loaded.columns and column not in plan.key_columns
+                if column not in plan.key_columns and column not in plan.missing_columns
             ],
             create_grid=False,
             synapse_client=lookups.synapse_client,
@@ -1663,55 +1644,40 @@ async def _apply_new_task(
     return outcome
 
 
-async def _apply_existing_task(
-    plan: TaskPlan, writes: list[_RowWrite], lookups: _RunLookups
-) -> TaskOutcome:
-    """Write a plan's rows to a task that exists: the rows to add and, when
-    overwriting, the merged differing rows, then confirm them on the read-back.
-
-    With nothing to write, no session is opened and the task is unchanged, so a
-    table is never replaced or emptied (FR-010, SC-002).
-    """
-    outcome = TaskOutcome(
-        plan=plan,
-        result=TaskResult.UNCHANGED,
-        task_id=plan.task_id,
-        record_set_id=plan.record_set_id,
-    )
-    if writes:
-        outcome.result = TaskResult.UPDATED
-        await _write_rows(outcome, writes, lookups)
-    return outcome
-
-
 async def _apply_task(
     row: CurationTaskRow, lookups: _RunLookups, overwrite: bool
 ) -> TaskOutcome:
     """Plan one manifest row and carry the plan out.
 
-    A blocked plan writes nothing. Any error while carrying a plan out fails that
-    task and is recorded on its outcome; none is raised.
+    A blocked plan writes nothing. A task that exists gets its rows to add and,
+    when overwriting, its merged differing rows; with nothing to write, no session
+    is opened and the task is unchanged, so a table is never replaced or emptied
+    (FR-010, SC-002). Any error while carrying a plan out fails that task and is
+    recorded on its outcome; none is raised.
     """
-    plan, loaded, writes = await _plan_task(row, lookups, overwrite)
-    if plan.blocked:
+    plan, writes = await _plan_task(row, lookups, overwrite)
+
+    def outcome(result: TaskResult, **fields: Any) -> TaskOutcome:
         return TaskOutcome(
             plan=plan,
-            result=TaskResult.BLOCKED,
+            result=result,
             task_id=plan.task_id,
             record_set_id=plan.record_set_id,
+            **fields,
         )
+
+    if plan.blocked:
+        return outcome(TaskResult.BLOCKED)
     try:
         if plan.action is TaskAction.CREATE:
-            return await _apply_new_task(plan, loaded, writes, lookups)
-        return await _apply_existing_task(plan, writes, lookups)
+            return await _apply_new_task(plan, writes, lookups)
+        if not writes:
+            return outcome(TaskResult.UNCHANGED)
+        updated = outcome(TaskResult.UPDATED)
+        await _write_rows(updated, writes, lookups)
+        return updated
     except Exception as error:
-        return TaskOutcome(
-            plan=plan,
-            result=TaskResult.FAILED,
-            task_id=plan.task_id,
-            record_set_id=plan.record_set_id,
-            errors=[f"unexpected error: {error}"],
-        )
+        return outcome(TaskResult.FAILED, errors=[f"unexpected error: {error}"])
 
 
 _ARCHIVING_RESULTS = (TaskResult.CREATED, TaskResult.UPDATED, TaskResult.UNCHANGED)
@@ -1974,9 +1940,9 @@ def _split_results(
     ]
 
 
-def _count(number: int, noun: str, plural: str | None = None) -> str:
+def _count(number: int, noun: str) -> str:
     """`1 row`, `2 rows`."""
-    return f"{number} {noun if number == 1 else plural or noun + 's'}"
+    return f"{number} {noun}{'' if number == 1 else 's'}"
 
 
 def _csv_bool(value: bool) -> str:
@@ -2004,7 +1970,7 @@ def _overwrite_shown(plan: TaskPlan, outcome: TaskOutcome | None) -> bool:
     overwrites, the task is not blocked, and an apply wrote its rows."""
     return (
         plan.overwrite
-        and not _is_blocked(plan, outcome)
+        and not plan.blocked
         and (outcome is None or outcome.rows_written > 0)
     )
 
@@ -2046,21 +2012,23 @@ def _notes(plan: TaskPlan, outcome: TaskOutcome | None) -> list[str]:
     return notes
 
 
-def _is_blocked(plan: TaskPlan, outcome: TaskOutcome | None) -> bool:
-    """Whether a task's plan or outcome is blocked."""
-    return plan.blocked or (
-        outcome is not None and outcome.result is TaskResult.BLOCKED
-    )
-
-
 def _shown_archives(plan: TaskPlan, outcome: TaskOutcome | None) -> list[ArchiveEntry]:
     """The archive entries the summary shows: none for a blocked or failed task,
     whose old tasks are left active."""
-    if _is_blocked(plan, outcome) or (
-        outcome is not None and outcome.result is TaskResult.FAILED
-    ):
+    if plan.blocked or (outcome is not None and outcome.result is TaskResult.FAILED):
         return []
     return plan.archives
+
+
+def _run_errors(plan: TaskPlan, outcome: TaskOutcome | None) -> list[str]:
+    """A task's errors and failed archives as messages naming the task."""
+    name = plan.row.name
+    errors = [f"{name}: {error}" for error in (outcome.errors if outcome else [])]
+    return errors + [
+        f"{name}: archiving '{entry.curation_task_name}' failed: {entry.error}"
+        for entry in plan.archives
+        if entry.result is ArchiveResult.FAILED
+    ]
 
 
 def _table_row(plan: TaskPlan, outcome: TaskOutcome | None) -> list[str]:
@@ -2069,7 +2037,6 @@ def _table_row(plan: TaskPlan, outcome: TaskOutcome | None) -> list[str]:
     A blocked task's count cells are `-`. The archive cell is `-` when no archive
     entry is shown.
     """
-    blocked = _is_blocked(plan, outcome)
     status = (outcome.result if outcome is not None else plan.action).value.lower()
     counts = [
         str(plan.rows.to_add),
@@ -2079,7 +2046,7 @@ def _table_row(plan: TaskPlan, outcome: TaskOutcome | None) -> list[str]:
     ]
     if outcome is not None:
         counts.append(str(len(outcome.validation_problems)))
-    if blocked:
+    if plan.blocked:
         counts = ["-"] * len(counts)
     archives = ", ".join(
         _archive_text(entry) for entry in _shown_archives(plan, outcome)
@@ -2176,18 +2143,7 @@ def format_curation_summary(
             plan.setting_differences.items()
         )
     ]
-    errors = [
-        f"{plan.row.name}: {error}"
-        for plan, outcome in pairs
-        if outcome is not None
-        for error in outcome.errors
-    ] + [
-        f"{plan.row.name}: archiving '{entry.curation_task_name}' failed: "
-        f"{entry.error}"
-        for plan, _ in pairs
-        for entry in plan.archives
-        if entry.result is ArchiveResult.FAILED
-    ]
+    errors = [error for plan, outcome in pairs for error in _run_errors(plan, outcome)]
     for heading, section in (
         ("Blocking problems:", problems),
         ("Settings that differ from the manifest:", settings),
@@ -2259,25 +2215,9 @@ def _problem_records(plan: TaskPlan, outcome: TaskOutcome | None) -> list[list[s
     problems = list(plan.problems)
     if outcome is not None:
         problems += outcome.validation_problems
-        problems += [
-            CurationProblem(
-                task=plan.row.name,
-                kind=ProblemKind.SYNAPSE,
-                message=f"{plan.row.name}: {error}",
-            )
-            for error in outcome.errors
-        ]
     problems += [
-        CurationProblem(
-            task=plan.row.name,
-            kind=ProblemKind.SYNAPSE,
-            message=(
-                f"{plan.row.name}: archiving '{entry.curation_task_name}' failed: "
-                f"{entry.error}"
-            ),
-        )
-        for entry in plan.archives
-        if entry.result is ArchiveResult.FAILED
+        CurationProblem(task=plan.row.name, kind=ProblemKind.SYNAPSE, message=message)
+        for message in _run_errors(plan, outcome)
     ]
     return [
         [
@@ -2360,9 +2300,6 @@ def curation_run_failed(results: list[TaskPlan] | list[TaskOutcome]) -> bool:
             entry.result is ArchiveResult.FAILED for entry in plan.archives
         ):
             return True
-        if outcome is not None and outcome.result in (
-            TaskResult.BLOCKED,
-            TaskResult.FAILED,
-        ):
+        if outcome is not None and outcome.result is TaskResult.FAILED:
             return True
     return False

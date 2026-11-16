@@ -280,91 +280,82 @@ class TestCurationTaskManifest:
         where = "line 2" if column == "name" else "line 2 (lab_a)"
         assert f"{where}: required value '{column}' is blank" in problems
 
-    def test_upsert_keys_of_only_separators_is_blank(self, tmp_path: Path) -> None:
-        # GIVEN a manifest whose upsert_keys holds only separators
-        manifest_path = _write(tmp_path, HEADER, _row(upsert_keys=" ; ;"))
-
-        # WHEN I read it
-        problems = _problems(manifest_path)
-
-        # THEN upsert_keys is reported blank
-        assert problems == ["line 2 (lab_a): required value 'upsert_keys' is blank"]
-
-    def test_malformed_synapse_ids_and_authorization_mode(self, tmp_path: Path) -> None:
-        # GIVEN a manifest with malformed IDs and an unknown authorization mode
-        manifest_path = _write(
-            tmp_path,
-            HEADER,
-            _row(
-                project_id="111",
-                folder_id="syn112.3",
-                authorization_mode="source_benefactor",
+    @pytest.mark.parametrize(
+        "rows, expected",
+        [
+            pytest.param(
+                [_row(upsert_keys=" ; ;")],
+                ["line 2 (lab_a): required value 'upsert_keys' is blank"],
+                id="upsert_keys of only separators",
             ),
-        )
+            pytest.param(
+                [
+                    _row(
+                        project_id="111",
+                        folder_id="syn112.3",
+                        authorization_mode="source_benefactor",
+                    )
+                ],
+                [
+                    "line 2 (lab_a): project_id '111' is not a Synapse ID (synNNN)",
+                    "line 2 (lab_a): folder_id 'syn112.3' is not a Synapse ID (synNNN)",
+                    "line 2 (lab_a): authorization_mode 'source_benefactor' is not "
+                    "SESSION_OWNER or SOURCE_BENEFACTOR",
+                ],
+                id="malformed IDs and authorization mode",
+            ),
+            pytest.param(
+                [_row(path="gone.csv")],
+                ["line 2 (lab_a): input file {gone} does not exist"],
+                id="missing input file",
+            ),
+            pytest.param(
+                [_row() + ",surplus"],
+                ["line 2: the row has 14 cells but the header has 13"],
+                id="extra cells",
+            ),
+            pytest.param(
+                [_row(), _row(folder_id="syn113", curation_task_name="Other")],
+                ["line 3 (lab_a): name 'lab_a' is also used by line 2 (lab_a)"],
+                id="duplicate name",
+            ),
+            pytest.param(
+                [_row(), _row(name="lab_b", folder_id="syn113")],
+                [
+                    "line 3 (lab_b): curation task 'Lab A biospecimens' in syn111 is "
+                    "also defined by line 2 (lab_a)"
+                ],
+                id="duplicate task in a project",
+            ),
+            pytest.param(
+                [
+                    _row(),
+                    _row(
+                        name="lab_b",
+                        curation_task_name="Lab B",
+                        record_set_name="Lab A biospecimens",
+                    ),
+                ],
+                [
+                    "line 3 (lab_b): table 'Lab A biospecimens' in syn112 is also "
+                    "defined by line 2 (lab_a)"
+                ],
+                id="duplicate table in a folder, one named by default",
+            ),
+        ],
+    )
+    def test_manifest_problem(
+        self, tmp_path: Path, rows: list[str], expected: list[str]
+    ) -> None:
+        # GIVEN a manifest with one thing wrong
+        manifest_path = _write(tmp_path, HEADER, *rows)
 
         # WHEN I read it
         problems = _problems(manifest_path)
 
-        # THEN each is reported with its line
+        # THEN exactly that is reported, with its line
         assert problems == [
-            "line 2 (lab_a): project_id '111' is not a Synapse ID (synNNN)",
-            "line 2 (lab_a): folder_id 'syn112.3' is not a Synapse ID (synNNN)",
-            "line 2 (lab_a): authorization_mode 'source_benefactor' is not "
-            "SESSION_OWNER or SOURCE_BENEFACTOR",
-        ]
-
-    def test_missing_input_file(self, tmp_path: Path) -> None:
-        # GIVEN a manifest whose input file does not exist
-        manifest_path = _write(tmp_path, HEADER, _row(path="gone.csv"))
-
-        # WHEN I read it
-        problems = _problems(manifest_path)
-
-        # THEN the resolved path is reported
-        assert problems == [
-            f"line 2 (lab_a): input file {tmp_path / 'gone.csv'} does not exist"
-        ]
-
-    def test_extra_cells(self, tmp_path: Path) -> None:
-        # GIVEN a row with more cells than the header
-        manifest_path = _write(tmp_path, HEADER, _row() + ",surplus")
-
-        # WHEN I read it
-        problems = _problems(manifest_path)
-
-        # THEN the row is reported
-        assert problems == ["line 2: the row has 14 cells but the header has 13"]
-
-    def test_duplicate_name(self, tmp_path: Path) -> None:
-        # GIVEN two rows with the same name
-        manifest_path = _write(
-            tmp_path,
-            HEADER,
-            _row(),
-            _row(folder_id="syn113", curation_task_name="Other"),
-        )
-
-        # WHEN I read it
-        problems = _problems(manifest_path)
-
-        # THEN the second row is reported against the first
-        assert problems == [
-            "line 3 (lab_a): name 'lab_a' is also used by line 2 (lab_a)"
-        ]
-
-    def test_duplicate_task_in_project(self, tmp_path: Path) -> None:
-        # GIVEN two rows naming the same task in one project
-        manifest_path = _write(
-            tmp_path, HEADER, _row(), _row(name="lab_b", folder_id="syn113")
-        )
-
-        # WHEN I read it
-        problems = _problems(manifest_path)
-
-        # THEN the second row is reported against the first
-        assert problems == [
-            "line 3 (lab_b): curation task 'Lab A biospecimens' in syn111 is also "
-            "defined by line 2 (lab_a)"
+            problem.format(gone=tmp_path / "gone.csv") for problem in expected
         ]
 
     def test_same_task_name_in_other_project_is_allowed(self, tmp_path: Path) -> None:
@@ -381,28 +372,6 @@ class TestCurationTaskManifest:
 
         # THEN both rows are kept
         assert len(manifest.rows) == 2
-
-    def test_duplicate_table_in_folder(self, tmp_path: Path) -> None:
-        # GIVEN two rows whose tables share a name in one folder, one by default
-        manifest_path = _write(
-            tmp_path,
-            HEADER,
-            _row(),
-            _row(
-                name="lab_b",
-                curation_task_name="Lab B",
-                record_set_name="Lab A biospecimens",
-            ),
-        )
-
-        # WHEN I read it
-        problems = _problems(manifest_path)
-
-        # THEN the second row is reported against the first
-        assert problems == [
-            "line 3 (lab_b): table 'Lab A biospecimens' in syn112 is also defined by "
-            "line 2 (lab_a)"
-        ]
 
     def test_task_archived_in_same_project(self, tmp_path: Path) -> None:
         # GIVEN a row archiving another row's task in the same project, a row
@@ -566,6 +535,11 @@ INPUT_CSV = (
 )
 
 
+def _server_error(text: str = "503 Server Error") -> SynapseHTTPError:
+    """A Synapse 5xx."""
+    return SynapseHTTPError(text, response=MagicMock(status_code=503))
+
+
 def _not_found() -> SynapseHTTPError:
     """A Synapse 404."""
     return SynapseHTTPError(
@@ -610,11 +584,38 @@ def _lab_b(folder: Path, **overrides) -> CurationTaskRow:
     return _task_row(folder, **fields)
 
 
-class TestPlanNewTasks:
+def _grid_row(
+    key: str, valid: bool | None = True, message: str = "", details=None
+) -> GridRow:
+    """A session row keyed `specimenID`: valid, invalid with Synapse's messages, or
+    not yet validated when `valid` is None."""
+    results = None
+    if valid is not None:
+        results = GridQueryValidationResult(
+            is_valid=valid,
+            validation_error_message=None if valid else message,
+            all_validation_messages=None if valid else details,
+        )
+    return GridRow(
+        row_id=f"7.{key}", data={"specimenID": key}, validation_results=results
+    )
+
+
+class _SynapseMocks:
+    """Mocks every Synapse call planning and applying make, recording each call
+    that writes, and each table read, in `self.calls`.
+
+    A step named in `self.fail_at` raises its exception once. Until a test says
+    otherwise, planning finds every folder editable, every team and schema present
+    and no entity in the way.
+    """
+
     @pytest.fixture(autouse=True)
-    def mock_synapse(self, mocker, syn: Synapse) -> None:
-        """Mock every Synapse call planning makes, and every call that writes."""
+    def mock_synapse(self, mocker, syn: Synapse, tmp_path: Path) -> None:
         self.syn = syn
+        self.calls: list[str] = []
+        self.fail_at: dict[str, Exception] = {}
+        self.schema_body = SCHEMA_BODY
         self.tasks_by_project: dict[str, list[CurationTask]] = {}
         self.missing_schemas: set[str] = set()
         self.missing_folders: set[str] = set()
@@ -622,6 +623,30 @@ class TestPlanNewTasks:
         self.missing_teams: set[str] = set()
         self.folder_projects = {"syn112": "syn111", "syn113": "syn111"}
         self.folder_entities: dict[tuple[str, str], str] = {}
+        self.states: dict[int, TaskState] = {}
+        self.sessions: dict[int, str] = {}
+        self.table_keys = ["specimenID"]
+        self.table_folder = "syn112"
+        self.status_errors: set[int] = set()
+        self.archive_errors: set[int] = set()
+        self.archived: list[tuple[int, TaskState]] = []
+        self.created: list[dict] = []
+        self.imported: list[dict] = []
+        self.import_count: int | None = None
+        self.validation_reads: list[list[GridRow]] = [[]]
+        self.read_index = 0
+        self.queries = []
+        self.sync_types = []
+        self.sync_errors: list[str] = []
+        self.deleted_sessions: list[str] = []
+        self.table_text: str | None = None
+        self.read_ids: list[str] = []
+        self.temp = tmp_path / "temp"
+        self.temp.mkdir()
+        mocker.patch.object(tempfile, "tempdir", str(self.temp))
+        mocker.patch.object(curation_tasks, "_VALIDATION_POLL_SECONDS", 0)
+
+        step = self._step
 
         async def list_tasks(project_id: str, **kwargs) -> AsyncIterator[CurationTask]:
             for task in self.tasks_by_project.get(project_id, []):
@@ -638,7 +663,7 @@ class TestPlanNewTasks:
             return schema
 
         async def get_body(schema: JSONSchema, version=None, **kwargs) -> dict:
-            return SCHEMA_BODY
+            return self.schema_body
 
         async def get_permissions(folder: Folder, **kwargs) -> Permissions:
             if folder.id in self.missing_folders:
@@ -655,6 +680,94 @@ class TestPlanNewTasks:
 
         async def find_entity(name: str, parent: str, **kwargs) -> str | None:
             return self.folder_entities.get((parent, name))
+
+        async def create_task(**kwargs):
+            step("create_task")
+            self.created.append(kwargs)
+            number = len(self.created)
+            return (
+                RecordSet(id=f"syn90{number}"),
+                CurationTask(
+                    task_id=900 + number, data_type=kwargs["curation_task_name"]
+                ),
+            )
+
+        async def create_grid(grid: Grid, *args, **kwargs) -> Grid:
+            step("grid.create")
+            grid.session_id = f"session-{len(self.created)}"
+            return grid
+
+        async def import_csv(grid: Grid, path: str, **kwargs) -> Grid:
+            step("import")
+            _, records = read_csv_records(path)
+            self.imported.append(
+                dict(
+                    path=path,
+                    text=Path(path).read_bytes().decode("utf-8"),
+                    column_types=kwargs.get("column_types"),
+                )
+            )
+            count = self.import_count
+            grid.import_total_count = len(records) if count is None else count
+            return grid
+
+        @asynccontextmanager
+        async def connect(grid: Grid, **kwargs):
+            step("connect")
+            yield grid
+
+        async def validate_rows(grid: Grid, *, query_request, **kwargs):
+            step("validate")
+            query = query_request.query
+            self.queries.append(query)
+            rows = self.validation_reads[
+                min(self.read_index, len(self.validation_reads) - 1)
+            ]
+            page = rows[query.offset : query.offset + query.limit]
+            if len(page) < query.limit:
+                self.read_index += 1
+            return GridQueryResult(rows=page or None)
+
+        async def synchronize(grid: Grid, **kwargs) -> Grid:
+            step("synchronize")
+            self.sync_types.append(kwargs.get("sync_type"))
+            grid.sync_error_messages = list(self.sync_errors)
+            if not self.sync_errors:
+                self._synchronized()
+            return grid
+
+        async def delete_grid(grid: Grid, **kwargs) -> None:
+            step("grid.delete")
+            self.deleted_sessions.append(grid.session_id)
+
+        async def get_record_set(record_set: RecordSet, **kwargs) -> RecordSet:
+            step("record_set.get")
+            self.read_ids.append(record_set.id)
+            file = Path(record_set.path) / "table.csv"
+            file.write_text(self._table_text(), encoding="utf-8", newline="")
+            record_set.path = str(file)
+            record_set.upsert_keys = list(self.table_keys)
+            record_set.parent_id = self.table_folder
+            return record_set
+
+        async def get_status(task: CurationTask, **kwargs) -> CurationTaskStatus:
+            if task.task_id in self.status_errors:
+                raise _server_error()
+            session = self.sessions.get(task.task_id)
+            return CurationTaskStatus(
+                task_id=task.task_id,
+                state=self.states.get(task.task_id, TaskState.NOT_STARTED),
+                execution_details=(
+                    GridExecutionDetails(active_session_id=session) if session else None
+                ),
+            )
+
+        async def set_state(task: CurationTask, state, **kwargs) -> None:
+            step("archive")
+            if task.task_id in self.archive_errors:
+                raise _server_error()
+            self.archived.append((task.task_id, state))
+            self.states[task.task_id] = TaskState(state)
 
         self.list_tasks = mocker.patch.object(
             CurationTask, "list_async", side_effect=list_tasks
@@ -679,30 +792,108 @@ class TestPlanNewTasks:
         self.find_entity = mocker.patch.object(
             curation_tasks, "find_entity_id_async", side_effect=find_entity
         )
-        self.writes = [
+        self.create_task = mocker.patch.object(
+            curation_tasks,
+            "create_record_based_metadata_task_async",
+            side_effect=create_task,
+        )
+        mocker.patch.object(
+            Grid, "create_async", autospec=True, side_effect=create_grid
+        )
+        mocker.patch.object(
+            Grid, "import_csv_async", autospec=True, side_effect=import_csv
+        )
+        mocker.patch.object(Grid, "connect_async", new=connect)
+        mocker.patch.object(
+            Grid, "validate_rows_async", autospec=True, side_effect=validate_rows
+        )
+        mocker.patch.object(
+            Grid, "synchronize_async", autospec=True, side_effect=synchronize
+        )
+        mocker.patch.object(
+            Grid, "delete_async", autospec=True, side_effect=delete_grid
+        )
+        mocker.patch.object(
+            RecordSet, "get_async", autospec=True, side_effect=get_record_set
+        )
+        mocker.patch.object(
+            CurationTask, "get_status_async", autospec=True, side_effect=get_status
+        )
+        self.set_state = mocker.patch.object(
+            CurationTask, "set_task_state_async", autospec=True, side_effect=set_state
+        )
+        self.forbidden = [
             mocker.patch.object(model, method)
             for model, method in (
-                (CurationTask, "store_async"),
-                (CurationTask, "set_task_state_async"),
                 (CurationTask, "delete_async"),
-                (RecordSet, "store_async"),
+                (CurationTask, "store_async"),
                 (RecordSet, "delete_async"),
-                (Grid, "create_async"),
-                (Grid, "import_csv_async"),
-                (Grid, "synchronize_async"),
-                (Grid, "delete_async"),
+                (RecordSet, "store_async"),
             )
         ]
 
-    def _assert_nothing_written(self) -> None:
-        for write in self.writes:
-            write.assert_not_called()
+    def _step(self, name: str) -> None:
+        """Record a call, and raise the error `self.fail_at` holds for it, once."""
+        self.calls.append(name)
+        error = self.fail_at.pop(name, None)
+        if error is not None:
+            raise error
 
-    async def _plan(self, *rows: CurationTaskRow, **kwargs):
+    def _table_text(self) -> str:
+        """What a table download holds: `self.table_text`, or else the last import."""
+        return self.imported[-1]["text"] if self.table_text is None else self.table_text
+
+    def _synchronized(self) -> None:
+        """What a synchronize without errors does to the table: nothing to track."""
+
+    def _assert_nothing_deleted_and_no_file_left(self) -> None:
+        """No task or RecordSet was deleted or stored outside the creator (FR-027),
+        and no temporary file or folder is left (SC-007)."""
+        for call in self.forbidden:
+            call.assert_not_called()
+        assert list(self.temp.iterdir()) == []
+
+    def _assert_nothing_written(self) -> None:
+        """No call that writes to Synapse was made, and no file is left."""
+        assert not WRITE_STEPS & set(self.calls)
+        self.create_task.assert_not_called()
+        self.set_state.assert_not_called()
+        self._assert_nothing_deleted_and_no_file_left()
+
+    async def _plan(self, *rows: CurationTaskRow, **kwargs) -> list[TaskPlan]:
         return await plan_curation_tasks_async(
             CurationTaskManifest(rows=list(rows)), synapse_client=self.syn, **kwargs
         )
 
+    async def _apply(self, *rows: CurationTaskRow, **kwargs) -> list[TaskOutcome]:
+        return await apply_curation_tasks_async(
+            CurationTaskManifest(rows=list(rows)), synapse_client=self.syn, **kwargs
+        )
+
+
+WRITE_STEPS = {
+    "create_task",
+    "grid.create",
+    "import",
+    "connect",
+    "validate",
+    "synchronize",
+    "grid.delete",
+    "archive",
+}
+GRID_FLOW = [
+    "create_task",
+    "grid.create",
+    "import",
+    "connect",
+    "validate",
+    "synchronize",
+    "grid.delete",
+    "record_set.get",
+]
+
+
+class TestPlanNewTasks(_SynapseMocks):
     async def test_task_to_create(self, tmp_path: Path) -> None:
         # GIVEN a row for a task that does not exist, whose file leaves out one
         # column and lacks one schema property
@@ -1084,9 +1275,7 @@ class TestPlanNewTasks:
         self, tmp_path: Path, lookup: str, message: str
     ) -> None:
         # GIVEN a Synapse call that fails for every task
-        getattr(self, lookup).side_effect = SynapseHTTPError(
-            "503 Server Error", response=MagicMock(status_code=503)
-        )
+        getattr(self, lookup).side_effect = _server_error()
 
         # WHEN I plan two tasks
         plans = await self._plan(_task_row(tmp_path), _lab_b(tmp_path))
@@ -1488,83 +1677,41 @@ class TestSummaryAndReport:
         # THEN the table holds its header and the count line says so
         assert summary.split("\n")[-1] == "0 tasks; 0 validation problems"
 
-    @pytest.mark.parametrize(
-        "command, overwrite, expected_summary",
-        [
-            (
-                "plan",
-                False,
-                [
-                    ["plan", "false", "lab_a", "Lab A biospecimens", "syn111", "",
-                     "", "create", "", "2", "0", "0", "0", "", "",
-                     "Lab A v1: archive", "", "specimenID", "individualID", "",
-                     "false"],
-                    ["plan", "false", "lab_b", "Lab B biospecimens", "syn221", "12",
-                     "syn225", "exists", "", "1", "3", "1", "1", "", "", "",
-                     "instructions", "specimenID", "", "age", "false"],
-                    ["plan", "false", "lab_c", "Lab C", "syn111", "", "",
-                     "blocked", "", "2", "0", "0", "0", "", "", "", "",
-                     "specimenID", "", "", "false"],
-                ],
-            ),
-            (
-                "plan",
-                True,
-                [
-                    ["plan", "true", "lab_a", "Lab A biospecimens", "syn111", "",
-                     "", "create", "", "2", "0", "0", "0", "", "",
-                     "Lab A v1: archive", "", "specimenID", "individualID", "",
-                     "false"],
-                    ["plan", "true", "lab_b", "Lab B biospecimens", "syn221", "12",
-                     "syn225", "exists", "", "1", "3", "1", "1", "", "", "",
-                     "instructions", "specimenID", "", "age", "false"],
-                    ["plan", "true", "lab_c", "Lab C", "syn111", "", "",
-                     "blocked", "", "2", "0", "0", "0", "", "", "", "",
-                     "specimenID", "", "", "false"],
-                ],
-            ),
-        ],
-    )  # fmt: skip
-    def test_plan_report(
-        self,
-        tmp_path: Path,
-        command: str,
-        overwrite: bool,
-        expected_summary: list[list[str]],
-    ) -> None:
+    @pytest.mark.parametrize("overwrite", [False, True])
+    def test_plan_report(self, tmp_path: Path, overwrite: bool) -> None:
         # GIVEN the three plans
         plans = _summary_plans(tmp_path, overwrite=overwrite)
 
         # WHEN I write their report
-        write_curation_report(tmp_path / "report", command, plans)
+        write_curation_report(tmp_path / "report", "plan", plans)
 
         # THEN each file has the contract's columns, in order, and one row per task,
         # differing cell or problem
         report = tmp_path / "report"
-        assert (
-            _read_report(report, "summary.csv")
-            == [list(curation_tasks._SUMMARY_COLUMNS)] + expected_summary
-        )
-        assert _read_report(report, "differences.csv") == [
-            [
-                "name",
-                "key",
-                "line",
-                "column",
-                "file_value",
-                "synapse_value",
-                "overwrite",
-            ],
-            [
-                "lab_b",
-                "specimenID=S2",
-                "3",
-                "tissue",
-                "liver",
-                "lung",
-                "true" if overwrite else "false",
-            ],
+        flag = "true" if overwrite else "false"
+        # fmt: off
+        assert _read_report(report, "summary.csv") == [
+            ["command", "overwrite", "name", "curation_task_name", "project_id",
+             "task_id", "record_set_id", "action", "result", "rows_to_add",
+             "rows_unchanged", "rows_differing", "rows_absent_from_file",
+             "rows_written", "validation_problems", "archives",
+             "setting_differences", "key_columns", "missing_columns",
+             "skipped_columns", "input_empty"],
+            ["plan", flag, "lab_a", "Lab A biospecimens", "syn111", "", "", "create",
+             "", "2", "0", "0", "0", "", "", "Lab A v1: archive", "", "specimenID",
+             "individualID", "", "false"],
+            ["plan", flag, "lab_b", "Lab B biospecimens", "syn221", "12", "syn225",
+             "exists", "", "1", "3", "1", "1", "", "", "", "instructions",
+             "specimenID", "", "age", "false"],
+            ["plan", flag, "lab_c", "Lab C", "syn111", "", "", "blocked", "", "2",
+             "0", "0", "0", "", "", "", "", "specimenID", "", "", "false"],
         ]
+        assert _read_report(report, "differences.csv") == [
+            ["name", "key", "line", "column", "file_value", "synapse_value",
+             "overwrite"],
+            ["lab_b", "specimenID=S2", "3", "tissue", "liver", "lung", flag],
+        ]
+        # fmt: on
         assert _read_report(report, "problems.csv") == [
             ["name", "kind", "blocking", "file", "line", "key", "column", "message"],
             [
@@ -1579,33 +1726,6 @@ class TestSummaryAndReport:
                 f"of schema {SCHEMA_URI}",
             ],
         ]
-
-    def test_summary_columns_follow_the_contract(self) -> None:
-        # GIVEN the contract's summary.csv columns
-        # THEN the writer's columns are exactly these, in order
-        assert curation_tasks._SUMMARY_COLUMNS == (
-            "command",
-            "overwrite",
-            "name",
-            "curation_task_name",
-            "project_id",
-            "task_id",
-            "record_set_id",
-            "action",
-            "result",
-            "rows_to_add",
-            "rows_unchanged",
-            "rows_differing",
-            "rows_absent_from_file",
-            "rows_written",
-            "validation_problems",
-            "archives",
-            "setting_differences",
-            "key_columns",
-            "missing_columns",
-            "skipped_columns",
-            "input_empty",
-        )
 
     def test_apply_report(self, tmp_path: Path) -> None:
         # GIVEN the three outcomes
@@ -1736,259 +1856,7 @@ class TestSummaryAndReport:
         )
 
 
-def _grid_row(
-    key: str, valid: bool | None = True, message: str = "", details=None
-) -> GridRow:
-    """A session row keyed `specimenID`: valid, invalid with Synapse's messages, or
-    not yet validated when `valid` is None."""
-    results = None
-    if valid is not None:
-        results = GridQueryValidationResult(
-            is_valid=valid,
-            validation_error_message=None if valid else message,
-            all_validation_messages=None if valid else details,
-        )
-    return GridRow(
-        row_id=f"7.{key}", data={"specimenID": key}, validation_results=results
-    )
-
-
-def _server_error(text: str = "503 Server Error") -> SynapseHTTPError:
-    """A Synapse 5xx."""
-    return SynapseHTTPError(text, response=MagicMock(status_code=503))
-
-
-class _ApplyMocks:
-    """Mocks every Synapse call applying makes, recording each in `self.calls`.
-
-    A step named in `self.fail_at` raises its exception once. Planning finds every
-    folder editable, every team and schema present and no entity in the way.
-    """
-
-    @pytest.fixture(autouse=True)
-    def mock_synapse(self, mocker, syn: Synapse, tmp_path: Path) -> None:
-        self.syn = syn
-        self.calls: list[str] = []
-        self.fail_at: dict[str, Exception] = {}
-        self.schema_body = SCHEMA_BODY
-        self.tasks_by_project: dict[str, list[CurationTask]] = {}
-        self.read_only_folders: set[str] = set()
-        self.states: dict[int, TaskState] = {}
-        self.status_errors: set[int] = set()
-        self.archive_errors: set[int] = set()
-        self.archived: list[tuple[int, TaskState]] = []
-        self.created: list[dict] = []
-        self.imported: list[dict] = []
-        self.import_count: int | None = None
-        self.validation_reads: list[list[GridRow]] = [[]]
-        self.read_index = 0
-        self.queries = []
-        self.sync_types = []
-        self.sync_errors: list[str] = []
-        self.deleted_sessions: list[str] = []
-        self.table_text: str | None = None
-        self.read_ids: list[str] = []
-        self.temp = tmp_path / "temp"
-        self.temp.mkdir()
-        mocker.patch.object(tempfile, "tempdir", str(self.temp))
-        mocker.patch.object(curation_tasks, "_VALIDATION_POLL_SECONDS", 0)
-
-        def step(name: str) -> None:
-            self.calls.append(name)
-            error = self.fail_at.pop(name, None)
-            if error is not None:
-                raise error
-
-        async def list_tasks(project_id: str, **kwargs) -> AsyncIterator[CurationTask]:
-            for task in self.tasks_by_project.get(project_id, []):
-                yield task
-
-        async def get_schema(schema: JSONSchema, **kwargs) -> JSONSchema:
-            return schema
-
-        async def get_body(schema: JSONSchema, version=None, **kwargs) -> dict:
-            return self.schema_body
-
-        async def get_permissions(folder: Folder, **kwargs) -> Permissions:
-            return Permissions(can_edit=folder.id not in self.read_only_folders)
-
-        async def get_team(team: Team, **kwargs) -> Team:
-            return team
-
-        async def folder_project(entity_id: str, synapse_client: Synapse) -> str:
-            return {"syn112": "syn111", "syn113": "syn111"}.get(entity_id, "syn221")
-
-        async def find_entity(name: str, parent: str, **kwargs) -> None:
-            return None
-
-        async def create_task(**kwargs):
-            step("create_task")
-            self.created.append(kwargs)
-            number = len(self.created)
-            return (
-                RecordSet(id=f"syn90{number}"),
-                CurationTask(
-                    task_id=900 + number, data_type=kwargs["curation_task_name"]
-                ),
-            )
-
-        async def create_grid(grid: Grid, *args, **kwargs) -> Grid:
-            step("grid.create")
-            grid.session_id = f"session-{len(self.created)}"
-            return grid
-
-        async def import_csv(grid: Grid, path: str, **kwargs) -> Grid:
-            step("import")
-            _, records = read_csv_records(path)
-            self.imported.append(
-                dict(
-                    path=path,
-                    text=Path(path).read_bytes().decode("utf-8"),
-                    column_types=kwargs.get("column_types"),
-                )
-            )
-            count = self.import_count
-            grid.import_total_count = len(records) if count is None else count
-            return grid
-
-        @asynccontextmanager
-        async def connect(grid: Grid, **kwargs):
-            step("connect")
-            yield grid
-
-        async def validate_rows(grid: Grid, *, query_request, **kwargs):
-            step("validate")
-            query = query_request.query
-            self.queries.append(query)
-            rows = self.validation_reads[
-                min(self.read_index, len(self.validation_reads) - 1)
-            ]
-            page = rows[query.offset : query.offset + query.limit]
-            if len(page) < query.limit:
-                self.read_index += 1
-            return GridQueryResult(rows=page or None)
-
-        async def synchronize(grid: Grid, **kwargs) -> Grid:
-            step("synchronize")
-            self.sync_types.append(kwargs.get("sync_type"))
-            grid.sync_error_messages = list(self.sync_errors)
-            return grid
-
-        async def delete_grid(grid: Grid, **kwargs) -> None:
-            step("grid.delete")
-            self.deleted_sessions.append(grid.session_id)
-
-        async def get_record_set(record_set: RecordSet, **kwargs) -> RecordSet:
-            step("record_set.get")
-            self.read_ids.append(record_set.id)
-            text = self.table_text
-            if text is None:
-                text = self.imported[-1]["text"]
-            file = Path(record_set.path) / "table.csv"
-            file.write_text(text, encoding="utf-8", newline="")
-            record_set.path = str(file)
-            return record_set
-
-        async def get_status(task: CurationTask, **kwargs) -> CurationTaskStatus:
-            if task.task_id in self.status_errors:
-                raise _server_error()
-            return CurationTaskStatus(
-                task_id=task.task_id,
-                state=self.states.get(task.task_id, TaskState.NOT_STARTED),
-            )
-
-        async def set_state(task: CurationTask, state, **kwargs) -> None:
-            step("archive")
-            if task.task_id in self.archive_errors:
-                raise _server_error()
-            self.archived.append((task.task_id, state))
-            self.states[task.task_id] = TaskState(state)
-
-        mocker.patch.object(CurationTask, "list_async", side_effect=list_tasks)
-        mocker.patch.object(
-            JSONSchema, "get_async", autospec=True, side_effect=get_schema
-        )
-        mocker.patch.object(
-            JSONSchema, "get_body_async", autospec=True, side_effect=get_body
-        )
-        mocker.patch.object(
-            Folder, "get_permissions_async", autospec=True, side_effect=get_permissions
-        )
-        mocker.patch.object(Team, "get_async", autospec=True, side_effect=get_team)
-        mocker.patch.object(
-            curation_tasks,
-            "project_id_from_entity_id_async",
-            side_effect=folder_project,
-        )
-        mocker.patch.object(
-            curation_tasks, "find_entity_id_async", side_effect=find_entity
-        )
-        self.create_task = mocker.patch.object(
-            curation_tasks,
-            "create_record_based_metadata_task_async",
-            side_effect=create_task,
-        )
-        mocker.patch.object(
-            Grid, "create_async", autospec=True, side_effect=create_grid
-        )
-        mocker.patch.object(
-            Grid, "import_csv_async", autospec=True, side_effect=import_csv
-        )
-        mocker.patch.object(Grid, "connect_async", new=connect)
-        mocker.patch.object(
-            Grid, "validate_rows_async", autospec=True, side_effect=validate_rows
-        )
-        mocker.patch.object(
-            Grid, "synchronize_async", autospec=True, side_effect=synchronize
-        )
-        mocker.patch.object(
-            Grid, "delete_async", autospec=True, side_effect=delete_grid
-        )
-        mocker.patch.object(
-            RecordSet, "get_async", autospec=True, side_effect=get_record_set
-        )
-        mocker.patch.object(
-            CurationTask, "get_status_async", autospec=True, side_effect=get_status
-        )
-        self.set_state = mocker.patch.object(
-            CurationTask, "set_task_state_async", autospec=True, side_effect=set_state
-        )
-        self.forbidden = [
-            mocker.patch.object(model, method)
-            for model, method in (
-                (CurationTask, "delete_async"),
-                (CurationTask, "store_async"),
-                (RecordSet, "delete_async"),
-                (RecordSet, "store_async"),
-            )
-        ]
-
-    def _assert_nothing_deleted_and_no_file_left(self) -> None:
-        """No task or RecordSet was deleted or stored outside the creator (FR-027),
-        and no temporary file or folder is left (SC-007)."""
-        for call in self.forbidden:
-            call.assert_not_called()
-        assert list(self.temp.iterdir()) == []
-
-    async def _apply(self, *rows: CurationTaskRow, **kwargs) -> list[TaskOutcome]:
-        return await apply_curation_tasks_async(
-            CurationTaskManifest(rows=list(rows)), synapse_client=self.syn, **kwargs
-        )
-
-
-GRID_FLOW = [
-    "create_task",
-    "grid.create",
-    "import",
-    "connect",
-    "validate",
-    "synchronize",
-    "grid.delete",
-    "record_set.get",
-]
-
-
-class TestApplyNewTasks(_ApplyMocks):
+class TestApplyNewTasks(_SynapseMocks):
     async def test_task_is_created_and_filled(self, tmp_path: Path) -> None:
         # GIVEN a row for a new task whose file leaves out one column, lacks one
         # schema property, and holds a quoted comma and line break
@@ -2378,7 +2246,22 @@ OLD_TASKS = [
 ]
 
 
-class TestArchiving(_ApplyMocks):
+def _archive_entries() -> list[ArchiveEntry]:
+    """What planning lists for a live old task, an archived one and a missing one."""
+    return [
+        ArchiveEntry(
+            curation_task_name="Lab A v1", task_id=6, result=ArchiveResult.ARCHIVE
+        ),
+        ArchiveEntry(
+            curation_task_name="Lab A v0",
+            task_id=5,
+            result=ArchiveResult.ALREADY_ARCHIVED,
+        ),
+        ArchiveEntry(curation_task_name="Lab A v9", result=ArchiveResult.NOT_FOUND),
+    ]
+
+
+class TestArchiving(_SynapseMocks):
     @pytest.fixture(autouse=True)
     def old_tasks(self) -> None:
         self.tasks_by_project["syn111"] = list(OLD_TASKS)
@@ -2392,23 +2275,11 @@ class TestArchiving(_ApplyMocks):
         )
 
         # WHEN I plan it
-        (plan,) = await plan_curation_tasks_async(
-            CurationTaskManifest(rows=[row]), synapse_client=self.syn
-        )
+        (plan,) = await self._plan(row)
 
         # THEN each name is listed once with what would happen to it, and none
         # blocks the row
-        assert plan.archives == [
-            ArchiveEntry(
-                curation_task_name="Lab A v1", task_id=6, result=ArchiveResult.ARCHIVE
-            ),
-            ArchiveEntry(
-                curation_task_name="Lab A v0",
-                task_id=5,
-                result=ArchiveResult.ALREADY_ARCHIVED,
-            ),
-            ArchiveEntry(curation_task_name="Lab A v9", result=ArchiveResult.NOT_FOUND),
-        ]
+        assert plan.archives == _archive_entries()
         assert plan.action is TaskAction.CREATE
         assert plan.problems == []
         self.set_state.assert_not_called()
@@ -2447,17 +2318,7 @@ class TestArchiving(_ApplyMocks):
         self, tmp_path: Path, result: TaskResult, archived: bool
     ) -> None:
         # GIVEN an outcome with a live, an archived and a missing old task
-        entries = [
-            ArchiveEntry(
-                curation_task_name="Lab A v1", task_id=6, result=ArchiveResult.ARCHIVE
-            ),
-            ArchiveEntry(
-                curation_task_name="Lab A v0",
-                task_id=5,
-                result=ArchiveResult.ALREADY_ARCHIVED,
-            ),
-            ArchiveEntry(curation_task_name="Lab A v9", result=ArchiveResult.NOT_FOUND),
-        ]
+        entries = _archive_entries()
         plan = TaskPlan(
             row=_task_row(tmp_path), action=TaskAction.CREATE, archives=entries
         )
@@ -2555,16 +2416,6 @@ class TestArchiving(_ApplyMocks):
 
 TABLE_ID = "syn500"
 TABLE_HEADER = ["specimenID", "tissue", "age", "individualID"]
-WRITE_STEPS = {
-    "create_task",
-    "grid.create",
-    "import",
-    "connect",
-    "validate",
-    "synchronize",
-    "grid.delete",
-    "archive",
-}
 
 
 def _table_csv(header: list[str], rows: list[list[str | None]]) -> str:
@@ -2587,7 +2438,22 @@ def _binding(schema_uri: str) -> MagicMock:
     return binding
 
 
-class _ExistingTaskMocks(_ApplyMocks):
+def _existing_task(task_id: int, name: str) -> CurationTask:
+    """A record-based task in syn111 on table syn500, set as `_task_row` sets one."""
+    return CurationTask(
+        task_id=task_id,
+        data_type=name,
+        project_id="syn111",
+        instructions="Fill one row per specimen.",
+        assignee_principal_id="3412345",
+        task_properties=RecordBasedMetadataTaskProperties(
+            record_set_id=TABLE_ID,
+            suggested_authorization_mode=AuthorizationMode.SOURCE_BENEFACTOR,
+        ),
+    )
+
+
+class _ExistingTaskMocks(_SynapseMocks):
     """Adds lab_a's task as one that exists, with table syn500 in folder syn112
     bound to the row's schema, holding S1 and S2 as INPUT_CSV gives them.
 
@@ -2598,69 +2464,24 @@ class _ExistingTaskMocks(_ApplyMocks):
 
     @pytest.fixture(autouse=True)
     def existing_task(self, mock_synapse, mocker) -> None:
-        self.task = CurationTask(
-            task_id=7,
-            data_type="Lab A biospecimens",
-            project_id="syn111",
-            instructions="Fill one row per specimen.",
-            assignee_principal_id="3412345",
-            task_properties=RecordBasedMetadataTaskProperties(
-                record_set_id=TABLE_ID,
-                suggested_authorization_mode=AuthorizationMode.SOURCE_BENEFACTOR,
-            ),
-        )
+        self.task = _existing_task(7, "Lab A biospecimens")
         self.tasks_by_project["syn111"] = [self.task]
         self.table_header = list(TABLE_HEADER)
         self.table_rows: list[list[str | None]] = [
             ["S1", "brain", "4", None],
             ["S2", "liver", "5", None],
         ]
-        self.table_keys = ["specimenID"]
-        self.table_folder = "syn112"
         self.bound_schema: str | None = SCHEMA_URI
-        self.sessions: dict[int, str] = {}
         self.live_sessions: set[str] = set()
         self.session_errors: dict[str, Exception] = {}
         self.session_reads: list[str] = []
         self.read_back_changes: dict[tuple[str, str], str] = {}
 
-        def step(name: str) -> None:
-            self.calls.append(name)
-            error = self.fail_at.pop(name, None)
-            if error is not None:
-                raise error
-
-        async def get_record_set(record_set: RecordSet, **kwargs) -> RecordSet:
-            step("record_set.get")
-            self.read_ids.append(record_set.id)
-            file = Path(record_set.path) / "table.csv"
-            file.write_text(
-                _table_csv(self.table_header, self.table_rows),
-                encoding="utf-8",
-                newline="",
-            )
-            record_set.path = str(file)
-            record_set.upsert_keys = list(self.table_keys)
-            record_set.parent_id = self.table_folder
-            return record_set
-
         async def get_bound_schema(record_set: RecordSet, **kwargs) -> MagicMock:
-            step("record_set.get_schema")
+            self._step("record_set.get_schema")
             if self.bound_schema is None:
                 raise _not_found()
             return _binding(self.bound_schema)
-
-        async def get_status(task: CurationTask, **kwargs) -> CurationTaskStatus:
-            if task.task_id in self.status_errors:
-                raise _server_error()
-            session = self.sessions.get(task.task_id)
-            return CurationTaskStatus(
-                task_id=task.task_id,
-                state=self.states.get(task.task_id, TaskState.NOT_STARTED),
-                execution_details=(
-                    GridExecutionDetails(active_session_id=session) if session else None
-                ),
-            )
 
         async def get_session(grid: Grid, **kwargs) -> Grid:
             self.session_reads.append(grid.session_id)
@@ -2670,23 +2491,12 @@ class _ExistingTaskMocks(_ApplyMocks):
                 raise _not_found()
             return grid
 
-        async def synchronize(grid: Grid, **kwargs) -> Grid:
-            step("synchronize")
-            self.sync_types.append(kwargs.get("sync_type"))
-            grid.sync_error_messages = list(self.sync_errors)
-            if not self.sync_errors:
-                self._upsert(self.imported[-1]["text"])
-            return grid
-
-        mocker.patch.object(RecordSet, "get_async", new=get_record_set)
         self.get_bound_schema = mocker.patch.object(
             RecordSet, "get_schema_async", autospec=True, side_effect=get_bound_schema
         )
-        mocker.patch.object(CurationTask, "get_status_async", new=get_status)
         self.get_session = mocker.patch.object(
             Grid, "get_async", autospec=True, side_effect=get_session
         )
-        mocker.patch.object(Grid, "synchronize_async", new=synchronize)
 
     def _upsert(self, text: str) -> None:
         """Upsert an imported CSV's rows into the table by key text."""
@@ -2706,17 +2516,11 @@ class _ExistingTaskMocks(_ApplyMocks):
                 if cells[position] == key:
                     cells[self.table_header.index(column)] = value
 
-    def _assert_nothing_written(self) -> None:
-        """No call that writes to Synapse was made, and no file is left."""
-        assert not WRITE_STEPS & set(self.calls)
-        self.create_task.assert_not_called()
-        self.set_state.assert_not_called()
-        self._assert_nothing_deleted_and_no_file_left()
+    def _table_text(self) -> str:
+        return _table_csv(self.table_header, self.table_rows)
 
-    async def _plan(self, *rows: CurationTaskRow, **kwargs) -> list[TaskPlan]:
-        return await plan_curation_tasks_async(
-            CurationTaskManifest(rows=list(rows)), synapse_client=self.syn, **kwargs
-        )
+    def _synchronized(self) -> None:
+        self._upsert(self.imported[-1]["text"])
 
 
 class TestPlanExistingTasks(_ExistingTaskMocks):
@@ -2950,12 +2754,11 @@ class TestPlanExistingTasks(_ExistingTaskMocks):
         self._assert_nothing_written()
 
     @pytest.mark.parametrize(
-        "error, attached, message",
+        "error, message",
         [
-            (None, None, None),
+            (None, None),
             (
                 _server_error("503 x"),
-                None,
                 "lab_a: Synapse error while reading grid session sess-1 attached to "
                 "curation task 'Lab A biospecimens' (7): 503 x",
             ),
@@ -2965,7 +2768,6 @@ class TestPlanExistingTasks(_ExistingTaskMocks):
         self,
         tmp_path: Path,
         error: Exception | None,
-        attached: str | None,
         message: str | None,
     ) -> None:
         # GIVEN a status naming a session that is gone (a 404) or cannot be read,
@@ -2980,7 +2782,7 @@ class TestPlanExistingTasks(_ExistingTaskMocks):
 
         # THEN a gone session counts as none, and any other error blocks with
         # Synapse's message
-        assert plan.attached_session_id == attached
+        assert plan.attached_session_id is None
         assert [problem.message for problem in plan.problems] == (
             [message] if message else []
         )
@@ -3281,19 +3083,7 @@ class TestApplyExistingTasks(_ExistingTaskMocks):
         # GIVEN a completed task with a new row, a second existing task whose
         # session cannot be created, and a third task to create
         self.states[7] = TaskState.COMPLETED
-        self.tasks_by_project["syn111"].append(
-            CurationTask(
-                task_id=8,
-                data_type="Lab C biospecimens",
-                project_id="syn111",
-                instructions="Fill one row per specimen.",
-                assignee_principal_id="3412345",
-                task_properties=RecordBasedMetadataTaskProperties(
-                    record_set_id=TABLE_ID,
-                    suggested_authorization_mode=AuthorizationMode.SOURCE_BENEFACTOR,
-                ),
-            )
-        )
+        self.tasks_by_project["syn111"].append(_existing_task(8, "Lab C biospecimens"))
         new_row = "specimenID,tissue,age\nS3,lung,6\n"
         lab_a = _task_row(tmp_path, new_row)
         lab_c = _task_row(
