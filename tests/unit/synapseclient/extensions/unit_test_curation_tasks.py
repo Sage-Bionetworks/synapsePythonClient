@@ -605,6 +605,9 @@ class _SynapseMocks:
     """Mocks every Synapse call planning and applying make, recording each call
     that writes, and each table read, in `self.calls`.
 
+    A session returns the rows imported into it, every one valid, unless a test
+    sets `self.validation_reads` to what each read of the session returns.
+
     A step named in `self.fail_at` raises its exception once. Until a test says
     otherwise, planning finds every folder editable, every team and schema present
     and no entity in the way.
@@ -633,7 +636,7 @@ class _SynapseMocks:
         self.created: list[dict] = []
         self.imported: list[dict] = []
         self.import_count: int | None = None
-        self.validation_reads: list[list[GridRow]] = [[]]
+        self.validation_reads: list[list[GridRow]] | None = None
         self.read_index = 0
         self.queries = []
         self.sync_types = []
@@ -720,9 +723,11 @@ class _SynapseMocks:
             step("validate")
             query = query_request.query
             self.queries.append(query)
-            rows = self.validation_reads[
-                min(self.read_index, len(self.validation_reads) - 1)
-            ]
+            reads = self.validation_reads
+            if reads is None:
+                _, records = read_csv_records(self.imported[-1]["path"])
+                reads = [[_grid_row(record.cells[0]) for record in records]]
+            rows = reads[min(self.read_index, len(reads) - 1)]
             page = rows[query.offset : query.offset + query.limit]
             if len(page) < query.limit:
                 self.read_index += 1
@@ -2044,6 +2049,53 @@ class TestApplyNewTasks(_SynapseMocks):
         ]
         assert self.calls == GRID_FLOW
         assert outcome.result is TaskResult.CREATED
+
+    @pytest.mark.parametrize(
+        "reads, validate_calls, message",
+        [
+            pytest.param(
+                [[], [_grid_row("S1"), _grid_row("S2", False, "bad tissue")]],
+                2,
+                "lab_a: input file {path} line 3: key specimenID 'S2': bad tissue",
+                id="rows arrive on the second read",
+            ),
+            pytest.param(
+                [[]],
+                1,
+                "lab_a: Synapse had not validated 2 of the 2 rows in table syn901 "
+                "after 0 seconds; their validation problems are not reported",
+                id="rows never arrive",
+            ),
+            pytest.param(
+                [[_grid_row("S1")]],
+                1,
+                "lab_a: Synapse had not validated 1 of the 2 rows in table syn901 "
+                "after 0 seconds; their validation problems are not reported",
+                id="one row never arrives",
+            ),
+        ],
+    )
+    async def test_session_returning_fewer_rows_than_imported_is_read_again(
+        self, mocker, tmp_path: Path, reads: list, validate_calls: int, message: str
+    ) -> None:
+        # GIVEN a session that at first returns fewer rows than were imported, and
+        # no time to wait unless the rows arrive on the second read
+        if len(reads) == 1:
+            mocker.patch.object(curation_tasks, "_VALIDATION_WAIT_SECONDS", 0)
+        self.validation_reads = reads
+        row = _task_row(tmp_path)
+
+        # WHEN I apply it
+        (outcome,) = await self._apply(row)
+
+        # THEN the session is read until it returns the imported rows, and rows
+        # that never arrive are reported as not validated; the write goes on
+        assert self.calls.count("validate") == validate_calls
+        assert [p.message for p in outcome.validation_problems] == [
+            message.format(path=row.path)
+        ]
+        assert outcome.result is TaskResult.CREATED
+        assert outcome.rows_written == 2
 
     @pytest.mark.parametrize(
         "case, flow, rows_written, error",

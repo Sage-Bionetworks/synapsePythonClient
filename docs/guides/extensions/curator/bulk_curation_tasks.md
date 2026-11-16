@@ -1,6 +1,6 @@
 # How to Create and Fill Curation Tasks in Bulk
 
-This guide is for **curation administrators** who run a hub with several contributing groups. It shows you how to create a record-based curation task for each group, fill each task with that group's records, and load later revisions of those records safely, all from one manifest file, with `synapse curate plan` and `synapse curate apply` or the matching Python functions.
+This guide is for **curation administrators** who run a hub with several contributing groups. It shows you how to create a record-based curation task for each group, **fill each task with that group's records**, and load later revisions of those records safely. One manifest file feeds  `synapse curate plan` and `synapse curate apply`, plus the matching Python functions.
 
 If you're setting up a single task, see [How to Set Up Metadata Curation Workflows](metadata_curation.md) instead. If you're a contributor filling in a task, see [How to Enter and Update Metadata for a Record-Based Curation Task](metadata_contribution.md).
 
@@ -19,18 +19,18 @@ By following this guide, you will:
 ## Prerequisites
 
 - A Synapse account that can edit every folder named in the manifest
-- Python environment with synapseclient and the `curator` extension installed (`pip install --upgrade "synapseclient[curator]"`). Without the extension, `synapse curate` tells you to install `synapseclient[curator]` and exits; every other `synapse` command works as before.
-- For each group: an existing Synapse project, a folder in it to hold the task's table, and a team to assign the task to. The command does not create projects, folders or teams, and does not set permissions.
-- A registered JSON schema with a version. The command does not register schemas; see [How to Generate JSONschemas from Curator CSV data models](schema_operations.md) or the [`register-json-schema`](../../../tutorials/command_line_client.md#register-json-schema) command.
+- Python environment with synapseclient and the `curator` extension installed (`pip install --upgrade "synapseclient[curator]"`).
+- For each group: an existing Synapse project, a folder in it to hold the task's table, and a team who should receive the assigned task. The command does not create projects, folders or teams, and does not set permissions.
+- **A registered JSON schema with a version.** The command does not register schemas; see [How to Generate JSONschemas from Curator CSV data models](schema_operations.md) or the [`register-json-schema`](../../../tutorials/command_line_client.md#register-json-schema) command.
 - One CSV of records per group whose header uses the schema's property names
 
 The command signs in with your own credentials, found the way every other `synapse` command finds them (see [Authentication](../../../tutorials/authentication.md)). Credentials never go in the manifest and never appear in the output or the report.
 
-## The example
+## Example
 
-A hub collects biospecimen records from two labs. Each lab has its own project, its own team, and its own CSV file. Every task uses the same schema, `org.namhub-biospecimen-1.2.0`, and identifies a row by its `specimenID`. Lab A already has a task on an older schema version, `Lab A biospecimens v1`, which the new task replaces. Lab A's file also carries an `internal_notes` column that is not in the schema.
+A hub collects biospecimen records from two labs. Each lab has its own project, team and CSV file. Every task uses the same schema, `org.namhub-biospecimen-1.2.0`, and identifies a row by its `specimenID`. Lab A already has a task on an older schema version, `Lab A biospecimens v1`, which the new task replaces. Lab A's file also carries an `internal_notes` column that is not in the schema.
 
-## Step 1: Write the manifest
+### Step 1: Write the manifest
 
 The manifest is a CSV with a header row and one row per task. Save it beside the labs' files as `manifest.csv`:
 
@@ -73,7 +73,7 @@ Each input CSV has a header of schema property names, plus any columns named in 
 
 A schema property missing from the file still becomes a column in a new task's table, with blank cells, and the plan notes it. An input column that is neither a schema property nor left out blocks that task.
 
-## Step 2: Preview the run
+### Step 2: Preview the run
 
 ```bash
 synapse curate plan manifest.csv
@@ -97,7 +97,7 @@ synapse curate plan manifest.csv --task lab_b
 
 `--task` takes several names and can be repeated. A name the manifest does not define rejects the command.
 
-## Step 3: Create and fill the tasks
+### Step 3: Create and fill the tasks
 
 ```bash
 synapse curate apply manifest.csv
@@ -128,7 +128,7 @@ Blocking problems:
 
 Each task ends as `created`, `updated`, `unchanged`, `blocked` or `failed`. A problem in one task does not stop the others. The command exits with status 1 when the manifest or command line is rejected, when any task is blocked or fails, or when any archive fails. Validation problems alone leave the exit status at 0.
 
-## Step 4: Rerun when a file changes
+### Step 4: Rerun when a file changes
 
 When a group sends a revised file, update the file and run the same manifest again, `plan` first:
 
@@ -163,7 +163,7 @@ With `--overwrite`, the file's non-blank values replace the values in Synapse. A
 
 Synapse keeps every version of a task's table, so an overwrite you regret can be recovered from an earlier version. The command keeps no backups of its own.
 
-## Step 5: Archive the task a new one replaces
+### Step 5: Archive the task a new one replaces
 
 To retire an old task when its replacement is ready, put the old task's name in the new task's `archive` column, as row `lab_a` does with `Lab A biospecimens v1`. Several names are separated by `;`, and each must be a task in the same project.
 
@@ -176,8 +176,7 @@ To retire an old task when its replacement is ready, put the old task's name in 
 
 ## What blocks a task
 
-A blocked task has nothing written to it and archives nothing. The other tasks go ahead, and the run exits with status 1. A task is blocked when:
-
+A task is blocked when:
 - an input column is neither a schema property nor listed in `leave_out_columns`
 - two rows in the input file share a key, or a row's key is blank or only whitespace. The plan names the rows.
 - the folder, team or schema the row names does not exist, or you lack permission on the folder
@@ -186,7 +185,9 @@ A blocked task has nothing written to it and archives nothing. The other tasks g
 - the run would add or overwrite rows in a task its contributors have marked complete
 - the run would add or overwrite rows in a task that has an attached grid session. The block names the session, because edits in the session that are not yet synchronized are not in the table the plan compares against.
 
-A completed task, or one with an attached grid session, is not blocked when the run would write nothing to it. Since `--overwrite` writes more rows, `plan --overwrite` may block tasks that `plan` alone does not. A grid session that was deleted in Synapse no longer counts as attached.
+If a task is blocked, all other tasks go ahead, and **the run exits with status 1**.
+
+Since `--overwrite` writes more rows, `plan --overwrite` may block tasks that `plan` alone does not. A grid session that was deleted in Synapse no longer counts as attached.
 
 A task **fails**, rather than being blocked, when Synapse cannot import its input file, or when the read-back finds a written row missing or an overwritten cell not holding the value written. A failed task archives nothing, and a rerun fills it. When Synapse cannot import the file, nothing is saved to the task's table.
 
@@ -194,8 +195,6 @@ A task **fails**, rather than being blocked, when Synapse cannot import its inpu
 
 - It never deletes a task, a table or a row.
 - It does not register or generate schemas, and does not upgrade an existing task to a new schema version in place. To move a group to a new schema, create a new task and archive the old one.
-- It does not create projects, folders or teams, set permissions, or look up Synapse IDs from names.
-- It does not manage grid sessions. It detects a task's attached session and blocks writes to that task; it does not synchronize, delete or detach the session.
 - It does not change an existing task's assignee, instructions, authorization mode or key columns, or any task state other than archiving.
 - It does not rename input columns to match the schema.
 

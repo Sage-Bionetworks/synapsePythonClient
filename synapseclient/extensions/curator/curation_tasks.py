@@ -1227,8 +1227,8 @@ class _FillResult(NamedTuple):
         session_id: The grid session used, deleted by the time this is returned.
         rows: The session's rows, with their validation results, as the last read
             gave them.
-        unvalidated: How many of `rows` still lacked a validation result when the
-            wait ran out.
+        unvalidated: How many rows had no validation result when the wait ran out:
+            those in `rows` without one, and those imported but not in `rows`.
         sync_errors: The synchronize's error messages; empty when it had none.
     """
 
@@ -1270,16 +1270,23 @@ def _column_types(
 
 
 async def _read_session_rows(
-    grid: Grid, synapse_client: Synapse
+    grid: Grid, imported: int, synapse_client: Synapse
 ) -> tuple[list[GridRow], int]:
     """Read every row of a connected session with its validation results.
 
-    Rows are read a page at a time until a short page. Synapse validates rows a
-    moment after an import, so the read repeats while any row lacks a result, until
-    `_VALIDATION_WAIT_SECONDS` have passed.
+    Rows are read a page at a time until a short page. A session can return no
+    rows, or rows without results, for a moment after an import, so the read
+    repeats while it returns fewer rows than were imported or any row lacks a
+    result, until `_VALIDATION_WAIT_SECONDS` have passed.
+
+    Arguments:
+        grid: The connected session.
+        imported: How many rows the import counted.
+        synapse_client: The client.
 
     Returns:
-        The rows of the last read, and how many of them lack a result.
+        The rows of the last read, and how many rows have no result: those read
+        without one, and those imported but not read.
     """
     deadline = time.monotonic() + _VALIDATION_WAIT_SECONDS
     while True:
@@ -1301,6 +1308,7 @@ async def _read_session_rows(
             if len(page) < _VALIDATION_PAGE_SIZE:
                 break
         unvalidated = sum(1 for row in rows if row.validation_results is None)
+        unvalidated += max(0, imported - len(rows))
         if not unvalidated or time.monotonic() >= deadline:
             return rows, unvalidated
         await asyncio.sleep(_VALIDATION_POLL_SECONDS)
@@ -1360,7 +1368,7 @@ async def _fill_table(
             )
         async with grid.connect_async(synapse_client=synapse_client) as session:
             session_rows, unvalidated = await _read_session_rows(
-                session, synapse_client
+                session, imported, synapse_client
             )
         await grid.synchronize_async(
             sync_type=SyncType.PULL_PUSH, synapse_client=synapse_client
@@ -1489,7 +1497,7 @@ def _validation_problems(
                 blocking=False,
                 message=(
                     f"{row.name}: Synapse had not validated {fill.unvalidated} of "
-                    f"the {_count(len(fill.rows), 'row')} in table "
+                    f"the {_count(max(len(fill.rows), len(written)), 'row')} in table "
                     f"{outcome.record_set_id} after {_VALIDATION_WAIT_SECONDS} "
                     "seconds; their validation problems are not reported"
                 ),
