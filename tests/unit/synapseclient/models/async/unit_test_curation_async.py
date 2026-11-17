@@ -3174,11 +3174,6 @@ class TestGrid:
         assert "total created: 1" in log_message
         assert "total updated: 1" in log_message
 
-        # AND the counts are kept on the grid
-        assert result.import_total_count == 1
-        assert result.import_created_count == 1
-        assert result.import_updated_count == 1
-
     async def test_import_csv_no_suggested_columns_async(self) -> None:
         """Raises ValueError when the CSV preview returns no suggested columns."""
         # GIVEN a Grid with a session_id
@@ -3888,9 +3883,6 @@ class TestSynchronizeGrid:
             # THEN the API should be called with the session_id
             mock_sync.assert_called_once_with(synapse_client=self.syn, timeout=120)
 
-        # AND the grid records that there were no errors
-        assert grid.sync_error_messages == []
-
     async def test_synchronize_grid_async_with_errors(self) -> None:
         # GIVEN a Grid with a session_id
         grid = Grid(session_id=SESSION_ID)
@@ -3914,8 +3906,57 @@ class TestSynchronizeGrid:
                 assert "sync_error_1" in error_message
                 assert "sync_error_2" in error_message
 
-        # AND the error messages are kept on the grid
-        assert grid.sync_error_messages == ["sync_error_1", "sync_error_2"]
+    @pytest.mark.parametrize("error_messages", [None, []])
+    async def test_synchronize_grid_async_raise_on_error_without_errors(
+        self, error_messages
+    ) -> None:
+        # GIVEN a Grid whose synchronization reports no errors
+        grid = Grid(session_id=SESSION_ID)
+        mock_sync_response = SynchronizeGridRequest(
+            grid_session_id=SESSION_ID,
+            error_messages=error_messages,
+        )
+
+        # WHEN I call synchronize_async with raise_on_error=True
+        with patch(
+            "synapseclient.models.curation.SynchronizeGridRequest.send_job_and_wait_async",
+            new_callable=AsyncMock,
+            return_value=mock_sync_response,
+        ):
+            result = await grid.synchronize_async(
+                raise_on_error=True, synapse_client=self.syn
+            )
+
+        # THEN it returns the grid
+        assert result is grid
+
+    async def test_synchronize_grid_async_raise_on_error_with_errors(self) -> None:
+        # GIVEN a Grid whose synchronization reports errors
+        grid = Grid(session_id=SESSION_ID)
+        mock_sync_response = SynchronizeGridRequest(
+            grid_session_id=SESSION_ID,
+            error_messages=["sync_error_1", "sync_error_2"],
+        )
+
+        # WHEN I call synchronize_async with raise_on_error=True
+        with patch(
+            "synapseclient.models.curation.SynchronizeGridRequest.send_job_and_wait_async",
+            new_callable=AsyncMock,
+            return_value=mock_sync_response,
+        ):
+            with patch.object(self.syn, "logger") as mock_logger:
+                # THEN it raises a SynapseError naming the session and every message
+                with pytest.raises(SynapseError) as raised:
+                    await grid.synchronize_async(
+                        raise_on_error=True, synapse_client=self.syn
+                    )
+
+                # AND nothing is logged
+                mock_logger.error.assert_not_called()
+
+        assert SESSION_ID in str(raised.value)
+        assert "sync_error_1" in str(raised.value)
+        assert "sync_error_2" in str(raised.value)
 
 
 class TestSelectColumn:

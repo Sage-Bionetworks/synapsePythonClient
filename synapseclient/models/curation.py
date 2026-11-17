@@ -4908,6 +4908,7 @@ class GridSynchronousProtocol(Protocol):
         *,
         sync_type: Optional[Union[SyncType, str]] = None,
         timeout: int = 120,
+        raise_on_error: bool = False,
         synapse_client: Optional[Synapse] = None,
     ) -> "Grid":
         """
@@ -4927,6 +4928,9 @@ class GridSynchronousProtocol(Protocol):
                 currently only supported for RecordSet-based grids.
             timeout: The number of seconds to wait for the job to complete or progress
                 before raising a SynapseTimeoutError. Defaults to 120.
+            raise_on_error: If True, raise a SynapseError when the synchronization
+                reports error messages. If False, the messages are logged and the
+                method returns normally. Defaults to False.
             synapse_client: If not passed in and caching was not disabled by
                 `Synapse.allow_client_caching(False)` this will use the last created
                 instance from the Synapse class constructor.
@@ -4936,6 +4940,9 @@ class GridSynchronousProtocol(Protocol):
 
         Raises:
             ValueError: If session_id is not provided.
+            SynapseError: If `raise_on_error` is True and the synchronization reports
+                error messages. The synchronization job has already finished, so any
+                changes it made are not undone.
 
         Example: Synchronize a grid session created from a file view
             &nbsp;
@@ -4978,6 +4985,29 @@ class GridSynchronousProtocol(Protocol):
 
             # Push the merged result back as a new RecordSet version
             grid = grid.synchronize(sync_type=SyncType.PULL_PUSH)
+            ```
+
+        Example: Stop when the synchronization reports errors
+            &nbsp;
+            By default, error messages from the synchronization are only logged.
+            Pass `raise_on_error=True` to have them raised instead.
+
+            ```python
+            from synapseclient import Synapse
+            from synapseclient.core.exceptions import SynapseError
+            from synapseclient.models import Grid
+            from synapseclient.models.curation import SyncType
+
+            syn = Synapse()
+            syn.login()
+
+            grid = Grid(session_id="abc-123-def")
+            try:
+                grid = grid.synchronize(
+                    sync_type=SyncType.PULL_PUSH, raise_on_error=True
+                )
+            except SynapseError as error:
+                print(f"Synchronization reported errors: {error}")
             ```
         """
         return self
@@ -5358,12 +5388,6 @@ class Grid(EnumCoercionMixin, GridSynchronousProtocol):
             that this grid was cloned from
         record_set_version_number: The version number of the exported record set
         validation_summary_statistics: Summary statistics for validation results
-        import_total_count: (Read Only) Rows in the CSV of this instance's latest
-            `import_csv` call
-        import_created_count: (Read Only) Rows that call created
-        import_updated_count: (Read Only) Rows that call updated
-        sync_error_messages: (Read Only) Error messages from this instance's latest
-            `synchronize` call; empty when it had none
 
     Example: Create and manage a grid session workflow
         &nbsp;
@@ -5477,19 +5501,6 @@ class Grid(EnumCoercionMixin, GridSynchronousProtocol):
 
     validation_summary_statistics: Optional[ValidationSummary] = None
     """Summary statistics for validation results"""
-
-    import_total_count: Optional[int] = field(default=None, compare=False)
-    """(Read Only) Rows in the CSV of this instance's latest `import_csv` call"""
-
-    import_created_count: Optional[int] = field(default=None, compare=False)
-    """(Read Only) Rows that call created"""
-
-    import_updated_count: Optional[int] = field(default=None, compare=False)
-    """(Read Only) Rows that call updated"""
-
-    sync_error_messages: Optional[list[str]] = field(default=None, compare=False)
-    """(Read Only) Error messages from this instance's latest `synchronize` call;
-    empty when it had none"""
 
     _replica_id: Optional[int] = field(default=None, repr=False, compare=False)
     """The replica ID bound to this instance by `connect_async`. Reused by
@@ -5981,9 +5992,6 @@ class Grid(EnumCoercionMixin, GridSynchronousProtocol):
             f"total created: {import_response.created_count}, "
             f"total updated: {import_response.updated_count}"
         )
-        self.import_total_count = import_response.total_count
-        self.import_created_count = import_response.created_count
-        self.import_updated_count = import_response.updated_count
 
         return self
 
@@ -6136,6 +6144,7 @@ class Grid(EnumCoercionMixin, GridSynchronousProtocol):
         *,
         sync_type: Optional[Union[SyncType, str]] = None,
         timeout: int = 120,
+        raise_on_error: bool = False,
         synapse_client: Optional[Synapse] = None,
     ) -> "Grid":
         """
@@ -6155,6 +6164,9 @@ class Grid(EnumCoercionMixin, GridSynchronousProtocol):
                 currently only supported for RecordSet-based grids.
             timeout: The number of seconds to wait for the job to complete or progress
                 before raising a SynapseTimeoutError. Defaults to 120.
+            raise_on_error: If True, raise a SynapseError when the synchronization
+                reports error messages. If False, the messages are logged and the
+                method returns normally. Defaults to False.
             synapse_client: If not passed in and caching was not disabled by
                 `Synapse.allow_client_caching(False)` this will use the last created
                 instance from the Synapse class constructor.
@@ -6164,6 +6176,9 @@ class Grid(EnumCoercionMixin, GridSynchronousProtocol):
 
         Raises:
             ValueError: If session_id is not provided.
+            SynapseError: If `raise_on_error` is True and the synchronization reports
+                error messages. The synchronization job has already finished, so any
+                changes it made are not undone.
 
         Example: Synchronize a grid session created from a file view
             &nbsp;
@@ -6215,6 +6230,33 @@ class Grid(EnumCoercionMixin, GridSynchronousProtocol):
 
             asyncio.run(main())
             ```
+
+        Example: Stop when the synchronization reports errors
+            &nbsp;
+            By default, error messages from the synchronization are only logged.
+            Pass `raise_on_error=True` to have them raised instead.
+
+            ```python
+            import asyncio
+            from synapseclient import Synapse
+            from synapseclient.core.exceptions import SynapseError
+            from synapseclient.models import Grid
+            from synapseclient.models.curation import SyncType
+
+            syn = Synapse()
+            syn.login()
+
+            async def main():
+                grid = Grid(session_id="abc-123-def")
+                try:
+                    grid = await grid.synchronize_async(
+                        sync_type=SyncType.PULL_PUSH, raise_on_error=True
+                    )
+                except SynapseError as error:
+                    print(f"Synchronization reported errors: {error}")
+
+            asyncio.run(main())
+            ```
         """
         if not self.session_id:
             raise ValueError("session_id is required to synchronize a GridSession")
@@ -6226,8 +6268,12 @@ class Grid(EnumCoercionMixin, GridSynchronousProtocol):
             timeout=timeout, synapse_client=synapse_client
         )
 
-        self.sync_error_messages = list(result.error_messages or [])
         if result.error_messages:
+            if raise_on_error:
+                raise SynapseError(
+                    f"Grid session '{self.session_id}' synchronization completed with "
+                    f"error messages: {result.error_messages}"
+                )
             client = Synapse.get_client(synapse_client=synapse_client)
             client.logger.error(
                 f"Grid session '{self.session_id}' synchronization completed with "
