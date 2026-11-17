@@ -346,7 +346,7 @@ def test_download_multithreaded(syn, project_model, schedule_for_cleanup):
 def test_downloadFile(schedule_for_cleanup):
     # See if the a "wget" works
     filename = utils.download_file(
-        "http://dev-versions.synapse.sagebase.org/sage_bionetworks_logo_274x128.png"
+        "https://s3.amazonaws.com/dev-versions.synapse.sagebase.org/sage_bionetworks_logo_274x128.png"
     )
     schedule_for_cleanup(filename)
     assert os.path.exists(filename)
