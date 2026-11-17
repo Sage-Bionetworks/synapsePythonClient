@@ -598,7 +598,7 @@ def test_synapse_store_flag(
 
     # Try a URL
     bogus = File(
-        "http://dev-versions.synapse.sagebase.org/synapsePythonClient",
+        "https://s3.amazonaws.com/dev-versions.synapse.sagebase.org/synapsePythonClient",
         parent=project,
         synapseStore=False,
     )
@@ -673,7 +673,9 @@ def test_download_file_false(
 # @skip("Skip integration tests for soon to be removed code")
 def test_download_file_URL_false(syn: Synapse, project: Project) -> None:
     # Upload an external file handle
-    file_that_exists = "http://dev-versions.synapse.sagebase.org/synapsePythonClient"
+    file_that_exists = (
+        "https://s3.amazonaws.com/dev-versions.synapse.sagebase.org/synapsePythonClient"
+    )
     reupload = File(file_that_exists, synapseStore=False, parent=project)
     reupload = syn.store(reupload)
     reupload = syn.get(reupload, downloadFile=False)
@@ -685,9 +687,7 @@ def test_download_file_URL_false(syn: Synapse, project: Project) -> None:
     assert original_version == reupload.versionNumber
 
     # Try a URL with an extra slash at the end
-    file_that_doesnt_exist = (
-        "http://dev-versions.synapse.sagebase.org/synapsePythonClient/"
-    )
+    file_that_doesnt_exist = "https://s3.amazonaws.com/dev-versions.synapse.sagebase.org/synapsePythonClient/"
     reupload.synapseStore = False
     reupload.path = file_that_doesnt_exist
     reupload = syn.store(reupload)

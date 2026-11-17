@@ -27,7 +27,7 @@ Infrastructure layer — authentication, file transfer, retry logic, caching, Op
 Provider chain tries in order: login args → config file → env var (`SYNAPSE_AUTH_TOKEN`) → AWS SSM. Credentials implement `requests.auth.AuthBase`, adding `Authorization: Bearer` header. Profile selection via `SYNAPSE_PROFILE` env var or `--profile` arg.
 
 ### Upload/download
-- Both use 60-retry params spanning ~30 minutes for resilience
+- Async part uploads retry for ~20 minutes (`with_retry_time_based`); sync part uploads use count-based `with_retry` (3 retries by default)
 - Upload determines storage location from project settings, supports S3/SFTP/GCP
 - Download validates MD5 post-transfer, raises `SynapseMd5MismatchError` on mismatch
 - Progress via `tqdm`; multi-threaded uploads suppress per-file messages via `cumulative_transfer_progress`
