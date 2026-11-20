@@ -272,20 +272,34 @@ class TestTeam:
                 created_by="4",
             )
 
-    async def test_invite_not_sent(self) -> None:
+    @pytest.mark.parametrize("force", [True, False])
+    async def test_invite_not_sent(self, force: bool) -> None:
+        """Team.invite_async passes force through to invite_to_team, and returns
+        None, instead of a MembershipInvitation, when no invitation is sent.
+        Which cases send nothing (including how force applies) is tested on
+        invite_to_team in tests/unit/synapseclient/api/unit_test_team_services.py."""
         # GIVEN invite_to_team sends nothing (user is a member or already invited)
         with patch(
             "synapseclient.models.team.invite_to_team",
             new_callable=AsyncMock,
             return_value=None,
-        ):
+        ) as patch_invite_team_member:
             # WHEN I invite a user to the team
             invite = await Team(id=1).invite_async(
                 user=self.USER,
                 message=self.MESSAGE,
+                force=force,
                 synapse_client=self.syn,
             )
-            # THEN None is returned
+            # THEN force is passed through to invite_to_team
+            patch_invite_team_member.assert_called_once_with(
+                team=1,
+                user=self.USER,
+                message=self.MESSAGE,
+                force=force,
+                synapse_client=self.syn,
+            )
+            # AND None is returned
             assert invite is None
 
     async def test_open_invitations(self) -> None:
