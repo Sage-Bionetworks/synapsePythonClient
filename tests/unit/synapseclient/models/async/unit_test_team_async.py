@@ -5,8 +5,38 @@ from unittest.mock import AsyncMock, patch
 import pytest
 
 from synapseclient import Synapse
-from synapseclient.models.team import Team, TeamMember
+from synapseclient.models.team import MembershipInvitation, Team, TeamMember
 from synapseclient.models.user import UserGroupHeader
+
+
+class TestMembershipInvitation:
+    """Tests for the MembershipInvitation class."""
+
+    def test_fill_from_dict(self) -> None:
+        # GIVEN a MembershipInvitation response from the REST API
+        response = {
+            "id": "1",
+            "teamId": "2",
+            "inviteeId": "3",
+            "inviteeEmail": "someone@example.com",
+            "message": "test message",
+            "expiresOn": "2000-02-01T00:00:00.000Z",
+            "createdOn": "2000-01-01T00:00:00.000Z",
+            "createdBy": "4",
+        }
+        # WHEN I fill a MembershipInvitation with it
+        invitation = MembershipInvitation().fill_from_dict(response)
+        # THEN every field is mapped
+        assert invitation == MembershipInvitation(
+            id="1",
+            team_id="2",
+            invitee_id="3",
+            invitee_email="someone@example.com",
+            message="test message",
+            expires_on="2000-02-01T00:00:00.000Z",
+            created_on="2000-01-01T00:00:00.000Z",
+            created_by="4",
+        )
 
 
 class TestTeamMember:
@@ -232,8 +262,45 @@ class TestTeam:
                 force=True,
                 synapse_client=self.syn,
             )
-            # AND I expect the expected invite to be returned
-            assert invite == self.invite_response
+            # AND I expect the invite to be returned as a MembershipInvitation
+            assert invite == MembershipInvitation(
+                id="1",
+                team_id="2",
+                invitee_id="3",
+                message=self.MESSAGE,
+                created_on="2000-01-01T00:00:00.000Z",
+                created_by="4",
+            )
+
+    @pytest.mark.parametrize("force", [True, False])
+    async def test_invite_not_sent(self, force: bool) -> None:
+        """Team.invite_async passes force through to invite_to_team, and returns
+        None, instead of a MembershipInvitation, when no invitation is sent.
+        Which cases send nothing (including how force applies) is tested on
+        invite_to_team in tests/unit/synapseclient/api/unit_test_team_services.py."""
+        # GIVEN invite_to_team sends nothing (user is a member or already invited)
+        with patch(
+            "synapseclient.models.team.invite_to_team",
+            new_callable=AsyncMock,
+            return_value=None,
+        ) as patch_invite_team_member:
+            # WHEN I invite a user to the team
+            invite = await Team(id=1).invite_async(
+                user=self.USER,
+                message=self.MESSAGE,
+                force=force,
+                synapse_client=self.syn,
+            )
+            # THEN force is passed through to invite_to_team
+            patch_invite_team_member.assert_called_once_with(
+                team=1,
+                user=self.USER,
+                message=self.MESSAGE,
+                force=force,
+                synapse_client=self.syn,
+            )
+            # AND None is returned
+            assert invite is None
 
     async def test_open_invitations(self) -> None:
         with patch(

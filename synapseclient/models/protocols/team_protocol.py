@@ -1,12 +1,17 @@
 """Protocol for the specific methods of this class that have synchronous counterparts
 generated at runtime."""
 
-from typing import TYPE_CHECKING, Dict, List, Optional, Protocol, Union
+from typing import TYPE_CHECKING, Dict, List, Optional, Protocol
 
 from synapseclient import Synapse
 
 if TYPE_CHECKING:
-    from synapseclient.models import Team, TeamMember, TeamMembershipStatus
+    from synapseclient.models import (
+        MembershipInvitation,
+        Team,
+        TeamMember,
+        TeamMembershipStatus,
+    )
 
 
 class TeamSynchronousProtocol(Protocol):
@@ -239,22 +244,27 @@ class TeamSynchronousProtocol(Protocol):
         force: bool = True,
         *,
         synapse_client: Optional[Synapse] = None,
-    ) -> Union[Dict[str, str], None]:
+    ) -> Optional["MembershipInvitation"]:
         """Invites a user to a team given the ID field on the Team instance.
 
         Arguments:
             user: The username or ID of the user to invite.
             message: The message to send.
-            force: If True, will send the invite even if the user is already a member
-                or has an open invitation. If False, will not send the invite if the user
-                is already a member or has an open invitation.
+            force: If True, cancels the user's open invitations to this team and
+                sends a new one. If False, sends nothing when the user already has
+                an open invitation. Existing members are never invited, whatever
+                this is set to. Invitations sent by email can't be matched to a
+                user ID, because Synapse doesn't return other users' email
+                addresses. So an earlier email invitation to the same person is
+                not detected: with `force=False` a second invitation is sent, and
+                with `force=True` the email invitation is not cancelled.
                 Defaults to True.
             synapse_client: If not passed in and caching was not disabled by
                 `Synapse.allow_client_caching(False)` this will use the last created
                 instance from the Synapse class constructor.
 
         Returns:
-            The invite response or None if an invite was not sent.
+            The MembershipInvitation that was sent, or None if an invite was not sent.
 
         Example: Invite a user to a team
             &nbsp;
@@ -267,10 +277,12 @@ class TeamSynchronousProtocol(Protocol):
             syn.login()
 
             team = Team.from_id(id=123456)
-            team.invite(user="my_username", message="Please join my team!")
+            invitation = team.invite(user="my_username", message="Please join my team!")
+            if invitation:
+                print(f"Sent invitation {invitation.id}")
             ```
         """
-        return {}
+        return None
 
     def open_invitations(
         self, *, synapse_client: Optional[Synapse] = None
