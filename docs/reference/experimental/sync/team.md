@@ -31,3 +31,4 @@
 
 ::: synapseclient.models.TeamMember
 ::: synapseclient.models.TeamMembershipStatus
+::: synapseclient.models.MembershipInvitation

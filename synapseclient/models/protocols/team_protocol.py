@@ -1,12 +1,17 @@
 """Protocol for the specific methods of this class that have synchronous counterparts
 generated at runtime."""
 
-from typing import TYPE_CHECKING, Dict, List, Optional, Protocol, Union
+from typing import TYPE_CHECKING, Dict, List, Optional, Protocol
 
 from synapseclient import Synapse
 
 if TYPE_CHECKING:
-    from synapseclient.models import Team, TeamMember, TeamMembershipStatus
+    from synapseclient.models import (
+        MembershipInvitation,
+        Team,
+        TeamMember,
+        TeamMembershipStatus,
+    )
 
 
 class TeamSynchronousProtocol(Protocol):
@@ -239,7 +244,7 @@ class TeamSynchronousProtocol(Protocol):
         force: bool = True,
         *,
         synapse_client: Optional[Synapse] = None,
-    ) -> Union[Dict[str, str], None]:
+    ) -> Optional["MembershipInvitation"]:
         """Invites a user to a team given the ID field on the Team instance.
 
         Arguments:
@@ -259,7 +264,7 @@ class TeamSynchronousProtocol(Protocol):
                 instance from the Synapse class constructor.
 
         Returns:
-            The invite response or None if an invite was not sent.
+            The MembershipInvitation that was sent, or None if an invite was not sent.
 
         Example: Invite a user to a team
             &nbsp;
@@ -272,10 +277,12 @@ class TeamSynchronousProtocol(Protocol):
             syn.login()
 
             team = Team.from_id(id=123456)
-            team.invite(user="my_username", message="Please join my team!")
+            invitation = team.invite(user="my_username", message="Please join my team!")
+            if invitation:
+                print(f"Sent invitation {invitation.id}")
             ```
         """
-        return {}
+        return None
 
     def open_invitations(
         self, *, synapse_client: Optional[Synapse] = None

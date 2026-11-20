@@ -381,7 +381,7 @@ async def invite_to_team(
                 instance from the Synapse class constructor.
 
     Returns:
-        MembershipInvitation or None if user is already a member
+        MembershipInvitation dictionary, or None if no invitation was sent
     """
     from synapseclient.models import UserProfile
 
