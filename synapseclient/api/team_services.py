@@ -420,8 +420,10 @@ async def invite_to_team(
             for invitation in open_invitations
             if invitation.get("inviteeId") == str(invitee_id)
         ]
+        identifier = user_profile.username
     else:
         invitee_id = None
+        identifier = invitee_email
         open_invites_to_user = [
             invitation
             for invitation in open_invitations
@@ -449,10 +451,10 @@ async def invite_to_team(
         client = Synapse.get_client(synapse_client=synapse_client)
 
         if is_member:
-            not_sent_reason = f"`{user_profile.username}` is already a member"
+            not_sent_reason = f"`{identifier}` is already a member"
         else:
             not_sent_reason = (
-                f"`{user_profile.username}` already has an open invitation "
+                f"`{identifier}` already has an open invitation "
                 "Set `force=True` to send new invite."
             )
 
