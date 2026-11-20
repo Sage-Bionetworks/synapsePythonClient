@@ -375,7 +375,11 @@ async def invite_to_team(
         user: Synapse username or profile id of user
         invitee_email: Email of user
         message: Additional message for the user getting invited to the team.
-        force: If an open invitation exists for the invitee, the old invite will be cancelled.
+        force: If the invitee already has an open invitation, True replaces it
+            with a new one and False sends nothing. Existing members are never
+            invited. When inviting by `user`, an earlier invitation sent to that
+            person's email is not detected, so a second invitation may be sent.
+            Defaults to False.
         synapse_client: If not passed in and caching was not disabled by
                 `Synapse.allow_client_caching(False)` this will use the last created
                 instance from the Synapse class constructor.
