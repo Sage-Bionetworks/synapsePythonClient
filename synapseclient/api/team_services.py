@@ -418,7 +418,7 @@ async def invite_to_team(
         open_invites_to_user = [
             invitation
             for invitation in open_invitations
-            if int(invitation.get("inviteeId")) == invitee_id
+            if int(invitation.get("inviteeId", 0)) == invitee_id
         ]
     else:
         invitee_id = None
