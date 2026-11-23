@@ -251,6 +251,60 @@ class TestGridAsync:
             created_grid2.source_entity_version_number
             == record_set_fixture.version_number
         )
+        # AND: The owner is copied from the session as the user ID of the client
+        assert created_grid2.owner_principal_id == int(self.syn.credentials.owner_id)
+        assert isinstance(created_grid2.owner_principal_id, int)
+        # AND: The authorization mode is the value from the list response
+        listed_sessions = [
+            session
+            async for session in Grid.list_async(
+                source_id=record_set_fixture.id, synapse_client=self.syn
+            )
+        ]
+        assert len(listed_sessions) == 1
+        assert created_grid2.authorization_mode == listed_sessions[0].authorization_mode
+
+    @pytest.mark.parametrize(
+        "second_mode, expect_attach",
+        [
+            (AuthorizationMode.SOURCE_BENEFACTOR, True),
+            (AuthorizationMode.SESSION_OWNER, False),
+        ],
+        ids=["same_mode_attaches", "different_mode_creates"],
+    )
+    async def test_attach_to_previous_session_matches_authorization_mode_async(
+        self,
+        record_set_fixture: RecordSet,
+        second_mode: AuthorizationMode,
+        expect_attach: bool,
+    ) -> None:
+        # GIVEN: A first grid session created with SOURCE_BENEFACTOR
+        created_grid1 = await Grid(
+            record_set_id=record_set_fixture.id,
+            authorization_mode=AuthorizationMode.SOURCE_BENEFACTOR,
+        ).create_async(timeout=ASYNC_JOB_TIMEOUT_SEC, synapse_client=self.syn)
+        self.schedule_for_cleanup(created_grid1)
+        assert created_grid1.session_id is not None
+
+        # WHEN: A second grid asks for a mode and attaches to a previous session
+        created_grid2 = await Grid(
+            record_set_id=record_set_fixture.id,
+            authorization_mode=second_mode,
+        ).create_async(
+            timeout=ASYNC_JOB_TIMEOUT_SEC,
+            synapse_client=self.syn,
+            attach_to_previous_session=True,
+        )
+
+        if expect_attach:
+            # THEN: The second grid attaches to the session with the same mode
+            assert created_grid2.session_id == created_grid1.session_id
+        else:
+            # THEN: The second grid does not attach to the session with a
+            # different mode, and a new session is created
+            self.schedule_for_cleanup(created_grid2)
+            assert created_grid2.session_id != created_grid1.session_id
+        assert created_grid2.authorization_mode == second_mode
 
     async def test_create_grid_session_validation_error_async(self) -> None:
         # GIVEN: A Grid instance with no record_set_id or initial_query

@@ -101,7 +101,11 @@ class StoreGridOptions:
 
     Attributes:
         attach_to_previous_session: If True and using record_set_id, will attach
-            to an existing active session if one exists.
+            to an existing active session if one exists. The code attaches only to
+            a session whose owner and authorization mode are the same as the
+            values of owner_principal_id and authorization_mode on the Grid. If
+            you do not set a value, any value is fine. If no session matches, the
+            code creates a new session.
         timeout: The number of seconds to wait for the job to complete.
     """
 
