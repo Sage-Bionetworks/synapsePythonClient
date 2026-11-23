@@ -4930,7 +4930,12 @@ class GridSynchronousProtocol(Protocol):
                 before raising a SynapseTimeoutError. Defaults to 120.
             raise_on_error: If True, raise a SynapseError when the synchronization
                 reports error messages. If False, the messages are logged and the
-                method returns normally. Defaults to False.
+                method returns normally. Defaults to False. Schema validation
+                errors are not among these messages. To find invalid rows, call
+                `validate_rows` on a connected Grid before synchronizing, or, after
+                a `SyncType.PULL_PUSH` on a RecordSet-based grid, re-fetch the
+                RecordSet and call `get_detailed_validation_results`. See
+                <https://python-docs.synapse.org/en/stable/guides/extensions/curator/metadata_contribution/>.
             synapse_client: If not passed in and caching was not disabled by
                 `Synapse.allow_client_caching(False)` this will use the last created
                 instance from the Synapse class constructor.
@@ -6166,7 +6171,12 @@ class Grid(EnumCoercionMixin, GridSynchronousProtocol):
                 before raising a SynapseTimeoutError. Defaults to 120.
             raise_on_error: If True, raise a SynapseError when the synchronization
                 reports error messages. If False, the messages are logged and the
-                method returns normally. Defaults to False.
+                method returns normally. Defaults to False. Schema validation
+                errors are not among these messages. To find invalid rows, call
+                `validate_rows` on a connected Grid before synchronizing, or, after
+                a `SyncType.PULL_PUSH` on a RecordSet-based grid, re-fetch the
+                RecordSet and call `get_detailed_validation_results`. See
+                <https://python-docs.synapse.org/en/stable/guides/extensions/curator/metadata_contribution/>.
             synapse_client: If not passed in and caching was not disabled by
                 `Synapse.allow_client_caching(False)` this will use the last created
                 instance from the Synapse class constructor.
@@ -6269,16 +6279,13 @@ class Grid(EnumCoercionMixin, GridSynchronousProtocol):
         )
 
         if result.error_messages:
-            if raise_on_error:
-                raise SynapseError(
-                    f"Grid session '{self.session_id}' synchronization completed with "
-                    f"error messages: {result.error_messages}"
-                )
-            client = Synapse.get_client(synapse_client=synapse_client)
-            client.logger.error(
+            message = (
                 f"Grid session '{self.session_id}' synchronization completed with "
                 f"error messages: {result.error_messages}"
             )
+            if raise_on_error:
+                raise SynapseError(message)
+            Synapse.get_client(synapse_client=synapse_client).logger.error(message)
 
         return self
 
