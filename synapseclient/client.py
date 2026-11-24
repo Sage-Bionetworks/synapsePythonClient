@@ -951,14 +951,22 @@ class Synapse(object):
         - authToken
         - Profile-based authentication (from .synapseConfig)
 
-        If no login arguments are provided or only username is provided, login() will attempt to log in using
-         information from these sources (in order of preference):
+        login() checks these sources in order and uses the first one that gives a token:
 
-        1. .synapseConfig file (supports multiple profiles)(in user home folder unless configured otherwise)
-        2. User defined arguments during a CLI session
-        3. User's Personal Access Token (aka: Synapse Auth Token)
-            from the environment variable: SYNAPSE_AUTH_TOKEN
-        4. Retrieves user's authentication token from AWS SSM Parameter store (if configured)
+        1. The `authToken` argument (or `-p`/`--password` on the command line)
+        2. The `authtoken` in the selected profile of the `.synapseConfig` file (in the
+            user home folder unless configured otherwise). The profile is the `profile`
+            argument, or `--profile`/`SYNAPSE_PROFILE` on the command line. The
+            `[authentication]` section is used if there is no `[default]` section or it
+            is empty.
+        3. The `SYNAPSE_AUTH_TOKEN` environment variable (a Personal Access Token,
+            aka: Synapse Auth Token)
+        4. AWS SSM Parameter Store, using the parameter named by the
+            `SYNAPSE_TOKEN_AWS_SSM_PARAMETER_NAME` environment variable (if configured)
+
+        A token in the `.synapseConfig` file is used before `SYNAPSE_AUTH_TOKEN`. To
+        use `SYNAPSE_AUTH_TOKEN` instead, remove the `authtoken` from the config file
+        or pass the token explicitly with `authToken`.
 
         Arguments:
             email (str): Synapse user name (or an email address associated with a Synapse account)

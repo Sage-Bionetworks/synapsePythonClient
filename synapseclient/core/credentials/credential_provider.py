@@ -313,7 +313,9 @@ class SynapseCredentialsProviderChain(object):
 
 
 # NOTE: If you change the order of this list, please also change the documentation
-# in Synapse.login() that describes the order
+# that describes the order: Synapse.login() in client.py and the "Order in which
+# credentials are checked" section of docs/tutorials/authentication.md. The order is
+# pinned by tests/unit/synapseclient/core/credentials/test_default_credential_chain.py
 
 DEFAULT_CREDENTIAL_PROVIDER_CHAIN = SynapseCredentialsProviderChain(
     cred_providers=[
