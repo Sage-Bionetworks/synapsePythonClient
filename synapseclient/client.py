@@ -4540,8 +4540,10 @@ class Synapse(object):
 
         Arguments:
             entity: An Entity or Synapse ID to modify
-            principalId: Identifier of a user or group. '273948' is for all registered Synapse users
-                            and '273949' is for public access. None implies public access.
+            principalId: Identifier of a user or group. In the default realm, '273948' is for all
+                            registered Synapse users and '273949' is for public access. These IDs
+                            depend on the realm; call `restGET("/realm/principals")` to look up the
+                            values for your realm. None implies public access.
             accessType: Type of permission to be granted. One or more of CREATE, READ, DOWNLOAD, UPDATE,
                             DELETE, CHANGE_PERMISSIONS
             modify_benefactor: Set as True when modifying a benefactor's ACL. The term

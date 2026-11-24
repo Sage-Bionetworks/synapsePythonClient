@@ -44,6 +44,14 @@ Before we begin, it's important to understand the different permission types ava
 - **Specific user ID**: Individual Synapse user (e.g., 123456)
 - **Team ID**: Synapse team
 
+The IDs 273948 and 273949 are the values for the default realm (`realmId` 0). The
+special principal IDs depend on the security realm of your account. To look up the
+values for your realm, call the
+[GET /realm/principals](https://rest-docs.synapse.org/rest/GET/realm/principals.html)
+REST endpoint, for example with `syn.restGET("/realm/principals")`. See
+[Special principal IDs depend on the realm](../../explanations/access_control.md#special-principal-ids-depend-on-the-realm)
+for details.
+
 ## Permission Inheritance and Benefactors
 
 Understanding how permissions work in Synapse is crucial for effective ACL management:
@@ -329,8 +337,8 @@ ACL Tree Structure:
 - Use teams for lab group permissions
 
 ### Data Sharing
-- Use authenticated users (273948) for internal sharing
-- Use public access (273949) for open data
+- Use authenticated users (273948 in the default realm) for internal sharing
+- Use public access (273949 in the default realm) for open data
 - Create different permission levels for different data sensitivity
 
 ### Hierarchical Access

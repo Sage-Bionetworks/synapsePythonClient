@@ -34,17 +34,57 @@ Other synapse items like `Submission` and `Evaluation` support different permiss
 ### Special Principal IDs
 Synapse provides special principals for common sharing scenarios:
 
-- **273948**: All authenticated Synapse users
-- **273949**: Public access (anyone on the internet)
+- **Authenticated users**: All authenticated Synapse users (e.g., 273948)
+- **Public group**: Public access (anyone on the internet) (e.g., 273949)
+- **Anonymous user**: The principal used for requests that are not logged in (e.g., 273950)
 - **Specific User ID**: Individual Synapse users (e.g., #######)
 - **Team ID**: Synapse teams for group-based permissions (e.g., #######)
+
+#### Special principal IDs depend on the realm
+The IDs of the special principals are not fixed. They depend on the security realm
+of the user. The IDs shown on this page are the values for the default realm
+(`realmId` 0). If your account belongs to a different realm, these IDs are different.
+
+To look up the special principal IDs for your realm, call the
+[GET /realm/principals](https://rest-docs.synapse.org/rest/GET/realm/principals.html)
+REST endpoint. A request that is not logged in returns the values for the default
+realm:
+
+```bash
+curl https://repo-prod.prod.sagebase.org/repo/v1/realm/principals
+```
+
+```json
+{
+  "realmId": "0",
+  "anonymousUser": "273950",
+  "publicGroup": "273949",
+  "authenticatedUsers": "273948",
+  "administrativeGroup": "2"
+}
+```
+
+If you are logged in, the endpoint returns the values for your own realm. The
+Python client does not have a dedicated method for this endpoint, but you can call
+it with [synapseclient.Synapse.restGET][]:
+
+```python
+import synapseclient
+
+syn = synapseclient.login()
+
+realm_principals = syn.restGET("/realm/principals")
+public_group_id = realm_principals["publicGroup"]
+authenticated_users_id = realm_principals["authenticatedUsers"]
+print(realm_principals)
+```
 
 ## Common Use Cases
 
 ### Research Collaboration
 - **Internal Teams**: Grant READ/DOWNLOAD to collaborators
 - **Data Owners**: Maintain full permissions (including UPDATE/DELETE)
-- **Public Data**: Use public principal (273949) for open datasets
+- **Public Data**: Use the public group principal (273949 in the default realm) for open datasets
 
 ### Hierarchical Access Control
 - **Project Level**: Set broad permissions for the entire project
@@ -70,7 +110,7 @@ Synapse provides special principals for common sharing scenarios:
 - **Principle of Least Privilege**: Grant only the minimum permissions necessary
 - **Regular Reviews**: Audit permissions regularly, especially for sensitive data
 - **Team Management**: Use teams to simplify permission management and reduce errors
-- **Public Access**: Be cautious when granting public access (273949) to ensure data is appropriate for public consumption
+- **Public Access**: Be cautious when granting public access (the public group, 273949 in the default realm) to ensure data is appropriate for public consumption
 
 ## Learn More
 
