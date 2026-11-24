@@ -370,7 +370,7 @@ class TestInviteToTeam:
         mock_profile.username = USER_NAME
         mock_get_profile.return_value = mock_profile
         mock_open_invites.return_value = [
-            {"id": INVITATION_ID, "inviteeId": int(USER_ID)},
+            {"id": INVITATION_ID, "inviteeId": USER_ID},
         ]
         mock_membership_status.return_value = {"isMember": False}
         expected_invite = {"id": "new-inv", "teamId": str(TEAM_ID)}
@@ -387,6 +387,108 @@ class TestInviteToTeam:
             invitation_id=INVITATION_ID, synapse_client=None
         )
         mock_send.assert_awaited_once()
+
+    @pytest.mark.parametrize("force", [True, False])
+    @patch("synapseclient.api.team_services.send_membership_invitation")
+    @patch("synapseclient.api.team_services.delete_membership_invitation")
+    @patch("synapseclient.api.team_services.get_membership_status")
+    @patch("synapseclient.api.team_services.get_team_open_invitations")
+    @patch("synapseclient.models.UserProfile.get_async")
+    async def test_invite_to_team_by_user_with_email_only_invitations(
+        self,
+        mock_get_profile,
+        mock_open_invites,
+        mock_membership_status,
+        mock_delete_invite,
+        mock_send,
+        force,
+    ):
+        """Test inviting a user when the team has open invitations sent by email."""
+        # GIVEN a user who is not a member
+        mock_profile = MagicMock()
+        mock_profile.id = int(USER_ID)
+        mock_profile.username = USER_NAME
+        mock_get_profile.return_value = mock_profile
+        mock_membership_status.return_value = {"isMember": False}
+        # AND open invitations for other people, one of them sent by email, which
+        # the REST API returns with inviteeEmail and no inviteeId key
+        mock_open_invites.return_value = [
+            {"id": "inv-other-user", "inviteeId": "7654321"},
+            {"id": "inv-email", "inviteeEmail": INVITEE_EMAIL},
+        ]
+        expected_invite = {"id": "new-inv", "teamId": str(TEAM_ID)}
+        mock_send.return_value = expected_invite
+
+        # WHEN I invite the user
+        result = await team_services.invite_to_team(
+            team=TEAM_ID, user=USER_NAME, force=force, synapse_client=None
+        )
+
+        # THEN the invitation is sent
+        assert result == expected_invite
+        mock_send.assert_awaited_once_with(
+            str(TEAM_ID),
+            invitee_id=int(USER_ID),
+            invitee_email=None,
+            message=None,
+            synapse_client=None,
+        )
+        # AND no one else's invitation is cancelled
+        mock_delete_invite.assert_not_awaited()
+
+    @pytest.mark.parametrize(
+        "invite_kwargs, open_invitation, expected_name",
+        [
+            (
+                {"user": USER_NAME},
+                {"id": INVITATION_ID, "inviteeId": USER_ID},
+                USER_NAME,
+            ),
+            (
+                {"invitee_email": INVITEE_EMAIL},
+                {"id": INVITATION_ID, "inviteeEmail": INVITEE_EMAIL},
+                INVITEE_EMAIL,
+            ),
+        ],
+        ids=["by_user", "by_email"],
+    )
+    @patch("synapseclient.api.team_services.send_membership_invitation")
+    @patch("synapseclient.api.team_services.get_membership_status")
+    @patch("synapseclient.api.team_services.get_team_open_invitations")
+    @patch("synapseclient.models.UserProfile.get_async")
+    async def test_invite_to_team_open_invitation_without_force_warns(
+        self,
+        mock_get_profile,
+        mock_open_invites,
+        mock_membership_status,
+        mock_send,
+        invite_kwargs,
+        open_invitation,
+        expected_name,
+    ):
+        """Test that an existing open invitation without force logs a warning."""
+        # GIVEN an invitee who already has an open invitation and is not a member
+        mock_profile = MagicMock()
+        mock_profile.id = int(USER_ID)
+        mock_profile.username = USER_NAME
+        mock_get_profile.return_value = mock_profile
+        mock_membership_status.return_value = {"isMember": False}
+        mock_open_invites.return_value = [open_invitation]
+
+        # WHEN I invite them again without force
+        with patch("synapseclient.Synapse") as mock_syn_class:
+            mock_client = MagicMock()
+            mock_syn_class.get_client.return_value = mock_client
+            result = await team_services.invite_to_team(
+                team=TEAM_ID, force=False, synapse_client=None, **invite_kwargs
+            )
+
+        # THEN no invitation is sent
+        assert result is None
+        mock_send.assert_not_awaited()
+        # AND the warning names the invitee
+        warning = mock_client.logger.warning.call_args.args[0]
+        assert f"`{expected_name}` already has an open invitation" in warning
 
     async def test_invite_to_team_both_user_and_email_raises(self):
         """Test that providing both user and inviteeEmail raises ValueError."""
