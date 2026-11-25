@@ -1,4 +1,4 @@
-<!-- Last reviewed: 2026-07 -->
+<!-- Last reviewed: 2026-11 -->
 
 ## Project
 
@@ -24,7 +24,7 @@ Infrastructure layer — authentication, file transfer, retry logic, caching, Op
 - Sets OTel span attribute `synapse.retries` on retry
 
 ### Credentials chain (`credentials/`)
-Provider chain tries in order: login args → config file → env var (`SYNAPSE_AUTH_TOKEN`) → AWS SSM. Credentials implement `requests.auth.AuthBase`, adding `Authorization: Bearer` header. Profile selection via `SYNAPSE_PROFILE` env var or `--profile` arg.
+Provider chain tries in order: login args → config file → env var (`SYNAPSE_AUTH_TOKEN`) → AWS SSM. Credentials implement `requests.auth.AuthBase`, adding `Authorization: Bearer` header. Profile selection via `--profile` arg or `SYNAPSE_PROFILE` env var. Python `login()` defaults to `profile="default"`, so it ignores `SYNAPSE_PROFILE` unless called with `profile=None`.
 
 ### Upload/download
 - Async part uploads retry for ~20 minutes (`with_retry_time_based`); sync part uploads use count-based `with_retry` (3 retries by default)

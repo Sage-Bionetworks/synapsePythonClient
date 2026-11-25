@@ -956,7 +956,8 @@ class Synapse(object):
         1. The `authToken` argument (or `-p`/`--password` on the command line)
         2. The `authtoken` in the selected profile of the `.synapseConfig` file (in the
             user home folder unless configured otherwise). The profile is the `profile`
-            argument, or `--profile`/`SYNAPSE_PROFILE` on the command line. The
+            argument, or `--profile`/`SYNAPSE_PROFILE` on the command line.
+            `SYNAPSE_PROFILE` is used in Python only if you pass `profile=None`. The
             deprecated `[authentication]` section is used if there is no `[default]`
             section or it is empty.
         3. The `SYNAPSE_AUTH_TOKEN` environment variable (a Personal Access Token,
