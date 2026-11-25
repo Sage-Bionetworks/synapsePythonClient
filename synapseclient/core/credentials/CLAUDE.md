@@ -1,4 +1,4 @@
-<!-- Last reviewed: 2026-03 -->
+<!-- Last reviewed: 2026-11 -->
 
 ## Project
 
@@ -13,7 +13,7 @@ Authentication credential providers implementing a chain-of-responsibility patte
 4. **AWSParameterStoreCredentialsProvider** — AWS SSM Parameter Store (via `SYNAPSE_TOKEN_AWS_SSM_PARAMETER_NAME` env var)
 
 ### Profile selection
-Select profile via `SYNAPSE_PROFILE` env var or `--profile` CLI arg. If username provided in login args differs from config file username, config credentials are rejected — prevents ambiguity.
+Profile selection via `--profile` arg or `SYNAPSE_PROFILE` env var. Python `login()` defaults to `profile="default"`, so it ignores `SYNAPSE_PROFILE` unless called with `profile=None`. If username provided in login args differs from config file username, config credentials are rejected — prevents ambiguity.
 
 ### Token handling
 `SynapseAuthTokenCredentials` implements `requests.auth.AuthBase`, adding `Authorization: Bearer` header. JWT validation failure is silent (logs warning, does not raise) — allows tokens with unrecognized formats to attempt API calls.
