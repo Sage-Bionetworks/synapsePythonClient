@@ -184,7 +184,7 @@ export SYNAPSE_AUTH_TOKEN='<my_personal_access_token>'
 python3
 ```
 
-On the command line, setting the `SYNAPSE_PROFILE` environment variable will allow you to log into Synapse using a specific authentication profile present in your `.synapseConfig` file. This allows you to have multiple profiles present in a single configuration file that you may swap between. Alternatively, you may use the `profile` parameter in Python, or the `--profile` command line flag for all commands like `synapse --profile <profile_name> COMMAND`. In Python, `login()` ignores `SYNAPSE_PROFILE` unless you pass `profile=None`.
+Setting the `SYNAPSE_PROFILE` environment variable will allow you to log into Synapse using a specific authentication profile present in your `.synapseConfig` file. This allows you to have multiple profiles present in a single configuration file that you may swap between. Alternatively, you may use the `profile` parameter in Python, or the `--profile` command line flag for all commands like `synapse --profile <profile_name> COMMAND`. In Python, `login()` ignores `SYNAPSE_PROFILE` unless you pass `profile=None`.
 
 Once you are inside Python, you may simply login without passing any arguments, or pass a profile argument to access a specific profile:
 
