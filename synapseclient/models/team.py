@@ -129,6 +129,71 @@ class TeamMembershipStatus:
 
 
 @dataclass
+class MembershipInvitation:
+    """
+    An invitation for a user to join a Team.
+    Represents a [Synapse MembershipInvitation](<https://rest-docs.synapse.org/rest/org/sagebionetworks/repo/model/MembershipInvitation.html>).
+    In practice the constructor is not called directly by the client.
+
+    Attributes:
+        id: The id of the MembershipInvitation.
+        team_id: The id of the Team which the user is invited to join.
+        invitee_id: The principal ID of the user being invited to join the Team.
+        invitee_email: The email address of the user being invited to join the Team.
+        message: The invitation message (optional).
+        expires_on: The date this invitation expires (optional).
+        created_on: The date this MembershipInvitation was created.
+        created_by: The ID of the user that created this MembershipInvitation.
+    """
+
+    id: Optional[str] = None
+    """The id of the MembershipInvitation."""
+
+    team_id: Optional[str] = None
+    """The id of the Team which the user is invited to join."""
+
+    invitee_id: Optional[str] = None
+    """The principal ID of the user being invited to join the Team."""
+
+    invitee_email: Optional[str] = None
+    """The email address of the user being invited to join the Team."""
+
+    message: Optional[str] = None
+    """The invitation message (optional)."""
+
+    expires_on: Optional[str] = None
+    """The date this invitation expires (optional)."""
+
+    created_on: Optional[str] = None
+    """The date this MembershipInvitation was created."""
+
+    created_by: Optional[str] = None
+    """The ID of the user that created this MembershipInvitation."""
+
+    def fill_from_dict(
+        self, membership_invitation: Dict[str, str]
+    ) -> "MembershipInvitation":
+        """
+        Converts a response from the REST API into this dataclass.
+
+        Arguments:
+            membership_invitation: The response from the REST API.
+
+        Returns:
+            The MembershipInvitation object.
+        """
+        self.id = membership_invitation.get("id", None)
+        self.team_id = membership_invitation.get("teamId", None)
+        self.invitee_id = membership_invitation.get("inviteeId", None)
+        self.invitee_email = membership_invitation.get("inviteeEmail", None)
+        self.message = membership_invitation.get("message", None)
+        self.expires_on = membership_invitation.get("expiresOn", None)
+        self.created_on = membership_invitation.get("createdOn", None)
+        self.created_by = membership_invitation.get("createdBy", None)
+        return self
+
+
+@dataclass
 @async_to_sync
 class Team(TeamSynchronousProtocol):
     """
@@ -585,22 +650,27 @@ class Team(TeamSynchronousProtocol):
         force: bool = True,
         *,
         synapse_client: Optional[Synapse] = None,
-    ) -> Union[Dict[str, str], None]:
+    ) -> Optional[MembershipInvitation]:
         """Invites a user to a team given the ID field on the Team instance.
 
         Arguments:
             user: The username or ID of the user to invite.
             message: The message to send.
-            force: If True, will send the invite even if the user is already a member
-                or has an open invitation. If False, will not send the invite if the user
-                is already a member or has an open invitation.
+            force: If True, cancels the user's open invitations to this team and
+                sends a new one. If False, sends nothing when the user already has
+                an open invitation. Existing members are never invited, whatever
+                this is set to. Invitations sent by email can't be matched to a
+                user ID, because Synapse doesn't return other users' email
+                addresses. So an earlier email invitation to the same person is
+                not detected: with `force=False` a second invitation is sent, and
+                with `force=True` the email invitation is not cancelled.
                 Defaults to True.
             synapse_client: If not passed in and caching was not disabled by
                 `Synapse.allow_client_caching(False)` this will use the last created
                 instance from the Synapse class constructor.
 
         Returns:
-            The invite response or None if an invite was not sent.
+            The MembershipInvitation that was sent, or None if an invite was not sent.
 
         Example: Invite a user to a team
             &nbsp;
@@ -615,11 +685,13 @@ class Team(TeamSynchronousProtocol):
 
             async def invite_user():
                 team = await Team.from_id_async(id=123456)
-                invite = await team.invite_async(
+                invitation = await team.invite_async(
                     user="my_username",
                     message="Please join my team!",
                 )
-                return invite
+                if invitation:
+                    print(f"Sent invitation {invitation.id}")
+                return invitation
 
             asyncio.run(invite_user())
             ```
@@ -631,16 +703,19 @@ class Team(TeamSynchronousProtocol):
             force=force,
             synapse_client=synapse_client,
         )
+        if not invite:
+            return None
 
-        if invite:
-            from synapseclient import Synapse
+        invitation = MembershipInvitation().fill_from_dict(invite)
 
-            client = Synapse.get_client(synapse_client=synapse_client)
-            client.logger.info(
-                f"Invited user {invite['inviteeId']} to team {invite['teamId']}"
-            )
+        from synapseclient import Synapse
 
-        return invite
+        client = Synapse.get_client(synapse_client=synapse_client)
+        client.logger.info(
+            f"Invited user {invitation.invitee_id} to team {invitation.team_id}"
+        )
+
+        return invitation
 
     @otel_trace_method(
         method_to_trace_name=lambda self, **kwargs: f"Team_Open_Invitations: {self.name}"

@@ -321,20 +321,29 @@ class TestSendMembershipInvitation:
 class TestInviteToTeam:
     """Tests for invite_to_team function."""
 
+    @pytest.mark.parametrize("force", [True, False])
+    @patch("synapseclient.api.team_services.delete_membership_invitation")
     @patch("synapseclient.api.team_services.send_membership_invitation")
     @patch("synapseclient.api.team_services.get_membership_status")
     @patch("synapseclient.api.team_services.get_team_open_invitations")
     @patch("synapseclient.models.UserProfile.get_async")
     async def test_invite_to_team_already_member(
-        self, mock_get_profile, mock_open_invites, mock_membership_status, mock_send
+        self,
+        mock_get_profile,
+        mock_open_invites,
+        mock_membership_status,
+        mock_send,
+        mock_delete,
+        force,
     ):
-        """Test invite_to_team when user is already a member returns None."""
-        # GIVEN a user who is already a member
+        """Existing members are never invited, whatever force is set to:
+        invite_to_team returns None and neither sends nor cancels invitations."""
+        # GIVEN a user who is already a member and also has an open invitation
         mock_profile = MagicMock()
         mock_profile.id = int(USER_ID)
         mock_profile.username = USER_NAME
         mock_get_profile.return_value = mock_profile
-        mock_open_invites.return_value = []
+        mock_open_invites.return_value = [{"id": INVITATION_ID, "inviteeId": USER_ID}]
         mock_membership_status.return_value = {"isMember": True}
 
         # WHEN I call invite_to_team
@@ -343,12 +352,14 @@ class TestInviteToTeam:
             mock_client.logger = MagicMock()
             mock_syn_class.get_client.return_value = mock_client
             result = await team_services.invite_to_team(
-                team=TEAM_ID, user=USER_NAME, synapse_client=None
+                team=TEAM_ID, user=USER_NAME, force=force, synapse_client=None
             )
 
-        # THEN I expect None and no invitation sent
+        # THEN I expect None, no invitation sent, and the open one left alone
         assert result is None
         mock_send.assert_not_awaited()
+        mock_delete.assert_not_awaited()
+        assert "is already a member" in mock_client.logger.warning.call_args.args[0]
 
     @patch("synapseclient.api.team_services.send_membership_invitation")
     @patch("synapseclient.api.team_services.delete_membership_invitation")

@@ -7,7 +7,7 @@ import pytest
 
 from synapseclient import Synapse
 from synapseclient.core.exceptions import SynapseHTTPError
-from synapseclient.models import Team, UserProfile
+from synapseclient.models import MembershipInvitation, Team, UserProfile
 from synapseclient.models.user import UserGroupHeader
 
 
@@ -125,12 +125,13 @@ class TestTeam:
         )
 
         # THEN the invite should be created successfully
-        assert invite["id"] is not None
-        assert invite["teamId"] == str(test_team.id)
-        assert invite["inviteeId"] is not None
-        assert invite["message"] == self.TEST_MESSAGE
-        assert invite["createdOn"] is not None
-        assert invite["createdBy"] is not None
+        assert isinstance(invite, MembershipInvitation)
+        assert invite.id is not None
+        assert invite.team_id == str(test_team.id)
+        assert invite.invitee_id is not None
+        assert invite.message == self.TEST_MESSAGE
+        assert invite.created_on is not None
+        assert invite.created_by is not None
 
         # WHEN I check the open invitations
         invitations = await test_team.open_invitations_async(synapse_client=self.syn)

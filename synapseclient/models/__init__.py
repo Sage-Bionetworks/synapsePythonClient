@@ -114,7 +114,12 @@ from synapseclient.models.table_components import (
     UploadToTableResult,
     table_update_response_from_dict,
 )
-from synapseclient.models.team import Team, TeamMember, TeamMembershipStatus
+from synapseclient.models.team import (
+    MembershipInvitation,
+    Team,
+    TeamMember,
+    TeamMembershipStatus,
+)
 from synapseclient.models.user import UserGroupHeader, UserPreference, UserProfile
 from synapseclient.models.virtualtable import VirtualTable
 from synapseclient.models.wiki import (
@@ -141,6 +146,7 @@ __all__ = [
     "Team",
     "TeamMember",
     "TeamMembershipStatus",
+    "MembershipInvitation",
     "AuthorizationMode",
     "CurationTask",
     "CurationTaskStatus",
