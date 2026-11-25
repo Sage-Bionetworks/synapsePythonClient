@@ -120,7 +120,7 @@ class TaskState(str, Enum):
     """The task has been canceled and is no longer needed."""
 
 
-class AuthorizationMode(str, Enum):
+class AuthorizationMode(ForwardCompatibleStrEnum):
     """
     The authorization mode a client should use when creating a linked grid session
     for a CurationTask.
@@ -4770,8 +4770,12 @@ class GridSynchronousProtocol(Protocol):
         Creates a new grid session from a `record_set_id` or `initial_query`.
 
         Arguments:
-            attach_to_previous_session: If True and using `record_set_id`, will attach
-                to an existing active session if one exists. Defaults to False.
+            attach_to_previous_session: If True and using record_set_id, will attach
+                to an existing active session if one exists. The code attaches only
+                to a session whose owner and authorization mode are the same as the
+                values of owner_principal_id and authorization_mode. If you do not
+                set a value, any value is fine. If no session matches, the code
+                creates a new session. Defaults to False.
             timeout: The number of seconds to wait for the job to complete or progress
                 before raising a SynapseTimeoutError. Defaults to 120.
             synapse_client: If not passed in and caching was not disabled by
@@ -5514,6 +5518,33 @@ class Grid(EnumCoercionMixin, GridSynchronousProtocol):
 
     _ENUM_FIELDS: ClassVar[dict[str, type]] = {"authorization_mode": AuthorizationMode}
 
+    def _session_matches(self, existing_session: "Grid") -> bool:
+        """
+        Checks if an existing session has the owner and authorization mode that
+        were set on this Grid.
+
+        A field that is not set on this Grid (None) matches any value. A field
+        that is set must have the same value on the existing session. If the
+        existing session has no authorization mode and this Grid has one, the
+        session does not match, because the mode of the session is not known.
+
+        Arguments:
+            existing_session: A session that list_async returned.
+
+        Returns:
+            True if the existing session matches this Grid, else False.
+        """
+        if self.owner_principal_id is not None and str(
+            existing_session.owner_principal_id
+        ) != str(self.owner_principal_id):
+            return False
+        if (
+            self.authorization_mode is not None
+            and existing_session.authorization_mode != self.authorization_mode
+        ):
+            return False
+        return True
+
     async def create_async(
         self,
         attach_to_previous_session=False,
@@ -5529,8 +5560,12 @@ class Grid(EnumCoercionMixin, GridSynchronousProtocol):
         creates a new session due to the complexity of matching query parameters.
 
         Arguments:
-            attach_to_previous_session: If True and using `record_set_id`, will attach
-                to an existing active session if one exists. Defaults to False.
+            attach_to_previous_session: If True and using record_set_id, will attach
+                to an existing active session if one exists. The code attaches only
+                to a session whose owner and authorization mode are the same as the
+                values of owner_principal_id and authorization_mode. If you do not
+                set a value, any value is fine. If no session matches, the code
+                creates a new session. Defaults to False.
             timeout: The number of seconds to wait for the job to complete or progress
                 before raising a SynapseTimeoutError. Defaults to 120.
             synapse_client: If not passed in and caching was not disabled by
@@ -5582,7 +5617,11 @@ class Grid(EnumCoercionMixin, GridSynchronousProtocol):
             async for existing_session in self.list_async(
                 source_id=self.record_set_id, synapse_client=synapse_client
             ):
-                # Found an existing session, populate this object with its data and return
+                # Skip a session whose owner or authorization mode is different
+                # from the values that the caller asked for
+                if not self._session_matches(existing_session):
+                    continue
+                # Found a matching session, populate this object with its data and return
                 self.session_id = existing_session.session_id
                 self.started_by = existing_session.started_by
                 self.started_on = existing_session.started_on
@@ -5595,9 +5634,11 @@ class Grid(EnumCoercionMixin, GridSynchronousProtocol):
                 self.source_entity_version_number = (
                     existing_session.source_entity_version_number
                 )
+                self.owner_principal_id = existing_session.owner_principal_id
+                self.authorization_mode = existing_session.authorization_mode
                 return self
 
-        # No existing session found, create a new one
+        # No matching session found, create a new one
         create_request = CreateGridRequest(
             record_set_id=self.record_set_id,
             initial_query=self.initial_query,
@@ -6384,8 +6425,12 @@ class Grid(EnumCoercionMixin, GridSynchronousProtocol):
 
         Arguments:
             attach_to_previous_session: Only applies when creating a new
-                session from `record_set_id`. If True, attaches to an existing
-                active session instead of creating a new one. Defaults to False.
+                session from record_set_id. If True, attaches to an existing
+                active session instead of creating a new one. The code attaches
+                only to a session whose owner and authorization mode are the same
+                as the values of owner_principal_id and authorization_mode. If you
+                do not set a value, any value is fine. If no session matches, the
+                code creates a new session. Defaults to False.
             timeout: The number of seconds to wait for the job to complete or progress
                 before raising a SynapseTimeoutError. Defaults to 120.
             synapse_client: If not passed in and caching was not disabled by
@@ -6492,8 +6537,12 @@ class Grid(EnumCoercionMixin, GridSynchronousProtocol):
 
         Arguments:
             attach_to_previous_session: Only applies when creating a new
-                session from `record_set_id`. If True, attaches to an existing
-                active session instead of creating a new one. Defaults to False.
+                session from record_set_id. If True, attaches to an existing
+                active session instead of creating a new one. The code attaches
+                only to a session whose owner and authorization mode are the same
+                as the values of owner_principal_id and authorization_mode. If you
+                do not set a value, any value is fine. If no session matches, the
+                code creates a new session. Defaults to False.
             timeout: The number of seconds to wait for the job to complete or progress
                 before raising a SynapseTimeoutError. Defaults to 120.
             synapse_client: If not passed in and caching was not disabled by

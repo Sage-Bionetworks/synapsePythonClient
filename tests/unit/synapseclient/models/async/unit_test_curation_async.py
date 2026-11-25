@@ -96,6 +96,7 @@ UPLOAD_FOLDER_ID = "syn1234567"
 FILE_VIEW_ID = "syn2345678"
 RECORD_SET_ID = "syn3456789"
 SESSION_ID = "session-abc-123"
+NEW_SESSION_ID = "session-new-456"
 SOURCE_ENTITY_ID = "syn5555555"
 SOURCE_ENTITY_VERSION_NUMBER = 13
 GRID_ETAG = "grid-etag-456"
@@ -2905,6 +2906,300 @@ class TestGrid:
             assert result.started_by == STARTED_BY
             assert result.source_entity_id == SOURCE_ENTITY_ID
             assert result.source_entity_version_number == SOURCE_ENTITY_VERSION_NUMBER
+            # AND the owner and authorization mode are copied from the session
+            assert result.owner_principal_id == OWNER_PRINCIPAL_ID
+            assert isinstance(result.owner_principal_id, int)
+            assert result.authorization_mode == AuthorizationMode.SESSION_OWNER
+
+    async def _create_with_one_existing_session(
+        self,
+        caller_owner,
+        caller_mode,
+        session_owner,
+        session_mode,
+    ) -> tuple[Grid, AsyncMock, MagicMock]:
+        """Call create_async with attach_to_previous_session=True when one
+        session already exists. Returns the result, the send mock, and the
+        CreateGridRequest class mock."""
+        # GIVEN a Grid with a record_set_id and the caller's owner and mode
+        grid = Grid(
+            record_set_id=RECORD_SET_ID,
+            owner_principal_id=caller_owner,
+            authorization_mode=caller_mode,
+        )
+
+        # AND one existing session in the raw list response
+        existing_response = _get_grid_session_response()
+        existing_response["ownerPrincipalId"] = str(session_owner)
+        if session_mode is None:
+            del existing_response["authorizationMode"]
+        else:
+            existing_response["authorizationMode"] = session_mode
+
+        async def mock_list_grid_sessions(*args, **kwargs):
+            yield existing_response
+
+        # AND a new session that the create-new path returns
+        new_response = _get_grid_session_response()
+        new_response["sessionId"] = NEW_SESSION_ID
+        mock_create_request = CreateGridRequest(record_set_id=RECORD_SET_ID)
+        mock_create_request._grid_session_data = new_response
+
+        # WHEN I call create_async with attach_to_previous_session=True
+        with (
+            patch(
+                "synapseclient.models.curation.list_grid_sessions",
+                new=mock_list_grid_sessions,
+            ),
+            patch(
+                "synapseclient.models.curation.CreateGridRequest",
+                wraps=CreateGridRequest,
+            ) as mock_request_cls,
+            patch.object(
+                CreateGridRequest,
+                "send_job_and_wait_async",
+                new_callable=AsyncMock,
+                return_value=mock_create_request,
+            ) as mock_send,
+        ):
+            result = await grid.create_async(
+                attach_to_previous_session=True, synapse_client=self.syn
+            )
+        return result, mock_send, mock_request_cls
+
+    async def test_create_async_attach_to_previous_session_matching_attaches(
+        self,
+    ) -> None:
+        # GIVEN a caller that sets the same owner and mode as the existing session
+        result, mock_send, _ = await self._create_with_one_existing_session(
+            caller_owner=OWNER_PRINCIPAL_ID,
+            caller_mode=AuthorizationMode.SESSION_OWNER,
+            session_owner=OWNER_PRINCIPAL_ID,
+            session_mode="SESSION_OWNER",
+        )
+
+        # THEN the grid attaches to the existing session
+        assert result.session_id == SESSION_ID
+        mock_send.assert_not_called()
+        # AND the owner is copied from the session as an int
+        assert result.owner_principal_id == OWNER_PRINCIPAL_ID
+        assert isinstance(result.owner_principal_id, int)
+        # AND the authorization mode is copied from the session
+        assert result.authorization_mode == AuthorizationMode.SESSION_OWNER
+
+    async def test_create_async_attach_to_previous_session_not_matching_creates(
+        self,
+    ) -> None:
+        # GIVEN a caller whose mode is different from the existing session mode
+        result, mock_send, mock_request_cls = (
+            await self._create_with_one_existing_session(
+                caller_owner=OWNER_PRINCIPAL_ID,
+                caller_mode=AuthorizationMode.SESSION_OWNER,
+                session_owner=OWNER_PRINCIPAL_ID,
+                session_mode="SOURCE_BENEFACTOR",
+            )
+        )
+
+        # THEN the grid skips the session and creates a new one
+        assert result.session_id == NEW_SESSION_ID
+        mock_send.assert_awaited_once()
+        # AND the request gets the caller's owner and authorization mode
+        mock_request_cls.assert_called_once_with(
+            record_set_id=RECORD_SET_ID,
+            initial_query=None,
+            owner_principal_id=OWNER_PRINCIPAL_ID,
+            authorization_mode=AuthorizationMode.SESSION_OWNER,
+        )
+
+    async def test_create_async_attach_to_second_matching_session(self) -> None:
+        # GIVEN a Grid that asks for SESSION_OWNER
+        grid = Grid(
+            record_set_id=RECORD_SET_ID,
+            authorization_mode=AuthorizationMode.SESSION_OWNER,
+        )
+
+        # AND a first session that does not match and a second session that matches
+        non_matching = Grid()
+        non_matching.fill_from_dict(
+            {
+                **_get_grid_session_response(),
+                "sessionId": "session-no-match",
+                "authorizationMode": "SOURCE_BENEFACTOR",
+            }
+        )
+        matching = Grid()
+        matching.fill_from_dict(_get_grid_session_response())
+
+        async def mock_list_async(*args, **kwargs):
+            yield non_matching
+            yield matching
+
+        # WHEN I call create_async with attach_to_previous_session=True
+        with (
+            patch.object(Grid, "list_async", return_value=mock_list_async()),
+            patch.object(
+                CreateGridRequest,
+                "send_job_and_wait_async",
+                new_callable=AsyncMock,
+            ) as mock_send,
+        ):
+            result = await grid.create_async(
+                attach_to_previous_session=True, synapse_client=self.syn
+            )
+
+        # THEN the grid attaches to the second session
+        assert result.session_id == SESSION_ID
+        assert result.authorization_mode == AuthorizationMode.SESSION_OWNER
+        assert result.owner_principal_id == OWNER_PRINCIPAL_ID
+        # AND no new session is created
+        mock_send.assert_not_called()
+
+    async def test_create_async_attach_no_mode_on_caller_or_session(self) -> None:
+        # GIVEN a Grid that sets no authorization mode
+        grid = Grid(record_set_id=RECORD_SET_ID)
+
+        # AND a session with no authorizationMode in the list response
+        response = _get_grid_session_response()
+        del response["authorizationMode"]
+        existing_grid = Grid()
+        existing_grid.fill_from_dict(response)
+
+        async def mock_list_async(*args, **kwargs):
+            yield existing_grid
+
+        # WHEN I call create_async with attach_to_previous_session=True
+        with (
+            patch.object(Grid, "list_async", return_value=mock_list_async()),
+            patch.object(
+                CreateGridRequest,
+                "send_job_and_wait_async",
+                new_callable=AsyncMock,
+            ) as mock_send,
+        ):
+            result = await grid.create_async(
+                attach_to_previous_session=True, synapse_client=self.syn
+            )
+
+        # THEN the grid attaches to the session
+        assert result.session_id == SESSION_ID
+        mock_send.assert_not_called()
+        # AND the owner is copied from the session
+        assert result.owner_principal_id == OWNER_PRINCIPAL_ID
+        # AND the authorization mode stays None
+        assert result.authorization_mode is None
+
+    async def test_create_async_no_matching_session_does_not_keep_skipped_fields(
+        self,
+    ) -> None:
+        # GIVEN a Grid that asks for a specific owner and mode
+        grid = Grid(
+            record_set_id=RECORD_SET_ID,
+            owner_principal_id=OWNER_PRINCIPAL_ID,
+            authorization_mode=AuthorizationMode.SESSION_OWNER,
+        )
+
+        # AND two sessions that do not match
+        different_mode = Grid()
+        different_mode.fill_from_dict(
+            {
+                **_get_grid_session_response(),
+                "sessionId": "session-different-mode",
+                "gridJsonSchema$Id": "skipped-schema-1",
+                "authorizationMode": "SOURCE_BENEFACTOR",
+            }
+        )
+        different_owner = Grid()
+        different_owner.fill_from_dict(
+            {
+                **_get_grid_session_response(),
+                "sessionId": "session-different-owner",
+                "gridJsonSchema$Id": "skipped-schema-2",
+                "ownerPrincipalId": "123",
+            }
+        )
+
+        async def mock_list_async(*args, **kwargs):
+            yield different_mode
+            yield different_owner
+
+        # AND a new session that the create-new path returns, with no
+        # gridJsonSchema$Id
+        new_response = _get_grid_session_response()
+        new_response["sessionId"] = NEW_SESSION_ID
+        del new_response["gridJsonSchema$Id"]
+        mock_create_request = CreateGridRequest(record_set_id=RECORD_SET_ID)
+        mock_create_request._grid_session_data = new_response
+
+        # WHEN I call create_async with attach_to_previous_session=True
+        with (
+            patch.object(Grid, "list_async", return_value=mock_list_async()),
+            patch.object(
+                CreateGridRequest,
+                "send_job_and_wait_async",
+                new_callable=AsyncMock,
+                return_value=mock_create_request,
+            ) as mock_send,
+        ):
+            result = await grid.create_async(
+                attach_to_previous_session=True, synapse_client=self.syn
+            )
+
+        # THEN a new session is created
+        mock_send.assert_awaited_once()
+        assert result.session_id == NEW_SESSION_ID
+        # AND no field of a skipped session stays on the grid
+        assert result.grid_json_schema_id is None
+        assert result.owner_principal_id == OWNER_PRINCIPAL_ID
+        assert result.authorization_mode == AuthorizationMode.SESSION_OWNER
+
+    async def test_connect_async_attach_skips_non_matching_session(self) -> None:
+        # GIVEN a Grid that asks for SESSION_OWNER
+        grid = Grid(
+            record_set_id=RECORD_SET_ID,
+            authorization_mode=AuthorizationMode.SESSION_OWNER,
+        )
+
+        # AND an existing session with a different mode
+        existing_grid = Grid()
+        existing_grid.fill_from_dict(
+            {
+                **_get_grid_session_response(),
+                "authorizationMode": "SOURCE_BENEFACTOR",
+            }
+        )
+
+        async def mock_list_async(*args, **kwargs):
+            yield existing_grid
+
+        new_response = _get_grid_session_response()
+        new_response["sessionId"] = NEW_SESSION_ID
+        mock_create_request = CreateGridRequest(record_set_id=RECORD_SET_ID)
+        mock_create_request._grid_session_data = new_response
+
+        # WHEN I connect with attach_to_previous_session=True
+        with (
+            patch.object(Grid, "list_async", return_value=mock_list_async()),
+            patch.object(
+                CreateGridRequest,
+                "send_job_and_wait_async",
+                new_callable=AsyncMock,
+                return_value=mock_create_request,
+            ) as mock_send,
+            patch.object(
+                Grid,
+                "_create_replica_async",
+                new_callable=AsyncMock,
+                return_value=GridReplica(replica_id=1),
+            ),
+        ):
+            async with grid.connect_async(
+                attach_to_previous_session=True, synapse_client=self.syn
+            ) as session:
+                # THEN the session with a different mode is skipped and a new
+                # session is created
+                assert session.session_id == NEW_SESSION_ID
+                assert session.authorization_mode == AuthorizationMode.SESSION_OWNER
+        mock_send.assert_awaited_once()
 
     async def test_create_async_attach_to_previous_no_existing(self) -> None:
         # GIVEN a Grid with a record_set_id
@@ -3224,6 +3519,113 @@ class TestGrid:
                     path="test.csv",
                     csv_table_descriptor=csv_table_descriptor,
                 )
+
+
+def _get_existing_session(session_owner, session_mode) -> Grid:
+    """Build a Grid the same way list_async does, from a raw session response.
+    A None value removes the key from the response."""
+    response = _get_grid_session_response()
+    if session_owner is None:
+        del response["ownerPrincipalId"]
+    else:
+        response["ownerPrincipalId"] = str(session_owner)
+    if session_mode is None:
+        del response["authorizationMode"]
+    else:
+        response["authorizationMode"] = session_mode
+    return Grid().fill_from_dict(response)
+
+
+class TestGridSessionMatches:
+    """Unit tests for Grid._session_matches."""
+
+    @pytest.mark.parametrize(
+        "caller_owner, caller_mode, session_owner, session_mode",
+        [
+            # The caller sets no owner and no mode
+            (None, None, OWNER_PRINCIPAL_ID, "SESSION_OWNER"),
+            # The caller sets no owner and no mode, and the session has neither
+            (None, None, None, None),
+            # The caller mode is the same as the session mode
+            (None, AuthorizationMode.SESSION_OWNER, OWNER_PRINCIPAL_ID, "SESSION_OWNER"),
+            # The caller gives the mode as a str
+            (None, "SESSION_OWNER", OWNER_PRINCIPAL_ID, "SESSION_OWNER"),
+            # The caller owner is the same as the session owner
+            (OWNER_PRINCIPAL_ID, None, OWNER_PRINCIPAL_ID, "SESSION_OWNER"),
+            # The caller gives the owner as a str
+            (str(OWNER_PRINCIPAL_ID), None, OWNER_PRINCIPAL_ID, "SESSION_OWNER"),
+            # The caller owner and mode are both the same as the session
+            (OWNER_PRINCIPAL_ID, AuthorizationMode.SESSION_OWNER, OWNER_PRINCIPAL_ID, "SESSION_OWNER"),
+        ],
+        ids=[
+            "no_filters",
+            "no_filters_empty_session",
+            "same_mode",
+            "str_mode",
+            "same_owner",
+            "str_owner",
+            "same_owner_and_mode",
+        ],
+    )  # fmt: skip
+    def test_session_matches(
+        self, caller_owner, caller_mode, session_owner, session_mode
+    ) -> None:
+        # GIVEN a Grid with the caller's owner and mode
+        grid = Grid(
+            record_set_id=RECORD_SET_ID,
+            owner_principal_id=caller_owner,
+            authorization_mode=caller_mode,
+        )
+        # AND an existing session
+        existing_session = _get_existing_session(session_owner, session_mode)
+
+        # WHEN I compare the Grid to the session
+        # THEN the session matches
+        assert grid._session_matches(existing_session) is True
+
+    @pytest.mark.parametrize(
+        "caller_owner, caller_mode, session_owner, session_mode",
+        [
+            # The caller mode is different from the session mode
+            (None, AuthorizationMode.SESSION_OWNER, OWNER_PRINCIPAL_ID, "SOURCE_BENEFACTOR"),
+            # The caller sets a mode and the session has no mode
+            (None, AuthorizationMode.SESSION_OWNER, OWNER_PRINCIPAL_ID, None),
+            # The caller owner is different from the session owner
+            (123, None, OWNER_PRINCIPAL_ID, "SESSION_OWNER"),
+            # The caller sets an owner and the session has no owner
+            (OWNER_PRINCIPAL_ID, None, None, "SESSION_OWNER"),
+            # The owner is the same, but the mode is different
+            (OWNER_PRINCIPAL_ID, AuthorizationMode.SESSION_OWNER, OWNER_PRINCIPAL_ID, "SOURCE_BENEFACTOR"),
+            # The mode is the same, but the owner is different
+            (123, AuthorizationMode.SESSION_OWNER, OWNER_PRINCIPAL_ID, "SESSION_OWNER"),
+            # The session has an unknown mode value
+            (None, AuthorizationMode.SESSION_OWNER, OWNER_PRINCIPAL_ID, "NEW_MODE"),
+        ],
+        ids=[
+            "different_mode",
+            "missing_session_mode",
+            "different_owner",
+            "missing_session_owner",
+            "same_owner_different_mode",
+            "same_mode_different_owner",
+            "unknown_session_mode",
+        ],
+    )  # fmt: skip
+    def test_session_does_not_match(
+        self, caller_owner, caller_mode, session_owner, session_mode
+    ) -> None:
+        # GIVEN a Grid with the caller's owner and mode
+        grid = Grid(
+            record_set_id=RECORD_SET_ID,
+            owner_principal_id=caller_owner,
+            authorization_mode=caller_mode,
+        )
+        # AND an existing session
+        existing_session = _get_existing_session(session_owner, session_mode)
+
+        # WHEN I compare the Grid to the session
+        # THEN the session does not match
+        assert grid._session_matches(existing_session) is False
 
 
 class TestCreateGridRequest:
