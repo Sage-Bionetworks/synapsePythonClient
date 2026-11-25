@@ -216,7 +216,7 @@ synapse store --parentid syn123 ~/foobar.txt
 When you log in, the Synapse Python Client checks these sources in order and uses the first one that gives a token:
 
 1. **User arguments**: the `authToken` argument to `login()`, or `-p`/`--password` on the command line.
-2. **The `.synapseConfig` file**: the `authtoken` in the selected profile. The profile is the `profile` argument in Python, or `--profile` or `SYNAPSE_PROFILE` on the command line. If no profile is given, the `[default]` section is used, or the deprecated `[authentication]` section if there is no `[default]` section or it is empty. If you name a profile that is not in the file, login fails with an error and the sources below are not checked.
+2. **The `.synapseConfig` file**: the `authtoken` in the selected profile. The profile can be selected by the `profile` argument in Python, `--profile` in the command line, or the `SYNAPSE_PROFILE` environment variable. If no profile is given, the `[default]` section is used, or the deprecated `[authentication]` section if there is no `[default]` section or it is empty. If you name a profile that is not in the file, login fails with an error and the sources below are not checked.
 3. **The `SYNAPSE_AUTH_TOKEN` environment variable.**
 4. **AWS SSM Parameter Store**: the parameter named by the `SYNAPSE_TOKEN_AWS_SSM_PARAMETER_NAME` environment variable. This needs `boto3`.
 
