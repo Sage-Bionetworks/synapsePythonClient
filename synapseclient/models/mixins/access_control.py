@@ -315,8 +315,14 @@ class AccessControllable(AccessControllableSynchronousProtocol):
         An Entity may have its own ACL or inherit its ACL from a benefactor.
 
         Arguments:
-            principal_id: Identifier of a user or group. `273948` is for all
-                registered Synapse users and `273949` is for public access.
+            principal_id: Identifier of a user or group. In the default realm,
+                `273948` is for all registered Synapse users and `273949` is for
+                public access. A Synapse realm is a separate sign-in space inside
+                Synapse, with its own identity provider and fully separate user
+                accounts that can only share with others in the same realm. These
+                IDs depend on the realm. To look up the values for your realm,
+                call the endpoint documented at
+                <https://rest-docs.synapse.org/rest/GET/realm/principals.html>.
                 None implies public access.
             access_type: Type of permission to be granted. One or more of CREATE,
                 READ, DOWNLOAD, UPDATE, DELETE, CHANGE_PERMISSIONS.
