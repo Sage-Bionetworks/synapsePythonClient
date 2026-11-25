@@ -41,8 +41,12 @@ Synapse provides special principals for common sharing scenarios:
 - **Team ID**: Synapse teams for group-based permissions (e.g., #######)
 
 #### Special principal IDs depend on the realm
-The IDs of the special principals are not fixed. They depend on the security realm
-of the user. The IDs shown on this page are the values for the default realm
+A Synapse realm is a separate sign-in space inside Synapse, with its own identity
+provider and fully separate user accounts that can only share with others in the
+same realm.
+
+The IDs of the special principals are not fixed. They depend on the realm of the
+user. The IDs shown on this page are the values for the default realm
 (`realmId` 0). If your account belongs to a different realm, these IDs are different.
 
 To look up the special principal IDs for your realm, call the

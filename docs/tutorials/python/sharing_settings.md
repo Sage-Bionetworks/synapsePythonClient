@@ -44,9 +44,11 @@ Before we begin, it's important to understand the different permission types ava
 - **Specific user ID**: Individual Synapse user (e.g., 123456)
 - **Team ID**: Synapse team
 
-The IDs 273948 and 273949 are the values for the default realm (`realmId` 0). The
-special principal IDs depend on the security realm of your account. To look up the
-values for your realm, call the
+The IDs 273948 and 273949 are the values for the default realm (`realmId` 0). A
+Synapse realm is a separate sign-in space inside Synapse, with its own identity
+provider and fully separate user accounts that can only share with others in the
+same realm. The special principal IDs depend on the realm of your account. To look
+up the values for your realm, call the
 [GET /realm/principals](https://rest-docs.synapse.org/rest/GET/realm/principals.html)
 REST endpoint, for example with `syn.restGET("/realm/principals")`. See
 [Special principal IDs depend on the realm](../../explanations/access_control.md#special-principal-ids-depend-on-the-realm)

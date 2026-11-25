@@ -14,8 +14,10 @@ Examples of principal IDs:
 - Public access: 273949
 
 The authenticated users and public access IDs above are for the default realm
-(realmId 0). These IDs depend on the realm of your account. To look up the values
-for your realm, call syn.restGET("/realm/principals").
+(realmId 0). A Synapse realm is a separate sign-in space inside Synapse, with its
+own identity provider and fully separate user accounts that can only share with
+others in the same realm. These IDs depend on the realm of your account. To look
+up the values for your realm, call syn.restGET("/realm/principals").
 """
 
 # --8<-- [start:setup_and_project]
