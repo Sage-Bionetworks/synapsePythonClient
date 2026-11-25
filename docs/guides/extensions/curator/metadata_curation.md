@@ -308,19 +308,9 @@ Use the tables below to configure a workflow or look up a parameter used in eith
 
 ### Parameters Shared by Both Functions
 
-These parameters are accepted by both [create_record_based_metadata_task][synapseclient.extensions.curator.create_record_based_metadata_task] and [create_file_based_metadata_task][synapseclient.extensions.curator.create_file_based_metadata_task]. See the API reference for each function for the complete, up-to-date signature.
+Both functions accept `folder_id`, `curation_task_name`, `instructions`, `schema_uri`, `enable_derived_annotations`, `assignee_principal_id`, `authorization_mode`, `column_order`, and `synapse_client`. For each parameter's type, default, and description, see the API reference for [create_record_based_metadata_task][synapseclient.extensions.curator.create_record_based_metadata_task] and [create_file_based_metadata_task][synapseclient.extensions.curator.create_file_based_metadata_task].
 
-| Parameter | Type / default | Description and options |
-| --- | --- | --- |
-| `folder_id` | `str` — **required** | Synapse folder ID. For record-based tasks, the destination for the `RecordSet`; for file-based tasks, the folder containing files to curate. |
-| `curation_task_name` | `str` — **required** | Name of the task. Use a unique name within the project to create a new task. |
-| `instructions` | `str` — **required** | Contributor-facing instructions describing each row and the information to enter. |
-| `schema_uri` | `str` — **required** for record-based; `str` or `None` (default: `None`) for file-based | URI of a registered JSON Schema. For file-based tasks, providing a URI binds the schema to the folder before creating the view. |
-| `enable_derived_annotations` | `bool` — default: `False` | Set `True` to enable schema-derived annotations during schema binding. See [Derived annotations](#derived-annotations). |
-| `assignee_principal_id` | `str`, `int`, or `None` — default: `None` | Synapse principal ID of the user or team assigned to the task. `None` leaves it unassigned. |
-| `authorization_mode` | `AuthorizationMode`, `str`, or `None` — default: `None` | Suggested grid access mode: `"SESSION_OWNER"`, `"SOURCE_BENEFACTOR"`, or `None`. See [Grid access options](#grid-access-options). |
-| `column_order` | `list[str]` or `None` — default: `None` | Desired left-to-right column order after pinned columns. Unlisted columns remain visible. See [Column ordering](#column-ordering). |
-| `synapse_client` | `Synapse` or `None` — default: `None` | Client used for the operation. Passing an authenticated client makes the connection explicit. |
+For more on how some of these parameters behave, see [Grid Access Options](#grid-access-options), [Column Ordering](#column-ordering), and [Derived Annotations](#derived-annotations) below.
 
 !!! note
 
