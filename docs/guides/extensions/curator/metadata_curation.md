@@ -101,11 +101,20 @@ This example creates a `RecordSet` to store biospecimen metadata and a correspon
 
 !!! info
 
-    **Before running:** Replace `folder_id` and `schema_uri`. Make sure `upsert_keys` and `column_order` use property names defined in your registered JSON Schema.
+    **Before running:** Replace the values at the top of the script. `UPSERT_KEYS` and `COLUMN_ORDER` must use property names defined in your registered JSON Schema, so update them whenever you change `SCHEMA_URI`.
 
 ```python
 from synapseclient import Synapse
 from synapseclient.extensions.curator import create_record_based_metadata_task
+
+# Replace these values with your own before running.
+# Destination folder ID. Edit permissions or higher are required.
+FOLDER_ID = "syn12345678"
+# Versioned URI of your registered JSON Schema (see "Find a JSON Schema").
+SCHEMA_URI = "MyOrganization-BiospecimenMetadata-1.0.0"
+# Property names from your schema. Update these to match SCHEMA_URI.
+UPSERT_KEYS = ["sampleId"]
+COLUMN_ORDER = ["participantId", "specimenType", "tissue"]
 
 # Authenticate with Synapse using your configured credentials.
 syn = Synapse()
@@ -114,7 +123,7 @@ syn.login()
 # Create a RecordSet and a task for biospecimen metadata.
 record_set, curation_task = create_record_based_metadata_task(
     # Destination folder ID. Edit permissions or higher are required.
-    folder_id="syn12345678",
+    folder_id=FOLDER_ID,
 
     # Name and description of the RecordSet that stores the metadata.
     record_set_name="Biospecimen_Metadata",
@@ -126,15 +135,15 @@ record_set, curation_task = create_record_based_metadata_task(
 
     # Schema property (or properties) uniquely identifying each record.
     # Existing matching records are updated; new keys create new records.
-    upsert_keys=["sampleId"],
+    upsert_keys=UPSERT_KEYS,
 
     # Instructions shown to contributors when completing the task.
     instructions=(
         "Enter one record per biospecimen. Complete all required fields and use a unique sampleId for each record."
     ),
 
-    # URI of the registered JSON Schema. Replace this example URI.
-    schema_uri="MyOrganization-BiospecimenMetadata-1.0.0",
+    # URI of the registered JSON Schema.
+    schema_uri=SCHEMA_URI,
 
     # True (default): Bind the schema to the RecordSet for validation.
     # False: Do not bind the schema to the RecordSet.
@@ -154,7 +163,7 @@ record_set, curation_task = create_record_based_metadata_task(
 
     # Optional order of columns after the pinned upsert key(s).
     # All names must match schema properties; remaining columns follow.
-    column_order=["participantId", "specimenType", "tissue"],
+    column_order=COLUMN_ORDER,
 
     # Use the authenticated Synapse client created above.
     synapse_client=syn,
@@ -194,13 +203,21 @@ This example creates an `EntityView` of files in a folder and a corresponding `C
 !!! info
 
     - **Set `return_entities=True`.** Returning objects is planned to become the default in **v5.0.0**, when `return_entities` will be removed.
-    - **Before running:** Replace `folder_id` and `schema_uri`. Update `column_order` to match available view columns. This example assumes your schema includes `sampleId`, `assay`, and `fileFormat`.
+    - **Before running:** Replace the values at the top of the script. `COLUMN_ORDER` must match columns available in the view, so update it whenever you change `SCHEMA_URI`. This example assumes your schema includes `sampleId`, `assay`, and `fileFormat`.
     - **Add at least one file first:** Make sure the folder contains at least one file before you create a file-based metadata task. The `EntityView` lists the files in the folder, so contributors will have nothing to annotate if the folder is empty.
 
 ```python
 from synapseclient import Synapse
 from synapseclient.extensions.curator import create_file_based_metadata_task
 from synapseclient.models import ViewTypeMask
+
+# Replace these values with your own before running.
+# Folder containing the files to be annotated.
+FOLDER_ID = "syn87654321"
+# Versioned URI of your registered JSON Schema (see "Find a JSON Schema").
+SCHEMA_URI = "MyOrganization-FileMetadata-1.0.0"
+# Column names available in the view. Update these to match SCHEMA_URI.
+COLUMN_ORDER = ["sampleId", "assay", "fileFormat"]
 
 # Authenticate with Synapse using your configured credentials.
 syn = Synapse()
@@ -209,7 +226,7 @@ syn.login()
 # Create an EntityView and a task for file annotations.
 entity_view, curation_task = create_file_based_metadata_task(
     # Folder containing the files to be annotated.
-    folder_id="syn87654321",
+    folder_id=FOLDER_ID,
 
     # Task name and contributor-facing instructions.
     curation_task_name="Curate File Metadata",
@@ -224,8 +241,8 @@ entity_view, curation_task = create_file_based_metadata_task(
     # Name of the EntityView created for the task.
     entity_view_name="Study File Metadata",
 
-    # URI of the registered JSON Schema. Replace this example URI.
-    schema_uri="MyOrganization-FileMetadata-1.0.0",
+    # URI of the registered JSON Schema.
+    schema_uri=SCHEMA_URI,
 
     # True: Enable schema-derived annotations when binding the schema.
     # False (default): Disable derived annotations.
@@ -244,7 +261,7 @@ entity_view, curation_task = create_file_based_metadata_task(
     return_entities=True,
 
     # Optional order after the pinned name and id columns.
-    column_order=["sampleId", "assay", "fileFormat"],
+    column_order=COLUMN_ORDER,
 
     # Use the authenticated Synapse client created above.
     synapse_client=syn,
