@@ -389,7 +389,7 @@ def create_file_based_metadata_task(
             folder_id="syn12345678",
             curation_task_name="BiospecimenMetadataTemplate",
             instructions="Please curate this metadata according to the schema requirements",
-            attach_wiki=False, # Optional: whether to attach a Synapse Wiki
+            attach_wiki=False, # Optional: show the entity view on the folder's wiki page
             entity_view_name="Biospecimen Metadata View", # Optional: name for the created entity view
             schema_uri="sage.schemas.v2571-amp.Biospecimen.schema-0.0.1", # Optional: JSON schema URI to bind to the folder
             assignee_principal_id=123456, # Optional: Assign to a user or team (can be str or int)
@@ -453,7 +453,16 @@ def create_file_based_metadata_task(
             Must be unique within the project, otherwise if it matches an existing
             CurationTask, that task will be updated with new data.
         instructions: Instructions for the curation task.
-        attach_wiki: Whether or not to attach a Synapse Wiki (default: False).
+        attach_wiki: If True, show the created EntityView on the wiki page of the
+            folder given by folder_id. The wiki belongs to the folder, not to the
+            EntityView: an EntityView does not appear in the folder's file list,
+            so the folder's wiki is where people browsing the folder will see it.
+            If the folder has no wiki, a new wiki titled "Entity View" is created
+            with the EntityView rendered as a table. If the folder already has a
+            wiki, one line that renders the EntityView as a table is added to the
+            end of the existing page, and the title and other content are left
+            unchanged. The line is not added again if the page already has it.
+            Defaults to False, which leaves the folder's wiki untouched.
         entity_view_name: Name for the created entity view (default: "JSON Schema view").
         schema_uri: Optional JSON schema URI to bind to the folder. If provided,
             the schema will be bound to the folder before creating the entity view.
