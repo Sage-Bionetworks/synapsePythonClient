@@ -453,16 +453,10 @@ def create_file_based_metadata_task(
             Must be unique within the project, otherwise if it matches an existing
             CurationTask, that task will be updated with new data.
         instructions: Instructions for the curation task.
-        attach_wiki: If True, show the created EntityView on the wiki page of the
-            folder given by folder_id. The wiki belongs to the folder, not to the
-            EntityView: an EntityView does not appear in the folder's file list,
-            so the folder's wiki is where people browsing the folder will see it.
-            If the folder has no wiki, a new wiki titled "Entity View" is created
-            with the EntityView rendered as a table. If the folder already has a
-            wiki, one line that renders the EntityView as a table is added to the
-            end of the existing page, and the title and other content are left
-            unchanged. The line is not added again if the page already has it.
-            Defaults to False, which leaves the folder's wiki untouched.
+        attach_wiki: If True, add the EntityView to the folder's wiki page so
+            people browsing the folder can see it (an EntityView isn't listed in
+            the folder itself). Creates the wiki if the folder has none.
+            Defaults to False.
         entity_view_name: Name for the created entity view (default: "JSON Schema view").
         schema_uri: Optional JSON schema URI to bind to the folder. If provided,
             the schema will be bound to the folder before creating the entity view.
