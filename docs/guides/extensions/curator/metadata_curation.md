@@ -47,9 +47,9 @@ Use **file-based metadata** to describe individual files stored in Synapse. Each
 Before creating a curation task, make sure you have the following:
 
 - **Synapse account:** Create a Synapse account and complete the Synapse Certification Quiz.
-- **Synapse Python Client:** [Install the client](https://python-docs.synapse.org/en/stable/tutorials/installation/) with the Curator extras (`pip install --upgrade "synapseclient[curator]"`) and [configure your credentials](https://python-docs.synapse.org/en/stable/tutorials/authentication/).
+- **Synapse Python Client:** [Install the client](../../../tutorials/installation.md) with the Curator extras (`pip install --upgrade "synapseclient[curator]"`) and [configure your credentials](../../../tutorials/authentication.md).
 - **Project and folder permissions:** Have **Edit permissions or higher** for the Synapse project and folder where you will manage metadata. Note the folder's Synapse ID for use in the examples.
-- **JSON Schema:** Browse [existing schemas](https://sage-bionetworks.github.io/core-models/) or create your own. You will need a **versioned schema URI**, such as `MyOrganization-MySchema-1.0.0`. To look one up, see [Find a JSON Schema](#find-a-json-schema). To create your own, see the [Schema Operations Guide](https://python-docs.synapse.org/en/stable/guides/extensions/curator/schema_operations/).
+- **JSON Schema:** Browse [existing schemas](https://sage-bionetworks.github.io/core-models/) or create your own. You will need a **versioned schema URI**, such as `MyOrganization-MySchema-1.0.0`. To look one up, see [Find a JSON Schema](#find-a-json-schema). To create your own, see the [Schema Operations Guide](schema_operations.md).
 
 !!! note
 
@@ -168,6 +168,7 @@ record_set, curation_task = create_record_based_metadata_task(
 print(f"RecordSet ID: {record_set.id}")
 print(f"CurationTask ID: {curation_task.task_id}")
 ```
+
 **Example output**
 
 ```text
@@ -189,7 +190,6 @@ CurationTask ID: 1234
 ## Create a File-Based Metadata Task
 
 This example creates an `EntityView` of files in a folder and a corresponding `CurationTask` for annotating them.
-
 
 !!! info
 
@@ -291,7 +291,7 @@ Use the tables below to configure a workflow or look up a parameter used in eith
 
 ### Parameters Shared by Both Functions
 
-These parameters are accepted by both `create_record_based_metadata_task()` and `create_file_based_metadata_task()`.
+These parameters are accepted by both [create_record_based_metadata_task][synapseclient.extensions.curator.create_record_based_metadata_task] and [create_file_based_metadata_task][synapseclient.extensions.curator.create_file_based_metadata_task]. See the API reference for each function for the complete, up-to-date signature.
 
 | Parameter | Type / default | Description and options |
 | --- | --- | --- |
