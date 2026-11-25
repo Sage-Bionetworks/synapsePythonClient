@@ -1,6 +1,6 @@
 # Search Configuration
 
-Analyzer, synonym, and configuration resources that control how a
+Analyzer, synonym, search pipeline, and configuration resources that control how a
 [SearchIndex](search_index.md) builds its OpenSearch index.
 
 ## API reference
@@ -22,6 +22,14 @@ Analyzer, synonym, and configuration resources that control how a
             - list_async
 
 ::: synapseclient.models.SynonymSet
+    options:
+        inherited_members: true
+        members:
+            - store_async
+            - get_async
+            - list_async
+
+::: synapseclient.models.NamedSearchPipeline
     options:
         inherited_members: true
         members:

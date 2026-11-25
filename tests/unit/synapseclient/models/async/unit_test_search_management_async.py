@@ -13,6 +13,7 @@ from synapseclient.core.constants.concrete_types import SEARCH_INDEX_QUERY
 from synapseclient.models.search_management import (
     ColumnAnalyzerOverride,
     ColumnAnalyzerOverrideEntry,
+    NamedSearchPipeline,
     SearchAutocompleteRequest,
     SearchConfigBinding,
     SearchConfiguration,
@@ -92,6 +93,67 @@ class TestSearchQuery:
         assert query.to_synapse_request() == body
 
 
+class TestHybridSearchQuery:
+    """The hybrid / semantic query surface passes through unchanged."""
+
+    hybrid_body = {
+        "hybrid": {
+            "queries": [
+                {"match": {"description": {"query": "memory loss"}}},
+                {
+                    "neural": {
+                        "semantic_search": {
+                            "query_text": "progressive memory loss",
+                            "min_score": 0.6,
+                        }
+                    }
+                },
+            ],
+            "filter": {"term": {"disease": {"value": "AD"}}},
+            "min_score": 0.3,
+        },
+        "search_pipeline": {
+            "phase_results_processors": [
+                {
+                    "normalization-processor": {
+                        "normalization": {"technique": "min_max"},
+                        "combination": {
+                            "technique": "arithmetic_mean",
+                            "parameters": {"weights": [0.3, 0.7]},
+                        },
+                    }
+                }
+            ]
+        },
+        "size": 10,
+    }
+
+    def test_round_trip(self):
+        # GIVEN a request body carrying a hybrid query and a search pipeline
+        # WHEN I fill a SearchQuery from it
+        query = SearchQuery().fill_from_dict(self.hybrid_body)
+        # THEN both slots are populated as raw DSL
+        assert query.hybrid == self.hybrid_body["hybrid"]
+        assert query.search_pipeline == self.hybrid_body["search_pipeline"]
+        # AND re-serializing reproduces the original body -- both keys stay
+        # snake_case, unlike the camelCase Synapse-level models
+        assert query.to_synapse_request() == self.hybrid_body
+
+    def test_pipeline_ref_form(self):
+        # GIVEN a hybrid query naming a saved NamedSearchPipeline by $ref
+        query = SearchQuery(
+            hybrid={
+                "queries": [{"neural": {"semantic_search": {"query_text": "alz"}}}]
+            },
+            search_pipeline={"$ref": "biomed-keyword_heavy"},
+        )
+        # WHEN I serialize it
+        request = query.to_synapse_request()
+        # THEN the $ref passes through untouched, and no query key is emitted
+        assert request["search_pipeline"] == {"$ref": "biomed-keyword_heavy"}
+        assert "query" not in request
+
+
 class TestSearchHit:
     """SearchHit deserialization including SearchHighlight."""
 
@@ -106,6 +168,11 @@ class TestSearchHit:
         "highlights": [
             {"name": "title", "snippets": ["<em>Alzheimer</em> study"]},
         ],
+        "explanation": {
+            "value": 1.5,
+            "description": "combined score of:",
+            "details": [{"value": 1.5, "description": "weight(100:tumor)"}],
+        },
     }
 
     def test_fill_from_dict(self):
@@ -123,6 +190,8 @@ class TestSearchHit:
         assert all(isinstance(h, SearchHighlight) for h in hit.highlights)
         assert hit.highlights[0].name == "title"
         assert hit.highlights[0].snippets == ["<em>Alzheimer</em> study"]
+        # AND the explanation tree passes through as an opaque object
+        assert hit.explanation == self.synapse_response["explanation"]
 
     def test_fill_from_dict_empty(self):
         # WHEN I fill from an empty dict
@@ -130,6 +199,7 @@ class TestSearchHit:
         # THEN collections default to empty lists
         assert hit.fields == []
         assert hit.highlights == []
+        assert hit.explanation is None
 
 
 class TestTextAnalyzer:
@@ -187,6 +257,55 @@ class TestSynonymSet:
         assert SynonymSet().fill_from_dict(request).definition == definition
 
 
+class TestNamedSearchPipeline:
+    """NamedSearchPipeline carries a SearchPipeline as its settings."""
+
+    def test_round_trip(self):
+        # GIVEN a NamedSearchPipeline with weights and min_max bounds
+        settings = {
+            "phase_results_processors": [
+                {
+                    "normalization-processor": {
+                        "normalization": {
+                            "technique": "min_max",
+                            "parameters": {
+                                "lower_bounds": [
+                                    {"mode": "clip", "min_score": 0.1},
+                                    {"mode": "apply"},
+                                ],
+                                "upper_bounds": [
+                                    {"mode": "ignore"},
+                                    {"max_score": 0.9},
+                                ],
+                            },
+                        },
+                        "combination": {
+                            "technique": "arithmetic_mean",
+                            "parameters": {"weights": [0.7, 0.3]},
+                        },
+                    }
+                }
+            ]
+        }
+        pipeline = NamedSearchPipeline(
+            organization_name="biomed",
+            name="keyword_heavy",
+            settings=settings,
+        )
+        # WHEN I serialize it
+        request = pipeline.to_synapse_request()
+        # THEN settings pass through unchanged and unset keys are dropped
+        assert request == {
+            "organizationName": "biomed",
+            "name": "keyword_heavy",
+            "settings": settings,
+        }
+        # AND qualified_name composes org + name
+        assert pipeline.qualified_name == "biomed-keyword_heavy"
+        # AND fill_from_dict is the inverse
+        assert NamedSearchPipeline().fill_from_dict(request).settings == settings
+
+
 class TestSearchConfiguration:
     """SearchConfiguration with $ref and inline analyzer slots."""
 
@@ -196,12 +315,14 @@ class TestSearchConfiguration:
             organization_name="biomed",
             name="publications_v1",
             default_analyzer={"$ref": "org.sagebionetworks-SCIENTIFIC"},
+            default_search_pipeline={"$ref": "biomed-keyword_heavy"},
             column_analyzer_overrides=[{"$ref": "biomed-publications_overrides"}],
         )
         # WHEN I serialize it
         request = config.to_synapse_request()
         # THEN the analyzer slots pass through as raw objects
         assert request["defaultAnalyzer"] == {"$ref": "org.sagebionetworks-SCIENTIFIC"}
+        assert request["defaultSearchPipeline"] == {"$ref": "biomed-keyword_heavy"}
         assert request["columnAnalyzerOverrides"] == [
             {"$ref": "biomed-publications_overrides"}
         ]
@@ -210,6 +331,7 @@ class TestSearchConfiguration:
         assert round_tripped.default_analyzer == {
             "$ref": "org.sagebionetworks-SCIENTIFIC"
         }
+        assert round_tripped.default_search_pipeline == {"$ref": "biomed-keyword_heavy"}
         assert round_tripped.column_analyzer_overrides == [
             {"$ref": "biomed-publications_overrides"}
         ]
@@ -228,18 +350,28 @@ class TestColumnAnalyzerOverride:
                     column_name="disease_code",
                     analyzer={"$ref": "biomed-acronym_exact"},
                 ),
+                ColumnAnalyzerOverrideEntry(
+                    column_name="abstract",
+                    semantic=True,
+                ),
             ],
         )
         # WHEN I serialize it
         request = override.to_synapse_request()
         # THEN each entry carries a single analyzer slot
         assert request["overrides"] == [
-            {"columnName": "disease_code", "analyzer": {"$ref": "biomed-acronym_exact"}}
+            {
+                "columnName": "disease_code",
+                "analyzer": {"$ref": "biomed-acronym_exact"},
+            },
+            {"columnName": "abstract", "semantic": True},
         ]
         # AND fill_from_dict is the inverse
         round_tripped = ColumnAnalyzerOverride().fill_from_dict(request)
         assert round_tripped.overrides[0].column_name == "disease_code"
         assert round_tripped.overrides[0].analyzer == {"$ref": "biomed-acronym_exact"}
+        assert round_tripped.overrides[1].column_name == "abstract"
+        assert round_tripped.overrides[1].semantic is True
 
 
 class TestSearchConfigBinding:
@@ -332,6 +464,7 @@ class TestOrgScopedResource:
         TextAnalyzer,
         ColumnAnalyzerOverride,
         SynonymSet,
+        NamedSearchPipeline,
         SearchConfiguration,
     ]
 

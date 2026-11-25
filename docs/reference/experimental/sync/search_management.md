@@ -1,7 +1,7 @@
 [](){ #search-management-reference-sync }
 # Search Configuration
 
-Analyzer, synonym, and configuration resources that control how a
+Analyzer, synonym, search pipeline, and configuration resources that control how a
 [SearchIndex][searchindex-reference-sync] builds its OpenSearch index.
 
 ## API reference
@@ -23,6 +23,14 @@ Analyzer, synonym, and configuration resources that control how a
             - list
 
 ::: synapseclient.models.SynonymSet
+    options:
+        inherited_members: true
+        members:
+            - store
+            - get
+            - list
+
+::: synapseclient.models.NamedSearchPipeline
     options:
         inherited_members: true
         members:

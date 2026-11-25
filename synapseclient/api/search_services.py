@@ -1,8 +1,8 @@
 """This module is responsible for exposing the services defined at:
 <https://rest-docs.synapse.org/rest/index.html#org.sagebionetworks.repo.web.controller.SearchManagementController>
 
-It covers TextAnalyzer, ColumnAnalyzerOverride, SynonymSet, SearchConfiguration,
-SearchConfigBinding, and the synchronous SearchIndex autocomplete endpoint.
+It covers TextAnalyzer, ColumnAnalyzerOverride, SynonymSet, NamedSearchPipeline,
+SearchConfiguration, SearchConfigBinding, and the synchronous SearchIndex autocomplete endpoint.
 The async SearchIndex query endpoint is exposed via the
 `SearchIndexQuery.send_job_and_wait_async()` method on the model class
 (`models.search_management.SearchIndexQuery`), which uses the shared
@@ -363,6 +363,121 @@ async def list_synonym_sets(
     delete_none_keys(body)
     return await client.rest_post_async(
         uri="/search/synonym/set/list", body=json.dumps(body)
+    )
+
+
+async def create_search_pipeline(
+    request: Dict[str, Any],
+    *,
+    synapse_client: Optional["Synapse"] = None,
+) -> Dict[str, Any]:
+    """Create a new NamedSearchPipeline within the specified Organization.
+
+    <https://rest-docs.synapse.org/rest/POST/search/pipeline.html>
+
+    Arguments:
+        request: The search pipeline to create. Must include organizationName,
+            name, and settings.
+        synapse_client: If not passed in and caching was not disabled by
+            `Synapse.allow_client_caching(False)` this will use the last created
+            instance from the Synapse class constructor.
+
+    Returns:
+        A dictionary representing the created NamedSearchPipeline.
+    """
+    from synapseclient import Synapse
+
+    client = Synapse.get_client(synapse_client=synapse_client)
+    return await client.rest_post_async(
+        uri="/search/pipeline", body=json.dumps(request)
+    )
+
+
+async def get_search_pipeline(
+    search_pipeline_id: str,
+    *,
+    synapse_client: Optional["Synapse"] = None,
+) -> Dict[str, Any]:
+    """Get a NamedSearchPipeline by its ID.
+
+    <https://rest-docs.synapse.org/rest/GET/search/pipeline/searchPipelineId.html>
+
+    Arguments:
+        search_pipeline_id: The ID of the search pipeline to retrieve.
+        synapse_client: If not passed in and caching was not disabled by
+            `Synapse.allow_client_caching(False)` this will use the last created
+            instance from the Synapse class constructor.
+
+    Returns:
+        A dictionary representing the requested NamedSearchPipeline.
+    """
+    from synapseclient import Synapse
+
+    client = Synapse.get_client(synapse_client=synapse_client)
+    return await client.rest_get_async(uri=f"/search/pipeline/{search_pipeline_id}")
+
+
+async def update_search_pipeline(
+    search_pipeline_id: str,
+    request: Dict[str, Any],
+    *,
+    synapse_client: Optional["Synapse"] = None,
+) -> Dict[str, Any]:
+    """Update a NamedSearchPipeline.
+
+    <https://rest-docs.synapse.org/rest/PUT/search/pipeline/searchPipelineId.html>
+
+    Arguments:
+        search_pipeline_id: The path ID (must match the request body's ID).
+        request: The updated search pipeline. The new `settings` are validated
+            with the same rules as create. The `organizationName` and `name`
+            fields are immutable after creation. Concurrency is managed via
+            `etag`; mismatches return a 409 Conflict.
+        synapse_client: If not passed in and caching was not disabled by
+            `Synapse.allow_client_caching(False)` this will use the last created
+            instance from the Synapse class constructor.
+
+    Returns:
+        A dictionary representing the updated NamedSearchPipeline.
+    """
+    from synapseclient import Synapse
+
+    client = Synapse.get_client(synapse_client=synapse_client)
+    return await client.rest_put_async(
+        uri=f"/search/pipeline/{search_pipeline_id}", body=json.dumps(request)
+    )
+
+
+async def list_search_pipelines(
+    organization_name: Optional[str] = None,
+    next_page_token: Optional[str] = None,
+    *,
+    synapse_client: Optional["Synapse"] = None,
+) -> Dict[str, Any]:
+    """List NamedSearchPipeline objects, optionally filtered by Organization.
+
+    <https://rest-docs.synapse.org/rest/POST/search/pipeline/list.html>
+
+    Arguments:
+        organization_name: If organizationName is null, all search pipelines
+            across all Organizations are returned.
+        next_page_token: Results are paginated using a next page token.
+        synapse_client: If not passed in and caching was not disabled by
+            `Synapse.allow_client_caching(False)` this will use the last created
+            instance from the Synapse class constructor.
+
+    Returns:
+        A dictionary representing the ListNamedSearchPipelinesResponse,
+        containing a page of NamedSearchPipelines and a nextPageToken if more
+        results exist.
+    """
+    from synapseclient import Synapse
+
+    client = Synapse.get_client(synapse_client=synapse_client)
+    body = {"organizationName": organization_name, "nextPageToken": next_page_token}
+    delete_none_keys(body)
+    return await client.rest_post_async(
+        uri="/search/pipeline/list", body=json.dumps(body)
     )
 
 
