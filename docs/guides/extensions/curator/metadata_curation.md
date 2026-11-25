@@ -49,11 +49,51 @@ Before creating a curation task, make sure you have the following:
 - **Synapse account:** Create a Synapse account and complete the Synapse Certification Quiz.
 - **Synapse Python Client:** [Install the client](https://python-docs.synapse.org/en/stable/tutorials/installation/) with the Curator extras (`pip install --upgrade "synapseclient[curator]"`) and [configure your credentials](https://python-docs.synapse.org/en/stable/tutorials/authentication/).
 - **Project and folder permissions:** Have **Edit permissions or higher** for the Synapse project and folder where you will manage metadata. Note the folder's Synapse ID for use in the examples.
-- **JSON Schema:** Browse [existing schemas](https://sage-bionetworks.github.io/core-models/) or create your own. You will need a **versioned schema URI**, such as `MyOrganization-MySchema-1.0.0`. For details, see the [Schema Operations Guide](https://python-docs.synapse.org/en/stable/guides/extensions/curator/schema_operations/).
+- **JSON Schema:** Browse [existing schemas](https://sage-bionetworks.github.io/core-models/) or create your own. You will need a **versioned schema URI**, such as `MyOrganization-MySchema-1.0.0`. To look one up, see [Find a JSON Schema](#find-a-json-schema). To create your own, see the [Schema Operations Guide](https://python-docs.synapse.org/en/stable/guides/extensions/curator/schema_operations/).
 
 !!! note
 
     Schema URIs and Synapse IDs in the examples below are *placeholders*. Replace them with values from your own Synapse project.
+
+## Find a JSON Schema
+
+Both helpers take a **versioned schema URI** as `schema_uri`. To find one, list the schemas registered to your organization, then list the versions of the schema you want.
+
+```python
+from synapseclient import Synapse
+from synapseclient.models import JSONSchema, Organization
+
+# Authenticate with Synapse using your configured credentials.
+syn = Synapse()
+syn.login()
+
+# List the JSON Schemas registered to an organization.
+organization = Organization(name="MyOrganization")
+for schema in organization.get_json_schemas(synapse_client=syn):
+    print(schema.uri)
+
+# List the versions of one schema as versioned URIs.
+schema = JSONSchema(organization_name="MyOrganization", name="BiospecimenMetadata")
+for version in schema.get_versions(synapse_client=syn):
+    print(f"{schema.uri}-{version.semantic_version}")
+```
+
+**Example output**
+
+```text
+Welcome, <Your Name>!
+
+MyOrganization-BiospecimenMetadata
+MyOrganization-FileMetadata
+MyOrganization-BiospecimenMetadata-1.1.0
+MyOrganization-BiospecimenMetadata-1.0.0
+```
+
+- **Use a versioned URI:** Pass a URI that ends in a version, such as `MyOrganization-BiospecimenMetadata-1.0.0`, as `schema_uri` in the examples below.
+- **Check the version order:** Versions are not returned in version order. Compare the version numbers to pick the one you want.
+- **Find your organization:** If you don't know your organization's name, `list_organizations()` from `synapseclient.models.organization` lists every schema organization in Synapse.
+
+For details, see [Organization.get_json_schemas][synapseclient.models.Organization.get_json_schemas] and [JSONSchema.get_versions][synapseclient.models.JSONSchema.get_versions].
 
 ## Create a Record-Based Metadata Task
 
@@ -135,10 +175,10 @@ Welcome, <Your Name>!
 
 Extracted schema properties and created template: ['sampleId', 'participantId', 'specimenType', 'tissue', ...]
 Uploading to Synapse storage: 100%|██████████|
-Created RecordSet with ID: syn12345678 in folder syn12345678
+Created RecordSet with ID: syn51234567 in folder syn12345678
 Bound schema MyOrganization-BiospecimenMetadata-1.0.0 to RecordSet ID: syn51234567
 Created CurationTask (1234) with name Curate Biospecimen Metadata
-RecordSet ID: syn12345678
+RecordSet ID: syn51234567
 CurationTask ID: 1234
 ```
 
@@ -152,7 +192,7 @@ This example creates an `EntityView` of files in a folder and a corresponding `C
 
 
 !!! info
- 
+
     - **Set `return_entities=True`.** Returning objects is planned to become the default in **v5.0.0**, when `return_entities` will be removed.
     - **Before running:** Replace `folder_id` and `schema_uri`. Update `column_order` to match available view columns. This example assumes your schema includes `sampleId`, `assay`, and `fileFormat`.
     - **Add at least one file first:** Make sure the folder contains at least one file before you create a file-based metadata task. The `EntityView` lists the files in the folder, so contributors will have nothing to annotate if the folder is empty.
@@ -305,7 +345,7 @@ The following parameters apply only to `create_file_based_metadata_task()`.
 
 !!! note
 
-    The supplied API reference indicates that returning objects is planned to become the default in **v5.0.0**, when `return_entities` is also scheduled for removal.
+    Returning objects is planned to become the default in **v5.0.0**, when `return_entities` is also scheduled for removal.
 
 ### Grid Access Options
 
@@ -377,13 +417,13 @@ The number and type of values returned by each helper depend on its compatibilit
 | Function and setting | Returned values, in order |
 | --- | --- |
 | Record-based with `create_grid=False` (*recommended*) | `RecordSet`, `CurationTask` |
-| Record-based with `create_grid=True` (*current default in supplied signature; deprecated*) | `RecordSet`, `CurationTask`, `Grid` |
+| Record-based with `create_grid=True` (*current default; deprecated*) | `RecordSet`, `CurationTask`, `Grid` |
 | File-based with `return_entities=True` (*recommended*) | `EntityView`, `CurationTask` |
-| File-based with `return_entities=False` (*current default in supplied signature; deprecated*) | `EntityView` ID, task ID |
+| File-based with `return_entities=False` (*current default; deprecated*) | `EntityView` ID, task ID |
 
 !!! note
 
-    **Keep `return_entities=True` and `create_grid=False`.** The current defaults (`return_entities=False` and `create_grid=True`) are deprecated and scheduled for removal in **Synapse Python Client v5.0.0**. Setting these values explicitly keeps your scripts working the same way after that release.
+    **Set `return_entities=True` and `create_grid=False` now.** The current defaults (`return_entities=False` and `create_grid=True`) are deprecated, and both parameters are scheduled for removal in **Synapse Python Client v5.0.0**. These settings give you the v5.0.0 return values today. When you upgrade to v5.0.0, remove both keywords from your calls, because passing a removed parameter raises a `TypeError`.
 
 ### Created Objects and Workflow Properties
 
