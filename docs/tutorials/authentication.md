@@ -216,13 +216,13 @@ synapse store --parentid syn123 ~/foobar.txt
 When you log in, the Synapse Python Client checks these sources in order and uses the first one that gives a token:
 
 1. **User arguments**: the `authToken` argument to `login()`, or `-p`/`--password` on the command line.
-2. **The `.synapseConfig` file**: the `authtoken` in the selected profile. The profile is the `profile` argument in Python, or `--profile` or `SYNAPSE_PROFILE` on the command line. If no profile is given, the `[default]` section is used, or the `[authentication]` section if there is no `[default]` section or it is empty. If you name a profile that is not in the file, login fails with an error and the sources below are not checked.
+2. **The `.synapseConfig` file**: the `authtoken` in the selected profile. The profile is the `profile` argument in Python, or `--profile` or `SYNAPSE_PROFILE` on the command line. If no profile is given, the `[default]` section is used, or the deprecated `[authentication]` section if there is no `[default]` section or it is empty. If you name a profile that is not in the file, login fails with an error and the sources below are not checked.
 3. **The `SYNAPSE_AUTH_TOKEN` environment variable.**
 4. **AWS SSM Parameter Store**: the parameter named by the `SYNAPSE_TOKEN_AWS_SSM_PARAMETER_NAME` environment variable. This needs `boto3`.
 
-This means a token in your `.synapseConfig` file is used before `SYNAPSE_AUTH_TOKEN`. To make the token in `SYNAPSE_AUTH_TOKEN` the one that is used, for example in CI, do one of these:
+This means a token in your `.synapseConfig` file is used before `SYNAPSE_AUTH_TOKEN`. If you have both, for example a local machine with an existing config file or a container with a mounted config file, do one of these to use `SYNAPSE_AUTH_TOKEN`:
 
-- Remove the `authtoken` lines from the `[default]` and `[authentication]` sections of your `.synapseConfig` file. If you select a profile, remove the `authtoken` from that profile instead.
+- Remove the `authtoken` line from the `[default]` section of your `.synapseConfig` file, and from the deprecated `[authentication]` section if your file still has one. If you select a profile, remove the `authtoken` from that profile instead.
 - Pass the token explicitly, for example `syn.login(authToken=os.environ["SYNAPSE_AUTH_TOKEN"])` in Python or `synapse -p "$SYNAPSE_AUTH_TOKEN" <command>` on the command line.
 
 ### For more information, see:

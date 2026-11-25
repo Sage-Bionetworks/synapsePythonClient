@@ -957,16 +957,15 @@ class Synapse(object):
         2. The `authtoken` in the selected profile of the `.synapseConfig` file (in the
             user home folder unless configured otherwise). The profile is the `profile`
             argument, or `--profile`/`SYNAPSE_PROFILE` on the command line. The
-            `[authentication]` section is used if there is no `[default]` section or it
-            is empty.
+            deprecated `[authentication]` section is used if there is no `[default]`
+            section or it is empty.
         3. The `SYNAPSE_AUTH_TOKEN` environment variable (a Personal Access Token,
             aka: Synapse Auth Token)
         4. AWS SSM Parameter Store, using the parameter named by the
             `SYNAPSE_TOKEN_AWS_SSM_PARAMETER_NAME` environment variable (if configured)
 
-        A token in the `.synapseConfig` file is used before `SYNAPSE_AUTH_TOKEN`. To
-        use `SYNAPSE_AUTH_TOKEN` instead, remove the `authtoken` from the config file
-        or pass the token explicitly with `authToken`.
+        To use `SYNAPSE_AUTH_TOKEN` when the config file also has a token, remove that
+        token or pass it with `authToken`.
 
         Arguments:
             email (str): Synapse user name (or an email address associated with a Synapse account)
