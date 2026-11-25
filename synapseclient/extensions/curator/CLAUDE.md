@@ -1,4 +1,4 @@
-<!-- Last reviewed: 2026-03 -->
+<!-- Last reviewed: 2026-10 -->
 
 ## Project
 
@@ -6,7 +6,7 @@ Schema curation tools for data modeling — JSON Schema generation from CSV/JSON
 
 ## Stack
 
-Optional dependencies (gated by `[curator]` extras): pandas, pandarallel, networkx, rdflib, inflection, dataclasses-json.
+Optional dependencies (gated by `[curator]` extras): pandas, networkx, rdflib, inflection, dataclasses-json.
 
 ## Conventions
 

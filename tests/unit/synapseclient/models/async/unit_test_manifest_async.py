@@ -443,6 +443,27 @@ class TestApplySynapseStoreDefaults:
         _apply_synapse_store_defaults(df)
         assert df["synapseStore"].dtype == bool
 
+    def test_blank_column_read_from_csv(self, tmp_path: Path) -> None:
+        """A synapseStore column with only blank cells is read as float64.
+        Local paths default to True and URL paths are set to False."""
+        # GIVEN a manifest CSV with a local path and a URL path
+        manifest = tmp_path / "manifest.csv"
+        manifest.write_text(
+            "path,parentId,synapseStore\n/a.txt,syn1,\nhttps://example.com/f.csv,syn1,\n"
+        )
+
+        # AND a DataFrame read from the CSV, where the synapseStore column is blank
+        df = pd.read_csv(manifest)
+
+        # WHEN I apply the synapseStore defaults
+        _apply_synapse_store_defaults(df)
+
+        # THEN the local path is True and the URL path is False
+        assert list(df["synapseStore"]) == [True, False]
+
+        # AND the column has the bool dtype
+        assert df["synapseStore"].dtype == bool
+
 
 class TestCheckPathAndNormalize:
     @pytest.fixture(autouse=True)

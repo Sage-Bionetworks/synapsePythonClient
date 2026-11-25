@@ -234,8 +234,8 @@ entity_view, curation_task = create_file_based_metadata_task(
         "Annotate each file according to the schema requirements. Use sampleId to identify the biospecimen associated with each file."
     ),
 
-    # True: Attach a wiki containing the EntityView to the folder.
-    # False (default): Do not attach a wiki.
+    # True: Show the EntityView on the folder's wiki page, creating the wiki if needed.
+    # False (default): Do not change the folder's wiki.
     attach_wiki=False,
 
     # Name of the EntityView created for the task.
@@ -355,7 +355,7 @@ The following parameters apply only to `create_file_based_metadata_task()`.
 
 | Parameter | Type / default | Description and options |
 | --- | --- | --- |
-| `attach_wiki` | `bool` — default: `False` | `True` attaches a wiki containing the `EntityView` to the folder; `False` does not. |
+| `attach_wiki` | `bool` — default: `False` | `True` adds the `EntityView` to the folder's wiki page, creating the wiki if the folder has none, so people browsing the folder can see it. `False` leaves the wiki unchanged. |
 | `entity_view_name` | `str` — default: `"JSON Schema view"` | Name of the `EntityView` created for the task. |
 | `view_type_mask` | `ViewTypeMask` or `int` — default: `ViewTypeMask.FILE` | Controls which object types are included in the view. Use `ViewTypeMask.FILE` for a standard file-annotation task. |
 | `return_entities` | `bool` — default: `False` | `False` returns view and task IDs; `True` returns `EntityView` and `CurationTask` objects. |

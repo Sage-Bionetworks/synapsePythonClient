@@ -1,4 +1,4 @@
-FROM python:3.14-slim
+FROM python:3.15-slim
 RUN echo 'debconf debconf/frontend select Noninteractive' | debconf-set-selections
 
 RUN apt-get update \

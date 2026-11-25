@@ -4908,6 +4908,7 @@ class GridSynchronousProtocol(Protocol):
         *,
         sync_type: Optional[Union[SyncType, str]] = None,
         timeout: int = 120,
+        raise_on_error: bool = False,
         synapse_client: Optional[Synapse] = None,
     ) -> "Grid":
         """
@@ -4927,6 +4928,15 @@ class GridSynchronousProtocol(Protocol):
                 currently only supported for RecordSet-based grids.
             timeout: The number of seconds to wait for the job to complete or progress
                 before raising a SynapseTimeoutError. Defaults to 120.
+            raise_on_error: If True, raise a SynapseError when the synchronization
+                reports changes in the grid that it could not write to the source.
+                If False, those changes are logged and the method returns normally.
+                Defaults to False. Schema validation errors are not reported this
+                way. To find invalid rows, call
+                `validate_rows` on a connected Grid before synchronizing, or, after
+                a `SyncType.PULL_PUSH` on a RecordSet-based grid, re-fetch the
+                RecordSet and call `get_detailed_validation_results`. See
+                <https://python-docs.synapse.org/en/stable/guides/extensions/curator/metadata_contribution/>.
             synapse_client: If not passed in and caching was not disabled by
                 `Synapse.allow_client_caching(False)` this will use the last created
                 instance from the Synapse class constructor.
@@ -4936,6 +4946,9 @@ class GridSynchronousProtocol(Protocol):
 
         Raises:
             ValueError: If session_id is not provided.
+            SynapseError: If `raise_on_error` is True and the synchronization could
+                not write some changes to the source. The other changes were written
+                and are not undone.
 
         Example: Synchronize a grid session created from a file view
             &nbsp;
@@ -4978,6 +4991,29 @@ class GridSynchronousProtocol(Protocol):
 
             # Push the merged result back as a new RecordSet version
             grid = grid.synchronize(sync_type=SyncType.PULL_PUSH)
+            ```
+
+        Example: Stop when the synchronization is only partial
+            &nbsp;
+            By default, changes the synchronization could not write to the source
+            are only logged. Pass `raise_on_error=True` to have them raised instead.
+
+            ```python
+            from synapseclient import Synapse
+            from synapseclient.core.exceptions import SynapseError
+            from synapseclient.models import Grid
+            from synapseclient.models.curation import SyncType
+
+            syn = Synapse()
+            syn.login()
+
+            grid = Grid(session_id="abc-123-def")
+            try:
+                grid = grid.synchronize(
+                    sync_type=SyncType.PULL_PUSH, raise_on_error=True
+                )
+            except SynapseError as error:
+                print(error)
             ```
         """
         return self
@@ -6114,6 +6150,7 @@ class Grid(EnumCoercionMixin, GridSynchronousProtocol):
         *,
         sync_type: Optional[Union[SyncType, str]] = None,
         timeout: int = 120,
+        raise_on_error: bool = False,
         synapse_client: Optional[Synapse] = None,
     ) -> "Grid":
         """
@@ -6133,6 +6170,15 @@ class Grid(EnumCoercionMixin, GridSynchronousProtocol):
                 currently only supported for RecordSet-based grids.
             timeout: The number of seconds to wait for the job to complete or progress
                 before raising a SynapseTimeoutError. Defaults to 120.
+            raise_on_error: If True, raise a SynapseError when the synchronization
+                reports changes in the grid that it could not write to the source.
+                If False, those changes are logged and the method returns normally.
+                Defaults to False. Schema validation errors are not reported this
+                way. To find invalid rows, call
+                `validate_rows` on a connected Grid before synchronizing, or, after
+                a `SyncType.PULL_PUSH` on a RecordSet-based grid, re-fetch the
+                RecordSet and call `get_detailed_validation_results`. See
+                <https://python-docs.synapse.org/en/stable/guides/extensions/curator/metadata_contribution/>.
             synapse_client: If not passed in and caching was not disabled by
                 `Synapse.allow_client_caching(False)` this will use the last created
                 instance from the Synapse class constructor.
@@ -6142,6 +6188,9 @@ class Grid(EnumCoercionMixin, GridSynchronousProtocol):
 
         Raises:
             ValueError: If session_id is not provided.
+            SynapseError: If `raise_on_error` is True and the synchronization could
+                not write some changes to the source. The other changes were written
+                and are not undone.
 
         Example: Synchronize a grid session created from a file view
             &nbsp;
@@ -6193,6 +6242,33 @@ class Grid(EnumCoercionMixin, GridSynchronousProtocol):
 
             asyncio.run(main())
             ```
+
+        Example: Stop when the synchronization is only partial
+            &nbsp;
+            By default, changes the synchronization could not write to the source
+            are only logged. Pass `raise_on_error=True` to have them raised instead.
+
+            ```python
+            import asyncio
+            from synapseclient import Synapse
+            from synapseclient.core.exceptions import SynapseError
+            from synapseclient.models import Grid
+            from synapseclient.models.curation import SyncType
+
+            syn = Synapse()
+            syn.login()
+
+            async def main():
+                grid = Grid(session_id="abc-123-def")
+                try:
+                    grid = await grid.synchronize_async(
+                        sync_type=SyncType.PULL_PUSH, raise_on_error=True
+                    )
+                except SynapseError as error:
+                    print(error)
+
+            asyncio.run(main())
+            ```
         """
         if not self.session_id:
             raise ValueError("session_id is required to synchronize a GridSession")
@@ -6205,11 +6281,17 @@ class Grid(EnumCoercionMixin, GridSynchronousProtocol):
         )
 
         if result.error_messages:
-            client = Synapse.get_client(synapse_client=synapse_client)
-            client.logger.error(
-                f"Grid session '{self.session_id}' synchronization completed with "
-                f"error messages: {result.error_messages}"
+            errors = "\n".join(f"  - {error}" for error in result.error_messages)
+            message = (
+                f"Grid session '{self.session_id}' was only partially synchronized. "
+                f"{len(result.error_messages)} change(s) could not be written to the "
+                f"source:\n{errors}\n"
+                "All other changes were written and are not undone. Fix or remove the "
+                "changes above in the grid, then synchronize again."
             )
+            if raise_on_error:
+                raise SynapseError(message)
+            Synapse.get_client(synapse_client=synapse_client).logger.error(message)
 
         return self
 

@@ -71,7 +71,12 @@ def _describe_wrapper(df: DATA_FRAME_TYPE, syn: Synapse) -> dict[str, dict[str, 
                 stats[column]["dtype"] = df[column].dtype.name
             else:
                 stats[column]["mode"] = df[column].mode()[0]
-                stats[column]["dtype"] = df[column].dtype.name
+                # pandas 3 reports "str" for text columns; keep "object"
+                stats[column]["dtype"] = (
+                    "object"
+                    if pd.api.types.is_string_dtype(df[column].dtype)
+                    else df[column].dtype.name
+                )
 
         except TypeError:
             syn.logger.info(f"Invalid column type: {column}")

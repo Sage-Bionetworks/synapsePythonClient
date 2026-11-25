@@ -259,7 +259,12 @@ async def _handle_file_entity(
     entity_instance.file_handle = FileHandle().fill_from_dict(
         synapse_instance=file_handle
     )
-    entity_instance._fill_from_file_handle()
+    # Synapse omits the file handle from the bundle when the caller lacks DOWNLOAD
+    # permission (e.g. unmet access requirements). Only copy file handle fields onto
+    # the entity when one was returned so that `dataFileHandleId` from the entity
+    # is preserved.
+    if file_handle:
+        entity_instance._fill_from_file_handle()
 
     if download_file:
         if file_handle:

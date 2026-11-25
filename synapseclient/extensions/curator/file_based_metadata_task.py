@@ -389,7 +389,7 @@ def create_file_based_metadata_task(
             folder_id="syn12345678",
             curation_task_name="BiospecimenMetadataTemplate",
             instructions="Please curate this metadata according to the schema requirements",
-            attach_wiki=False, # Optional: whether to attach a Synapse Wiki
+            attach_wiki=False, # Optional: show the entity view on the folder's wiki page
             entity_view_name="Biospecimen Metadata View", # Optional: name for the created entity view
             schema_uri="sage.schemas.v2571-amp.Biospecimen.schema-0.0.1", # Optional: JSON schema URI to bind to the folder
             assignee_principal_id=123456, # Optional: Assign to a user or team (can be str or int)
@@ -453,7 +453,10 @@ def create_file_based_metadata_task(
             Must be unique within the project, otherwise if it matches an existing
             CurationTask, that task will be updated with new data.
         instructions: Instructions for the curation task.
-        attach_wiki: Whether or not to attach a Synapse Wiki (default: False).
+        attach_wiki: If True, add the EntityView to the folder's wiki page so
+            people browsing the folder can see it (an EntityView isn't listed in
+            the folder itself). Creates the wiki if the folder has none.
+            Defaults to False.
         entity_view_name: Name for the created entity view (default: "JSON Schema view").
         schema_uri: Optional JSON schema URI to bind to the folder. If provided,
             the schema will be bound to the folder before creating the entity view.

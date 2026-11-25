@@ -24,6 +24,9 @@ import synapseclient
 
 _PYPI_JSON_URL = "https://pypi.org/pypi/synapseclient/json"
 _RELEASE_NOTES_URL = "https://python-docs.synapse.org/news/"
+# Accepts release, pre-release, post-release, and dev versions such as
+#  1.0, 4.14.0, 4.14.0rc1, 4.14.0.post1, and 0.5.1.dev200
+_VERSION_PATTERN = re.compile(r"\d+(\.\d+)*((a|b|rc)\d+)?(\.post\d+)?(\.dev\d+)?")
 
 
 def version_check(
@@ -88,7 +91,7 @@ def check_for_updates(logger: logging.Logger = None):
         logger: a logger for logging output
 
     """
-    current_version = synapseclient.__version__
+    current_version = _validate_version(synapseclient.__version__)
     latest_version = _get_version_info_from_pypi()
 
     msg = (
@@ -154,12 +157,11 @@ def _version_check(
     """
     if not current_version:
         current_version = synapseclient.__version__
-    assert isinstance(current_version, str)
+    current_version = _validate_version(current_version)
 
     if use_local_metadata:
         metadata = _get_local_package_metadata()
-        latest_version = metadata["latestVersion"]
-        assert isinstance(latest_version, str)
+        latest_version = _validate_version(metadata["latestVersion"])
     else:
         latest_version = _get_version_info_from_pypi()
 
@@ -198,8 +200,26 @@ def _get_version_info_from_pypi() -> str:
     """
     content = httpx.get(_PYPI_JSON_URL)
     data = json.load(content)
-    version = data["info"]["version"]
-    assert isinstance(version, str)
+    return _validate_version(data["info"]["version"])
+
+
+def _validate_version(version: Any) -> str:
+    """
+    Makes sure that a version is a string in a known version format.
+    This prevents untrusted data, such as newline characters, from getting
+      into log messages.
+
+    Arguments:
+        version: The version to validate
+
+    Raises:
+        ValueError: If the version is not a string in a known version format
+
+    Returns:
+        str: The version, if it is valid
+    """
+    if not isinstance(version, str) or not _VERSION_PATTERN.fullmatch(version):
+        raise ValueError(f"Invalid version: {version!r}")
     return version
 
 

@@ -3906,6 +3906,58 @@ class TestSynchronizeGrid:
                 assert "sync_error_1" in error_message
                 assert "sync_error_2" in error_message
 
+    @pytest.mark.parametrize("error_messages", [None, []])
+    async def test_synchronize_grid_async_raise_on_error_without_errors(
+        self, error_messages
+    ) -> None:
+        # GIVEN a Grid whose synchronization reports no errors
+        grid = Grid(session_id=SESSION_ID)
+        mock_sync_response = SynchronizeGridRequest(
+            grid_session_id=SESSION_ID,
+            error_messages=error_messages,
+        )
+
+        # WHEN I call synchronize_async with raise_on_error=True
+        with patch(
+            "synapseclient.models.curation.SynchronizeGridRequest.send_job_and_wait_async",
+            new_callable=AsyncMock,
+            return_value=mock_sync_response,
+        ):
+            result = await grid.synchronize_async(
+                raise_on_error=True, synapse_client=self.syn
+            )
+
+        # THEN it returns the grid
+        assert result is grid
+
+    async def test_synchronize_grid_async_raise_on_error_with_errors(self) -> None:
+        # GIVEN a Grid whose synchronization reports errors
+        grid = Grid(session_id=SESSION_ID)
+        mock_sync_response = SynchronizeGridRequest(
+            grid_session_id=SESSION_ID,
+            error_messages=["sync_error_1", "sync_error_2"],
+        )
+
+        # WHEN I call synchronize_async with raise_on_error=True
+        with patch(
+            "synapseclient.models.curation.SynchronizeGridRequest.send_job_and_wait_async",
+            new_callable=AsyncMock,
+            return_value=mock_sync_response,
+        ):
+            with patch.object(self.syn, "logger") as mock_logger:
+                # THEN it raises a SynapseError naming the session and every message
+                with pytest.raises(SynapseError) as raised:
+                    await grid.synchronize_async(
+                        raise_on_error=True, synapse_client=self.syn
+                    )
+
+                # AND nothing is logged
+                mock_logger.error.assert_not_called()
+
+        assert SESSION_ID in str(raised.value)
+        assert "sync_error_1" in str(raised.value)
+        assert "sync_error_2" in str(raised.value)
+
 
 class TestSelectColumn:
     """Tests for the SelectColumn dataclass."""

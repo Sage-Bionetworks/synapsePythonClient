@@ -169,7 +169,7 @@ Welcome, last first! You are using the 'profile_name' profile.
 
 Setting the `SYNAPSE_AUTH_TOKEN` environment variable will allow you to login to Synapse with a [Personal Access Token](https://help.synapse.org/docs/Managing-Your-Account.2055405596.html#ManagingYourAccount-PersonalAccessTokens)
 
-The environment variable will take priority over credentials in the user's `.synapseConfig` file.
+The `.synapseConfig` file is checked before the environment variable. If the selected profile in your `.synapseConfig` file has an `authtoken`, that token is used and `SYNAPSE_AUTH_TOKEN` is ignored. See [Order in which credentials are checked](#order-in-which-credentials-are-checked).
 
 In your shell, you can pass an environment variable to Python inline by defining it before the command:
 
@@ -184,7 +184,7 @@ export SYNAPSE_AUTH_TOKEN='<my_personal_access_token>'
 python3
 ```
 
-Setting the `SYNAPSE_PROFILE` environment variable will allow you to log into Synapse using a specific authentication profile present in your `.synapseConfig` file. This allows you to have multiple profiles present in a single configuration file that you may swap between. Alternatively, you may use the `profile` parameter in Python, or the `--profile` command line flag for all commands like `synapse --profile <profile_name> COMMAND`.
+Setting the `SYNAPSE_PROFILE` environment variable will allow you to log into Synapse using a specific authentication profile present in your `.synapseConfig` file. This allows you to have multiple profiles present in a single configuration file that you may swap between. Alternatively, you may use the `profile` parameter in Python, or the `--profile` command line flag for all commands like `synapse --profile <profile_name> COMMAND`. In Python, `login()` ignores `SYNAPSE_PROFILE` unless you pass `profile=None`.
 
 Once you are inside Python, you may simply login without passing any arguments, or pass a profile argument to access a specific profile:
 
@@ -210,6 +210,20 @@ export SYNAPSE_AUTH_TOKEN='<my_personal_access_token>'
 synapse get syn123
 synapse store --parentid syn123 ~/foobar.txt
 ```
+
+## Order in which credentials are checked
+
+When you log in, the Synapse Python Client checks these sources in order and uses the first one that gives a token:
+
+1. **User arguments**: the `authToken` argument to `login()`, or `-p`/`--password` on the command line.
+2. **The `.synapseConfig` file**: the `authtoken` in the selected profile. The profile can be selected by the `profile` argument in Python, `--profile` in the command line, or the `SYNAPSE_PROFILE` environment variable. If no profile is given, the `[default]` section is used, or the deprecated `[authentication]` section if there is no `[default]` section or it is empty. If you name a profile that is not in the file, login fails with an error and the sources below are not checked.
+3. **The `SYNAPSE_AUTH_TOKEN` environment variable.**
+4. **AWS SSM Parameter Store**: the parameter named by the `SYNAPSE_TOKEN_AWS_SSM_PARAMETER_NAME` environment variable. This needs `boto3`.
+
+This means a token in your `.synapseConfig` file is used before `SYNAPSE_AUTH_TOKEN`. If you have both, for example a local machine with an existing config file or a container with a mounted config file, do one of these to use `SYNAPSE_AUTH_TOKEN`:
+
+- Remove the `authtoken` line from the `[default]` section of your `.synapseConfig` file, and from the deprecated `[authentication]` section if your file still has one. If you select a profile, remove the `authtoken` from that profile instead.
+- Pass the token explicitly, for example `syn.login(authToken=os.environ["SYNAPSE_AUTH_TOKEN"])` in Python or `synapse -p "$SYNAPSE_AUTH_TOKEN" <command>` on the command line.
 
 ### For more information, see:
 

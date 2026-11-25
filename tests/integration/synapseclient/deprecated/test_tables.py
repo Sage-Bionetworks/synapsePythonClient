@@ -402,11 +402,17 @@ def test_tables_pandas(syn, project, schedule_for_cleanup):
 
     # SYNPY-717
     # This is a check for windows
+    # The client returns DATE columns as datetime64[ns, UTC]. pandas 2 and later can
+    # give other resolutions, so force ns resolution on the expected column
     if os.name == "nt":
-        df["datetime64"] = pd.to_datetime(df["datetime64"], utc=True)
+        df["datetime64"] = pd.to_datetime(df["datetime64"], utc=True).astype(
+            "datetime64[ns, UTC]"
+        )
     else:
         df["datetime64"] = df["datetime64"].astype(int)
-        df["datetime64"] = pd.to_datetime(df["datetime64"], unit="ms", utc=True)
+        df["datetime64"] = pd.to_datetime(df["datetime64"], unit="ms", utc=True).astype(
+            "datetime64[ns, UTC]"
+        )
 
     # df2 == df gives Dataframe of boolean values; first .all() gives a Series object of ANDed booleans of each column;
     # second .all() gives a bool that is ANDed value of that Series

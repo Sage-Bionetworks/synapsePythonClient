@@ -9,6 +9,39 @@ detailing some of the changes.
 the 4.x.x versions hidden behind optional feature flags or different import paths. Any
 breaking changes will not be included until v5.0.
 
+
+## 4.15.0
+
+## Highlights
+
+- The Synapse Python Client now supports Python 3.15 and pandas 3.x.
+- **Breaking change:** Support for Python 3.10 is removed. Python 3.11 or newer is now necessary.
+- When you store a JSON schema, the client now records its version information.
+- If you can read a file but cannot download it (for example, because of an unmet access requirement), you can now move or update it. The client no longer loses the file handle ID.
+- The schema registry functions in the curator extension are deprecated. Use the Organization and JSONSchema models instead.
+- Many security fixes from dependency updates.
+
+## Features
+
+- [SYNPY-1926] Added support for Python 3.15 by @andrewelamb in #1470
+- [SYNPY-1933] Added support for pandas 3.x (pandas>=1.5,<4.0). The curator extension no longer depends on pandarallel. by @andrewelamb in #1471
+- [SYNPY-1910] Removed support for Python 3.10 by @andrewelamb in #1464
+- [SYNPY-1795] JSONSchema now saves version information when it is stored by @andrewelamb in #1463
+- [SYNPY-1913] Added the source_entity_version_number field to the Grid and GridSession models by @andrewelamb in #1465
+
+## Bug Fixes
+
+- [SYNPY-1941] Kept data_file_handle_id when Synapse withholds the file handle (for example, unmet access requirements), so that store() works for these files by @thomasyu888 in #1474
+
+## Tech Debt
+
+- [SYNPY-1930] Deprecated the query_schema_registry and get_latest_schema_uri functions (to be removed in 5.0.0). Use the Organization and JSONSchema models instead. by @andrewelamb in #1467
+- [SYNPY-1928] Fixed security issues by updating packages by @andrewelamb in #1466
+- [SYNPY-1942] Fixed critical and high security and code scanning alerts by @andrewelamb in #1475
+- Fixed Trivy failures that blocked Docker image publishing by @BryanFauble in #1468
+- [SYNPY-1924] Disabled agent integration tests that timed out in CI by @linglp in #1460
+
+
 ## 4.14.0
 
 ## Highlights

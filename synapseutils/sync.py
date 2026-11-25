@@ -5,6 +5,7 @@ import asyncio
 import csv
 import datetime
 import io
+import math
 import os
 import re
 import sys
@@ -982,6 +983,10 @@ def _write_manifest_data(filename: str, keys: List[str], data: List[dict]) -> No
 
 def _sortAndFixProvenance(syn, df):
     df = df.set_index("path")
+    # Lists are written into these cells, which a str dtype column cannot hold
+    for col in PROVENANCE_FIELDS:
+        if col in df.columns:
+            df[col] = df[col].astype(object)
     uploadOrder = {}
 
     def _checkProvenace(item, path):
@@ -1106,6 +1111,8 @@ async def readManifestFile_async(syn: Synapse, manifestFile: str) -> DATA_FRAME_
     df = pd.read_csv(manifestFile, sep="\t")
     if "synapseStore" not in df:
         df = df.assign(synapseStore=None)
+    # A blank column is read as float64, which cannot hold bool values
+    df["synapseStore"] = df["synapseStore"].astype(object)
     df.loc[df["path"].apply(is_url), "synapseStore"] = (
         False  # override synapseStore values to False when path is a url
     )
@@ -1537,8 +1544,8 @@ async def _manifest_upload(
 
         item = _SyncUploadItem(
             file,
-            row["used"] if "used" in row else [],
-            row["executed"] if "executed" in row else [],
+            _missing_to_empty_list(row["used"]) if "used" in row else [],
+            _missing_to_empty_list(row["executed"]) if "executed" in row else [],
             activity_name=row["activityName"] if "activityName" in row else None,
             activity_description=(
                 row["activityDescription"] if "activityDescription" in row else None
@@ -1550,6 +1557,20 @@ async def _manifest_upload(
     await uploader.upload(items)
 
     return True
+
+
+def _missing_to_empty_list(
+    value: Union[Iterable[str], float, None],
+) -> Iterable[str]:
+    """Return an empty list if value is None or NaN, otherwise return value unchanged.
+
+    With pandas 3, iterrows gives a str dtype row when every cell is a string or
+    missing, and the missing cells are NaN, not None. An empty list keeps the
+    used and executed values iterable for the upload.
+    """
+    if value is None or (isinstance(value, float) and math.isnan(value)):
+        return []
+    return value
 
 
 def _check_file_name(df, syn: Synapse) -> None:
