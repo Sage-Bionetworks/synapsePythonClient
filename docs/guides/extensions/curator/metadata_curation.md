@@ -450,16 +450,6 @@ These properties describe the objects returned by the helper functions; they are
 | `curation_task.task_properties.file_view_id` | File-based: Synapse ID of the `EntityView`. |
 | `curation_task.task_properties.suggested_authorization_mode` | Access-mode recommendation set by `authorization_mode`. |
 
-### Record-Based Validation Properties
+### Validation Results
 
-After metadata is exported from the grid back to a schema-bound `RecordSet`, Synapse generates a saved **row-level validation report**. Administrators can use the following fields to review the results.
-
-| Property or report column | Description |
-| --- | --- |
-| `record_set.validation_file_handle_id` | Identifies the saved validation report after an export generates validation results. |
-| `row_index` | Identifies the row associated with a validation result. |
-| `is_valid` | Whether the row passed validation: `True` or `False`. |
-| `validation_error_message` | Summary of validation errors for the row. |
-| `all_validation_messages` | All schema-validation messages for the row. |
-
-After contributors synchronize (push) the grid back to the `RecordSet`, fetch the latest version before retrieving the detailed report. Import `RecordSet` with `from synapseclient.models import RecordSet`, then use `record_set = RecordSet(id=record_set.id).get(synapse_client=syn)` to load the latest `validation_file_handle_id`. Retrieve the report with `record_set.get_detailed_validation_results(synapse_client=syn)`. If the method returns `None`, confirm that the schema is bound and the grid changes have been pushed to the `RecordSet`.
+After contributors push grid changes back to a schema-bound `RecordSet`, Synapse generates a row-level validation report. To retrieve and interpret the report, see [Step 8: Review your validation results](metadata_contribution.md#step-8-review-your-validation-results) in the contributor guide.
